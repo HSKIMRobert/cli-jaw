@@ -232,6 +232,7 @@ export function createDashboardMemoryRouter(opts: DashboardMemoryRouterOptions):
                 return;
             }
             const prev = opts.embeddingConfig();
+            if (config.apiKey === '' && prev?.apiKey) delete config.apiKey;
             const merged = { ...prev, ...config };
             const settingsPath = join(opts.dashboardHome, 'embedding.json');
             writeFileSync(settingsPath, JSON.stringify(merged, null, 2), { encoding: 'utf8', mode: 0o600 });
