@@ -14,6 +14,7 @@ import Database from 'better-sqlite3';
 
 const MAX_QUERY_LEN = 256;
 const MAX_RESULT_LIMIT = 200;
+const MAX_RESULT_OFFSET = 1000;
 const DEFAULT_RESULT_LIMIT = 50;
 const MAX_READ_BYTES = 256 * 1024;
 
@@ -67,7 +68,9 @@ export function createDashboardMemoryRouter(opts: DashboardMemoryRouterOptions):
             ? Math.min(Math.max(1, requestedLimit), MAX_RESULT_LIMIT)
             : DEFAULT_RESULT_LIMIT;
         const requestedOffset = Number(req.query["offset"]);
-        const offset = Number.isFinite(requestedOffset) ? Math.max(0, requestedOffset) : 0;
+        const offset = Number.isFinite(requestedOffset)
+            ? Math.min(Math.floor(Math.max(0, requestedOffset)), MAX_RESULT_OFFSET)
+            : 0;
         const modeOverride = String(req.query["mode"] || '').trim() as '' | 'fts5' | 'embedding' | 'hybrid';
         try {
             const scan = await opts.scanSupplier();
@@ -82,7 +85,8 @@ export function createDashboardMemoryRouter(opts: DashboardMemoryRouterOptions):
                 const fetchLimit = offset > 0 ? limit + offset : limit;
                 const result = searchFederated(q, { instances: targets, globalLimit: fetchLimit });
                 const paged = offset > 0 ? result.hits.slice(offset) : result.hits;
-                res.json({ ok: true, mode: 'fts5', ...result, hits: paged.slice(0, limit), total: result.hits.length, offset });
+                const hitsPage = paged.slice(0, limit);
+                res.json({ ok: true, mode: 'fts5', ...result, hits: hitsPage, total: result.hits.length, offset, hasMore: paged.length > limit });
             } else if (searchMode === 'embedding') {
                 const fetchLimit = offset > 0 ? limit + offset : limit;
                 const provider = await createProvider(embConfig);
@@ -101,12 +105,14 @@ export function createDashboardMemoryRouter(opts: DashboardMemoryRouterOptions):
                     embeddingDistance: v.distance,
                 }));
                 const paged = offset > 0 ? allHits.slice(offset) : allHits;
+                const hitsPage = paged.slice(0, limit);
                 res.json({
                     ok: true,
                     mode: 'embedding',
-                    hits: paged.slice(0, limit),
+                    hits: hitsPage,
                     total: allHits.length,
                     offset,
+                    hasMore: paged.length > limit,
                     warnings: [],
                     instancesQueried: targets.length,
                     instancesSucceeded: targets.length,
@@ -121,12 +127,14 @@ export function createDashboardMemoryRouter(opts: DashboardMemoryRouterOptions):
                 const ftsWithInstance = ftsResult.hits.map(h => ({ ...h, instanceId: h.instanceId || 'default' }));
                 const merged = hybridMerge({ ftsHits: ftsWithInstance, vecHits, limit: limit + offset });
                 const paged = offset > 0 ? merged.slice(offset) : merged;
+                const hitsPage = paged.slice(0, limit);
                 res.json({
                     ok: true,
                     mode: 'hybrid',
-                    hits: paged.slice(0, limit),
+                    hits: hitsPage,
                     total: merged.length,
                     offset,
+                    hasMore: paged.length > limit,
                     warnings: ftsResult.warnings,
                     instancesQueried: ftsResult.instancesQueried,
                     instancesSucceeded: ftsResult.instancesSucceeded,
@@ -218,16 +226,16 @@ export function createDashboardMemoryRouter(opts: DashboardMemoryRouterOptions):
                 res.status(400).json({ ok: false, code: 'invalid_provider' });
                 return;
             }
-            const settingsPath = join(opts.dashboardHome, 'embedding.json');
-            writeFileSync(settingsPath, JSON.stringify(config, null, 2), { encoding: 'utf8', mode: 0o600 });
-
             const prev = opts.embeddingConfig();
+            const merged = { ...prev, ...config };
+            const settingsPath = join(opts.dashboardHome, 'embedding.json');
+            writeFileSync(settingsPath, JSON.stringify(merged, null, 2), { encoding: 'utf8', mode: 0o600 });
+
             const providerChanged = prev && (prev.provider !== config.provider || prev.model !== config.model || prev.dimensions !== config.dimensions);
 
             if (req.body.test) {
                 try {
-                    const fullConfig = { ...prev, ...config } as EmbeddingConfig;
-                    const provider = await createProvider(fullConfig);
+                    const provider = await createProvider(merged as EmbeddingConfig);
                     await provider.embed(['connection test']);
                     res.json({ ok: true, saved: true, needsReindex: providerChanged || false, testResult: 'ok' });
                 } catch (testErr) {
