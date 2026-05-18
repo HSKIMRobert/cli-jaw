@@ -260,7 +260,11 @@ install_cli_jaw() {
   else
     info "Installing CLI-JAW..."
   fi
+  export CLI_JAW_INSTALL_CLI_TOOLS=1
+  export CLI_JAW_REQUIRE_CLI_TOOLS=1
   eval "$pkg_cmd"
+
+  hash -r 2>/dev/null || true
 
   # Post-install verification: re-resolve and check version
   local new_bin new_ver
@@ -270,6 +274,11 @@ install_cli_jaw() {
     ok "CLI-JAW ${new_ver} installed at ${new_bin}"
   else
     warn "CLI-JAW install completed but binary not responding — check your PATH"
+  fi
+
+  # Verify jaw actually runs
+  if command -v jaw &>/dev/null; then
+    jaw --version >/dev/null 2>&1 || warn "jaw is on PATH but failed to run"
   fi
 }
 
@@ -356,17 +365,68 @@ install_browser_deps() {
 }
 
 # ═══════════════════════════════════════
+#  Step 4: OfficeCLI (optional — HWP support)
+# ═══════════════════════════════════════
+install_officecli() {
+  local global_root
+  global_root="$(npm root -g 2>/dev/null || true)"
+  local installer="${global_root}/cli-jaw/scripts/install-officecli.sh"
+  if [ ! -f "$installer" ]; then
+    warn "OfficeCLI installer not found — skipping HWP features"
+    return 0
+  fi
+
+  info "Installing OfficeCLI (optional — HWP support)..."
+  if bash "$installer"; then
+    if command -v officecli &>/dev/null && officecli --version &>/dev/null; then
+      ok "OfficeCLI installed: $(officecli --version 2>/dev/null || echo 'ready')"
+    else
+      warn "OfficeCLI installed but not on PATH — add ~/.local/bin to PATH"
+    fi
+  else
+    warn "OfficeCLI install failed — continuing without HWP features"
+    warn "Install manually: bash \"\$(npm root -g)/cli-jaw/scripts/install-officecli.sh\""
+    return 0
+  fi
+}
+
+# ═══════════════════════════════════════
+#  Step 5: Doctor check
+# ═══════════════════════════════════════
+run_doctor() {
+  info "Running diagnostics..."
+  if command -v jaw &>/dev/null; then
+    jaw doctor || true
+  else
+    warn "jaw not found on PATH — skipping diagnostics"
+  fi
+}
+
+# ═══════════════════════════════════════
 #  Run
 # ═══════════════════════════════════════
 ensure_node
+echo ""
 install_cli_jaw
+echo ""
 install_browser_deps
+echo ""
+run_doctor
+echo ""
+install_officecli
+echo ""
 print_cli_dependency_guidance
 
 echo ""
-echo -e "${GREEN}${BOLD}  🎉 All done!${NC}"
+echo -e "${GREEN}${BOLD}═══════════════════════════════════════${NC}"
+echo -e "${GREEN}${BOLD}  🦈 CLI-JAW is ready!${NC}"
+echo -e "${GREEN}${BOLD}═══════════════════════════════════════${NC}"
 echo ""
-echo -e "  Start your AI assistant:"
-echo -e "  ${CYAN}${BOLD}jaw serve${NC}"
-echo -e "  ${DIM}→ http://localhost:3457${NC}"
+echo -e "  Run:  ${CYAN}jaw dashboard${NC}"
+echo -e "  Also: ${CYAN}jaw serve${NC}  ${DIM}# classic server mode${NC}"
+echo ""
+echo -e "${DIM}  Tip: Authenticate at least one AI engine:${NC}"
+echo -e "${DIM}    gh auth login        # GitHub Copilot (free)${NC}"
+echo -e "${DIM}    claude auth login     # Anthropic Claude${NC}"
+echo -e "${DIM}    codex login           # OpenAI Codex${NC}"
 echo ""
