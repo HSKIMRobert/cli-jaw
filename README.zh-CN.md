@@ -17,6 +17,21 @@
 
 ## 安装
 
+<details>
+<summary><b>安全安装</b> — 面向现有用户，最小改动</summary>
+
+```bash
+# macOS / Linux
+JAW_SAFE=1 npm install -g cli-jaw    # skips optional tool/runtime setup
+jaw init                              # 准备好后再交互式配置
+
+# Windows PowerShell
+$env:JAW_SAFE="1"; npm install -g cli-jaw
+jaw init
+```
+
+</details>
+
 ```bash
 npm install -g cli-jaw
 jaw dashboard
@@ -59,16 +74,6 @@ jaw dashboard
 
 ```bash
 docker compose up -d       # → http://localhost:3457
-```
-
-</details>
-
-<details>
-<summary><b>安全安装</b> — 面向现有用户，最小改动</summary>
-
-```bash
-JAW_SAFE=1 npm install -g cli-jaw    # 仅创建 ~/.cli-jaw，跳过工具配置
-jaw init                              # 准备好后再交互式配置
 ```
 
 </details>
