@@ -204,10 +204,26 @@ add_npm_path_to_profile() {
 
 configure_npm_prefix() {
   local prefix="$NPM_PREFIX"
+
+  # Sanitize npm env vars that can override prefix
+  unset npm_config_prefix NPM_CONFIG_PREFIX
+  unset npm_config_globalconfig NPM_CONFIG_GLOBALCONFIG
+  unset PREFIX
+
   mkdir -p "$prefix/bin" "$prefix/lib"
   npm config set prefix "$prefix"
   export PATH="$prefix/bin:$PATH"
   hash -r 2>/dev/null || true
+
+  # Verify effective prefix is WSL-native and matches intent
+  local effective
+  effective="$(npm config get prefix 2>/dev/null || echo "$prefix")"
+  case "$effective" in
+    /mnt/*) fail "npm effective prefix points to Windows: $effective" ;;
+  esac
+  if [ "$effective" != "$prefix" ]; then
+    warn "npm prefix mismatch: expected $prefix, got $effective"
+  fi
 
   add_npm_path_to_profile "$HOME/.bashrc"
   add_npm_path_to_profile "$HOME/.profile"
@@ -215,7 +231,7 @@ configure_npm_prefix() {
     add_npm_path_to_profile "$HOME/.zshrc"
   fi
 
-  ok "npm global prefix set to $(npm config get prefix)"
+  ok "npm global prefix set to $effective"
 }
 
 verify_jaw_command() {
