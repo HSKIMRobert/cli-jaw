@@ -65,13 +65,18 @@ export function createDashboardMemoryRouter(opts: DashboardMemoryRouterOptions):
         const filter = String(req.query["instance"] || '').split(',').map(s => s.trim()).filter(Boolean);
         const requestedLimit = Number(req.query["limit"]);
         const limit = Number.isFinite(requestedLimit)
-            ? Math.min(Math.max(1, requestedLimit), MAX_RESULT_LIMIT)
+            ? Math.min(Math.floor(Math.max(1, requestedLimit)), MAX_RESULT_LIMIT)
             : DEFAULT_RESULT_LIMIT;
         const requestedOffset = Number(req.query["offset"]);
         const offset = Number.isFinite(requestedOffset)
             ? Math.min(Math.floor(Math.max(0, requestedOffset)), MAX_RESULT_OFFSET)
             : 0;
-        const modeOverride = String(req.query["mode"] || '').trim() as '' | 'fts5' | 'embedding' | 'hybrid';
+        const modeRaw = String(req.query["mode"] || '').trim();
+        if (modeRaw && modeRaw !== 'fts5' && modeRaw !== 'embedding' && modeRaw !== 'hybrid') {
+            res.status(400).json({ ok: false, code: 'invalid_mode' });
+            return;
+        }
+        const modeOverride = modeRaw as '' | 'fts5' | 'embedding' | 'hybrid';
         try {
             const scan = await opts.scanSupplier();
             const refs = listSearchableInstancesFromScan(scan);
@@ -82,13 +87,13 @@ export function createDashboardMemoryRouter(opts: DashboardMemoryRouterOptions):
             const vec = opts.vecStore();
 
             if (searchMode === 'fts5' || !embConfig?.enabled || !vec) {
-                const fetchLimit = offset > 0 ? limit + offset : limit;
+                const fetchLimit = limit + offset + 1;
                 const result = searchFederated(q, { instances: targets, globalLimit: fetchLimit });
-                const paged = offset > 0 ? result.hits.slice(offset) : result.hits;
+                const paged = result.hits.slice(offset);
                 const hitsPage = paged.slice(0, limit);
                 res.json({ ok: true, mode: 'fts5', ...result, hits: hitsPage, total: result.hits.length, offset, hasMore: paged.length > limit });
             } else if (searchMode === 'embedding') {
-                const fetchLimit = offset > 0 ? limit + offset : limit;
+                const fetchLimit = limit + offset + 1;
                 const provider = await createProvider(embConfig);
                 const embedResult = await provider.embed([q]);
                 const queryVec = embedResult[0]!;
@@ -104,7 +109,7 @@ export function createDashboardMemoryRouter(opts: DashboardMemoryRouterOptions):
                     instanceId: v.instanceId,
                     embeddingDistance: v.distance,
                 }));
-                const paged = offset > 0 ? allHits.slice(offset) : allHits;
+                const paged = allHits.slice(offset);
                 const hitsPage = paged.slice(0, limit);
                 res.json({
                     ok: true,
@@ -119,14 +124,14 @@ export function createDashboardMemoryRouter(opts: DashboardMemoryRouterOptions):
                 });
             } else {
                 const fetchMultiplier = offset > 0 ? 3 : 2;
-                const ftsResult = searchFederated(q, { instances: targets, globalLimit: (limit + offset) * fetchMultiplier });
+                const ftsResult = searchFederated(q, { instances: targets, globalLimit: (limit + offset + 1) * fetchMultiplier });
                 const provider = await createProvider(embConfig);
                 const embedResult = await provider.embed([q]);
                 const queryVec = embedResult[0]!;
-                const vecHits = vec.searchScoped(queryVec, (limit + offset) * fetchMultiplier, targets.map(t => t.instanceId));
+                const vecHits = vec.searchScoped(queryVec, (limit + offset + 1) * fetchMultiplier, targets.map(t => t.instanceId));
                 const ftsWithInstance = ftsResult.hits.map(h => ({ ...h, instanceId: h.instanceId || 'default' }));
-                const merged = hybridMerge({ ftsHits: ftsWithInstance, vecHits, limit: limit + offset });
-                const paged = offset > 0 ? merged.slice(offset) : merged;
+                const merged = hybridMerge({ ftsHits: ftsWithInstance, vecHits, limit: limit + offset + 1 });
+                const paged = merged.slice(offset);
                 const hitsPage = paged.slice(0, limit);
                 res.json({
                     ok: true,
@@ -231,7 +236,7 @@ export function createDashboardMemoryRouter(opts: DashboardMemoryRouterOptions):
             const settingsPath = join(opts.dashboardHome, 'embedding.json');
             writeFileSync(settingsPath, JSON.stringify(merged, null, 2), { encoding: 'utf8', mode: 0o600 });
 
-            const providerChanged = prev && (prev.provider !== config.provider || prev.model !== config.model || prev.dimensions !== config.dimensions);
+            const providerChanged = prev && (prev.provider !== merged.provider || prev.model !== merged.model || prev.dimensions !== merged.dimensions);
 
             if (req.body.test) {
                 try {
