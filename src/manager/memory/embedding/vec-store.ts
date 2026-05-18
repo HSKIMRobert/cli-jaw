@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import * as sqliteVec from 'sqlite-vec';
+import { statSync } from 'node:fs';
 import { join } from 'node:path';
 
 export interface VecChunk {
@@ -184,7 +185,6 @@ export class VecStore {
     const instRow = this.db.prepare('SELECT COUNT(DISTINCT instance_id) as cnt FROM vec_meta').get() as { cnt: number };
     let dbSizeBytes = 0;
     try {
-      const { statSync } = require('fs');
       dbSizeBytes = statSync(this.dbPath).size;
     } catch {}
     return { totalChunks: countRow.cnt, instances: instRow.cnt, dbSizeBytes };
