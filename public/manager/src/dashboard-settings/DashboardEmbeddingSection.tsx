@@ -5,6 +5,7 @@ type EmbedConfig = {
     provider?: string;
     model?: string;
     apiKey?: string;
+    apiKeyPresent?: boolean;
     searchMode?: string;
     baseUrl?: string;
     dimensions?: number;
@@ -81,7 +82,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 function resolveStep(config: EmbedConfig | null, state: EmbedState | null, testOk: boolean | null): Step {
     if (!config?.provider) return 'provider';
-    if (config.provider !== 'local' && !config.apiKey) return 'apikey';
+    if (config.provider !== 'local' && !config.apiKey && !config.apiKeyPresent) return 'apikey';
     if (state?.state === 'ACTIVE_HYBRID' || state?.state === 'ACTIVE_EMBEDDING') return 'active';
     if (state?.state === 'INDEXING') return 'indexing';
     if (!testOk) return 'test';
@@ -325,7 +326,7 @@ export function DashboardEmbeddingSection() {
 
             <fieldset className="dashboard-embed-fieldset">
                 <legend>Connection test</legend>
-                <button type="button" className="dashboard-embed-btn" disabled={!provider || (!apiKey && provider !== 'local')} onClick={() => void onTestConnection()}>
+                <button type="button" className="dashboard-embed-btn" disabled={!provider || (!apiKey && !config?.apiKeyPresent && provider !== 'local')} onClick={() => void onTestConnection()}>
                     Test connection
                 </button>
                 {testMsg && (
