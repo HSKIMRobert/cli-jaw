@@ -8,6 +8,7 @@ export type EmbeddingState =
   | 'INDEXING'
   | 'PARTIALLY_INDEXED'
   | 'ACTIVE_HYBRID'
+  | 'ACTIVE_EMBEDDING'
   | 'DEGRADED_FALLBACK_FTS5'
   | 'NEEDS_REINDEX';
 
@@ -106,9 +107,10 @@ export function getEmbeddingState(opts: {
   }
 
   const lastSync = opts.vecStore.getConfig('lastSyncAt');
+  const activeState: EmbeddingState = base.mode === 'embedding' ? 'ACTIVE_EMBEDDING' : 'ACTIVE_HYBRID';
   return {
     ...base,
-    state: 'ACTIVE_HYBRID',
+    state: activeState,
     active: true,
     lastSyncAt: lastSync || null,
   };
