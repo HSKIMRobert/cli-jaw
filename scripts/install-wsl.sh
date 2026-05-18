@@ -37,6 +37,11 @@ HAS_SUDO=false
 NPM_PREFIX="$HOME/.local"
 NPM_PATH_LINE='export PATH="$HOME/.local/bin:$PATH"'
 
+# Guard: reject Windows HOME (e.g. /mnt/c/Users/...)
+case "$HOME" in
+  /mnt/*) fail "HOME points to Windows path: $HOME — launch a proper WSL shell (wsl.exe -d Ubuntu)" ;;
+esac
+
 ensure_sudo() {
   if [ "$(id -u)" -eq 0 ]; then
     HAS_SUDO=true
@@ -125,10 +130,27 @@ install_node() {
   fi
 
   # Prefer fnm (fast, single binary), fall back to nvm if already present
+  # Skip Windows version managers found via /mnt/c PATH
+  local use_fnm=false use_nvm=false
   if command -v fnm &>/dev/null; then
+    case "$(command -v fnm)" in
+      /mnt/*) warn "Ignoring Windows fnm at $(command -v fnm)" ;;
+      *) use_fnm=true ;;
+    esac
+  fi
+  if ! $use_fnm; then
+    if command -v nvm &>/dev/null || [ -s "$HOME/.nvm/nvm.sh" ]; then
+      case "$(command -v nvm 2>/dev/null || echo "$HOME/.nvm/nvm.sh")" in
+        /mnt/*) warn "Ignoring Windows nvm at $(command -v nvm)" ;;
+        *) use_nvm=true ;;
+      esac
+    fi
+  fi
+
+  if $use_fnm; then
     info "fnm detected — installing Node.js $NODE_MAJOR..."
     fnm install "$NODE_MAJOR" && fnm use "$NODE_MAJOR" && fnm default "$NODE_MAJOR"
-  elif command -v nvm &>/dev/null || [ -s "$HOME/.nvm/nvm.sh" ]; then
+  elif $use_nvm; then
     info "nvm detected — installing Node.js $NODE_MAJOR..."
     # shellcheck disable=SC1091
     [ -s "$HOME/.nvm/nvm.sh" ] && source "$HOME/.nvm/nvm.sh"
