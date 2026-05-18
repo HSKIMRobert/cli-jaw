@@ -922,7 +922,7 @@ export async function runPostinstall() {
     if (process.platform === 'linux' && process.execPath.startsWith('/mnt/')) {
         const isWsl = Boolean(
             process.env['WSL_DISTRO_NAME'] || process.env['WSL_INTEROP']
-            || (() => { try { return fs.readFileSync('/proc/version', 'utf8').includes('microsoft'); } catch { return false; } })()
+            || (() => { try { return fs.readFileSync('/proc/version', 'utf8').toLowerCase().includes('microsoft'); } catch { return false; } })()
         );
         if (isWsl) {
             console.warn('[jaw:init] ⚠️  Running with Windows Node.js inside WSL');
