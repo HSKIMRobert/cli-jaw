@@ -107,7 +107,7 @@ test('Gemini capacity classifier separates MODEL_CAPACITY_EXHAUSTED from auth/qu
 });
 
 test('Claude rate-limit text is not classified as Jaw-level 429 retry', () => {
-    for (const cli of ['claude', 'claude-e', 'claude-i']) {
+    for (const cli of ['claude', 'claude-e', 'ai-e']) {
         const result = classifyExitError(
             cli,
             1,
@@ -120,20 +120,18 @@ test('Claude rate-limit text is not classified as Jaw-level 429 retry', () => {
     }
 });
 
-test('Claude rate-limit recovery is suppressed from Jaw retry and fallback', () => {
+test('Claude rate-limit retry is restored but fallback is suppressed', () => {
     const lifecycle = readSrc('../../src/agent/lifecycle-handler.ts');
-    assert.match(lifecycle, /const\s+suppressClaudeRateLimitRecovery\s*=\s*isClaudeRateLimit/);
-    assert.match(lifecycle, /const\s+effectiveIs429\s*=\s*is429/);
-    assert.doesNotMatch(lifecycle, /isClaudeRateLimit\s*&&\s*!suppressClaudeRateLimitRecovery/);
+    assert.match(lifecycle, /const\s+suppressClaudeRateLimitFallback\s*=\s*isClaudeRateLimit/);
+    assert.match(lifecycle, /const\s+effectiveIs429\s*=\s*is429\s*\|\|\s*isClaudeRateLimit/);
     assert.match(lifecycle, /effectiveIs429\s*&&\s*!opts\._isRetry/);
-    assert.match(lifecycle, /!\s*suppressClaudeRateLimitRecovery\)\s*\{/);
+    assert.match(lifecycle, /!\s*suppressClaudeRateLimitFallback\)\s*\{/);
 });
 
-test('Claude rate-limit process exit does not broadcast Jaw retry or fallback', async () => {
+test('Claude rate-limit process exit broadcasts retry but suppresses fallback', async () => {
     const events: Array<{ type: string; data: Record<string, unknown> }> = [];
     const originalFallbackOrder = settings["fallbackOrder"];
-    let queued = false;
-    let resolved: any = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
     clearErrors('claude');
     clearAllBroadcastListeners();
     addBroadcastListener((type, data) => events.push({ type, data }));
@@ -167,30 +165,29 @@ test('Claude rate-limit process exit does not broadcast Jaw retry or fallback', 
             smokeResult: { isSmoke: false, confidence: 'low' },
             effortDefault: 'medium',
             costLine: '',
-            resolve: (value: any) => { resolved = value; },
+            resolve: () => {},
             activeProcesses: new Map(),
             setActiveProcess: () => {},
             retryState: {
                 timer: null,
                 resolve: null,
                 origin: null,
-                setTimer: () => {},
+                setTimer: (t: any) => { retryTimer = t; },
                 setResolve: () => {},
                 setOrigin: () => {},
                 setIsEmployee: () => {},
             },
             fallbackState: new Map(),
             fallbackMaxRetries: 3,
-            processQueue: () => { queued = true; },
+            processQueue: () => {},
         });
 
-        assert.ok(resolved);
-        assert.equal(resolved.code, 1);
-        assert.equal(queued, true);
-        assert.equal(events.some(event => event.type === 'agent_retry'), false);
-        assert.equal(events.some(event => event.type === 'agent_fallback'), false);
-        assert.ok(events.some(event => event.type === 'agent_done'));
+        assert.ok(events.some(event => event.type === 'agent_retry'), 'Claude 429 exit should trigger same-engine retry');
+        assert.equal(events.some(event => event.type === 'agent_fallback'), false, 'Claude 429 exit should NOT trigger fallback');
+        const retryEvent = events.find(event => event.type === 'agent_retry');
+        assert.equal(retryEvent?.data["delay"], 10);
     } finally {
+        if (retryTimer) clearTimeout(retryTimer);
         settings["fallbackOrder"] = originalFallbackOrder;
         clearErrors('claude');
         clearAllBroadcastListeners();
@@ -254,9 +251,11 @@ test('ai-e error classification uses effective provider, not selector name', asy
     }
 });
 
-test('ai-e Claude provider keeps Claude-owned 429 pacing semantics', async () => {
-    let resolved: any = null;
+test('ai-e Claude provider triggers same-engine retry but suppresses fallback on 429', async () => {
+    const events: Array<{ type: string; data: Record<string, unknown> }> = [];
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
     clearAllBroadcastListeners();
+    addBroadcastListener((type, data) => events.push({ type, data }));
     try {
         await handleAgentExit({
             ctx: {
@@ -286,14 +285,14 @@ test('ai-e Claude provider keeps Claude-owned 429 pacing semantics', async () =>
             smokeResult: { isSmoke: false, confidence: 'low' },
             effortDefault: 'medium',
             costLine: '',
-            resolve: (value: any) => { resolved = value; },
+            resolve: () => {},
             activeProcesses: new Map(),
             setActiveProcess: () => {},
             retryState: {
                 timer: null,
                 resolve: null,
                 origin: null,
-                setTimer: () => {},
+                setTimer: (t: any) => { retryTimer = t; },
                 setResolve: () => {},
                 setOrigin: () => {},
                 setIsEmployee: () => {},
@@ -303,10 +302,10 @@ test('ai-e Claude provider keeps Claude-owned 429 pacing semantics', async () =>
             processQueue: () => {},
         });
 
-        assert.ok(resolved);
-        assert.equal(resolved.code, 1);
-        assert.match(resolved.diagnostic, /Claude is rate limited/);
+        assert.ok(events.some(event => event.type === 'agent_retry'), 'ai-e+claude 429 should trigger same-engine retry');
+        assert.equal(events.some(event => event.type === 'agent_fallback'), false, 'ai-e+claude 429 should NOT trigger fallback');
     } finally {
+        if (retryTimer) clearTimeout(retryTimer);
         clearAllBroadcastListeners();
     }
 });

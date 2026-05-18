@@ -1,5 +1,5 @@
 // ── Settings Core ──
-import { MODEL_MAP, loadCliRegistry, getCliKeys, getCliMeta } from '../constants.js';
+import { MODEL_MAP, loadCliRegistry, getCliKeys, getCliMeta, PRIMARY_CLIS } from '../constants.js';
 import { escapeHtml } from '../render.js';
 import { syncStoredLocale } from '../locale.js';
 import { t } from './i18n.js';
@@ -88,10 +88,30 @@ function syncCliOptionSelects(settings: SettingsData | null = null): void {
     const selCli = document.getElementById('selCli') as HTMLSelectElement | null;
     if (selCli) {
         const current = settings?.cli || selCli.value || cliKeys[0] || 'claude';
-        selCli.innerHTML = cliKeys.map(cli => {
+        const isPrimary = (cli: string) => PRIMARY_CLIS.includes(cli);
+        const currentIsSecondary = !isPrimary(current) && cliKeys.includes(current);
+        const wasExpanded = selCli.dataset['expanded'] === '1';
+        const primary = cliKeys.filter(isPrimary);
+        const secondary = cliKeys.filter(c => !isPrimary(c));
+        const showAll = primary.length === 0 || currentIsSecondary || wasExpanded;
+
+        let html = primary.map(cli => {
             const label = getCliMeta(cli)?.label || cli;
             return `<option value="${escapeHtml(cli)}">${escapeHtml(label)}</option>`;
         }).join('');
+
+        if (secondary.length > 0) {
+            if (showAll) {
+                html += '<option disabled>──────</option>';
+                html += secondary.map(cli => {
+                    const label = getCliMeta(cli)?.label || cli;
+                    return `<option value="${escapeHtml(cli)}">${escapeHtml(label)}</option>`;
+                }).join('');
+            } else {
+                html += `<option value="__show_more__">${t('cli.showMore')}</option>`;
+            }
+        }
+        selCli.innerHTML = html;
         if (Array.from(selCli.options).some(o => o.value === current)) selCli.value = current;
     }
 
@@ -224,6 +244,7 @@ export async function loadSettings(): Promise<void> {
     const selCli = document.getElementById('selCli') as HTMLSelectElement | null;
     if (selCli && Array.from(selCli.options).some(o => o.value === s.cli)) {
         selCli.value = s.cli;
+        selCli.dataset['prev'] = s.cli;
     }
     const cwdEl = document.getElementById('inpCwd');
     if (cwdEl) cwdEl.textContent = s.workingDir;
@@ -305,6 +326,7 @@ export async function updateSettings(): Promise<void> {
         const selCli = document.getElementById('selCli') as HTMLSelectElement | null;
         if (selCli && Array.from(selCli.options).some(o => o.value === confirmedCli)) {
             selCli.value = confirmedCli;
+            selCli.dataset['prev'] = confirmedCli;
         }
         setHeaderCli(confirmedCli);
     })());
@@ -395,7 +417,18 @@ export async function savePerCli(): Promise<void> {
 }
 
 export function onCliChange(save = true): void {
-    const cli = (document.getElementById('selCli') as HTMLSelectElement)?.value || 'claude';
+    const selCli = document.getElementById('selCli') as HTMLSelectElement | null;
+    if (!selCli) return;
+    if (selCli.value === '__show_more__') {
+        const prev = selCli.dataset['prev'] || getCliKeys()[0] || 'claude';
+        selCli.dataset['expanded'] = '1';
+        syncCliOptionSelects(null);
+        if (Array.from(selCli.options).some(o => o.value === prev)) selCli.value = prev;
+        try { selCli.showPicker(); } catch { /* user-gesture guard */ }
+        return;
+    }
+    selCli.dataset['prev'] = selCli.value;
+    const cli = selCli.value || 'claude';
     const aiEProvider = syncAiEProviderControl(null, cli);
     const meta = getCliMeta(cli);
     const models = cli === 'ai-e'

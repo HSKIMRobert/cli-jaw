@@ -349,8 +349,8 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
             ctx.stallReason,
             diagnosticText,
         );
-        const suppressClaudeRateLimitRecovery = isClaudeRateLimit;
-        const effectiveIs429 = is429;
+        const suppressClaudeRateLimitFallback = isClaudeRateLimit;
+        const effectiveIs429 = is429 || isClaudeRateLimit;
         recordError(cli, isStall ? 'stall' : isModelCapacity ? 'model_capacity' : effectiveIs429 ? '429' : 'error');
 
         const invalidatedResume = isResume
@@ -500,7 +500,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
         }
 
         // ─── Fallback with retry tracking ───
-        if (!opts.internal && !opts._isFallback && !suppressClaudeRateLimitRecovery) {
+        if (!opts.internal && !opts._isFallback && !suppressClaudeRateLimitFallback) {
             const fallbackCli = (settings["fallbackOrder"] || [])
                 .find((fc: string) => fc !== cli && detectCli(fc).available);
             if (fallbackCli) {
