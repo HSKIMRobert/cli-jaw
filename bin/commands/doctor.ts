@@ -94,7 +94,9 @@ function rejectedCliDetail(name: string): string {
 }
 
 function isWSL() {
-    if (process.platform !== 'linux') return false;
+    if (process.env['WSL_DISTRO_NAME'] || process.env['WSL_INTEROP'] || process.env['WSLENV']) {
+        return true;
+    }
     try {
         return fs.readFileSync('/proc/version', 'utf8').toLowerCase().includes('microsoft');
     } catch {
@@ -448,7 +450,12 @@ if (isWSL()) {
     });
 
     check('Node.js origin', () => {
-        if (process.execPath.startsWith('/mnt/')) {
+        const execPath = process.execPath.replace(/\\/g, '/');
+        const isWindowsNode =
+            process.platform === 'win32'
+            || /^[A-Z]:\//i.test(execPath)
+            || execPath.startsWith('/mnt/');
+        if (isWindowsNode) {
             throw new Error(
                 `WARN: using Windows Node.js (${process.execPath})\n`
                 + '     Install Node inside WSL: fnm install 22 (or nvm install 22)'

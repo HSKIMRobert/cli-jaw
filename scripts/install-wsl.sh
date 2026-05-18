@@ -107,8 +107,16 @@ install_node() {
         local ver
         ver=$(node -v | sed 's/v//' | cut -d. -f1)
         if [ "$ver" -ge "$NODE_MAJOR" ] 2>/dev/null; then
-          ok "Node.js $(node -v) already installed (>= $NODE_MAJOR) at $node_path"
-          return 0
+          # Also verify npm is WSL-native before early return
+          case "$(command -v npm)" in
+            /mnt/*)
+              warn "Node is WSL-native but npm resolves to Windows: $(command -v npm) — reinstalling..."
+              ;;
+            *)
+              ok "Node.js $(node -v) already installed (>= $NODE_MAJOR) at $node_path"
+              return 0
+              ;;
+          esac
         else
           warn "Node.js $(node -v) found but < $NODE_MAJOR — upgrading..."
         fi
