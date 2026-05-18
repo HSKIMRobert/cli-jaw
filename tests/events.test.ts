@@ -13,6 +13,7 @@ import {
     flushOpenCodeBuffers,
     makeClaudeToolKeyForTest,
 } from '../src/agent/events.ts';
+import { parseGrokChatHistoryToolEntries } from '../src/agent/grok-trace-backfill.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1185,6 +1186,55 @@ test('grok streaming-json duplicate errors with same request id are ignored', ()
     assert.equal(ctx.toolLog.length, 1);
     assert.equal(ctx.toolLog[0].stepRef, 'grok:error:req-dup');
     assert.equal(ctx.toolLog[0].detail, 'Rate limited');
+});
+
+test('grok trace backfill recovers omitted headless tool calls from chat history', () => {
+    const jsonl = [
+        JSON.stringify({
+            type: 'assistant',
+            tool_calls: [{
+                id: 'call-1',
+                name: 'run_terminal_command',
+                arguments: '{"command":"pwd","timeout":120000}',
+            }],
+        }),
+        JSON.stringify({
+            type: 'tool_result',
+            tool_call_id: 'call-1',
+            content: 'exit: 0\n/Users/jun\n',
+        }),
+    ].join('\n');
+
+    const entries = parseGrokChatHistoryToolEntries(jsonl);
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0].stepRef, 'grok:tool:call-1');
+    assert.equal(entries[0].label, 'run_terminal_command');
+    assert.equal(entries[0].status, 'done');
+    assert.match(entries[0].detail || '', /"command":"pwd"/);
+    assert.match(entries[0].detail || '', /\/Users\/jun/);
+});
+
+test('grok trace backfill marks non-zero terminal result as error', () => {
+    const jsonl = [
+        JSON.stringify({ type: 'assistant', tool_calls: [{ id: 'call-err', name: 'shell', arguments: { command: 'false' } }] }),
+        JSON.stringify({ type: 'tool_result', tool_call_id: 'call-err', content: 'exit: 1\n' }),
+    ].join('\n');
+
+    const entries = parseGrokChatHistoryToolEntries(jsonl);
+    assert.equal(entries[0].status, 'error');
+    assert.equal(entries[0].icon, '❌');
+});
+
+test('grok trace backfill marks explicit failed result metadata as error', () => {
+    const jsonl = [
+        JSON.stringify({ type: 'assistant', tool_calls: [{ id: 'call-meta-err', name: 'search', arguments: { q: 'x' } }] }),
+        JSON.stringify({ type: 'tool_result', tool_call_id: 'call-meta-err', status: 'failed', error: { message: 'permission denied' } }),
+    ].join('\n');
+
+    const entries = parseGrokChatHistoryToolEntries(jsonl);
+    assert.equal(entries[0].status, 'error');
+    assert.equal(entries[0].icon, '❌');
+    assert.match(entries[0].detail || '', /permission denied/);
 });
 
 test('assistant output segments use a single markdown line break boundary', () => {

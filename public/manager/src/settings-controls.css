@@ -142,6 +142,31 @@
     font-weight: 600;
 }
 
+.settings-select-divider {
+    border: 0;
+    border-top: 1px solid var(--border-subtle, var(--border-strong));
+    margin: 4px 8px;
+}
+
+.settings-select-more {
+    width: 100%;
+    min-height: 28px;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    padding: 5px 9px;
+    color: var(--text-secondary, var(--text-primary));
+    font-size: 0.85em;
+    cursor: pointer;
+    text-align: left;
+    opacity: 0.7;
+}
+
+.settings-select-more:hover {
+    background: var(--surface-raised);
+    opacity: 1;
+}
+
 @media (max-width: 720px) {
     .settings-field-select,
     .settings-select-menu {

@@ -25,6 +25,8 @@ export type ActiveOverride = {
     effort?: string;
 };
 
+export const PRIMARY_CLIS: ReadonlyArray<string> = ['claude', 'codex', 'gemini'];
+
 export const CLI_META: Record<string, CliMeta> = {
     'ai-e': {
         label: 'AI-E',
