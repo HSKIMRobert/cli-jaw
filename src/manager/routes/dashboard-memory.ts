@@ -207,7 +207,7 @@ export function createDashboardMemoryRouter(opts: DashboardMemoryRouterOptions):
                 return;
             }
             const settingsPath = join(opts.dashboardHome, 'embedding.json');
-            writeFileSync(settingsPath, JSON.stringify(config, null, 2), 'utf8');
+            writeFileSync(settingsPath, JSON.stringify(config, null, 2), { encoding: 'utf8', mode: 0o600 });
 
             const prev = opts.embeddingConfig();
             const providerChanged = prev && (prev.provider !== config.provider || prev.model !== config.model || prev.dimensions !== config.dimensions);
