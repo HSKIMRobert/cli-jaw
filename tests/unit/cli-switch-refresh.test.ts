@@ -32,7 +32,7 @@ test('CSR-002: marker row is tagged with toCli + toModel and written to targetWo
 
 test('CSR-003: target bucket clear is inside transaction', () => {
     // resolveSessionBucket is called with both toCli AND toModel (codex-spark disambiguation)
-    assert.match(compactSrc, /resolveSessionBucket\(opts\.toCli,\s*opts\.toModel\)/);
+    assert.match(compactSrc, /resolveSessionBucket\(opts\.toCli,\s*opts\.toModel,\s*opts\.toProvider\)/);
     // Inside tx: if (targetBucket) clearSessionBucket.run(targetBucket)
     assert.match(compactSrc, /db\.transaction\(\(\)\s*=>\s*\{[\s\S]*?if\s*\(\s*targetBucket\s*\)\s*clearSessionBucket\.run\(targetBucket\)[\s\S]*?\}\)/);
 });
@@ -50,13 +50,22 @@ test('CSR-003c: slash compact clears active session bucket after bootstrap hando
 
 test('CSR-004: cli_switch_refresh notice broadcast includes both fromCli and toCli', () => {
     assert.match(compactSrc, /broadcast\(\s*'system_notice',\s*\{\s*code:\s*'cli_switch_refresh'/);
-    assert.match(compactSrc, /CLI switched\s*\$\{opts\.fromCli\}\s*→\s*\$\{opts\.toCli\}/);
+    assert.match(compactSrc, /const\s+targetLabel\s*=\s*opts\.toProvider\s*\?\s*`\$\{opts\.toCli\}:\$\{opts\.toProvider\}`\s*:\s*opts\.toCli/);
+    assert.match(compactSrc, /CLI switched\s*\$\{opts\.fromCli\}\s*→\s*\$\{targetLabel\}/);
 });
 
 test('CSR-005: applyRuntimeSettingsPatch invokes cliSwitchRefresh on cli change', () => {
     assert.match(runtimeSrc, /const\s+cliChanged\s*=\s*!!\(\s*prevCli\s*&&\s*settings\.cli\s*&&\s*prevCli\s*!==\s*settings\.cli\s*\)/);
-    assert.match(runtimeSrc, /if\s*\(\s*cliChanged\s*\)\s*\{[\s\S]*?cliSwitchRefresh[\s\S]*?\}/);
-    assert.match(runtimeSrc, /await\s+cliSwitchRefresh\(\{[\s\S]*?sourceWorkDir:\s*prevWorkingDir[\s\S]*?targetWorkDir:\s*settings\.workingDir[\s\S]*?fromCli:\s*prevCli[\s\S]*?toCli,[\s\S]*?toModel,[\s\S]*?\}\)/);
+    assert.match(runtimeSrc, /if\s*\(\s*cliChanged\s*\|\|\s*aiEProviderChanged\s*\)\s*\{[\s\S]*?cliSwitchRefresh[\s\S]*?\}/);
+    assert.match(runtimeSrc, /await\s+cliSwitchRefresh\(\{[\s\S]*?sourceWorkDir:\s*prevWorkingDir[\s\S]*?targetWorkDir:\s*settings\.workingDir[\s\S]*?fromCli:[\s\S]*?toCli,[\s\S]*?toModel,[\s\S]*?\}\)/);
+});
+
+test('CSR-005b: ai-e provider change triggers clean session refresh', () => {
+    assert.match(runtimeSrc, /const\s+prevAiEProvider\s*=\s*selectedAiEProvider\(prevSnapshot\)/);
+    assert.match(runtimeSrc, /const\s+nextAiEProvider\s*=\s*selectedAiEProvider\(settings\)/);
+    assert.match(runtimeSrc, /const\s+aiEProviderChanged\s*=\s*prevCli\s*===\s*'ai-e'[\s\S]*?settings\.cli\s*===\s*'ai-e'[\s\S]*?prevAiEProvider\s*!==\s*nextAiEProvider/);
+    assert.match(runtimeSrc, /fromCli:\s*aiEProviderChanged\s*\?\s*`ai-e:\$\{prevAiEProvider\}`\s*:\s*prevCli/);
+    assert.match(runtimeSrc, /toProvider:\s*toCli\s*===\s*'ai-e'\s*\?\s*nextAiEProvider\s*:\s*undefined/);
 });
 
 test('CSR-006: cli unchanged branch keeps original syncMainSessionToSettings(prevCli)', () => {
@@ -66,7 +75,7 @@ test('CSR-006: cli unchanged branch keeps original syncMainSessionToSettings(pre
 test('CSR-007: codex-spark bucket targeted via toModel (not null)', () => {
     // The bucket lookup uses opts.toModel — when toCli='codex' + spark model, resolveSessionBucket returns 'codex-spark'.
     // Source already verified in CSR-003. This test re-asserts toModel is threaded through runtime-settings.
-    assert.match(runtimeSrc, /const\s+toModel\s*=\s*settings\.activeOverrides\?\.\[toCli\]\?\.model[\s\S]*?settings\.perCli\?\.\[toCli\]\?\.model[\s\S]*?'default'/);
+    assert.match(runtimeSrc, /const\s+toModel\s*=\s*selectedModelForCli\(toCli,\s*settings\)/);
 });
 
 test('CSR-008: harvest reads from prev workingDir (sourceWorkDir), marker writes to new (targetWorkDir)', () => {
@@ -109,8 +118,8 @@ test('CSR-013: no-content switch preserves existing pending bootstrap', () => {
 
 test('CSR-012: cli-changed branch does NOT call syncMainSessionToSettings', () => {
     // Capture the if(cliChanged){...} block and verify no syncMainSessionToSettings inside
-    const ifBlock = runtimeSrc.match(/if\s*\(\s*cliChanged\s*\)\s*\{([\s\S]*?)\}\s*else\s*\{/);
-    assert.ok(ifBlock, 'cliChanged branch must exist');
+    const ifBlock = runtimeSrc.match(/if\s*\(\s*cliChanged\s*\|\|\s*aiEProviderChanged\s*\)\s*\{([\s\S]*?)\}\s*else\s*\{/);
+    assert.ok(ifBlock, 'cli/provider changed branch must exist');
     assert.ok(
         !/syncMainSessionToSettings/.test(ifBlock![1]),
         'cli-changed branch must delegate main-session clearing to cliSwitchRefresh',
