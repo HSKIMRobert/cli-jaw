@@ -206,7 +206,7 @@ export function DashboardEmbeddingSection() {
             setTestOk(false);
             setTestMsg(err instanceof Error ? err.message : String(err));
         }
-    }, [provider, apiKey]);
+    }, [provider, model, dimensions, apiKey]);
 
     const onStartIndexing = useCallback(async () => {
         setIndexing(true);

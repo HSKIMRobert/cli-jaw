@@ -57,7 +57,7 @@ async function syncInstance(
   srcDb.pragma('busy_timeout = 3000');
 
   const result: SyncResult = { instanceId, added: 0, updated: 0, deleted: 0, skipped: 0, errors: [] };
-  const batchSize = opts.batchSize ?? opts.provider.maxBatchSize;
+  const batchSize = Math.max(1, Math.floor(opts.batchSize ?? opts.provider.maxBatchSize));
 
   try {
     const existingMap = opts.vecStore.getExistingHashes(instanceId);
@@ -96,7 +96,7 @@ async function syncInstance(
       }
     }
 
-    const concurrency = opts.concurrency ?? 2;
+    const concurrency = Math.max(1, Math.floor(opts.concurrency ?? 2));
     const batches: Array<{ start: number; items: typeof toEmbed }> = [];
     for (let i = 0; i < toEmbed.length; i += batchSize) {
       batches.push({ start: i, items: toEmbed.slice(i, i + batchSize) });

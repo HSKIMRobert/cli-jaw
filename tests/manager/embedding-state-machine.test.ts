@@ -200,6 +200,21 @@ test('ACTIVE_EMBEDDING when fully indexed in embedding mode', () => {
     assert.equal(status.mode, 'embedding');
 });
 
+test('ACTIVE_HYBRID when searchMode is fts5 but embedding enabled and indexed', () => {
+    const status = getEmbeddingState({
+        settings: makeConfig({ searchMode: 'fts5' }),
+        vecStore: makeMockVecStore({
+            totalChunks: 10,
+            configMap: { provider: 'openai', lastSyncAt: '2026-05-19T00:00:00Z' },
+        }),
+        dashboardRunning: true,
+        totalSourceChunks: 10,
+        lastTestResult: 'ok',
+    });
+    assert.equal(status.state, 'ACTIVE_HYBRID');
+    assert.equal(status.active, true);
+});
+
 test('base fields carry provider and model from settings', () => {
     const status = getEmbeddingState({
         settings: makeConfig({ provider: 'voyage', model: 'voyage-3-lite' }),
