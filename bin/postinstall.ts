@@ -25,7 +25,7 @@ if (major! < 22) {
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { execSync, execFileSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { fileURLToPath } from 'node:url';
 import { ensureSharedHomeSkillsLinks, initMcpConfig, copyDefaultSkills, propagateSkillsToInstances, loadUnifiedMcp, saveUnifiedMcp } from '../lib/mcp-sync.js';
 import { resolveHomePath } from '../src/core/path-expand.js';
