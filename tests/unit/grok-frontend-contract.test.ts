@@ -122,3 +122,10 @@ test('LEGACY-FE-002: fallback CLI surfaces include every canonical CLI', () => {
         assert.match(freshInstallSmoke, new RegExp(`'${cli}'`), `fresh install smoke must assert ${cli} status`);
     }
 });
+
+test('AI-E-FE-001: legacy active settings store provider only in perCli', () => {
+    const settingsCore = src('public/js/features/settings-core.ts');
+    const saveActive = settingsCore.match(/export async function saveActiveCliSettings\(\): Promise<void> \{[\s\S]*?\n\}/)?.[0] || '';
+    assert.match(saveActive, /patch\['perCli'\]\s*=\s*\{\s*'ai-e':\s*\{\s*provider:/);
+    assert.doesNotMatch(saveActive, /overrides\[cli\]\.provider\s*=/);
+});

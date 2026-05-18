@@ -110,8 +110,19 @@ test('AG-006g: ai-e resume only injects Claude resume for Claude provider', () =
 
 test('AG-006h: ai-e spawn resolves provider before Claude model normalization', () => {
     const spawnSrc = fs.readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
-    assert.match(spawnSrc, /resolveAiEProvider\([\s\S]*ao\.provider[\s\S]*cfg\.provider[\s\S]*requestedModel/);
+    assert.match(spawnSrc, /resolveAiEProvider\([\s\S]*cfg\.provider[\s\S]*ao\.provider[\s\S]*requestedModel/);
     assert.match(spawnSrc, /effectiveProvider\s*===\s*'claude'[\s\S]*migrateLegacyClaudeValue\(requestedModel\)/);
+});
+
+test('AG-006h2: ai-e spawn prefers perCli provider over stale active override provider', () => {
+    const spawnSrc = fs.readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
+    const providerBlock = spawnSrc.match(/const effectiveProvider = cli === 'ai-e'[\s\S]*?\n        : cli;/)?.[0] || '';
+    assert.match(providerBlock, /typeof cfg\.provider === 'string'/);
+    assert.match(providerBlock, /typeof ao\.provider === 'string'/);
+    assert.ok(
+        providerBlock.indexOf("typeof cfg.provider === 'string'") < providerBlock.indexOf("typeof ao.provider === 'string'"),
+        'perCli provider must override stale activeOverrides provider',
+    );
 });
 
 test('AG-006i: ai-e headless providers are forced fresh until resume is implemented', () => {
