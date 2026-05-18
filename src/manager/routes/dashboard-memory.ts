@@ -66,6 +66,8 @@ export function createDashboardMemoryRouter(opts: DashboardMemoryRouterOptions):
         const limit = Number.isFinite(requestedLimit)
             ? Math.min(Math.max(1, requestedLimit), MAX_RESULT_LIMIT)
             : DEFAULT_RESULT_LIMIT;
+        const requestedOffset = Number(req.query["offset"]);
+        const offset = Number.isFinite(requestedOffset) ? Math.max(0, requestedOffset) : 0;
         const modeOverride = String(req.query["mode"] || '').trim() as '' | 'fts5' | 'embedding' | 'hybrid';
         try {
             const scan = await opts.scanSupplier();
@@ -77,14 +79,17 @@ export function createDashboardMemoryRouter(opts: DashboardMemoryRouterOptions):
             const vec = opts.vecStore();
 
             if (searchMode === 'fts5' || !embConfig?.enabled || !vec) {
-                const result = searchFederated(q, { instances: targets, globalLimit: limit });
-                res.json({ ok: true, mode: 'fts5', ...result });
+                const fetchLimit = offset > 0 ? limit + offset : limit;
+                const result = searchFederated(q, { instances: targets, globalLimit: fetchLimit });
+                const paged = offset > 0 ? result.hits.slice(offset) : result.hits;
+                res.json({ ok: true, mode: 'fts5', ...result, hits: paged.slice(0, limit), total: result.hits.length, offset });
             } else if (searchMode === 'embedding') {
+                const fetchLimit = offset > 0 ? limit + offset : limit;
                 const provider = await createProvider(embConfig);
                 const embedResult = await provider.embed([q]);
                 const queryVec = embedResult[0]!;
-                const vecHits = vec.searchScoped(queryVec, limit, targets.map(t => t.instanceId));
-                const hits = vecHits.map(v => ({
+                const vecHits = vec.searchScoped(queryVec, fetchLimit, targets.map(t => t.instanceId));
+                const allHits = vecHits.map(v => ({
                     path: '',
                     relpath: v.relpath,
                     kind: v.kind,
@@ -95,26 +100,33 @@ export function createDashboardMemoryRouter(opts: DashboardMemoryRouterOptions):
                     instanceId: v.instanceId,
                     embeddingDistance: v.distance,
                 }));
+                const paged = offset > 0 ? allHits.slice(offset) : allHits;
                 res.json({
                     ok: true,
                     mode: 'embedding',
-                    hits,
+                    hits: paged.slice(0, limit),
+                    total: allHits.length,
+                    offset,
                     warnings: [],
                     instancesQueried: targets.length,
                     instancesSucceeded: targets.length,
                 });
             } else {
-                const ftsResult = searchFederated(q, { instances: targets, globalLimit: limit * 2 });
+                const fetchMultiplier = offset > 0 ? 3 : 2;
+                const ftsResult = searchFederated(q, { instances: targets, globalLimit: (limit + offset) * fetchMultiplier });
                 const provider = await createProvider(embConfig);
                 const embedResult = await provider.embed([q]);
                 const queryVec = embedResult[0]!;
-                const vecHits = vec.searchScoped(queryVec, limit * 2, targets.map(t => t.instanceId));
+                const vecHits = vec.searchScoped(queryVec, (limit + offset) * fetchMultiplier, targets.map(t => t.instanceId));
                 const ftsWithInstance = ftsResult.hits.map(h => ({ ...h, instanceId: h.instanceId || 'default' }));
-                const merged = hybridMerge({ ftsHits: ftsWithInstance, vecHits, limit });
+                const merged = hybridMerge({ ftsHits: ftsWithInstance, vecHits, limit: limit + offset });
+                const paged = offset > 0 ? merged.slice(offset) : merged;
                 res.json({
                     ok: true,
                     mode: 'hybrid',
-                    hits: merged,
+                    hits: paged.slice(0, limit),
+                    total: merged.length,
+                    offset,
                     warnings: ftsResult.warnings,
                     instancesQueried: ftsResult.instancesQueried,
                     instancesSucceeded: ftsResult.instancesSucceeded,
