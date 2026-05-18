@@ -100,9 +100,14 @@ function ensureDir(dir: string) {
 }
 
 function ensureSymlink(target: string, linkPath: string) {
+    const resolvedTarget = path.resolve(target);
     const resolvedLink = path.resolve(linkPath);
+    if (!resolvedTarget.startsWith(home + path.sep) && !resolvedTarget.startsWith(os.tmpdir()) && !resolvedTarget.startsWith(jawHome)) {
+        console.error(`[jaw:init] ❌ symlink target outside allowed paths: ${resolvedTarget}`);
+        return false;
+    }
     if (!resolvedLink.startsWith(home + path.sep) && !resolvedLink.startsWith(os.tmpdir())) {
-        console.error(`[jaw:init] ❌ symlink target outside user home: ${resolvedLink}`);
+        console.error(`[jaw:init] ❌ symlink link path outside user home: ${resolvedLink}`);
         return false;
     }
     if (fs.existsSync(linkPath)) return false;
