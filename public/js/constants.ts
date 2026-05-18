@@ -5,12 +5,43 @@ export interface CliEntry {
     label: string;
     efforts: string[];
     models: string[];
+    defaultProvider?: string;
+    providers?: string[];
+    modelsByProvider?: Record<string, string[]>;
+    effortsByProvider?: Record<string, string[]>;
     effortNote?: string;
 }
 
 export type CliRegistry = Record<string, CliEntry>;
 
 const FALLBACK_CLI_REGISTRY: CliRegistry = {
+    'ai-e': {
+        label: 'AI-E',
+        defaultProvider: 'claude',
+        providers: ['claude', 'codex', 'gemini', 'grok', 'copilot'],
+        efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
+        models: [
+            'opus', 'sonnet', 'haiku',
+            'gpt-5.4', 'gpt-5.4-mini',
+            'gemini-3-flash-preview',
+            'grok-build',
+            'gpt-5-mini',
+        ],
+        modelsByProvider: {
+            claude: ['opus', 'sonnet', 'haiku'],
+            codex: ['gpt-5.4', 'gpt-5.4-mini'],
+            gemini: ['gemini-3-flash-preview'],
+            grok: ['grok-build'],
+            copilot: ['gpt-5-mini'],
+        },
+        effortsByProvider: {
+            claude: ['low', 'medium', 'high', 'xhigh', 'max'],
+            codex: ['low', 'medium', 'high', 'xhigh'],
+            gemini: [],
+            grok: [],
+            copilot: ['low', 'medium', 'high'],
+        },
+    },
     claude: {
         label: 'Claude',
         efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
@@ -120,6 +151,22 @@ function normalizeRegistry(input: Record<string, unknown>): CliRegistry {
         };
         if (typeof v['effortNote'] === 'string' && v['effortNote'].trim()) {
             normalized['effortNote'] = v['effortNote'];
+        }
+        if (typeof v['defaultProvider'] === 'string') normalized.defaultProvider = v['defaultProvider'];
+        if (Array.isArray(v['providers'])) normalized.providers = [...v['providers']] as string[];
+        if (v['modelsByProvider'] && typeof v['modelsByProvider'] === 'object') {
+            normalized.modelsByProvider = Object.fromEntries(
+                Object.entries(v['modelsByProvider'] as Record<string, unknown>)
+                    .filter((entry): entry is [string, string[]] => Array.isArray(entry[1]))
+                    .map(([provider, models]) => [provider, [...models]])
+            );
+        }
+        if (v['effortsByProvider'] && typeof v['effortsByProvider'] === 'object') {
+            normalized.effortsByProvider = Object.fromEntries(
+                Object.entries(v['effortsByProvider'] as Record<string, unknown>)
+                    .filter((entry): entry is [string, string[]] => Array.isArray(entry[1]))
+                    .map(([provider, efforts]) => [provider, [...efforts]])
+            );
         }
         out[key] = normalized;
     }

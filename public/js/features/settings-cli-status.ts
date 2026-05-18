@@ -145,8 +145,11 @@ function renderCliStatus(data: { cliStatus: Record<string, { available: boolean 
     const el = document.getElementById('cliStatusList');
 
     const AUTH_HINTS: Record<string, { install: string; auth: string }> = {
+        'ai-e': { install: 'Install AI-E helper', auth: 'delegates to selected AI-E provider' },
         claude: { install: 'npm i -g @anthropic-ai/claude-code', auth: 'claude auth' },
+        'claude-e': { install: 'Install claude-e helper', auth: 'claude auth' },
         codex: { install: 'npm i -g @openai/codex', auth: 'codex login' },
+        'codex-app': { install: 'npm i -g @openai/codex', auth: 'codex login' },
         gemini: { install: 'npm i -g @google/gemini-cli', auth: `gemini  (${t('cli.gemini.auth')})` },
         grok: { install: 'Install Grok CLI', auth: 'grok login --oauth' },
         opencode: { install: 'npm i -g opencode-ai', auth: 'opencode auth' },

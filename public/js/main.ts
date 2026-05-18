@@ -48,7 +48,7 @@ import {
 import { toggleSkill, filterSkills, searchSkills } from './features/skills.js';
 import {
     loadSettings, handleModelSelect, applyCustomModel, onCliChange,
-    saveActiveCliSettings, savePerCli, openPromptModal,
+    onPerCliAiEProviderChange, saveActiveCliSettings, savePerCli, openPromptModal,
     onFlushCliChange, loadFlushAgentSidebar,
     closePromptModal, savePromptFromModal, syncMcpServers, installMcpGlobal,
     loadCliStatus, scheduleCliStatusRefresh, setCliStatusInterval,
@@ -179,6 +179,7 @@ document.querySelector('.sidebar-save-bar .btn-save')?.addEventListener('click',
 
 // ── Agents Tab ──
 document.getElementById('selCli')?.addEventListener('change', () => onCliChange());
+document.getElementById('selAiEProvider')?.addEventListener('change', () => onCliChange());
 document.getElementById('selModel')?.addEventListener('change', () => saveActiveCliSettings());
 document.getElementById('selEffort')?.addEventListener('change', () => saveActiveCliSettings());
 document.getElementById('flushCli')?.addEventListener('change', () => onFlushCliChange());
@@ -328,9 +329,17 @@ function setClaude1m(on: boolean) {
 document.getElementById('claude1mOn')?.addEventListener('click', () => setClaude1m(true));
 document.getElementById('claude1mOff')?.addEventListener('click', () => setClaude1m(false));
 // Per-CLI model selects
+function toDomSuffix(cli: string): string {
+    return cli
+        .split(/[^a-zA-Z0-9]+/)
+        .filter(Boolean)
+        .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+        .join('');
+}
+
 function bindPerCliControlEvents(): void {
     for (const cli of getCliKeys()) {
-        const cap = cli.charAt(0).toUpperCase() + cli.slice(1);
+        const cap = toDomSuffix(cli);
         const sel = document.getElementById('model' + cap) as HTMLSelectElement | null;
         if (sel) sel.addEventListener('change', function (this: HTMLSelectElement) { handleModelSelect(cli, this); });
         const custom = document.getElementById('customModel' + cap) as HTMLInputElement | null;
@@ -338,6 +347,7 @@ function bindPerCliControlEvents(): void {
         const effort = document.getElementById('effort' + cap);
         if (effort) effort.addEventListener('change', savePerCli);
     }
+    document.getElementById('providerAiE')?.addEventListener('change', onPerCliAiEProviderChange);
 }
 
 // MCP

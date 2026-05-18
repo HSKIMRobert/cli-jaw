@@ -160,6 +160,16 @@ test('FC-007: /flush <model> picks first available matched CLI (codex before cop
     });
 });
 
+test('FC-007b: /flush <model> does not infer wrapper ai-e before concrete provider CLIs', () => {
+    const handlerSrc = fs.readFileSync(
+        join(import.meta.dirname, '../../src/cli/handlers-runtime.ts'), 'utf8',
+    );
+    const flushBlock = handlerSrc.slice(
+        handlerSrc.indexOf('export async function flushHandler'),
+    );
+    assert.match(flushBlock, /if \(cli === 'ai-e'\) continue;/);
+});
+
 // ─── FC-008: model exists but CLI unavailable ───────
 // Note: withIsolatedPath cannot block detectCli's buildServicePath from finding
 // CLIs in hardcoded paths (homebrew, nvm, etc). Test structurally instead.

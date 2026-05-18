@@ -152,8 +152,8 @@ test('SF-005: claude-e steer uses graceful interrupt timing', () => {
         'claude-e steer should not inherit the default 2s SIGKILL escalation',
     );
     assert.ok(
-        spawnSrc.includes("reason === 'steer' && activeCli === 'claude-e'"),
-        'kill policy should be scoped to claude-e steer only',
+        spawnSrc.includes("reason === 'steer' && isActiveClaudePtyRuntime()"),
+        'kill policy should be scoped to Claude PTY runtimes only',
     );
     assert.ok(
         spawnSrc.includes("return { signal: 'SIGINT', escalationMs: CLAUDE_E_STEER_KILL_ESCALATION_MS }"),

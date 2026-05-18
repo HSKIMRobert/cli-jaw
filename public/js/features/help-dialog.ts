@@ -1,5 +1,5 @@
 import { t } from './i18n.js';
-import { HELP_TOPICS, isHelpTopicId, type HelpTopic, type HelpTopicId } from './help-content.js';
+import { HELP_TOPICS, isHelpTopicId, type HelpDocLink, type HelpTopic, type HelpTopicId } from './help-content.js';
 
 let initialized = false;
 let overlay: HTMLDivElement | null = null;
@@ -142,6 +142,7 @@ function renderTopic(topicId: HelpTopicId, topicIds: readonly HelpTopicId[] = [t
 }
 
 function appendTopicSections(parent: HTMLElement, topic: HelpTopic): void {
+    if (topic.docLinks?.length) appendDocLinksSection(parent, topic.docLinks);
     appendTextSection(parent, t('help.section.what'), t(topic.introKey));
     appendTextSection(parent, t('help.section.effect'), t(topic.effectKey), 'help-effect-text');
     appendListSection(parent, t('help.section.useWhen'), topic.useWhenKeys);
@@ -185,6 +186,28 @@ function normalizeTopicIds(values: readonly string[], fallback: HelpTopicId): He
     }
     if (!ids.includes(fallback)) ids.unshift(fallback);
     return ids;
+}
+
+function appendDocLinksSection(parent: HTMLElement, links: HelpDocLink[]): void {
+    const section = document.createElement('section');
+    section.className = 'help-dialog-section help-doc-links';
+    const nav = document.createElement('nav');
+    nav.className = 'help-doc-links-nav';
+    for (const link of links) {
+        const a = document.createElement('a');
+        a.href = link.url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.className = 'help-doc-link';
+        a.textContent = t(link.labelKey);
+        const icon = document.createElement('span');
+        icon.className = 'help-doc-link-icon';
+        icon.textContent = '↗';
+        a.append(icon);
+        nav.append(a);
+    }
+    section.append(nav);
+    parent.append(section);
 }
 
 function appendTextSection(parent: HTMLElement, heading: string, text: string, className?: string): void {

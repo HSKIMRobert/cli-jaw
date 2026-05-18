@@ -156,6 +156,13 @@ test('getArgumentCompletionItems: cli command returns cli choices', () => {
     assert.ok(items.every(i => i.kind === 'argument'));
 });
 
+test('getArgumentCompletionItems: model labels use concrete provider instead of ai-e wrapper', () => {
+    const items = getArgumentCompletionItems('model', 'gpt-5.4', 'cli', [], {});
+    const item = items.find(i => i.name === 'gpt-5.4');
+    assert.ok(item);
+    assert.notEqual(item.desc, 'ai-e');
+});
+
 test('getArgumentCompletionItems: unknown command returns empty', () => {
     const items = getArgumentCompletionItems('nonexistent', '', 'cli');
     assert.deepEqual(items, []);

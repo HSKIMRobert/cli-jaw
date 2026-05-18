@@ -36,6 +36,7 @@ export interface SpawnContext {
   hasActiveSubAgent?: boolean;
   showReasoning?: boolean;
   outputTextStarted?: boolean;
+  effectiveProvider?: string;
   thinkingBuf?: string;
   liveScope?: string | null;
   parentLiveScope?: string | null;

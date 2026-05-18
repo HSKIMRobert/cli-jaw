@@ -124,6 +124,120 @@ test('Claude rate-limit process exit does not broadcast Jaw retry or fallback', 
     }
 });
 
+test('ai-e error classification uses effective provider, not selector name', async () => {
+    let resolved: any = null;
+    clearAllBroadcastListeners();
+    try {
+        await handleAgentExit({
+            ctx: {
+                fullText: '',
+                sessionId: null,
+                toolLog: [],
+                traceLog: [],
+                stderrBuf: '429 Too Many Requests',
+            },
+            code: 1,
+            cli: 'ai-e',
+            effectiveProvider: 'codex',
+            model: 'gpt-5.4',
+            resumeKey: null,
+            agentLabel: 'main',
+            mainManaged: true,
+            origin: 'test',
+            prompt: 'test',
+            opts: { _isRetry: true },
+            cfg: { effort: '' },
+            ownerGeneration: 0,
+            forceNew: false,
+            empSid: null,
+            isResume: false,
+            wasKilled: false,
+            wasSteer: false,
+            smokeResult: { isSmoke: false, confidence: 'low' },
+            effortDefault: 'medium',
+            costLine: '',
+            resolve: (value: any) => { resolved = value; },
+            activeProcesses: new Map(),
+            setActiveProcess: () => {},
+            retryState: {
+                timer: null,
+                resolve: null,
+                origin: null,
+                setTimer: () => {},
+                setResolve: () => {},
+                setOrigin: () => {},
+                setIsEmployee: () => {},
+            },
+            fallbackState: new Map(),
+            fallbackMaxRetries: 3,
+            processQueue: () => {},
+        });
+
+        assert.ok(resolved);
+        assert.equal(resolved.code, 1);
+        assert.match(resolved.diagnostic, /API 용량 초과/);
+    } finally {
+        clearAllBroadcastListeners();
+    }
+});
+
+test('ai-e Claude provider keeps Claude-owned 429 pacing semantics', async () => {
+    let resolved: any = null;
+    clearAllBroadcastListeners();
+    try {
+        await handleAgentExit({
+            ctx: {
+                fullText: '',
+                sessionId: null,
+                toolLog: [],
+                traceLog: [],
+                stderrBuf: '429 Too Many Requests: Claude is rate limited and retrying',
+            },
+            code: 1,
+            cli: 'ai-e',
+            effectiveProvider: 'claude',
+            model: 'sonnet',
+            resumeKey: null,
+            agentLabel: 'main',
+            mainManaged: true,
+            origin: 'test',
+            prompt: 'test',
+            opts: {},
+            cfg: { effort: '' },
+            ownerGeneration: 0,
+            forceNew: false,
+            empSid: null,
+            isResume: false,
+            wasKilled: false,
+            wasSteer: false,
+            smokeResult: { isSmoke: false, confidence: 'low' },
+            effortDefault: 'medium',
+            costLine: '',
+            resolve: (value: any) => { resolved = value; },
+            activeProcesses: new Map(),
+            setActiveProcess: () => {},
+            retryState: {
+                timer: null,
+                resolve: null,
+                origin: null,
+                setTimer: () => {},
+                setResolve: () => {},
+                setOrigin: () => {},
+                setIsEmployee: () => {},
+            },
+            fallbackState: new Map(),
+            fallbackMaxRetries: 3,
+            processQueue: () => {},
+        });
+
+        assert.ok(resolved);
+        assert.equal(resolved.code, 1);
+        assert.match(resolved.diagnostic, /Claude is rate limited/);
+    } finally {
+        clearAllBroadcastListeners();
+    }
+});
+
 test('session persistence can be skipped for transient Gemini Auto fallback', () => {
     assert.equal(shouldPersistMainSession({
         ownerGeneration: 0,
@@ -167,7 +281,7 @@ test('Gemini resumed capacity fallback clears stale bucket before retrying witho
     );
 
     assert.match(branch, /isResume/);
-    assert.match(branch, /const\s+bucket\s*=\s*resolveSessionBucket\(cli,\s*model\)/);
+    assert.match(branch, /const\s+bucket\s*=\s*resolveSessionBucket\(cli,\s*model,\s*effectiveProvider\)/);
     assert.match(branch, /clearSessionBucket\.run\(bucket\)/);
     assert.match(branch, /_skipResume:\s*true/);
     assert.match(branch, /_skipSessionPersist:\s*true/);
@@ -176,7 +290,7 @@ test('Gemini resumed capacity fallback clears stale bucket before retrying witho
 
 test('Gemini high-turn compact coordination clears session bucket like Codex/OpenCode', () => {
     const lifecycle = readSrc('../../src/agent/lifecycle-handler.ts');
-    assert.match(lifecycle, /cli\s*===\s*'codex'\s*\|\|\s*cli\s*===\s*'opencode'\s*\|\|\s*cli\s*===\s*'gemini'/);
+    assert.match(lifecycle, /runtimeCli\s*===\s*'codex'\s*\|\|\s*runtimeCli\s*===\s*'opencode'\s*\|\|\s*runtimeCli\s*===\s*'gemini'/);
 });
 
 test('Gemini capacity fallback disables resume without changing mainManaged predicate', () => {

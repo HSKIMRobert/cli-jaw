@@ -19,11 +19,37 @@ function entryFor(value: unknown, original: unknown, valid = true): DirtyEntry {
 
 export function PerCliRow({ cli, meta, original, value, setValue, setEntry }: Props) {
     const modelDatalistId = `percli-${cli}-models`;
+    const isAiE = cli === 'ai-e';
+    const provider = value.provider || meta.defaultProvider || meta.providers?.[0] || 'claude';
+    const modelOptions = isAiE
+        ? (meta.modelsByProvider?.[provider] ?? meta.models)
+        : meta.models;
+    const effortOptions = isAiE
+        ? (meta.effortsByProvider?.[provider] ?? meta.efforts)
+        : meta.efforts;
 
     return (
         <div className="settings-percli-row" data-cli={cli}>
             <h3 className="settings-percli-title">{meta.label}</h3>
             <div className="settings-percli-grid">
+                {isAiE && meta.providers?.length ? (
+                    <SelectField
+                        id={`percli-${cli}-provider`}
+                        label="Provider"
+                        value={provider}
+                        options={meta.providers.map((p) => ({ value: p, label: p }))}
+                        onChange={(next) => {
+                            const nextModels = meta.modelsByProvider?.[next] ?? [];
+                            const nextEfforts = meta.effortsByProvider?.[next] ?? [];
+                            const nextModel = nextModels.includes(value.model || '') ? (value.model || '') : (nextModels[0] || '');
+                            const nextEffort = nextEfforts.includes(value.effort || '') ? (value.effort || '') : '';
+                            setValue({ ...value, provider: next, model: nextModel, effort: nextEffort });
+                            setEntry(`perCli.${cli}.provider`, entryFor(next, original.provider ?? meta.defaultProvider ?? 'claude'));
+                            setEntry(`perCli.${cli}.model`, entryFor(nextModel, original.model ?? ''));
+                            setEntry(`perCli.${cli}.effort`, entryFor(nextEffort, original.effort ?? ''));
+                        }}
+                    />
+                ) : null}
                 <div className="settings-percli-model">
                     <TextField
                         id={`percli-${cli}-model`}
@@ -33,24 +59,24 @@ export function PerCliRow({ cli, meta, original, value, setValue, setEntry }: Pr
                             setValue({ ...value, model: next });
                             setEntry(`perCli.${cli}.model`, entryFor(next, original.model ?? ''));
                         }}
-                        placeholder={meta.models[0] ?? 'model id'}
+                        placeholder={modelOptions[0] ?? 'model id'}
                     />
-                    {meta.models.length > 0 ? (
+                    {modelOptions.length > 0 ? (
                         <datalist id={modelDatalistId}>
-                            {meta.models.map((m) => (
+                            {modelOptions.map((m) => (
                                 <option key={m} value={m} />
                             ))}
                         </datalist>
                     ) : null}
                 </div>
-                {meta.efforts.length > 0 ? (
+                {effortOptions.length > 0 ? (
                     <SelectField
                         id={`percli-${cli}-effort`}
                         label="Effort"
                         value={value.effort ?? ''}
                         options={[
                             { value: '', label: '(default)' },
-                            ...meta.efforts.map((e) => ({ value: e, label: e })),
+                            ...effortOptions.map((e) => ({ value: e, label: e })),
                         ]}
                         onChange={(next) => {
                             setValue({ ...value, effort: next });

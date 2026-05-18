@@ -50,6 +50,7 @@ type FlushSnapshot = {
 
 type RuntimeDraft = {
     cli: string;
+    provider: string;
     model: string;
     effort: string;
     workingDir: string;
@@ -60,6 +61,7 @@ export default function Agent({ port, client, dirty, registerSave }: SettingsPag
     const { state, refresh, setData } = usePageSnapshot<AgentSnapshot>(client, '/api/settings');
     const [draft, setDraft] = useState<RuntimeDraft>({
         cli: '',
+        provider: '',
         model: '',
         effort: '',
         workingDir: '',
@@ -116,6 +118,7 @@ export default function Agent({ port, client, dirty, registerSave }: SettingsPag
         const permissions = parsePermissionsValue(state.data.permissions);
         setDraft({
             cli,
+            provider: state.data.perCli?.[cli]?.provider || metaFor(cli).defaultProvider || '',
             model: runtimeModelFor(cli, state.data.perCli, state.data.activeOverrides),
             effort: runtimeEffortFor(cli, state.data.perCli, state.data.activeOverrides),
             workingDir: state.data.workingDir || '',
@@ -165,6 +168,13 @@ export default function Agent({ port, client, dirty, registerSave }: SettingsPag
     const activeOverrides = settingsData.activeOverrides || {};
     const cliOptions = useMemo(() => Object.keys(perCli), [perCli]);
     const activeMeta = metaFor(draft.cli);
+    const activeProvider = draft.provider || activeMeta.defaultProvider || activeMeta.providers?.[0] || '';
+    const activeModelOptions = draft.cli === 'ai-e'
+        ? optionList(activeMeta.modelsByProvider?.[activeProvider] || activeMeta.models, draft.model)
+        : optionList(activeMeta.models, draft.model);
+    const activeEffortOptions = draft.cli === 'ai-e'
+        ? (activeMeta.effortsByProvider?.[activeProvider] || activeMeta.efforts)
+        : activeMeta.efforts;
     const workingDirError = draft.workingDir.trim() ? null : 'Required';
 
     if (state.kind === 'loading') return <PageLoading />;
@@ -192,22 +202,47 @@ export default function Agent({ port, client, dirty, registerSave }: SettingsPag
             <RuntimeHeader
                 cli={draft.cli}
                 cliOptions={cliOptions.length > 0 ? cliOptions : [draft.cli || 'claude']}
+                provider={activeProvider}
+                providerOptions={activeMeta.providers || []}
                 model={draft.model}
-                modelOptions={optionList(activeMeta.models, draft.model)}
+                modelOptions={activeModelOptions}
                 effort={draft.effort}
-                effortOptions={activeMeta.efforts}
+                effortOptions={activeEffortOptions}
                 workingDir={draft.workingDir}
                 workingDirError={workingDirError}
                 onCliChange={(next) => {
                     const nextDraft = {
                         ...draft,
                         cli: next,
+                        provider: perCli[next]?.provider || metaFor(next).defaultProvider || '',
                         model: runtimeModelFor(next, perCli, activeOverrides),
                         effort: runtimeEffortFor(next, perCli, activeOverrides),
                     };
                     resetActiveOverrideKeys();
                     setRuntimeDraft(nextDraft);
                     setEntry('cli', { value: next, original: settingsData.cli || '', valid: true });
+                }}
+                onProviderChange={(next) => {
+                    const models = activeMeta.modelsByProvider?.[next] || [];
+                    const efforts = activeMeta.effortsByProvider?.[next] || [];
+                    const nextModel = models.includes(draft.model) ? draft.model : (models[0] || '');
+                    const nextEffort = efforts.includes(draft.effort) ? draft.effort : '';
+                    setRuntimeDraft({ ...draft, provider: next, model: nextModel, effort: nextEffort });
+                    setEntry('perCli.ai-e.provider', {
+                        value: next,
+                        original: perCli['ai-e']?.provider || activeMeta.defaultProvider || 'claude',
+                        valid: true,
+                    });
+                    setEntry('activeOverrides.ai-e.model', {
+                        value: nextModel,
+                        original: runtimeModelFor('ai-e', perCli, activeOverrides),
+                        valid: nextModel.trim().length > 0,
+                    });
+                    setEntry('activeOverrides.ai-e.effort', {
+                        value: nextEffort,
+                        original: runtimeEffortFor('ai-e', perCli, activeOverrides),
+                        valid: true,
+                    });
                 }}
                 onModelChange={(next) => {
                     setRuntimeDraft({ ...draft, model: next });

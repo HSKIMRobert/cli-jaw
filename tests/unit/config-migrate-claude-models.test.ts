@@ -123,3 +123,29 @@ test('CfgM-008: migrateSettings rewrites deprecated Copilot fast opus model', ()
     assert.equal(s.activeOverrides.copilot.model, 'claude-opus-4.6');
     assert.equal(s.memory.model, 'claude-opus-4.6');
 });
+
+test('CfgM-011: migrateSettings normalizes ai-e Claude provider models only', () => {
+    const copilot = migrateSettings({
+        cli: 'ai-e',
+        perCli: {
+            'ai-e': { provider: 'copilot', model: 'claude-sonnet-4.6', effort: 'high' },
+        },
+        activeOverrides: {
+            'ai-e': { provider: 'copilot', model: 'claude-opus-4.7' },
+        },
+    });
+    assert.equal(copilot.perCli['ai-e'].model, 'claude-sonnet-4.6');
+    assert.equal(copilot.activeOverrides['ai-e'].model, 'claude-opus-4.7');
+
+    const claude = migrateSettings({
+        cli: 'ai-e',
+        perCli: {
+            'ai-e': { provider: 'claude', model: 'claude-sonnet-4.6', effort: 'high' },
+        },
+        activeOverrides: {
+            'ai-e': { model: 'claude-opus-4.7' },
+        },
+    });
+    assert.equal(claude.perCli['ai-e'].model, 'claude-sonnet-4-6');
+    assert.equal(claude.activeOverrides['ai-e'].model, 'claude-opus-4-7');
+});

@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
     CLI_REGISTRY,
     CLI_KEYS,
@@ -8,10 +11,13 @@ import {
     buildModelChoicesByCli,
 } from '../../src/cli/registry.ts';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 // ─── Structure validation ────────────────────────────
 
-test('CLI_KEYS contains exactly 8 known entries', () => {
-    assert.deepEqual(CLI_KEYS.sort(), ['claude', 'claude-e', 'codex', 'codex-app', 'copilot', 'gemini', 'grok', 'opencode']);
+test('CLI_KEYS contains exactly 9 known entries', () => {
+    assert.deepEqual(CLI_KEYS.sort(), ['ai-e', 'claude', 'claude-e', 'codex', 'codex-app', 'copilot', 'gemini', 'grok', 'opencode']);
 });
 
 test('DEFAULT_CLI is claude', () => {
@@ -44,6 +50,30 @@ test('every CLI defaultModel is included in its models list', () => {
 test('registry defaults for gemini and opencode are updated', () => {
     assert.equal(CLI_REGISTRY.gemini.defaultModel, 'gemini-3-flash-preview');
     assert.equal(CLI_REGISTRY.opencode.defaultModel, 'opencode-go/kimi-k2.6');
+});
+
+test('ai-e registry exposes explicit provider selector metadata', () => {
+    assert.equal(CLI_REGISTRY['ai-e'].defaultProvider, 'claude');
+    assert.deepEqual(CLI_REGISTRY['ai-e'].providers, ['claude', 'codex', 'gemini', 'grok', 'copilot']);
+    assert.ok(CLI_REGISTRY['ai-e'].modelsByProvider?.codex.includes('gpt-5.4'));
+    assert.ok(CLI_REGISTRY['ai-e'].modelsByProvider?.copilot.includes('gpt-5-mini'));
+});
+
+test('ai-e detection checks AI_E_BIN, PATH, then local package candidates', () => {
+    const configSrc = fs.readFileSync(join(__dirname, '../../src/core/config.ts'), 'utf8');
+    const aiEBlock = configSrc.match(/if \(name === 'ai-e' \|\| binary === 'ai-e'\) \{[\s\S]*?\n    \}/)?.[0] || '';
+    assert.match(aiEBlock, /process\.env\["AI_E_BIN"\]/);
+    assert.match(aiEBlock, /detectCliBinary\('ai-e'\)/);
+    assert.match(aiEBlock, /selectSpawnableCliPath\(getAiEPackageCandidates\(\)\)/);
+    assert.match(configSrc, /'ai-e', 'target', 'release'/);
+    assert.ok(
+        aiEBlock.indexOf('process.env["AI_E_BIN"]') < aiEBlock.indexOf("detectCliBinary('ai-e')"),
+        'AI_E_BIN must be checked before PATH lookup',
+    );
+    assert.ok(
+        aiEBlock.indexOf("detectCliBinary('ai-e')") < aiEBlock.indexOf('getAiEPackageCandidates()'),
+        'PATH lookup must be checked before local package candidates',
+    );
 });
 
 test('grok registry disables effort for grok-build', () => {
@@ -101,6 +131,7 @@ test('buildDefaultPerCli returns correct shape', () => {
         assert.equal(defaults[key].model, CLI_REGISTRY[key].defaultModel);
         assert.equal(typeof defaults[key].effort, 'string');
     }
+    assert.equal(defaults['ai-e'].provider, 'claude');
 });
 
 test('buildDefaultPerCli returns a new object each call', () => {
@@ -125,4 +156,17 @@ test('buildModelChoicesByCli returns independent copies', () => {
     const b = buildModelChoicesByCli();
     a.claude.push('test-model');
     assert.ok(!b.claude.includes('test-model'), 'modifying one copy should not affect another');
+});
+
+test('doctor CLI checks are driven by canonical registry keys', () => {
+    const doctorSrc = fs.readFileSync(join(__dirname, '../../bin/commands/doctor.ts'), 'utf8');
+    assert.match(doctorSrc, /import \{ CLI_KEYS \}/);
+    assert.match(doctorSrc, /for \(const cli of CLI_KEYS\)/);
+    assert.doesNotMatch(doctorSrc, /for \(const cli of \['claude', 'codex', 'gemini', 'opencode', 'copilot'\]\)/);
+});
+
+test('readiness default order covers every canonical CLI', () => {
+    const readinessSrc = fs.readFileSync(join(__dirname, '../../src/cli/readiness.ts'), 'utf8');
+    const order = readinessSrc.split('\n').find(line => line.includes('const DEFAULT_ORDER')) || '';
+    for (const key of CLI_KEYS) assert.match(order, new RegExp(`'${key}'`), `DEFAULT_ORDER must include ${key}`);
 });

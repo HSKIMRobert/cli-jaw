@@ -230,6 +230,36 @@
     padding: 6px 18px;
 }
 
+.help-doc-links-nav {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+
+.help-doc-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 14px;
+    border-radius: 6px;
+    background: var(--accent, #22d3ee);
+    color: var(--surface, #1a1a2e);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: opacity 0.15s;
+}
+
+.help-doc-link:hover {
+    opacity: 0.85;
+}
+
+.help-doc-link-icon {
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
 @media (max-width: 768px) {
     .help-trigger {
         position: relative;

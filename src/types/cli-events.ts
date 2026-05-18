@@ -1,7 +1,7 @@
 import type { CliEngine } from './cli-engine.js';
 import type { ToolEntry } from './agent.js';
 
-export type CliEventEngine = Exclude<CliEngine, 'copilot'>;
+export type CliEventEngine = CliEngine;
 
 export interface TokenRecord extends Record<string, unknown> {
   input?: number;
@@ -147,7 +147,7 @@ export function assertNever(value: never): never {
 
 export function discriminate(cli: string, raw: unknown): CliEvent | null {
   if (!isCliEventRecord(raw)) return null;
-  if (cli === 'claude' || cli === 'claude-e' || cli === 'codex' || cli === 'gemini' || cli === 'grok' || cli === 'opencode') {
+  if (cli === 'claude' || cli === 'claude-e' || cli === 'codex' || cli === 'gemini' || cli === 'grok' || cli === 'opencode' || cli === 'copilot') {
     return { ...raw, cli };
   }
   return null;

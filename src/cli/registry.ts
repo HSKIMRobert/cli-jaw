@@ -4,6 +4,37 @@ import { getDefaultClaudeChoices, getDefaultClaudeModel } from './claude-models.
 import type { CliEngine } from '../types/cli-engine.js';
 
 export const CLI_REGISTRY = {
+    'ai-e': {
+        label: 'AI-E',
+        binary: 'ai-e',
+        defaultProvider: 'claude',
+        providers: ['claude', 'codex', 'gemini', 'grok', 'copilot'],
+        defaultModel: getDefaultClaudeModel(),
+        defaultEffort: 'medium',
+        efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
+        models: [
+            ...getDefaultClaudeChoices(),
+            'gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.3-codex',
+            'gemini-3-flash-preview', 'gemini-2.5-pro',
+            'grok-build',
+            'gpt-5-mini',
+            'claude-sonnet-4.6',
+        ],
+        modelsByProvider: {
+            claude: getDefaultClaudeChoices(),
+            codex: ['gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.3-codex'],
+            gemini: ['gemini-3-flash-preview', 'gemini-2.5-pro'],
+            grok: ['grok-build'],
+            copilot: ['gpt-5-mini', 'claude-sonnet-4.6', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.5'],
+        },
+        effortsByProvider: {
+            claude: ['low', 'medium', 'high', 'xhigh', 'max'],
+            codex: ['low', 'medium', 'high', 'xhigh'],
+            gemini: [],
+            grok: [],
+            copilot: ['low', 'medium', 'high'],
+        },
+    },
     claude: {
         label: 'Claude',
         binary: 'claude',
@@ -105,6 +136,7 @@ export function buildDefaultPerCli() {
         out[key] = {
             model: entry.defaultModel,
             effort: entry.defaultEffort || '',
+            ...('defaultProvider' in entry ? { provider: entry.defaultProvider } : {}),
         };
     }
     return out;

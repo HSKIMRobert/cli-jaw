@@ -16,6 +16,7 @@
 //   3. Update fixtures and per-engine event extractors (P11+).
 
 export type CliEngine =
+    | 'ai-e'
     | 'claude'
     | 'claude-e'
     | 'codex'
@@ -33,6 +34,7 @@ export type CliEngine =
  * src/cli/readiness.ts DEFAULT_ORDER).
  */
 export const CLI_ENGINES = [
+    'ai-e',
     'claude',
     'claude-e',
     'codex',

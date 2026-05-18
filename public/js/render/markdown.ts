@@ -46,6 +46,12 @@ function ensureMarked(): boolean {
         return `<div class="code-block"><div class="code-header"><span class="code-lang">${langDisplay}</span><button class="code-copy-btn" type="button" aria-label="${escapeHtml(copyLabel)}">${escapeHtml(copyLabel)}</button></div><pre><code class="hljs${lang ? ` language-${escapeHtml(lang)}` : ''}">${highlighted}</code></pre></div>`;
     };
 
+    renderer.link = function ({ href, title, text }: { href: string; title?: string | null; text: string }) {
+        const safeHref = escapeHtml(href || '');
+        const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
+        return `<a href="${safeHref}" target="_blank" rel="noopener noreferrer"${titleAttr}>${text}</a>`;
+    };
+
     marked.setOptions({
         renderer,
         gfm: true,

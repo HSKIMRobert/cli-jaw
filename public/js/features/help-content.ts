@@ -22,6 +22,11 @@ export type HelpTopicId =
     | 'diagrams'
     | 'keyboardShortcuts';
 
+export interface HelpDocLink {
+    url: string;
+    labelKey: string;
+}
+
 export interface HelpTopic {
     titleKey: string;
     introKey: string;
@@ -31,6 +36,7 @@ export interface HelpTopic {
     exampleKeys: string[];
     avoidWhenKeys?: string[];
     relatedKeys?: string[];
+    docLinks?: HelpDocLink[];
 }
 
 export const HELP_TOPICS: Record<HelpTopicId, HelpTopic> = {
@@ -42,8 +48,20 @@ export const HELP_TOPICS: Record<HelpTopicId, HelpTopic> = {
     employees: topic('employees', 3, 3, 2),
     skills: topic('skills', 2, 1, 1),
     activeChannel: topic('activeChannel', 2, 1, 1),
-    telegram: topic('telegram', 2, 1, 2),
-    discord: topic('discord', 2, 1, 2),
+    telegram: {
+        ...topic('telegram', 2, 1, 2, 8),
+        docLinks: [
+            { url: 'https://t.me/BotFather', labelKey: 'help.telegram.link.botfather' },
+            { url: 'https://core.telegram.org/bots/tutorial', labelKey: 'help.telegram.link.docs' },
+        ],
+    },
+    discord: {
+        ...topic('discord', 2, 1, 2, 9),
+        docLinks: [
+            { url: 'https://discord.com/developers/applications', labelKey: 'help.discord.link.portal' },
+            { url: 'https://discord.com/developers/docs/getting-started', labelKey: 'help.discord.link.docs' },
+        ],
+    },
     fallbackOrder: topic('fallbackOrder', 2, 1, 1),
     mcp: topic('mcp', 2, 1, 1),
     memory: topic('memory', 2, 1, 2),

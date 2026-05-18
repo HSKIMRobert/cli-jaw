@@ -39,20 +39,24 @@ export async function waitForSettingsSaveIdle(): Promise<void> {
     if (pending) await pending;
 }
 
-function toCap(cli: string): string {
-    return cli.charAt(0).toUpperCase() + cli.slice(1);
+function toDomSuffix(cli: string): string {
+    return cli
+        .split(/[^a-zA-Z0-9]+/)
+        .filter(Boolean)
+        .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+        .join('');
 }
 
 function getModelSelect(cli: string): HTMLSelectElement | null {
-    return document.getElementById('model' + toCap(cli)) as HTMLSelectElement | null;
+    return document.getElementById('model' + toDomSuffix(cli)) as HTMLSelectElement | null;
 }
 
 function getCustomModelInput(cli: string): HTMLInputElement | null {
-    return document.getElementById('customModel' + toCap(cli)) as HTMLInputElement | null;
+    return document.getElementById('customModel' + toDomSuffix(cli)) as HTMLInputElement | null;
 }
 
 function getEffortSelect(cli: string): HTMLSelectElement | null {
-    return document.getElementById('effort' + toCap(cli)) as HTMLSelectElement | null;
+    return document.getElementById('effort' + toDomSuffix(cli)) as HTMLSelectElement | null;
 }
 
 function setSelectOptions(selectEl: HTMLSelectElement | null, values: string[], { includeCustom = false, includeDefault = false, selected = '' } = {}): void {
@@ -109,11 +113,16 @@ function normalizeModelForDisplay(_cli: string, model: string): string {
 
 function syncPerCliModelAndEffortControls(settings: SettingsData | null = null): void {
     for (const cli of getCliKeys()) {
+        const meta = getCliMeta(cli);
+        const aiEProvider = cli === 'ai-e' ? getSelectedAiEProvider() : '';
         const modelSel = getModelSelect(cli);
         if (modelSel) {
             const raw = settings?.perCli?.[cli]?.model || modelSel.value || '';
             const selected = normalizeModelForDisplay(cli, raw);
-            setSelectOptions(modelSel, MODEL_MAP[cli] || [], { includeCustom: true, selected });
+            const models = cli === 'ai-e'
+                ? (meta?.modelsByProvider?.[aiEProvider] || MODEL_MAP[cli] || [])
+                : (MODEL_MAP[cli] || []);
+            setSelectOptions(modelSel, models, { includeCustom: true, selected });
             if (selected && !Array.from(modelSel.options).some(o => o.value === selected)) {
                 appendCustomOption(modelSel, selected);
                 modelSel.value = selected;
@@ -122,17 +131,19 @@ function syncPerCliModelAndEffortControls(settings: SettingsData | null = null):
 
         const effortSel = getEffortSelect(cli);
         if (effortSel) {
-            const meta = getCliMeta(cli);
-            const options = [''].concat(meta?.efforts || []);
+            const providerEfforts = cli === 'ai-e' && aiEProvider
+                ? (meta?.effortsByProvider?.[aiEProvider] || [])
+                : null;
+            const options = [''].concat(providerEfforts || meta?.efforts || []);
             const selected = settings?.perCli?.[cli]?.effort || effortSel.value || '';
             const unique = [...new Set(options)];
-            const noneLabel = (meta?.efforts?.length === 0 && meta?.effortNote) ? meta.effortNote : '— none';
+            const noneLabel = (unique.length === 1 && !unique[0] && meta?.effortNote) ? meta.effortNote : '— none';
             effortSel.innerHTML = unique.map(v => {
                 if (!v) return `<option value="">${escapeHtml(noneLabel)}</option>`;
                 return `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`;
             }).join('');
             if (meta?.effortNote) effortSel.title = meta.effortNote;
-            effortSel.disabled = (meta?.efforts?.length === 0 && !!meta?.effortNote);
+            effortSel.disabled = (unique.length === 1 && !unique[0] && !!meta?.effortNote);
             if (Array.from(effortSel.options).some(o => o.value === selected)) effortSel.value = selected;
         }
     }
@@ -142,13 +153,17 @@ function syncActiveEffortOptions(cli: string, selected = ''): void {
     const selEffort = document.getElementById('selEffort') as HTMLSelectElement | null;
     if (!selEffort) return;
     const meta = getCliMeta(cli);
+    const aiEProvider = getSelectedAiEProvider();
+    const providerEfforts = cli === 'ai-e' && aiEProvider
+        ? (meta?.effortsByProvider?.[aiEProvider] || [])
+        : null;
     if (meta?.effortNote) {
         selEffort.innerHTML = `<option value="">${escapeHtml(meta.effortNote)}</option>`;
         selEffort.title = meta.effortNote;
         selEffort.disabled = true;
         return;
     }
-    const efforts = [''].concat(meta?.efforts || []);
+    const efforts = [''].concat(providerEfforts || meta?.efforts || []);
     const unique = [...new Set(efforts)];
     selEffort.innerHTML = unique.map(v => {
         if (!v) return '<option value="">— none</option>';
@@ -159,12 +174,51 @@ function syncActiveEffortOptions(cli: string, selected = ''): void {
     if (Array.from(selEffort.options).some(o => o.value === selected)) selEffort.value = selected;
 }
 
+function syncAiEProviderOptions(select: HTMLSelectElement | null, current: string, providers: string[]): string {
+    if (!select) return current;
+    select.innerHTML = providers.map(provider => (
+        `<option value="${escapeHtml(provider)}">${escapeHtml(providerLabel(provider) || provider)}</option>`
+    )).join('');
+    if (Array.from(select.options).some(o => o.value === current)) select.value = current;
+    else if (select.options.length > 0) select.value = select.options[0]?.value || current;
+    return select.value || current;
+}
+
+function getSelectedAiEProvider(): string {
+    const select = document.getElementById('selAiEProvider') as HTMLSelectElement | null;
+    const perCliSelect = document.getElementById('providerAiE') as HTMLSelectElement | null;
+    return select?.value || perCliSelect?.value || getCliMeta('ai-e')?.defaultProvider || 'claude';
+}
+
+function getPerCliAiEProvider(): string {
+    const perCliSelect = document.getElementById('providerAiE') as HTMLSelectElement | null;
+    return perCliSelect?.value || getSelectedAiEProvider();
+}
+
+function syncAiEProviderControl(settings: SettingsData | null, cli: string): string {
+    const wrap = document.getElementById('aiEProviderWrap') as HTMLElement | null;
+    const select = document.getElementById('selAiEProvider') as HTMLSelectElement | null;
+    const perCliSelect = document.getElementById('providerAiE') as HTMLSelectElement | null;
+    const meta = getCliMeta('ai-e');
+    if (!meta?.providers?.length) return 'claude';
+    const current = settings?.perCli?.['ai-e']?.provider
+        || perCliSelect?.value
+        || select?.value
+        || meta.defaultProvider
+        || 'claude';
+    const selected = syncAiEProviderOptions(select, current, meta.providers);
+    syncAiEProviderOptions(perCliSelect, selected, meta.providers);
+    if (wrap) wrap.style.display = cli === 'ai-e' ? '' : 'none';
+    return selected;
+}
+
 export async function loadSettings(): Promise<void> {
     await loadCliRegistry();
     const s = await api<SettingsData>('/api/settings');
     if (!s) return;
     syncStoredLocale(s.locale ?? '');
     syncCliOptionSelects(s);
+    syncAiEProviderControl(s, s.cli || '');
     syncPerCliModelAndEffortControls(s);
 
     const selCli = document.getElementById('selCli') as HTMLSelectElement | null;
@@ -302,6 +356,18 @@ export function applyCustomModel(cli: string, inputEl: HTMLInputElement): void {
     savePerCli();
 }
 
+export function onPerCliAiEProviderChange(): void {
+    const provider = getPerCliAiEProvider();
+    const activeProvider = document.getElementById('selAiEProvider') as HTMLSelectElement | null;
+    if (activeProvider && Array.from(activeProvider.options).some(o => o.value === provider)) {
+        activeProvider.value = provider;
+    }
+    syncPerCliModelAndEffortControls(null);
+    const activeCli = (document.getElementById('selCli') as HTMLSelectElement | null)?.value || '';
+    if (activeCli === 'ai-e') onCliChange(false);
+    savePerCli();
+}
+
 export async function savePerCli(): Promise<void> {
     const perCli: Record<string, PerCliConfig> = {};
     for (const cli of getCliKeys()) {
@@ -312,6 +378,7 @@ export async function savePerCli(): Promise<void> {
             model: getModelValue(cli),
             effort: effortEl ? effortEl.value : '',
         };
+        if (cli === 'ai-e') entry.provider = getPerCliAiEProvider();
         if (cli === 'codex') {
             const onBtn = document.getElementById('codexFastOn');
             entry.fastMode = onBtn?.classList.contains('active') ?? false;
@@ -329,7 +396,11 @@ export async function savePerCli(): Promise<void> {
 
 export function onCliChange(save = true): void {
     const cli = (document.getElementById('selCli') as HTMLSelectElement)?.value || 'claude';
-    const models = MODEL_MAP[cli] || [];
+    const aiEProvider = syncAiEProviderControl(null, cli);
+    const meta = getCliMeta(cli);
+    const models = cli === 'ai-e'
+        ? (meta?.modelsByProvider?.[aiEProvider] || MODEL_MAP[cli] || [])
+        : (MODEL_MAP[cli] || []);
     const modelSel = document.getElementById('selModel') as HTMLSelectElement | null;
     setSelectOptions(modelSel, models, { includeCustom: true, includeDefault: true });
     setHeaderCli(cli);
@@ -366,6 +437,7 @@ export function onCliChange(save = true): void {
         if (!s) return;
         const ao = s.activeOverrides?.[cli] || {};
         const pc = s.perCli?.[cli] || {};
+        if (cli === 'ai-e') syncAiEProviderControl(s, cli);
         const model = ao.model || pc.model;
         const effort = ao.effort || pc.effort || '';
         if (model && modelSel) {
@@ -389,8 +461,11 @@ export async function saveActiveCliSettings(): Promise<void> {
     const effortEl = document.getElementById('selEffort') as HTMLSelectElement | null;
     const overrides: Record<string, PerCliConfig> = {};
     overrides[cli] = { model };
+    if (cli === 'ai-e') overrides[cli].provider = getSelectedAiEProvider();
     if (effortEl && !effortEl.disabled) overrides[cli].effort = effortEl.value || '';
-    await apiJson('/api/settings', 'PUT', { activeOverrides: overrides });
+    const patch: Record<string, unknown> = { activeOverrides: overrides };
+    if (cli === 'ai-e') patch['perCli'] = { 'ai-e': { provider: getSelectedAiEProvider() } };
+    await apiJson('/api/settings', 'PUT', patch);
 }
 
 // ── Flush Agent Sidebar ──

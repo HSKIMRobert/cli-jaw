@@ -5,6 +5,8 @@ import { metaFor } from './agent-meta';
 type RuntimeHeaderProps = {
     cli: string;
     cliOptions: ReadonlyArray<string>;
+    provider?: string;
+    providerOptions?: ReadonlyArray<string>;
     model: string;
     modelOptions: ReadonlyArray<{ value: string; label: string }>;
     effort: string;
@@ -12,6 +14,7 @@ type RuntimeHeaderProps = {
     workingDir: string;
     workingDirError: string | null;
     onCliChange(next: string): void;
+    onProviderChange?(next: string): void;
     onModelChange(next: string): void;
     onEffortChange(next: string): void;
     onWorkingDirChange(next: string): void;
@@ -20,6 +23,8 @@ type RuntimeHeaderProps = {
 export function RuntimeHeader({
     cli,
     cliOptions,
+    provider = '',
+    providerOptions = [],
     model,
     modelOptions,
     effort,
@@ -27,6 +32,7 @@ export function RuntimeHeader({
     workingDir,
     workingDirError,
     onCliChange,
+    onProviderChange,
     onModelChange,
     onEffortChange,
     onWorkingDirChange,
@@ -44,6 +50,15 @@ export function RuntimeHeader({
                     options={cliOptions.map((value) => ({ value, label: metaFor(value).label || value }))}
                     onChange={onCliChange}
                 />
+                {cli === 'ai-e' && providerOptions.length > 0 ? (
+                    <SelectField
+                        id="agent-ai-e-provider"
+                        label="AI-E provider"
+                        value={provider}
+                        options={providerOptions.map((value) => ({ value, label: value }))}
+                        onChange={(next) => onProviderChange?.(next)}
+                    />
+                ) : null}
                 <SelectField
                     id="agent-model"
                     label="Active model"

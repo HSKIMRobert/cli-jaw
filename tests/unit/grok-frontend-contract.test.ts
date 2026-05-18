@@ -57,6 +57,33 @@ test('GROK-FE-002: legacy settings fallback registry exposes grok-build without 
     assert.match(constants, /unsupported by grok-build/);
 });
 
+test('LEGACY-FE-001: legacy settings sidebar exposes every canonical CLI row', () => {
+    const html = src('public/index.html');
+    const settingsCore = src('public/js/features/settings-core.ts');
+    const main = src('public/js/main.ts');
+
+    for (const [cli, suffix] of [
+        ['ai-e', 'AiE'],
+        ['claude', 'Claude'],
+        ['claude-e', 'ClaudeE'],
+        ['codex', 'Codex'],
+        ['codex-app', 'CodexApp'],
+        ['gemini', 'Gemini'],
+        ['grok', 'Grok'],
+        ['opencode', 'Opencode'],
+        ['copilot', 'Copilot'],
+    ] as const) {
+        assert.match(html, new RegExp(`<option value="${cli}"`), `active/flush selector must include ${cli}`);
+        assert.match(html, new RegExp(`id="model${suffix}"`), `settings row must include model${suffix}`);
+    }
+
+    assert.match(html, /id="providerAiE"/);
+    assert.match(settingsCore, /function toDomSuffix\(cli: string\)/);
+    assert.match(settingsCore, /split\(\/\[\^a-zA-Z0-9\]\+\/\)/);
+    assert.match(main, /function toDomSuffix\(cli: string\)/);
+    assert.match(main, /onPerCliAiEProviderChange/);
+});
+
 test('GROK-FE-003: quota renderer shows Grok Heavy auth-status instead of fake quota bars', () => {
     const status = src('public/js/features/settings-cli-status.ts');
     assert.match(status, /name === 'grok'/);
@@ -81,4 +108,17 @@ test('GROK-FE-004: manager settings metadata treats Grok as normal CLI with disa
     assert.match(meta, /efforts:\s*\[\]/);
     assert.match(employees, /'grok'/);
     assert.match(meta, /'codex-app':\s*\{/);
+});
+
+test('LEGACY-FE-002: fallback CLI surfaces include every canonical CLI', () => {
+    const employees = src('public/manager/src/settings/pages/components/employees-helpers.ts');
+    const heartbeat = src('public/manager/src/settings/pages/components/heartbeat-helpers.ts');
+    const status = src('public/js/features/settings-cli-status.ts');
+    const freshInstallSmoke = src('scripts/fresh-install-smoke.ts');
+    for (const cli of ['ai-e', 'claude', 'claude-e', 'codex', 'codex-app', 'copilot', 'gemini', 'grok', 'opencode']) {
+        assert.match(employees, new RegExp(`'${cli}'`), `manager employee fallback must include ${cli}`);
+        assert.match(heartbeat, new RegExp(`'${cli}'`), `manager heartbeat fallback must include ${cli}`);
+        assert.match(status, new RegExp(`'${cli}'|${cli}:`), `legacy CLI status hints must include ${cli}`);
+        assert.match(freshInstallSmoke, new RegExp(`'${cli}'`), `fresh install smoke must assert ${cli} status`);
+    }
 });

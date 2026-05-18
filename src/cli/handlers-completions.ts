@@ -7,6 +7,7 @@ import type { CompletionCtx, SlashChoice } from './types.js';
 
 const DEFAULT_CLI_CHOICES = [...CLI_KEYS];
 const MODEL_CHOICES_BY_CLI = buildModelChoicesByCli();
+const MODEL_LABEL_SKIP_CLIS = new Set(['ai-e']);
 
 function toChoiceKey(value: unknown) {
     return String(value || '').trim().toLowerCase();
@@ -44,6 +45,7 @@ function getModelChoicesFromContext(ctx: CompletionCtx): string[] {
 export function modelArgumentCompletions(ctx: CompletionCtx): SlashChoice[] {
     const cliByModel = new Map<string, string>();
     for (const [cli, models] of Object.entries(MODEL_CHOICES_BY_CLI)) {
+        if (MODEL_LABEL_SKIP_CLIS.has(cli)) continue;
         for (const m of models as string[]) cliByModel.set(toChoiceKey(m), cli);
     }
 
