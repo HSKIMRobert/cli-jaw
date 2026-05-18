@@ -405,7 +405,11 @@ export function connect(): void {
         } else if (msg.type === 'agent_output') {
             appendAgentText(msg.text || '');
         } else if (msg.type === 'agent_retry') {
-            addSystemMsg(t('ws.retry', { cli: escapeHtml(msg.cli || ''), delay: msg.delay || 10 }), 'tool-activity');
+            const retryDelay = Number(msg.delay ?? 0);
+            const retryReasonValue = (msg as WsMessage & { reason?: unknown }).reason;
+            const retryReason = escapeHtml(String(retryReasonValue || '429'));
+            const retryKey = retryDelay > 0 ? 'ws.retry' : 'ws.retryNow';
+            addSystemMsg(t(retryKey, { cli: escapeHtml(msg.cli || ''), reason: retryReason, delay: retryDelay }), 'tool-activity');
         } else if (msg.type === 'agent_fallback') {
             addSystemMsg(t('ws.fallback', { from: escapeHtml(msg.from || ''), to: escapeHtml(msg.to || '') }), 'tool-activity');
         } else if (msg.type === 'agent_smoke') {

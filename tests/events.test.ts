@@ -737,14 +737,14 @@ test('P1-2.2g: Claude hard rate limit marks watchdog progress and extends deadli
             stop() {},
         },
     };
-    extractFromEvent('claude-i', {
+    extractFromEvent('claude-e', {
         type: 'rate_limit_event',
         rate_limit_info: {
             status: 'rejected',
             rateLimitType: 'five_hour',
             resetsAt: Math.floor(Date.now() / 1000) + 1200,
         },
-    }, ctx, 'claude-i');
+    }, ctx, 'claude-e');
 
     const extension = calls.find(call => call[0] === 'extendDeadline');
     assert.ok(calls.some(call => call[0] === 'markProgress'));

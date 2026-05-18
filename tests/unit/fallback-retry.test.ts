@@ -185,12 +185,21 @@ test('429: gateway uses isAgentBusy', () => {
 test('429: event consumers handle agent_retry', () => {
     assert.ok(readSrc('../../src/orchestrator/collect.ts').includes('agent_retry'));
     assert.ok(readSrc('../../src/telegram/bot.ts').includes('agent_retry'));
-    assert.ok(readSrc('../../public/js/ws.ts').includes('agent_retry'));
+    const ws = readSrc('../../public/js/ws.ts');
+    assert.ok(ws.includes('agent_retry'));
+    assert.ok(ws.includes('msg.reason'));
+    assert.ok(!ws.includes('msg.delay || 10'));
 });
 
 test('429: i18n keys exist', () => {
-    assert.ok(readSrc('../../public/locales/ko.json').includes('"ws.retry"'));
-    assert.ok(readSrc('../../public/locales/en.json').includes('"ws.retry"'));
+    const ko = readSrc('../../public/locales/ko.json');
+    const en = readSrc('../../public/locales/en.json');
+    assert.ok(ko.includes('"ws.retry"'));
+    assert.ok(ko.includes('"ws.retryNow"'));
+    assert.ok(en.includes('"ws.retry"'));
+    assert.ok(en.includes('"ws.retryNow"'));
+    assert.ok(ko.includes('{reason}'));
+    assert.ok(en.includes('{reason}'));
 });
 
 // ─── 429 Retry: behavioral tests ────────────────────
