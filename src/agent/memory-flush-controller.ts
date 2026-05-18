@@ -7,6 +7,8 @@ import { settings, JAW_HOME } from '../core/config.js';
 import { getRecentMessages } from '../core/db.js';
 import { getMemoryFlushFilePath } from '../memory/runtime.js';
 import { maybeAutoReflect } from '../memory/reflect.js';
+import { resolveDashboardHome } from '../manager/dashboard-home.js';
+import { DASHBOARD_DEFAULT_PORT } from '../manager/constants.js';
 
 export let memoryFlushCounter = 0;
 export let flushCycleCount = 0;
@@ -137,6 +139,9 @@ export async function triggerMemoryFlush(): Promise<void> {
                     maybeAutoReflect().catch(e =>
                         console.error('[memory] post-flush auto-reflect failed:', e)
                     );
+                    triggerEmbeddingSync().catch(e =>
+                        console.warn('[memory] post-flush embedding sync error:', e)
+                    );
                     console.log(`[memory] flush complete (code=${code}), watermark=${maxId}`);
                 },
             },
@@ -146,6 +151,28 @@ export async function triggerMemoryFlush(): Promise<void> {
         clearTimeout(lockTimeout);
         _flushLock = false;
         console.error('[memory] flush spawn failed:', e);
+    }
+}
+
+async function triggerEmbeddingSync(): Promise<void> {
+    try {
+        const home = resolveDashboardHome();
+        const cfgPath = join(home, 'embedding.json');
+        if (!fs.existsSync(cfgPath)) return;
+        const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+        if (!cfg.enabled) return;
+
+        const port = Number(process.env['DASHBOARD_PORT']) || Number(DASHBOARD_DEFAULT_PORT);
+        const resp = await fetch(`http://127.0.0.1:${port}/api/dashboard/memory/reindex`, {
+            method: 'POST',
+            signal: AbortSignal.timeout(30_000),
+            headers: { host: `127.0.0.1:${port}`, 'Content-Type': 'application/json' },
+        });
+        if (resp.ok) {
+            console.log('[memory] post-flush embedding sync triggered');
+        }
+    } catch (err) {
+        console.warn('[memory] post-flush embedding sync failed (non-critical):', (err as Error).message);
     }
 }
 
