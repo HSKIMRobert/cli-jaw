@@ -448,9 +448,9 @@ async function _initTelegramInner() {
 
         const toolHandler = showTools ? (type: string, data: Record<string, any>) => {
             if (type === 'agent_retry') {
-                const retryReason = data["reason"] || '429';
+                const retryReason = escapeHtmlTg(data["reason"] || '429');
                 const retryDelay = data["delay"] > 0 ? ` — ${data["delay"]}s 후 재시도` : ' — 재시도';
-                pushToolLine(`⏳ ${data["cli"]} ${retryReason}${retryDelay}`);
+                pushToolLine(`⏳ ${escapeHtmlTg(data["cli"])} ${retryReason}${retryDelay}`);
             } else if (type === 'agent_fallback') {
                 pushToolLine(`⚡ ${data["from"]} → ${data["to"]}`);
             } else if (type === 'agent_smoke') {
