@@ -25,7 +25,10 @@ export function browserOpenCommand(url: string, platform = process.platform, env
     if (platform === 'darwin') return { command: 'open', args: [url] };
     if (platform === 'win32') return { command: 'cmd', args: ['/c', 'start', '', url] };
     if (platform === 'linux' && isWslEnvironment(env)) {
-        return { command: 'cmd.exe', args: ['/c', 'start', '', url] };
+        const cmd = existsSync('/mnt/c/Windows/System32/cmd.exe')
+            ? '/mnt/c/Windows/System32/cmd.exe'
+            : 'cmd.exe';
+        return { command: cmd, args: ['/c', 'start', '', url] };
     }
     return { command: 'xdg-open', args: [url] };
 }

@@ -447,6 +447,34 @@ if (isWSL()) {
         throw new Error(`WARN: ${prefix} (not user-local — recommended: npm config set prefix ~/.local)`);
     });
 
+    check('Node.js origin', () => {
+        if (process.execPath.startsWith('/mnt/')) {
+            throw new Error(
+                `WARN: using Windows Node.js (${process.execPath})\n`
+                + '     Install Node inside WSL: fnm install 22 (or nvm install 22)'
+            );
+        }
+        return `${process.version} → ${process.execPath}`;
+    });
+
+    check('CLI tools (WSL-native)', () => {
+        const windowsTools: string[] = [];
+        for (const name of ['claude', 'codex', 'gemini', 'copilot', 'opencode', 'jaw']) {
+            const binPath = findBinaryPath(name);
+            if (binPath && binPath.startsWith('/mnt/')) {
+                windowsTools.push(`${name} → ${binPath}`);
+            }
+        }
+        if (windowsTools.length > 0) {
+            throw new Error(
+                `WARN: ${windowsTools.length} tool(s) found via Windows PATH (not usable in WSL):\n`
+                + windowsTools.map(t => `     ${t}`).join('\n')
+                + '\n     Reinstall inside WSL: npm i -g <package>'
+            );
+        }
+        return 'all detected CLI tools are WSL-native';
+    });
+
     check('OfficeCLI', () => {
         return verifyOfficeCli();
     });

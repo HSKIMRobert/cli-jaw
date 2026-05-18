@@ -918,6 +918,19 @@ export async function runPostinstall() {
         return;
     }
 
+    // ── WSL + Windows Node detection ──
+    if (process.platform === 'linux' && process.execPath.startsWith('/mnt/')) {
+        const isWsl = Boolean(
+            process.env['WSL_DISTRO_NAME'] || process.env['WSL_INTEROP']
+            || (() => { try { return fs.readFileSync('/proc/version', 'utf8').includes('microsoft'); } catch { return false; } })()
+        );
+        if (isWsl) {
+            console.warn('[jaw:init] ⚠️  Running with Windows Node.js inside WSL');
+            console.warn('[jaw:init]    npm -g packages will install to Windows, not WSL');
+            console.warn('[jaw:init]    Recommended: install Node inside WSL (fnm install 22 or nvm install 22)');
+        }
+    }
+
     // ── Legacy migration (only in normal mode, NOT safe mode) ──
     const legacyHome = path.join(home, '.cli-jaw');
     const isCustomHome = jawHome !== legacyHome;
