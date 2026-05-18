@@ -16,6 +16,7 @@ export interface SyncOptions {
   vecStore: VecStore;
   provider: EmbeddingProvider;
   batchSize?: number;
+  concurrency?: number;
   onProgress?: (instanceId: string, done: number, total: number) => void;
 }
 
@@ -95,27 +96,32 @@ async function syncInstance(
       }
     }
 
-    // Batch embed with retry + delay
+    const concurrency = opts.concurrency ?? 2;
+    const batches: Array<{ start: number; items: typeof toEmbed }> = [];
     for (let i = 0; i < toEmbed.length; i += batchSize) {
-      const batch = toEmbed.slice(i, i + batchSize);
-      const texts = batch.map(b => b.chunk.content);
+      batches.push({ start: i, items: toEmbed.slice(i, i + batchSize) });
+    }
 
+    let completed = 0;
+    async function processBatch(batch: typeof batches[0]): Promise<void> {
+      const texts = batch.items.map(b => b.chunk.content);
       let embeddings: Float32Array[];
       try {
         embeddings = await opts.provider.embed(texts);
-      } catch (err) {
+      } catch {
         await new Promise(r => setTimeout(r, 1000));
         try {
           embeddings = await opts.provider.embed(texts);
         } catch (retryErr) {
-          result.errors.push(`Batch ${i}-${i + batch.length}: ${String(retryErr)}`);
-          opts.onProgress?.(instanceId, Math.min(i + batchSize, toEmbed.length), toEmbed.length);
-          continue;
+          result.errors.push(`Batch ${batch.start}-${batch.start + batch.items.length}: ${String(retryErr)}`);
+          completed += batch.items.length;
+          opts.onProgress?.(instanceId, Math.min(completed, toEmbed.length), toEmbed.length);
+          return;
         }
       }
 
-      for (let j = 0; j < batch.length; j++) {
-        const item = batch[j]!;
+      for (let j = 0; j < batch.items.length; j++) {
+        const item = batch.items[j]!;
         const embedding = embeddings[j]!;
         opts.vecStore.upsertVec(
           item.existingRowid,
@@ -136,11 +142,15 @@ async function syncInstance(
         if (item.existingRowid !== null) result.updated++;
         else result.added++;
       }
+      completed += batch.items.length;
+      opts.onProgress?.(instanceId, Math.min(completed, toEmbed.length), toEmbed.length);
+    }
 
-      opts.onProgress?.(instanceId, Math.min(i + batchSize, toEmbed.length), toEmbed.length);
-
-      if (i + batchSize < toEmbed.length) {
-        await new Promise(r => setTimeout(r, 300));
+    for (let i = 0; i < batches.length; i += concurrency) {
+      const group = batches.slice(i, i + concurrency);
+      await Promise.all(group.map(b => processBatch(b)));
+      if (i + concurrency < batches.length) {
+        await new Promise(r => setTimeout(r, 200));
       }
     }
   } finally {
