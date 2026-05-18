@@ -7,6 +7,7 @@ type EmbedConfig = {
     apiKey?: string;
     searchMode?: string;
     baseUrl?: string;
+    dimensions?: number;
 };
 
 type EmbedState = {
@@ -60,6 +61,14 @@ const SEARCH_MODES = [
     { value: 'fts5', label: 'FTS5 only (no vectors)' },
 ];
 
+const PROVIDER_PRESETS: Record<string, { model: string; dimensions: number }> = {
+    openai: { model: 'text-embedding-3-small', dimensions: 1536 },
+    gemini: { model: 'gemini-embedding-001', dimensions: 768 },
+    voyage: { model: 'voyage-3-lite', dimensions: 512 },
+    vertex: { model: 'text-embedding-005', dimensions: 768 },
+    local: { model: 'nomic-embed-text', dimensions: 768 },
+};
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     const res = await fetch(`${API}${path}`, {
         credentials: 'same-origin',
@@ -106,6 +115,8 @@ export function DashboardEmbeddingSection() {
     const [loading, setLoading] = useState(true);
 
     const [provider, setProvider] = useState('');
+    const [model, setModel] = useState('');
+    const [dimensions, setDimensions] = useState(1536);
     const [apiKey, setApiKey] = useState('');
     const [searchMode, setSearchMode] = useState('hybrid');
     const [baseUrl, setBaseUrl] = useState('');
@@ -140,6 +151,8 @@ export function DashboardEmbeddingSection() {
     useEffect(() => {
         if (!config) return;
         setProvider(config.provider || '');
+        setModel(config.model || PROVIDER_PRESETS[config.provider || '']?.model || '');
+        setDimensions(config.dimensions ?? PROVIDER_PRESETS[config.provider || '']?.dimensions ?? 1536);
         setApiKey(config.apiKey || '');
         setSearchMode(config.searchMode || 'hybrid');
         setBaseUrl(config.baseUrl || '');
@@ -164,10 +177,10 @@ export function DashboardEmbeddingSection() {
         if (!provider) return;
         setTestOk(null);
         setTestMsg('');
-        const patch: Partial<EmbedConfig> = { provider, searchMode };
+        const patch: Partial<EmbedConfig> = { provider, model, dimensions, searchMode };
         if (baseUrl) patch.baseUrl = baseUrl;
         void saveConfig(patch);
-    }, [provider, searchMode, baseUrl, saveConfig]);
+    }, [provider, model, dimensions, searchMode, baseUrl, saveConfig]);
 
     const onKeySave = useCallback(() => {
         void saveConfig({ apiKey });
@@ -180,7 +193,7 @@ export function DashboardEmbeddingSection() {
         try {
             const res = await apiFetch<{ ok: boolean; testResult?: string; testError?: string }>(
                 '/embed-config',
-                { method: 'POST', body: JSON.stringify({ provider, apiKey, test: true }) },
+                { method: 'POST', body: JSON.stringify({ provider, model, dimensions, apiKey, test: true }) },
             );
             if (res.testResult === 'ok') {
                 setTestOk(true);
@@ -260,7 +273,13 @@ export function DashboardEmbeddingSection() {
                 <legend>Provider</legend>
                 <div className="dashboard-embed-field">
                     <label htmlFor="embed-provider">Provider</label>
-                    <select id="embed-provider" value={provider} onChange={e => { setProvider(e.target.value); setTestOk(null); }}>
+                    <select id="embed-provider" value={provider} onChange={e => {
+                        const p = e.target.value;
+                        setProvider(p);
+                        setTestOk(null);
+                        const preset = PROVIDER_PRESETS[p];
+                        if (preset) { setModel(preset.model); setDimensions(preset.dimensions); }
+                    }}>
                         {PROVIDERS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                 </div>
@@ -269,6 +288,14 @@ export function DashboardEmbeddingSection() {
                     <select id="embed-search-mode" value={searchMode} onChange={e => setSearchMode(e.target.value)}>
                         {SEARCH_MODES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
+                </div>
+                <div className="dashboard-embed-field">
+                    <label htmlFor="embed-model">Model</label>
+                    <input id="embed-model" type="text" value={model} onChange={e => setModel(e.target.value)} placeholder={PROVIDER_PRESETS[provider]?.model || 'model name'} />
+                </div>
+                <div className="dashboard-embed-field">
+                    <label htmlFor="embed-dimensions">Dimensions</label>
+                    <input id="embed-dimensions" type="number" min={64} max={4096} value={dimensions} onChange={e => setDimensions(Number(e.target.value) || 1536)} />
                 </div>
                 {(provider === 'local' || provider === 'vertex') && (
                     <div className="dashboard-embed-field">
