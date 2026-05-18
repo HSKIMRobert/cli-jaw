@@ -970,10 +970,10 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     const effort = opts.effort || ao.effort || cfg.effort || '';
     const effectiveProvider = cli === 'ai-e'
         ? resolveAiEProvider(
-            typeof ao.provider === 'string'
-                ? ao.provider
-                : typeof cfg.provider === 'string'
-                    ? cfg.provider
+            typeof cfg.provider === 'string'
+                ? cfg.provider
+                : typeof ao.provider === 'string'
+                    ? ao.provider
                     : undefined,
             requestedModel,
         )

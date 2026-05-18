@@ -146,7 +146,7 @@ function appendTopicSections(parent: HTMLElement, topic: HelpTopic): void {
     appendTextSection(parent, t('help.section.what'), t(topic.introKey));
     appendTextSection(parent, t('help.section.effect'), t(topic.effectKey), 'help-effect-text');
     appendListSection(parent, t('help.section.useWhen'), topic.useWhenKeys);
-    appendListSection(parent, t('help.section.howTo'), topic.howToKeys);
+    appendHowToList(parent, t('help.section.howTo'), topic.howToKeys);
     appendListSection(parent, t('help.section.example'), topic.exampleKeys, false, 'help-example-list');
     if (topic.avoidWhenKeys?.length) appendListSection(parent, t('help.section.avoidWhen'), topic.avoidWhenKeys);
     if (topic.relatedKeys?.length) appendListSection(parent, t('help.section.related'), topic.relatedKeys, true);
@@ -245,4 +245,17 @@ function createSection(heading: string): HTMLElement {
     h3.textContent = heading;
     section.append(h3);
     return section;
+}
+
+function appendHowToList(parent: HTMLElement, heading: string, keys: string[]): void {
+    const section = createSection(heading);
+    const list = document.createElement('ol');
+    list.className = 'help-dialog-list help-howto-list';
+    for (const key of keys) {
+        const item = document.createElement('li');
+        item.textContent = t(key);
+        list.append(item);
+    }
+    section.append(list);
+    parent.append(section);
 }

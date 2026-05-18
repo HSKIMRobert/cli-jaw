@@ -461,7 +461,6 @@ export async function saveActiveCliSettings(): Promise<void> {
     const effortEl = document.getElementById('selEffort') as HTMLSelectElement | null;
     const overrides: Record<string, PerCliConfig> = {};
     overrides[cli] = { model };
-    if (cli === 'ai-e') overrides[cli].provider = getSelectedAiEProvider();
     if (effortEl && !effortEl.disabled) overrides[cli].effort = effortEl.value || '';
     const patch: Record<string, unknown> = { activeOverrides: overrides };
     if (cli === 'ai-e') patch['perCli'] = { 'ai-e': { provider: getSelectedAiEProvider() } };
