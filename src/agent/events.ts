@@ -825,6 +825,22 @@ export function extractOutputChunk(cli: string, event: CliEventRecord, ctx?: Spa
         }
         return '';
     }
+    if (cli === 'copilot') {
+        if (ctx?.pendingOutputChunk) {
+            const chunk = ctx.pendingOutputChunk;
+            ctx.pendingOutputChunk = '';
+            return chunk;
+        }
+        if (typeof event.text === 'string') return event.text;
+        if (typeof event.content === 'string') return event.content;
+        if (event.type === 'assistant' && event.message?.content) {
+            return event.message.content
+                .filter((block) => block.type === 'text')
+                .map((block) => String(block.text || ''))
+                .join('');
+        }
+        return '';
+    }
     return '';
 }
 

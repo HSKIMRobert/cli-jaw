@@ -267,12 +267,23 @@
                         data-i18n-aria="help.activeCli.aria" aria-label="활성 CLI 도움말">?</button>
                 </label>
                 <select id="selCli">
+                    <option value="ai-e">AI-E</option>
                     <option value="claude">Claude</option>
+                    <option value="claude-e">Claude E</option>
                     <option value="codex">Codex</option>
+                    <option value="codex-app">Codex App</option>
                     <option value="gemini">Gemini</option>
+                    <option value="grok">Grok</option>
                     <option value="opencode">OpenCode</option>
                     <option value="copilot">Copilot</option>
                 </select>
+            </div>
+
+            <div id="aiEProviderWrap" style="display:none">
+                <label class="label-with-help">
+                    <span>AI-E Provider</span>
+                </label>
+                <select id="selAiEProvider"></select>
             </div>
 
             <div>
@@ -327,9 +338,13 @@
                         <label>CLI</label>
                         <select id="flushCli" class="select-sm">
                             <option value="">(active CLI)</option>
+                            <option value="ai-e">AI-E</option>
                             <option value="claude">Claude</option>
+                            <option value="claude-e">Claude E</option>
                             <option value="codex">Codex</option>
+                            <option value="codex-app">Codex App</option>
                             <option value="gemini">Gemini</option>
+                            <option value="grok">Grok</option>
                             <option value="opencode">OpenCode</option>
                             <option value="copilot">Copilot</option>
                         </select>
@@ -501,6 +516,26 @@
 
             <!-- Per-CLI Models -->
             <div class="settings-group">
+                <h4><span data-provider="ai-e"></span> AI-E</h4>
+                <div class="settings-row">
+                    <label>Provider</label>
+                    <select id="providerAiE"></select>
+                </div>
+                <div class="settings-row">
+                    <label>Model</label>
+                    <select id="modelAiE"></select>
+                    <input type="text" id="customModelAiE" class="custom-model-input"
+                        data-i18n-placeholder="model.placeholder" placeholder="model ID 입력" style="display:none">
+                </div>
+                <div class="settings-row sub-row">
+                    <label>Effort</label>
+                    <select id="effortAiE">
+                        <option value="" selected>— none</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="settings-group">
                 <h4><span data-provider="claude"></span> Claude</h4>
                 <div class="settings-row">
                     <label>Model</label>
@@ -522,6 +557,24 @@
                         <button id="claude1mOff" class="perm-btn active">Off</button>
                         <button id="claude1mOn" class="perm-btn">On</button>
                     </div>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <h4><span data-provider="claude-e"></span> Claude E</h4>
+                <div class="settings-row">
+                    <label>Model</label>
+                    <select id="modelClaudeE"></select>
+                    <input type="text" id="customModelClaudeE" class="custom-model-input"
+                        data-i18n-placeholder="model.placeholder" placeholder="model ID 입력" style="display:none">
+                </div>
+                <div class="settings-row sub-row">
+                    <label>Effort</label>
+                    <select id="effortClaudeE">
+                        <option value="low">🟢 low</option>
+                        <option value="medium" selected>🟡 medium</option>
+                        <option value="high">🔴 high</option>
+                    </select>
                 </div>
             </div>
 
@@ -571,12 +624,47 @@
             </div>
 
             <div class="settings-group">
+                <h4><span data-provider="codex-app"></span> Codex App</h4>
+                <div class="settings-row">
+                    <label>Model</label>
+                    <select id="modelCodexApp"></select>
+                    <input type="text" id="customModelCodexApp" class="custom-model-input"
+                        data-i18n-placeholder="model.placeholder" placeholder="model ID 입력" style="display:none">
+                </div>
+                <div class="settings-row sub-row">
+                    <label>Effort</label>
+                    <select id="effortCodexApp">
+                        <option value="low">🟢 low</option>
+                        <option value="medium" selected>🟡 medium</option>
+                        <option value="high">🟠 high</option>
+                        <option value="xhigh">🔴 xhigh</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="settings-group">
                 <h4><span data-provider="gemini"></span> Gemini</h4>
                 <div class="settings-row">
                     <label>Model</label>
                     <select id="modelGemini"></select>
                     <input type="text" id="customModelGemini" class="custom-model-input"
                         data-i18n-placeholder="model.placeholder" placeholder="model ID 입력" style="display:none">
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <h4><span data-provider="grok"></span> Grok</h4>
+                <div class="settings-row">
+                    <label>Model</label>
+                    <select id="modelGrok"></select>
+                    <input type="text" id="customModelGrok" class="custom-model-input"
+                        data-i18n-placeholder="model.placeholder" placeholder="model ID 입력" style="display:none">
+                </div>
+                <div class="settings-row sub-row">
+                    <label>Effort</label>
+                    <select id="effortGrok">
+                        <option value="" selected>— none</option>
+                    </select>
                 </div>
             </div>
 

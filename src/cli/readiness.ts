@@ -28,6 +28,11 @@ export function getCliReadiness(): CliReadiness[] {
         }
 
         switch (cli) {
+            case 'ai-e': {
+                authenticated = true; // ai-e delegates auth to its selected provider runtime.
+                source = 'provider-delegated';
+                break;
+            }
             case 'claude': {
                 const creds = readClaudeCreds();
                 authenticated = !!creds?.token;
@@ -99,7 +104,7 @@ export function getCliReadiness(): CliReadiness[] {
     return results;
 }
 
-const DEFAULT_ORDER: readonly CliEngine[] = ['claude', 'codex', 'codex-app', 'copilot', 'gemini', 'grok', 'opencode'];
+const DEFAULT_ORDER: readonly CliEngine[] = ['claude', 'claude-e', 'codex', 'codex-app', 'copilot', 'gemini', 'grok', 'opencode', 'ai-e'];
 
 export function pickFirstReadyCli(order: readonly CliEngine[] = DEFAULT_ORDER): CliEngine {
     const readiness = getCliReadiness();

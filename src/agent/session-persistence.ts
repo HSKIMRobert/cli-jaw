@@ -13,6 +13,7 @@ export type SessionPersistenceInput = {
     skipSessionPersist?: boolean;
     cli: string;
     model: string;
+    provider?: string | null | undefined;
     resumeKey?: string | null;
     effort: string;
     permissions?: string;
@@ -41,11 +42,13 @@ export function isCurrentSessionOwner(ownerGeneration: number): boolean {
 export function shouldPersistMainSession(input: SessionPersistenceInput): boolean {
     if (input.skipSessionPersist) return false;
     if (input.forceNew || input.employeeSessionId || !input.sessionId || input.isFallback) return false;
+    if (input.cli === 'ai-e' && input.provider !== 'claude') return false;
     // User-initiated kill (SIGTERM/SIGKILL) yields exit codes like 143/137/1 depending on
     // the CLI's signal handler. Allow persistence when wasKilled=true so resume works for
     // CLIs (claude, copilot) that don't translate SIGTERM to exit 0.
-    // claude-e uses exit code 2 for graceful SIGINT interrupt — always persist.
-    const isGracefulInterrupt = input.code === 2 && input.cli === 'claude-e';
+    // claude-e and ai-e's Claude PTY provider use exit code 2 for graceful SIGINT interrupt.
+    const isGracefulInterrupt = input.code === 2
+        && (input.cli === 'claude-e' || (input.cli === 'ai-e' && input.provider === 'claude'));
     if (
         input.code !== undefined && input.code !== null && input.code !== 0
         && !input.wasKilled && !isGracefulInterrupt
@@ -66,7 +69,7 @@ export function persistMainSession(input: SessionPersistenceInput): boolean {
     // Mirror into per-bucket table so codex-spark keeps a session independent from
     // plain codex (gpt-5.4 etc.) — avoids 'thread/resume failed: no rollout found'
     // on cross-model toggles.
-    const bucket = resolveSessionBucket(input.cli, input.model);
+    const bucket = resolveSessionBucket(input.cli, input.model, input.provider);
     if (bucket && input.sessionId) {
         upsertSessionBucket.run(bucket, input.sessionId, input.model, input.resumeKey || null);
     }

@@ -34,6 +34,7 @@ interface MainSessionMetaRef {
     chatId?: string | number;
     requestId?: string;
     scopeId?: string;
+    effectiveProvider?: string;
 }
 
 let _setCurrentMainMeta: ((meta: MainSessionMetaRef | null) => void) | null = null;
@@ -47,6 +48,11 @@ function isForcedGeminiProModel(model: string): boolean {
         && normalized !== 'default'
         && normalized !== 'auto'
         && normalized.includes('pro');
+}
+
+function lifecycleRuntimeCli(cli: string, provider?: string): string {
+    if (cli !== 'ai-e') return cli;
+    return provider === 'claude' ? 'claude-e' : (provider || cli);
 }
 
 export interface ExitContext {
@@ -69,6 +75,7 @@ export interface ExitHandlerParams {
     code: number | null;
     cli: string;
     model: string;
+    effectiveProvider?: string;
     resumeKey: string | null;
     agentLabel: string;
     mainManaged: boolean;
@@ -120,6 +127,8 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
         retryState, fallbackState, fallbackMaxRetries, processQueue,
     } = params;
 
+    const effectiveProvider = params.effectiveProvider;
+    const runtimeCli = lifecycleRuntimeCli(cli, effectiveProvider);
     const effortVal = cfg.effort || effortDefault;
     const isEmployee = !mainManaged;
     const empTag = isEmployee ? { isEmployee: true } : {};
@@ -149,7 +158,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
             persistMainSession({
                 ownerGeneration, forceNew, employeeSessionId: empSid,
                 sessionId: smokeSessionId, isFallback: opts._isFallback,
-                code, cli, model, resumeKey: params.resumeKey, effort: effortVal,
+                code, cli, model, provider: effectiveProvider, resumeKey: params.resumeKey, effort: effortVal,
                 skipSessionPersist: opts._skipSessionPersist === true,
             });
             console.log(`[jaw:smoke] persisted session ${smokeSessionId.slice(0, 12)}... for continuation`);
@@ -216,7 +225,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
     if (persistedSessionId && persistMainSession({
         ownerGeneration, forceNew, employeeSessionId: empSid,
         sessionId: persistedSessionId, isFallback: opts._isFallback,
-        code, wasKilled, cli, model, resumeKey: params.resumeKey, effort: effortVal,
+        code, wasKilled, cli, model, provider: effectiveProvider, resumeKey: params.resumeKey, effort: effortVal,
         skipSessionPersist: opts._skipSessionPersist === true,
     })) {
         console.log(`[jaw:session] saved ${cli} session=${persistedSessionId.slice(0, 12)}...${wasKilled ? ' (post-kill)' : ''}`);
@@ -226,7 +235,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
     // Non-Claude CLIs lack compact events. Suggest at 25 turns; force refresh at 35.
     if (mainManaged && !opts.internal && code === 0 && !ctx.cliNativeCompactDetected) {
         const turns = ctx.turns ?? memoryFlushCounter;
-        const isNonClaude = cli !== 'claude';
+        const isNonClaude = runtimeCli !== 'claude' && runtimeCli !== 'claude-e';
         if (isNonClaude && turns >= 35) {
             console.log(`[jaw:compact] ${cli} reached ${turns} turns — forcing auto-refresh`);
             try {
@@ -254,10 +263,10 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
     // Force a fresh session on next spawn to avoid stale resume.
     if (mainManaged && !opts.internal && code === 0 && !ctx.cliNativeCompactDetected) {
         const turns = ctx.turns ?? memoryFlushCounter;
-        if ((cli === 'codex' || cli === 'opencode' || cli === 'gemini') && turns > 15) {
+        if ((runtimeCli === 'codex' || runtimeCli === 'opencode' || runtimeCli === 'gemini') && turns > 15) {
             console.log(`[jaw:compact] ${cli} exited after ${turns} turns — clearing session bucket for fresh start`);
             try {
-                const bucket = resolveSessionBucket(cli, model);
+                const bucket = resolveSessionBucket(cli, model, effectiveProvider);
                 clearSessionBucket.run(bucket);
             } catch (e) {
                 console.warn('[jaw:compact] session bucket clear failed:', (e as Error).message);
@@ -326,7 +335,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
         // ─── Error handling ───
         const diagnosticText = `${ctx.fullText}\n${ctx.traceLog.join('\n')}`;
         const { is429, isStall, isModelCapacity, isClaudeRateLimit, message: errMsg } = classifyExitError(
-            cli,
+            runtimeCli,
             code,
             ctx.stderrBuf,
             ctx.stallReason,
@@ -337,14 +346,14 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
         recordError(cli, isStall ? 'stall' : isModelCapacity ? 'model_capacity' : effectiveIs429 ? '429' : 'error');
 
         const invalidatedResume = isResume
-            && shouldInvalidateResumeSession(cli, code, ctx.stderrBuf, diagnosticText);
+            && shouldInvalidateResumeSession(runtimeCli, code, ctx.stderrBuf, diagnosticText);
         if (invalidatedResume) {
             if (empSid && opts.agentId) {
                 clearEmployeeSession.run(opts.agentId);
                 console.log(`[jaw:session] invalidated stale employee resume — ${cli} agent=${opts.agentId}`);
             } else {
                 updateSession.run(cli, null, model, settings["permissions"], settings["workingDir"], effortVal);
-                const bucket = resolveSessionBucket(cli, model);
+                const bucket = resolveSessionBucket(cli, model, effectiveProvider);
                 if (bucket) clearSessionBucket.run(bucket);
                 console.log(`[jaw:session] invalidated stale resume — ${cli}/${bucket} session cleared`);
             }
@@ -389,14 +398,14 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
 
         // ─── Gemini resumed capacity failure: clear stale vendor session and retry once ───
         if (
-            cli === 'gemini'
+            runtimeCli === 'gemini'
             && isModelCapacity
             && isResume
             && !opts.internal
             && !opts._isFallback
             && !opts._isCapacityFallback
         ) {
-            const bucket = resolveSessionBucket(cli, model);
+            const bucket = resolveSessionBucket(cli, model, effectiveProvider);
             if (bucket) clearSessionBucket.run(bucket);
             console.log(`[jaw:gemini] resumed session capacity exhausted — cleared ${bucket || 'gemini'} bucket and retrying without resume`);
             broadcast('agent_fallback', {
@@ -425,7 +434,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
 
         // ─── Gemini model capacity: one-request Auto fallback, preserving configured model ───
         if (
-            cli === 'gemini'
+            runtimeCli === 'gemini'
             && isModelCapacity
             && isForcedGeminiProModel(model)
             && !opts.internal
@@ -519,7 +528,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
     finalizeTraceRun(
         ctx.traceRunId,
         traceStatus,
-        traceStatus === 'error' ? classifyExitError(cli, resolvedCode ?? 1, ctx.stderrBuf).message : null,
+        traceStatus === 'error' ? classifyExitError(runtimeCli, resolvedCode ?? 1, ctx.stderrBuf).message : null,
     );
     if (mainManaged) clearLiveRun(liveScope);
     if (!opts.internal) {
@@ -533,7 +542,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
         console.log(`[jaw:${agentLabel}] exited code=${code}, text=${ctx.fullText.length} chars`);
     }
     const diagnostic = resolvedCode !== 0 && resolvedCode !== null
-        ? classifyExitError(cli, resolvedCode, ctx.stderrBuf).message
+        ? classifyExitError(runtimeCli, resolvedCode, ctx.stderrBuf).message
         : ctx.stderrBuf.trim().slice(0, 500);
     resolve({
         text: ctx.fullText, code: resolvedCode,

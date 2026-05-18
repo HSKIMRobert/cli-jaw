@@ -7,6 +7,7 @@ import { join } from 'path';
 import { spawn, execFileSync, type ChildProcess } from 'child_process';
 import { broadcast } from '../core/bus.js';
 import { settings, UPLOADS_DIR, detectCli, normalizeModelForCli } from '../core/config.js';
+import { migrateLegacyClaudeValue } from '../cli/claude-models.js';
 import { stripUndefined } from '../core/strip-undefined.js';
 import {
     clearEmployeeSession, getSession, updateSession, insertMessage, getRecentMessages, getEmployees,
@@ -69,6 +70,7 @@ export interface MainSessionMeta {
     scopeId?: string;
     cli?: string;
     model?: string;
+    effectiveProvider?: string;
 }
 let currentMainMeta: MainSessionMeta | null = null;
 export function getCurrentMainMeta(): MainSessionMeta | null {
@@ -76,6 +78,25 @@ export function getCurrentMainMeta(): MainSessionMeta | null {
 }
 export function setCurrentMainMeta(meta: MainSessionMeta | null): void {
     currentMainMeta = meta;
+}
+
+export function buildAiERuntimeStatusMeta(cli: string, provider: string, model: string): Record<string, unknown> {
+    if (cli !== 'ai-e') return {};
+    const mode = provider === 'claude' ? 'pty' : 'headless';
+    return {
+        selector: 'ai-e',
+        provider,
+        effectiveProvider: provider,
+        model,
+        mode,
+        runtime: {
+            cli,
+            selector: 'ai-e',
+            provider,
+            model,
+            mode,
+        },
+    };
 }
 
 interface SessionRow {
@@ -270,16 +291,24 @@ function getActiveMainCli(): string | null {
     return typeof currentMainMeta?.cli === 'string' ? currentMainMeta.cli : null;
 }
 
+function getActiveEffectiveProvider(): string | null {
+    return typeof currentMainMeta?.effectiveProvider === 'string' ? currentMainMeta.effectiveProvider : null;
+}
+
+function isActiveClaudePtyRuntime(): boolean {
+    const cli = getActiveMainCli();
+    return cli === 'claude-e' || (cli === 'ai-e' && getActiveEffectiveProvider() === 'claude');
+}
+
 function getKillPolicy(reason: string): { signal: NodeJS.Signals; escalationMs: number } {
-    const activeCli = getActiveMainCli();
-    if (reason === 'steer' && activeCli === 'claude-e') {
+    if (reason === 'steer' && isActiveClaudePtyRuntime()) {
         return { signal: 'SIGINT', escalationMs: CLAUDE_E_STEER_KILL_ESCALATION_MS };
     }
     return { signal: 'SIGTERM', escalationMs: DEFAULT_KILL_ESCALATION_MS };
 }
 
 export function getSteerWaitMsForActiveAgent(): number {
-    return getActiveMainCli() === 'claude-e' ? CLAUDE_E_STEER_WAIT_MS : DEFAULT_STEER_WAIT_MS;
+    return isActiveClaudePtyRuntime() ? CLAUDE_E_STEER_WAIT_MS : DEFAULT_STEER_WAIT_MS;
 }
 
 /** Get kill reason for a process (by PID), consuming it */
@@ -709,8 +738,8 @@ function withHistoryPrompt(prompt: string, historyBlock: string) {
     return `${historyBlock}\n\n---\n[Current Message]\n${body}`;
 }
 
-import { buildArgs, buildResumeArgs, resolveSessionBucket } from './args.js';
-export { buildArgs, buildResumeArgs, resolveSessionBucket };
+import { buildArgs, buildResumeArgs, resolveAiEProvider, resolveSessionBucket } from './args.js';
+export { buildArgs, buildResumeArgs, resolveAiEProvider, resolveSessionBucket };
 
 // ─── Upload wrapper ──────────────────────────────────
 
@@ -937,8 +966,21 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     }
     const cfg = settings["perCli"]?.[cli] || {};
     const ao = settings["activeOverrides"]?.[cli] || {};
-    const model = opts.model || ao.model || cfg.model || 'default';
+    const requestedModel = opts.model || ao.model || cfg.model || 'default';
     const effort = opts.effort || ao.effort || cfg.effort || '';
+    const effectiveProvider = cli === 'ai-e'
+        ? resolveAiEProvider(
+            typeof ao.provider === 'string'
+                ? ao.provider
+                : typeof cfg.provider === 'string'
+                    ? cfg.provider
+                    : undefined,
+            requestedModel,
+        )
+        : cli;
+    const model = cli === 'ai-e' && effectiveProvider === 'claude'
+        ? migrateLegacyClaudeValue(requestedModel)
+        : requestedModel;
     if (mainManaged) {
         setCurrentMainMeta(stripUndefined({
             origin,
@@ -948,6 +990,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             scopeId: liveScope,
             cli,
             model,
+            effectiveProvider,
         }));
     }
     const includeDirectories = Array.isArray(cfg.includeDirectories)
@@ -961,7 +1004,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     // Bucket-aware resume: codex-spark is kept in its own session bucket so
     // cross-model resume (gpt-5.4 ↔ gpt-5.3-codex-spark) doesn't send a
     // mismatched session_id to the server.
-    const currentBucket = resolveSessionBucket(cli, model);
+    const currentBucket = resolveSessionBucket(cli, model, effectiveProvider);
     const cliEnv = applyCliEnvDefaults(cli, opts.env);
     const spawnEnv = makeCleanEnv(cliEnv);
     const bucketRow = currentBucket ? getSessionBucket.get(currentBucket) as SessionBucketRow | undefined : null;
@@ -970,6 +1013,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     const bucketResumeKey = typeof bucketRow?.resume_key === 'string' ? bucketRow.resume_key : null;
     const bucketUpdatedAt = bucketRow?.updated_at ?? null;
     const resumeKey = buildSessionResumeKey(cli, spawnEnv);
+    const providerSupportsResume = !(cli === 'ai-e' && effectiveProvider !== 'claude');
     const canResumeBucketSession = !bucketSessionId || shouldResumeBucketSession(
         cli,
         model,
@@ -980,7 +1024,8 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     );
     const isResume = empSid
         ? true
-        : (!opts._skipResume && !forceNew && !!bucketSessionId && canResumeBucketSession);
+        : (providerSupportsResume && !opts._skipResume && !forceNew && !!bucketSessionId && canResumeBucketSession);
+    const runtimeStatusMeta = buildAiERuntimeStatusMeta(cli, effectiveProvider, model);
 
     // ─── Bootstrap compact 1-shot injection (Phase 52: bucket-aware) ───
     // Vendor-agnostic: compact handler reset session_id and stored bootstrap in DB.
@@ -1032,14 +1077,23 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     const promptForArgs = (cli === 'gemini' || cli === 'grok' || cli === 'opencode')
         ? withHistoryPrompt(prompt, historyBlock)
         : prompt;
-    const claudeBin = cli === 'claude-e' ? detectCli('claude').path : null;
+    const claudeBin = (cli === 'claude-e' || (cli === 'ai-e' && effectiveProvider === 'claude'))
+        ? detectCli('claude').path
+        : null;
+    const argOptions = {
+        fastMode: cfg.fastMode,
+        sysPrompt,
+        includeDirectories,
+        aiEProvider: effectiveProvider,
+        ...(claudeBin ? { claudeBin } : {}),
+    };
     let args;
     if (isResume) {
         const sid = resumeSessionId || '';
         console.log(`[jaw:resume] ${cli} session=${sid.slice(0, 12)}...`);
-        args = buildResumeArgs(cli, model, effort, sid, prompt, permissions, { fastMode: cfg.fastMode, sysPrompt, includeDirectories, ...(claudeBin ? { claudeBin } : {}) });
+        args = buildResumeArgs(cli, model, effort, sid, prompt, permissions, argOptions);
     } else {
-        args = buildArgs(cli, model, effort, promptForArgs, sysPrompt, permissions, { fastMode: cfg.fastMode, includeDirectories, ...(claudeBin ? { claudeBin } : {}) });
+        args = buildArgs(cli, model, effort, promptForArgs, sysPrompt, permissions, argOptions);
     }
 
     const agentLabel = agentId || 'main';
@@ -1736,7 +1790,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         console.warn(`[spawn:dup] activeProcesses already has child for ${agentLabel} — orphaning previous reference`);
     }
     activeProcesses.set(agentLabel, child);
-    if (!opts.internal) broadcast('agent_status', { running: true, agentId: agentLabel, cli, ...empTag });
+    if (!opts.internal) broadcast('agent_status', { running: true, agentId: agentLabel, cli, ...runtimeStatusMeta, ...empTag });
     if (mainManaged && !opts.internal) beginLiveRun(liveScope, cli);
 
     // ─── DIFF-A: error guard — prevent uncaught ENOENT crash ───
@@ -1777,7 +1831,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
 
     if (cli === 'claude') {
         child.stdin.write(withHistoryPrompt(prompt, historyBlock));
-    } else if (cli === 'claude-e') {
+    } else if (cli === 'claude-e' || cli === 'ai-e') {
         child.stdin.write(isResume ? prompt : withHistoryPrompt(prompt, historyBlock));
     } else if (cli === 'codex' && !isResume) {
         const codexStdin = historyBlock
@@ -1787,7 +1841,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     }
     child.stdin.end();
 
-    if (!opts.internal) broadcast('agent_status', { status: 'running', cli, agentId: agentLabel, ...empTag }, traceAudience);
+    if (!opts.internal) broadcast('agent_status', { status: 'running', cli, agentId: agentLabel, ...runtimeStatusMeta, ...empTag }, traceAudience);
 
     const traceRunId = startTraceRun({ cli, model, workingDir: settings["workingDir"] || null, agentLabel, audience: traceAudience });
     const ctx: SpawnContext = {
@@ -1805,6 +1859,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         hasActiveSubAgent: false,
         showReasoning: settings["showReasoning"] === true,
         outputTextStarted: false,
+        effectiveProvider,
         liveScope: effectiveLiveScope,
         parentLiveScope: parentLiveScopeForChild,
         traceRunId,
@@ -1856,8 +1911,8 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             eventType: fieldString(asCliEventRecord(raw).type, '<no-type>'),
             raw,
         });
-        // claude-e: intercept jaw_runtime events BEFORE discriminator
-        if (cli === 'claude-e' && isJawRuntimeEvent(raw)) {
+        // claude-e / ai-e Claude: intercept jaw_runtime events BEFORE discriminator
+        if ((cli === 'claude-e' || cli === 'ai-e') && isJawRuntimeEvent(raw)) {
             const rtEvt = raw as Record<string, unknown>;
             handleJawRuntimeEvent(rtEvt, agentLabel);
             // Extract sessionId from session_started or interrupted
@@ -1866,16 +1921,19 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 ctx.sessionId = rtEvt['sessionId'] as string;
             }
             if (evtName === 'error' && typeof rtEvt['message'] === 'string') {
-                const message = `[jaw:claude-e:error] ${rtEvt['message']}`;
+                const message = `[jaw:${cli}:error] ${rtEvt['message']}`;
                 ctx.stderrBuf = ctx.stderrBuf ? `${ctx.stderrBuf}\n${message}` : message;
                 ctx.traceLog.push(message);
             }
             return;
         }
-        const event = discriminate(cli, raw);
+        const dispatchCli = cli === 'ai-e'
+            ? (ctx.effectiveProvider === 'claude' ? 'claude-e' : (ctx.effectiveProvider || 'ai-e'))
+            : cli;
+        const event = discriminate(dispatchCli, raw);
         if (!event) {
             const type = fieldString(asCliEventRecord(raw).type, '<no-type>');
-            ctx.traceLog.push(`[cli:unknown-event] cli=${cli} type=${type} preview=${JSON.stringify(raw).slice(0, 200)}`);
+            ctx.traceLog.push(`[cli:unknown-event] cli=${cli} provider=${dispatchCli} type=${type} preview=${JSON.stringify(raw).slice(0, 200)}`);
             return;
         }
         recordOpencodeEvent(line, event);
@@ -1883,9 +1941,9 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             console.log(`[jaw:event:${agentLabel}] ${cli} type=${event.type}`);
             console.log(`[jaw:raw:${agentLabel}] ${line.slice(0, 300)}`);
         }
-        logEventSummary(agentLabel, cli, event, ctx);
-        if (!ctx.sessionId) ctx.sessionId = extractSessionId(cli, event);
-        extractFromEvent(cli, event, ctx, agentLabel, empTag);
+        logEventSummary(agentLabel, dispatchCli, event, ctx);
+        if (!ctx.sessionId) ctx.sessionId = extractSessionId(dispatchCli, event);
+        extractFromEvent(dispatchCli, event, ctx, agentLabel, empTag);
         // Gemini watchdog: AFTER extractFromEvent sets geminiResultSeen
         if (cli === 'gemini' && ctx.geminiResultSeen && !geminiWatchdog) {
             geminiWatchdog = setTimeout(() => {
@@ -1897,7 +1955,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         if (ctx.hasActiveSubAgent) {
             opts.lifecycle?.onActivity?.('heartbeat');
         }
-        const outputChunk = extractOutputChunk(cli, event, ctx);
+        const outputChunk = extractOutputChunk(dispatchCli, event, ctx);
         if (outputChunk) {
             if (ctx.liveScope) appendLiveRunText(ctx.liveScope, outputChunk);
             broadcast('agent_output', {
@@ -1975,7 +2033,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         //   - error: code !== 0 && !wasKilled → classifyExitError
         //   - trace: if (traceText) traceText = `⏹️ [interrupted]…`
         handleAgentExit({
-            ctx, code, cli, model, agentLabel, mainManaged, origin,
+            ctx, code, cli, model, effectiveProvider, agentLabel, mainManaged, origin,
             resumeKey,
             prompt, opts, cfg, ownerGeneration, forceNew, empSid,
             isResume, wasKilled, wasSteer, smokeResult,

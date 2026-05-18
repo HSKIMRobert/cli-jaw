@@ -2,8 +2,14 @@
 // 이미 export된 함수를 직접 검증 (추가 작업 없이 즉시 실행 가능)
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { resolveGeminiIncludeDirectories } from '../../src/agent/args.ts';
-import { buildArgs, buildResumeArgs, resolveSessionBucket, shouldResumeBucketSession } from '../../src/agent/spawn.ts';
+import { buildAiERuntimeStatusMeta, buildArgs, buildResumeArgs, resolveAiEProvider, resolveSessionBucket, shouldResumeBucketSession } from '../../src/agent/spawn.ts';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // ─── buildArgs: claude ───────────────────────────────
 
@@ -61,6 +67,77 @@ test('AG-006c: claude-e resume auto permissions auto-accept workspace trust in w
     const args = buildResumeArgs('claude-e', 'sonnet', 'medium', 'sess-1', 'hi', 'auto');
     assert.ok(args.includes('--auto-accept-workspace-trust'));
     assert.ok(args.includes('--dangerously-skip-permissions'));
+});
+
+test('AG-006d: ai-e claude routes through explicit provider-first PTY args', () => {
+    const args = buildArgs('ai-e', 'sonnet', 'high', 'hi', 'system instructions', 'auto', { aiEProvider: 'claude' });
+    assert.deepEqual(args.slice(0, 2), ['claude', 'run']);
+    assert.ok(args.includes('--idle-timeout-ms'));
+    assert.ok(args.includes('--hard-timeout-ms'));
+    assert.ok(args.includes('--claude-bin') === false);
+    const separatorIdx = args.indexOf('--');
+    assert.ok(separatorIdx >= 0);
+    const forwarded = args.slice(separatorIdx + 1);
+    assert.ok(forwarded.includes('--model'));
+    assert.ok(forwarded.includes('sonnet'));
+    assert.ok(forwarded.includes('--append-system-prompt'));
+});
+
+test('AG-006e: ai-e codex routes through explicit provider and headless timeout', () => {
+    const args = buildArgs('ai-e', 'gpt-5.4', 'high', 'hi', '', 'auto', { aiEProvider: 'codex' });
+    assert.deepEqual(args.slice(0, 2), ['codex', 'run']);
+    assert.ok(args.includes('--timeout-ms'));
+    assert.ok(args.includes('--model'));
+    assert.ok(args.includes('gpt-5.4'));
+    assert.ok(!args.includes('--idle-timeout-ms'));
+});
+
+test('AG-006f: ai-e copilot explicit provider wins over gpt model inference', () => {
+    const args = buildArgs('ai-e', 'gpt-5-mini', 'medium', 'hi', '', 'auto', { aiEProvider: 'copilot' });
+    assert.deepEqual(args.slice(0, 2), ['copilot', 'run']);
+    assert.equal(resolveAiEProvider('copilot', 'gpt-5-mini'), 'copilot');
+    assert.equal(resolveAiEProvider(undefined, 'gpt-5-mini'), 'codex');
+});
+
+test('AG-006g: ai-e resume only injects Claude resume for Claude provider', () => {
+    const claudeArgs = buildResumeArgs('ai-e', 'sonnet', 'medium', 'sess-1', 'hi', 'auto', { aiEProvider: 'claude' });
+    assert.deepEqual(claudeArgs.slice(0, 2), ['claude', 'run']);
+    assert.ok(claudeArgs.includes('--resume'));
+    const codexArgs = buildResumeArgs('ai-e', 'gpt-5.4', 'medium', 'sess-1', 'hi', 'auto', { aiEProvider: 'codex' });
+    assert.deepEqual(codexArgs.slice(0, 2), ['codex', 'run']);
+    assert.ok(!codexArgs.includes('--resume'));
+});
+
+test('AG-006h: ai-e spawn resolves provider before Claude model normalization', () => {
+    const spawnSrc = fs.readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
+    assert.match(spawnSrc, /resolveAiEProvider\([\s\S]*ao\.provider[\s\S]*cfg\.provider[\s\S]*requestedModel/);
+    assert.match(spawnSrc, /effectiveProvider\s*===\s*'claude'[\s\S]*migrateLegacyClaudeValue\(requestedModel\)/);
+});
+
+test('AG-006i: ai-e headless providers are forced fresh until resume is implemented', () => {
+    const spawnSrc = fs.readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
+    assert.match(spawnSrc, /providerSupportsResume\s*=\s*!\(cli\s*===\s*'ai-e'\s*&&\s*effectiveProvider\s*!==\s*'claude'\)/);
+    assert.match(spawnSrc, /providerSupportsResume\s*&&\s*!\s*opts\._skipResume/);
+});
+
+test('AG-006j: ai-e runtime status metadata exposes provider and mode', () => {
+    assert.deepEqual(buildAiERuntimeStatusMeta('claude-e', 'claude', 'sonnet'), {});
+
+    const claudeMeta = buildAiERuntimeStatusMeta('ai-e', 'claude', 'sonnet');
+    assert.equal(claudeMeta.selector, 'ai-e');
+    assert.equal(claudeMeta.provider, 'claude');
+    assert.equal(claudeMeta.mode, 'pty');
+    assert.deepEqual(claudeMeta.runtime, {
+        cli: 'ai-e',
+        selector: 'ai-e',
+        provider: 'claude',
+        model: 'sonnet',
+        mode: 'pty',
+    });
+
+    const codexMeta = buildAiERuntimeStatusMeta('ai-e', 'codex', 'gpt-5.4');
+    assert.equal(codexMeta.provider, 'codex');
+    assert.equal(codexMeta.mode, 'headless');
 });
 
 // ─── buildArgs: codex ────────────────────────────────
@@ -135,6 +212,12 @@ test('AG-009j: resolveSessionBucket — codex + spark model → codex-spark buck
     assert.equal(resolveSessionBucket('codex', 'gpt-5.3-codex-spark'), 'codex-spark');
     assert.equal(resolveSessionBucket('codex', 'GPT-5-Spark'), 'codex-spark');
     assert.equal(resolveSessionBucket('codex', 'codex-spark-mini'), 'codex-spark');
+});
+
+test('AG-009j2: resolveSessionBucket — ai-e buckets include explicit provider', () => {
+    assert.equal(resolveSessionBucket('ai-e', 'sonnet', 'claude'), 'ai-e:claude');
+    assert.equal(resolveSessionBucket('ai-e', 'gpt-5-mini', 'copilot'), 'ai-e:copilot');
+    assert.equal(resolveSessionBucket('ai-e', 'gpt-5-mini'), 'ai-e:codex');
 });
 
 test('AG-009k: resolveSessionBucket — non-spark codex stays in codex bucket', () => {

@@ -377,6 +377,7 @@ export async function flushHandler(args: string[], ctx: CliCommandContext): Prom
         } else {
             const matchedClis: string[] = [];
             for (const [cli, models] of Object.entries(MODEL_CHOICES_BY_CLI)) {
+                if (cli === 'ai-e') continue;
                 if ((models as string[]).some(m => m.toLowerCase() === modelKey)) {
                     matchedClis.push(cli);
                 }

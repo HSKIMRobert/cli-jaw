@@ -1,5 +1,6 @@
 export function isClaudeLikeCli(cli: string): boolean {
-    return cli === 'claude'
+    return cli === 'ai-e'
+        || cli === 'claude'
         || cli === 'claude-e'
         || cli === 'claude-i'
         || cli === 'claude-exec'

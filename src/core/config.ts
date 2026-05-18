@@ -212,20 +212,28 @@ export function normalizeModelForCli(cli: string, model: unknown): unknown {
 function normalizePerCliModels(perCli: Record<string, any> = {}) {
     const next: Record<string, any> = {};
     for (const [cli, cfg] of Object.entries(perCli)) {
+        const provider = cli === 'ai-e' && typeof cfg?.provider === 'string' ? cfg.provider : undefined;
         next[cli] = {
             ...cfg,
-            model: normalizeModelForCli(cli, cfg?.model),
+            model: provider === 'claude'
+                ? migrateLegacyClaudeValue(cfg?.model || '')
+                : normalizeModelForCli(cli, cfg?.model),
         };
     }
     return next;
 }
 
-function normalizeActiveOverrides(activeOverrides: Record<string, any> = {}) {
+function normalizeActiveOverrides(activeOverrides: Record<string, any> = {}, perCli: Record<string, any> = {}) {
     const next: Record<string, any> = {};
     for (const [cli, cfg] of Object.entries(activeOverrides)) {
+        const provider = cli === 'ai-e'
+            ? (typeof cfg?.provider === 'string' ? cfg.provider : typeof perCli['ai-e']?.provider === 'string' ? perCli['ai-e'].provider : undefined)
+            : undefined;
         next[cli] = {
             ...cfg,
-            model: normalizeModelForCli(cli, cfg?.model),
+            model: provider === 'claude'
+                ? migrateLegacyClaudeValue(cfg?.model || '')
+                : normalizeModelForCli(cli, cfg?.model),
         };
     }
     return next;
@@ -248,7 +256,7 @@ export function migrateSettings(s: Record<string, any>) {
 
     // Claude model alias migration
     s["perCli"] = normalizePerCliModels(s["perCli"] || {});
-    s["activeOverrides"] = normalizeActiveOverrides(s["activeOverrides"] || {});
+    s["activeOverrides"] = normalizeActiveOverrides(s["activeOverrides"] || {}, s["perCli"] || {});
     if (typeof s["memory"]?.cli === 'string' && typeof s["memory"]?.model === 'string') {
         s["memory"].model = normalizeModelForCli(s["memory"].cli, s["memory"].model);
     }
@@ -423,6 +431,19 @@ export function saveHeartbeatFile(data: HeartbeatFile | Record<string, unknown>)
 
 export function detectCli(name: string): CliDetection {
     const binary = (CLI_REGISTRY as Record<string, any>)[name]?.binary || name;
+    if (name === 'ai-e' || binary === 'ai-e') {
+        const explicit = process.env["AI_E_BIN"];
+        const explicitDetected = explicit ? selectSpawnableCliPath([explicit]) : { available: false, path: null } as CliDetection;
+        if (explicitDetected.available) return explicitDetected;
+
+        const pathDetected = detectCliBinary('ai-e');
+        if (pathDetected.available) return mergeRejectedDetections(pathDetected, explicitDetected);
+
+        const packageDetected = selectSpawnableCliPath(getAiEPackageCandidates());
+        if (packageDetected.available) return mergeRejectedDetections(packageDetected, explicitDetected, pathDetected);
+
+        return mergeRejectedDetections({ available: false, path: null }, explicitDetected, pathDetected, packageDetected);
+    }
     if (name !== 'claude-e' && binary !== 'claude-e' && binary !== 'claude-exec') return detectCliBinary(binary);
 
     const explicitHelper = process.env["CLAUDE_E_BIN"] || process.env["CLAUDE_EXEC_BIN"] || process.env["JAW_CLAUDE_I_BIN"];
@@ -473,6 +494,18 @@ export function detectCli(name: string): CliDetection {
         nativeDetected,
         explicitDetected,
     );
+}
+
+function getAiEPackageCandidates(): string[] {
+    const helper = process.platform === 'win32' ? 'ai-e.exe' : 'ai-e';
+    const npmBin = process.platform === 'win32' ? 'ai-e.cmd' : 'ai-e';
+    const candidates = [
+        join(getProjectDir(), 'node_modules', '.bin', npmBin),
+        join(process.cwd(), 'node_modules', '.bin', npmBin),
+        join(getProjectDir(), '..', 'ai-e', 'target', 'release', helper),
+        join(process.cwd(), '..', 'ai-e', 'target', 'release', helper),
+    ];
+    return [...new Set(candidates)];
 }
 
 export function detectAllCli() {

@@ -71,6 +71,43 @@ test('session persistence blocks non-zero exits', () => {
     assert.equal(ok, false);
 });
 
+test('session persistence treats ai-e exit code 2 as graceful only for Claude provider', () => {
+    resetSessionOwnershipGenerationForTest();
+    const ownerGeneration = getSessionOwnershipGeneration();
+    assert.equal(shouldPersistMainSession({
+        ownerGeneration,
+        cli: 'ai-e',
+        provider: 'claude',
+        model: 'sonnet',
+        effort: 'medium',
+        sessionId: 'ai-e-claude-interrupted',
+        code: 2,
+    }), true);
+    assert.equal(shouldPersistMainSession({
+        ownerGeneration,
+        cli: 'ai-e',
+        provider: 'codex',
+        model: 'gpt-5.4',
+        effort: 'medium',
+        sessionId: 'ai-e-codex-failed',
+        code: 2,
+    }), false);
+});
+
+test('session persistence skips ai-e headless provider session ids', () => {
+    resetSessionOwnershipGenerationForTest();
+    const ownerGeneration = getSessionOwnershipGeneration();
+    assert.equal(shouldPersistMainSession({
+        ownerGeneration,
+        cli: 'ai-e',
+        provider: 'gemini',
+        model: 'gemini-3-flash-preview',
+        effort: '',
+        sessionId: 'headless-native-session',
+        code: 0,
+    }), false);
+});
+
 test('agent system uses shared persistence and resume-classifier helpers', () => {
     const spawnSrc = fs.readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
     const lifecycleSrc = fs.readFileSync(join(__dirname, '../../src/agent/lifecycle-handler.ts'), 'utf8');

@@ -2,10 +2,15 @@ export type CliMeta = {
     label: string;
     models: ReadonlyArray<string>;
     efforts: ReadonlyArray<string>;
+    defaultProvider?: string;
+    providers?: ReadonlyArray<string>;
+    modelsByProvider?: Record<string, ReadonlyArray<string>>;
+    effortsByProvider?: Record<string, ReadonlyArray<string>>;
     effortNote?: string;
 };
 
 export type PerCliEntry = {
+    provider?: string;
     model?: string;
     effort?: string;
     fastMode?: boolean;
@@ -15,11 +20,33 @@ export type PerCliEntry = {
 };
 
 export type ActiveOverride = {
+    provider?: string;
     model?: string;
     effort?: string;
 };
 
 export const CLI_META: Record<string, CliMeta> = {
+    'ai-e': {
+        label: 'AI-E',
+        defaultProvider: 'claude',
+        providers: ['claude', 'codex', 'gemini', 'grok', 'copilot'],
+        models: ['opus', 'sonnet', 'haiku', 'gpt-5.4', 'gpt-5.4-mini', 'gemini-3-flash-preview', 'grok-build', 'gpt-5-mini'],
+        efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
+        modelsByProvider: {
+            claude: ['opus', 'sonnet', 'haiku'],
+            codex: ['gpt-5.4', 'gpt-5.4-mini'],
+            gemini: ['gemini-3-flash-preview'],
+            grok: ['grok-build'],
+            copilot: ['gpt-5-mini'],
+        },
+        effortsByProvider: {
+            claude: ['low', 'medium', 'high', 'xhigh', 'max'],
+            codex: ['low', 'medium', 'high', 'xhigh'],
+            gemini: [],
+            grok: [],
+            copilot: ['low', 'medium', 'high'],
+        },
+    },
     claude: {
         label: 'Claude',
         // Aliases + pinned full IDs (hyphen form — Anthropic API rejects

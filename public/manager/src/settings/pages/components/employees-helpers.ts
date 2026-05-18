@@ -12,11 +12,15 @@ export type EmployeeRecord = {
 export const EMPLOYEE_KEYS = ['employees'] as const;
 
 export const DEFAULT_CLI_OPTIONS = [
-    'codex',
+    'ai-e',
     'claude',
+    'claude-e',
+    'codex',
+    'codex-app',
     'copilot',
     'gemini',
     'grok',
+    'opencode',
 ] as const;
 
 let counter = 0;
