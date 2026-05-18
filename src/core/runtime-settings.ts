@@ -9,10 +9,28 @@ import { mergeSettingsPatch } from './settings-merge.js';
 import { regenerateB } from '../prompt/builder.js';
 import { restartMessagingRuntime, initActiveMessagingRuntime } from '../messaging/runtime.js';
 import { beginRuntimeSettingsMutation } from './runtime-settings-gate.js';
+import { resolveAiEProvider } from '../agent/args.js';
 
 type ApplyRuntimeSettingsOptions = {
     resetFallbackState?: () => void;
 };
+
+function selectedModelForCli(cli: string, currentSettings: Record<string, any>): string {
+    return currentSettings["activeOverrides"]?.[cli]?.model
+        || currentSettings["perCli"]?.[cli]?.model
+        || 'default';
+}
+
+function selectedAiEProvider(currentSettings: Record<string, any>): string {
+    const ao = currentSettings["activeOverrides"]?.['ai-e'] || {};
+    const pc = currentSettings["perCli"]?.['ai-e'] || {};
+    const explicitProvider = typeof pc.provider === 'string'
+        ? pc.provider
+        : typeof ao.provider === 'string'
+            ? ao.provider
+            : undefined;
+    return resolveAiEProvider(explicitProvider, selectedModelForCli('ai-e', currentSettings));
+}
 
 export async function applyRuntimeSettingsPatch(
     rawPatch: Record<string, any> = {},
@@ -22,6 +40,7 @@ export async function applyRuntimeSettingsPatch(
     const prevCli = settings["cli"];
     const prevWorkingDir = settings["workingDir"];
     const prevSnapshot = { ...settings };
+    const prevAiEProvider = selectedAiEProvider(prevSnapshot);
 
     try {
         const merged = mergeSettingsPatch(settings, rawPatch);
@@ -45,19 +64,22 @@ export async function applyRuntimeSettingsPatch(
         // we revert settings; the original session row is preserved because nothing
         // touched it on this branch (no syncMainSessionToSettings call).
         const cliChanged = !!(prevCli && settings["cli"] && prevCli !== settings["cli"]);
-        if (cliChanged) {
+        const nextAiEProvider = selectedAiEProvider(settings);
+        const aiEProviderChanged = prevCli === 'ai-e'
+            && settings["cli"] === 'ai-e'
+            && prevAiEProvider !== nextAiEProvider;
+        if (cliChanged || aiEProviderChanged) {
             const toCli = settings["cli"];
-            const toModel = settings["activeOverrides"]?.[toCli]?.model
-                || settings["perCli"]?.[toCli]?.model
-                || 'default';
+            const toModel = selectedModelForCli(toCli, settings);
             try {
                 const { cliSwitchRefresh } = await import('./compact.js');
                 await cliSwitchRefresh({
                     sourceWorkDir: prevWorkingDir || '',
                     targetWorkDir: settings["workingDir"] || '',
-                    fromCli: prevCli,
+                    fromCli: aiEProviderChanged ? `ai-e:${prevAiEProvider}` : prevCli,
                     toCli,
                     toModel,
+                    toProvider: toCli === 'ai-e' ? nextAiEProvider : undefined,
                 });
             } catch (e: unknown) {
                 console.error('[runtime-settings] cli switch refresh failed, rolling back:', (e as Error).message);

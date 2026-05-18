@@ -483,6 +483,7 @@ export async function cliSwitchRefresh(opts: {
     fromCli: string;
     toCli: string;
     toModel: string;
+    toProvider?: string | undefined;
 }): Promise<{ refreshed: boolean; bootstrapWritten: boolean; targetBucketCleared: boolean }> {
     const slots = harvestBootstrapSlots({ workingDir: opts.sourceWorkDir, instructions: '' });
     const hasAnyContent = Boolean(
@@ -499,7 +500,7 @@ export async function cliSwitchRefresh(opts: {
         setPendingBootstrapPromptStrict,
     } = await import('./main-session.js');
 
-    const targetBucket = resolveSessionBucket(opts.toCli, opts.toModel);
+    const targetBucket = resolveSessionBucket(opts.toCli, opts.toModel, opts.toProvider);
     const clearedRow = buildClearedSessionRow();
 
     const tx = db.transaction(() => {
@@ -520,9 +521,10 @@ export async function cliSwitchRefresh(opts: {
 
     try {
         const { broadcast } = await import('./bus.js');
+        const targetLabel = opts.toProvider ? `${opts.toCli}:${opts.toProvider}` : opts.toCli;
         broadcast('system_notice', {
             code: 'cli_switch_refresh',
-            text: `CLI switched ${opts.fromCli} → ${opts.toCli} — session refreshed`,
+            text: `CLI switched ${opts.fromCli} → ${targetLabel} — session refreshed`,
         }, 'public');
     } catch (e) {
         console.warn('[jaw:cli-switch] notice broadcast failed:', (e as Error).message);

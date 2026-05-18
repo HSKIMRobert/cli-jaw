@@ -434,7 +434,7 @@ cli-jaw/
 ├── bin/
 │   ├── cli-jaw.ts            ← 19개 user-facing 서브커맨드 라우팅 + --home flag (`browser-web-ai.ts`/`dashboard-memory.ts`/`dispatch-helpers.ts` 포함 시 commands top-level 22 files) (202L)
 │   ├── star-prompt.ts        ← `gh` 기반 GitHub star 1회 프롬프트 (TTY 가드 + state 파일, 129L)
-│   ├── postinstall.ts        ← npm install 후 CLI 런타임 + OfficeCLI 자동설치 + MCP + 스킬 + safe 가드 (1012L, Node guard + inline JAW_HOME)
+│   ├── postinstall.ts        ← npm install 후 CLI 런타임 + OfficeCLI 자동설치 + MCP + 스킬 + safe 가드 (1025L, Node guard + inline JAW_HOME)
 │   └── commands/             ← 22 top-level ts files (`browser-web-ai.ts`, `dashboard-memory.ts`, `dispatch-helpers.ts` helper 포함) + `tui/` 7 helper 모듈 (총 5450L + tui 1045L)
 │       ├── serve.ts          ← 서버 시작 (--port/--host/--open) + SIGINT child.kill('SIGINT') orphan fix (119L)
 │       ├── dispatch.ts       ← 직원 호출 (pipe mode 호환) + route contract bridge + worker result polling + ECONNREFUSED retry with escalating delays (197L)
