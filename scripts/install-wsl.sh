@@ -94,16 +94,26 @@ install_prerequisites() {
 #  Step 1: Node.js version manager
 # ═══════════════════════════════════════
 install_node() {
-  # Check if Node.js >= 22 already exists
+  # Check if Node.js >= 22 already exists AND is WSL-native
   if command -v node &>/dev/null; then
-    local ver
-    ver=$(node -v | sed 's/v//' | cut -d. -f1)
-    if [ "$ver" -ge "$NODE_MAJOR" ] 2>/dev/null; then
-      ok "Node.js $(node -v) already installed (>= $NODE_MAJOR)"
-      return 0
-    else
-      warn "Node.js $(node -v) found but < $NODE_MAJOR — upgrading..."
-    fi
+    local node_path
+    node_path="$(command -v node)"
+    # Reject Windows Node accessed via /mnt/c (not usable in WSL)
+    case "$node_path" in
+      /mnt/*)
+        warn "Found Windows Node at $node_path — not usable in WSL, installing WSL-native..."
+        ;;
+      *)
+        local ver
+        ver=$(node -v | sed 's/v//' | cut -d. -f1)
+        if [ "$ver" -ge "$NODE_MAJOR" ] 2>/dev/null; then
+          ok "Node.js $(node -v) already installed (>= $NODE_MAJOR) at $node_path"
+          return 0
+        else
+          warn "Node.js $(node -v) found but < $NODE_MAJOR — upgrading..."
+        fi
+        ;;
+    esac
   fi
 
   # Prefer fnm (fast, single binary), fall back to nvm if already present
@@ -127,12 +137,19 @@ install_node() {
     fnm install "$NODE_MAJOR" && fnm use "$NODE_MAJOR" && fnm default "$NODE_MAJOR"
   fi
 
-  # Verify
-  if command -v node &>/dev/null; then
-    ok "Node.js $(node -v) ready"
-  else
+  # Verify Node is installed AND WSL-native
+  if ! command -v node &>/dev/null; then
     fail "Node.js installation failed. Please install manually: https://nodejs.org"
   fi
+  local final_node
+  final_node="$(command -v node)"
+  case "$final_node" in
+    /mnt/*) fail "Node.js installed but resolves to Windows path: $final_node — install WSL-native Node" ;;
+  esac
+  case "$(command -v npm)" in
+    /mnt/*) fail "npm resolves to Windows path: $(command -v npm) — install WSL-native Node" ;;
+  esac
+  ok "Node.js $(node -v) ready at $final_node"
 }
 
 # ═══════════════════════════════════════

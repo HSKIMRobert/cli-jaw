@@ -919,12 +919,17 @@ export async function runPostinstall() {
     }
 
     // ── WSL + Windows Node detection ──
-    if (process.platform === 'linux' && process.execPath.startsWith('/mnt/')) {
-        const isWsl = Boolean(
-            process.env['WSL_DISTRO_NAME'] || process.env['WSL_INTEROP']
-            || (() => { try { return fs.readFileSync('/proc/version', 'utf8').toLowerCase().includes('microsoft'); } catch { return false; } })()
-        );
-        if (isWsl) {
+    const looksLikeWsl = Boolean(
+        process.env['WSL_DISTRO_NAME'] || process.env['WSL_INTEROP'] || process.env['WSLENV']
+        || (() => { try { return fs.readFileSync('/proc/version', 'utf8').toLowerCase().includes('microsoft'); } catch { return false; } })()
+    );
+    if (looksLikeWsl) {
+        const execPath = process.execPath.replace(/\\/g, '/');
+        const isWindowsNode =
+            process.platform === 'win32'
+            || /^[A-Z]:\//i.test(execPath)
+            || execPath.startsWith('/mnt/');
+        if (isWindowsNode) {
             console.warn('[jaw:init] ⚠️  Running with Windows Node.js inside WSL');
             console.warn('[jaw:init]    npm -g packages will install to Windows, not WSL');
             console.warn('[jaw:init]    Recommended: install Node inside WSL (fnm install 22 or nvm install 22)');

@@ -460,9 +460,14 @@ if (isWSL()) {
     check('CLI tools (WSL-native)', () => {
         const windowsTools: string[] = [];
         for (const name of ['claude', 'codex', 'gemini', 'copilot', 'opencode', 'jaw']) {
-            const binPath = findBinaryPath(name);
-            if (binPath && binPath.startsWith('/mnt/')) {
-                windowsTools.push(`${name} → ${binPath}`);
+            const detected = detectCli(name);
+            if (detected.path?.startsWith('/mnt/')) {
+                windowsTools.push(`${name} → ${detected.path}`);
+            }
+            for (const r of detected.rejected ?? []) {
+                if (r.path.startsWith('/mnt/') || r.reason.includes('windows executable')) {
+                    windowsTools.push(`${name} → ${r.path} (${r.reason})`);
+                }
             }
         }
         if (windowsTools.length > 0) {
