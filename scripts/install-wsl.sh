@@ -205,9 +205,11 @@ add_npm_path_to_profile() {
 configure_npm_prefix() {
   local prefix="$NPM_PREFIX"
 
-  # Sanitize npm env vars that can override prefix
+  # Sanitize npm env vars that can override prefix or config paths
   unset npm_config_prefix NPM_CONFIG_PREFIX
   unset npm_config_globalconfig NPM_CONFIG_GLOBALCONFIG
+  unset npm_config_userconfig NPM_CONFIG_USERCONFIG
+  unset npm_config_cache NPM_CONFIG_CACHE
   unset PREFIX
 
   mkdir -p "$prefix/bin" "$prefix/lib"
