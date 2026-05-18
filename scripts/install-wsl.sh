@@ -212,13 +212,11 @@ install_jaw() {
     info "Updating to latest..."
     CLI_JAW_INSTALL_CLI_TOOLS=1 \
       CLI_JAW_REQUIRE_CLI_TOOLS=1 \
-      CLI_JAW_REQUIRE_OFFICECLI=1 \
       npm install -g cli-jaw@latest
   else
     info "Installing cli-jaw globally..."
     CLI_JAW_INSTALL_CLI_TOOLS=1 \
       CLI_JAW_REQUIRE_CLI_TOOLS=1 \
-      CLI_JAW_REQUIRE_OFFICECLI=1 \
       npm install -g cli-jaw
   fi
 
@@ -278,7 +276,8 @@ install_officecli() {
   global_root="$(npm root -g 2>/dev/null || true)"
   local installer="${global_root}/cli-jaw/scripts/install-officecli.sh"
   if [ ! -f "$installer" ]; then
-    fail "OfficeCLI installer not found in global package: $installer"
+    warn "OfficeCLI installer not found in global package — skipping HWP features: $installer"
+    return 0
   fi
 
   info "Installing OfficeCLI (optional — HWP support)..."
@@ -289,7 +288,9 @@ install_officecli() {
       warn "OfficeCLI installed but not on PATH — add ~/.local/bin to PATH"
     fi
   else
-    fail "OfficeCLI install failed. Run manually: bash \"\$(npm root -g)/cli-jaw/scripts/install-officecli.sh\""
+    warn "OfficeCLI install failed — continuing without HWP features"
+    warn "Install manually: bash \"\$(npm root -g)/cli-jaw/scripts/install-officecli.sh\""
+    return 0
   fi
 }
 
