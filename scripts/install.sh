@@ -180,15 +180,26 @@ ensure_node() {
   # Strategy: brew → nvm → fail
   if command -v brew &>/dev/null; then
     info "Homebrew detected — installing Node.js via brew"
-    brew install node@${NODE_MAJOR}
-    # brew link if needed
-    brew link --overwrite node@${NODE_MAJOR} 2>/dev/null || true
-    ok "Node.js installed via Homebrew"
-    return 0
+    if brew install node@${NODE_MAJOR} 2>/dev/null; then
+      brew link --overwrite node@${NODE_MAJOR} 2>/dev/null || true
+      hash -r 2>/dev/null || true
+      # Verify brew actually delivered a working node >= NODE_MAJOR
+      if command -v node &>/dev/null; then
+        local brew_ver
+        brew_ver=$(node -v | sed 's/v//' | cut -d. -f1)
+        if [ "$brew_ver" -ge "$NODE_MAJOR" ] 2>/dev/null; then
+          ok "Node.js $(node -v) installed via Homebrew"
+          return 0
+        fi
+      fi
+      warn "Homebrew installed but Node.js ≥ ${NODE_MAJOR} not working — falling through to nvm"
+    else
+      warn "Homebrew install failed — falling through to nvm"
+    fi
   fi
 
-  # No brew → install nvm + Node.js
-  info "No Homebrew — installing via nvm"
+  # brew unavailable or failed → install nvm + Node.js
+  info "Installing via nvm"
   export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
 
   if [ ! -s "$NVM_DIR/nvm.sh" ]; then
