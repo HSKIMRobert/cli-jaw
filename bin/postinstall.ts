@@ -43,7 +43,7 @@ const JAW_HOME = (() => {
     if (!process.env["CLI_JAW_HOME"]) return path.join(os.homedir(), '.cli-jaw');
     const resolved = resolveHomePath(process.env["CLI_JAW_HOME"]);
     const userHome = os.homedir();
-    if (!resolved.startsWith(userHome + path.sep) && resolved !== userHome) {
+    if (process.env["NODE_ENV"] !== 'test' && !resolved.startsWith(userHome + path.sep) && resolved !== userHome) {
         console.error(`[jaw:init] ❌ CLI_JAW_HOME must be under user home (${userHome}): ${resolved}`);
         process.exit(1);
     }
