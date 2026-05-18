@@ -80,7 +80,7 @@ export class VecStore {
   ): void {
     const tx = this.db.transaction(() => {
       if (existingRowid !== null) {
-        this.db.prepare('DELETE FROM vec_chunks WHERE rowid = ?').run(existingRowid);
+        this.db.prepare('DELETE FROM vec_chunks WHERE rowid = ?').run(BigInt(existingRowid));
         this.db.prepare('DELETE FROM vec_meta WHERE rowid = ?').run(existingRowid);
       }
       const info = this.db.prepare(`
@@ -92,14 +92,16 @@ export class VecStore {
         provider, model, new Date().toISOString(),
       );
       const buf = Buffer.from(embedding.buffer, embedding.byteOffset, embedding.byteLength);
-      this.db.prepare('INSERT INTO vec_chunks (rowid, embedding) VALUES (?, ?)').run(info.lastInsertRowid, buf);
+      const rowid = typeof info.lastInsertRowid === 'bigint' ? info.lastInsertRowid : BigInt(info.lastInsertRowid);
+      this.db.prepare('INSERT INTO vec_chunks (rowid, embedding) VALUES (?, ?)').run(rowid, buf);
     });
     tx();
   }
 
   deleteByRowid(rowid: number): void {
     const tx = this.db.transaction(() => {
-      this.db.prepare('DELETE FROM vec_chunks WHERE rowid = ?').run(rowid);
+      const rid = BigInt(rowid);
+      this.db.prepare('DELETE FROM vec_chunks WHERE rowid = ?').run(rid);
       this.db.prepare('DELETE FROM vec_meta WHERE rowid = ?').run(rowid);
     });
     tx();
@@ -111,7 +113,7 @@ export class VecStore {
         'SELECT rowid FROM vec_meta WHERE instance_id = ?'
       ).all(instanceId) as Array<{ rowid: number }>;
       for (const { rowid } of rowids) {
-        this.db.prepare('DELETE FROM vec_chunks WHERE rowid = ?').run(rowid);
+        this.db.prepare('DELETE FROM vec_chunks WHERE rowid = ?').run(BigInt(rowid));
       }
       this.db.prepare('DELETE FROM vec_meta WHERE instance_id = ?').run(instanceId);
     });
@@ -125,9 +127,8 @@ export class VecStore {
              m.content_hash, m.snippet, m.source_start_line, m.source_end_line
       FROM vec_chunks v
       JOIN vec_meta m ON m.rowid = v.rowid
-      WHERE v.embedding MATCH ?
+      WHERE v.embedding MATCH ? AND v.k = ?
       ORDER BY v.distance
-      LIMIT ?
     `).all(buf, topK) as Array<any>;
     return rows.map(r => ({
       chunkId: r.chunk_id,
@@ -151,11 +152,10 @@ export class VecStore {
              m.content_hash, m.snippet, m.source_start_line, m.source_end_line
       FROM vec_chunks v
       JOIN vec_meta m ON m.rowid = v.rowid
-      WHERE v.embedding MATCH ?
+      WHERE v.embedding MATCH ? AND v.k = ?
         AND m.instance_id IN (${placeholders})
       ORDER BY v.distance
-      LIMIT ?
-    `).all(buf, ...instanceIds, topK) as Array<any>;
+    `).all(buf, topK, ...instanceIds) as Array<any>;
     return rows.map(r => ({
       chunkId: r.chunk_id,
       instanceId: r.instance_id,
