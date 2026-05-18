@@ -151,6 +151,9 @@ export function isSpawnableCliFile(filePath: string, platform: NodeJS.Platform =
         const head = readHead(filePath);
         if (head.length === 0) return { ok: false, reason: 'empty file' };
         if (head[0] === 0x23 && head[1] === 0x21) return { ok: true }; // #!
+        if (head.length >= 2 && head[0] === 0x4d && head[1] === 0x5a) {
+            return { ok: false, reason: 'windows executable on non-windows platform' };
+        }
         if (hasKnownExecutableMagic(head, platform)) return { ok: true };
         if (head.includes(0)) return { ok: true };
         return { ok: false, reason: 'text file without shebang' };
