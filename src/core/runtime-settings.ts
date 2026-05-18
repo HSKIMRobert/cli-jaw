@@ -15,20 +15,29 @@ type ApplyRuntimeSettingsOptions = {
     resetFallbackState?: () => void;
 };
 
-function selectedModelForCli(cli: string, currentSettings: Record<string, any>): string {
-    return currentSettings["activeOverrides"]?.[cli]?.model
-        || currentSettings["perCli"]?.[cli]?.model
+function asRecord(value: unknown): Record<string, unknown> {
+    return value && typeof value === 'object' ? value as Record<string, unknown> : {};
+}
+
+function stringField(record: Record<string, unknown>, key: string): string {
+    const value = record[key];
+    return typeof value === 'string' ? value : '';
+}
+
+function selectedModelForCli(cli: string, currentSettings: Record<string, unknown>): string {
+    const activeOverrides = asRecord(currentSettings["activeOverrides"]);
+    const perCli = asRecord(currentSettings["perCli"]);
+    return stringField(asRecord(activeOverrides[cli]), 'model')
+        || stringField(asRecord(perCli[cli]), 'model')
         || 'default';
 }
 
-function selectedAiEProvider(currentSettings: Record<string, any>): string {
-    const ao = currentSettings["activeOverrides"]?.['ai-e'] || {};
-    const pc = currentSettings["perCli"]?.['ai-e'] || {};
-    const explicitProvider = typeof pc.provider === 'string'
-        ? pc.provider
-        : typeof ao.provider === 'string'
-            ? ao.provider
-            : undefined;
+function selectedAiEProvider(currentSettings: Record<string, unknown>): string {
+    const activeOverrides = asRecord(currentSettings["activeOverrides"]);
+    const perCli = asRecord(currentSettings["perCli"]);
+    const ao = asRecord(activeOverrides['ai-e']);
+    const pc = asRecord(perCli['ai-e']);
+    const explicitProvider = stringField(pc, 'provider') || stringField(ao, 'provider') || undefined;
     return resolveAiEProvider(explicitProvider, selectedModelForCli('ai-e', currentSettings));
 }
 
