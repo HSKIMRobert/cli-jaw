@@ -193,7 +193,7 @@ export function DashboardEmbeddingSection() {
         setError(null);
         try {
             const testBody: Record<string, unknown> = { provider, model, dimensions, test: true };
-            if (apiKey.trim()) testBody.apiKey = apiKey.trim();
+            if (apiKey.trim()) testBody['apiKey'] = apiKey.trim();
             const res = await apiFetch<{ ok: boolean; testResult?: string; testError?: string }>(
                 '/embed-config',
                 { method: 'POST', body: JSON.stringify(testBody) },
