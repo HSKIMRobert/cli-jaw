@@ -20,7 +20,7 @@ test('WSL installer configures user-local npm prefix', () => {
 test('WSL installer makes jaw and bundled CLI tools available immediately', () => {
     assert.ok(installerSrc.includes('CLI_JAW_INSTALL_CLI_TOOLS=1'));
     assert.ok(installerSrc.includes('CLI_JAW_REQUIRE_CLI_TOOLS=1'));
-    assert.ok(installerSrc.includes('CLI_JAW_REQUIRE_OFFICECLI=1'));
+    assert.equal(installerSrc.includes('CLI_JAW_REQUIRE_OFFICECLI=1'), false);
     assert.ok(installerSrc.includes('verify_jaw_command'));
     assert.ok(installerSrc.includes('command -v jaw'));
     assert.ok(installerSrc.includes('jaw --version >/dev/null 2>&1 || fail "jaw is on PATH but failed to run"'));
@@ -35,8 +35,8 @@ test('WSL installer installs browser and OfficeCLI helpers', () => {
     assert.ok(installerSrc.includes('verify_officecli_command'));
     assert.ok(installerSrc.includes('officecli --version'));
     assert.ok(installerSrc.includes('OfficeCLI install failed. Expected executable at $officecli_bin'));
-    assert.equal(installerSrc.includes('OfficeCLI install failed — rerun later'), false);
-    assert.equal(installerSrc.includes('OfficeCLI installer not found in global package — skipping'), false);
+    assert.ok(installerSrc.includes('OfficeCLI install failed — continuing without HWP features'));
+    assert.ok(installerSrc.includes('OfficeCLI installer not found in global package — skipping HWP features'));
     assert.ok(installerSrc.includes('install-browser') === false);
 });
 
