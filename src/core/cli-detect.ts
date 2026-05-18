@@ -126,9 +126,9 @@ function readHead(filePath: string, length = 64): Buffer {
     }
 }
 
-function hasKnownExecutableMagic(head: Buffer): boolean {
+function hasKnownExecutableMagic(head: Buffer, platform: NodeJS.Platform = process.platform): boolean {
     if (head.length >= 4 && head[0] === 0x7f && head[1] === 0x45 && head[2] === 0x4c && head[3] === 0x46) return true; // ELF
-    if (head.length >= 2 && head[0] === 0x4d && head[1] === 0x5a) return true; // PE/MZ
+    if (head.length >= 2 && head[0] === 0x4d && head[1] === 0x5a) return platform === 'win32'; // PE/MZ: Windows only
     if (head.length < 4) return false;
     const magic = head.subarray(0, 4).toString('hex');
     return [
@@ -151,7 +151,7 @@ export function isSpawnableCliFile(filePath: string, platform: NodeJS.Platform =
         const head = readHead(filePath);
         if (head.length === 0) return { ok: false, reason: 'empty file' };
         if (head[0] === 0x23 && head[1] === 0x21) return { ok: true }; // #!
-        if (hasKnownExecutableMagic(head)) return { ok: true };
+        if (hasKnownExecutableMagic(head, platform)) return { ok: true };
         if (head.includes(0)) return { ok: true };
         return { ok: false, reason: 'text file without shebang' };
     } catch (error) {
