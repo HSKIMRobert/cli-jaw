@@ -1,6 +1,6 @@
 import { SelectField, TextField } from '../../../fields';
 import { SettingsSection } from '../../page-shell';
-import { metaFor } from './agent-meta';
+import { metaFor, PRIMARY_CLIS } from './agent-meta';
 
 type RuntimeHeaderProps = {
     cli: string;
@@ -47,7 +47,13 @@ export function RuntimeHeader({
                     id="agent-cli"
                     label="Active CLI"
                     value={cli}
-                    options={cliOptions.map((value) => ({ value, label: metaFor(value).label || value }))}
+                    options={[
+                        ...cliOptions.filter((v) => PRIMARY_CLIS.includes(v))
+                            .map((v) => ({ value: v, label: metaFor(v).label || v })),
+                        ...cliOptions.filter((v) => !PRIMARY_CLIS.includes(v))
+                            .map((v) => ({ value: v, label: metaFor(v).label || v })),
+                    ]}
+                    collapsedAfter={cliOptions.filter((v) => PRIMARY_CLIS.includes(v)).length}
                     onChange={onCliChange}
                 />
                 {cli === 'ai-e' && providerOptions.length > 0 ? (

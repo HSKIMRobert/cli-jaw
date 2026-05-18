@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 
 type Option = { value: string; label: string };
@@ -11,13 +11,27 @@ type Props = {
     onChange: (next: string) => void;
     disabled?: boolean;
     error?: string | null;
+    collapsedAfter?: number;
 };
 
-export function SelectField({ id, label, value, options, onChange, disabled, error }: Props) {
+export function SelectField({ id, label, value, options, onChange, disabled, error, collapsedAfter }: Props) {
     const [open, setOpen] = useState(false);
     const [activeIndex, setActiveIndex] = useState(0);
+    const [moreExpanded, setMoreExpanded] = useState(false);
     const rootRef = useRef<HTMLDivElement | null>(null);
-    const selectedIndex = options.findIndex((opt) => opt.value === value);
+
+    const needsExpand = collapsedAfter != null && collapsedAfter < options.length
+        && options.findIndex((o) => o.value === value) >= collapsedAfter;
+
+    const visibleOptions = useMemo(() => {
+        if (collapsedAfter == null || moreExpanded || needsExpand) return options;
+        return options.slice(0, collapsedAfter);
+    }, [options, collapsedAfter, moreExpanded, needsExpand]);
+
+    const hasMore = collapsedAfter != null && collapsedAfter < options.length;
+    const isExpanded = moreExpanded || needsExpand;
+
+    const selectedIndex = visibleOptions.findIndex((opt) => opt.value === value);
     const selected = useMemo(
         () => options.find((opt) => opt.value === value) || options[0],
         [options, value],
@@ -34,6 +48,10 @@ export function SelectField({ id, label, value, options, onChange, disabled, err
     }, []);
 
     useEffect(() => {
+        if (!open) setMoreExpanded(false);
+    }, [open]);
+
+    useEffect(() => {
         if (selectedIndex >= 0) setActiveIndex(selectedIndex);
     }, [selectedIndex]);
 
@@ -43,8 +61,8 @@ export function SelectField({ id, label, value, options, onChange, disabled, err
     };
 
     const move = (delta: number) => {
-        if (options.length === 0) return;
-        setActiveIndex((current) => (current + delta + options.length) % options.length);
+        if (visibleOptions.length === 0) return;
+        setActiveIndex((current) => (current + delta + visibleOptions.length) % visibleOptions.length);
     };
 
     const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
@@ -67,12 +85,12 @@ export function SelectField({ id, label, value, options, onChange, disabled, err
         }
         if (event.key === 'End') {
             event.preventDefault();
-            setActiveIndex(Math.max(0, options.length - 1));
+            setActiveIndex(Math.max(0, visibleOptions.length - 1));
             return;
         }
         if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
-            if (open && options[activeIndex]) commit(options[activeIndex]);
+            if (open && visibleOptions[activeIndex]) commit(visibleOptions[activeIndex]);
             else setOpen(true);
             return;
         }
@@ -107,20 +125,36 @@ export function SelectField({ id, label, value, options, onChange, disabled, err
             </button>
             {open ? (
                 <div className="settings-select-menu" id={listId} role="listbox" aria-labelledby={labelId}>
-                    {options.map((opt, index) => (
-                        <button
-                            key={opt.value}
-                            type="button"
-                            role="option"
-                            aria-selected={opt.value === value}
-                            className={`settings-select-option${index === activeIndex ? ' is-active' : ''}${opt.value === value ? ' is-selected' : ''}`}
-                            onMouseEnter={() => setActiveIndex(index)}
-                            onClick={() => commit(opt)}
-                        >
-                            <span>{opt.label}</span>
-                            {opt.value === value ? <span aria-hidden="true">✓</span> : null}
-                        </button>
+                    {visibleOptions.map((opt, index) => (
+                        <Fragment key={opt.value}>
+                            {hasMore && index === collapsedAfter ? (
+                                <hr className="settings-select-divider" />
+                            ) : null}
+                            <button
+                                type="button"
+                                role="option"
+                                aria-selected={opt.value === value}
+                                className={`settings-select-option${index === activeIndex ? ' is-active' : ''}${opt.value === value ? ' is-selected' : ''}`}
+                                onMouseEnter={() => setActiveIndex(index)}
+                                onClick={() => commit(opt)}
+                            >
+                                <span>{opt.label}</span>
+                                {opt.value === value ? <span aria-hidden="true">✓</span> : null}
+                            </button>
+                        </Fragment>
                     ))}
+                    {hasMore && !isExpanded ? (
+                        <button
+                            type="button"
+                            className="settings-select-more"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setMoreExpanded(true);
+                            }}
+                        >
+                            더 보기 ▸
+                        </button>
+                    ) : null}
                 </div>
             ) : null}
             {error ? <span className="settings-field-error">{error}</span> : null}

@@ -264,6 +264,8 @@ Gemini는 `tool_id`가 있으면 `gemini:toolid:{tool_id}`, 없으면 `gemini:to
 | `end` | `sessionId`, `stopReason`, `requestId`를 세션/metadata에 저장 |
 | `error` | final text에 섞지 않고 `❌` tool step으로 기록, `stepRef=grok:error:{requestId or run}` |
 
+Grok `streaming-json`은 실제 tool을 실행해도 일부 버전에서 live stdout에 `tool_use`/`tool_result`를 내보내지 않는다. cli-jaw는 `end.sessionId`가 있는 정상 종료 후 `grok trace --local --json <sessionId>`를 실행하고 trace archive의 `chat_history.jsonl`에서 `tool_calls`/`tool_result`를 backfill해 최종 `agent_done.toolLog`에 반영한다. 이 보강은 direct `grok`와 `ai-e`의 Grok provider 모두에 적용된다.
+
 Grok CLI 런타임과 `browser web-ai --vendor grok`는 별도 표면이다. 전자는 local CLI process/streaming-json, 후자는 `grok.com` 브라우저 자동화다.
 
 ## 7. Copilot ACP

@@ -10,6 +10,7 @@ import { resolveSessionBucket } from './args.js';
 import { buildContinuationPrompt } from './smoke-detector.js';
 import { shouldInvalidateResumeSession } from './resume-classifier.js';
 import { classifyExitError } from './error-classifier.js';
+import { backfillGrokTraceTools } from './grok-trace-backfill.js';
 import { recordError, clearErrors } from './alert-escalation.js';
 import { clearLiveRun, getLiveRun } from './live-run-state.js';
 import { sanitizeToolLogForDurableStorage, serializeSanitizedToolLog } from '../shared/tool-log-sanitize.js';
@@ -280,6 +281,13 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
         fallbackState.delete(cli);
     }
     if (code === 0) clearErrors(cli);
+
+    if (code === 0 && runtimeCli === 'grok') {
+        const recovered = backfillGrokTraceTools(ctx);
+        if (recovered > 0) {
+            console.log(`[jaw:grok] recovered ${recovered} tool event(s) from Grok trace export`);
+        }
+    }
 
     // ─── Output handling ───
     if (ctx.fullText.trim()) {

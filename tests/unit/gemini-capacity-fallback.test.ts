@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { execFileSync } from 'node:child_process';
 
 import { classifyExitError } from '../../src/agent/error-classifier.ts';
 import { handleAgentExit } from '../../src/agent/lifecycle-handler.ts';
@@ -16,6 +18,77 @@ const __dirname = dirname(__filename);
 
 function readSrc(rel: string): string {
     return fs.readFileSync(join(__dirname, rel), 'utf8');
+}
+
+function baseExitParams(overrides: Record<string, any> = {}) {
+    let resolved: any = null;
+    let queued = false;
+    const params = {
+        ctx: {
+            fullText: 'done',
+            sessionId: null,
+            toolLog: [],
+            traceLog: [],
+            stderrBuf: '',
+        },
+        code: 0,
+        cli: 'grok',
+        model: 'grok-build',
+        resumeKey: null,
+        agentLabel: 'main',
+        mainManaged: true,
+        origin: 'test',
+        prompt: 'test',
+        opts: {},
+        cfg: { effort: '' },
+        ownerGeneration: 0,
+        forceNew: false,
+        empSid: null,
+        isResume: false,
+        wasKilled: false,
+        wasSteer: false,
+        smokeResult: { isSmoke: false, confidence: 'low' },
+        effortDefault: '',
+        costLine: '',
+        resolve: (value: any) => { resolved = value; },
+        activeProcesses: new Map(),
+        setActiveProcess: () => {},
+        retryState: {
+            timer: null,
+            resolve: null,
+            origin: null,
+            setTimer: () => {},
+            setResolve: () => {},
+            setOrigin: () => {},
+            setIsEmployee: () => {},
+        },
+        fallbackState: new Map(),
+        fallbackMaxRetries: 3,
+        processQueue: () => { queued = true; },
+        ...overrides,
+    };
+    return { params, getResolved: () => resolved, wasQueued: () => queued };
+}
+
+function installFakeGrokTraceExporter(sessionId: string, chatHistoryJsonl: string): { binDir: string; cleanup: () => void } {
+    const root = fs.mkdtempSync(join(tmpdir(), 'jaw-grok-trace-'));
+    const traceDir = join(root, sessionId);
+    const binDir = join(root, 'bin');
+    const archivePath = join(root, 'trace.tar.gz');
+    fs.mkdirSync(traceDir, { recursive: true });
+    fs.mkdirSync(binDir, { recursive: true });
+    fs.writeFileSync(join(traceDir, 'chat_history.jsonl'), chatHistoryJsonl);
+    execFileSync('tar', ['-czf', archivePath, '-C', root, sessionId]);
+    const script = [
+        '#!/bin/sh',
+        `printf '%s\\n' '${JSON.stringify({ local_path: archivePath })}'`,
+    ].join('\n');
+    fs.writeFileSync(join(binDir, 'grok'), script);
+    fs.chmodSync(join(binDir, 'grok'), 0o755);
+    return {
+        binDir,
+        cleanup: () => fs.rmSync(root, { recursive: true, force: true }),
+    };
 }
 
 test('Gemini capacity classifier separates MODEL_CAPACITY_EXHAUSTED from auth/quota', () => {
@@ -235,6 +308,84 @@ test('ai-e Claude provider keeps Claude-owned 429 pacing semantics', async () =>
         assert.match(resolved.diagnostic, /Claude is rate limited/);
     } finally {
         clearAllBroadcastListeners();
+    }
+});
+
+test('Grok successful lifecycle backfills omitted tool events before agent_done', async () => {
+    const sessionId = 'grok-trace-test-session';
+    const fake = installFakeGrokTraceExporter(sessionId, [
+        JSON.stringify({ type: 'assistant', tool_calls: [{ id: 'call-1', name: 'run_terminal_command', arguments: { command: 'pwd' } }] }),
+        JSON.stringify({ type: 'tool_result', tool_call_id: 'call-1', content: 'exit: 0\n/Users/jun\n' }),
+    ].join('\n'));
+    const originalPath = process.env["PATH"];
+    const events: Array<{ type: string; data: Record<string, unknown> }> = [];
+    clearAllBroadcastListeners();
+    addBroadcastListener((type, data) => events.push({ type, data }));
+
+    try {
+        process.env["PATH"] = `${fake.binDir}:${originalPath || ''}`;
+        const { params, getResolved } = baseExitParams({
+            ctx: {
+                fullText: 'done',
+                sessionId,
+                toolLog: [],
+                traceLog: [],
+                stderrBuf: '',
+            },
+        });
+        await handleAgentExit(params as any);
+
+        const resolved = getResolved();
+        assert.equal(resolved.tools.length, 1);
+        assert.equal(resolved.tools[0].stepRef, 'grok:tool:call-1');
+        const done = events.find(event => event.type === 'agent_done');
+        assert.ok(done);
+        const toolLog = done.data["toolLog"] as Array<Record<string, unknown>>;
+        assert.equal(toolLog[0]?.["label"], 'run_terminal_command');
+        assert.equal(toolLog[0]?.["status"], 'done');
+    } finally {
+        process.env["PATH"] = originalPath;
+        clearAllBroadcastListeners();
+        fake.cleanup();
+    }
+});
+
+test('ai-e Grok lifecycle uses effective provider for trace backfill', async () => {
+    const sessionId = 'aie-grok-trace-test-session';
+    const fake = installFakeGrokTraceExporter(sessionId, [
+        JSON.stringify({ type: 'assistant', tool_calls: [{ id: 'call-aie', name: 'run_terminal_command', arguments: { command: 'pwd' } }] }),
+        JSON.stringify({ type: 'tool_result', tool_call_id: 'call-aie', content: 'exit: 0\n/Users/jun\n' }),
+    ].join('\n'));
+    const originalPath = process.env["PATH"];
+    const events: Array<{ type: string; data: Record<string, unknown> }> = [];
+    clearAllBroadcastListeners();
+    addBroadcastListener((type, data) => events.push({ type, data }));
+
+    try {
+        process.env["PATH"] = `${fake.binDir}:${originalPath || ''}`;
+        const { params, getResolved } = baseExitParams({
+            cli: 'ai-e',
+            effectiveProvider: 'grok',
+            ctx: {
+                fullText: 'done',
+                sessionId,
+                toolLog: [],
+                traceLog: [],
+                stderrBuf: '',
+            },
+        });
+        await handleAgentExit(params as any);
+
+        const resolved = getResolved();
+        assert.equal(resolved.tools[0]?.stepRef, 'grok:tool:call-aie');
+        const done = events.find(event => event.type === 'agent_done');
+        assert.ok(done);
+        const toolLog = done.data["toolLog"] as Array<Record<string, unknown>>;
+        assert.equal(toolLog[0]?.["label"], 'run_terminal_command');
+    } finally {
+        process.env["PATH"] = originalPath;
+        clearAllBroadcastListeners();
+        fake.cleanup();
     }
 });
 

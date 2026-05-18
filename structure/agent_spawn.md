@@ -9,7 +9,7 @@ aliases: [CLI-JAW Agent Spawn, agent runtime, ACP orchestration]
 # Agent Spawn — agent/ · orchestrator/ · cli/acp-client
 
 > CLI spawn + ACP 분기 + 스트림 + 큐 + 메모리 flush + PABCD 오케스트레이션
-> 현재 기준: `src/agent/*` 19개 파일, `src/orchestrator/*` 10개 파일, `src/cli/acp-client.ts`
+> 현재 기준: `src/agent/*` 20개 파일, `src/orchestrator/*` 10개 파일, `src/cli/acp-client.ts`
 
 ---
 
@@ -24,8 +24,9 @@ aliases: [CLI-JAW Agent Spawn, agent runtime, ACP orchestration]
 | `src/agent/codex-app-client.ts` | 259L | Codex App stdio server client |
 | `src/agent/codex-app-events.ts` | 236L | Codex App turn/tool/message event adapter |
 | `src/agent/error-classifier.ts` | 38L | stderr/result 기반 에러 분류 helper |
-| `src/agent/events.ts` | 1931L | NDJSON 파서 + ACP `session/update` / subagent lifecycle 매핑 + Grok streaming-json text/thought/end/error 중복 억제 + `claude-i` complete-message parsing |
-| `src/agent/lifecycle-handler.ts` | 531L | child lifecycle, fallback, retry, queue resume orchestration |
+| `src/agent/events.ts` | 2137L | NDJSON 파서 + ACP `session/update` / subagent lifecycle 매핑 + Grok streaming-json text/thought/end/error 중복 억제 + `claude-i` complete-message parsing |
+| `src/agent/grok-trace-backfill.ts` | 153L | Grok streaming-json가 생략한 tool_calls/tool_result를 종료 후 trace archive에서 backfill |
+| `src/agent/lifecycle-handler.ts` | 580L | child lifecycle, fallback, retry, queue resume orchestration |
 | `src/agent/live-run-state.ts` | 64L | active run snapshot / hydrate helper |
 | `src/agent/memory-flush-controller.ts` | 159L | memory flush lock + post-response trigger |
 | `src/agent/opencode-diagnostics.ts` | 156L | OpenCode binary/permission 점검 + raw event 버퍼 |
@@ -33,7 +34,7 @@ aliases: [CLI-JAW Agent Spawn, agent runtime, ACP orchestration]
 | `src/agent/session-persistence.ts` | 74L | main session persistence gate; `claude-i` SIGINT exit 2 is resumable |
 | `src/agent/smoke-detector.ts` | 141L | smoke response 감지 + auto-continue 판단 |
 | `src/agent/spawn-env.ts` | 141L | OpenCode/Gemini 전용 env/permission 보정 |
-| `src/agent/spawn.ts` | 1973L | spawn/ACP/stream/DB/broadcast + queue drain 핵심; `claude-i` prompt/write/runtime event bridge |
+| `src/agent/spawn.ts` | 2068L | spawn/ACP/stream/DB/broadcast + queue drain 핵심; `claude-i` prompt/write/runtime event bridge |
 | `src/agent/tool-timeout.ts` | 33L | tool inactivity timeout helper |
 | `src/agent/watchdog.ts` | 104L | idle/progress watchdog; progress extends deadline within 4h hard cap |
 
@@ -85,6 +86,7 @@ aliases: [CLI-JAW Agent Spawn, agent runtime, ACP orchestration]
 - `gemini`, `grok`, `opencode`는 `promptForArgs = withHistoryPrompt(prompt, historyBlock)`를 받아 인자 레벨에서 prompt/history를 합친다.
 - `gemini` fresh/resume 인자는 headless `-p`, model, stream JSON, `--skip-trust`, `--approval-mode yolo`, 그리고 workspace 보정을 함께 다룬다.
 - `grok` fresh/resume 인자는 `-p`, optional `-m`, `--output-format streaming-json`, `--no-alt-screen`, auto permission이면 `--always-approve --permission-mode bypassPermissions`만 넘긴다. `grok-build`는 서버가 `reasoningEffort`를 거부하므로 `--effort`, `--reasoning-effort`, system-prompt override 계열 플래그를 넘기지 않는다.
+- Grok `streaming-json` stdout이 실제 tool event를 생략하는 버전은 정상 종료 후 `grok trace --local --json <sessionId>`를 한 번 호출하고 `chat_history.jsonl`의 `tool_calls`/`tool_result`를 최종 toolLog에 backfill한다. `ai-e` Grok provider도 `effectiveProvider=grok`로 같은 lifecycle 보강을 탄다.
 - Gemini CLI는 multi-directory workspace에 `--include-directories <dir1,dir2>` 또는 반복 플래그를 지원한다. cli-jaw의 Gemini spawn 경로는 OS home을 include-directory로 넘기고, WSL이면 Linux home에 더해 발견 가능한 Windows user home(`/mnt/c/Users/...`)도 넘긴다. 자동 감지가 부족하면 `perCli.gemini.includeDirectories` 값을 추가 include로 넘긴다.
 - 이 include-directory 보정이 빠지면 Gemini file tools가 cwd 밖의 폴더를 외부 경로로 보고 `Path not in workspace` 계열 오류를 낼 수 있다. 단순 trust env(`GEMINI_CLI_TRUST_WORKSPACE`)나 prompt 지침만으로는 workspace membership을 확장한 것으로 보지 않는다.
 - stdout NDJSON은 `jaw_runtime` 사전 처리(`claude-i` only) → `logEventSummary()` → `extractSessionId()` → `extractFromEvent()` → `extractOutputChunk()` 순으로 처리된다.
