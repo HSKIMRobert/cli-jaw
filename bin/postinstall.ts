@@ -39,9 +39,16 @@ import {
 import { asArray, asRecord, errString, fieldString } from './_http-client.js';
 
 // ─── JAW_HOME inline (config.ts → registry.ts import 체인 제거) ───
-const JAW_HOME = process.env["CLI_JAW_HOME"]
-    ? resolveHomePath(process.env["CLI_JAW_HOME"])
-    : path.join(os.homedir(), '.cli-jaw');
+const JAW_HOME = (() => {
+    if (!process.env["CLI_JAW_HOME"]) return path.join(os.homedir(), '.cli-jaw');
+    const resolved = resolveHomePath(process.env["CLI_JAW_HOME"]);
+    const userHome = os.homedir();
+    if (!resolved.startsWith(userHome + path.sep) && resolved !== userHome) {
+        console.error(`[jaw:init] ❌ CLI_JAW_HOME must be under user home (${userHome}): ${resolved}`);
+        process.exit(1);
+    }
+    return resolved;
+})();
 
 const home = os.homedir();
 const jawHome = JAW_HOME;
@@ -93,6 +100,11 @@ function ensureDir(dir: string) {
 }
 
 function ensureSymlink(target: string, linkPath: string) {
+    const resolvedLink = path.resolve(linkPath);
+    if (!resolvedLink.startsWith(home + path.sep) && !resolvedLink.startsWith(os.tmpdir())) {
+        console.error(`[jaw:init] ❌ symlink target outside user home: ${resolvedLink}`);
+        return false;
+    }
     if (fs.existsSync(linkPath)) return false;
     fs.mkdirSync(path.dirname(linkPath), { recursive: true });
     try {
@@ -182,16 +194,19 @@ function pathMtimeMs(target: string): number {
     }
 }
 
-function latestMtimeMs(target: string): number {
+function latestMtimeMs(target: string, depth = 0): number {
+    if (depth > 20) return 0;
     if (!fs.existsSync(target)) return 0;
-    const stat = fs.statSync(target);
+    const stat = fs.lstatSync(target);
+    if (stat.isSymbolicLink()) return stat.mtimeMs;
     if (!stat.isDirectory()) return stat.mtimeMs;
 
     let latest = stat.mtimeMs;
     const ignoredDirs = new Set(['.git', 'bin', 'obj', 'target', 'build-local', '99.9_test']);
     for (const entry of fs.readdirSync(target, { withFileTypes: true })) {
+        if (entry.isSymbolicLink()) continue;
         if (entry.isDirectory() && ignoredDirs.has(entry.name)) continue;
-        latest = Math.max(latest, latestMtimeMs(path.join(target, entry.name)));
+        latest = Math.max(latest, latestMtimeMs(path.join(target, entry.name), depth + 1));
     }
     return latest;
 }
@@ -333,7 +348,13 @@ export async function installOfficeCli(opts: InstallOpts = {}) {
         return;
     }
 
-    const repo = process.env["OFFICECLI_REPO"] || OFFICECLI_DEFAULT_REPO;
+    const rawRepo = process.env["OFFICECLI_REPO"] || OFFICECLI_DEFAULT_REPO;
+    if (!/^[\w.-]+\/[\w.-]+$/.test(rawRepo)) {
+        console.error(`[jaw:init] ❌ OFFICECLI_REPO contains invalid characters: ${rawRepo}`);
+        if (OFFICECLI_REQUIRE) throw new Error(`OFFICECLI_REPO validation failed: ${rawRepo}`);
+        return;
+    }
+    const repo = rawRepo;
     if (opts.interactive && opts.ask) {
         const answer = await opts.ask(`Install/update OfficeCLI (${repo})? [Y/n]`, 'y');
         if (answer.toLowerCase() === 'n') {
@@ -542,14 +563,29 @@ function buildInstallCmd(mgr: PkgMgr, pkg: string, brewFormula?: string): string
     }
 }
 
+function runInstallCmd(mgr: PkgMgr, pkg: string, env: NodeJS.ProcessEnv, brewFormula?: string): void {
+    const timeout = 180000;
+    if (mgr === 'brew') {
+        try {
+            execFileSync('brew', ['upgrade', brewFormula || pkg], { stdio: 'pipe', timeout, env });
+        } catch {
+            execFileSync('brew', ['install', brewFormula || pkg], { stdio: 'pipe', timeout, env });
+        }
+    } else if (mgr === 'bun') {
+        execFileSync('bun', ['install', '-g', `${pkg}@latest`], { stdio: 'pipe', timeout, env });
+    } else {
+        execFileSync('npm', ['i', '-g', `${pkg}@latest`], { stdio: 'pipe', timeout, env });
+    }
+}
+
 function buildClaudeNativeInstallCmd(): string {
     if (process.platform === 'win32') {
         return `powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-Expression (Invoke-RestMethod '${CLAUDE_NATIVE_INSTALL_PS_URL}')"`;
     }
-    return `curl -fsSL ${CLAUDE_NATIVE_INSTALL_URL} | bash`;
+    return `curl -fsSL -o /tmp/claude-install.sh ${CLAUDE_NATIVE_INSTALL_URL} && bash /tmp/claude-install.sh`;
 }
 
-function runClaudeNativeInstall(cmd: string): void {
+function runClaudeNativeInstall(_cmd: string): void {
     const env = postinstallExecEnv();
     if (process.platform === 'win32') {
         execFileSync('powershell', [
@@ -565,11 +601,17 @@ function runClaudeNativeInstall(cmd: string): void {
         });
         return;
     }
-    execSync(cmd, {
-        stdio: 'pipe',
-        timeout: 180000,
-        env,
-    });
+    const tmpScript = path.join(os.tmpdir(), `claude-install-${Date.now()}.sh`);
+    try {
+        execFileSync('curl', ['-fsSL', '-o', tmpScript, CLAUDE_NATIVE_INSTALL_URL], {
+            stdio: 'pipe', timeout: 30000, env,
+        });
+        execFileSync('bash', [tmpScript], {
+            stdio: 'pipe', timeout: 180000, env,
+        });
+    } finally {
+        try { fs.unlinkSync(tmpScript); } catch {}
+    }
 }
 
 function findClaudeNativeBinary(): string | null {
@@ -705,14 +747,14 @@ function isInstalledVia(mgr: PkgMgr, pkg: string, brewFormula?: string): boolean
     try {
         switch (mgr) {
             case 'npm':
-                execSync(`npm ls -g ${pkg} --depth=0`, { stdio: 'pipe', timeout: 5000, env: postinstallExecEnv() });
+                execFileSync('npm', ['ls', '-g', pkg, '--depth=0'], { stdio: 'pipe', timeout: 5000, env: postinstallExecEnv() });
                 return true;
             case 'bun': {
                 const bunGlobal = path.join(home, '.bun', 'install', 'global', 'node_modules', pkg.split('/').pop()!);
                 return fs.existsSync(bunGlobal);
             }
             case 'brew':
-                execSync(`brew list --formula ${brewFormula || pkg}`, { stdio: 'pipe', timeout: 5000, env: postinstallExecEnv() });
+                execFileSync('brew', ['list', '--formula', brewFormula || pkg], { stdio: 'pipe', timeout: 5000, env: postinstallExecEnv() });
                 return true;
         }
     } catch { return false; }
@@ -742,13 +784,15 @@ function deduplicateCliTool(bin: string, pkg: string, brew?: string, preferredAc
         return;
     }
     for (const mgr of duplicates) {
-        const cmd = buildUninstallCmd(mgr, pkg, brew);
         console.log(`[jaw:init] 🧹 ${bin}: removing duplicate from ${mgr} (active: ${active})`);
         try {
-            execSync(cmd, { stdio: 'pipe', timeout: 30000, env: postinstallExecEnv() });
+            const env = postinstallExecEnv();
+            if (mgr === 'npm') execFileSync('npm', ['uninstall', '-g', pkg], { stdio: 'pipe', timeout: 30000, env });
+            else if (mgr === 'bun') execFileSync('bun', ['remove', '-g', pkg], { stdio: 'pipe', timeout: 30000, env });
+            else execFileSync('brew', ['uninstall', brew || pkg], { stdio: 'pipe', timeout: 30000, env });
             console.log(`[jaw:init]    removed ${pkg} from ${mgr}`);
         } catch {
-            console.warn(`[jaw:init]    ⚠️  failed to remove ${pkg} from ${mgr} — remove manually: ${cmd}`);
+            console.warn(`[jaw:init]    ⚠️  failed to remove ${pkg} from ${mgr} — remove manually: ${buildUninstallCmd(mgr, pkg, brew)}`);
         }
     }
 }
@@ -789,11 +833,10 @@ export async function installCliTools(opts: InstallOpts = {}) {
             const answer = await opts.ask(`Install ${bin} (${pkg})? [y/N]`, 'n');
             if (answer.toLowerCase() !== 'y') { console.log(`  ⏭️  skipped ${bin}`); continue; }
         }
-        const cmd = buildInstallCmd('npm', pkg, brew);
         const tag = existingPath ? 'repair via npm' : 'fresh install via npm';
-        console.log(`[jaw:init] 📦 ${bin} (${tag}): ${cmd}`);
+        console.log(`[jaw:init] 📦 ${bin} (${tag}): npm i -g ${pkg}@latest`);
         try {
-            execSync(cmd, { stdio: 'pipe', timeout: 180000, env: postinstallExecEnv() });
+            runInstallCmd('npm', pkg, postinstallExecEnv(), brew);
             console.log(`[jaw:init] ✅ ${bin} installed`);
         } catch {
             failed.push(`${bin} (${pkg})`);
@@ -839,7 +882,7 @@ export async function installMcpServers(opts: InstallOpts = {}) {
             }
 
             console.log(`[jaw:init] 📦 npm i -g ${pkg} ...`);
-            execSync(`npm i -g ${pkg}`, { stdio: 'pipe', timeout: 120000, env: postinstallExecEnv() });
+            execFileSync('npm', ['i', '-g', pkg], { stdio: 'pipe', timeout: 120000, env: postinstallExecEnv() });
 
             const binPath = findBinaryPath(bin) || bin;
             console.log(`[jaw:init] ✅ ${bin} → ${binPath}`);
@@ -863,25 +906,44 @@ export async function installMcpServers(opts: InstallOpts = {}) {
 const SKILL_DEPS = [
     {
         name: 'uv',
-        check: 'uv --version',
+        check: ['uv', ['--version']] as [string, string[]],
         install: process.platform === 'win32'
-            ? 'powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"'
-            : 'curl -LsSf https://astral.sh/uv/install.sh | sh',
+            ? { type: 'remote-script' as const, url: 'https://astral.sh/uv/install.ps1', shell: 'powershell' as const }
+            : { type: 'remote-script' as const, url: 'https://astral.sh/uv/install.sh', shell: 'sh' as const },
         why: 'Python skills (imagegen, pdf, speech, spreadsheet, transcribe)',
     },
     {
         name: 'playwright-core',
-        check: 'node -e "require.resolve(\'playwright-core\')"',
-        install: 'npm i -g playwright-core',
+        check: ['node', ['-e', "require.resolve('playwright-core')"]] as [string, string[]],
+        install: { type: 'npm' as const, pkg: 'playwright-core' },
         why: 'Browser control skill (cli-jaw browser)',
     },
 ];
 
+function runSkillDepInstall(install: (typeof SKILL_DEPS)[number]['install'], env: NodeJS.ProcessEnv): void {
+    if ('pkg' in install) {
+        execFileSync('npm', ['i', '-g', install.pkg], { stdio: 'pipe', timeout: 120000, env });
+        return;
+    }
+    const tmpScript = path.join(os.tmpdir(), `jaw-dep-${Date.now()}.sh`);
+    try {
+        execFileSync('curl', ['-fsSL', '-o', tmpScript, install.url], { stdio: 'pipe', timeout: 30000, env });
+        if (install.shell === 'powershell') {
+            execFileSync('powershell', ['-ExecutionPolicy', 'ByPass', '-File', tmpScript], { stdio: 'pipe', timeout: 120000, env });
+        } else {
+            execFileSync(install.shell, [tmpScript], { stdio: 'pipe', timeout: 120000, env });
+        }
+    } finally {
+        try { fs.unlinkSync(tmpScript); } catch {}
+    }
+}
+
 export async function installSkillDeps(opts: InstallOpts = {}) {
     console.log('[jaw:init] checking skill dependencies...');
     for (const dep of SKILL_DEPS) {
+        const [checkBin, checkArgs] = dep.check;
         try {
-            execSync(dep.check, { stdio: 'pipe', timeout: 10000, env: postinstallExecEnv() });
+            execFileSync(checkBin, checkArgs, { stdio: 'pipe', timeout: 10000, env: postinstallExecEnv() });
             console.log(`[jaw:init] ⏭️  ${dep.name} (already installed)`);
         } catch {
             if (opts.dryRun) { console.log(`  [dry-run] would install ${dep.name} (${dep.why})`); continue; }
@@ -891,11 +953,10 @@ export async function installSkillDeps(opts: InstallOpts = {}) {
             }
             console.log(`[jaw:init] 📦 installing ${dep.name} (${dep.why})...`);
             try {
-                execSync(dep.install, { stdio: 'pipe', timeout: 120000, env: postinstallExecEnv() });
+                runSkillDepInstall(dep.install, postinstallExecEnv());
                 console.log(`[jaw:init] ✅ ${dep.name} installed`);
-            } catch (e) {
-                console.error(`[jaw:init] ⚠️  ${dep.name}: auto-install failed — install manually:`);
-                console.error(`             ${dep.install}`);
+            } catch {
+                console.error(`[jaw:init] ⚠️  ${dep.name}: auto-install failed — install manually`);
             }
         }
     }
@@ -988,7 +1049,7 @@ export async function runPostinstall() {
     // 4. Default heartbeat.json
     const heartbeatPath = path.join(jawHome, 'heartbeat.json');
     if (!fs.existsSync(heartbeatPath)) {
-        fs.writeFileSync(heartbeatPath, JSON.stringify({ jobs: [] }, null, 2));
+        fs.writeFileSync(heartbeatPath, JSON.stringify({ jobs: [] }, null, 2), { mode: 0o600 });
         console.log(`[jaw:init] created ${heartbeatPath}`);
     }
 
