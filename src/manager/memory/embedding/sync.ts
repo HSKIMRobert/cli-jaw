@@ -104,46 +104,54 @@ async function syncInstance(
 
     let completed = 0;
     async function processBatch(batch: typeof batches[0]): Promise<void> {
-      const texts = batch.items.map(b => b.chunk.content);
-      let embeddings: Float32Array[];
       try {
-        embeddings = await opts.provider.embed(texts);
-      } catch {
-        await new Promise(r => setTimeout(r, 1000));
+        const texts = batch.items.map(b => b.chunk.content);
+        let embeddings: Float32Array[];
         try {
           embeddings = await opts.provider.embed(texts);
-        } catch (retryErr) {
-          result.errors.push(`Batch ${batch.start}-${batch.start + batch.items.length}: ${String(retryErr)}`);
-          completed += batch.items.length;
-          opts.onProgress?.(instanceId, Math.min(completed, toEmbed.length), toEmbed.length);
+        } catch {
+          await new Promise(r => setTimeout(r, 1000));
+          try {
+            embeddings = await opts.provider.embed(texts);
+          } catch (retryErr) {
+            result.errors.push(`Batch ${batch.start}-${batch.start + batch.items.length}: ${String(retryErr)}`);
+            return;
+          }
+        }
+
+        if (embeddings.length !== batch.items.length) {
+          result.errors.push(`Batch ${batch.start}: expected ${batch.items.length} embeddings, got ${embeddings.length}`);
           return;
         }
-      }
 
-      for (let j = 0; j < batch.items.length; j++) {
-        const item = batch.items[j]!;
-        const embedding = embeddings[j]!;
-        opts.vecStore.upsertVec(
-          item.existingRowid,
-          {
-            chunkId: item.chunk.id,
-            instanceId,
-            relpath: item.chunk.relpath,
-            kind: item.chunk.kind,
-            contentHash: item.chunk.content_hash,
-            snippet: item.chunk.content.slice(0, 700),
-            sourceStartLine: item.chunk.source_start_line,
-            sourceEndLine: item.chunk.source_end_line,
-          },
-          embedding,
-          opts.provider.name,
-          opts.provider.model,
-        );
-        if (item.existingRowid !== null) result.updated++;
-        else result.added++;
+        for (let j = 0; j < batch.items.length; j++) {
+          const item = batch.items[j]!;
+          const embedding = embeddings[j]!;
+          opts.vecStore.upsertVec(
+            item.existingRowid,
+            {
+              chunkId: item.chunk.id,
+              instanceId,
+              relpath: item.chunk.relpath,
+              kind: item.chunk.kind,
+              contentHash: item.chunk.content_hash,
+              snippet: item.chunk.content.slice(0, 700),
+              sourceStartLine: item.chunk.source_start_line,
+              sourceEndLine: item.chunk.source_end_line,
+            },
+            embedding,
+            opts.provider.name,
+            opts.provider.model,
+          );
+          if (item.existingRowid !== null) result.updated++;
+          else result.added++;
+        }
+      } catch (batchErr) {
+        result.errors.push(`Batch ${batch.start} unexpected: ${String(batchErr)}`);
+      } finally {
+        completed += batch.items.length;
+        opts.onProgress?.(instanceId, Math.min(completed, toEmbed.length), toEmbed.length);
       }
-      completed += batch.items.length;
-      opts.onProgress?.(instanceId, Math.min(completed, toEmbed.length), toEmbed.length);
     }
 
     for (let i = 0; i < batches.length; i += concurrency) {
