@@ -24,6 +24,9 @@ import { registerMessagingRoutes } from './src/routes/messaging.js';
 import { registerAvatarRoutes } from './src/routes/avatar.js';
 import { registerTraceRoutes } from './src/routes/traces.js';
 import { registerJawCeoRoutes } from './src/routes/jaw-ceo.js';
+import { createRuntimeContextRouter } from './src/routes/runtime-context.js';
+import { createSecurityAuditRouter } from './src/routes/security-audit.js';
+import { getSecurityAuditLog } from './src/security/security-audit-log.js';
 import { createDashboardBoardRouter } from './src/manager/board/routes.js';
 import { createDashboardScheduleRouter } from './src/manager/schedule/routes.js';
 import {
@@ -630,6 +633,10 @@ registerJawCeoRoutes(app, requireAuth, {
     },
 });
 
+// ─── Runtime context + Security audit ───────────────
+app.use('/api/runtime-context', requireAuth, createRuntimeContextRouter());
+app.use('/api/security-audit', createSecurityAuditRouter(requireAuth));
+
 // ─── Dashboard Board / Schedule (P3) ─────────────────
 app.use('/api/dashboard/board', requireAuth, createDashboardBoardRouter());
 app.use('/api/dashboard/schedule', requireAuth, createDashboardScheduleRouter());
@@ -655,6 +662,9 @@ const shutdown = async (sig: string) => {
     }, 5000);
     forceExitTimer.unref();
 
+    try {
+        getSecurityAuditLog().append('service_stop', 'server', { signal: sig, port: PORT });
+    } catch { /* non-fatal */ }
     stopHeartbeat();
     killAllAgents('shutdown');
 
@@ -782,6 +792,10 @@ server.listen(PORT, bindHost, async () => {
     } catch (e: unknown) {
         console.error('[messaging:boot]', (e as Error).message);
     }
+
+    try {
+        getSecurityAuditLog().append('service_start', 'server', { port: PORT, cli: settings["cli"] });
+    } catch { /* non-fatal */ }
 
     initAlertDelivery();
 

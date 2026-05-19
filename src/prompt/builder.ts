@@ -13,6 +13,7 @@ import { buildMemoryInjection } from '../memory/injection.js';
 import { loadAndRender, loadTemplate, renderTemplate, parseWorkerContexts, clearTemplateCache } from './template-loader.js';
 import { findStaticEmployee } from '../core/employees.js';
 import { isDiscoverableSkillDirName } from '../../lib/mcp/skills-utils.js';
+import { buildInjectionBlock as buildRuntimeContextBlock } from './runtime-context.js';
 
 const promptCache = new Map();
 
@@ -505,6 +506,14 @@ export function getSystemPrompt(opts: { currentPrompt?: string; forDisk?: boolea
             }
         }
     } catch { /* vision-click not ready */ }
+
+    // ─── Runtime context (short-lived user intent notes) ───
+    if (!forDisk) {
+        try {
+            const block = buildRuntimeContextBlock();
+            if (block) prompt += '\n\n---\n' + block;
+        } catch { /* runtime-context not ready */ }
+    }
 
     // ─── Delegation rules: jaw employees vs CLI sub-agents ───
     prompt += '\n\n---\n## Delegation Rules\n';
