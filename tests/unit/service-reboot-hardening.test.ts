@@ -11,6 +11,7 @@ const SERVER = path.join(ROOT, 'server.ts');
 const CONFIG = path.join(ROOT, 'src/core/config.ts');
 const CLI_DETECT = path.join(ROOT, 'src/core/cli-detect.ts');
 const SPAWN = path.join(ROOT, 'src/agent/spawn.ts');
+const QUEUE = path.join(ROOT, 'src/agent/spawn/queue.ts');
 const LIFECYCLE = path.join(ROOT, 'src/agent/lifecycle-handler.ts');
 const DB = path.join(ROOT, 'src/core/db.ts');
 const LAUNCHD = path.join(ROOT, 'bin/commands/launchd.ts');
@@ -119,7 +120,7 @@ test('SRH-008: dispatch CLI has retry logic for ECONNREFUSED', () => {
 });
 
 test('SRH-009: message queue is persisted to DB', () => {
-    const spawnSrc = readSource(SPAWN, 'utf8');
+    const queueSrc = readSource(QUEUE, 'utf8');
     const dbSrc = readSource(DB, 'utf8');
 
     assert.match(dbSrc, /queued_messages/,
@@ -128,11 +129,11 @@ test('SRH-009: message queue is persisted to DB', () => {
         'insertQueuedMessage statement must be exported');
     assert.match(dbSrc, /deleteQueuedMessage/,
         'deleteQueuedMessage statement must be exported');
-    assert.match(spawnSrc, /insertQueuedMessage\.run\(item\.id/,
+    assert.match(queueSrc, /insertQueuedMessage\.run\(item\.id/,
         'enqueueMessage must persist to DB');
-    assert.match(spawnSrc, /deleteQueuedMessage\.run\(item\.id\)/,
+    assert.match(queueSrc, /deleteQueuedMessage\.run\(item\.id\)/,
         'processQueue must remove processed items from DB');
-    assert.match(spawnSrc, /loadPersistedQueue/,
+    assert.match(queueSrc, /loadPersistedQueue/,
         'queue must be loaded from DB on module init');
 });
 

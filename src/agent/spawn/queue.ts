@@ -218,6 +218,7 @@ export function createQueueController(deps: QueueDeps): QueueController {
         return item.id;
     }
 
+    // Queue policy: "fair" — batch head runs, tail goes after remaining
     async function processQueue() {
         if (queueProcessing) return;
 

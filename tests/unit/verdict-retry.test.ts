@@ -11,6 +11,7 @@ const __dirname = dirname(__filename);
 
 const pipelineSrc = readSource(join(__dirname, '../../src/orchestrator/pipeline.ts'), 'utf8');
 const spawnSrc = readSource(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
+const queueSrc = readSource(join(__dirname, '../../src/agent/spawn/queue.ts'), 'utf8');
 const stateMachineSrc = readSource(join(__dirname, '../../src/orchestrator/state-machine.ts'), 'utf8');
 
 // ─── VR: PABCD State Machine 구조 검증 ───────────────
@@ -62,15 +63,15 @@ test('RV-001: state machine has PLANNING, AUDIT, and BUILD prefixes', () => {
 
 test('QP-001: queue policy is documented as "fair"', () => {
     assert.ok(
-        spawnSrc.includes('Queue policy: "fair"'),
-        'spawn.ts should document fair queue policy',
+        queueSrc.includes('Queue policy: "fair"'),
+        'queue.ts should document fair queue policy',
     );
 });
 
 test('QP-002: batch tail goes after remaining (fair ordering)', () => {
-    const queueBlock = spawnSrc.slice(
-        spawnSrc.indexOf('if (batch.length > 1)'),
-        spawnSrc.indexOf('const combined = batch[0]'),
+    const queueBlock = queueSrc.slice(
+        queueSrc.indexOf('if (batch.length > 1)'),
+        queueSrc.indexOf('const combined = batch[0]'),
     );
     assert.ok(
         queueBlock.includes('...remaining, ...batch.slice(1)'),

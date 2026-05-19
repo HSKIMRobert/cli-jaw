@@ -192,8 +192,9 @@ test('SF-006: queued web steer holds target item while waiting for old process e
     assert.ok(killIdx > holdIdx, 'route should set hold before killing the active process');
     assert.ok(waitIdx > killIdx, 'route should wait for process exit after killing');
     assert.ok(removeIdx > waitIdx, 'route should remove the held queued item after process exit wait');
+    const queueSrc = fs.readFileSync(join(__dirname, '../../src/agent/spawn/queue.ts'), 'utf8');
     assert.ok(
-        spawnSrc.includes('export function setQueueHold(id: string, timeoutMs = QUEUE_HOLD_TIMEOUT_MS)'),
+        queueSrc.includes('function setQueueHold(id: string, timeoutMs = QUEUE_HOLD_TIMEOUT_MS)'),
         'queue hold should accept an extended timeout for long provider steer waits',
     );
 });

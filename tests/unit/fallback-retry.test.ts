@@ -28,7 +28,7 @@ test('FALLBACK_MAX_RETRIES is 3 (verified via module constants)', async () => {
     const { dirname, join } = await import('node:path');
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
-    const src = fs.readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
+    const src = fs.readFileSync(join(__dirname, '../../src/agent/spawn/queue.ts'), 'utf8');
     const match = src.match(/FALLBACK_MAX_RETRIES\s*=\s*(\d+)/);
     assert.ok(match, 'FALLBACK_MAX_RETRIES constant should exist');
     assert.equal(Number(match[1]), 3);
@@ -116,14 +116,14 @@ function extractFn(src: string, name: string): string {
 
 // ─── 429 Retry: structural tests ────────────────────
 
-test('429: isAgentBusy checks activeProcess + retryPendingTimer', () => {
+test('429: isAgentBusy checks activeProcess + retry pending state', () => {
     const src = readSrc('../../src/agent/spawn.ts');
     assert.ok(src.includes('function isAgentBusy'));
-    assert.ok(src.includes('retryPendingTimer'));
+    assert.ok(src.includes('queueCtrl.isRetryPending()'));
 });
 
 test('429: clearRetryTimer accepts resumeQueue param and defaults true', () => {
-    const src = readSrc('../../src/agent/spawn.ts');
+    const src = readSrc('../../src/agent/spawn/queue.ts');
     const fn = extractFn(src, 'clearRetryTimer');
     assert.ok(fn.includes('resumeQueue = true'), 'default resumeQueue=true');
     assert.ok(fn.includes('if (resumeQueue) processQueue'), 'conditional processQueue');
@@ -146,19 +146,19 @@ test('429: killAllAgents returns true when timer cancelled', () => {
 });
 
 test('429: resetFallbackState calls clearRetryTimer(true)', () => {
-    const src = readSrc('../../src/agent/spawn.ts');
+    const src = readSrc('../../src/agent/spawn/queue.ts');
     const fn = extractFn(src, 'resetFallbackState');
     assert.ok(fn.includes('clearRetryTimer(true)'));
 });
 
-test('429: processQueue guards against retryPendingTimer', () => {
-    const src = readSrc('../../src/agent/spawn.ts');
+test('429: processQueue guards against busy state (retry-aware via deps.isSpawnBusy)', () => {
+    const src = readSrc('../../src/agent/spawn/queue.ts');
     const fn = extractFn(src, 'processQueue');
-    assert.ok(fn.includes('retryPendingTimer'), 'processQueue checks retryPendingTimer');
+    assert.ok(fn.includes('deps.isSpawnBusy()'), 'processQueue delegates busy check to deps.isSpawnBusy');
 });
 
 test('429: INVARIANT comment present', () => {
-    const src = readSrc('../../src/agent/spawn.ts');
+    const src = readSrc('../../src/agent/spawn/queue.ts');
     assert.ok(src.includes('INVARIANT: single-main'));
 });
 
@@ -239,13 +239,9 @@ describe('429 retry: behavioral tests', () => {
 
 describe('429 retry: edge case coverage', () => {
     test('timer pending blocks processQueue at runtime', async () => {
-        // Verifies the guard `retryPendingTimer` in processQueue body
-        // prevents queue drain during active retry wait
-        const src = readSrc('../../src/agent/spawn.ts');
+        const src = readSrc('../../src/agent/spawn/queue.ts');
         const fn = extractFn(src, 'processQueue');
-        // Guard conditions must all be present in the early-return block
-        assert.ok(fn.includes('activeProcess'), 'processQueue must guard on activeProcess');
-        assert.ok(fn.includes('retryPendingTimer'), 'processQueue must guard on retryPendingTimer');
+        assert.ok(fn.includes('deps.isSpawnBusy()'), 'processQueue must guard on busy state (includes active process + retry timer)');
         assert.ok(fn.includes('messageQueue.length === 0'), 'processQueue must guard on empty queue');
     });
 

@@ -14,17 +14,18 @@ const __dirname = dirname(__filename);
 // invariants so the fixes don't silently regress.
 
 const spawnSrc = fs.readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
+const queueSrc = fs.readFileSync(join(__dirname, '../../src/agent/spawn/queue.ts'), 'utf8');
 const orchestrateRouteSrc = fs.readFileSync(join(__dirname, '../../src/routes/orchestrate.ts'), 'utf8');
 
 // ─── Fix A: stop should clear the queue ──────────────────────────────
 
 test('Fix A: purgeQueueOnStop helper exists and clears queue + persisted DB rows', () => {
-    const fnIdx = spawnSrc.indexOf('function purgeQueueOnStop');
-    assert.ok(fnIdx > 0, 'purgeQueueOnStop helper must exist in spawn.ts');
-    const body = spawnSrc.slice(fnIdx, fnIdx + 600);
+    const fnIdx = queueSrc.indexOf('function purgeQueueOnStop');
+    assert.ok(fnIdx > 0, 'purgeQueueOnStop helper must exist in queue.ts');
+    const body = queueSrc.slice(fnIdx, fnIdx + 600);
     assert.ok(body.includes('messageQueue.splice(0)'), 'must drain messageQueue in place');
-    assert.ok(body.includes('deleteQueuedMessage.run'), 'must remove persisted DB rows');
-    assert.ok(body.includes("broadcast('queue_update'"), 'must broadcast pending=0 to clients');
+    assert.ok(body.includes('deps.deleteQueuedMessage.run'), 'must remove persisted DB rows');
+    assert.ok(body.includes("deps.broadcast('queue_update'"), 'must broadcast pending=0 to clients');
 });
 
 test("Fix A: killActiveAgent purges queue when reason='api' or 'user'", () => {
@@ -121,8 +122,8 @@ test('Fix C2: kill helpers also clear worker registry on user stop (so submitMes
 });
 
 test('Fix B2: enqueueMessage returns the queue id and gateway threads it into SubmitResult.queuedId', () => {
-    const enqueueIdx = spawnSrc.indexOf('export function enqueueMessage');
-    const enqueue = spawnSrc.slice(enqueueIdx, enqueueIdx + 1200);
+    const enqueueIdx = queueSrc.indexOf('function enqueueMessage');
+    const enqueue = queueSrc.slice(enqueueIdx, enqueueIdx + 1200);
     assert.ok(/\): string \{/.test(enqueue), 'enqueueMessage must declare string return type');
     assert.ok(/return item\.id/.test(enqueue), 'enqueueMessage must return the queue item id');
 
