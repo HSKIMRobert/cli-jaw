@@ -16,6 +16,7 @@ import { readClaudeCreds, readCodexTokens, fetchClaudeUsage, fetchCodexUsage, re
 import { fetchCopilotQuota, refreshCopilotFromKeychain } from '../../lib/quota-copilot.js';
 import { migrateLegacyClaudeValue } from '../cli/claude-models.js';
 import { extractOpenAiApiKey, hasInvalidOpenAiApiKeyInput } from '../jaw-ceo/openai-key.js';
+import { getSecurityAuditLog } from '../security/security-audit-log.js';
 
 function redactSttSettings(input: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
     if (!input) return input;
@@ -71,6 +72,10 @@ export function registerSettingsRoutes(
 
     app.put('/api/settings', requireAuth, asyncHandler(async (req, res) => {
         const result = await applySettings(req.body) as Record<string, unknown>;
+        try {
+            const keys = Object.keys(req.body || {}).filter(k => !['stt', 'jawCeo'].includes(k));
+            getSecurityAuditLog().append('settings_change', String(req.ip || 'local'), { keys });
+        } catch { /* non-fatal */ }
         const safe = redactRuntimeSettings(result);
         ok(res, safe);
     }));

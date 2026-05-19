@@ -18,6 +18,7 @@ import { resolveDispatchableEmployee, checkRuntimeHints, checkModelSupport } fro
 import type { EmployeeRow, SyntheticEmployeeRow } from '../core/employees.js';
 import { getHeartbeatRuntimeState } from '../memory/heartbeat.js';
 import { sanitizeToolLogForDurableStorage } from '../shared/tool-log-sanitize.js';
+import { getSecurityAuditLog } from '../security/security-audit-log.js';
 
 function getRuntimeSnapshot() {
     return {
@@ -281,6 +282,12 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
         // from early abort. req.on('close') was unreliable because it fires on
         // normal keep-alive teardown too, leading to false-positive disconnects.
         // See: https://nodejs.org/docs/latest/api/http.html (response.writableFinished)
+        try {
+            getSecurityAuditLog().append('dispatch_start', String(req.ip || 'local'), {
+                agent: emp.name, task: task.slice(0, 200), phase: resolvedPhase,
+            });
+        } catch { /* non-fatal */ }
+
         let clientDisconnected = false;
         res.on('close', () => {
             if (!res.writableFinished) clientDisconnected = true;
@@ -297,6 +304,11 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
             const worklog = dispatchCtx?.worklogPath ? { path: dispatchCtx.worklogPath } : {};
             const result = await runSingleAgent(ap, emp, worklog, 1, { origin: 'api' }, []);
             finishWorker(slot.agentId, String(result["text"] || ''));
+            try {
+                getSecurityAuditLog().append('dispatch_end', String(req.ip || 'local'), {
+                    agent: emp.name, agentId: slot.agentId, status: 'success',
+                });
+            } catch { /* non-fatal */ }
 
             // Phase 58: Auto-update audit/verification status from worker verdict.
             // 'A' phase verdicts → auditStatus; 'B' phase verdicts → verificationStatus.
