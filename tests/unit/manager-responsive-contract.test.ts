@@ -190,7 +190,7 @@ test('manager UI state is persisted through 10.6 registry without localStorage',
     assert.ok(drawer.includes("event.key === 'Escape'"), 'drawer must close on Escape');
     assert.ok(drawer.includes('previousFocusRef'), 'drawer must restore focus');
     assert.ok(drawer.includes('role="dialog"'), 'drawer must expose dialog semantics');
-    assert.ok(detail.includes('Logs stream is planned for phase 10.7'), 'Logs tab must have explicit empty state');
+    assert.ok(detail.includes('InstanceLogsPanel'), 'Logs tab must mount the logs panel when an instance is selected');
     assert.ok(detail.includes('SettingsShell'), 'Settings tab must mount the settings shell');
     assert.ok(dashboardMeta.includes('settings-form'), 'Settings tab must expose 10.6 persistence controls');
     assert.equal(app.includes('localStorage'), false, '10.5.x UI must not introduce localStorage persistence');
