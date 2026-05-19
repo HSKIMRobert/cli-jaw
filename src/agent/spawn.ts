@@ -6,7 +6,7 @@ import crypto from 'node:crypto';
 import { join } from 'path';
 import { spawn, execFileSync, type ChildProcess } from 'child_process';
 import { broadcast } from '../core/bus.js';
-import { settings, UPLOADS_DIR, detectCli, normalizeModelForCli } from '../core/config.js';
+import { settings, UPLOADS_DIR, detectCli } from '../core/config.js';
 import { migrateLegacyClaudeValue } from '../cli/claude-models.js';
 import { stripUndefined } from '../core/strip-undefined.js';
 import {
@@ -753,73 +753,11 @@ import { AcpClient } from '../cli/acp-client.js';
 import { CodexAppClient } from './codex-app-client.js';
 import { extractFromCodexAppEvent } from './codex-app-events.js';
 
-// ─── ACP Heartbeat Helper ────────────────────────────
-// Pure function for conditional heartbeat gating.
-// "visible" = WebUI + Telegram common baseline. 💭 is WebUI-only
-// (bot.ts:337 hides it), so it's NOT counted as visible.
-const DEFAULT_HEARTBEAT_GATE_MS = 20_000;
+import { shouldEmitHeartbeat, shouldResumeBucketSession, GEMINI_RESUME_TTL_MS } from './spawn/resume.js';
+export { shouldEmitHeartbeat, shouldResumeBucketSession, GEMINI_RESUME_TTL_MS };
 
-export function shouldEmitHeartbeat(
-    lastVisibleTs: number,
-    heartbeatSent: boolean,
-    gateMs: number = DEFAULT_HEARTBEAT_GATE_MS,
-    now: number = Date.now(),
-): boolean {
-    if (heartbeatSent) return false;
-    return (now - lastVisibleTs) > gateMs;
-}
-
-export function shouldResumeBucketSession(
-    cli: string,
-    requestedModel: string,
-    bucketModel: string | null | undefined,
-    requestedResumeKey?: string | null,
-    bucketResumeKey?: string | null,
-    bucketUpdatedAt?: string | number | null,
-    nowMs: number = Date.now(),
-): boolean {
-    if (cli === 'gemini') {
-        if (!bucketModel) return false;
-        if (isExpiredBucket(bucketUpdatedAt, GEMINI_RESUME_TTL_MS, nowMs)) return false;
-        const requested = normalizeGeminiResumeModel(requestedModel);
-        const bucket = normalizeGeminiResumeModel(bucketModel);
-        if (!requested || !bucket) return false;
-        return requested === bucket;
-    }
-    if (cli === 'copilot' && bucketModel) {
-        return normalizeModelForCli(cli, requestedModel) === normalizeModelForCli(cli, bucketModel);
-    }
-    if (cli === 'opencode' && requestedResumeKey) {
-        return requestedResumeKey === (bucketResumeKey ?? null);
-    }
-    return true;
-}
-
-export const GEMINI_RESUME_TTL_MS = 72 * 60 * 60 * 1000;
 const GEMINI_HISTORY_MAX_SESSIONS = 4;
 const GEMINI_HISTORY_MAX_CHARS = 3000;
-
-function normalizeGeminiResumeModel(model: string | null | undefined): string {
-    const normalized = String(model || '').trim().toLowerCase();
-    if (!normalized || normalized === 'default' || normalized === 'auto') return '';
-    return normalized;
-}
-
-function parseBucketUpdatedAt(value: string | number | null | undefined): number | null {
-    if (typeof value === 'number' && Number.isFinite(value)) {
-        return value < 10_000_000_000 ? value * 1000 : value;
-    }
-    const text = String(value || '').trim();
-    if (!text) return null;
-    const parsed = Date.parse(text.includes('T') ? text : `${text.replace(' ', 'T')}Z`);
-    return Number.isFinite(parsed) ? parsed : null;
-}
-
-function isExpiredBucket(value: string | number | null | undefined, ttlMs: number, nowMs: number): boolean {
-    const updatedAtMs = parseBucketUpdatedAt(value);
-    if (updatedAtMs === null) return true;
-    return nowMs - updatedAtMs > ttlMs;
-}
 
 export interface SpawnLifecycle {
     onActivity?: (source: string) => void;
