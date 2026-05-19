@@ -176,106 +176,38 @@ export function killAgentById(agentId: string): boolean {
 }
 export { memoryFlushCounter, flushCycleCount } from './memory-flush-controller.js';
 
-type QueueItem = {
-    id: string;
-    prompt: string;
-    source: RuntimeOrigin;
-    scope: string;
-    target?: RemoteTarget;
-    chatId?: string | number;
-    requestId?: string;
-    ts: number;
-};
+const queueCtrl = createQueueController({
+    isSpawnBusy: () => Boolean(activeProcess) || mainSpawnStarting || queueCtrl.isRetryPending(),
+    hasBlockingWorkers,
+    hasPendingWorkerReplays,
+    insertMessage,
+    insertQueuedMessage,
+    deleteQueuedMessage,
+    listQueuedMessages: listQueuedMessages as unknown as { all(): Array<{ id: string; payload: string }> },
+    broadcast,
+    importPipeline: () => import('../orchestrator/pipeline.js'),
+    getWorkingDir: () => settings["workingDir"] || null,
+});
 
-function normalizeQueueItem(row: { id: string; payload: string }): QueueItem[] {
-    try {
-        const parsed = JSON.parse(row.payload) as Partial<QueueItem>;
-        if (typeof parsed?.id !== 'string' || typeof parsed?.prompt !== 'string' || typeof parsed?.source !== 'string') {
-            return [];
-        }
-        return [stripUndefined({
-            id: parsed.id,
-            prompt: parsed.prompt,
-            source: parsed.source,
-            scope: 'default',
-            target: parsed.target,
-            chatId: parsed.chatId,
-            requestId: parsed.requestId,
-            ts: typeof parsed.ts === 'number' ? parsed.ts : Date.now(),
-        })];
-    } catch {
-        return [];
-    }
-}
+export const {
+    messageQueue,
+    enqueueMessage,
+    removeQueuedMessage,
+    processQueue,
+    setQueueHold,
+    clearQueueHold,
+    getQueueHoldId,
+    clearRetryTimer,
+    resetFallbackState,
+    getFallbackState,
+    getQueuedMessageSnapshotForScope,
+} = queueCtrl;
 
-function loadPersistedQueue(): QueueItem[] {
-    return (listQueuedMessages.all() as Array<{ id: string; payload: string }>).flatMap(normalizeQueueItem);
-}
-
-export const messageQueue: QueueItem[] = loadPersistedQueue();
-if (messageQueue.length > 0) {
-    console.log(`[queue] recovered ${messageQueue.length} persisted message(s) from previous session`);
-}
-let queueProcessing = false;
-
-// ─── 429 Retry Timer State ──────────────────────────
-// INVARIANT: single-main — 동시에 1개의 main spawnAgent만 존재한다고 가정.
-// 멀티 main task 도입 시 request-id 키 맵으로 전환 필요.
-let retryPendingTimer: ReturnType<typeof setTimeout> | null = null;
-let retryPendingResolve: ((v: { text: string; code: number }) => void) | null = null;
-let retryPendingOrigin: string | null = null;
-let retryPendingIsEmployee = false;
 let mainSpawnStarting = false;
 let cancelPendingMainSpawn: ((reason: string) => void) | null = null;
 
-/** busy = process alive OR retry timer pending OR main spawn waiting on settings gate */
 export function isAgentBusy(): boolean {
-    return !!activeProcess || !!retryPendingTimer || mainSpawnStarting;
-}
-
-/**
- * Cancel pending retry timer AND resolve the dangling Promise.
- *
- * @param resumeQueue - true: 취소 후 대기 메시지 실행 (settings 변경 등)
- *                      false: 큐도 중단 (stop/steer 의도)
- *
- * 취소 규약: broadcast agent_done(error:true) → collect.ts L39가 수집함.
- */
-export function clearRetryTimer(resumeQueue = true): void {
-    if (retryPendingTimer) {
-        clearTimeout(retryPendingTimer);
-        retryPendingTimer = null;
-        console.log('[jaw:retry] timer cancelled');
-
-        if (retryPendingResolve) {
-            broadcast('agent_done', {
-                text: '⏹️ 재시도 취소됨',
-                error: true,
-                origin: retryPendingOrigin || 'web',
-                ...(retryPendingIsEmployee ? { isEmployee: true } : {}),
-            }, retryPendingIsEmployee ? 'internal' : 'public');
-            retryPendingResolve({ text: '', code: -1 });
-            retryPendingResolve = null;
-            retryPendingOrigin = null;
-            retryPendingIsEmployee = false;
-        }
-        if (resumeQueue) processQueue();
-    }
-}
-
-// ─── Fallback Retry State ────────────────────────────
-// key: originalCli, value: { fallbackCli, retriesLeft }
-const FALLBACK_MAX_RETRIES = 3;
-const fallbackState = new Map();
-
-export function resetFallbackState() {
-    clearRetryTimer(true);  // settings 변경 = 큐 재개 OK
-    fallbackState.clear();
-    console.log('[jaw:fallback] state reset');
-}
-
-export function getFallbackState() {
-    return Object.fromEntries(fallbackState);
+    return !!activeProcess || queueCtrl.isRetryPending() || mainSpawnStarting;
 }
 
 // ─── Kill / Steer ────────────────────────────────────
@@ -324,16 +256,6 @@ function consumeKillReason(pid: number | undefined): string | null {
  * 모두 폐기한다. exit handler의 processQueue() 자동 드레인이 stop 직후 잔존
  * 메시지를 "스스로 steer" 처럼 실행하던 회귀를 차단.
  */
-function purgeQueueOnStop(reason: string) {
-    if (messageQueue.length === 0) return;
-    const dropped = messageQueue.length;
-    for (const item of messageQueue.splice(0)) {
-        try { deleteQueuedMessage.run(item.id); } catch { /* best-effort */ }
-    }
-    console.log(`[jaw:stop] cleared ${dropped} pending message(s) (reason=${reason})`);
-    broadcast('queue_update', { pending: 0 });
-}
-
 /**
  * Fix C2: 사용자 stop 시 worker-registry 도 비운다.
  * gateway.submitMessage가 isAgentBusy() 외에 hasBlockingWorkers()/hasPendingWorkerReplays()
@@ -348,13 +270,13 @@ function clearWorkerSlotsOnStop(reason: string) {
 }
 
 export function killActiveAgent(reason = 'user') {
-    const hadTimer = !!retryPendingTimer;
+    const hadTimer = queueCtrl.isRetryPending();
     const cancelledPendingMain = cancelPendingMainSpawn ? (cancelPendingMainSpawn(reason), true) : false;
     clearRetryTimer(false);  // stop 의도: 큐 재개 안 함
     // Fix A: 사용자 stop은 큐도 폐기. steer/internal kill은 큐 보존.
     // Fix C2: worker registry 도 비워서 hasBlockingWorkers/hasPendingWorkerReplays가 즉시 false.
     if (reason === 'api' || reason === 'user') {
-        purgeQueueOnStop(reason);
+        queueCtrl.purgeQueueOnStop(reason);
         clearWorkerSlotsOnStop(reason);
     }
     if (!activeProcess) return hadTimer || cancelledPendingMain;  // timer/gated spawn 취소도 "killed" 취급
@@ -376,12 +298,12 @@ export function killActiveAgent(reason = 'user') {
 }
 
 export function killAllAgents(reason = 'user') {
-    const hadTimer = !!retryPendingTimer;
+    const hadTimer = queueCtrl.isRetryPending();
     const cancelledPendingMain = cancelPendingMainSpawn ? (cancelPendingMainSpawn(reason), true) : false;
     clearRetryTimer(false);  // stop 의도: 큐 재개 안 함
     // Fix A: 사용자 stop은 큐도 폐기. Fix C2: worker 슬롯도 비움.
     if (reason === 'api' || reason === 'user') {
-        purgeQueueOnStop(reason);
+        queueCtrl.purgeQueueOnStop(reason);
         clearWorkerSlotsOnStop(reason);
     }
     let killed = 0;
@@ -453,190 +375,6 @@ export async function steerAgent(newPrompt: string, source: string) {
     });
 }
 
-// ─── Queue Hold (steer arm) ─────────────────────────
-let queueHoldId: string | null = null;
-let queueHoldTimer: ReturnType<typeof setTimeout> | null = null;
-const QUEUE_HOLD_TIMEOUT_MS = 10_000;
-
-export function setQueueHold(id: string, timeoutMs = QUEUE_HOLD_TIMEOUT_MS): void {
-    if (queueHoldId && queueHoldId !== id) clearQueueHold();
-    queueHoldId = id;
-    if (queueHoldTimer) clearTimeout(queueHoldTimer);
-    const holdId = id;
-    queueHoldTimer = setTimeout(() => {
-        if (queueHoldId !== holdId) return;
-        console.warn(`[queue:hold] hold for ${holdId} expired after ${timeoutMs}ms`);
-        clearQueueHold();
-    }, timeoutMs);
-    console.log(`[queue:hold] set for ${id}`);
-}
-
-export function clearQueueHold(id?: string, opts?: { resume?: boolean }): void {
-    if (id && queueHoldId !== id) return;
-    if (queueHoldTimer) clearTimeout(queueHoldTimer);
-    queueHoldTimer = null;
-    const hadHold = queueHoldId !== null;
-    if (hadHold) console.log(`[queue:hold] cleared (was ${queueHoldId})`);
-    queueHoldId = null;
-    if (hadHold && (opts?.resume ?? true)) queueMicrotask(() => processQueue());
-}
-
-export function getQueueHoldId(): string | null {
-    return queueHoldId;
-}
-
-// ─── Message Queue ───────────────────────────────────
-
-export function getQueuedMessageSnapshotForScope(scope: string): Array<{
-    id: string;
-    prompt: string;
-    source: RuntimeOrigin;
-    ts: number;
-}> {
-    return messageQueue
-        .filter(item => item.scope === scope)
-        .map(item => ({
-            id: item.id,
-            prompt: item.prompt,
-            source: item.source,
-            ts: item.ts,
-        }));
-}
-
-export function removeQueuedMessage(id: string): { removed: QueueItem | null; pending: number } {
-    const idx = messageQueue.findIndex(item => item.id === id);
-    if (idx === -1) return { removed: null, pending: messageQueue.length };
-    const [removed] = messageQueue.splice(idx, 1);
-    try { deleteQueuedMessage.run(id); } catch (err) {
-        console.warn(`[queue] DB delete failed for ${id}:`, (err as Error).message);
-    }
-    console.log(`[queue] -1 (${messageQueue.length} pending) removed=${id}`);
-    broadcast('queue_update', { pending: messageQueue.length });
-    return { removed: removed!, pending: messageQueue.length };
-}
-
-export function enqueueMessage(prompt: string, source: RuntimeOrigin, meta?: { target?: RemoteTarget; chatId?: string | number; requestId?: string; scope?: string }): string {
-    const item: QueueItem = stripUndefined({
-        id: crypto.randomUUID(),
-        prompt,
-        source,
-        scope: meta?.scope || 'default',
-        target: meta?.target,
-        chatId: meta?.chatId,
-        requestId: meta?.requestId,
-        ts: Date.now(),
-    });
-    insertQueuedMessage.run(item.id, JSON.stringify(item));
-    messageQueue.push(item);
-    console.log(`[queue] +1 (${messageQueue.length} pending)`);
-    broadcast('queue_update', { pending: messageQueue.length });
-    processQueue();
-    return item.id;
-}
-
-export async function processQueue() {
-    if (queueProcessing) return;
-
-    // Auto-drain pending worker replays when Boss is idle. Covers the case where
-    // Boss died after the dispatch client disconnected — the result was stuck in
-    // pendingReplay and nothing was triggering drainPendingReplays. Dynamic
-    // import avoids circular dep (pipeline.ts imports from this module).
-    if (!activeProcess && !retryPendingTimer && !mainSpawnStarting && !hasBlockingWorkers() && hasPendingWorkerReplays()) {
-        queueMicrotask(() => {
-            import('../orchestrator/pipeline.js')
-                .then(({ drainPendingReplays }) => drainPendingReplays({ origin: 'system' }))
-                .catch(err => console.error('[processQueue:drain]', (err as Error).message));
-        });
-        // Fall through: if messageQueue has entries, we still process them below.
-        // orchestrate() inside drain will also drain — idempotent via claimWorkerReplay.
-    }
-
-    if (
-        activeProcess
-        || retryPendingTimer
-        || mainSpawnStarting
-        || hasBlockingWorkers()
-        || messageQueue.length === 0
-        || queueHoldId
-    ) return;
-    // NOTE: hasPendingWorkerReplays() is intentionally NOT gated here —
-    // orchestrate() drains pending replays at entry (pipeline.ts drainPendingReplays),
-    // so the queued user message still arrives AFTER the worker result. Keeping this
-    // gate caused a deadlock (see devlog/_plan/260417_message_duplication/02_*).
-    queueProcessing = true;
-
-    // Group by source+target — only process the first group, leave rest in queue
-    const first = messageQueue[0]!;
-    const groupKey = groupQueueKey(first.source, first.target);
-    const batch: QueueItem[] = [];
-    const remaining: QueueItem[] = [];
-
-    for (const m of messageQueue) {
-        const key = groupQueueKey(m.source, m.target);
-        if (key === groupKey) batch.push(m);
-        else remaining.push(m);
-    }
-
-    // Replace queue with remaining items + unprocessed batch tail
-    // 📋 Queue policy: "fair" — 다른 chatId 메시지 우선 소비, 같은 chatId tail은 뒤로.
-    //    "chatId-first" 정책이 필요하면 push 순서를 (batch.slice(1), ...remaining)으로 변경.
-    messageQueue.length = 0;
-    if (batch.length > 1) {
-        // 🔑 batch 분리: 첫 메시지만 처리
-        // remaining(다른 chatId) 먼저 → batch tail(같은 chatId) 뒤 → chatId 독점 방지
-        messageQueue.push(...remaining, ...batch.slice(1));
-    } else {
-        messageQueue.push(...remaining);
-    }
-
-    const item = batch[0]!;
-    const combined = item.prompt;
-    const source = item.source;
-    const target = item.target;
-    const chatId = item.chatId;
-    const requestId = item.requestId;
-    const origin: RuntimeOrigin = source || 'web';
-    console.log(`[queue] processing 1/${batch.length} message(s) for ${groupKey}, ${messageQueue.length} remaining`);
-
-    let inserted = false;
-    try {
-        insertMessage.run('user', combined, source, '', settings["workingDir"] || null);
-        deleteQueuedMessage.run(item.id);
-        inserted = true;
-        // Broadcast WITH fromQueue=true so the web client renders the user bubble
-        // now (not at enqueue time). gateway.ts:130 also broadcasts at enqueue,
-        // but the web client ignores that one — it only acts on fromQueue.
-        broadcast('new_message', { role: 'user', content: combined, source, fromQueue: true });
-        broadcast('queue_update', { pending: messageQueue.length });
-
-        const { orchestrate, orchestrateContinue, orchestrateReset, isContinueIntent, isResetIntent } = await import('../orchestrator/pipeline.js');
-        const task = isResetIntent(combined)
-            ? orchestrateReset({ origin, target, chatId, requestId, _skipInsert: true })
-            : isContinueIntent(combined)
-                ? orchestrateContinue({ origin, target, chatId, requestId, _skipInsert: true })
-                : orchestrate(combined, { origin, target, chatId, requestId, _skipInsert: true });
-
-        try {
-            await task;
-        } catch (err: unknown) {
-            const msg = (err as Error).message;
-            console.error('[queue:orchestrate]', msg);
-            broadcast('orchestrate_done', { text: `[error] ${msg}`, error: true, origin, chatId, target, requestId });
-        }
-    } catch (setupErr) {
-        console.error('[queue:setup]', setupErr);
-        if (!inserted) {
-            // insertMessage hasn't run yet — safe to requeue
-            messageQueue.unshift(item);
-        } else {
-            // Message is already in DB — broadcast error, don't requeue (would cause duplicate)
-            broadcast('orchestrate_done', { text: `[error] setup failed: ${(setupErr as Error).message}`, error: true, origin, chatId, target, requestId });
-        }
-    } finally {
-        queueProcessing = false;
-        queueMicrotask(() => processQueue());
-    }
-}
 
 // ─── Helpers ─────────────────────────────────────────
 
@@ -755,6 +493,8 @@ import { extractFromCodexAppEvent } from './codex-app-events.js';
 
 import { shouldEmitHeartbeat, shouldResumeBucketSession, GEMINI_RESUME_TTL_MS } from './spawn/resume.js';
 export { shouldEmitHeartbeat, shouldResumeBucketSession, GEMINI_RESUME_TTL_MS };
+import { createQueueController, FALLBACK_MAX_RETRIES } from './spawn/queue.js';
+export type { QueueController } from './spawn/queue.js';
 
 const GEMINI_HISTORY_MAX_SESSIONS = 4;
 const GEMINI_HISTORY_MAX_CHARS = 3000;
@@ -816,7 +556,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     const empTag = isEmployee ? { isEmployee: true } : {};
 
     if (gateEligibleMain && !opts._settingsGateWaited && isRuntimeSettingsMutationInFlight()) {
-        if (activeProcess || retryPendingTimer || mainSpawnStarting) {
+        if (activeProcess || queueCtrl.isRetryPending() || mainSpawnStarting) {
             console.log('[jaw] Agent already running, skipping');
             return { child: null, promise: Promise.resolve({ text: '', code: -1 }) };
         }
@@ -885,7 +625,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
 
     // ─── Fallback retry: skip to fallback if retries exhausted ───
     if (!opts._isFallback && !opts.internal) {
-        const st = fallbackState.get(cli);
+        const st = queueCtrl.fallbackState.get(cli);
         if (st && st.retriesLeft <= 0) {
             const fbAvail = detectCli(st.fallbackCli)?.available;
             if (fbAvail) {
@@ -1392,16 +1132,8 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 resolve: resolve!,
                 activeProcesses,
                 setActiveProcess: (v) => { activeProcess = v; },
-                retryState: {
-                    timer: retryPendingTimer,
-                    resolve: retryPendingResolve,
-                    origin: retryPendingOrigin,
-                    setTimer: (t) => { retryPendingTimer = t; },
-                    setResolve: (r) => { retryPendingResolve = r; },
-                    setOrigin: (o) => { retryPendingOrigin = o; },
-                    setIsEmployee: (v) => { retryPendingIsEmployee = v; },
-                },
-                fallbackState,
+                retryState: queueCtrl.retryState,
+                fallbackState: queueCtrl.fallbackState,
                 fallbackMaxRetries: FALLBACK_MAX_RETRIES,
                 processQueue,
             }).catch((err: Error) => {
@@ -1632,16 +1364,8 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                         resolve: resolve!,
                         activeProcesses,
                         setActiveProcess: (v) => { activeProcess = v; },
-                        retryState: {
-                            timer: retryPendingTimer,
-                            resolve: retryPendingResolve,
-                            origin: retryPendingOrigin,
-                            setTimer: (t) => { retryPendingTimer = t; },
-                            setResolve: (r) => { retryPendingResolve = r; },
-                            setOrigin: (o) => { retryPendingOrigin = o; },
-                            setIsEmployee: (v) => { retryPendingIsEmployee = v; },
-                        },
-                        fallbackState,
+                        retryState: queueCtrl.retryState,
+                        fallbackState: queueCtrl.fallbackState,
                         fallbackMaxRetries: FALLBACK_MAX_RETRIES,
                         processQueue,
                     }).catch((err: Error) => {
@@ -1683,16 +1407,8 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 resolve: resolve!,
                 activeProcesses,
                 setActiveProcess: (v) => { activeProcess = v; },
-                retryState: {
-                    timer: retryPendingTimer,
-                    resolve: retryPendingResolve,
-                    origin: retryPendingOrigin,
-                    setTimer: (t) => { retryPendingTimer = t; },
-                    setResolve: (r) => { retryPendingResolve = r; },
-                    setOrigin: (o) => { retryPendingOrigin = o; },
-                    setIsEmployee: (v) => { retryPendingIsEmployee = v; },
-                },
-                fallbackState,
+                retryState: queueCtrl.retryState,
+                fallbackState: queueCtrl.fallbackState,
                 fallbackMaxRetries: FALLBACK_MAX_RETRIES,
                 processQueue,
             }).catch((err: Error) => {
@@ -1979,16 +1695,8 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             resolve: resolve!,
             activeProcesses,
             setActiveProcess: (v) => { activeProcess = v; },
-            retryState: {
-                timer: retryPendingTimer,
-                resolve: retryPendingResolve,
-                origin: retryPendingOrigin,
-                setTimer: (t) => { retryPendingTimer = t; },
-                setResolve: (r) => { retryPendingResolve = r; },
-                setOrigin: (o) => { retryPendingOrigin = o; },
-                setIsEmployee: (v) => { retryPendingIsEmployee = v; },
-            },
-            fallbackState,
+            retryState: queueCtrl.retryState,
+            fallbackState: queueCtrl.fallbackState,
             fallbackMaxRetries: FALLBACK_MAX_RETRIES,
             processQueue,
         }).catch((err: Error) => {
