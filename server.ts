@@ -3,7 +3,7 @@
 
 import express, { type Request } from 'express';
 import helmet from 'helmet';
-import { log } from './src/core/logger.js';
+import { log, drainLogRing } from './src/core/logger.js';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import { fileURLToPath } from 'url';
@@ -481,7 +481,14 @@ app.get('/api/messages/latest', (_req, res) => {
         } : null,
     });
 });
-app.get('/api/runtime', (_, res) => ok(res, getRuntimeSnapshot(), getRuntimeSnapshot()));
+app.get('/api/runtime', (req, res) => {
+    if (req.query["logs"] === 'tail') {
+        const lines = drainLogRing();
+        res.json({ ok: true, lines });
+        return;
+    }
+    ok(res, getRuntimeSnapshot(), getRuntimeSnapshot());
+});
 
 // Auth token endpoint — Sec-Fetch-Site guard blocks cross-origin XSS token theft
 // Browser-enforced header: cannot be set/spoofed by JS, absent from CLI/curl (passes through)
