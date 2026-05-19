@@ -1819,3 +1819,48 @@ test('claude-e streaming does not duplicate output in liveRun', async () => {
 
     clearLiveRun(scope);
 });
+
+// ─── Phase 0: Characterization tests for refactor safety ─────
+
+test('claude-e and ai-e route through the Claude adapter path', () => {
+    const ctx1 = { toolLog: [], fullText: '', traceLog: [], seenToolKeys: new Set(), hasClaudeStreamEvents: false };
+    const ctx2 = { toolLog: [], fullText: '', traceLog: [], seenToolKeys: new Set(), hasClaudeStreamEvents: false };
+    const ctx3 = { toolLog: [], fullText: '', traceLog: [], seenToolKeys: new Set(), hasClaudeStreamEvents: false };
+
+    const evt = readFixture('claude-assistant-tool.json');
+
+    const claudeLabels = extractToolLabelsForTest('claude', evt, ctx1);
+    const claudeELabels = extractToolLabelsForTest('claude-e', evt, ctx2);
+    const aiELabels = extractToolLabelsForTest('ai-e', evt, ctx3);
+
+    assert.deepEqual(claudeLabels, claudeELabels, 'claude-e must produce same labels as claude');
+    assert.deepEqual(claudeLabels, aiELabels, 'ai-e must produce same labels as claude');
+});
+
+test('events.ts facade exports exactly the 12 public symbols', () => {
+    const eventsSrc = fs.readFileSync(path.join(__dirname, '../src/agent/events.ts'), 'utf8');
+    const exportMatches = eventsSrc.match(/^export\s+(function|const|class|type|interface|enum)\s+(\w+)/gm) || [];
+    const reExportMatches = eventsSrc.match(/^export\s+\{[^}]+\}/gm) || [];
+    const directExports = exportMatches.map(m => m.replace(/^export\s+\w+\s+/, ''));
+    const reExports: string[] = [];
+    for (const m of reExportMatches) {
+        const inner = m.match(/\{([^}]+)\}/)?.[1] || '';
+        reExports.push(...inner.split(',').map(s => s.trim()).filter(Boolean));
+    }
+    const allExports = [...directExports, ...reExports].sort();
+    const expected = [
+        'extractFromAcpSubagent',
+        'extractFromAcpUpdate',
+        'extractFromEvent',
+        'extractOutputChunk',
+        'extractSessionId',
+        'extractToolLabel',
+        'extractToolLabelsForTest',
+        'flushClaudeBuffers',
+        'flushOpenCodeBuffers',
+        'logEventSummary',
+        'makeClaudeToolKeyForTest',
+        'summarizeToolInput',
+    ].sort();
+    assert.deepEqual(allExports, expected, `events.ts must export exactly 12 symbols, got: ${allExports.join(', ')}`);
+});
