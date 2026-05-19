@@ -16,8 +16,8 @@ const srcRoot = new URL('../../src/', import.meta.url).pathname;
 // ─── Source-level gate removal assertions ─────────────
 
 test('PRD-001: spawn.ts processQueue does NOT gate on hasPendingWorkerReplays()', () => {
-    const src = fs.readFileSync(join(srcRoot, 'agent/spawn.ts'), 'utf8');
-    const fn = src.slice(src.indexOf('export async function processQueue'));
+    const src = fs.readFileSync(join(srcRoot, 'agent/spawn/queue.ts'), 'utf8');
+    const fn = src.slice(src.indexOf('async function processQueue'));
     const gateBlock = fn.slice(0, fn.indexOf('queueProcessing = true'));
     assert.doesNotMatch(
         gateBlock,
@@ -97,8 +97,8 @@ test('PRD-007: processQueue auto-drains pending replays when Boss goes idle', ()
     // generating after Bash errored) — dispatch route skipped drain because
     // isAgentBusy()=true. When Boss eventually exits, handleAgentExit calls
     // processQueue() which must now detect pendingReplay and drain.
-    const src = fs.readFileSync(join(srcRoot, 'agent/spawn.ts'), 'utf8');
-    const fn = src.slice(src.indexOf('export async function processQueue'));
+    const src = fs.readFileSync(join(srcRoot, 'agent/spawn/queue.ts'), 'utf8');
+    const fn = src.slice(src.indexOf('async function processQueue'));
     const block = fn.slice(0, fn.indexOf('queueProcessing = true'));
     assert.match(block, /hasPendingWorkerReplays\(\)/, 'processQueue must check for pending replays');
     assert.match(block, /drainPendingReplays/, 'processQueue must trigger drain');

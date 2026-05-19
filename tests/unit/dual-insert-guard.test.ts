@@ -12,6 +12,7 @@ const srcRoot = join(__dirname, '../../src');
 const gatewaySrc = readSource(join(srcRoot, 'orchestrator/gateway.ts'), 'utf8');
 const pipelineSrc = readSource(join(srcRoot, 'orchestrator/pipeline.ts'), 'utf8');
 const spawnSrc = readSource(join(srcRoot, 'agent/spawn.ts'), 'utf8');
+const queueSrc = readSource(join(srcRoot, 'agent/spawn/queue.ts'), 'utf8');
 const botSrc = readSource(join(srcRoot, 'telegram/bot.ts'), 'utf8');
 
 // ─── DI-001: gateway idle → orchestrate with _skipInsert ───
@@ -96,9 +97,8 @@ test('DI-006: tgOrchestrate passes _skipInsert: true to orchestrateAndCollect', 
 // ─── DI-007: spawn.ts processQueue → orchestrate with _skipInsert ───
 
 test('DI-007: processQueue passes _skipInsert: true to orchestrate calls', () => {
-    const pqStart = spawnSrc.indexOf('export async function processQueue');
-    const pqEnd = spawnSrc.indexOf('// ─── Helpers', pqStart);
-    const pqBlock = spawnSrc.slice(pqStart, pqEnd > 0 ? pqEnd : pqStart + 1500);
+    const pqStart = queueSrc.indexOf('async function processQueue');
+    const pqBlock = queueSrc.slice(pqStart, pqStart + 3000);
     // All 3 orchestrate calls in processQueue must have _skipInsert
     assert.ok(pqBlock.includes("orchestrateReset({ origin, target, chatId, requestId, _skipInsert: true })"), 'processQueue orchestrateReset');
     assert.ok(pqBlock.includes("orchestrateContinue({ origin, target, chatId, requestId, _skipInsert: true })"), 'processQueue orchestrateContinue');
@@ -109,7 +109,7 @@ test('DI-007: processQueue passes _skipInsert: true to orchestrate calls', () =>
 
 test('DI-008: steerAgent passes _skipInsert: true to orchestrate calls', () => {
     const steerStart = spawnSrc.indexOf('export async function steerAgent');
-    const steerEnd = spawnSrc.indexOf('// ─── Message Queue', steerStart);
+    const steerEnd = spawnSrc.indexOf('// ─── Helpers', steerStart);
     const steerBlock = spawnSrc.slice(steerStart, steerEnd > 0 ? steerEnd : steerStart + 800);
     assert.ok(steerBlock.includes("orchestrateReset({ origin, _skipInsert: true })"), 'steerAgent orchestrateReset');
     assert.ok(steerBlock.includes("orchestrateContinue({ origin, _skipInsert: true })"), 'steerAgent orchestrateContinue');
@@ -119,11 +119,10 @@ test('DI-008: steerAgent passes _skipInsert: true to orchestrate calls', () => {
 // ─── DI-009: processQueue retains its own insertMessage (existing behavior) ───
 
 test('DI-009: processQueue still has its own insertMessage.run (not removed)', () => {
-    const pqStart = spawnSrc.indexOf('export async function processQueue');
-    const pqEnd = spawnSrc.indexOf('// ─── Helpers', pqStart);
-    const pqBlock = spawnSrc.slice(pqStart, pqEnd > 0 ? pqEnd : pqStart + 1500);
+    const pqStart = queueSrc.indexOf('async function processQueue');
+    const pqBlock = queueSrc.slice(pqStart, pqStart + 3000);
     assert.ok(
-        pqBlock.includes("insertMessage.run('user', combined, source, ''"),
+        pqBlock.includes("deps.insertMessage.run('user', combined, source, ''"),
         'processQueue must retain its own insertMessage call',
     );
 });
@@ -132,7 +131,7 @@ test('DI-009: processQueue still has its own insertMessage.run (not removed)', (
 
 test('DI-010: steerAgent still has its own insertMessage.run (not removed)', () => {
     const steerStart = spawnSrc.indexOf('export async function steerAgent');
-    const steerEnd = spawnSrc.indexOf('// ─── Message Queue', steerStart);
+    const steerEnd = spawnSrc.indexOf('// ─── Helpers', steerStart);
     const steerBlock = spawnSrc.slice(steerStart, steerEnd > 0 ? steerEnd : steerStart + 800);
     assert.ok(
         steerBlock.includes("insertMessage.run('user', newPrompt, source, ''"),

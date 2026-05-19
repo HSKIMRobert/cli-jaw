@@ -10,6 +10,7 @@ const __dirname = dirname(__filename);
 
 const gatewaySrc = readSource(join(__dirname, '../../src/orchestrator/gateway.ts'), 'utf8');
 const spawnSrc = readSource(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
+const queueSrc = readSource(join(__dirname, '../../src/agent/spawn/queue.ts'), 'utf8');
 const botSrc = readSource(join(__dirname, '../../src/telegram/bot.ts'), 'utf8');
 
 test('TQ-001: submitMessage metadata supports optional chatId', () => {
@@ -45,9 +46,8 @@ test('TQ-003: orchestrate paths forward target+chatId+requestId for continue/res
 });
 
 test('TQ-004: processQueue isolates queue by groupQueueKey', () => {
-    const queueStart = spawnSrc.indexOf('export async function processQueue()');
-    const queueEnd = spawnSrc.indexOf('// ─── Helpers');
-    const queueBlock = spawnSrc.slice(queueStart, queueEnd);
+    const queueStart = queueSrc.indexOf('async function processQueue()');
+    const queueBlock = queueSrc.slice(queueStart, queueStart + 3000);
     assert.ok(
         queueBlock.includes('groupQueueKey(first.source, first.target)'),
         'processQueue should use groupQueueKey for group isolation',
@@ -63,8 +63,8 @@ test('TQ-004: processQueue isolates queue by groupQueueKey', () => {
 });
 
 test('TQ-005: processQueue uses batch head source/chatId (no last-item leakage)', () => {
-    const queueStart = spawnSrc.indexOf('export async function processQueue()');
-    const queueBlock = spawnSrc.slice(queueStart, queueStart + 3000);
+    const queueStart = queueSrc.indexOf('async function processQueue()');
+    const queueBlock = queueSrc.slice(queueStart, queueStart + 3000);
     assert.ok(
         queueBlock.includes('batch[0]') && queueBlock.includes('source'),
         'source should come from batch head',
@@ -80,9 +80,8 @@ test('TQ-005: processQueue uses batch head source/chatId (no last-item leakage)'
 });
 
 test('TQ-006: processQueue broadcasts new_message with fromQueue=true (web client renders here, not at enqueue)', () => {
-    const queueStart = spawnSrc.indexOf('export async function processQueue()');
-    const queueEnd = spawnSrc.indexOf('// ─── Helpers');
-    const queueBlock = spawnSrc.slice(queueStart, queueEnd);
+    const queueStart = queueSrc.indexOf('async function processQueue()');
+    const queueBlock = queueSrc.slice(queueStart, queueStart + 3000);
     const executableLines = queueBlock
         .split('\n')
         .map(line => line.trim())
@@ -93,8 +92,8 @@ test('TQ-006: processQueue broadcasts new_message with fromQueue=true (web clien
 });
 
 test('TQ-006b: processQueue respects worker busy guards', () => {
-    const queueStart = spawnSrc.indexOf('export async function processQueue()');
-    const queueBlock = spawnSrc.slice(queueStart, queueStart + 800);
+    const queueStart = queueSrc.indexOf('async function processQueue()');
+    const queueBlock = queueSrc.slice(queueStart, queueStart + 800);
     assert.ok(queueBlock.includes('hasBlockingWorkers()'), 'processQueue should guard against active workers');
     assert.ok(queueBlock.includes('hasPendingWorkerReplays()'), 'processQueue should guard against pending worker replay');
 });

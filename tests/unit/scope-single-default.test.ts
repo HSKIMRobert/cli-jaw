@@ -20,8 +20,8 @@ test('SSD-002: findActiveScope always returns default', () => {
 });
 
 test('SSD-003: normalizeQueueItem hardcodes scope to default', () => {
-    const spawnSrc = readFileSync(new URL('../../src/agent/spawn.ts', import.meta.url), 'utf8');
-    assert.ok(spawnSrc.includes("scope: 'default',"),
+    const queueSrc = readFileSync(new URL('../../src/agent/spawn/queue.ts', import.meta.url), 'utf8');
+    assert.ok(queueSrc.includes("scope: 'default',"),
         'normalizeQueueItem must hardcode scope to default');
 });
 

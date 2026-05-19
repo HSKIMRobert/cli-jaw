@@ -38,8 +38,9 @@ test('RSR-003: spawn waits before reading session bucket state', () => {
 
 test('RSR-004: gated main spawn contributes to busy state and queue gating', () => {
     assert.match(spawnSrc, /let\s+mainSpawnStarting\s*=\s*false/);
-    assert.match(spawnSrc, /return\s+!!activeProcess\s*\|\|\s*!!retryPendingTimer\s*\|\|\s*mainSpawnStarting/);
-    assert.match(spawnSrc, /activeProcess\s*\|\|\s*retryPendingTimer\s*\|\|\s*mainSpawnStarting\s*\|\|\s*hasBlockingWorkers\(\)/);
+    assert.match(spawnSrc, /return\s+!!activeProcess\s*\|\|\s*queueCtrl\.isRetryPending\(\)\s*\|\|\s*mainSpawnStarting/);
+    assert.match(spawnSrc, /queueCtrl\.isRetryPending\(\)/,
+        'isAgentBusy must delegate retry check to queue controller');
 });
 
 test('RSR-005: stop cancels a pending gated main spawn', () => {
