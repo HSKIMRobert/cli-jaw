@@ -1,6 +1,5 @@
 // ─── Event Extraction (NDJSON parser) ────────────────
 
-import { broadcast } from '../core/bus.js';
 import { stripUndefined } from '../core/strip-undefined.js';
 import { detectLongRunningToolTimeout } from './tool-timeout.js';
 import type { SpawnContext, ToolEntry } from '../types/agent.js';
@@ -15,40 +14,39 @@ import {
     type CliEventRecord,
     type ExtractedEventResult,
 } from '../types/cli-events.js';
-import { appendLiveRunText, replaceLiveRunTools, appendLiveRunTool } from './live-run-state.js';
-import { stampTraceToolEntries } from '../trace/store.js';
+import { appendLiveRunText } from './live-run-state.js';
 import { isClaudeLikeCli } from './cli-helpers.js';
+import {
+    liveScopeOf,
+    syncLiveTools,
+    emitAgentTool,
+    pushTrace,
+    logLine,
+    toSingleLine,
+    clipText,
+    buildPreview,
+    appendDetail,
+    formatJsonDetail,
+    formatAssistantTextSegment,
+    appendAssistantTextSegment,
+    extractAssistantText,
+    buildClaudeThinkingTool,
+    summarizeClaudeRateLimitEvent,
+    claudeRateLimitInfo,
+    claudeRateLimitStatus,
+    isClaudeRateLimitAllowed,
+    isClaudeRateLimitWarning,
+    claudeRateLimitResetMs,
+    claudeRateLimitWaitMs,
+    summarizeToolInput,
+    isOpencodeToolFailure,
+    cleanOpencodeTaskResult,
+    formatOpenCodeTaskDetail,
+    extractText,
+} from './events/helpers.js';
 
-function liveScopeOf(ctx: SpawnContext): string | null {
-    return ctx.liveScope ?? null;
-}
-
-function syncLiveTools(ctx: SpawnContext): void {
-    stampTraceToolEntries(ctx);
-    const scope = liveScopeOf(ctx);
-    if (scope) replaceLiveRunTools(scope, ctx.toolLog);
-    if (ctx.parentLiveScope) {
-        const synced = ctx._parentSyncedCount || 0;
-        const total = ctx.toolLog.length;
-        for (let i = synced; i < total; i++) {
-            appendLiveRunTool(ctx.parentLiveScope, { ...ctx.toolLog[i], isEmployee: true });
-        }
-        ctx._parentSyncedCount = total;
-    }
-}
-
-function emitAgentTool(
-    ctx: SpawnContext,
-    agentLabel: string | undefined,
-    tool: object,
-    empTag: Record<string, unknown>,
-): void {
-    broadcast(
-        'agent_tool',
-        { agentId: agentLabel, ...tool, ...empTag },
-        ctx.traceAudience === 'internal' ? 'internal' : 'public',
-    );
-}
+// Re-export cross-module helpers that are part of the public API
+export { summarizeToolInput } from './events/helpers.js';
 
 /** Flush Claude-specific stream buffers (thinking + input_json).
  *  Call on stream close to avoid data loss if content_block_stop never arrives. */
@@ -145,55 +143,7 @@ export function flushOpenCodeBuffers(ctx: SpawnContext, agentLabel?: string, emp
     resetOpenCodeStepState(ctx);
 }
 
-function pushTrace(ctx: SpawnContext | null | undefined, line: string) {
-    if (!ctx?.traceLog || !line) return;
-    ctx.traceLog.push(line);
-}
-
-function logLine(line: string, ctx: SpawnContext | null | undefined) {
-    console.log(line);
-    pushTrace(ctx, line);
-}
-
-function toSingleLine(text: unknown) {
-    return String(text || '').replace(/\s+/g, ' ').trim();
-}
-
-function clipText(text: string, max: number) {
-    if (!max || max < 1) return text;
-    return text.length > max ? `${text.slice(0, max - 1)}…` : text;
-}
-
-function buildPreview(text: unknown, max = 80) {
-    return clipText(toSingleLine(text), max);
-}
-
 const CLAUDE_RATE_LIMIT_STEP_REF = 'claude:rate-limit';
-const CLAUDE_RATE_LIMIT_ALLOWED_STATUSES = new Set(['allowed']);
-const CLAUDE_RATE_LIMIT_WARNING_STATUSES = new Set(['allowed_warning', 'warning', 'near_limit']);
-
-function claudeRateLimitInfo(event: CliEventRecord): CliEventRecord {
-    return asCliEventRecord(event["rate_limit_info"] || event["rateLimitInfo"]);
-}
-
-function claudeRateLimitStatus(event: CliEventRecord): string {
-    return fieldString(claudeRateLimitInfo(event).status || event.status).toLowerCase();
-}
-
-function isClaudeRateLimitAllowed(status: string): boolean {
-    return CLAUDE_RATE_LIMIT_ALLOWED_STATUSES.has(status);
-}
-
-function isClaudeRateLimitWarning(status: string): boolean {
-    return CLAUDE_RATE_LIMIT_WARNING_STATUSES.has(status);
-}
-
-function claudeRateLimitResetMs(event: CliEventRecord): number {
-    const info = claudeRateLimitInfo(event);
-    const resetsAt = fieldNumber(info["resetsAt"] || event["resetsAt"]);
-    if (!resetsAt) return 0;
-    return resetsAt > 1_000_000_000_000 ? resetsAt : resetsAt * 1000;
-}
 
 function formatClaudeRateLimitReset(event: CliEventRecord): string {
     const resetMs = claudeRateLimitResetMs(event);
@@ -201,12 +151,6 @@ function formatClaudeRateLimitReset(event: CliEventRecord): string {
     const date = new Date(resetMs);
     if (Number.isNaN(date.getTime())) return '';
     return date.toISOString();
-}
-
-function claudeRateLimitWaitMs(event: CliEventRecord): number {
-    const resetMs = claudeRateLimitResetMs(event);
-    if (!resetMs) return 0;
-    return Math.max(0, resetMs - Date.now() + 60_000);
 }
 
 function buildClaudeRateLimitTool(event: CliEventRecord): ToolEntry | null {
@@ -301,88 +245,6 @@ function handleClaudeRateLimitEvent(
     pushTrace(ctx, `[${agentLabel || 'agent'}] [watchdog] extended for Claude quota wait by ${Math.ceil(waitMs / 1000)}s`);
 }
 
-function summarizeClaudeRateLimitEvent(event: CliEventRecord): string {
-    const status = claudeRateLimitStatus(event);
-    if (isClaudeRateLimitAllowed(status)) return '';
-    const info = claudeRateLimitInfo(event);
-    const rateLimitType = fieldString(info["rateLimitType"] || info["rate_limit_type"]);
-    const kind = isClaudeRateLimitWarning(status) ? 'warning' : 'wait';
-    return rateLimitType
-        ? `claude quota ${kind}: ${status || 'rate_limited'} (${rateLimitType})`
-        : `claude quota ${kind}: ${status || 'rate_limited'}`;
-}
-
-function buildClaudeThinkingTool(block: CliEventRecord): ToolEntry {
-    const text = String(block.thinking || '').trim();
-    const signature = typeof block.signature === 'string' ? block.signature : '';
-    if (text) {
-        return {
-            icon: '💭',
-            label: buildPreview(text, 80) || 'thinking...',
-            toolType: 'thinking',
-            detail: text,
-        };
-    }
-    if (signature) {
-        return {
-            icon: '🔒',
-            label: 'encrypted thinking',
-            toolType: 'thinking',
-            detail: `server-side reasoning, plaintext withheld - signature ${signature.length}B`,
-        };
-    }
-    return {
-        icon: '💭',
-        label: 'thinking...',
-        toolType: 'thinking',
-        detail: '',
-    };
-}
-
-function appendDetail(...parts: Array<string | null | undefined>): string {
-    return parts.map(p => String(p || '').trim()).filter(Boolean).join('\n');
-}
-
-function formatJsonDetail(label: string, value: unknown): string {
-    if (value == null) return '';
-    try {
-        return `${label}: ${typeof value === 'string' ? value : JSON.stringify(value, null, 2)}`;
-    } catch {
-        return `${label}: ${String(value)}`;
-    }
-}
-
-function formatAssistantTextSegment(ctx: SpawnContext, text: unknown): string {
-    const raw = String(text || '');
-    if (!raw) return '';
-    if (!ctx.outputTextStarted) {
-        ctx.outputTextStarted = true;
-        return raw;
-    }
-    if (/\s$/.test(ctx.fullText) || /^\s/.test(raw) || /^[,.;:!?)]/.test(raw) || /^-\S/.test(raw)) return raw;
-    return raw.startsWith('- ') || raw.startsWith('* ')
-        ? `\n${raw}`
-        : `\n- ${raw}`;
-}
-
-function appendAssistantTextSegment(ctx: SpawnContext, text: unknown): string {
-    const segment = formatAssistantTextSegment(ctx, text);
-    if (!segment) return '';
-    ctx.fullText += segment;
-    return segment;
-}
-
-function extractAssistantText(event: CliEventRecord): string {
-    if (!event.message?.content) return '';
-    const parts: string[] = [];
-    for (const block of asCliEventArray(event.message.content)) {
-        if (block.type === 'text' && typeof block.text === 'string') {
-            parts.push(block.text);
-        }
-    }
-    return parts.join('');
-}
-
 function appendClaudeISnapshotText(ctx: SpawnContext, event: CliEventRecord): string {
     const text = extractAssistantText(event);
     if (!text) return '';
@@ -460,39 +322,6 @@ function toIndentedPreview(text: unknown, max = 200) {
     if (!raw) return '';
     const clipped = raw.length > max ? `${raw.slice(0, max)}…` : raw;
     return clipped.replace(/\n/g, '\n  ');
-}
-
-function isOpencodeToolFailure(part: CliEventRecord): boolean {
-    const exitCode = part?.state?.metadata?.["exit"];
-    if (exitCode != null && exitCode !== 0) return true;
-    const status = String(part?.state?.status || '').toLowerCase();
-    return status === 'error'
-        || status === 'failed'
-        || status === 'denied'
-        || status === 'cancelled';
-}
-
-function cleanOpencodeTaskResult(output: unknown): string {
-    const raw = String(output || '').trim();
-    if (!raw) return '';
-    const match = raw.match(/<task_result>([\s\S]*?)<\/task_result>/);
-    return (match?.[1] || raw).trim();
-}
-
-function formatOpenCodeTaskDetail(part: CliEventRecord): string {
-    const state = part?.state || {};
-    const input = state.input || {};
-    const meta = state.metadata || {};
-    const modelInfo = asCliEventRecord(meta.model);
-    const model = meta.model
-        ? [modelInfo["providerID"], modelInfo["modelID"]].filter(Boolean).join('/')
-        : '';
-    return appendDetail(
-        input.prompt ? `prompt: ${clipText(String(input.prompt), 300)}` : '',
-        model ? `model: ${model}` : '',
-        meta["sessionId"] ? `child_session: ${meta["sessionId"]}` : '',
-        cleanOpencodeTaskResult(state.output) ? `result: ${cleanOpencodeTaskResult(state.output)}` : '',
-    );
 }
 
 function finalizeOpencodePendingTools(
@@ -1864,33 +1693,6 @@ function toolKindIcon(kind: string | undefined): string {
     return map[kind.toLowerCase()] || '';
 }
 
-/** Summarise a tool's input into a short one-liner for the ProcessBlock UI. */
-export function summarizeToolInput(toolName: string, input: unknown, max = 0): string {
-    if (!input) return '';
-    if (typeof input !== 'object') return max ? clipText(String(input), max) : String(input);
-    const data = asCliEventRecord(input);
-    const s = (v: unknown) => (typeof v === 'string' ? v : v != null ? String(v) : '');
-    const name = (toolName || '').toLowerCase();
-    let result = '';
-    if (name.includes('bash') || name.includes('terminal') || name === 'execute_command')
-        result = s(data.command || data.cmd);
-    else if (name.includes('read') || name === 'read_file' || name === 'view') {
-        const fullPath = s(data["path"] || data["file_path"] || data["filename"]);
-        result = max ? (fullPath.split('/').pop() || fullPath) : fullPath;
-    } else if (name.includes('write') || name.includes('edit') || name === 'create_file') {
-        const fullPath = s(data["path"] || data["file_path"]);
-        result = max ? (fullPath.split('/').pop() || fullPath) : fullPath;
-    } else if (name.includes('search') || name.includes('grep') || name === 'codebase_search')
-        result = s(data.query || data["pattern"] || data["search_query"]);
-    else if (name.includes('web') || name === 'web_search')
-        result = s(data.query);
-    // Fallback: show first meaningful key-value if specific extraction yielded nothing
-    if (!result) {
-        try { result = JSON.stringify(input); } catch { /* ignore */ }
-    }
-    return max ? clipText(result, max) : result;
-}
-
 // Backward-compat: return first label or null
 export function extractToolLabel(cli: string, event: CliEventRecord): ToolEntry | null {
     const labels = extractToolLabels(cli, event);
@@ -1921,22 +1723,6 @@ export function makeClaudeToolKeyForTest(event: CliEventRecord, label: ToolEntry
 // ─── ACP session/update → cli-jaw internal event ────────────────
 // Official ACP schema: update.sessionUpdate is the discriminator field.
 // Types: agent_message_chunk, agent_thought_chunk, tool_call, tool_call_update, plan
-
-function extractText(content: unknown) {
-    if (typeof content === 'string') return content;
-    if (Array.isArray(content)) {
-        return content
-            .filter(isCliEventRecord)
-            .filter(c => c.type === 'text')
-            .map(c => c.text || '')
-            .join('');
-    }
-    // Single content object: {type: 'text', text: '...'}
-    if (isCliEventRecord(content) && content.type === 'text') {
-        return content.text || '';
-    }
-    return '';
-}
 
 export function extractFromAcpUpdate(params: AcpUpdateParams | unknown, ctx: SpawnContext | null = null): ExtractedEventResult {
     const envelope = asCliEventRecord(params);

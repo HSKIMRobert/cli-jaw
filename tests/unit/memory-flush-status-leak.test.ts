@@ -15,6 +15,9 @@ const spawnSrc = src('src/agent/spawn.ts');
 const lifecycleSrc = src('src/agent/lifecycle-handler.ts');
 const flushSrc = src('src/agent/memory-flush-controller.ts');
 const eventsSrc = src('src/agent/events.ts');
+const eventsHelpersSrc = existsSync(join(__dirname, '../../src/agent/events/helpers.ts'))
+    ? src('src/agent/events/helpers.ts')
+    : '';
 const persistenceSrc = src('src/agent/session-persistence.ts');
 
 test('memory-flush spawn is not main-managed and uses isolated history/session policy', () => {
@@ -56,9 +59,10 @@ test('internal status and tool broadcasts are guarded from public WebSocket clie
         spawnSrc.includes("broadcast('agent_tool', { agentId: agentLabel, ...tool, ...empTag }, traceAudience)"),
         'ACP tool broadcasts must use traceAudience',
     );
+    const emitSrc = eventsHelpersSrc || eventsSrc;
     assert.ok(
-        eventsSrc.includes('function emitAgentTool(')
-            && eventsSrc.includes("ctx.traceAudience === 'internal' ? 'internal' : 'public'"),
+        emitSrc.includes('function emitAgentTool(')
+            && emitSrc.includes("ctx.traceAudience === 'internal' ? 'internal' : 'public'"),
         'standard CLI events must route agent_tool through ctx.traceAudience',
     );
     assert.equal(
