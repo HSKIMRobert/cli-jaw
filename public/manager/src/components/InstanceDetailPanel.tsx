@@ -6,6 +6,7 @@ import type {
 } from '../types';
 import { SettingsShell } from '../settings/SettingsShell';
 import { ProcessControlPanel } from './ProcessControlPanel';
+import { InstanceLogsPanel } from './InstanceLogsPanel';
 
 type InstanceDetailPanelProps = {
     instance: DashboardInstance | null;
@@ -36,9 +37,13 @@ export function InstanceDetailPanel(props: InstanceDetailPanelProps) {
                     </>
                 )}
 
-                {props.activeTab === 'logs' && (
+                {props.activeTab === 'logs' && instance && (
+                    <InstanceLogsPanel port={instance.port} />
+                )}
+
+                {props.activeTab === 'logs' && !instance && (
                     <div className="detail-empty">
-                        Logs stream is planned for phase 10.7. Recent dashboard events are available in the activity dock.
+                        Select an instance to view its logs.
                     </div>
                 )}
 
