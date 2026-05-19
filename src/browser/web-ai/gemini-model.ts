@@ -1,6 +1,6 @@
 import type { Page } from 'playwright-core';
 
-export type GeminiModelChoice = 'fast' | 'thinking' | 'pro';
+export type GeminiModelChoice = 'flash-lite' | 'flash' | 'pro';
 
 export interface GeminiModelSelectionResult {
     requested: GeminiModelChoice;
@@ -16,27 +16,33 @@ const GEMINI_MODE_MENU_BUTTONS = [
 ] as const;
 
 const GEMINI_MODE_OPTIONS: Record<GeminiModelChoice, { testId: string; labels: string[] }> = {
-    fast: { testId: 'bard-mode-option-fast', labels: ['Fast'] },
-    thinking: { testId: 'bard-mode-option-thinking', labels: ['Thinking'] },
+    'flash-lite': { testId: 'bard-mode-option-fast', labels: ['Flash-Lite', 'Flash Lite'] },
+    flash: { testId: 'bard-mode-option-thinking', labels: ['Flash'] },
     pro: { testId: 'bard-mode-option-pro', labels: ['Pro'] },
 };
 
 const GEMINI_MODEL_ALIASES: Record<string, GeminiModelChoice> = {
-    fast: 'fast',
-    flash: 'fast',
-    'gemini-fast': 'fast',
-    thinking: 'thinking',
-    think: 'thinking',
-    'gemini-thinking': 'thinking',
+    fast: 'flash-lite',
+    'flash-lite': 'flash-lite',
+    'flash_lite': 'flash-lite',
+    'flash lite': 'flash-lite',
+    'gemini-fast': 'flash-lite',
+    'gemini-flash-lite': 'flash-lite',
+    'gemini-flash_lite': 'flash-lite',
+    'gemini flash lite': 'flash-lite',
+    flash: 'flash',
+    'gemini-flash': 'flash',
+    thinking: 'pro',
+    think: 'pro',
+    'gemini-thinking': 'pro',
     pro: 'pro',
     'gemini-pro': 'pro',
-    '3.1-pro': 'pro',
 };
 
 export function normalizeGeminiModelChoice(model: string | undefined): GeminiModelChoice | null {
     const key = String(model || '').trim().toLowerCase();
     if (!key) return null;
-    return GEMINI_MODEL_ALIASES[key] || null;
+    return GEMINI_MODEL_ALIASES[key] || normalizeGeminiModelLabel(key);
 }
 
 export async function selectGeminiModel(page: Page, model: string | undefined): Promise<GeminiModelSelectionResult | null> {
@@ -63,7 +69,9 @@ export async function selectGeminiModel(page: Page, model: string | undefined): 
 }
 
 async function openGeminiModelMenu(page: Page, usedFallbacks: string[]): Promise<void> {
-    if (await page.locator('[data-test-id^="bard-mode-option-"], [role="menuitem"]').filter({ hasText: /^Fast\b|^Thinking\b|^Pro\b/i }).first().isVisible().catch(() => false)) return;
+    const modeItems = page.locator('[data-test-id^="bard-mode-option-"], [role="menuitem"], [role="option"], button')
+        .filter({ hasText: /Flash|Pro|Thinking/i });
+    if (await modeItems.first().isVisible().catch(() => false)) return;
     const deadline = Date.now() + 5_000;
     while (Date.now() < deadline) {
         for (const selector of GEMINI_MODE_MENU_BUTTONS) {
@@ -71,12 +79,12 @@ async function openGeminiModelMenu(page: Page, usedFallbacks: string[]): Promise
             if (!(await loc.isVisible().catch(() => false))) continue;
             await loc.click({ timeout: 5_000 });
             await page.waitForTimeout(350).catch(() => undefined);
-            if (await page.locator('[data-test-id^="bard-mode-option-"], [role="menuitem"]').filter({ hasText: /^Fast\b|^Thinking\b|^Pro\b/i }).first().isVisible().catch(() => false)) return;
+            if (await modeItems.first().isVisible().catch(() => false)) return;
         }
         await page.waitForTimeout(150).catch(() => undefined);
     }
     usedFallbacks.push('mode-menu-text-button');
-    const textButton = page.locator('button').filter({ hasText: /^Fast$|^Thinking$|^Pro$/i }).first();
+    const textButton = page.locator('button').filter({ hasText: /Flash|Pro|Thinking/i }).first();
     if (await textButton.isVisible().catch(() => false)) {
         await textButton.click({ timeout: 5_000 });
         await page.waitForTimeout(350).catch(() => undefined);
@@ -91,14 +99,16 @@ async function findGeminiModelOption(page: Page, choice: GeminiModelChoice): Pro
     while (Date.now() < deadline) {
         const byTestId = page.locator(`[data-test-id="${option.testId}"]`).first();
         if (await byTestId.isVisible().catch(() => false)) return byTestId;
-        const candidates = await page.locator('[role="menuitem"], button').all().catch(() => []);
+        const candidates = await page.locator('[role="menuitem"], [role="option"], button, [data-test-id^="bard-mode-option-"]').all().catch(() => []);
         for (const label of option.labels) {
-            const pattern = new RegExp(`^${label}\\b`, 'i');
+            const pattern = geminiModeLabelPattern(label);
             for (const candidate of candidates) {
                 if (!(await candidate.isVisible().catch(() => false))) continue;
                 const text = (await candidate.innerText({ timeout: 500 }).catch(() => '')).trim().replace(/\s+/g, ' ');
                 if (pattern.test(text)) return candidate;
             }
+            const byText = page.getByText(pattern).first();
+            if (await byText.isVisible().catch(() => false)) return byText;
         }
         await page.waitForTimeout(150).catch(() => undefined);
     }
@@ -111,5 +121,20 @@ async function readGeminiModel(page: Page): Promise<GeminiModelChoice | null> {
         if (!(await loc.isVisible().catch(() => false))) continue;
         return normalizeGeminiModelChoice(await loc.innerText({ timeout: 1_000 }).catch(() => ''));
     }
+    return null;
+}
+
+function geminiModeLabelPattern(label: string): RegExp {
+    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/[- ]/g, '[- ]');
+    return new RegExp(`^(?:Gemini\\s*)?(?:\\d+(?:\\.\\d+)?\\s+)?${escaped}\\b`, 'i');
+}
+
+function normalizeGeminiModelLabel(label: string): GeminiModelChoice | null {
+    const normalized = String(label || '').trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
+    const withoutVendor = normalized.replace(/^gemini\s+/, '');
+    const withoutVersion = withoutVendor.replace(/^\d+(?:\.\d+)?\s+/, '');
+    if (/^flash lite\b/.test(withoutVersion)) return 'flash-lite';
+    if (/^flash\b/.test(withoutVersion)) return 'flash';
+    if (/^pro\b/.test(withoutVersion)) return 'pro';
     return null;
 }

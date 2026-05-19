@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { normalizeGeminiModelChoice } from '../../src/browser/web-ai/gemini-model.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const geminiLiveSrc = readFileSync(join(root, 'src/browser/web-ai/gemini-live.ts'), 'utf8');
@@ -27,6 +28,8 @@ test('GEM-LIVE-003: Gemini supports observed mode picker choices when --model is
     assert.match(geminiModelSrc, /bard-mode-option-fast/);
     assert.match(geminiModelSrc, /bard-mode-option-thinking/);
     assert.match(geminiModelSrc, /bard-mode-option-pro/);
+    assert.match(geminiModelSrc, /flash-lite/);
+    assert.doesNotMatch(geminiModelSrc, /3\.1-pro/);
     assert.match(geminiLiveSrc, /selectGeminiModel/);
     assert.match(geminiLiveSrc, /model selected:/);
 });
@@ -36,4 +39,13 @@ test('GEM-LIVE-004: Gemini new chat click retries transient Angular detach failu
     assert.match(geminiLiveSrc, /'gemini new chat'/);
     assert.match(geminiLiveSrc, /click retry:\$\{sel\}/);
     assert.match(geminiLiveSrc, /detached\|Timeout\|not attached\|not stable/);
+});
+
+test('GEM-LIVE-005: Gemini model labels normalize without pinned version numbers', () => {
+    assert.equal(normalizeGeminiModelChoice('flash-lite'), 'flash-lite');
+    assert.equal(normalizeGeminiModelChoice('3.1 Flash-Lite'), 'flash-lite');
+    assert.equal(normalizeGeminiModelChoice('3 Flash'), 'flash');
+    assert.equal(normalizeGeminiModelChoice('3.1 Pro'), 'pro');
+    assert.equal(normalizeGeminiModelChoice('3.2 Pro'), 'pro');
+    assert.equal(normalizeGeminiModelChoice('thinking'), 'pro');
 });
