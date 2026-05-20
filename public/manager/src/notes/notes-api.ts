@@ -3,6 +3,8 @@ export {
     fetchNotesIndex,
     fetchNotesCapabilities,
     fetchNotesTree,
+    fetchNoteTemplates,
+    fetchNoteTemplate,
     searchNotes,
     fetchNoteFile,
     createNoteFile,
