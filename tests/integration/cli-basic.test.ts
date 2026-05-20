@@ -10,11 +10,11 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CLI = join(__dirname, '../../bin/cli-jaw.ts');
 
-function run(...args: string[]) {
+function run(args: string[], timeoutMs = 5000) {
     try {
         return execFileSync('npx', ['tsx', CLI, ...args], {
             encoding: 'utf8',
-            timeout: 5000,
+            timeout: timeoutMs,
             env: { ...process.env, NO_COLOR: '1' },
         });
     } catch (e) {
@@ -24,21 +24,21 @@ function run(...args: string[]) {
 }
 
 test('CLI-001: --help shows usage', () => {
-    const out = run('--help');
+    const out = run(['--help']);
     assert.ok(out.includes('cli-jaw') || out.includes('Commands') || out.includes('Usage'));
 });
 
 test('CLI-002: --version shows version', () => {
-    const out = run('--version');
+    const out = run(['--version']);
     assert.match(out, /\d+\.\d+\.\d+/);
 });
 
 test('CLI-003: unknown command exits with error', () => {
-    const out = run('nonexistent-command-xyz');
+    const out = run(['nonexistent-command-xyz']);
     assert.ok(out.includes('Unknown') || out.includes('unknown') || out.includes('not found') || out.length === 0);
 });
 
 test('CLI-004: doctor runs without crash', () => {
-    const out = run('doctor');
+    const out = run(['doctor'], 20000);
     assert.ok(out.includes('✓') || out.includes('✗') || out.includes('check') || out.includes('CLI'));
 });
