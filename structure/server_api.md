@@ -20,7 +20,7 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 | Module | Lines | Routes | 역할 |
 | --- | ---: | ---: | --- |
 | `server.ts` | 741L | 13 | Helmet/CORS/Host/rate-limit/WS/bootstrap + base routes + module registration |
-| `src/routes/settings.ts` | 239L | 18 | settings/prompt/heartbeat-md/MCP/CLI registry/quota/copilot |
+| `src/routes/settings.ts` | 316L | 18 | settings/prompt/heartbeat-md/MCP/CLI registry/quota/copilot |
 | `src/routes/memory.ts` | 185L | 13 | memory runtime + KV memory + memory files |
 | `src/routes/browser.ts` | 475L | 41 | browser primitive/tab/debug/doctor/cleanup routes + adaptive fetch + web-ai render/send/poll/watch/sessions/capabilities/context routes |
 | `src/routes/jaw-memory.ts` | 239L | 11 | jaw memory search/read/save/list/init/reflect/flush/soul/soul-activate/bootstrap |

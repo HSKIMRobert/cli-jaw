@@ -299,7 +299,7 @@ cli-jaw/
 │   │   ├── i18n.ts           ← locale bundle 라우트 (26L)
 │   │   ├── orchestrate.ts    ← PABCD reset/state/workers/snapshot/queue cancel/queue steer/dispatch/worker result/state PUT 라우트 (394L)
 │   │   ├── memory.ts         ← memory status/KV/files/settings 라우트 (185L)
-│   │   ├── settings.ts       ← settings/prompt/heartbeat-md/MCP/registry/status/quota/copilot 라우트 (191L)
+│   │   ├── settings.ts       ← settings/prompt/heartbeat-md/MCP/registry/status/quota/copilot 라우트 + CLI_KEYS 기반 quota parity/status-only metadata (316L)
 │   │   ├── messaging.ts      ← upload/file-open/voice/telegram/channel/discord send 라우트 (222L)
 │   │   ├── avatar.ts         ← Agent/User 아바타 이미지 업로드/서빙/삭제 + settings.json 메타 저장 + safeResolveUnder 경로 보호 (146L)
 │   │   ├── quota.ts          ← Copilot/Claude/Codex/Gemini/OpenCode quota helper readers + Claude 429 cache (`settings.ts`/`server.ts`에서 사용) (344L)
@@ -402,7 +402,7 @@ cli-jaw/
 │           ├── settings-discord.ts ← Discord 설정 (setDiscord, saveDiscordSettings) (61L) ✨
 │           ├── settings-channel.ts ← Channel 설정 (setActiveChannel, loadFallbackOrder, saveFallbackOrder) (53L) ✨
 │           ├── settings-mcp.ts ← MCP 설정 (loadMcpServers, syncMcpServers, installMcpGlobal) (55L) ✨
-│           ├── settings-cli-status.ts ← CLI 상태 표시 (loadCliStatus, 인증/설치 상태 점검) (229L) ✨
+│           ├── settings-cli-status.ts ← CLI 상태 표시 (loadCliStatus, 인증/설치 상태 점검, quota/status-only 표시) (311L) ✨
 │           ├── settings-stt.ts ← STT 설정 (엔진 선택, Gemini/Whisper 설정) (109L) ✨
 │           ├── settings-templates.ts ← 프롬프트 템플릿 모달 (openPromptModal, savePromptFromModal, toggleDevMode) (132L) ✨
 │           ├── voice-recorder.ts ← MediaRecorder 래퍼 + MIME 자동탐지 + pending/error UI + preview STT lifecycle + 녹음 타이머 (254L)
