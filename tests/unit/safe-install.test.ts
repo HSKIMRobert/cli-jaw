@@ -35,6 +35,9 @@ const postinstallWorkflowSrc = readSource(join(__dirname, '../../.github/workflo
 const freshInstallSmokeSrc = readSource(join(__dirname, '../../scripts/fresh-install-smoke.ts'), 'utf8');
 const freshInstallEvidenceSrc = readSource(join(__dirname, '../../scripts/collect-fresh-install-evidence.sh'), 'utf8');
 const freshInstallEvidenceAuditSrc = readSource(join(__dirname, '../../scripts/audit-fresh-install-evidence.mjs'), 'utf8');
+const requireReleaseEvidenceSrc = readSource(join(__dirname, '../../scripts/require-release-evidence.mjs'), 'utf8');
+const releaseScriptSrc = readSource(join(__dirname, '../../scripts/release.sh'), 'utf8');
+const releasePreviewScriptSrc = readSource(join(__dirname, '../../scripts/release-preview.sh'), 'utf8');
 const packageJson = JSON.parse(fs.readFileSync(join(__dirname, '../../package.json'), 'utf8'));
 const repoRoot = join(__dirname, '../..');
 
@@ -474,9 +477,11 @@ test('SAF-004i: install risk gate covers fresh-machine installer regressions', (
     assert.ok(gateSrc.includes('scripts/collect-fresh-install-evidence.sh'), 'gate should syntax-check the fresh-machine evidence collector');
     assert.ok(gateSrc.includes('scripts/audit-fresh-install-evidence.mjs'), 'gate should syntax-check the fresh-machine evidence auditor');
     assert.ok(gateSrc.includes('scripts/verify-release-evidence.mjs'), 'gate should syntax-check the release evidence matrix gate');
+    assert.ok(gateSrc.includes('scripts/require-release-evidence.mjs'), 'gate should syntax-check the publish-time release evidence requirement');
     assert.equal(gateSrc.includes('scripts/verify-fresh-install.ps1'), false, 'gate must not require a native PowerShell fresh-install verifier');
     assert.ok(gateSrc.includes("npm, ['pack', '--dry-run', '--json']"), 'gate should verify npm package contents');
     assert.ok(gateSrc.includes('scripts/postinstall-guard.cjs'), 'gate should ensure postinstall guard is packed');
+    assert.ok(gateSrc.includes('scripts/require-release-evidence.mjs'), 'gate should ensure publish-time release evidence guard is packed');
     assert.ok(gateSrc.includes('structure/verify-counts.sh'), 'gate should enforce repository structure sync');
 });
 
@@ -498,6 +503,7 @@ test('SAF-004j2: fresh-machine evidence collector documents supported release ev
     assert.equal(packageJson.scripts?.['collect:fresh-install-evidence'], 'bash scripts/collect-fresh-install-evidence.sh');
     assert.equal(packageJson.scripts?.['audit:fresh-install-evidence'], 'node scripts/audit-fresh-install-evidence.mjs');
     assert.equal(packageJson.scripts?.['verify:release-evidence'], 'node scripts/verify-release-evidence.mjs');
+    assert.equal(packageJson.scripts?.prepublishOnly, 'node scripts/require-release-evidence.mjs && npm run build && npm run build:frontend');
     assert.ok(freshInstallEvidenceSrc.includes('--target macos|wsl|linux|auto'), 'collector should require explicit supported target wording');
     assert.ok(freshInstallEvidenceSrc.includes('--install-script FILE'), 'collector should allow branch/local installer verification before release');
     assert.ok(freshInstallEvidenceSrc.includes('--verifier-script FILE'), 'collector should allow local verifier validation before release');
@@ -544,6 +550,44 @@ test('SAF-004j2: fresh-machine evidence collector documents supported release ev
     assert.ok(releaseEvidenceGateSrc.includes("'--target', target"), 'release gate should run the strict target auditor');
     assert.equal(releaseEvidenceGateSrc.includes('--allow-skip-install'), false, 'release gate must not pass local-smoke allow flags');
     assert.equal(releaseEvidenceGateSrc.includes('--allow-preexisting-node'), false, 'release gate must not allow non-fresh machines');
+    assert.ok(requireReleaseEvidenceSrc.includes('installerSensitivePaths'), 'publish-time evidence guard should define installer-sensitive paths');
+    assert.ok(requireReleaseEvidenceSrc.includes('scripts/verify-release-evidence.mjs'), 'publish-time evidence guard should delegate to the strict matrix gate');
+    assert.ok(requireReleaseEvidenceSrc.includes('CLI_JAW_MACOS_EVIDENCE_DIR'), 'publish-time evidence guard should require macOS evidence');
+    assert.ok(requireReleaseEvidenceSrc.includes('CLI_JAW_WSL_EVIDENCE_DIR'), 'publish-time evidence guard should require WSL evidence');
+    assert.ok(requireReleaseEvidenceSrc.includes("relativePath === 'package.json'"), 'publish-time evidence guard should treat package metadata carefully');
+    assert.ok(requireReleaseEvidenceSrc.includes('delete parsed.version'), 'publish-time evidence guard should ignore pure version bumps');
+    assert.ok(requireReleaseEvidenceSrc.includes('currentPackageVersionTag'), 'publish-time evidence guard should not use the just-created version tag as the comparison base');
+    assert.ok(requireReleaseEvidenceSrc.includes('tag !== currentTag'), 'publish-time evidence guard should compare against the previous release tag after a tag is created');
+    assert.ok(requireReleaseEvidenceSrc.includes('^v[0-9]+\\.[0-9]+\\.[0-9]+$'), 'publish-time evidence guard should compare against stable release tags, not preview tags');
+});
+
+test('SAF-004j3: publish scripts enforce fresh-machine evidence before push or publish', () => {
+    assert.ok(requireReleaseEvidenceSrc.includes('scripts/install.sh'), 'release evidence trigger paths should include macOS installer changes');
+    assert.ok(requireReleaseEvidenceSrc.includes('scripts/install-wsl.sh'), 'release evidence trigger paths should include WSL installer changes');
+    assert.ok(requireReleaseEvidenceSrc.includes('scripts/verify-fresh-install.sh'), 'release evidence trigger paths should include verifier changes');
+    assert.ok(requireReleaseEvidenceSrc.includes('scripts/audit-fresh-install-evidence.mjs'), 'release evidence trigger paths should include auditor changes');
+    assert.ok(requireReleaseEvidenceSrc.includes('scripts/verify-release-evidence.mjs'), 'release evidence trigger paths should include release-gate changes');
+    assert.ok(requireReleaseEvidenceSrc.includes('scripts/require-release-evidence.mjs'), 'release evidence trigger paths should include this publish guard');
+    assert.ok(requireReleaseEvidenceSrc.includes('scripts/release.sh'), 'release evidence trigger paths should include stable release script changes');
+    assert.ok(requireReleaseEvidenceSrc.includes('scripts/release-preview.sh'), 'release evidence trigger paths should include preview release script changes');
+    assert.ok(readmeSrc.includes('CLI_JAW_MACOS_EVIDENCE_DIR=/path/to/macos-evidence'), 'README should document release-script evidence env');
+    assert.ok(readmeSrc.includes('bash scripts/release.sh patch'), 'README should show release script with evidence directories');
+
+    const releaseGatePos = releaseScriptSrc.indexOf('npm run gate:all');
+    const freshEvidencePos = releaseScriptSrc.indexOf('node scripts/require-release-evidence.mjs');
+    const pushPos = releaseScriptSrc.indexOf('git push origin master');
+    const publishPos = releaseScriptSrc.indexOf('npm publish --access public');
+    assert.ok(releaseGatePos >= 0 && freshEvidencePos > releaseGatePos, 'fresh evidence gate should run after normal release gates');
+    assert.ok(freshEvidencePos >= 0 && freshEvidencePos < pushPos, 'fresh evidence gate must run before git push');
+    assert.ok(freshEvidencePos >= 0 && freshEvidencePos < publishPos, 'fresh evidence gate must run before npm publish');
+
+    const previewGatePos = releasePreviewScriptSrc.indexOf('npm run gate:all');
+    const previewFreshEvidencePos = releasePreviewScriptSrc.indexOf('node scripts/require-release-evidence.mjs');
+    const previewPublishPos = releasePreviewScriptSrc.indexOf('npm publish "$TARBALL" --tag preview --access public');
+    const previewPushPos = releasePreviewScriptSrc.indexOf('git push origin "$CURRENT_BRANCH"');
+    assert.ok(previewGatePos >= 0 && previewFreshEvidencePos > previewGatePos, 'preview fresh evidence gate should run after normal release gates');
+    assert.ok(previewFreshEvidencePos >= 0 && previewFreshEvidencePos < previewPublishPos, 'preview evidence gate must run before npm publish');
+    assert.ok(previewFreshEvidencePos >= 0 && previewFreshEvidencePos < previewPushPos, 'preview evidence gate must run before git push');
 });
 
 test('SAF-004k: postinstall platform workflow runs installer risk gate on macOS and WSL', () => {
