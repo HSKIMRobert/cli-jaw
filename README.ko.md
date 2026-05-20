@@ -457,7 +457,7 @@ npm run gate:all       # 릴리스/문서 정합성 게이트
 
 | | CLI-JAW 2.0 | Hermes Agent | Claude Code |
 |---|---|---|---|
-| **모델 접근** | Claude, Codex, Codex App, Gemini, Grok, OpenCode, Copilot — 벤더 인증으로 연결 | API 키 (OpenRouter 200+, Nous Portal) | Anthropic 전용 |
+| **모델 접근** | Antigravity, AI-E, Claude, Claude E, Codex, Codex App, Gemini, Grok, OpenCode, Copilot — 벤더/네이티브 인증으로 연결 | API 키 (OpenRouter 200+, Nous Portal) | Anthropic 전용 |
 | **비용 모델** | 이미 결제 중인 월 구독 그대로 | 토큰당 API 과금 | Anthropic 구독 |
 | **메인 UI** | 매니저 대시보드 + 웹앱 + Mac앱 + 터미널 UI | 터미널 전용 | CLI + IDE 플러그인 |
 | **대시보드** | 멀티 인스턴스 매니저, 칸반, 노트 워크스페이스 | 없음 | 없음 |

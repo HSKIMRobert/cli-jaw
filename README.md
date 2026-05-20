@@ -529,7 +529,7 @@ Architecture details: [ARCHITECTURE.md](docs/ARCHITECTURE.md) · Test coverage: 
 
 | | CLI-JAW 2.0 | Hermes Agent | Claude Code |
 |---|---|---|---|
-| **Model access** | Claude, Codex, Codex App, Gemini, Grok, OpenCode, and Copilot through vendor auth where supported | API keys (OpenRouter 200+, Nous Portal) | Anthropic only |
+| **Model access** | Antigravity, AI-E, Claude, Claude E, Codex, Codex App, Gemini, Grok, OpenCode, and Copilot through vendor/native auth where supported | API keys (OpenRouter 200+, Nous Portal) | Anthropic only |
 | **Cost model** | Monthly subscriptions you already pay for | Per-token API billing | Anthropic subscription |
 | **Primary UI** | Manager dashboard + Web app + Mac app + terminal UI | Terminal only | CLI + IDE plugins |
 | **Dashboard** | Multi-instance manager, Kanban, Notes workspace | None | None |

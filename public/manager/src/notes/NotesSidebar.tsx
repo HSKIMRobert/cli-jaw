@@ -106,6 +106,7 @@ export function NotesSidebar(props: NotesSidebarProps) {
     const [status, setStatus] = useState<string | null>(null);
     const [selectedFolderPath, setSelectedFolderPath] = useState<string | null>(null);
     const [templates, setTemplates] = useState<NoteTemplate[]>([]);
+    const [pendingNewNote, setPendingNewNote] = useState<string | null>(null);
 
     useEffect(() => {
         void fetchNoteTemplates().then(setTemplates).catch(() => {});
@@ -128,7 +129,8 @@ export function NotesSidebar(props: NotesSidebarProps) {
                     const tmpl = await fetchNoteTemplate(dailyTemplate.name);
                     content = applyTemplate(tmpl.content, { title: todayName.replace(/\.md$/, '') });
                 } catch {
-                    setStatus('Template failed to load; creating blank note.');
+                    setError('Daily template failed to load. Note was not created.');
+                    return;
                 }
             }
             const created = await createNoteFile(todayName, content);
@@ -150,26 +152,31 @@ export function NotesSidebar(props: NotesSidebarProps) {
         const fallback = selectedFolderPath ? `${selectedFolderPath}/untitled.md` : 'untitled.md';
         const name = window.prompt('Note path', fallback);
         if (!name) return;
-        let content = '';
+        const notePath = name.endsWith('.md') ? name : `${name}.md`;
         if (templates.length > 0) {
-            const templateNames = templates.map(t => t.name).join(', ');
-            const chosen = window.prompt(`Apply template? (${templateNames}) Leave empty for blank.`);
-            if (chosen) {
-                const match = templates.find(t => t.name === chosen.trim());
-                if (match) {
-                    try {
-                        const tmpl = await fetchNoteTemplate(match.name);
-                        const title = (name.endsWith('.md') ? name.slice(0, -3) : name).split('/').pop() ?? '';
-                        content = applyTemplate(tmpl.content, { title });
-                    } catch {
-                        setStatus('Template failed to load; creating blank note.');
-                    }
-                }
+            setPendingNewNote(notePath);
+            return;
+        }
+        await finishCreateNote(notePath, null);
+    }
+
+    async function finishCreateNote(notePath: string, templateName: string | null): Promise<void> {
+        setPendingNewNote(null);
+        let content = '';
+        if (templateName) {
+            try {
+                const tmpl = await fetchNoteTemplate(templateName);
+                const title = (notePath.endsWith('.md') ? notePath.slice(0, -3) : notePath).split('/').pop() ?? '';
+                content = applyTemplate(tmpl.content, { title });
+            } catch {
+                setError(`Template "${templateName}" failed to load. Note was not created.`);
+                return;
             }
         }
         try {
             setStatus(null);
-            const created = await createNoteFile(name.endsWith('.md') ? name : `${name}.md`, content);
+            setError(null);
+            const created = await createNoteFile(notePath, content);
             props.onSelectedPathChange(created.path);
             await props.onRefreshTree(created.path);
             publishInvalidation({ topics: ['notes'], reason: 'note:created', source: 'ui', sourceId: 'notes-sidebar' });
@@ -356,6 +363,18 @@ export function NotesSidebar(props: NotesSidebarProps) {
                             >
                                 Clear
                             </button>
+                        </div>
+                    )}
+                    {pendingNewNote && (
+                        <div className="notes-template-picker">
+                            <div className="notes-template-picker-label">Template for {pathName(pendingNewNote)}</div>
+                            <div className="notes-template-picker-options">
+                                <button type="button" className="notes-template-picker-option" onClick={() => void finishCreateNote(pendingNewNote, null)}>Blank</button>
+                                {templates.map(t => (
+                                    <button key={t.name} type="button" className="notes-template-picker-option" onClick={() => void finishCreateNote(pendingNewNote, t.name)}>{t.name}</button>
+                                ))}
+                            </div>
+                            <button type="button" className="notes-template-picker-cancel" onClick={() => setPendingNewNote(null)}>Cancel</button>
                         </div>
                     )}
                     <div className="notes-today-bar">

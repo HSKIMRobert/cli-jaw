@@ -457,7 +457,7 @@ npm run gate:all       # 发布/文档一致性门禁
 
 | | CLI-JAW 2.0 | Hermes Agent | Claude Code |
 |---|---|---|---|
-| **模型接入** | Claude、Codex、Codex App、Gemini、Grok、OpenCode 和 Copilot（通过厂商认证） | API 密钥（OpenRouter 200+、Nous Portal） | 仅 Anthropic |
+| **模型接入** | Antigravity、AI-E、Claude、Claude E、Codex、Codex App、Gemini、Grok、OpenCode 和 Copilot（通过厂商/原生认证） | API 密钥（OpenRouter 200+、Nous Portal） | 仅 Anthropic |
 | **费用模型** | 你已经在付的月订阅 | 按 token API 计费 | Anthropic 订阅 |
 | **主 UI** | 管理仪表盘 + Web 应用 + Mac 应用 + 终端 UI | 仅终端 | CLI + IDE 插件 |
 | **仪表盘** | 多实例管理器、看板、笔记工作区 | 无 | 无 |

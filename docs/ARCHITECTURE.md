@@ -294,7 +294,7 @@ main.js (entry)
 
 | Feature | Description | Complexity |
 |---------|-------------|:----------:|
-| **Multi-CLI Engine** | Claude, Codex, Codex App, Gemini, Grok, OpenCode, Copilot — unified spawn | ⭐⭐⭐⭐ |
+| **Multi-CLI Engine** | Antigravity, AI-E, Claude, Claude E, Codex, Codex App, Gemini, Grok, OpenCode, Copilot — unified spawn | ⭐⭐⭐⭐ |
 | **Grok CLI Runtime** | `grok-build` via `grok -p ... --output-format streaming-json`; no `--effort` until a model smoke proves support | ⭐⭐ |
 | **Copilot ACP** | JSON-RPC 2.0 over stdio, real-time streaming, activity timeout | ⭐⭐⭐⭐ |
 | **Orchestration v2** | Triage → role dispatch → 5-phase pipeline → gate reviews | ⭐⭐⭐⭐⭐ |
