@@ -106,13 +106,13 @@ export function NotesSidebar(props: NotesSidebarProps) {
     const [status, setStatus] = useState<string | null>(null);
     const [selectedFolderPath, setSelectedFolderPath] = useState<string | null>(null);
     const [templates, setTemplates] = useState<NoteTemplate[]>([]);
-    const [templatesLoaded, setTemplatesLoaded] = useState(false);
+    const [templatesLoaded, setTemplatesLoaded] = useState<'pending' | 'ok' | 'error'>('pending');
     const [pendingNewNote, setPendingNewNote] = useState<string | null>(null);
 
     useEffect(() => {
         void fetchNoteTemplates()
-            .then(t => { setTemplates(t); setTemplatesLoaded(true); })
-            .catch(() => { setTemplatesLoaded(true); });
+            .then(t => { setTemplates(t); setTemplatesLoaded('ok'); })
+            .catch(() => { setTemplatesLoaded('error'); });
     }, []);
 
     async function openToday(): Promise<void> {
@@ -121,14 +121,20 @@ export function NotesSidebar(props: NotesSidebarProps) {
         const todayName = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.md`;
         if (hasFile(props.tree, todayName)) {
             props.onSelectedPathChange(todayName);
+            setError(null);
             return;
         }
-        if (!templatesLoaded) {
+        if (templatesLoaded === 'pending') {
             setError('Templates are still loading. Please try again.');
+            return;
+        }
+        if (templatesLoaded === 'error') {
+            setError('Template list failed to load. Cannot determine daily template.');
             return;
         }
         try {
             setStatus(null);
+            setError(null);
             const dailyTemplate = templates.find(t => t.name === 'daily');
             let content = '';
             if (dailyTemplate) {
@@ -146,6 +152,7 @@ export function NotesSidebar(props: NotesSidebarProps) {
             publishInvalidation({ topics: ['notes'], reason: 'note:created', source: 'ui', sourceId: 'notes-sidebar' });
         } catch (err) {
             if (err instanceof DashboardApiError && err.status === 409 && err.code === 'note_path_exists') {
+                setError(null);
                 props.onSelectedPathChange(todayName);
                 await props.onRefreshTree(todayName);
                 return;
@@ -155,8 +162,12 @@ export function NotesSidebar(props: NotesSidebarProps) {
     }
 
     async function createNote(): Promise<void> {
-        if (!templatesLoaded) {
+        if (templatesLoaded === 'pending') {
             setError('Templates are still loading. Please try again.');
+            return;
+        }
+        if (templatesLoaded === 'error') {
+            setError('Template list failed to load. Cannot offer template picker.');
             return;
         }
         const fallback = selectedFolderPath ? `${selectedFolderPath}/untitled.md` : 'untitled.md';
