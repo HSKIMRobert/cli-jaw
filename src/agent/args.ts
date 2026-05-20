@@ -153,16 +153,17 @@ export function buildArgs(cli: string, model: string, effort: string, prompt: st
                     ...(claudeExtraArgs.length ? ['--', ...claudeExtraArgs] : [])];
             }
 
-            const headlessArgs = [
-                provider, 'run',
+            const promptModeArgs = [
+                provider, 'p',
                 '--output-format', 'stream-json',
                 '--timeout-ms', '600000',
             ];
-            if (model && model !== 'default') headlessArgs.push('--model', model);
+            if (model && model !== 'default') promptModeArgs.push('--model', model);
             if (effort && effort !== 'medium' && provider !== 'gemini' && provider !== 'grok') {
-                headlessArgs.push('--effort', effort);
+                promptModeArgs.push('--effort', effort);
             }
-            return headlessArgs;
+            promptModeArgs.push(prompt || '');
+            return promptModeArgs;
         }
         case 'codex': {
             const spark = isCodexSparkModel(model);

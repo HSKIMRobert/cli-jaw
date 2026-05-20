@@ -83,18 +83,19 @@ test('AG-006d: ai-e claude routes through explicit provider-first PTY args', () 
     assert.ok(forwarded.includes('--append-system-prompt'));
 });
 
-test('AG-006e: ai-e codex routes through explicit provider and headless timeout', () => {
+test('AG-006e: ai-e codex routes through explicit provider and prompt-mode timeout', () => {
     const args = buildArgs('ai-e', 'gpt-5.4', 'high', 'hi', '', 'auto', { aiEProvider: 'codex' });
-    assert.deepEqual(args.slice(0, 2), ['codex', 'run']);
+    assert.deepEqual(args.slice(0, 2), ['codex', 'p']);
     assert.ok(args.includes('--timeout-ms'));
     assert.ok(args.includes('--model'));
     assert.ok(args.includes('gpt-5.4'));
     assert.ok(!args.includes('--idle-timeout-ms'));
+    assert.equal(args.at(-1), 'hi');
 });
 
 test('AG-006f: ai-e copilot explicit provider wins over gpt model inference', () => {
     const args = buildArgs('ai-e', 'gpt-5-mini', 'medium', 'hi', '', 'auto', { aiEProvider: 'copilot' });
-    assert.deepEqual(args.slice(0, 2), ['copilot', 'run']);
+    assert.deepEqual(args.slice(0, 2), ['copilot', 'p']);
     assert.equal(resolveAiEProvider('copilot', 'gpt-5-mini'), 'copilot');
     assert.equal(resolveAiEProvider(undefined, 'gpt-5-mini'), 'codex');
 });
@@ -104,8 +105,27 @@ test('AG-006g: ai-e resume only injects Claude resume for Claude provider', () =
     assert.deepEqual(claudeArgs.slice(0, 2), ['claude', 'run']);
     assert.ok(claudeArgs.includes('--resume'));
     const codexArgs = buildResumeArgs('ai-e', 'gpt-5.4', 'medium', 'sess-1', 'hi', 'auto', { aiEProvider: 'codex' });
-    assert.deepEqual(codexArgs.slice(0, 2), ['codex', 'run']);
+    assert.deepEqual(codexArgs.slice(0, 2), ['codex', 'p']);
     assert.ok(!codexArgs.includes('--resume'));
+});
+
+test('AG-006g2: ai-e non-Claude providers use p-mode argv prompt and never include AGY', () => {
+    const cases = [
+        ['codex', 'gpt-5.4'],
+        ['gemini', 'gemini-3.1-flash'],
+        ['grok', 'grok-4'],
+        ['copilot', 'gpt-5-mini'],
+    ] as const;
+    for (const [provider, model] of cases) {
+        const args = buildArgs('ai-e', model, 'medium', `prompt-${provider}`, '', 'auto', { aiEProvider: provider });
+        assert.deepEqual(args.slice(0, 2), [provider, 'p']);
+        assert.equal(args.at(-1), `prompt-${provider}`);
+        assert.ok(!args.includes('run'));
+        assert.ok(!args.includes('agy'));
+        assert.ok(!args.includes('antigravity'));
+    }
+    assert.equal(resolveAiEProvider('agy', 'default'), 'claude');
+    assert.equal(resolveAiEProvider('antigravity', 'default'), 'claude');
 });
 
 test('AG-006h: ai-e spawn resolves provider before Claude model normalization', () => {
@@ -125,7 +145,7 @@ test('AG-006h2: ai-e spawn prefers perCli provider over stale active override pr
     );
 });
 
-test('AG-006i: ai-e headless providers are forced fresh until resume is implemented', () => {
+test('AG-006i: ai-e non-Claude PTY prompt providers are forced fresh until resume is implemented', () => {
     const spawnSrc = fs.readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
     assert.match(spawnSrc, /providerSupportsResume\s*=\s*!\(cli\s*===\s*'ai-e'\s*&&\s*effectiveProvider\s*!==\s*'claude'\)/);
     assert.match(spawnSrc, /providerSupportsResume\s*&&\s*!\s*opts\._skipResume/);
@@ -148,7 +168,7 @@ test('AG-006j: ai-e runtime status metadata exposes provider and mode', () => {
 
     const codexMeta = buildAiERuntimeStatusMeta('ai-e', 'codex', 'gpt-5.4');
     assert.equal(codexMeta.provider, 'codex');
-    assert.equal(codexMeta.mode, 'headless');
+    assert.equal(codexMeta.mode, 'pty');
 });
 
 // ─── buildArgs: codex ────────────────────────────────
