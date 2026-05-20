@@ -6,6 +6,8 @@ import os from 'node:os';
 
 const isCodexSparkModel = (model: string) => !!model && /spark/i.test(model);
 const GEMINI_MAX_INCLUDE_DIRECTORIES = 5;
+export const AGY_MAX_ADD_DIRECTORIES = 8;
+export const AGY_PRINT_TIMEOUT = '10m';
 const AI_E_PROVIDERS = ['claude', 'codex', 'gemini', 'grok', 'copilot'] as const;
 export type AiEProvider = typeof AI_E_PROVIDERS[number];
 
@@ -15,6 +17,7 @@ type BuildArgOptions = {
     includeDirectories?: string[];
     claudeBin?: string;
     homedir?: string;
+    workingDir?: string;
     platform?: NodeJS.Platform;
     release?: string;
     env?: NodeJS.ProcessEnv;
@@ -93,6 +96,29 @@ function geminiIncludeDirectoryArgs(options: BuildArgOptions): string[] {
         .flatMap((dir) => ['--include-directories', dir]);
 }
 
+export function resolveAgyAddDirectories(options: BuildArgOptions = {}): string[] {
+    const dirs = [
+        options.workingDir,
+        options.homedir ?? os.homedir(),
+        ...(options.includeDirectories ?? []),
+    ];
+    const seen = new Set<string>();
+    const resolved: string[] = [];
+    for (const dir of dirs) {
+        const normalized = normalizePathForDedupe(dir || '');
+        if (!normalized || seen.has(normalized)) continue;
+        seen.add(normalized);
+        resolved.push(normalized);
+        if (resolved.length >= AGY_MAX_ADD_DIRECTORIES) break;
+    }
+    return resolved;
+}
+
+function agyAddDirArgs(options: BuildArgOptions): string[] {
+    return resolveAgyAddDirectories(options)
+        .flatMap((dir) => ['--add-dir', dir]);
+}
+
 /**
  * Session storage bucket — codex Spark lives in its own bucket so cross-model
  * resumes don't send a spark session_id to a gpt-5.4 run (or vice versa), which
@@ -110,6 +136,11 @@ export function resolveSessionBucket(cli: string | null | undefined, model: stri
 export function buildArgs(cli: string, model: string, effort: string, prompt: string, sysPrompt: string, permissions = 'auto', options: BuildArgOptions = {}) {
     const autoPerm = permissions === 'auto';
     switch (cli) {
+        case 'agy':
+            return ['-p', prompt || '',
+                '--print-timeout', AGY_PRINT_TIMEOUT,
+                ...(autoPerm ? ['--dangerously-skip-permissions'] : []),
+                ...agyAddDirArgs(options)];
         case 'claude':
             return ['--print', '--verbose', '--output-format', 'stream-json',
                 '--include-partial-messages',
@@ -217,6 +248,8 @@ export function buildArgs(cli: string, model: string, effort: string, prompt: st
 export function buildResumeArgs(cli: string, model: string, effort: string, sessionId: string, prompt: string, permissions = 'auto', options: BuildArgOptions = {}) {
     const autoPerm = permissions === 'auto';
     switch (cli) {
+        case 'agy':
+            return buildArgs('agy', model, effort, prompt, options.sysPrompt || '', permissions, options);
         case 'claude':
             return ['--print', '--verbose', '--output-format', 'stream-json',
                 '--include-partial-messages',

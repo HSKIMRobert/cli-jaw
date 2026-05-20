@@ -28,6 +28,8 @@ test('GEM-LIVE-003: Gemini supports observed mode picker choices when --model is
     assert.match(geminiModelSrc, /bard-mode-option-fast/);
     assert.match(geminiModelSrc, /bard-mode-option-thinking/);
     assert.match(geminiModelSrc, /bard-mode-option-pro/);
+    assert.match(geminiModelSrc, /GEMINI_MODE_OPTION_SELECTOR/);
+    assert.doesNotMatch(geminiModelSrc, /\[role="option"\], button/);
     assert.match(geminiModelSrc, /flash-lite/);
     assert.doesNotMatch(geminiModelSrc, /3\.1-pro/);
     assert.match(geminiLiveSrc, /selectGeminiModel/);
@@ -45,6 +47,7 @@ test('GEM-LIVE-005: Gemini model labels normalize without pinned version numbers
     assert.equal(normalizeGeminiModelChoice('flash-lite'), 'flash-lite');
     assert.equal(normalizeGeminiModelChoice('3.1 Flash-Lite'), 'flash-lite');
     assert.equal(normalizeGeminiModelChoice('3 Flash'), 'flash');
+    assert.equal(normalizeGeminiModelChoice('3.5 Flash'), 'flash');
     assert.equal(normalizeGeminiModelChoice('3.1 Pro'), 'pro');
     assert.equal(normalizeGeminiModelChoice('3.2 Pro'), 'pro');
     assert.equal(normalizeGeminiModelChoice('thinking'), 'pro');

@@ -2,7 +2,7 @@
 
 # CLI-JAW
 
-### Your personal AI agent. 2 lines to install. 7 AI engines in one dashboard.
+### Your personal AI agent. 2 lines to install. 10 AI runtime surfaces in one dashboard.
 
 [![npm](https://img.shields.io/npm/v/cli-jaw)](https://npmjs.com/package/cli-jaw)
 [![Version](https://img.shields.io/badge/v2.0.0-GA-brightgreen)](https://github.com/lidge-jun/cli-jaw/releases)
@@ -317,12 +317,17 @@ No per-token API billing. Route through subscriptions you already pay for.
 | CLI | Default Model | Auth | Cost |
 |---|---|---|---|
 | **Claude** | `opus-4-6` | `claude auth login` | Claude Max subscription |
+| **Claude E** | `opus-4-6` | underlying `claude auth login` | Experimental interactive Claude wrapper |
+| **AI-E** | provider-selected | selected provider auth | Multi-provider runtime wrapper |
+| **Antigravity** | `gemini-3.5-flash` | checked by `agy` at run time | Experimental AGY print-mode runtime |
 | **Codex** | `gpt-5.5` | `codex login` | ChatGPT Pro subscription |
 | **Codex App** | `gpt-5.4` | `codex login` | ChatGPT Pro subscription |
 | **Gemini** | `gemini-3.1-pro-preview` | `gemini` | Gemini Advanced subscription |
 | **Grok** | `grok-build` | `grok login --oauth` | Grok subscription; quota is auth/status-only |
 | **OpenCode** | `minimax-m2.7` | `opencode` | Free models available |
 | **Copilot** | `gpt-5-mini` | `copilot login` | Free tier available |
+
+The quota/status panel keeps the same runtime keyset as the registry. Wrapper runtimes (`ai-e`, `claude-e`, `codex-app`) delegate to their underlying provider, while AGY/Grok/OpenCode are shown as auth/status-only when their CLIs do not expose quota windows.
 
 **Fallback chain**: if one engine is rate-limited, the next picks up. Configure with `/fallback [cli1 cli2...]`.
 
@@ -442,10 +447,10 @@ Voice input works on Web (mic button), Telegram (voice messages), and Discord. P
 
 ```bash
 jaw mcp install @anthropic/context7
-# → syncs to Claude, Codex, Gemini, OpenCode, Copilot config files simultaneously
+# → syncs to Claude, Codex, Gemini, OpenCode, Copilot, and Antigravity config files simultaneously
 ```
 
-No more editing several different JSON files. Install once, every MCP-aware engine gets it. Grok CLI is a standard runtime here, but it is not counted as MCP-sync capable until Grok exposes a compatible config surface.
+No more editing several different JSON files. Install once, every MCP-aware engine gets it. Grok CLI is a standard runtime here, but it is not counted as MCP-sync capable until Grok exposes a compatible config surface. Antigravity MCP sync is a separate config target from the `agy` runtime registry entry.
 
 ```bash
 jaw mcp sync       # re-sync after manual edits

@@ -73,7 +73,7 @@ export const GEMINI_MODEL_PICKER_OBSERVATION: FrontendCapabilityObservation = {
     source: 'live-frontend',
     selectorCandidates: ['button[aria-label="Open mode picker"]', '[role="menu"] [role="menuitem"]'],
     textCandidates: ['Fast', 'Thinking', 'Pro', 'Gemini 3', '3.1 Pro'],
-    activationPath: ['click Open mode picker', 'choose Fast|Thinking|Pro menuitem', 'verify picker label'],
+    activationPath: ['click Open mode picker', 'choose Flash-Lite|Flash|Pro menuitem', 'verify picker label'],
     activeStateSignals: ['mode picker button text equals selected mode'],
     mutationRisk: 'medium',
     notes: ['Observed separately from Deep Think in headed 30_browser on 2026-04-29.', 'Deep Think remains a Tools menu capability.'],

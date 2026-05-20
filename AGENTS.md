@@ -1,6 +1,6 @@
 # cli-jaw
 
-System-level AI agent with full computer control via CLI wrapping (claude, codex, codex-app, gemini, grok, opencode, copilot).
+System-level AI agent with full computer control via CLI wrapping (agy, ai-e, claude, claude-e, codex, codex-app, gemini, grok, opencode, copilot).
 
 ## Repository Structure
 
@@ -44,7 +44,7 @@ git add devlog && git commit -m "chore: update devlog ref" && git push
 
 - `structure/` is the current architecture-doc hub; do not point new docs at `devlog/structure/`.
 - Keep `README.md`, root `AGENTS.md`, root `CLAUDE.md`, and `structure/AGENTS.md` synchronized when command/API/orchestration surfaces change.
-- Recent non-strict hotspots: explicit `/continue`, Gemini `--skip-trust --approval-mode yolo`, bounded tool-log sanitizer, canonical `/api/channel/send`, heartbeat `every`/`cron` schedules, browser runtime diagnostics/session lifecycle, and `npm run gate:all`.
+- Recent non-strict hotspots: explicit `/continue`, Gemini `--skip-trust --approval-mode yolo`, AGY `-p` print-mode runtime, bounded tool-log sanitizer, canonical `/api/channel/send`, heartbeat `every`/`cron` schedules, browser runtime diagnostics/session lifecycle, and `npm run gate:all`.
 
 ### Line Count Format (`str_func.md`)
 

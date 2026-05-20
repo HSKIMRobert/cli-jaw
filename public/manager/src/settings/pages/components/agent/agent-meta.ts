@@ -25,9 +25,15 @@ export type ActiveOverride = {
     effort?: string;
 };
 
-export const PRIMARY_CLIS: ReadonlyArray<string> = ['claude', 'codex', 'gemini'];
+export const PRIMARY_CLIS: ReadonlyArray<string> = ['claude', 'claude-e', 'agy', 'codex', 'gemini'];
 
 export const CLI_META: Record<string, CliMeta> = {
+    agy: {
+        label: 'Antigravity',
+        models: ['gemini-3.5-flash'],
+        efforts: [],
+        effortNote: 'AGY print mode uses -p; model/effort flags are not exposed by agy 1.0.0',
+    },
     'ai-e': {
         label: 'AI-E',
         defaultProvider: 'claude',

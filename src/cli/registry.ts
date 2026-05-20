@@ -4,6 +4,16 @@ import { getDefaultClaudeChoices, getDefaultClaudeModel } from './claude-models.
 import type { CliEngine } from '../types/cli-engine.js';
 
 export const CLI_REGISTRY = {
+    agy: {
+        label: 'Antigravity',
+        binary: 'agy',
+        experimental: true,
+        defaultModel: 'gemini-3.5-flash',
+        defaultEffort: '',
+        efforts: [],
+        effortNote: 'AGY print mode uses -p; model/effort flags are not exposed by agy 1.0.0',
+        models: ['gemini-3.5-flash'],
+    },
     'ai-e': {
         label: 'AI-E',
         binary: 'ai-e',

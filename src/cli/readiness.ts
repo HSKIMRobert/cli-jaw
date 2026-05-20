@@ -28,6 +28,11 @@ export function getCliReadiness(): CliReadiness[] {
         }
 
         switch (cli) {
+            case 'agy': {
+                authenticated = true; // agy performs auth checks during prompt execution.
+                source = 'installed; auth checked by agy at run time';
+                break;
+            }
             case 'ai-e': {
                 authenticated = true; // ai-e delegates auth to its selected provider runtime.
                 source = 'provider-delegated';
@@ -104,7 +109,7 @@ export function getCliReadiness(): CliReadiness[] {
     return results;
 }
 
-const DEFAULT_ORDER: readonly CliEngine[] = ['claude', 'claude-e', 'codex', 'codex-app', 'copilot', 'gemini', 'grok', 'opencode', 'ai-e'];
+const DEFAULT_ORDER: readonly CliEngine[] = ['claude', 'claude-e', 'agy', 'codex', 'codex-app', 'copilot', 'gemini', 'grok', 'opencode', 'ai-e'];
 
 export function pickFirstReadyCli(order: readonly CliEngine[] = DEFAULT_ORDER): CliEngine {
     const readiness = getCliReadiness();

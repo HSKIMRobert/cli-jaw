@@ -8,7 +8,7 @@ aliases: [Prompt Injection Flow, CLI-JAW prompt flow, prompt pipeline]
 
 # 프롬프트 삽입 흐름 — Prompt Injection Flow
 
-> cli-jaw의 프롬프트 조립 + 주입 전체 흐름. 현재 기준 소스는 `src/prompt/builder.ts` 715L, `src/memory/injection.ts`, `src/agent/spawn.ts` 1968L, `src/prompt/templates/*` (a1-system 305L, a2-default 25L, orchestration 95L, employee 86L, control-system 56L, worker-context 11L, skills 18L, heartbeat-jobs 4L, heartbeat-default 4L, vision-click 3L).
+> cli-jaw의 프롬프트 조립 + 주입 전체 흐름. 현재 기준 소스는 `src/prompt/builder.ts` 715L, `src/memory/injection.ts`, `src/agent/spawn.ts` 1721L, `src/prompt/templates/*` (a1-system 305L, a2-default 25L, orchestration 95L, employee 86L, control-system 56L, worker-context 11L, skills 18L, heartbeat-jobs 4L, heartbeat-default 4L, vision-click 3L).
 
 ---
 
@@ -29,8 +29,11 @@ graph TD
     USER["user prompt"] --> SPAWN
     HIST["historyBlock<br/>spawn.ts"] --> SPAWN
     SPAWN --> CLAUDE["Claude"]
+    SPAWN --> AGY["Antigravity<br/>agy"]
+    SPAWN --> AIE["AI-E<br/>provider wrapper"]
     SPAWN --> CLAUDEI["Claude E<br/>claude-e"]
     SPAWN --> CODEX["Codex"]
+    SPAWN --> CODEXAPP["Codex App<br/>app-server"]
     SPAWN --> GEMINI["Gemini"]
     SPAWN --> GROK["Grok"]
     SPAWN --> OPENCODE["OpenCode"]
@@ -233,8 +236,11 @@ delegation rules 블록은 prompt 끝에 항상 붙는다.
 | CLI | 시스템 프롬프트 | 현재 턴 입력 |
 | --- | --- | --- |
 | Claude | `buildArgs(..., sysPrompt)` | stdin에 `withHistoryPrompt(prompt, historyBlock)` |
-| Claude E (`claude-i`) | helper 뒤의 Claude CLI에 args로 `--model`/`--effort`/permission 전달 | fresh run은 stdin에 `withHistoryPrompt(prompt, historyBlock)`, resume run은 `claude-e --resume <sessionId>` + 현재 prompt |
+| AGY (`agy`) | 별도 system prompt flag 없음 | args 레벨 prompt (`withHistoryPrompt`)를 `agy -p`로 전달. native resume flag 없음 |
+| AI-E (`ai-e`) | 선택 provider의 adapter를 따른다 | provider별 args로 위임하되 AGY는 provider 목록에 포함하지 않는다 |
+| Claude E (`claude-e`) | helper 뒤의 Claude CLI에 args로 `--model`/`--effort`/permission 전달 | fresh run은 stdin에 `withHistoryPrompt(prompt, historyBlock)`, resume run은 `claude-e --resume <sessionId>` + 현재 prompt. legacy bucket/event namespace는 `claude-i` |
 | Codex | `{workDir}/AGENTS.md` 자동 로드 | 새 세션일 때만 stdin에 `[User Message]` 블록 |
+| Codex App | app-server thread config | JSON-RPC `turn/start`로 prompt 전달 |
 | Gemini | `GEMINI_SYSTEM_MD` tmpfile | args 레벨 prompt (`withHistoryPrompt`) |
 | Grok | cwd instruction files auto-discovery (`grok inspect` 기준) | args 레벨 prompt (`withHistoryPrompt`) via `-p`, no effort/system-prompt flags for `grok-build` |
 | OpenCode | args 빌드 시 sysPrompt 포함 | args 레벨 prompt (`withHistoryPrompt`) |
@@ -248,7 +254,7 @@ delegation rules 블록은 prompt 끝에 항상 붙는다.
 
 ### Resume 처리
 
-- standard CLI는 `buildResumeArgs()`로 세션 ID를 전달한다
+- standard CLI는 `buildResumeArgs()`로 세션 ID를 전달한다. AGY는 native resume을 지원하지 않아 일반 `agy -p` args를 다시 만든다
 - Copilot ACP는 `loadSession()`을 먼저 시도한다
 - ACP `loadSession()` 실패 시에만 `createSession()` 후 history fallback을 다시 붙인다
 

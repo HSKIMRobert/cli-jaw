@@ -175,6 +175,43 @@ test('QS-005: /api/quota classify separates no-creds from API failure', () => {
     );
 });
 
+test('QS-005b: /api/quota returns every top-level CLI runtime key', () => {
+    const settingsRouteSrc = readSource(
+        path.join(import.meta.dirname, '../../src/routes/settings.ts'), 'utf8'
+    );
+    assert.ok(
+        settingsRouteSrc.includes('CLI_KEYS.map((key) => [key, quotaByCli[key]'),
+        '/api/quota should be keyed by CLI_KEYS instead of a hand-maintained subset',
+    );
+    for (const key of ['agy', "'ai-e'", 'claude', "'claude-e'", 'codex', "'codex-app'", 'gemini', 'grok', 'opencode', 'copilot']) {
+        assert.ok(settingsRouteSrc.includes(`${key}:`), `/api/quota should define ${key}`);
+    }
+});
+
+test('QS-005c: AGY quota is explicit auth/status-only metadata', () => {
+    const settingsRouteSrc = readSource(
+        path.join(import.meta.dirname, '../../src/routes/settings.ts'), 'utf8'
+    );
+    assert.ok(
+        settingsRouteSrc.includes("quotaSource: 'not-exposed-by-agy-cli'"),
+        'AGY should not fake quota windows',
+    );
+    assert.ok(
+        settingsRouteSrc.includes("displayTier: 'Antigravity'"),
+        'AGY should have display metadata for the status UI',
+    );
+});
+
+test('QS-005d: wrapper runtimes delegate quota to their underlying runtime', () => {
+    const settingsRouteSrc = readSource(
+        path.join(import.meta.dirname, '../../src/routes/settings.ts'), 'utf8'
+    );
+    assert.ok(settingsRouteSrc.includes('resolveAiEQuotaProvider'), 'AI-E provider should be resolved from settings');
+    assert.ok(settingsRouteSrc.includes("quotaSource: `ai-e:${aiEProvider}`"), 'AI-E should expose provider delegation metadata');
+    assert.ok(settingsRouteSrc.includes("quotaSource: 'claude-e:underlying-claude'"), 'Claude E should delegate to Claude quota');
+    assert.ok(settingsRouteSrc.includes("quotaSource: 'codex-app:underlying-codex'"), 'Codex App should delegate to Codex quota');
+});
+
 // ── Frontend: 3-state dot classification ──
 
 test('QS-006: settings.ts has 3-state dotClass (ok/warn/missing)', () => {
@@ -222,10 +259,25 @@ test('QS-010: QuotaEntry type includes authenticated and error fields', () => {
     );
 });
 
-test('QS-010e: QuotaEntry type includes Grok auth/status-only fields', () => {
-    for (const field of ['quotaCapable?: boolean', 'quotaSource?: string', 'sessionUsageCapable?: boolean', 'displayTier?: string', 'sessionUsage?:']) {
+test('QS-010e: QuotaEntry type includes auth/status-only fields', () => {
+    for (const field of ['quotaCapable?: boolean', 'quotaSource?: string', 'sessionUsageCapable?: boolean', 'displayTier?: string', 'delegatedProvider?: string', 'sessionUsage?:']) {
         assert.ok(settingsSrc.includes(field), `QuotaEntry should include ${field}`);
     }
+});
+
+test('QS-010f: frontend renders generic status-only quota rows, not Grok-only rows', () => {
+    assert.ok(
+        settingsSrc.includes('q?.quotaCapable === false'),
+        'status-only rendering should key off quotaCapable=false',
+    );
+    assert.ok(
+        settingsSrc.includes('describeStatusOnlyQuota'),
+        'status-only rows should use provider-aware copy',
+    );
+    assert.ok(
+        !settingsSrc.includes("name === 'grok' && q?.quotaCapable === false"),
+        'status-only rendering must not be hardcoded to Grok only',
+    );
 });
 
 test('QS-010b: QuotaWindow type preserves source modelId for compact Gemini labels', () => {
