@@ -8,6 +8,7 @@ export const MIME_TO_EXT: Record<string, string> = {
     'audio/mpeg': '.mp3',
     'audio/wav': '.wav',
     'application/pdf': '.pdf',
+    'application/zip': '.zip',
 };
 
 export const IMAGE_MIMES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
@@ -57,6 +58,10 @@ export function detectMimeFromBuffer(buffer: Buffer): string | null {
     // PDF: %PDF
     if (buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46) {
         return 'application/pdf';
+    }
+    // ZIP (and ZIP-based: .docx, .xlsx, .jar, .apk): PK\x03\x04
+    if (buffer[0] === 0x50 && buffer[1] === 0x4b && buffer[2] === 0x03 && buffer[3] === 0x04) {
+        return 'application/zip';
     }
     return null;
 }
