@@ -18,8 +18,8 @@ aliases: [CLI-JAW Agent Spawn, agent runtime, ACP orchestration]
 | File | Line count | Role |
 | --- | ---: | --- |
 | `src/agent/alert-escalation.ts` | 80L | alert escalation event helper |
-| `src/agent/args.ts` | 339L | CLI별 신규/재개 인자 생성; AGY print-mode args, Gemini full-access + workspace include-directory flags, Grok streaming-json args, Claude Interactive helper args 포함 |
-| `src/agent/agy-runtime.ts` | 10L | AGY timeout stdout 판별/메시지 정규화 |
+| `src/agent/args.ts` | 346L | CLI별 신규/재개 인자 생성; AGY print-mode + per-run `--log-file` + `--conversation` resume args, Gemini full-access + workspace include-directory flags, Grok streaming-json args, Claude Interactive helper args 포함 |
+| `src/agent/agy-runtime.ts` | 20L | AGY timeout stdout 판별/메시지 정규화 + stdout/log conversation id 추출 |
 | `src/agent/claude-e-runtime.ts` | 44L | `jaw_runtime` helper event를 legacy `agent:claude-i:*` runtime/status broadcast로 변환 |
 | `src/agent/cli-helpers.ts` | 7L | Claude-like CLI 판별 helper |
 | `src/agent/codex-app-client.ts` | 259L | Codex App stdio server client |
@@ -35,7 +35,7 @@ aliases: [CLI-JAW Agent Spawn, agent runtime, ACP orchestration]
 | `src/agent/session-persistence.ts` | 74L | main session persistence gate; `claude-i` SIGINT exit 2 is resumable |
 | `src/agent/smoke-detector.ts` | 141L | smoke response 감지 + auto-continue 판단 |
 | `src/agent/spawn-env.ts` | 148L | AGY plain-text `NO_COLOR=1`, OpenCode/Gemini 전용 env/permission 보정 |
-| `src/agent/spawn.ts` | 1721L | spawn/ACP/stream/DB/broadcast + queue drain 핵심; AGY plain-text output path + `claude-i` prompt/write/runtime event bridge |
+| `src/agent/spawn.ts` | 1739L | spawn/ACP/stream/DB/broadcast + queue drain 핵심; AGY plain-text output/log session capture path + `claude-i` prompt/write/runtime event bridge |
 | `src/agent/tool-timeout.ts` | 33L | tool inactivity timeout helper |
 | `src/agent/watchdog.ts` | 104L | idle/progress watchdog; progress extends deadline within 4h hard cap |
 
@@ -81,11 +81,11 @@ aliases: [CLI-JAW Agent Spawn, agent runtime, ACP orchestration]
 ### Standard CLI branch
 
 - `claude`는 stdin에 `withHistoryPrompt(prompt, historyBlock)`를 직접 쓴다.
-- `agy`는 `agy -p <prompt> --print-timeout 10m` 표면을 실행한다. auto permission이면 `--dangerously-skip-permissions`, workspace 보정은 반복 `--add-dir`로 넘기고 model/effort/output-format/include-directories flag는 넘기지 않는다. stdout은 NDJSON으로 파싱하지 않고 plain text로 `agent_output`에 누적하며, `Error: timed out waiting for response` stdout은 effective exit code `124`로 lifecycle에 전달한다.
+- `agy`는 fresh run에서 `agy -p <prompt> --print-timeout 10m --log-file <tmp>` 표면을 실행하고, resume run에서 `agy --conversation <sessionId> -p <prompt> --print-timeout 10m --log-file <tmp>`을 실행한다. AGY print mode는 native AGY UI에서 현재 선택된 모델을 쓰며, `agy 1.0.0` help에는 per-run `--model`/`--effort` flag가 없다. `-c`/`--continue`는 최신 대화 재개라 저장된 bucket session에는 쓰지 않는다. auto permission이면 `--dangerously-skip-permissions`, workspace 보정은 반복 `--add-dir`로 넘기고 model/effort/output-format/include-directories flag는 넘기지 않는다. stdout은 NDJSON으로 파싱하지 않고 plain text로 `agent_output`에 누적하며, stdout의 `Resume with: agy --conversation=<id>` 또는 per-run log의 `Created conversation <id>`/`conversation=<id>`에서 session id를 저장하고, `Error: timed out waiting for response` stdout은 effective exit code `124`로 lifecycle에 전달한다.
 - `claude-e` provider는 `claude-e run --jsonl --output-format stream-json --timeout-ms 600000` 표면을 우선 실행한다. 탐지는 `CLAUDE_E_BIN`, bundled npm `claude-e`, PATH `claude-e`, compatibility `claude-exec`, legacy `jaw-claude-i` / `claude-i`, native target fallback 순서다. fresh run은 stdin에 `withHistoryPrompt(prompt, historyBlock)`를 쓰고, resume run은 helper의 `--resume <sessionId>`와 현재 prompt만 넘긴다.
 - `claude-e` helper가 내보내는 `jaw_runtime` 이벤트는 discriminator 전에 가로채 기존 `agent:claude-i:*` runtime broadcast로 변환하고, `session_started`/`interrupted`의 `sessionId`를 main session persistence에 반영한다.
 - `codex`는 resume가 아닐 때만 stdin에 `[User Message]` 블록을 쓴다.
-- `agy`, `gemini`, `grok`, `opencode`는 `promptForArgs = withHistoryPrompt(prompt, historyBlock)`를 받아 인자 레벨에서 prompt/history를 합친다. AGY는 native resume flag가 없으므로 resume 경로에서도 일반 print-mode args를 재사용한다.
+- `agy`, `gemini`, `grok`, `opencode`는 fresh run에서 `promptForArgs = withHistoryPrompt(prompt, historyBlock)`를 받아 인자 레벨에서 prompt/history를 합친다. AGY resume은 native `--conversation <sessionId>`를 쓰므로 현재 prompt만 넘긴다.
 - `gemini` fresh/resume 인자는 headless `-p`, model, stream JSON, `--skip-trust`, `--approval-mode yolo`, 그리고 workspace 보정을 함께 다룬다.
 - `grok` fresh/resume 인자는 `-p`, optional `-m`, `--output-format streaming-json`, `--no-alt-screen`, auto permission이면 `--always-approve --permission-mode bypassPermissions`만 넘긴다. `grok-build`는 서버가 `reasoningEffort`를 거부하므로 `--effort`, `--reasoning-effort`, system-prompt override 계열 플래그를 넘기지 않는다.
 - Grok `streaming-json` stdout이 실제 tool event를 생략하는 버전은 정상 종료 후 `grok trace --local --json <sessionId>`를 한 번 호출하고 `chat_history.jsonl`의 `tool_calls`/`tool_result`를 최종 toolLog에 backfill한다. `ai-e` Grok provider도 `effectiveProvider=grok`로 같은 lifecycle 보강을 탄다.
@@ -105,7 +105,7 @@ aliases: [CLI-JAW Agent Spawn, agent runtime, ACP orchestration]
 - `persistMainSession()`는 `forceNew`, `employeeSessionId`, `!sessionId`, `isFallback`, 비정상 exit를 모두 차단한다.
 - 저장할 때는 `cli`, `sessionId`, `model`, `permissions`, `workingDir`, `effort`를 같이 기록한다.
 - `shouldInvalidateResumeSession()`는 `code === 0`이면 무조건 false이고, 실패한 stderr/resultText에서 generic matcher + CLI별 matcher를 함께 검사한다.
-- resume 무효화 조건은 `claude`, `claude-e`/legacy `claude-i`, `codex`, `gemini`, `grok`, `opencode`, `copilot` 각각 따로 분기된다. AGY는 native resume을 지원하지 않아 `providerSupportsResume`에서 제외된다. `claude-i`는 Claude-like 세션 ID를 쓰지만 별도 bucket(`claude-i`)에 저장해 standard `claude` resume과 섞이지 않는다. Grok는 generic `session not found` 계열을 공유하고, copilot은 `session not found`와 `loadSession failed`를 본다.
+- resume 무효화 조건은 `claude`, `claude-e`/legacy `claude-i`, `agy`, `codex`, `gemini`, `grok`, `opencode`, `copilot` 각각 따로 분기된다. AGY는 plain stdout 또는 per-run log에서 conversation id를 추출해 bucket session으로 저장하고, 다음 resume에서 `--conversation <sessionId>`를 쓴다. `claude-i`는 Claude-like 세션 ID를 쓰지만 별도 bucket(`claude-i`)에 저장해 standard `claude` resume과 섞이지 않는다. Grok는 generic `session not found` 계열을 공유하고, copilot은 `session not found`와 `loadSession failed`를 본다.
 
 ---
 

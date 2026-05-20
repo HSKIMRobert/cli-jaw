@@ -248,7 +248,7 @@ jaw dispatch --agent "Frontend" --task "dashboard.tsx의 CSS 그리드 레이아
 | **Claude** | `opus-4-6` | `claude auth login` | Claude Max 구독 |
 | **Claude E** | `opus-4-6` | underlying `claude auth login` | 실험적 인터랙티브 Claude wrapper |
 | **AI-E** | provider-selected | 선택 provider 인증 | 다중 provider runtime wrapper |
-| **Antigravity** | `gemini-3.5-flash` | `agy` 실행 시 확인 | 실험적 AGY print-mode runtime |
+| **Antigravity** | AGY-selected | `agy` 실행 시 확인 | `--conversation` resume을 쓰는 실험적 AGY print-mode runtime; 모델 변경은 native AGY UI 표면 |
 | **Codex** | `gpt-5.5` | `codex login` | ChatGPT Pro 구독 |
 | **Codex App** | `gpt-5.4` | `codex login` | ChatGPT Pro 구독 |
 | **Gemini** | `gemini-3.1-pro-preview` | `gemini` | Gemini Advanced 구독 |

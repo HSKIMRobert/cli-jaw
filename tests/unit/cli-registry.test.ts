@@ -57,7 +57,9 @@ test('Antigravity registry exposes AGY as a top-level runtime, not an ai-e provi
     assert.equal(CLI_REGISTRY.agy.binary, 'agy');
     assert.equal(CLI_REGISTRY.agy.defaultModel, 'gemini-3.5-flash');
     assert.deepEqual(CLI_REGISTRY.agy.efforts, []);
-    assert.match(CLI_REGISTRY.agy.effortNote || '', /print mode uses -p/);
+    assert.match(CLI_REGISTRY.agy.effortNote || '', /current AGY-selected model/);
+    assert.match(CLI_REGISTRY.agy.effortNote || '', /native AGY UI/);
+    assert.match(CLI_REGISTRY.agy.effortNote || '', /no --model\/--effort flags/);
     assert.equal(CLI_REGISTRY['ai-e'].providers.includes('agy'), false);
 });
 

@@ -52,7 +52,7 @@ import type { SpawnContext, ToolEntry } from '../types/agent.js';
 import { asCliEventRecord, discriminate, fieldString, type CliEventRecord } from '../types/cli-events.js';
 import { isJawRuntimeEvent, handleJawRuntimeEvent } from './claude-e-runtime.js';
 import { appendTraceEvent, stampTraceTool, startTraceRun } from '../trace/store.js';
-import { formatAgyTimeoutMessage, isAgyTimeoutOutput } from './agy-runtime.js';
+import { extractAgyConversationId, formatAgyTimeoutMessage, isAgyTimeoutOutput } from './agy-runtime.js';
 
 // ─── State ───────────────────────────────────────────
 
@@ -674,8 +674,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     const bucketResumeKey = typeof bucketRow?.resume_key === 'string' ? bucketRow.resume_key : null;
     const bucketUpdatedAt = bucketRow?.updated_at ?? null;
     const resumeKey = buildSessionResumeKey(cli, spawnEnv);
-    const providerSupportsResume = cli !== 'agy'
-        && !(cli === 'ai-e' && effectiveProvider !== 'claude');
+    const providerSupportsResume = !(cli === 'ai-e' && effectiveProvider !== 'claude');
     const canResumeBucketSession = !bucketSessionId || shouldResumeBucketSession(
         cli,
         model,
@@ -742,6 +741,9 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     const claudeBin = (cli === 'claude-e' || (cli === 'ai-e' && effectiveProvider === 'claude'))
         ? detectCli('claude').path
         : null;
+    const agyLogFile = cli === 'agy'
+        ? join(os.tmpdir(), `jaw-agy-${agentId || 'main'}-${Date.now()}-${crypto.randomUUID()}.log`)
+        : null;
     const argOptions = {
         fastMode: cfg.fastMode,
         sysPrompt,
@@ -749,6 +751,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         workingDir: settings["workingDir"],
         aiEProvider: effectiveProvider,
         ...(claudeBin ? { claudeBin } : {}),
+        ...(agyLogFile ? { agyLogFile } : {}),
     };
     let args;
     if (isResume) {
@@ -1622,6 +1625,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         if (cli === 'agy') {
             const text = chunk.toString();
             ctx.fullText += text;
+            if (!ctx.sessionId) ctx.sessionId = extractAgyConversationId(ctx.fullText);
             appendTraceEvent({ runId: ctx.traceRunId, source: 'cli_raw', eventType: 'plain_text', raw: text });
             if (ctx.liveScope) appendLiveRunText(ctx.liveScope, text);
             broadcast('agent_output', {
@@ -1669,6 +1673,20 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         const wasKilled = !!stdKillReason;
         const wasSteer = stdKillReason === 'steer';
 
+        if (cli === 'agy' && !ctx.sessionId) ctx.sessionId = extractAgyConversationId(ctx.fullText);
+        if (cli === 'agy' && agyLogFile && !ctx.sessionId) {
+            try {
+                if (fs.existsSync(agyLogFile)) {
+                    ctx.sessionId = extractAgyConversationId(fs.readFileSync(agyLogFile, 'utf8'));
+                }
+            } catch (e) {
+                console.warn('[jaw:agy] log session capture failed:', (e as Error).message);
+            }
+        }
+        if (cli === 'agy' && agyLogFile) {
+            try { fs.rmSync(agyLogFile, { force: true }); }
+            catch (e) { console.warn('[jaw:agy] log cleanup failed:', (e as Error).message); }
+        }
         const agyTimedOut = cli === 'agy' && isAgyTimeoutOutput(ctx.fullText);
         const effectiveExitCode = agyTimedOut ? 124 : code;
         if (agyTimedOut) {

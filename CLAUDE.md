@@ -11,7 +11,7 @@ This repository is a Node.js ESM orchestration runtime for boss/employee dispatc
 ## Current Runtime Notes
 
 - PABCD entry is explicit: `jaw orchestrate`, `/orchestrate`, or `/pabcd`. Resume is explicit `/continue`; natural-language “continue/계속/이어서” remains a normal prompt.
-- AGY (`agy`) is a top-level runtime, not an `ai-e` provider. It runs in print mode through `agy -p`, does not expose model/effort flags, checks auth at run time, and uses plain-text stdout rather than NDJSON parsing.
+- AGY (`agy`) is a top-level runtime, not an `ai-e` provider. It runs in print mode through `agy -p` using AGY's current native selected model, captures print-mode session ids from a per-run `--log-file`, resumes exact saved sessions with `--conversation <id>`, exposes model switching only through native AGY UI (no `--model`/`--effort` flags), checks auth at run time, and uses plain-text stdout rather than NDJSON parsing.
 - Claude E is the registry key `claude-e`; legacy helper/event internals still use the `claude-i` bucket and `agent:claude-i:*` events.
 - Gemini full-access runs use `--skip-trust --approval-mode yolo` on both fresh and resume sessions.
 - `/api/channel/send` is the canonical outbound Telegram/Discord delivery endpoint.

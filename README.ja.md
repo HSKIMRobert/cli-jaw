@@ -248,7 +248,7 @@ Employee は「Frontend は CSS、Backend は API」用。サブエージェン�
 | **Claude** | `opus-4-6` | `claude auth login` | Claude Max サブスクリプション |
 | **Claude E** | `opus-4-6` | underlying `claude auth login` | 実験的なインタラクティブ Claude wrapper |
 | **AI-E** | provider-selected | 選択 provider の認証 | マルチ provider runtime wrapper |
-| **Antigravity** | `gemini-3.5-flash` | `agy` 実行時に確認 | 実験的な AGY print-mode runtime |
+| **Antigravity** | AGY-selected | `agy` 実行時に確認 | `--conversation` resume 対応の実験的な AGY print-mode runtime。モデル変更は native AGY UI 側 |
 | **Codex** | `gpt-5.5` | `codex login` | ChatGPT Pro サブスクリプション |
 | **Codex App** | `gpt-5.4` | `codex login` | ChatGPT Pro サブスクリプション |
 | **Gemini** | `gemini-3.1-pro-preview` | `gemini` | Gemini Advanced サブスクリプション |

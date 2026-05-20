@@ -248,7 +248,7 @@ jaw dispatch --agent "Frontend" --task "修复 dashboard.tsx 中的 CSS grid 布
 | **Claude** | `opus-4-6` | `claude auth login` | Claude Max 订阅 |
 | **Claude E** | `opus-4-6` | underlying `claude auth login` | 实验性互动 Claude wrapper |
 | **AI-E** | provider-selected | 所选 provider 认证 | 多 provider runtime wrapper |
-| **Antigravity** | `gemini-3.5-flash` | 由 `agy` 在运行时检查 | 实验性 AGY print-mode runtime |
+| **Antigravity** | AGY-selected | 由 `agy` 在运行时检查 | 支持 `--conversation` resume 的实验性 AGY print-mode runtime；模型切换保留在 native AGY UI |
 | **Codex** | `gpt-5.5` | `codex login` | ChatGPT Pro 订阅 |
 | **Codex App** | `gpt-5.4` | `codex login` | ChatGPT Pro 订阅 |
 | **Gemini** | `gemini-3.1-pro-preview` | `gemini` | Gemini Advanced 订阅 |

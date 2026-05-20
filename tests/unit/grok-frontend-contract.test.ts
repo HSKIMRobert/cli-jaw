@@ -86,9 +86,9 @@ test('LEGACY-FE-001: legacy settings sidebar exposes every canonical CLI row', (
 
 test('GROK-FE-003: quota renderer shows Grok Heavy auth-status instead of fake quota bars', () => {
     const status = src('public/js/features/settings-cli-status.ts');
-    assert.match(status, /name === 'grok'/);
     assert.match(status, /q\?\.quotaCapable === false/);
-    assert.match(status, /Grok Heavy/);
+    assert.match(status, /describeStatusOnlyQuota/);
+    assert.match(status, /q\.displayTier \|\| providerLabel\(name\)/);
     assert.match(status, /Quota not exposed by Grok CLI/);
     assert.match(status, /https:\/\/x\.ai\/cli\/install\.sh/, 'Grok install hint should point to xAI native installer');
     assert.match(status, /grok login --oauth/, 'Grok auth hint should match the installed Grok Build CLI');
