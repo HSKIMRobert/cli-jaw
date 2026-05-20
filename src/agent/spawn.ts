@@ -82,7 +82,7 @@ export function setCurrentMainMeta(meta: MainSessionMeta | null): void {
 
 export function buildAiERuntimeStatusMeta(cli: string, provider: string, model: string): Record<string, unknown> {
     if (cli !== 'ai-e') return {};
-    const mode = provider === 'claude' ? 'pty' : 'headless';
+    const mode = 'pty';
     return {
         selector: 'ai-e',
         provider,
@@ -208,20 +208,20 @@ function getActiveEffectiveProvider(): string | null {
     return typeof currentMainMeta?.effectiveProvider === 'string' ? currentMainMeta.effectiveProvider : null;
 }
 
-function isActiveClaudePtyRuntime(): boolean {
+function isActiveAiEPtyRuntime(): boolean {
     const cli = getActiveMainCli();
-    return cli === 'claude-e' || (cli === 'ai-e' && getActiveEffectiveProvider() === 'claude');
+    return cli === 'claude-e' || cli === 'ai-e';
 }
 
 function getKillPolicy(reason: string): { signal: NodeJS.Signals; escalationMs: number } {
-    if (reason === 'steer' && isActiveClaudePtyRuntime()) {
+    if (reason === 'steer' && isActiveAiEPtyRuntime()) {
         return { signal: 'SIGINT', escalationMs: CLAUDE_E_STEER_KILL_ESCALATION_MS };
     }
     return { signal: 'SIGTERM', escalationMs: DEFAULT_KILL_ESCALATION_MS };
 }
 
 export function getSteerWaitMsForActiveAgent(): number {
-    return isActiveClaudePtyRuntime() ? CLAUDE_E_STEER_WAIT_MS : DEFAULT_STEER_WAIT_MS;
+    return isActiveAiEPtyRuntime() ? CLAUDE_E_STEER_WAIT_MS : DEFAULT_STEER_WAIT_MS;
 }
 
 /** Get kill reason for a process (by PID), consuming it */
@@ -664,7 +664,8 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     // cross-model resume (gpt-5.4 ↔ gpt-5.3-codex-spark) doesn't send a
     // mismatched session_id to the server.
     const currentBucket = resolveSessionBucket(cli, model, effectiveProvider);
-    const cliEnv = applyCliEnvDefaults(cli, opts.env);
+    const envDefaultsCli = cli === 'ai-e' ? effectiveProvider : cli;
+    const cliEnv = applyCliEnvDefaults(envDefaultsCli, opts.env);
     const spawnEnv = makeCleanEnv(cliEnv);
     const bucketRow = currentBucket ? getSessionBucket.get(currentBucket) as SessionBucketRow | undefined : null;
     const bucketSessionId = bucketRow?.session_id || null;
@@ -733,7 +734,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             cli === 'gemini' ? GEMINI_HISTORY_MAX_CHARS : 8000,
         )
         : '';
-    const promptForArgs = (cli === 'gemini' || cli === 'grok' || cli === 'opencode')
+    const promptForArgs = (cli === 'gemini' || cli === 'grok' || cli === 'opencode' || (cli === 'ai-e' && effectiveProvider !== 'claude'))
         ? withHistoryPrompt(prompt, historyBlock)
         : prompt;
     const claudeBin = (cli === 'claude-e' || (cli === 'ai-e' && effectiveProvider === 'claude'))
@@ -1466,7 +1467,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
 
     if (cli === 'claude') {
         child.stdin.write(withHistoryPrompt(prompt, historyBlock));
-    } else if (cli === 'claude-e' || cli === 'ai-e') {
+    } else if (cli === 'claude-e' || (cli === 'ai-e' && effectiveProvider === 'claude')) {
         child.stdin.write(isResume ? prompt : withHistoryPrompt(prompt, historyBlock));
     } else if (cli === 'codex' && !isResume) {
         const codexStdin = historyBlock
@@ -1580,7 +1581,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         if (!ctx.sessionId) ctx.sessionId = extractSessionId(dispatchCli, event);
         extractFromEvent(dispatchCli, event, ctx, agentLabel, empTag);
         // Gemini watchdog: AFTER extractFromEvent sets geminiResultSeen
-        if (cli === 'gemini' && ctx.geminiResultSeen && !geminiWatchdog) {
+        if (dispatchCli === 'gemini' && ctx.geminiResultSeen && !geminiWatchdog) {
             geminiWatchdog = setTimeout(() => {
                 console.warn(`[jaw:gemini-watchdog] ${agentLabel} — result seen but close not received after 10s, killing`);
                 try { child.kill('SIGTERM'); } catch { /* already dead */ }
