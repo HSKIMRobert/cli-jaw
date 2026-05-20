@@ -322,14 +322,19 @@ skill, employee, mcp, memory, browser, prompt, version
 
 `src/cli/registry.ts`
 
-현재 CLI registry는 5개 backend를 갖는다.
+현재 CLI registry는 10개 top-level runtime을 갖는다. `agy`는 `ai-e` provider가 아니라 별도 runtime이며, `ai-e`/`claude-e`/`codex-app` 같은 wrapper runtime은 provider quota/status를 위임한다.
 
 | CLI | Default Model | Default Effort |
 | --- | --- | --- |
+| `agy` | `gemini-3.5-flash` | `''` |
+| `ai-e` | `sonnet` | `medium` |
 | `claude` | `sonnet` | `medium` |
+| `claude-e` | `sonnet` | `medium` |
 | `codex` | `gpt-5.4` | `medium` |
+| `codex-app` | `gpt-5.4` | `medium` |
 | `gemini` | `gemini-3-flash-preview` | `''` |
-| `opencode` | `opencode/big-pickle` | `''` |
+| `grok` | `grok-build` | `''` |
+| `opencode` | `opencode-go/kimi-k2.6` | `''` |
 | `copilot` | `claude-sonnet-4.6` | `high` |
 
 `CLI_KEYS`, `buildDefaultPerCli()`, `buildModelChoicesByCli()`가 `/cli`, `/model`, `/flush` completion과 settings 기본값 생성에 모두 재사용된다.
