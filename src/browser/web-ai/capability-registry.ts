@@ -320,17 +320,18 @@ const REGISTRY: CapabilityEntry[] = [
     {
         id: 'gemini-file-context',
         vendor: 'gemini',
-        status: 'fail-closed',
+        status: 'ported-cli-jaw',
         ownerPrd: '32.8/32.9',
-        commandBehavior: 'separate adapter; no ChatGPT selector reuse',
-        browserMutationAllowed: false,
+        commandBehavior: 'separate adapter via filechooser event; no ChatGPT selector reuse',
+        browserMutationAllowed: true,
         failClosedStage: 'attachment-preflight',
         requiredOfficialDocs: [
             'https://support.google.com/gemini/answer/14903178',
             'https://support.google.com/gemini/answer/16275805',
         ],
-        browserGate: 'absent',
-        cliJawPortGate: 'absent',
+        browserGate: 'present',
+        cliJawPortGate: 'present',
+        family: 'attachments',
     },
     {
         id: 'deep-research',

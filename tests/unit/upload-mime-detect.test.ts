@@ -63,6 +63,11 @@ test('detects PDF magic bytes', () => {
     assert.equal(detectMimeFromBuffer(buf), 'application/pdf');
 });
 
+test('detects ZIP magic bytes (PK\\x03\\x04)', () => {
+    const buf = Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x14, 0x00, 0x06, 0x00]);
+    assert.equal(detectMimeFromBuffer(buf), 'application/zip');
+});
+
 test('returns null for unknown content', () => {
     const buf = Buffer.from('Hello, world! This is plain text.');
     assert.equal(detectMimeFromBuffer(buf), null);
