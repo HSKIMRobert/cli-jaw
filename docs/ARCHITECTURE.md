@@ -38,7 +38,8 @@
 │  browser/* · heartbeat · telegram-forwarder                 │
 ├─────────────────────────────────────────────────────────────┤
 │                   CLI BINARIES (spawned)                     │
-│  claude · codex · gemini · opencode · copilot (ACP)         │
+│  agy · ai-e · claude · claude-e · codex · codex-app         │
+│  gemini · grok · opencode · copilot (ACP)                   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -123,7 +124,7 @@ graph LR
 | `heartbeat.ts` | ~107 | Heartbeat job scheduling |
 | `memory.ts` | ~128 | Persistent memory (grep-based) |
 | `worklog.ts` | ~153 | Worklog CRUD + phase matrix |
-| `cli-registry.ts` | ~88 | 5 CLI/model single source |
+| `cli-registry.ts` | ~159 | 10 CLI/runtime + model single source |
 | `acp-client.ts` | ~315 | Copilot ACP JSON-RPC client |
 | `settings-merge.ts` | ~46 | Deep merge for perCli/activeOverrides |
 
@@ -179,7 +180,7 @@ agent.ts → spawn('copilot', ['--acp']) → JSON-RPC stdin/stdout → acp-clien
 
 - **No API keys** — uses vendor authentication (OAuth, keychain)
 - **No ban risk** — same binary the vendor ships
-- **Runtime surfaces**: claude, codex, codex-app, gemini, grok, opencode, copilot
+- **Runtime surfaces**: agy, ai-e, claude, claude-e, codex, codex-app, gemini, grok, opencode, copilot
 
 ### 2. Event Deduplication
 
@@ -362,7 +363,7 @@ main.js (entry)
 | Skills | `GET /api/skills`, `POST /api/skills/enable,disable` |
 | Browser | `POST /api/browser/start,stop,act,navigate,screenshot` |
 | Employees | `GET/POST /api/employees`, `PUT/DELETE /api/employees/:id` |
-| Quota | `GET /api/quota` (Claude/Codex/Gemini/Copilot usage + Grok auth/status-only metadata; Grok quota remaining is not exposed by the CLI) |
+| Quota | `GET /api/quota` (registry-aligned runtime keyset; direct provider usage where supported, wrapper delegation for `ai-e`/`claude-e`/`codex-app`, and status-only metadata for AGY/Grok/OpenCode when quota windows are not exposed by the CLI) |
 
 </details>
 
