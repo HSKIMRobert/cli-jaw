@@ -20,6 +20,7 @@ on:
       - 'scripts/collect-fresh-install-evidence.sh'
       - 'scripts/audit-fresh-install-evidence.mjs'
       - 'scripts/verify-release-evidence.mjs'
+      - 'scripts/require-release-evidence.mjs'
       - 'tests/unit/cli-detect.test.ts'
       - 'tests/unit/install-sh-exec.test.ts'
       - 'tests/unit/fresh-evidence-audit.test.ts'
@@ -46,6 +47,7 @@ on:
       - 'scripts/collect-fresh-install-evidence.sh'
       - 'scripts/audit-fresh-install-evidence.mjs'
       - 'scripts/verify-release-evidence.mjs'
+      - 'scripts/require-release-evidence.mjs'
       - 'tests/unit/cli-detect.test.ts'
       - 'tests/unit/install-sh-exec.test.ts'
       - 'tests/unit/fresh-evidence-audit.test.ts'
@@ -141,47 +143,37 @@ jobs:
 
       - name: Install dependencies in WSL
         shell: wsl-bash {0}
-        env:
-          WIN_WORKSPACE: ${{ github.workspace }}
         run: |
           set -euo pipefail
-          cd "$(wslpath "$WIN_WORKSPACE")"
+          cd "$(wslpath '${{ github.workspace }}')"
           npm ci --ignore-scripts
 
       - name: Type check in WSL
         shell: wsl-bash {0}
-        env:
-          WIN_WORKSPACE: ${{ github.workspace }}
         run: |
           set -euo pipefail
-          cd "$(wslpath "$WIN_WORKSPACE")"
+          cd "$(wslpath '${{ github.workspace }}')"
           npx tsc --noEmit
 
       - name: Run installer risk gate in WSL
         shell: wsl-bash {0}
-        env:
-          WIN_WORKSPACE: ${{ github.workspace }}
         run: |
           set -euo pipefail
-          cd "$(wslpath "$WIN_WORKSPACE")"
+          cd "$(wslpath '${{ github.workspace }}')"
           npm run test:install-risk
 
       - name: Build package in WSL
         shell: wsl-bash {0}
-        env:
-          WIN_WORKSPACE: ${{ github.workspace }}
         run: |
           set -euo pipefail
-          cd "$(wslpath "$WIN_WORKSPACE")"
+          cd "$(wslpath '${{ github.workspace }}')"
           npm run build
 
       - name: Smoke packaged global install in WSL
         shell: wsl-bash {0}
-        env:
-          WIN_WORKSPACE: ${{ github.workspace }}
         run: |
           set -euo pipefail
-          cd "$(wslpath "$WIN_WORKSPACE")"
+          cd "$(wslpath '${{ github.workspace }}')"
           npm run test:fresh-install -- --postinstall --skip-doctor
 
       - name: Smoke PowerShell to WSL login shell
