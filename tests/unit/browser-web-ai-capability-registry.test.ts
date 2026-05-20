@@ -94,7 +94,15 @@ test('CAP-REG-009: frontend observed list excludes unannotated legacy rows', () 
     assert.ok(!observed.some((entry) => entry.id === 'deep-research'), 'legacy shared product row remains unannotated');
 });
 
-test('CAP-REG-010: observed ChatGPT and Gemini tool schemas include active-state signals', () => {
+test('CAP-REG-010: gemini-file-context is enabled (ported-cli-jaw)', () => {
+    assert.equal(isCapabilityEnabled('gemini-file-context'), true);
+    const entry = lookupCapability('gemini-file-context');
+    assert.equal(entry.status, 'ported-cli-jaw');
+    assert.equal(entry.browserMutationAllowed, true);
+    assert.equal(entry.family, 'attachments');
+});
+
+test('CAP-REG-011: observed ChatGPT and Gemini tool schemas include active-state signals', () => {
     const rows = listCapabilitySchemas({ frontendStatus: 'schema-ready' });
     const chatgptImage = rows.find((row) => row.capabilityId === 'chatgpt-image-generation-tool');
     const geminiModel = rows.find((row) => row.capabilityId === 'gemini-model-picker');
