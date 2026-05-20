@@ -142,10 +142,11 @@ export class NotesStore {
     }
 
     private async resolveTemplateFile(name: string): Promise<string> {
-        if (!name || name.includes('/') || name.includes('\\') || name.includes('\0') || name.startsWith('.') || name.endsWith('.md')) {
+        const canonical = NotesStore.canonicalTemplateName(`${name}.md`);
+        if (!canonical || canonical !== name) {
             throw notePathError(400, 'invalid_template_name', 'template name is invalid');
         }
-        const fileName = `${name}.md`;
+        const fileName = `${canonical}.md`;
         const templatesDir = resolveNotePath(this.root, '_templates');
         if (!this.fs.existsSync(templatesDir)) {
             throw notePathError(404, 'template_not_found', 'template directory not found');
@@ -175,6 +176,8 @@ export class NotesStore {
             const entryPath = resolveNotePath(templatesDir, entry.name);
             const entryStat = await this.fs.lstat(entryPath);
             if (entryStat.isSymbolicLink()) continue;
+            if (entryStat.size > MAX_NOTE_BYTES) continue;
+            try { await assertRealPathInside(this.root, entryPath); } catch { continue; }
             templates.push({ name: canonical, path: `_templates/${entry.name}` });
         }
         return templates.sort((a, b) => a.name.localeCompare(b.name));

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { NotesStore } from '../../src/manager/notes/store.ts';
+import { MAX_NOTE_BYTES } from '../../src/manager/notes/path-guards.ts';
 
 function makeTempRoot(): string {
     const root = mkdtempSync(join(tmpdir(), 'notes-tmpl-test-'));
@@ -98,6 +99,54 @@ test('listTemplates and readTemplate are consistent', async () => {
     writeFileSync(join(root, '_templates', 'weekly.md'), '# Weekly');
     const store = new NotesStore({ root });
     const list = await store.listTemplates();
+    for (const item of list) {
+        const detail = await store.readTemplate(item.name);
+        assert.equal(detail.name, item.name);
+        assert.ok(detail.content.length > 0);
+    }
+});
+
+test('readTemplate rejects names containing .md in the stem (foo.mdbar)', async () => {
+    const root = makeTempRoot();
+    writeFileSync(join(root, '_templates', 'foo.mdbar.md'), '# Tricky');
+    const store = new NotesStore({ root });
+    await assert.rejects(() => store.readTemplate('foo.mdbar'), (err: Error) => {
+        assert.match(err.message, /invalid/i);
+        return true;
+    });
+});
+
+test('listTemplates excludes names containing .md in the stem', async () => {
+    const root = makeTempRoot();
+    writeFileSync(join(root, '_templates', 'foo.mdbar.md'), '# Hidden');
+    writeFileSync(join(root, '_templates', 'foo.md.md'), '# Also hidden');
+    writeFileSync(join(root, '_templates', 'valid.md'), '# Good');
+    const store = new NotesStore({ root });
+    const result = await store.listTemplates();
+    assert.equal(result.length, 1);
+    assert.equal(result[0].name, 'valid');
+});
+
+test('listTemplates excludes oversized templates', async () => {
+    const root = makeTempRoot();
+    writeFileSync(join(root, '_templates', 'small.md'), '# OK');
+    writeFileSync(join(root, '_templates', 'oversized.md'), 'x'.repeat(MAX_NOTE_BYTES + 1));
+    const store = new NotesStore({ root });
+    const result = await store.listTemplates();
+    assert.equal(result.length, 1);
+    assert.equal(result[0].name, 'small');
+});
+
+test('every listed template is readable (property consistency)', async () => {
+    const root = makeTempRoot();
+    writeFileSync(join(root, '_templates', 'daily.md'), '# Daily');
+    writeFileSync(join(root, '_templates', 'weekly.md'), '# Weekly');
+    writeFileSync(join(root, '_templates', 'foo.mdbar.md'), '# Filtered out');
+    writeFileSync(join(root, '_templates', 'oversized.md'), 'x'.repeat(MAX_NOTE_BYTES + 1));
+    symlinkSync(join(root, '_templates', 'daily.md'), join(root, '_templates', 'link.md'));
+    const store = new NotesStore({ root });
+    const list = await store.listTemplates();
+    assert.ok(list.length > 0);
     for (const item of list) {
         const detail = await store.readTemplate(item.name);
         assert.equal(detail.name, item.name);
