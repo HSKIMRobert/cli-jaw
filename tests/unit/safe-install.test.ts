@@ -38,6 +38,7 @@ const freshInstallEvidenceAuditSrc = readSource(join(__dirname, '../../scripts/a
 const requireReleaseEvidenceSrc = readSource(join(__dirname, '../../scripts/require-release-evidence.mjs'), 'utf8');
 const releaseScriptSrc = readSource(join(__dirname, '../../scripts/release.sh'), 'utf8');
 const releasePreviewScriptSrc = readSource(join(__dirname, '../../scripts/release-preview.sh'), 'utf8');
+const gitattributesSrc = readSource(join(__dirname, '../../.gitattributes'), 'utf8');
 const packageJson = JSON.parse(fs.readFileSync(join(__dirname, '../../package.json'), 'utf8'));
 const repoRoot = join(__dirname, '../..');
 
@@ -605,6 +606,7 @@ test('SAF-004k: postinstall platform workflow runs installer risk gate on macOS 
     assert.ok(postinstallWorkflowSrc.includes('scripts/collect-fresh-install-evidence.sh'), 'workflow triggers should include the fresh-machine evidence collector');
     assert.ok(postinstallWorkflowSrc.includes('scripts/audit-fresh-install-evidence.mjs'), 'workflow triggers should include the fresh-machine evidence auditor');
     assert.ok(postinstallWorkflowSrc.includes('scripts/verify-release-evidence.mjs'), 'workflow triggers should include the release evidence matrix gate');
+    assert.ok(postinstallWorkflowSrc.includes('scripts/require-release-evidence.mjs'), 'workflow triggers should include the publish-time release evidence gate');
     assert.ok(postinstallWorkflowSrc.includes('tests/unit/install-sh-exec.test.ts'), 'workflow triggers should include executable installer harness changes');
     assert.ok(postinstallWorkflowSrc.includes('tests/unit/fresh-evidence-audit.test.ts'), 'workflow triggers should include evidence auditor fixture tests');
     assert.ok(postinstallWorkflowSrc.includes('tests/unit/wsl-installer-exec.test.ts'), 'workflow triggers should include WSL installer harness changes');
@@ -612,8 +614,11 @@ test('SAF-004k: postinstall platform workflow runs installer risk gate on macOS 
     assert.ok(postinstallWorkflowSrc.includes('npm run test:fresh-install -- --postinstall --skip-doctor'), 'workflow should smoke-test the packed package global install');
     assert.ok(postinstallWorkflowSrc.includes('shell: wsl-bash {0}'), 'Windows packed install smoke should run inside WSL');
     assert.ok(postinstallWorkflowSrc.includes('wsl.exe -d Ubuntu-24.04 -- bash -lc'), 'workflow should verify PowerShell-to-WSL login-shell invocation');
+    assert.ok(postinstallWorkflowSrc.includes("cd \"$(wslpath '${{ github.workspace }}')\""), 'WSL steps should resolve the Windows checkout path inside WSL without relying on env forwarding');
     assert.ok(postinstallWorkflowSrc.includes('$linuxWorkspace = (wsl.exe -d Ubuntu-24.04 -- wslpath "$workspace").Trim()'), 'PowerShell step should resolve the WSL workspace before bash -lc');
     assert.equal(postinstallWorkflowSrc.includes('`$(wslpath'), false, 'PowerShell step must not let Bash command substitution be parsed by PowerShell');
+    assert.ok(gitattributesSrc.includes('*.sh text eol=lf'), 'Windows checkout must preserve LF shell scripts for WSL bash');
+    assert.ok(gitattributesSrc.includes('*.ps1 text eol=crlf'), 'PowerShell scripts should keep Windows-friendly line endings');
 });
 
 test('SAF-004l: fresh install smoke exercises packed global install without safe mode', () => {
