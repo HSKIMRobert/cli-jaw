@@ -161,7 +161,7 @@ docker compose up -d       # → http://localhost:3457
 
 ## What is CLI-JAW?
 
-CLI-JAW is an open-source platform that unifies the AI coding CLIs you already use — Claude, Codex, Gemini, Grok, OpenCode, Copilot — into **one assistant with one memory and one dashboard**.
+CLI-JAW is an open-source platform that unifies the AI coding CLIs you already use — Claude, Claude E, AI-E, Antigravity, Codex, Codex App, Gemini, Grok, OpenCode, and Copilot — into **one assistant with one memory and one dashboard**.
 
 Your main CLI (the “Boss”) calls the others as “employees.” You stop copy-pasting between apps and start giving orders from a single place.
 
