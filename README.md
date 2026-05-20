@@ -319,7 +319,7 @@ No per-token API billing. Route through subscriptions you already pay for.
 | **Claude** | `opus-4-6` | `claude auth login` | Claude Max subscription |
 | **Claude E** | `opus-4-6` | underlying `claude auth login` | Experimental interactive Claude wrapper |
 | **AI-E** | provider-selected | selected provider auth | Multi-provider runtime wrapper |
-| **Antigravity** | `gemini-3.5-flash` | checked by `agy` at run time | Experimental AGY print-mode runtime |
+| **Antigravity** | AGY-selected | checked by `agy` at run time | Experimental AGY print-mode runtime with `--conversation` resume; model switching stays in native AGY UI |
 | **Codex** | `gpt-5.5` | `codex login` | ChatGPT Pro subscription |
 | **Codex App** | `gpt-5.4` | `codex login` | ChatGPT Pro subscription |
 | **Gemini** | `gemini-3.1-pro-preview` | `gemini` | Gemini Advanced subscription |

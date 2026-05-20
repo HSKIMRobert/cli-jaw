@@ -236,13 +236,14 @@ raw `textDelta`는 app-server/모델 조합이 제공할 때만 온다. 확인�
 
 ## 5. Antigravity / AGY CLI (`-p`)
 
-AGY is not an NDJSON runtime in cli-jaw. It uses direct print mode:
+AGY is not an NDJSON runtime in cli-jaw. It uses direct print mode and the current model selected inside native AGY UI:
 
 ```text
-agy -p <prompt> --print-timeout 10m [--dangerously-skip-permissions] [--add-dir <dir>...]
+agy -p <prompt> --print-timeout 10m --log-file <tmp> [--dangerously-skip-permissions] [--add-dir <dir>...]
+agy --conversation <sessionId> -p <prompt> --print-timeout 10m --log-file <tmp> [...]
 ```
 
-`spawn.ts` routes AGY stdout as plain text: each chunk is appended to `ctx.fullText`, recorded as a trace `plain_text` event, emitted through `agent_output`, and skipped from `events.ts` JSON parsing. `spawn-env.ts` sets `NO_COLOR=1` by default so chunks remain preview-safe.
+`spawn.ts` routes AGY stdout as plain text: each chunk is appended to `ctx.fullText`, scanned for `--conversation=<id>` resume hints, recorded as a trace `plain_text` event, emitted through `agent_output`, and skipped from `events.ts` JSON parsing. Because `agy -p` normally prints only the answer, close handling also scans the per-run log for `Created conversation <id>` / `conversation=<id>` before removing that log. `spawn-env.ts` sets `NO_COLOR=1` by default so chunks remain preview-safe.
 
 Timeout handling is stdout-based. If AGY prints `Error: timed out waiting for response`, `agy-runtime.ts` classifies the run as effective exit code `124`, records a trace `runtime_error`, clears final text, and lets lifecycle/fallback/smoke handling see the timeout as a runtime failure.
 

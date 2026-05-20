@@ -23,6 +23,7 @@ type BuildArgOptions = {
     env?: NodeJS.ProcessEnv;
     pathExists?: (path: string) => boolean;
     aiEProvider?: string;
+    agyLogFile?: string;
 };
 
 export function resolveAiEProvider(explicitProvider: string | null | undefined, model: string | null | undefined): AiEProvider {
@@ -139,6 +140,7 @@ export function buildArgs(cli: string, model: string, effort: string, prompt: st
         case 'agy':
             return ['-p', prompt || '',
                 '--print-timeout', AGY_PRINT_TIMEOUT,
+                ...(options.agyLogFile ? ['--log-file', options.agyLogFile] : []),
                 ...(autoPerm ? ['--dangerously-skip-permissions'] : []),
                 ...agyAddDirArgs(options)];
         case 'claude':
@@ -249,7 +251,12 @@ export function buildResumeArgs(cli: string, model: string, effort: string, sess
     const autoPerm = permissions === 'auto';
     switch (cli) {
         case 'agy':
-            return buildArgs('agy', model, effort, prompt, options.sysPrompt || '', permissions, options);
+            return ['--conversation', sessionId,
+                '-p', prompt || '',
+                '--print-timeout', AGY_PRINT_TIMEOUT,
+                ...(options.agyLogFile ? ['--log-file', options.agyLogFile] : []),
+                ...(autoPerm ? ['--dangerously-skip-permissions'] : []),
+                ...agyAddDirArgs(options)];
         case 'claude':
             return ['--print', '--verbose', '--output-format', 'stream-json',
                 '--include-partial-messages',

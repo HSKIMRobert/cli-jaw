@@ -125,7 +125,7 @@ prompt, quit, file, steer, ide, orchestrate
 - 값이 없으면 현재 상태 조회.
 - 값이 있으면 `settings.perCli[activeCli].model` 또는 `settings.cli`를 갱신한다.
 - remote interface에서도 허용된다.
-- `/cli agy`는 `agy -p` print-mode runtime surface를 선택한다. model/effort flag는 넘기지 않고, 인증은 실행 시 `agy`가 직접 판정한다.
+- `/cli agy`는 `agy -p` print-mode runtime surface를 선택한다. 저장된 세션 재개는 `agy --conversation <sessionId> -p <prompt>`를 사용하고, `-c`/`--continue`는 최신 대화 재개라 bucket persistence에는 쓰지 않는다. 모델은 native AGY UI에서 현재 선택된 값을 사용하며, cli-jaw는 per-run model/effort flag를 넘기지 않는다. 인증은 실행 시 `agy`가 직접 판정한다.
 - `/cli claude-e`는 Claude E runtime surface를 선택한다. helper는 `CLAUDE_E_BIN`, bundled npm `claude-e`, PATH `claude-e`, compatibility `claude-exec`, legacy `jaw-claude-i` / `claude-i`, `native/jaw-claude-i/target/{release,debug}/jaw-claude-i` fallback 순으로 탐지되며, `jaw doctor`는 runtime과 underlying `claude`를 별도로 점검한다.
 
 ### `/fallback [cli1 cli2...|off]`
@@ -151,7 +151,7 @@ prompt, quit, file, steer, ide, orchestrate
 - `off`/`reset`이면 `settings.memory.cli`, `settings.memory.model`을 비운다.
 - 모델만 넣으면 registry 기반으로 CLI를 역추론한다.
 - Claude legacy model name은 힌트 맵으로 `claude`에 귀속된다.
-- AGY flush를 지정하면 `agy -p` plain-text 경로를 쓰며 model/effort flag는 넘기지 않는다.
+- AGY flush를 지정하면 `agy -p` plain-text 경로를 쓰며 native AGY UI의 현재 선택 모델을 따른다. model/effort flag는 넘기지 않는다.
 - Grok flush를 지정하면 표준 `grok -p ... --output-format streaming-json` 경로를 쓰지만, `grok-build`에는 `--effort`를 넘기지 않는다.
 
 ### `/skill [list|reset]`

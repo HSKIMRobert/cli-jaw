@@ -53,7 +53,7 @@ graph TD
 | **claude** | `stdin.write(historyBlock + prompt)` | `spawn.ts` 표준 CLI 분기 |
 | **claude-e** | fresh run은 `stdin.write(historyBlock + prompt)`, resume은 helper `--resume` + 현재 prompt만 전달 | `claude-e` helper surface 우선, compatibility `claude-exec`와 legacy `jaw-claude-i` fallback. legacy 세션 bucket/event namespace는 `claude-i`라 standard Claude 세션과 분리 |
 | **codex** | `stdin.write(historyBlock + "\n\n[User Message]\n" + prompt)` | `spawn.ts` 표준 CLI 분기 |
-| **agy** | `args`에 포함, 히스토리는 `withHistoryPrompt()`로 합쳐 `agy -p`에 전달 | native resume flag가 없어서 resume 경로도 일반 print-mode args를 재사용. model/effort flags 없음 |
+| **agy** | fresh run은 `withHistoryPrompt()`를 합쳐 `agy -p --log-file <tmp>`에 전달, resume은 `agy --conversation <sessionId> -p <prompt>` | 정확한 저장 세션 재개는 `--conversation`을 사용한다. `-c`/`--continue`는 최신 대화 재개라 bucket persistence에는 쓰지 않는다. print-mode stdout에는 resume hint가 없을 수 있어 per-run log에서 conversation id를 보강 추출한다. 모델은 native AGY UI의 현재 선택값을 쓰며 per-run model/effort flags 없음 |
 | **gemini / grok / opencode** | `args`에 포함, 히스토리는 `withHistoryPrompt()`로 합쳐 전달 | `spawn.ts` `buildArgs()` 경로. Grok는 `-p` + `--output-format streaming-json`, no effort/system prompt flags |
 | **copilot (ACP)** | `acp.prompt(acpPrompt)` | `spawn.ts` ACP 분기 |
 

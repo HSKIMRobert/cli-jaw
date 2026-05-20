@@ -63,15 +63,31 @@ test('AG-000d: agy add-dir roots dedupe with working directory first', () => {
     }), ['/repo', '/home/jun', '/extra']);
 });
 
-test('AG-000e: agy resume falls back to print mode without native resume flags', () => {
+test('AG-000e: agy resume uses exact native conversation id with print mode', () => {
     const args = buildResumeArgs('agy', 'gemini-3.5-flash', '', 'sess-1', 'hi', 'auto', {
         workingDir: '/repo',
         homedir: '/home/jun',
     });
-    assert.deepEqual(args.slice(0, 4), ['-p', 'hi', '--print-timeout', '10m']);
+    assert.deepEqual(args.slice(0, 6), ['--conversation', 'sess-1', '-p', 'hi', '--print-timeout', '10m']);
     assert.ok(!args.includes('--resume'));
     assert.ok(!args.includes('--continue'));
-    assert.ok(!args.includes('--conversation'));
+    assert.ok(args.includes('--conversation'));
+    assert.ok(!args.includes('--model'));
+    assert.ok(!args.includes('--output-format'));
+});
+
+test('AG-000f: agy supports per-run log file capture for print-mode session ids', () => {
+    const freshArgs = buildArgs('agy', 'gemini-3.5-flash', '', 'hi', '', 'auto', {
+        agyLogFile: '/tmp/jaw-agy-test.log',
+    });
+    assert.deepEqual(freshArgs.slice(2, 6), ['--print-timeout', '10m', '--log-file', '/tmp/jaw-agy-test.log']);
+
+    const resumeArgs = buildResumeArgs('agy', 'gemini-3.5-flash', '', 'sess-1', 'hi', 'auto', {
+        agyLogFile: '/tmp/jaw-agy-test.log',
+    });
+    assert.ok(resumeArgs.includes('--conversation'));
+    assert.ok(resumeArgs.includes('--log-file'));
+    assert.ok(resumeArgs.includes('/tmp/jaw-agy-test.log'));
 });
 
 test('AG-002: claude custom model includes --model', () => {
@@ -201,7 +217,7 @@ test('AG-006h2: ai-e spawn prefers perCli provider over stale active override pr
 
 test('AG-006i: ai-e non-Claude PTY prompt providers are forced fresh until resume is implemented', () => {
     const spawnSrc = fs.readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
-    assert.match(spawnSrc, /providerSupportsResume\s*=\s*cli\s*!==\s*'agy'[\s\S]*!\(cli\s*===\s*'ai-e'\s*&&\s*effectiveProvider\s*!==\s*'claude'\)/);
+    assert.match(spawnSrc, /providerSupportsResume\s*=\s*!\(cli\s*===\s*'ai-e'\s*&&\s*effectiveProvider\s*!==\s*'claude'\)/);
     assert.match(spawnSrc, /providerSupportsResume\s*&&\s*!\s*opts\._skipResume/);
 });
 

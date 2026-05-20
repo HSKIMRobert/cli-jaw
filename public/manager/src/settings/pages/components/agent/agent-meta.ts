@@ -32,7 +32,7 @@ export const CLI_META: Record<string, CliMeta> = {
         label: 'Antigravity',
         models: ['gemini-3.5-flash'],
         efforts: [],
-        effortNote: 'AGY print mode uses -p; model/effort flags are not exposed by agy 1.0.0',
+        effortNote: 'AGY print mode uses the current AGY-selected model; switch models in native AGY UI, no --model/--effort flags in agy 1.0.0',
     },
     'ai-e': {
         label: 'AI-E',
