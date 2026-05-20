@@ -134,11 +134,18 @@ export class NotesStore {
         return { path: relPath };
     }
 
+    private static canonicalTemplateName(fileName: string): string | null {
+        if (!fileName.endsWith('.md')) return null;
+        const name = fileName.slice(0, -3);
+        if (!name || name.includes('/') || name.includes('\\') || name.includes('\0') || name.startsWith('.') || name.includes('.md')) return null;
+        return name;
+    }
+
     private async resolveTemplateFile(name: string): Promise<string> {
-        if (!name || name.includes('/') || name.includes('\\') || name.includes('\0') || name.startsWith('.')) {
+        if (!name || name.includes('/') || name.includes('\\') || name.includes('\0') || name.startsWith('.') || name.endsWith('.md')) {
             throw notePathError(400, 'invalid_template_name', 'template name is invalid');
         }
-        const fileName = name.endsWith('.md') ? name : `${name}.md`;
+        const fileName = `${name}.md`;
         const templatesDir = resolveNotePath(this.root, '_templates');
         if (!this.fs.existsSync(templatesDir)) {
             throw notePathError(404, 'template_not_found', 'template directory not found');
@@ -162,15 +169,13 @@ export class NotesStore {
         const entries = await this.fs.readdir(templatesDir, { withFileTypes: true });
         const templates: { name: string; path: string }[] = [];
         for (const entry of entries) {
-            if (entry.name.startsWith('.')) continue;
-            if (!entry.isFile() || !entry.name.endsWith('.md')) continue;
+            if (!entry.isFile()) continue;
+            const canonical = NotesStore.canonicalTemplateName(entry.name);
+            if (!canonical) continue;
             const entryPath = resolveNotePath(templatesDir, entry.name);
             const entryStat = await this.fs.lstat(entryPath);
             if (entryStat.isSymbolicLink()) continue;
-            templates.push({
-                name: entry.name.replace(/\.md$/, ''),
-                path: `_templates/${entry.name}`,
-            });
+            templates.push({ name: canonical, path: `_templates/${entry.name}` });
         }
         return templates.sort((a, b) => a.name.localeCompare(b.name));
     }
@@ -186,12 +191,7 @@ export class NotesStore {
             throw notePathError(413, 'note_file_too_large', 'template file exceeds the maximum supported size');
         }
         const content = await this.fs.readFile(target, 'utf8');
-        const fileName = name.endsWith('.md') ? name : `${name}.md`;
-        return {
-            name: name.replace(/\.md$/, ''),
-            path: `_templates/${fileName}`,
-            content,
-        };
+        return { name, path: `_templates/${name}.md`, content };
     }
 
     async rename(from: string, to: string): Promise<{ from: string; to: string }> {

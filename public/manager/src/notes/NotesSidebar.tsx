@@ -127,14 +127,22 @@ export function NotesSidebar(props: NotesSidebarProps) {
                 try {
                     const tmpl = await fetchNoteTemplate(dailyTemplate.name);
                     content = applyTemplate(tmpl.content, { title: todayName.replace(/\.md$/, '') });
-                } catch { /* template fetch failed — proceed blank */ }
+                } catch {
+                    setStatus('Template failed to load; creating blank note.');
+                }
             }
             const created = await createNoteFile(todayName, content);
             props.onSelectedPathChange(created.path);
             await props.onRefreshTree(created.path);
             publishInvalidation({ topics: ['notes'], reason: 'note:created', source: 'ui', sourceId: 'notes-sidebar' });
         } catch (err) {
-            setError((err as Error).message);
+            const message = (err as Error).message;
+            if (message.includes('already exists') || message.includes('note_path_exists')) {
+                props.onSelectedPathChange(todayName);
+                await props.onRefreshTree(todayName);
+                return;
+            }
+            setError(message);
         }
     }
 
@@ -153,7 +161,9 @@ export function NotesSidebar(props: NotesSidebarProps) {
                         const tmpl = await fetchNoteTemplate(match.name);
                         const title = (name.endsWith('.md') ? name.slice(0, -3) : name).split('/').pop() ?? '';
                         content = applyTemplate(tmpl.content, { title });
-                    } catch { /* template fetch failed — proceed blank */ }
+                    } catch {
+                        setStatus('Template failed to load; creating blank note.');
+                    }
                 }
             }
         }
