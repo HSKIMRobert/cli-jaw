@@ -1,8 +1,10 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import { createNoteFile, createNoteFolder, renameNotePath, trashNotePath } from './notes-api';
+import { createNoteFile, createNoteFolder, fetchNoteTemplate, fetchNoteTemplates, renameNotePath, trashNotePath } from './notes-api';
+import { applyTemplate } from './template-engine';
 import { NewFolderIcon, NewNoteIcon, NotesFileTree, RefreshIcon } from './NotesFileTree';
 import { NotesSearchSidebar } from './NotesSearchSidebar';
 import { publishInvalidation } from '../sync/invalidation-bus';
+import type { NoteTemplate } from '../api';
 import type { NotesTreeEntry } from './notes-types';
 
 export type NotesSidebarMode = 'files' | 'search';
@@ -94,19 +96,70 @@ function SearchIcon() {
     );
 }
 
+function hasFile(entries: NotesTreeEntry[], name: string): boolean {
+    return entries.some(e => e.kind === 'file' && e.name === name);
+}
+
 export function NotesSidebar(props: NotesSidebarProps) {
     const style = { '--notes-tree-width': `${props.treeWidth}px` } as CSSProperties;
     const [error, setError] = useState<string | null>(null);
     const [status, setStatus] = useState<string | null>(null);
     const [selectedFolderPath, setSelectedFolderPath] = useState<string | null>(null);
+    const [templates, setTemplates] = useState<NoteTemplate[]>([]);
+
+    useEffect(() => {
+        void fetchNoteTemplates().then(setTemplates).catch(() => {});
+    }, []);
+
+    async function openToday(): Promise<void> {
+        const now = new Date();
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const todayName = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.md`;
+        if (hasFile(props.tree, todayName)) {
+            props.onSelectedPathChange(todayName);
+            return;
+        }
+        try {
+            setStatus(null);
+            const dailyTemplate = templates.find(t => t.name === 'daily');
+            let content = '';
+            if (dailyTemplate) {
+                try {
+                    const tmpl = await fetchNoteTemplate(dailyTemplate.name);
+                    content = applyTemplate(tmpl.content, { title: todayName.replace(/\.md$/, '') });
+                } catch { /* template fetch failed — proceed blank */ }
+            }
+            const created = await createNoteFile(todayName, content);
+            props.onSelectedPathChange(created.path);
+            await props.onRefreshTree(created.path);
+            publishInvalidation({ topics: ['notes'], reason: 'note:created', source: 'ui', sourceId: 'notes-sidebar' });
+        } catch (err) {
+            setError((err as Error).message);
+        }
+    }
 
     async function createNote(): Promise<void> {
         const fallback = selectedFolderPath ? `${selectedFolderPath}/untitled.md` : 'untitled.md';
         const name = window.prompt('Note path', fallback);
         if (!name) return;
+        let content = '';
+        if (templates.length > 0) {
+            const templateNames = templates.map(t => t.name).join(', ');
+            const chosen = window.prompt(`Apply template? (${templateNames}) Leave empty for blank.`);
+            if (chosen) {
+                const match = templates.find(t => t.name === chosen.trim());
+                if (match) {
+                    try {
+                        const tmpl = await fetchNoteTemplate(match.name);
+                        const title = (name.endsWith('.md') ? name.slice(0, -3) : name).split('/').pop() ?? '';
+                        content = applyTemplate(tmpl.content, { title });
+                    } catch { /* template fetch failed — proceed blank */ }
+                }
+            }
+        }
         try {
             setStatus(null);
-            const created = await createNoteFile(name.endsWith('.md') ? name : `${name}.md`, '');
+            const created = await createNoteFile(name.endsWith('.md') ? name : `${name}.md`, content);
             props.onSelectedPathChange(created.path);
             await props.onRefreshTree(created.path);
             publishInvalidation({ topics: ['notes'], reason: 'note:created', source: 'ui', sourceId: 'notes-sidebar' });
@@ -295,6 +348,11 @@ export function NotesSidebar(props: NotesSidebarProps) {
                             </button>
                         </div>
                     )}
+                    <div className="notes-today-bar">
+                        <button type="button" className="notes-today-button" onClick={() => void openToday()}>
+                            Today
+                        </button>
+                    </div>
                     <NotesFileTree
                         entries={props.tree}
                         selectedPath={props.selectedPath}

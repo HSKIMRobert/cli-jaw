@@ -134,6 +134,66 @@ export class NotesStore {
         return { path: relPath };
     }
 
+    private async resolveTemplateFile(name: string): Promise<string> {
+        if (!name || name.includes('/') || name.includes('\\') || name.includes('\0') || name.startsWith('.')) {
+            throw notePathError(400, 'invalid_template_name', 'template name is invalid');
+        }
+        const fileName = name.endsWith('.md') ? name : `${name}.md`;
+        const templatesDir = resolveNotePath(this.root, '_templates');
+        if (!this.fs.existsSync(templatesDir)) {
+            throw notePathError(404, 'template_not_found', 'template directory not found');
+        }
+        await assertNotSymlink(templatesDir);
+        const target = resolveNotePath(templatesDir, fileName);
+        if (!this.fs.existsSync(target)) {
+            throw notePathError(404, 'template_not_found', 'template file not found');
+        }
+        await assertNotSymlink(target);
+        await assertRealPathInside(this.root, target);
+        return target;
+    }
+
+    async listTemplates(): Promise<{ name: string; path: string }[]> {
+        await this.ensureRoot();
+        const templatesDir = resolveNotePath(this.root, '_templates');
+        if (!this.fs.existsSync(templatesDir)) return [];
+        const dirStat = await this.fs.lstat(templatesDir);
+        if (dirStat.isSymbolicLink() || !dirStat.isDirectory()) return [];
+        const entries = await this.fs.readdir(templatesDir, { withFileTypes: true });
+        const templates: { name: string; path: string }[] = [];
+        for (const entry of entries) {
+            if (entry.name.startsWith('.')) continue;
+            if (!entry.isFile() || !entry.name.endsWith('.md')) continue;
+            const entryPath = resolveNotePath(templatesDir, entry.name);
+            const entryStat = await this.fs.lstat(entryPath);
+            if (entryStat.isSymbolicLink()) continue;
+            templates.push({
+                name: entry.name.replace(/\.md$/, ''),
+                path: `_templates/${entry.name}`,
+            });
+        }
+        return templates.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    async readTemplate(name: string): Promise<{ name: string; path: string; content: string }> {
+        await this.ensureRoot();
+        const target = await this.resolveTemplateFile(name);
+        const fileStat = await this.fs.stat(target);
+        if (!fileStat.isFile()) {
+            throw notePathError(400, 'invalid_template_name', 'template path is not a file');
+        }
+        if (fileStat.size > MAX_NOTE_BYTES) {
+            throw notePathError(413, 'note_file_too_large', 'template file exceeds the maximum supported size');
+        }
+        const content = await this.fs.readFile(target, 'utf8');
+        const fileName = name.endsWith('.md') ? name : `${name}.md`;
+        return {
+            name: name.replace(/\.md$/, ''),
+            path: `_templates/${fileName}`,
+            content,
+        };
+    }
+
     async rename(from: string, to: string): Promise<{ from: string; to: string }> {
         const fromRel = this.assertRenameRelPath(from);
         const renamingFile = fromRel.endsWith(NOTE_FILE_EXT);

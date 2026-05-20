@@ -197,6 +197,15 @@ export function createDashboardNotesRouter(options: DashboardNotesRouterOptions)
         res.json(await store.listTree());
     }));
 
+    router.get('/templates', asyncRoute(async (_req, res) => {
+        res.json(await store.listTemplates());
+    }));
+
+    router.get('/template', asyncRoute(async (req, res) => {
+        const name = requireString(req.query["name"], 'invalid_template_name', 'name query is required');
+        res.json(await store.readTemplate(name));
+    }));
+
     router.get('/search', asyncRoute(async (req, res) => {
         const q = requireString(req.query["q"], 'invalid_note_search_query', 'q query param is required');
         const limit = typeof req.query["limit"] === 'string' ? Number(req.query["limit"]) : undefined;

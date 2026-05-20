@@ -163,6 +163,19 @@ export async function fetchNotesTree(): Promise<DashboardNoteTreeEntry[]> {
     return await parseNotesResponse<DashboardNoteTreeEntry[]>(response, `notes tree fetch failed: ${response.status}`);
 }
 
+export type NoteTemplate = { name: string; path: string };
+export type NoteTemplateContent = { name: string; path: string; content: string };
+
+export async function fetchNoteTemplates(): Promise<NoteTemplate[]> {
+    const response = await fetch('/api/dashboard/notes/templates');
+    return await parseNotesResponse<NoteTemplate[]>(response, `note templates fetch failed: ${response.status}`);
+}
+
+export async function fetchNoteTemplate(name: string): Promise<NoteTemplateContent> {
+    const response = await fetch(`/api/dashboard/notes/template?name=${encodeURIComponent(name)}`);
+    return await parseNotesResponse<NoteTemplateContent>(response, `note template fetch failed: ${response.status}`);
+}
+
 export async function fetchNotesIndex(): Promise<VaultIndexSnapshot> {
     const response = await fetch('/api/dashboard/notes/index');
     return await parseNotesResponse<VaultIndexSnapshot>(response, `notes index fetch failed: ${response.status}`);
