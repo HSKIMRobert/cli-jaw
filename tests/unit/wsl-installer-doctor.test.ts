@@ -8,18 +8,35 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..', '..');
 const installerSrc = fs.readFileSync(join(root, 'scripts/install-wsl.sh'), 'utf8');
 const doctorSrc = fs.readFileSync(join(root, 'bin/commands/doctor.ts'), 'utf8');
+const verifierSrc = fs.readFileSync(join(root, 'scripts/verify-fresh-install.sh'), 'utf8');
 
 test('WSL installer configures user-local npm prefix', () => {
     assert.ok(installerSrc.includes('npm config set prefix "$prefix"'));
     assert.ok(installerSrc.includes('NPM_PATH_LINE=\'export PATH="$HOME/.local/bin:$PATH"\''));
-    assert.ok(installerSrc.includes('add_npm_path_to_profile "$HOME/.bashrc"'));
+    assert.ok(installerSrc.includes('configure_bash_path_profiles'));
+    assert.ok(installerSrc.includes('[ -f "$HOME/.bash_profile" ] && add_npm_path_to_profile "$HOME/.bash_profile"'));
+    assert.ok(installerSrc.includes('[ -f "$HOME/.bash_login" ] && add_npm_path_to_profile "$HOME/.bash_login"'));
     assert.ok(installerSrc.includes('add_npm_path_to_profile "$HOME/.profile"'));
+    assert.ok(installerSrc.includes('link_node_tools_to_local_bin'));
+    assert.ok(installerSrc.includes('type -P -a "$tool"'));
+    assert.ok(installerSrc.includes('ln -sfn "$target" "$link"'));
     assert.equal(installerSrc.includes('[ -f "$HOME/.zshrc" ] && profile="$HOME/.zshrc"'), false);
+});
+
+test('WSL installer treats Node and npm as a WSL-native toolchain', () => {
+    assert.ok(installerSrc.includes('wsl_npm_is_usable()'), 'install-wsl.sh should have a WSL npm usability helper');
+    assert.ok(installerSrc.includes('npm_path="$(command -v npm 2>/dev/null || true)"'));
+    assert.ok(installerSrc.includes('/mnt/*) return 1 ;;'), 'Windows npm paths must not satisfy WSL npm checks');
+    assert.ok(installerSrc.includes('npm --version >/dev/null 2>&1'), 'npm must be runnable, not just present');
+    assert.ok(installerSrc.includes('Node is WSL-native but npm is missing — reinstalling...'));
+    assert.ok(installerSrc.includes('Node is WSL-native but npm resolves to Windows'));
+    assert.ok(installerSrc.includes('Node.js $(node -v) with npm $(npm --version) ready'),
+        'success output should include both node and npm versions');
 });
 
 test('WSL installer makes jaw and bundled CLI tools available immediately', () => {
     assert.ok(installerSrc.includes('CLI_JAW_INSTALL_CLI_TOOLS=1'));
-    assert.ok(installerSrc.includes('CLI_JAW_REQUIRE_CLI_TOOLS=1'));
+    assert.equal(installerSrc.includes('CLI_JAW_REQUIRE_CLI_TOOLS=1'), false);
     assert.equal(installerSrc.includes('CLI_JAW_REQUIRE_OFFICECLI=1'), false);
     assert.ok(installerSrc.includes('verify_jaw_command'));
     assert.ok(installerSrc.includes('command -v jaw'));
@@ -38,6 +55,18 @@ test('WSL installer installs browser and OfficeCLI helpers', () => {
     assert.ok(installerSrc.includes('OfficeCLI install failed — continuing without HWP features'));
     assert.ok(installerSrc.includes('OfficeCLI installer not found in global package — skipping HWP features'));
     assert.ok(installerSrc.includes('install-browser') === false);
+});
+
+test('WSL installer runs doctor after optional OfficeCLI install', () => {
+    const mainBlock = installerSrc.slice(installerSrc.indexOf('main() {'));
+    assert.ok(mainBlock.indexOf('install_officecli') < mainBlock.indexOf('run_doctor'), 'doctor should report the post-OfficeCLI install state');
+});
+
+test('fresh install verifier checks the supported WSL bash login shell path', () => {
+    assert.ok(verifierSrc.includes('is_wsl()'));
+    assert.ok(verifierSrc.includes('WSL bash login shell cannot resolve node/npm/jaw'));
+    assert.ok(verifierSrc.includes('bash -lc'));
+    assert.ok(verifierSrc.includes('jaw --version'));
 });
 
 test('doctor exposes WSL permission and OfficeCLI checks', () => {

@@ -73,6 +73,11 @@
     "test:manager:browser": "tsx --test tests/browser/manager-layout-smoke.test.ts",
     "test:smoke": "TEST_PORT=3457 tsx --test tests/integration/api-smoke.test.ts",
     "smoke:opencode": "tsx scripts/smoke/opencode-external-dir-smoke.ts",
+    "test:install-risk": "node scripts/install-risk-gate.mjs",
+    "verify:fresh-install": "bash scripts/verify-fresh-install.sh",
+    "collect:fresh-install-evidence": "bash scripts/collect-fresh-install-evidence.sh",
+    "audit:fresh-install-evidence": "node scripts/audit-fresh-install-evidence.mjs",
+    "verify:release-evidence": "node scripts/verify-release-evidence.mjs",
     "test:fresh-install": "tsx scripts/fresh-install-smoke.ts",
     "build": "tsc && mkdir -p dist/src/prompt && rsync -a --delete src/prompt/templates/ dist/src/prompt/templates/ && rsync -a --delete prompts/ dist/prompts/",
     "postbuild": "node scripts/link-current-nvm-bin.cjs",
@@ -112,7 +117,6 @@
     "@tanstack/virtual-core": "^3.13.23",
     "@uiw/react-codemirror": "^4.25.9",
     "better-sqlite3": "^12.8.0",
-    "claude-e": "latest",
     "discord.js": "^14.25.1",
     "dompurify": "^3.3.3",
     "express": "^5.2.1",
@@ -142,6 +146,10 @@
     "unist-util-visit": "^5.1.0",
     "ws": "^8.18.0",
     "yaml": "^2.8.4"
+  },
+  "optionalDependencies": {
+    "@bitkyc08/ai-e": "latest",
+    "claude-e": "latest"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

@@ -42,6 +42,16 @@ case "$HOME" in
   /mnt/*) fail "HOME points to Windows path: $HOME — launch a proper WSL shell (wsl.exe -d Ubuntu)" ;;
 esac
 
+wsl_npm_is_usable() {
+  local npm_path
+  npm_path="$(command -v npm 2>/dev/null || true)"
+  [ -n "$npm_path" ] || return 1
+  case "$npm_path" in
+    /mnt/*) return 1 ;;
+  esac
+  npm --version >/dev/null 2>&1
+}
+
 ensure_sudo() {
   if [ "$(id -u)" -eq 0 ]; then
     HAS_SUDO=true
@@ -112,14 +122,21 @@ install_node() {
         local ver
         ver=$(node -v | sed 's/v//' | cut -d. -f1)
         if [ "$ver" -ge "$NODE_MAJOR" ] 2>/dev/null; then
-          # Also verify npm is WSL-native before early return
-          case "$(command -v npm)" in
-            /mnt/*)
-              warn "Node is WSL-native but npm resolves to Windows: $(command -v npm) — reinstalling..."
+          local npm_path
+          npm_path="$(command -v npm 2>/dev/null || true)"
+          # Also verify npm is WSL-native and runnable before early return
+          case "$npm_path" in
+            /mnt/*) warn "Node is WSL-native but npm resolves to Windows: $npm_path — reinstalling..." ;;
+            "")
+              warn "Node is WSL-native but npm is missing — reinstalling..."
               ;;
             *)
-              ok "Node.js $(node -v) already installed (>= $NODE_MAJOR) at $node_path"
-              return 0
+              if ! npm --version >/dev/null 2>&1; then
+                warn "Node is WSL-native but npm is not runnable at $npm_path — reinstalling..."
+              else
+                ok "Node.js $(node -v) already installed (>= $NODE_MAJOR) at $node_path"
+                return 0
+              fi
               ;;
           esac
         else
@@ -176,10 +193,16 @@ install_node() {
   case "$final_node" in
     /mnt/*) fail "Node.js installed but resolves to Windows path: $final_node — install WSL-native Node" ;;
   esac
-  case "$(command -v npm)" in
-    /mnt/*) fail "npm resolves to Windows path: $(command -v npm) — install WSL-native Node" ;;
-  esac
-  ok "Node.js $(node -v) ready at $final_node"
+  if ! wsl_npm_is_usable; then
+    local final_npm
+    final_npm="$(command -v npm 2>/dev/null || true)"
+    case "$final_npm" in
+      /mnt/*) fail "npm resolves to Windows path: $final_npm — install WSL-native Node" ;;
+      "") fail "Node.js installed but npm is missing — install WSL-native Node with npm" ;;
+      *) fail "npm is installed at $final_npm but failed to run" ;;
+    esac
+  fi
+  ok "Node.js $(node -v) with npm $(npm --version) ready at $final_node"
 }
 
 # ═══════════════════════════════════════
@@ -202,6 +225,46 @@ add_npm_path_to_profile() {
   fi
 }
 
+configure_bash_path_profiles() {
+  add_npm_path_to_profile "$HOME/.bashrc"
+
+  # Bash login shells read the first existing file among .bash_profile,
+  # .bash_login, and .profile. Update existing higher-priority files without
+  # creating them, so we do not accidentally stop Bash from reading .profile.
+  [ -f "$HOME/.bash_profile" ] && add_npm_path_to_profile "$HOME/.bash_profile"
+  [ -f "$HOME/.bash_login" ] && add_npm_path_to_profile "$HOME/.bash_login"
+  add_npm_path_to_profile "$HOME/.profile"
+}
+
+resolve_wsl_tool_path() {
+  local tool="$1"
+  local candidate
+
+  while IFS= read -r candidate; do
+    [ -n "$candidate" ] || continue
+    case "$candidate" in
+      "$NPM_PREFIX/bin/$tool"|/mnt/*) continue ;;
+      *) printf '%s\n' "$candidate"; return 0 ;;
+    esac
+  done < <(type -P -a "$tool" 2>/dev/null || true)
+
+  return 1
+}
+
+link_node_tools_to_local_bin() {
+  local tool target link
+  mkdir -p "$NPM_PREFIX/bin"
+
+  for tool in node npm npx corepack; do
+    target="$(resolve_wsl_tool_path "$tool" || true)"
+    [ -n "$target" ] || continue
+    link="$NPM_PREFIX/bin/$tool"
+    ln -sfn "$target" "$link"
+  done
+
+  hash -r 2>/dev/null || true
+}
+
 configure_npm_prefix() {
   local prefix="$NPM_PREFIX"
 
@@ -215,6 +278,7 @@ configure_npm_prefix() {
   mkdir -p "$prefix/bin" "$prefix/lib"
   npm config set prefix "$prefix"
   export PATH="$prefix/bin:$PATH"
+  link_node_tools_to_local_bin
   hash -r 2>/dev/null || true
 
   # Verify effective prefix is WSL-native and matches intent
@@ -227,8 +291,7 @@ configure_npm_prefix() {
     warn "npm prefix mismatch: expected $prefix, got $effective"
   fi
 
-  add_npm_path_to_profile "$HOME/.bashrc"
-  add_npm_path_to_profile "$HOME/.profile"
+  configure_bash_path_profiles
   if [ -f "$HOME/.zshrc" ] || [ "${SHELL:-}" != "${SHELL%zsh}" ]; then
     add_npm_path_to_profile "$HOME/.zshrc"
   fi
@@ -276,12 +339,10 @@ install_jaw() {
     ok "cli-jaw already installed ($(jaw --version 2>/dev/null || echo 'unknown version'))"
     info "Updating to latest..."
     CLI_JAW_INSTALL_CLI_TOOLS=1 \
-      CLI_JAW_REQUIRE_CLI_TOOLS=1 \
       npm install -g cli-jaw@latest
   else
     info "Installing cli-jaw globally..."
     CLI_JAW_INSTALL_CLI_TOOLS=1 \
-      CLI_JAW_REQUIRE_CLI_TOOLS=1 \
       npm install -g cli-jaw
   fi
 
@@ -393,10 +454,10 @@ main() {
   install_browser_deps
   echo ""
 
-  run_doctor
+  install_officecli
   echo ""
 
-  install_officecli
+  run_doctor
   echo ""
 
   echo -e "${GREEN}${BOLD}═══════════════════════════════════════${NC}"
@@ -406,6 +467,7 @@ main() {
   echo -e "  Run:  ${CYAN}jaw dashboard${NC}"
   echo -e "  Also: ${CYAN}jaw serve${NC}  ${DIM}# classic server mode${NC}"
   echo -e "  If a new shell cannot find jaw: ${CYAN}source ~/.bashrc${NC}"
+  echo -e "  From Windows PowerShell: ${CYAN}wsl.exe -d Ubuntu -- bash -lc \"jaw dashboard\"${NC}"
   echo ""
   echo -e "${DIM}  Tip: Authenticate at least one AI engine:${NC}"
   echo -e "${DIM}    gh auth login        # GitHub Copilot (free)${NC}"

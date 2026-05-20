@@ -90,6 +90,8 @@ test('GROK-FE-003: quota renderer shows Grok Heavy auth-status instead of fake q
     assert.match(status, /q\?\.quotaCapable === false/);
     assert.match(status, /Grok Heavy/);
     assert.match(status, /Quota not exposed by Grok CLI/);
+    assert.match(status, /https:\/\/x\.ai\/cli\/install\.sh/, 'Grok install hint should point to xAI native installer');
+    assert.match(status, /grok login --oauth/, 'Grok auth hint should match the installed Grok Build CLI');
     const forbiddenClaims = [
         ['Grok ', 'unlimited'].join(''),
         ['Grok quota ', '0%'].join(''),

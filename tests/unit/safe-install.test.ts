@@ -26,6 +26,16 @@ const initSrc = readSource(join(__dirname, '../../bin/commands/init.ts'), 'utf8'
 const officeCliShellSrc = readSource(join(__dirname, '../../scripts/install-officecli.sh'), 'utf8');
 const officeCliPowerShellSrc = readSource(join(__dirname, '../../scripts/install-officecli.ps1'), 'utf8');
 const readmeSrc = readSource(join(__dirname, '../../README.md'), 'utf8');
+const localizedReadmeSrc = [
+    readSource(join(__dirname, '../../README.ko.md'), 'utf8'),
+    readSource(join(__dirname, '../../README.zh-CN.md'), 'utf8'),
+    readSource(join(__dirname, '../../README.ja.md'), 'utf8'),
+].join('\n');
+const postinstallWorkflowSrc = readSource(join(__dirname, '../../.github/workflows/postinstall-platform.yml'), 'utf8');
+const freshInstallSmokeSrc = readSource(join(__dirname, '../../scripts/fresh-install-smoke.ts'), 'utf8');
+const freshInstallEvidenceSrc = readSource(join(__dirname, '../../scripts/collect-fresh-install-evidence.sh'), 'utf8');
+const freshInstallEvidenceAuditSrc = readSource(join(__dirname, '../../scripts/audit-fresh-install-evidence.mjs'), 'utf8');
+const packageJson = JSON.parse(fs.readFileSync(join(__dirname, '../../package.json'), 'utf8'));
 const repoRoot = join(__dirname, '../..');
 
 function writeCli(dir: string, name: string, content: string): string {
@@ -79,9 +89,22 @@ test('SAF-002b: README documents safe install/update before normal install', () 
     const safePos = readmeSrc.indexOf('JAW_SAFE=1 npm install -g cli-jaw');
     const normalPos = readmeSrc.indexOf('npm install -g cli-jaw');
     assert.ok(safePos >= 0, 'README should document macOS/Linux JAW_SAFE install');
-    assert.ok(readmeSrc.includes('$env:JAW_SAFE="1"; npm install -g cli-jaw'), 'README should document PowerShell JAW_SAFE install');
+    assert.equal(readmeSrc.includes('$env:JAW_SAFE="1"; npm install -g cli-jaw'), false, 'README must not present native PowerShell as a supported install path');
+    assert.ok(readmeSrc.includes('Windows users should use the WSL install path below'), 'README should scope Windows installs to WSL');
     assert.ok(readmeSrc.includes('skips optional tool/runtime setup'), 'README should explain safe install boundary');
     assert.ok(safePos <= normalPos, 'safe install should appear before normal install example');
+});
+
+test('SAF-002c: README default install claim matches postinstall CLI-tool gating', () => {
+    assert.ok(readmeSrc.includes('The default npm install initializes CLI-JAW and attempts native Claude setup'));
+    assert.ok(readmeSrc.includes('CLI_JAW_INSTALL_CLI_TOOLS=1 npm install -g cli-jaw'));
+    assert.ok(readmeSrc.includes('On Windows, use the WSL install path below'));
+    assert.equal(readmeSrc.includes('$env:CLI_JAW_INSTALL_CLI_TOOLS="1"; npm install -g cli-jaw'), false, 'README must not advertise native PowerShell optional CLI install');
+    assert.equal(
+        readmeSrc.includes('automatically sets up Claude, Codex, Gemini, Copilot, and OpenCode CLIs for you'),
+        false,
+        'README must not promise full optional CLI setup for default npm install',
+    );
 });
 
 // ── SAF-003: safe guard exits early ──
@@ -234,7 +257,7 @@ test('SAF-004e: Claude CLI install uses the official native installer', () => {
         postinstallSrc.indexOf('const MCP_PACKAGES'),
     );
     assert.ok(postinstallSrc.includes('https://claude.ai/install.sh'), 'Claude install should use the official native installer');
-    assert.ok(postinstallSrc.includes('https://claude.ai/install.ps1'), 'Windows Claude install should use the official native PowerShell installer');
+    assert.ok(postinstallSrc.includes('https://claude.ai/install.ps1'), 'win32 Claude branch should use the official installer URL');
     assert.ok(cliBlock.includes('CLAUDE_NATIVE_INSTALL_URL'), 'Claude install command should route through the native installer URL');
     assert.ok(cliBlock.includes('CLAUDE_NATIVE_INSTALL_PS_URL'), 'Windows Claude install command should route through the native installer URL');
     assert.ok(cliBlock.includes('execFileSync'), 'Windows Claude install should avoid cmd.exe nested quote parsing');
@@ -273,6 +296,15 @@ test('SAF-004e1b: Claude runnable check is explicit for Windows and Unix', () =>
     assert.ok(checkBlock.includes("execFileSync(binaryPath, ['--version']"), 'macOS/Linux should run the detected binary directly');
 });
 
+test('SAF-004e1c: Windows native Claude detection accepts LOCALAPPDATA install roots', () => {
+    const claudeInstallSrc = fs.readFileSync(join(__dirname, '../../src/core/claude-install.ts'), 'utf8');
+    const postinstallRawSrc = fs.readFileSync(join(__dirname, '../../bin/postinstall.ts'), 'utf8');
+    assert.ok(claudeInstallSrc.includes('process.env["LOCALAPPDATA"]') || claudeInstallSrc.includes("process.env['LOCALAPPDATA']"), 'classifier should consider Windows user-local app installs');
+    assert.ok(claudeInstallSrc.includes("'Programs', 'Claude', 'claude.exe'"), 'classifier should include common LOCALAPPDATA program paths');
+    assert.ok(postinstallRawSrc.includes('process.env["LOCALAPPDATA"]') || postinstallRawSrc.includes("process.env['LOCALAPPDATA']"), 'postinstall should scan LOCALAPPDATA candidates after native installer runs');
+    assert.ok(postinstallSrc.includes("expected a working native claude binary"), 'failure hint should not claim only the old narrow paths');
+});
+
 test('SAF-004e2: Claude native install classification covers Windows native path', () => {
     assert.equal(classifyClaudeInstall(join(os.homedir(), '.local', 'bin', 'claude')), 'native');
     assert.equal(classifyClaudeInstall(join(os.homedir(), '.local', 'bin', 'claude.exe')), 'native');
@@ -285,6 +317,7 @@ test('SAF-004f: bundled non-Claude CLI tools preserve runnable installs before u
     );
     assert.ok(packageBlock.includes("{ bin: 'codex', pkg: '@openai/codex' }"), 'codex should be listed');
     assert.ok(packageBlock.includes("{ bin: 'gemini', pkg: '@google/gemini-cli' }"), 'gemini should be listed');
+    assert.ok(packageBlock.includes("{ bin: 'grok', pkg: 'Grok Build', installer: 'xai-native' }"), 'grok should use the official xAI native installer');
     assert.ok(packageBlock.includes("{ bin: 'copilot', pkg: '@github/copilot' }"), 'copilot should be listed');
     assert.ok(packageBlock.includes("{ bin: 'opencode', pkg: 'opencode-ai' }"), 'opencode should be listed');
     assert.ok(!packageBlock.includes('forceMgr'), 'non-Claude CLIs should not force-reinstall over another package manager');
@@ -295,6 +328,8 @@ test('SAF-004f: bundled non-Claude CLI tools preserve runnable installs before u
     assert.ok(postinstallSrc.includes('export function findRunnableCliBinary(name'), 'existing CLIs should be validated by --version');
     assert.ok(installBlock.includes('${bin} already works'), 'runnable existing CLIs should be skipped');
     assert.ok(installBlock.includes("buildInstallCmd('npm', pkg, brew)"), 'missing or broken CLIs should install via npm');
+    assert.ok(postinstallSrc.includes('https://x.ai/cli/install.sh'), 'Grok should install through the official xAI installer');
+    assert.ok(postinstallSrc.includes('native PowerShell CLI-JAW install is unsupported'), 'Grok native installer should not expand CLI-JAW support to native PowerShell');
     assert.ok(!installBlock.includes('detectDefaultPkgMgr'), 'Bun presence should not redirect fresh installs to Bun');
 });
 
@@ -417,6 +452,144 @@ test('SAF-004g: postinstall child processes use service-safe PATH consistently',
     assert.ok(mcpBlock.includes('env: postinstallExecEnv()'), 'MCP global installs should see service-safe PATH');
 });
 
+test('SAF-004h: README scopes Windows installation support to WSL', () => {
+    assert.ok(readmeSrc.includes('wsl --install'), 'README should document Windows setup through WSL');
+    assert.ok(readmeSrc.includes('wsl.exe -d Ubuntu -- bash -lc "jaw dashboard"'), 'README should document PowerShell-to-WSL login-shell invocation');
+    assert.ok(readmeSrc.includes('macOS / Linux / WSL with Node.js 22+ already installed'), 'README default npm install block should be OS-scoped');
+    assert.equal(readmeSrc.includes('Get-Command jaw'), false, 'README must not troubleshoot native PowerShell jaw resolution as a supported path');
+    assert.equal(localizedReadmeSrc.includes('$env:JAW_SAFE="1"; npm install -g cli-jaw'), false, 'localized READMEs must not advertise native PowerShell safe install');
+    assert.equal(localizedReadmeSrc.includes('# Windows PowerShell'), false, 'localized READMEs must not present native PowerShell install snippets');
+    assert.equal(localizedReadmeSrc.includes('npm bin -g'), false, 'localized README troubleshooting should use npm prefix -g, not removed npm bin -g');
+    assert.ok(localizedReadmeSrc.includes('wsl.exe -d Ubuntu -- bash -lc "jaw dashboard"'), 'localized READMEs should document PowerShell-to-WSL login-shell invocation');
+});
+
+test('SAF-004i: install risk gate covers fresh-machine installer regressions', () => {
+    const gateSrc = fs.readFileSync(join(__dirname, '../../scripts/install-risk-gate.mjs'), 'utf8');
+    assert.equal(packageJson.scripts?.['test:install-risk'], 'node scripts/install-risk-gate.mjs');
+    assert.ok(gateSrc.includes('tests/unit/install-sh-exec.test.ts'), 'gate should run executable macOS installer harness');
+    assert.ok(gateSrc.includes('tests/unit/fresh-evidence-audit.test.ts'), 'gate should run the evidence auditor fixture tests');
+    assert.ok(gateSrc.includes('tests/unit/wsl-installer-exec.test.ts'), 'gate should run WSL installer harness');
+    assert.ok(gateSrc.includes('scripts/install-officecli.ps1'), 'gate should parse Windows PowerShell installer');
+    assert.ok(gateSrc.includes('scripts/verify-fresh-install.sh'), 'gate should syntax-check macOS/Linux fresh verifier');
+    assert.ok(gateSrc.includes('scripts/collect-fresh-install-evidence.sh'), 'gate should syntax-check the fresh-machine evidence collector');
+    assert.ok(gateSrc.includes('scripts/audit-fresh-install-evidence.mjs'), 'gate should syntax-check the fresh-machine evidence auditor');
+    assert.ok(gateSrc.includes('scripts/verify-release-evidence.mjs'), 'gate should syntax-check the release evidence matrix gate');
+    assert.equal(gateSrc.includes('scripts/verify-fresh-install.ps1'), false, 'gate must not require a native PowerShell fresh-install verifier');
+    assert.ok(gateSrc.includes("npm, ['pack', '--dry-run', '--json']"), 'gate should verify npm package contents');
+    assert.ok(gateSrc.includes('scripts/postinstall-guard.cjs'), 'gate should ensure postinstall guard is packed');
+    assert.ok(gateSrc.includes('structure/verify-counts.sh'), 'gate should enforce repository structure sync');
+});
+
+test('SAF-004j: packaged fresh-install verifiers check new-shell readiness', () => {
+    const shellVerifier = fs.readFileSync(join(__dirname, '../../scripts/verify-fresh-install.sh'), 'utf8');
+    assert.equal(packageJson.scripts?.['verify:fresh-install'], 'bash scripts/verify-fresh-install.sh');
+    assert.ok(shellVerifier.includes('node version is below 22'), 'fresh verifier should enforce the documented Node.js 22+ requirement');
+    assert.ok(shellVerifier.includes('should_check_zsh'), 'fresh verifier should only enforce zsh when it is a supported shell surface');
+    assert.ok(shellVerifier.includes('zsh -ic'), 'macOS verifier should check interactive zsh resolution');
+    assert.ok(shellVerifier.includes('zsh -lc'), 'macOS verifier should check login zsh resolution');
+    assert.ok(shellVerifier.includes('jaw doctor'), 'macOS verifier should run jaw doctor');
+    assert.ok(shellVerifier.includes('--skip-doctor'), 'macOS verifier should support CI smoke without doctor');
+    assert.ok(readmeSrc.includes('verify-fresh-install.sh'), 'README should document macOS/WSL verifier');
+    assert.ok(readmeSrc.includes('source "${ZDOTDIR:-$HOME}/.zshrc"'), 'README should refresh zsh/nvm PATH before running npm-root verifier after curl|bash');
+    assert.ok(localizedReadmeSrc.includes('source "${ZDOTDIR:-$HOME}/.zshrc"'), 'localized READMEs should refresh zsh/nvm PATH before verifier');
+});
+
+test('SAF-004j2: fresh-machine evidence collector documents supported release evidence only', () => {
+    assert.equal(packageJson.scripts?.['collect:fresh-install-evidence'], 'bash scripts/collect-fresh-install-evidence.sh');
+    assert.equal(packageJson.scripts?.['audit:fresh-install-evidence'], 'node scripts/audit-fresh-install-evidence.mjs');
+    assert.equal(packageJson.scripts?.['verify:release-evidence'], 'node scripts/verify-release-evidence.mjs');
+    assert.ok(freshInstallEvidenceSrc.includes('--target macos|wsl|linux|auto'), 'collector should require explicit supported target wording');
+    assert.ok(freshInstallEvidenceSrc.includes('--install-script FILE'), 'collector should allow branch/local installer verification before release');
+    assert.ok(freshInstallEvidenceSrc.includes('--verifier-script FILE'), 'collector should allow local verifier validation before release');
+    assert.ok(freshInstallEvidenceSrc.includes('local fresh-install verifier'), 'collector should label verifier override logs accurately');
+    assert.ok(freshInstallEvidenceSrc.includes('local_verifier_for_install_script'), 'collector should prefer a checkout verifier when a local installer script is supplied');
+    assert.ok(freshInstallEvidenceSrc.includes('local fresh-install verifier from installer checkout'), 'collector should label checkout verifier discovery accurately');
+    assert.ok(freshInstallEvidenceSrc.includes('install-wsl.sh'), 'collector should run the WSL installer for Windows-supported evidence');
+    assert.ok(freshInstallEvidenceSrc.includes('install.sh'), 'collector should run the macOS/Linux installer for Unix evidence');
+    assert.ok(freshInstallEvidenceSrc.includes('verify-fresh-install.sh'), 'collector should run the same post-install verifier');
+    assert.ok(freshInstallEvidenceSrc.includes('00-collector-script.sh'), 'collector should archive its own script source for release evidence');
+    assert.ok(freshInstallEvidenceSrc.includes('02-installer-script.sh'), 'collector should archive the installer script before executing it');
+    assert.ok(freshInstallEvidenceSrc.includes('21-verifier-script.sh'), 'collector should archive the verifier script before executing it');
+    assert.ok(freshInstallEvidenceSrc.includes('sha256='), 'collector should record archived script hashes');
+    assert.ok(freshInstallEvidenceSrc.includes('release audit will require'), 'collector should warn when it is run from stdin and cannot archive itself');
+    assert.ok(freshInstallEvidenceSrc.includes('Native Windows/Git Bash is not a supported CLI-JAW install target'), 'collector should reject native Windows shells');
+    assert.ok(freshInstallEvidenceSrc.includes('run_optional_shell_logged "bash login-shell probe (non-default on macOS)"'), 'collector should not fail macOS evidence solely because bash login shell is not configured');
+    assert.ok(freshInstallEvidenceSrc.includes('zsh login-shell probe (non-default outside macOS)'), 'collector should not fail WSL/Linux evidence solely because non-default zsh is unconfigured');
+    assert.ok(freshInstallEvidenceSrc.includes('wsl.exe -d'), 'collector should record the PowerShell-to-WSL invocation');
+    assert.ok(freshInstallEvidenceSrc.includes('powershell.exe'), 'collector should attempt the host PowerShell-to-WSL probe when available');
+    assert.ok(freshInstallEvidenceSrc.includes('Run this from Windows PowerShell'), 'collector should print a host-side PowerShell probe command when powershell.exe is absent inside WSL');
+    assert.equal(freshInstallEvidenceSrc.includes('verify-fresh-install.ps1'), false, 'collector must not imply native PowerShell install support');
+    assert.ok(readmeSrc.includes('collect-fresh-install-evidence.sh'), 'README should expose the VM evidence command for maintainers');
+    assert.ok(readmeSrc.includes('--install-script scripts/install.sh --verifier-script scripts/verify-fresh-install.sh'), 'README should show local branch macOS installer and verifier evidence collection');
+    assert.ok(readmeSrc.includes('--install-script scripts/install-wsl.sh --verifier-script scripts/verify-fresh-install.sh'), 'README should show local branch WSL installer and verifier evidence collection');
+    assert.ok(readmeSrc.includes('audit-fresh-install-evidence.mjs'), 'README should show evidence directory auditing');
+    assert.ok(readmeSrc.includes('node scripts/audit-fresh-install-evidence.mjs "$EVIDENCE_DIR" --target macos'), 'README should show local checkout auditor usage');
+    assert.ok(readmeSrc.includes('node scripts/verify-release-evidence.mjs --macos /path/to/macos-evidence --wsl /path/to/wsl-evidence'), 'README should show local checkout release gate usage');
+    assert.ok(readmeSrc.includes('curl -fsSL https://raw.githubusercontent.com/lidge-jun/cli-jaw/master/scripts/collect-fresh-install-evidence.sh -o "$COLLECTOR"'), 'README should download the collector to a file before executing it');
+    assert.ok(readmeSrc.includes('33-powershell-to-wsl-probe.log'), 'README should document host-side PowerShell-to-WSL probe evidence when the collector cannot run it from WSL');
+    assert.ok(freshInstallEvidenceAuditSrc.includes('--allow-skip-install'), 'auditor should distinguish release evidence from local smoke evidence');
+    assert.ok(freshInstallEvidenceAuditSrc.includes("requireArchivedScript('collector', '00-collector-script.sh')"), 'auditor should require archived collector source for release evidence');
+    assert.ok(freshInstallEvidenceAuditSrc.includes("requireArchivedScript('installer', '02-installer-script.sh')"), 'auditor should require archived installer source for release evidence');
+    assert.ok(freshInstallEvidenceAuditSrc.includes("requireArchivedScript('verifier', '21-verifier-script.sh')"), 'auditor should require archived verifier source for every evidence run');
+    assert.ok(freshInstallEvidenceAuditSrc.includes('sha256 mismatch'), 'auditor should verify archived script hashes');
+    assert.ok(freshInstallEvidenceAuditSrc.includes('must be an archived bash script with a bash shebang'), 'auditor should reject archived script files that are not bash scripts');
+    assert.ok(freshInstallEvidenceAuditSrc.includes('missing 33-powershell-to-wsl-probe.log'), 'auditor should require PowerShell-to-WSL evidence for WSL by default');
+    assert.ok(freshInstallEvidenceAuditSrc.includes('command=wsl.exe -d'), 'auditor should accept externally recorded host PowerShell-to-WSL probe logs only when the command is recorded');
+    assert.ok(freshInstallEvidenceAuditSrc.includes('node version is >=22'), 'auditor should require the Node 22+ verifier line');
+    assert.ok(freshInstallEvidenceAuditSrc.includes('00-before.txt shows preexisting Node.js'), 'auditor should verify fresh no-Node evidence by default');
+    assert.equal(freshInstallEvidenceAuditSrc.includes('verify-fresh-install.ps1'), false, 'auditor must not imply native PowerShell verifier support');
+    const releaseEvidenceGateSrc = fs.readFileSync(join(__dirname, '../../scripts/verify-release-evidence.mjs'), 'utf8');
+    assert.ok(releaseEvidenceGateSrc.includes('--macos DIR'), 'release gate should require macOS evidence');
+    assert.ok(releaseEvidenceGateSrc.includes('--wsl DIR'), 'release gate should require WSL evidence');
+    assert.ok(releaseEvidenceGateSrc.includes("'--target', target"), 'release gate should run the strict target auditor');
+    assert.equal(releaseEvidenceGateSrc.includes('--allow-skip-install'), false, 'release gate must not pass local-smoke allow flags');
+    assert.equal(releaseEvidenceGateSrc.includes('--allow-preexisting-node'), false, 'release gate must not allow non-fresh machines');
+});
+
+test('SAF-004k: postinstall platform workflow runs installer risk gate on macOS and WSL', () => {
+    assert.ok(postinstallWorkflowSrc.includes('macos-latest'), 'workflow should cover native macOS installer risks');
+    assert.ok(postinstallWorkflowSrc.includes('windows-wsl'), 'workflow should cover the supported Windows path through WSL');
+    assert.equal(postinstallWorkflowSrc.includes('windows-native'), false, 'workflow must not advertise a native PowerShell installer path');
+    assert.ok(postinstallWorkflowSrc.includes('npm run test:install-risk'), 'workflow should run the consolidated installer risk gate');
+    assert.ok(postinstallWorkflowSrc.includes('Run installer risk gate in WSL'), 'WSL workflow should run the consolidated installer risk gate, not only a narrow policy subset');
+    assert.ok(postinstallWorkflowSrc.includes('scripts/install.sh'), 'workflow triggers should include macOS installer script changes');
+    assert.ok(postinstallWorkflowSrc.includes('scripts/install-wsl.sh'), 'workflow triggers should include WSL installer changes');
+    assert.ok(postinstallWorkflowSrc.includes('scripts/install-officecli.ps1'), 'workflow triggers should include Windows PowerShell installer changes');
+    assert.equal(postinstallWorkflowSrc.includes('scripts/verify-fresh-install.ps1'), false, 'workflow must not depend on a native PowerShell fresh verifier');
+    assert.ok(postinstallWorkflowSrc.includes('scripts/collect-fresh-install-evidence.sh'), 'workflow triggers should include the fresh-machine evidence collector');
+    assert.ok(postinstallWorkflowSrc.includes('scripts/audit-fresh-install-evidence.mjs'), 'workflow triggers should include the fresh-machine evidence auditor');
+    assert.ok(postinstallWorkflowSrc.includes('scripts/verify-release-evidence.mjs'), 'workflow triggers should include the release evidence matrix gate');
+    assert.ok(postinstallWorkflowSrc.includes('tests/unit/install-sh-exec.test.ts'), 'workflow triggers should include executable installer harness changes');
+    assert.ok(postinstallWorkflowSrc.includes('tests/unit/fresh-evidence-audit.test.ts'), 'workflow triggers should include evidence auditor fixture tests');
+    assert.ok(postinstallWorkflowSrc.includes('tests/unit/wsl-installer-exec.test.ts'), 'workflow triggers should include WSL installer harness changes');
+    assert.ok(postinstallWorkflowSrc.includes('npm run build'), 'workflow should build the package before packed global install smoke');
+    assert.ok(postinstallWorkflowSrc.includes('npm run test:fresh-install -- --postinstall --skip-doctor'), 'workflow should smoke-test the packed package global install');
+    assert.ok(postinstallWorkflowSrc.includes('shell: wsl-bash {0}'), 'Windows packed install smoke should run inside WSL');
+    assert.ok(postinstallWorkflowSrc.includes('wsl.exe -d Ubuntu-24.04 -- bash -lc'), 'workflow should verify PowerShell-to-WSL login-shell invocation');
+    assert.ok(postinstallWorkflowSrc.includes('$linuxWorkspace = (wsl.exe -d Ubuntu-24.04 -- wslpath "$workspace").Trim()'), 'PowerShell step should resolve the WSL workspace before bash -lc');
+    assert.equal(postinstallWorkflowSrc.includes('`$(wslpath'), false, 'PowerShell step must not let Bash command substitution be parsed by PowerShell');
+});
+
+test('SAF-004l: fresh install smoke exercises packed global install without safe mode', () => {
+    assert.equal(packageJson.scripts?.['test:fresh-install'], 'tsx scripts/fresh-install-smoke.ts');
+    assert.ok(freshInstallSmokeSrc.includes("--postinstall"), 'fresh install smoke should have a postinstall mode');
+    assert.ok(freshInstallSmokeSrc.includes('CLI_JAW_SKIP_CLAUDE'), 'postinstall smoke should skip external Claude installer');
+    assert.ok(freshInstallSmokeSrc.includes('CLI_JAW_SKIP_MCP_SERVERS'), 'postinstall smoke should skip external MCP network installs');
+    assert.ok(freshInstallSmokeSrc.includes('CLI_JAW_SKIP_SKILL_DEPS'), 'postinstall smoke should skip external skill dependency network installs');
+    assert.ok(freshInstallSmokeSrc.includes('verify-fresh-install.sh'), 'postinstall smoke should run packaged Unix verifier');
+    assert.equal(freshInstallSmokeSrc.includes('verify-fresh-install.ps1'), false, 'postinstall smoke should not imply native PowerShell support');
+    assert.ok(freshInstallSmokeSrc.includes('fresh-install-smoke targets macOS/Linux/WSL'), 'fresh install smoke should reject native Windows execution');
+    assert.ok(freshInstallSmokeSrc.includes('npm_config_prefix'), 'fresh install smoke should isolate npm global prefix');
+    assert.ok(freshInstallSmokeSrc.includes('jawCmd'), 'fresh install smoke should execute the installed global jaw shim');
+});
+
+test('SAF-004m: postinstall has opt-out gates for network-heavy optional installers', () => {
+    assert.ok(postinstallSrc.includes('CLI_JAW_SKIP_MCP_SERVERS'), 'postinstall should allow CI/fresh smoke to skip MCP network installs');
+    assert.ok(postinstallSrc.includes('CLI_JAW_SKIP_SKILL_DEPS'), 'postinstall should allow CI/fresh smoke to skip skill dependency network installs');
+    assert.ok(postinstallSrc.includes('MCP server install skipped'), 'MCP skip should be visible in logs');
+    assert.ok(postinstallSrc.includes('skill dependency install skipped'), 'skill dependency skip should be visible in logs');
+});
+
 // ── SAF-005: installMcpServers exported ──
 
 test('SAF-005: installMcpServers is exported', () => {
@@ -435,6 +608,19 @@ test('SAF-006b: installOfficeCli is exported', () => {
 
 test('SAF-006c: runPostinstall calls installOfficeCli', () => {
     assert.ok(postinstallSrc.includes('await installOfficeCli();'), 'runPostinstall should call installOfficeCli');
+});
+
+test('SAF-006c2: Windows OfficeCLI installer persists LOCALAPPDATA OfficeCli on user PATH', () => {
+    assert.ok(officeCliPowerShellSrc.includes('[Environment]::SetEnvironmentVariable("Path"'), 'PowerShell installer should persist user PATH');
+    assert.ok(officeCliPowerShellSrc.includes('$env:PATH = "$installDir;$env:PATH"'), 'PowerShell installer should update current process PATH');
+    assert.ok(officeCliPowerShellSrc.includes('Open a new PowerShell'), 'PowerShell installer should explain new-shell behavior');
+});
+
+test('SAF-006c3: doctor checks the Windows LOCALAPPDATA OfficeCli install location', () => {
+    const doctorSrc = fs.readFileSync(join(__dirname, '../../bin/commands/doctor.ts'), 'utf8');
+    assert.ok(doctorSrc.includes('process.env["LOCALAPPDATA"]') || doctorSrc.includes("process.env['LOCALAPPDATA']"), 'doctor should know the Windows OfficeCLI install root');
+    assert.ok(doctorSrc.includes("'OfficeCli', 'officecli.exe'"), 'doctor should check LOCALAPPDATA OfficeCli binary');
+    assert.ok(doctorSrc.includes('install-officecli.ps1'), 'doctor remediation should mention the PowerShell installer on Windows');
 });
 
 // ── SAF-007: InstallOpts type exported ──

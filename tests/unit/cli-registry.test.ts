@@ -65,6 +65,7 @@ test('ai-e detection checks AI_E_BIN, PATH, then local package candidates', () =
     assert.match(aiEBlock, /process\.env\["AI_E_BIN"\]/);
     assert.match(aiEBlock, /detectCliBinary\('ai-e'\)/);
     assert.match(aiEBlock, /selectSpawnableCliPath\(getAiEPackageCandidates\(\)\)/);
+    assert.match(configSrc, /'@bitkyc08', 'ai-e'/);
     assert.match(configSrc, /'ai-e', 'target', 'release'/);
     assert.ok(
         aiEBlock.indexOf('process.env["AI_E_BIN"]') < aiEBlock.indexOf("detectCliBinary('ai-e')"),
