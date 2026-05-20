@@ -4,7 +4,7 @@ import { applyTemplate } from './template-engine';
 import { NewFolderIcon, NewNoteIcon, NotesFileTree, RefreshIcon } from './NotesFileTree';
 import { NotesSearchSidebar } from './NotesSearchSidebar';
 import { publishInvalidation } from '../sync/invalidation-bus';
-import type { NoteTemplate } from '../api';
+import { DashboardApiError, type NoteTemplate } from '../api';
 import type { NotesTreeEntry } from './notes-types';
 
 export type NotesSidebarMode = 'files' | 'search';
@@ -106,10 +106,13 @@ export function NotesSidebar(props: NotesSidebarProps) {
     const [status, setStatus] = useState<string | null>(null);
     const [selectedFolderPath, setSelectedFolderPath] = useState<string | null>(null);
     const [templates, setTemplates] = useState<NoteTemplate[]>([]);
+    const [templatesLoaded, setTemplatesLoaded] = useState(false);
     const [pendingNewNote, setPendingNewNote] = useState<string | null>(null);
 
     useEffect(() => {
-        void fetchNoteTemplates().then(setTemplates).catch(() => {});
+        void fetchNoteTemplates()
+            .then(t => { setTemplates(t); setTemplatesLoaded(true); })
+            .catch(() => { setTemplatesLoaded(true); });
     }, []);
 
     async function openToday(): Promise<void> {
@@ -118,6 +121,10 @@ export function NotesSidebar(props: NotesSidebarProps) {
         const todayName = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.md`;
         if (hasFile(props.tree, todayName)) {
             props.onSelectedPathChange(todayName);
+            return;
+        }
+        if (!templatesLoaded) {
+            setError('Templates are still loading. Please try again.');
             return;
         }
         try {
@@ -138,17 +145,20 @@ export function NotesSidebar(props: NotesSidebarProps) {
             await props.onRefreshTree(created.path);
             publishInvalidation({ topics: ['notes'], reason: 'note:created', source: 'ui', sourceId: 'notes-sidebar' });
         } catch (err) {
-            const message = (err as Error).message;
-            if (message.includes('already exists') || message.includes('note_path_exists')) {
+            if (err instanceof DashboardApiError && err.status === 409 && err.code === 'note_path_exists') {
                 props.onSelectedPathChange(todayName);
                 await props.onRefreshTree(todayName);
                 return;
             }
-            setError(message);
+            setError((err as Error).message);
         }
     }
 
     async function createNote(): Promise<void> {
+        if (!templatesLoaded) {
+            setError('Templates are still loading. Please try again.');
+            return;
+        }
         const fallback = selectedFolderPath ? `${selectedFolderPath}/untitled.md` : 'untitled.md';
         const name = window.prompt('Note path', fallback);
         if (!name) return;
