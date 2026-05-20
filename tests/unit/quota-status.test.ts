@@ -166,11 +166,11 @@ test('QS-005: /api/quota classify separates no-creds from API failure', () => {
         'should distinguish creds-present from creds-absent',
     );
     assert.ok(
-        settingsRouteSrc.includes("opencode: { authenticated: true }"),
-        'opencode should always be authenticated (no quota API)',
+        settingsRouteSrc.includes("quotaSource: 'not-exposed-by-opencode-cli'"),
+        'opencode should be explicit auth/status-only metadata',
     );
     assert.ok(
-        settingsRouteSrc.includes('grok: readGrokStatus()'),
+        settingsRouteSrc.includes('const grokQuota = readGrokStatus()') && settingsRouteSrc.includes('grok: grokQuota'),
         'Grok should be present in /api/quota as auth/status-only metadata',
     );
 });

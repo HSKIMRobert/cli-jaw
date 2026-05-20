@@ -149,7 +149,7 @@ public/
 | `js/features/process-block-dom.ts` | ProcessBlock DOM ownership, normalization, and row replacement helpers |
 | `js/features/process-log-adapter.ts` | persisted tool log to ProcessStep adapter |
 | `js/features/settings-channel.ts` | active channel + fallback order |
-| `js/features/settings-cli-status.ts` | CLI availability/quota/status, AGY run-time auth hint, Copilot keychain refresh, Grok auth/status-only badge |
+| `js/features/settings-cli-status.ts` | CLI availability/quota/status, AGY run-time auth hint, Copilot keychain refresh, generic auth/status-only badge for runtimes without quota windows |
 | `js/features/settings-core.ts` | settings load/update, per-CLI model/effort, locale sync, Claude 1M / Codex fast/context controls; legacy `index.html` keeps active/flush CLI selects and AGY per-CLI controls |
 | `js/features/settings-discord.ts` | Discord settings save/load/toggles |
 | `js/features/settings-mcp.ts` | MCP server list/sync/install |
