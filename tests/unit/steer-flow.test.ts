@@ -138,7 +138,7 @@ test('SF-EDGE: processQueue is triggered after mainManaged exit in both paths', 
     );
 });
 
-test('SF-005: claude-e steer uses graceful interrupt timing', () => {
+test('SF-005: ai-e PTY steer uses graceful interrupt timing', () => {
     const spawnSrc = fs.readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
     const routeSrc = fs.readFileSync(join(__dirname, '../../src/routes/orchestrate.ts'), 'utf8');
     const handlerSrc = fs.readFileSync(join(__dirname, '../../src/cli/handlers-runtime.ts'), 'utf8');
@@ -152,8 +152,8 @@ test('SF-005: claude-e steer uses graceful interrupt timing', () => {
         'claude-e steer should not inherit the default 2s SIGKILL escalation',
     );
     assert.ok(
-        spawnSrc.includes("reason === 'steer' && isActiveClaudePtyRuntime()"),
-        'kill policy should be scoped to Claude PTY runtimes only',
+        spawnSrc.includes("reason === 'steer' && isActiveAiEPtyRuntime()"),
+        'kill policy should be scoped to ai-e/claude-e PTY runtimes',
     );
     assert.ok(
         spawnSrc.includes("return { signal: 'SIGINT', escalationMs: CLAUDE_E_STEER_KILL_ESCALATION_MS }"),
