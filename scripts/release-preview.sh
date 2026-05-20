@@ -71,9 +71,29 @@ ELECTRON_RELEASE_NOTES="$ELECTRON_RELEASE_NOTES_BASE$ELECTRON_RELEASE_NOTES_UNSI
 NPM_LATEST=$(npm view cli-jaw dist-tags.latest 2>/dev/null || echo "")
 PKG_VERSION=$(node -p "require('./package.json').version")
 
-# Use npm latest > package.json, strip prerelease suffix
-RAW_VERSION="${NPM_LATEST:-$PKG_VERSION}"
-RAW_VERSION=$(echo "$RAW_VERSION" | sed 's/-.*//')
+max_stable_version() {
+  node - "$1" "$2" <<'NODE'
+const values = process.argv.slice(2).map((value) => String(value || '0.0.0').replace(/-.*/, ''));
+function parts(value) {
+  const match = value.match(/^(\d+)\.(\d+)\.(\d+)$/);
+  if (!match) return [0, 0, 0];
+  return match.slice(1).map(Number);
+}
+values.sort((a, b) => {
+  const pa = parts(a);
+  const pb = parts(b);
+  for (let i = 0; i < 3; i += 1) {
+    if (pa[i] !== pb[i]) return pb[i] - pa[i];
+  }
+  return 0;
+});
+console.log(values[0]);
+NODE
+}
+
+# Use the higher stable version from npm latest and package.json. This keeps
+# preview releases ahead of npm without moving an ahead checkout backwards.
+RAW_VERSION=$(max_stable_version "${NPM_LATEST:-0.0.0}" "$PKG_VERSION")
 
 # Bump per BUMP_KIND so preview > latest in semver
 IFS='.' read -r MAJOR MINOR PATCH <<< "$RAW_VERSION"
