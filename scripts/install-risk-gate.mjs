@@ -73,6 +73,7 @@ function runPackageContentsCheck() {
     'scripts/collect-fresh-install-evidence.sh',
     'scripts/audit-fresh-install-evidence.mjs',
     'scripts/verify-release-evidence.mjs',
+    'scripts/require-release-evidence.mjs',
     'scripts/postinstall-guard.cjs',
   ];
   const missing = required.filter((file) => !files.has(file));
@@ -101,6 +102,7 @@ checks.push(() => run('bash syntax: scripts/collect-fresh-install-evidence.sh', 
 }));
 checks.push(() => run('node syntax: scripts/audit-fresh-install-evidence.mjs', process.execPath, ['--check', 'scripts/audit-fresh-install-evidence.mjs']));
 checks.push(() => run('node syntax: scripts/verify-release-evidence.mjs', process.execPath, ['--check', 'scripts/verify-release-evidence.mjs']));
+checks.push(() => run('node syntax: scripts/require-release-evidence.mjs', process.execPath, ['--check', 'scripts/require-release-evidence.mjs']));
 
 const powershell = commandExists('pwsh') ? 'pwsh' : commandExists('powershell') ? 'powershell' : null;
 const psParse = [

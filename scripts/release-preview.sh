@@ -141,6 +141,8 @@ run_electron_release_checks
 echo "🛡️  Running release gates (gate:all)..."
 npm run gate:all
 
+node scripts/require-release-evidence.mjs
+
 echo "🧪 Verifying npm package contents..."
 npm pack --dry-run >/dev/null
 

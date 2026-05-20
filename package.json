@@ -99,7 +99,7 @@
     "gate:action-memory-safe-replay": "node scripts/release-gates.mjs action-memory-safe-replay",
     "gate:model-adapter-frozen": "node scripts/release-gates.mjs model-adapter-frozen",
     "gate:all": "node scripts/release-gates.mjs",
-    "prepublishOnly": "npm run build && npm run build:frontend",
+    "prepublishOnly": "node scripts/require-release-evidence.mjs && npm run build && npm run build:frontend",
     "electron:dev": "concurrently -k -n jaw,electron \"node scripts/electron-dev-manager.mjs\" \"npm --prefix electron run dev\"",
     "electron:build": "npm --prefix electron run build",
     "electron:dist:mac": "npm --prefix electron run build && CSC_IDENTITY_AUTO_DISCOVERY=false npm --prefix electron run dist:mac",

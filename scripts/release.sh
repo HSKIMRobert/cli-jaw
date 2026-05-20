@@ -66,6 +66,8 @@ PKG_VERSION=$(node -p "require('./package.json').version")
 echo "📡 npm latest:   $NPM_LATEST"
 echo "📦 package.json: $PKG_VERSION"
 
+PREV_TAG=$(git tag --sort=-v:refname | grep -E '^v[0-9]' | head -1)
+
 # Sync package.json to npm latest if behind (strip prerelease)
 CLEAN_NPM=$(echo "$NPM_LATEST" | sed 's/-.*//')
 CLEAN_PKG=$(echo "$PKG_VERSION" | sed 's/-.*//')
@@ -98,7 +100,6 @@ VERSION=$(node -p "require('./package.json').version")
 echo "📌 New version: $VERSION"
 
 # ─── Collect changelog ─────────────────────────────────
-PREV_TAG=$(git tag --sort=-v:refname | grep -E '^v[0-9]' | head -1)
 if [ -n "$PREV_TAG" ]; then
   CHANGELOG=$(git log "$PREV_TAG"..HEAD --pretty=format:"- %s" --no-merges | head -50)
   COMMIT_COUNT=$(git rev-list "$PREV_TAG"..HEAD --count)
@@ -112,6 +113,12 @@ echo "📝 Changes since ${PREV_TAG:-'(none)'} ($COMMIT_COUNT commits):"
 echo "$CHANGELOG" | head -15
 echo ""
 
+# ─── Release gates ────────────────────────────────────
+echo "🛡️  Running release gates (gate:all)..."
+npm run gate:all
+
+node scripts/require-release-evidence.mjs
+
 # ─── Commit + Tag + Push ──────────────────────────────
 echo "🏷️  Creating git tag v$VERSION..."
 git add package.json package-lock.json
@@ -119,10 +126,6 @@ git commit -m "[agent] chore: release v$VERSION" --allow-empty
 git tag "v$VERSION"
 git push origin master
 git push origin "v$VERSION"
-
-# ─── Release gates ────────────────────────────────────
-echo "🛡️  Running release gates (gate:all)..."
-npm run gate:all
 
 # ─── npm publish ───────────────────────────────────────
 echo "🚀 Publishing to npm..."
