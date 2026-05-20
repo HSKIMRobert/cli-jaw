@@ -18,9 +18,12 @@ test('WYSIWYG is exposed as a primary toolbar mode backed by authoring state', (
     const editor = read('public/manager/src/notes/MarkdownEditor.tsx');
 
     assert.ok(notesTypes.includes("export type NotesAuthoringMode = 'plain' | 'rich' | 'wysiwyg';"));
-    assert.ok(notesTypes.includes("export type NotesViewMode = 'raw' | 'split' | 'preview' | 'settings';"));
+    const viewModeLine = notesTypes.split('\n').find(line => line.includes('export type NotesViewMode')) || '';
+    assert.ok(viewModeLine.includes("'graph'"));
+    assert.equal(viewModeLine.includes("'rich'"), false);
+    assert.equal(viewModeLine.includes("'wysiwyg'"), false);
     assert.ok(publicTypes.includes("export type DashboardNotesAuthoringMode = 'plain' | 'rich' | 'wysiwyg';"));
-    assert.ok(toolbar.includes("const PRIMARY_MODES: NotesPrimaryMode[] = ['raw', 'split', 'preview', 'wysiwyg'];"));
+    assert.ok(toolbar.includes("const PRIMARY_MODES: NotesPrimaryMode[] = ['raw', 'split', 'preview', 'wysiwyg', 'graph'];"));
     assert.ok(toolbar.includes("props.onAuthoringModeChange(mode === 'wysiwyg' ? 'wysiwyg' : 'plain')"));
     assert.ok(app.includes('notesAuthoringMode'), 'App must persist authoring mode through the existing UI registry');
     assert.ok(workspace.includes('authoringMode={props.authoringMode}'), 'Workspace must route authoring mode without adding a view tab');

@@ -17,8 +17,10 @@ test('Notes authoring mode is separate from Notes view mode', () => {
     const serverTypes = read('src/manager/types.ts');
     const registry = read('src/manager/registry.ts');
 
-    assert.ok(notesTypes.includes("export type NotesViewMode = 'raw' | 'split' | 'preview' | 'settings';"),
-        'NotesViewMode must not include rich');
+    const viewModeLine = notesTypes.split('\n').find(line => line.includes('export type NotesViewMode')) || '';
+    assert.ok(viewModeLine.includes("'graph'"), 'NotesViewMode may include the graph view');
+    assert.equal(viewModeLine.includes("'rich'"), false, 'NotesViewMode must not include rich');
+    assert.equal(viewModeLine.includes("'wysiwyg'"), false, 'NotesViewMode must not include wysiwyg');
     assert.ok(notesTypes.includes("export type NotesAuthoringMode = 'plain' | 'rich' | 'wysiwyg';"),
         'NotesAuthoringMode must exist separately');
     assert.ok(publicTypes.includes("export type DashboardNotesAuthoringMode = 'plain' | 'rich' | 'wysiwyg';"),
@@ -34,8 +36,8 @@ test('Notes toolbar exposes compact view modes without legacy authoring toggles'
     const app = read('public/manager/src/App.tsx');
     const workspace = read('public/manager/src/notes/NotesWorkspace.tsx');
 
-    assert.ok(toolbar.includes("const PRIMARY_MODES: NotesPrimaryMode[] = ['raw', 'split', 'preview', 'wysiwyg'];"),
-        'primary toolbar must keep Split mouse-selectable while excluding legacy rich/plain toggles');
+    assert.ok(toolbar.includes("const PRIMARY_MODES: NotesPrimaryMode[] = ['raw', 'split', 'preview', 'wysiwyg', 'graph'];"),
+        'primary toolbar must keep Split and Graph mouse-selectable while excluding legacy rich/plain toggles');
     assert.equal(toolbar.includes('notes-authoring-toggle'), false,
         'Plain/Rich legacy authoring must not clutter the top toolbar');
     assert.ok(toolbar.includes("props.onViewModeChange('settings')"),
