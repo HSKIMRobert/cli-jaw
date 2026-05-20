@@ -36,9 +36,6 @@ function replaceScriptHash(summary: string, label: string, digest: string): stri
 
 function baseSummary(target: 'macos' | 'wsl', collectorHash: string, installerHash: string, verifierHash: string): string {
     const installerSource = target === 'wsl' ? 'scripts/install-wsl.sh' : 'scripts/install.sh';
-    const powershellRun = target === 'wsl'
-        ? '2026-05-20T00:00:06Z RUN label="PowerShell-to-WSL jaw probe" log="/tmp/evidence/33-powershell-to-wsl-probe.log" command="powershell.exe -NoProfile -Command wsl.exe -d Ubuntu -- bash -lc jaw --version"\n'
-        : '';
     return `
 2026-05-20T00:00:00Z target=${target}
 2026-05-20T00:00:00Z raw_base=https://raw.githubusercontent.com/lidge-jun/cli-jaw/master
@@ -55,7 +52,6 @@ function baseSummary(target: 'macos' | 'wsl', collectorHash: string, installerHa
 2026-05-20T00:00:03Z SCRIPT label="verifier" source="scripts/verify-fresh-install.sh" file="/tmp/evidence/21-verifier-script.sh" sha256="${verifierHash}"
 2026-05-20T00:00:03Z DONE label="packaged fresh-install verifier" status=0
 2026-05-20T00:00:04Z DONE label="current bash login-shell probe" status=0
-${powershellRun}
 2026-05-20T00:00:05Z RESULT pass
 `;
 }
@@ -113,7 +109,14 @@ function writeEvidence(
     writeFile(dir, '00-collector-script.sh', collectorScript);
     writeFile(dir, '02-installer-script.sh', installerScript);
     writeFile(dir, '21-verifier-script.sh', verifierScript);
-    writeFile(dir, 'summary.txt', `${baseSummary(target, sha256(collectorScript), sha256(installerScript), sha256(verifierScript))}${target === 'wsl' && options.powershellProbe ? '2026-05-20T00:00:06Z DONE label="PowerShell-to-WSL jaw probe" status=0\n' : ''}`);
+    const powershellSummary = target === 'wsl' && options.powershellProbe
+        ? `2026-05-20T00:00:05Z RUN label="PowerShell-to-WSL jaw probe" log="/tmp/evidence/33-powershell-to-wsl-probe.log" command="powershell.exe -NoProfile -Command wsl.exe -d Ubuntu -- bash -lc jaw --version"
+2026-05-20T00:00:06Z DONE label="PowerShell-to-WSL jaw probe" status=0
+`
+        : '';
+    const summary = baseSummary(target, sha256(collectorScript), sha256(installerScript), sha256(verifierScript))
+        .replace('2026-05-20T00:00:05Z RESULT pass', `${powershellSummary}2026-05-20T00:00:07Z RESULT pass`);
+    writeFile(dir, 'summary.txt', summary);
     writeFile(dir, '00-before.txt', beforeSnapshot(target, Boolean(options.preexistingNode)));
     writeFile(dir, '01-install.log', 'installer ok\n');
     writeFile(dir, '10-after.txt', `
