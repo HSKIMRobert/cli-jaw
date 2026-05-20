@@ -187,6 +187,7 @@ ensureDirs()
 - orchestrate API는 queue cancel / queue hold / queue steer / worker result 조회까지 포함한 11개 route이며, 이전 `continue` route는 현재 코드 표면에 없다.
 - browser API는 primitive/tab/debug/doctor/runtime-cleanup, adaptive URL fetch, web-ai provider automation 라우트를 합쳐 41개 route로 확장됐다.
 - trace API는 public trace summary와 bounded event page/read를 `GET /api/traces/:runId*` 3개 route로 노출한다.
+- `/api/cli-registry`, `/api/cli-status`, `/api/quota`는 registry/detectAllCli/CLI_KEYS 기준으로 AGY(`agy`) top-level runtime을 포함한다. `/api/quota`에서 quota API가 없는 runtime은 `quotaCapable:false` status-only metadata로 반환한다.
 
 ## Selected Route Notes
 
@@ -206,6 +207,11 @@ ensureDirs()
 - `GET`은 live `settings`를 반환하되 STT secrets(`geminiApiKey`, `openaiApiKey`)를 비우고 `*KeySet`/`*KeyLast4` 메타만 노출한다.
 - `PUT`은 `applyRuntimeSettingsPatch()`를 거치며 `perCli`, `activeOverrides`, `telegram`, `discord`, `memory`, `stt`, `tui`, `messaging`, `network` 같은 nested object는 merge semantics를 따른다.
 - `showReasoning`은 top-level scalar setting이며 `/thought` command와 Gemini thought visibility가 이 값을 공유한다.
+
+### `/api/cli-registry` / `/api/cli-status`
+
+- `/api/cli-registry`는 `src/cli/registry.ts`의 `CLI_REGISTRY`를 그대로 내려준다. AGY는 top-level key `agy`이며 `ai-e.providers`에는 포함되지 않는다.
+- `/api/cli-status`는 `src/core/config.ts`의 `detectAllCli()` 결과를 내려준다. AGY는 registry binary `agy` 기준으로 설치 상태가 표시되고, auth hint는 frontend가 "run time check"로 렌더한다. 자동 기본 CLI 선정은 별도 `src/cli/readiness.ts`의 installed/authenticated tier를 쓴다.
 
 ### `/api/message`
 
@@ -230,9 +236,11 @@ ensureDirs()
 
 ### `/api/quota`
 
-- 응답 키: `claude`, `codex`, `gemini`, `opencode`, `copilot`, `grok`.
-- `opencode`는 현재 `{ authenticated: true }` 고정 응답이다.
+- 응답 키: `agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `gemini`, `grok`, `opencode`, `copilot` (`CLI_KEYS` 순서).
+- `claude-e`는 underlying Claude quota/auth를, `codex-app`은 underlying Codex quota/auth를, `ai-e`는 현재 선택 provider의 quota/auth를 delegated metadata와 함께 반환한다.
+- `agy`와 `opencode`는 현재 `{ authenticated:true, quotaCapable:false }` status-only 응답이다.
 - `grok`는 `grok models` 기반 auth/status-only 응답이다. Grok CLI는 남은 할당량을 노출하지 않으므로 `quotaCapable:false`, `quotaSource:'not-exposed-by-grok-cli'`, `displayTier:'Grok Heavy'`를 반환하고, 있으면 최신 `~/.grok/sessions/**/signals.json`의 세션 context 사용량만 best-effort로 붙인다.
+- AGY는 현 runtime에서 quota/auth API가 분리되어 있지 않아 real quota window를 만들지 않는다. 상태 표시는 `/api/cli-status` 설치 상태와 `/api/quota`의 `not-exposed-by-agy-cli` metadata가 함께 담당한다.
 
 ### `/api/orchestrate/dispatch`
 

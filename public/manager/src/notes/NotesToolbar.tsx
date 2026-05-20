@@ -1,7 +1,7 @@
 import type { NotesAuthoringMode, NotesViewMode } from './notes-types';
 import { canSaveNote, noteDisplayName } from './note-revisions';
 
-type NotesPrimaryMode = 'raw' | 'split' | 'preview' | 'wysiwyg';
+type NotesPrimaryMode = 'raw' | 'split' | 'preview' | 'wysiwyg' | 'graph';
 
 type NotesToolbarProps = {
     selectedPath: string | null;
@@ -17,17 +17,19 @@ type NotesToolbarProps = {
     onReload: () => void;
 };
 
-const PRIMARY_MODES: NotesPrimaryMode[] = ['raw', 'split', 'preview', 'wysiwyg'];
+const PRIMARY_MODES: NotesPrimaryMode[] = ['raw', 'split', 'preview', 'wysiwyg', 'graph'];
 
 function primaryModeLabel(mode: NotesPrimaryMode): string {
     if (mode === 'raw') return 'Raw';
     if (mode === 'split') return 'Split';
     if (mode === 'preview') return 'Preview';
+    if (mode === 'graph') return 'Graph';
     return 'WYSIWYG';
 }
 
 function activePrimaryMode(viewMode: NotesViewMode, authoringMode: NotesAuthoringMode): NotesPrimaryMode | null {
     if (viewMode === 'settings') return null;
+    if (viewMode === 'graph') return 'graph';
     if (viewMode === 'split') return 'split';
     if (viewMode === 'preview') return 'preview';
     if (authoringMode === 'wysiwyg') return 'wysiwyg';
@@ -36,6 +38,10 @@ function activePrimaryMode(viewMode: NotesViewMode, authoringMode: NotesAuthorin
 
 export function NotesToolbar(props: NotesToolbarProps) {
     function activatePrimaryMode(mode: NotesPrimaryMode): void {
+        if (mode === 'graph') {
+            props.onViewModeChange('graph');
+            return;
+        }
         if (mode === 'split') {
             props.onViewModeChange('split');
             props.onAuthoringModeChange('plain');
@@ -66,7 +72,7 @@ export function NotesToolbar(props: NotesToolbarProps) {
                             role="tab"
                             aria-selected={activeMode === mode}
                             className={activeMode === mode ? 'is-active' : ''}
-                            disabled={!props.selectedPath}
+                            disabled={mode === 'graph' ? false : !props.selectedPath}
                             onClick={() => activatePrimaryMode(mode)}
                         >
                             {primaryModeLabel(mode)}

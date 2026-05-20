@@ -13,12 +13,28 @@ export const c = {
 };
 
 export const cliLabel: Record<string, string> = {
-    claude: 'Claude Code', codex: 'Codex', gemini: 'Gemini CLI',
-    opencode: 'OpenCode', copilot: 'Copilot',
+    agy: 'Antigravity',
+    'ai-e': 'AI-E',
+    claude: 'Claude Code',
+    'claude-e': 'Claude E',
+    codex: 'Codex',
+    'codex-app': 'Codex App',
+    gemini: 'Gemini CLI',
+    grok: 'Grok',
+    opencode: 'OpenCode',
+    copilot: 'Copilot',
 };
 export const cliColor: Record<string, string> = {
-    claude: c.magenta, codex: c.red, gemini: c.blue,
-    opencode: c.yellow, copilot: c.cyan,
+    agy: c.green,
+    'ai-e': c.green,
+    claude: c.magenta,
+    'claude-e': c.magenta,
+    codex: c.red,
+    'codex-app': c.red,
+    gemini: c.blue,
+    grok: c.gray,
+    opencode: c.yellow,
+    copilot: c.cyan,
 };
 
 export const ESC_WAIT_MS = 70;

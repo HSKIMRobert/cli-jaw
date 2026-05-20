@@ -14,6 +14,7 @@ export interface QuotaEntry {
     quotaSource?: string;
     sessionUsageCapable?: boolean;
     displayTier?: string;
+    delegatedProvider?: string;
     sessionUsage?: {
         contextTokensUsed?: number | null;
         contextWindowTokens?: number | null;

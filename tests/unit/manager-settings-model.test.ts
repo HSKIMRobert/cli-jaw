@@ -12,7 +12,7 @@ import { test } from 'node:test';
 import { createDirtyStore } from '../../public/manager/src/settings/dirty-store';
 import { expandPatch } from '../../public/manager/src/settings/pages/path-utils';
 import { buildResetOverridesPatch } from '../../public/manager/src/settings/pages/ModelProvider';
-import { metaFor, runtimeModelFor } from '../../public/manager/src/settings/pages/components/agent/agent-meta';
+import { metaFor, PRIMARY_CLIS, runtimeModelFor } from '../../public/manager/src/settings/pages/components/agent/agent-meta';
 
 // ─── ChipListField / fallback order ──────────────────────────────────
 
@@ -114,6 +114,9 @@ test('Model defaults imports canonical CLI metadata from agent-meta', () => {
     assert.ok(source.includes("from './components/agent/agent-meta'"));
     assert.ok(source.includes('Model defaults'));
     assert.equal(metaFor('codex').models.includes('gpt-5.5'), true);
+    assert.equal(metaFor('agy').label, 'Antigravity');
+    assert.equal(metaFor('agy').models.includes('gemini-3.5-flash'), true);
+    assert.equal(PRIMARY_CLIS.includes('agy'), true);
 });
 
 test('active runtime override wins over per-CLI defaults', () => {

@@ -9,7 +9,7 @@ aliases: [CLI-JAW Source Structure, str_func, source structure reference]
 # CLI-JAW — Source Structure & Function Reference
 
 > 마지막 검증: 2026-05-16 (실제 코드베이스 재측정)
-> `server.ts` 826L / `src/routes/` 15 files (12 registrar + `quota.ts` helper + `types.ts` + trace routes) / `src/cli/handlers*.ts` 383L + 497L + 95L / `src/cli/api-auth.ts` 45L / `src/agent/` 19 files (`spawn.ts` 1973L + `events.ts` 1904L + `claude-i-runtime.ts` 44L 포함) / `src/manager/` 69 TS/TSX files (10682L, dashboard manager + board/notes/search/schedule/reminders/connector/routes + notes assets/watcher 서브모듈) / `src/browser/web-ai/` 67 TS files (12390L, ChatGPT/Gemini/Grok 멀티벤더 자동화 + resolver/source-audit/observation helpers + context-pack/tab-pool) / `src/types/` 3 files (296L) / `bin/commands/` 22 top-level ts files + `tui/` 7 helper files / `native/jaw-claude-i/` 11 Rust source files (1703L)
+> `server.ts` 847L / `src/routes/` 18 files (registrars + helper modules) / `src/cli/handlers*.ts` 383L + 497L + 95L / `src/cli/api-auth.ts` 45L / `src/agent/` 35 TS files (`spawn.ts` 1721L + `events.ts` 15L + `agy-runtime.ts` 10L + `claude-e-runtime.ts` 44L 포함) / `src/manager/` 69 TS/TSX files (10741L, dashboard manager + board/notes/search/schedule/reminders/connector/routes + notes assets/watcher 서브모듈) / `src/browser/web-ai/` 67 TS files (12415L, ChatGPT/Gemini/Grok 멀티벤더 자동화 + resolver/source-audit/observation helpers + context-pack/tab-pool) / `src/types/` 3 files (304L) / `bin/commands/` 22 top-level ts files + `tui/` 7 helper files / `native/jaw-claude-i/` 11 Rust source files (1934L)
 > issue #91: OfficeCLI 10-phase integration (dual-audited, 94/94 tests) — closed
 > issue #92: Phase 20 overlay consolidation + GitHub Release v1.0.28-lidge.1 (3 audits passed: A-/A/A) — closed
 > issue #95: Avatar image upload — emoji+image dual support, 4 API endpoints, secure path serving — closed
@@ -61,12 +61,13 @@ cli-jaw/
 │   │   ├── launchd-plist.ts  ← launchd plist 생성 helper (61L)
 │   │   ├── tcc.ts            ← macOS TCC / screen-recording 권한 점검 (55L)
 │   │   └── settings-merge.ts ← perCli/activeOverrides deep merge (52L)
-│   ├── agent/                ← CLI 에이전트 런타임 (19 files)
+│   ├── agent/                ← CLI 에이전트 런타임 (35 files incl. events/ + spawn/)
 │   │   ├── alert-escalation.ts ← alert escalation event helper (80L)
-│   │   ├── spawn.ts          ← CLI spawn + ACP/Codex App/claude-i 분기 + 큐 + 메모리 flush + 429 retry timer + isAgentBusy + buildHistoryBlock compact cutoff + working_dir scoping + enqueue→processQueue race fix + QueueItem persistent DB queue + makeCleanEnv PATH augment + claude-i runtime error capture (1696L)
-│   │   ├── spawn-env.ts      ← spawn용 child env 빌더 (OpenCode/Gemini permissions config 주입 등, 141L)
-│   │   ├── args.ts           ← CLI별 인자 빌더 + `claude-i` helper run/resume args + session bucket 분리 (306L)
-│   │   ├── claude-i-runtime.ts ← `jaw_runtime` helper event를 `agent:claude-i:*` broadcast로 변환 (44L)
+│   │   ├── spawn.ts          ← CLI spawn + ACP/Codex App/AGY plain text/claude-e helper 분기 + 큐 + 메모리 flush + 429 retry timer + isAgentBusy + buildHistoryBlock compact cutoff + working_dir scoping + enqueue→processQueue race fix + QueueItem persistent DB queue + makeCleanEnv PATH augment + claude-i runtime error capture (1721L)
+│   │   ├── spawn-env.ts      ← spawn용 child env 빌더 (AGY NO_COLOR, OpenCode/Gemini permissions config 주입 등, 148L)
+│   │   ├── args.ts           ← CLI별 인자 빌더 + AGY print-mode args + `claude-e` helper run/resume args + session bucket 분리 (339L)
+│   │   ├── agy-runtime.ts    ← AGY timeout stdout 판별/메시지 정규화 (10L)
+│   │   ├── claude-e-runtime.ts ← `jaw_runtime` helper event를 legacy `agent:claude-i:*` broadcast로 변환 (44L)
 │   │   ├── cli-helpers.ts    ← Claude-like CLI 판별 helper (7L)
 │   │   ├── codex-app-client.ts ← Codex App stdio server client (259L)
 │   │   ├── codex-app-events.ts ← Codex App turn/tool/message event adapter (236L)
@@ -172,8 +173,8 @@ cli-jaw/
 │   │   ├── api-auth.ts       ← CLI→server Bearer token bootstrap (`getCliAuthToken`, `authHeaders`, `cliFetch`) (45L)
 │   │   ├── claude-models.ts  ← Claude 정규 모델셋 (CLAUDE_CANONICAL_MODELS, CLAUDE_LEGACY_VALUE_MAP) + migration/validation helpers (78L)
 │   │   ├── compact.ts        ← /compact 슬래시 커맨드 핸들러 (Claude native + managed 경로 분기) + working_dir scoped (139L)
-│   │   ├── registry.ts       ← 8개 CLI/모델 단일 소스 + canonical defaults + experimental `claude-i` (149L)
-│   │   ├── readiness.ts      ← CLI별 인증/설치 상태 점검 + `claude-i` underlying Claude auth/readiness bridge (CliReadiness[]) (118L)
+│   │   ├── registry.ts       ← 10개 CLI/모델 단일 소스 + canonical defaults + top-level `agy`/`ai-e`/`claude-e` (159L)
+│   │   ├── readiness.ts      ← CLI별 인증/설치 상태 점검 + AGY runtime auth hint + `claude-e` underlying Claude auth/readiness bridge (CliReadiness[]) (128L)
 │   │   ├── acp-client.ts     ← Copilot ACP JSON-RPC 클라이언트 (382L)
 │   │   ├── command-context.ts ← 공유 커맨드 컨텍스트 팩토리 + runSkillReset 위임 + regenerateB 유지 (140L)
 │   │   ├── connector.ts      ← dashboard connector CLI API bridge (board/notes/reminders/audit) (73L)
@@ -314,14 +315,14 @@ cli-jaw/
 │   │   └── error-middleware.ts ← notFoundHandler, errorHandler (26L)
 │   ├── types/                ← 공유 타입 정의 (3 files, 296L)
 │   │   ├── agent.ts          ← ToolEntry, SpawnContext, SpawnResult 인터페이스 (94L)
-│   │   ├── cli-engine.ts     ← CliEngine union + registry key tuple + `claude-i` discriminator (48L)
+│   │   ├── cli-engine.ts     ← CliEngine union + registry key tuple + `agy`/`ai-e`/`claude-e` discriminators (48L)
 │   │   └── cli-events.ts     ← CLI event record/discriminator helpers (154L)
 │   └── command-contract/     ← 커맨드 인터페이스 통합
 │       ├── catalog.ts        ← COMMANDS → capability map 확장 (43L)
 │       ├── policy.ts         ← getVisibleCommands, getTelegramMenuCommands (39L)
 │       └── help-renderer.ts  ← renderHelp list/detail mode (44L)
-├── public/                   ← Web UI (Vite 8 + ES Modules, 493 files [source + assets + public/public/dist mirror, public/dist 제외], public/dist build output 463 files, mirrored copies under `public/public/dist/` and `public/dist/dist/`, ~69329L)
-│   ├── index.html            ← 뼈대 (1000L, CLI-JAW 대문자 로고, pill theme switch, data-i18n, 로컬 avatar 입력)
+├── public/                   ← Web UI (Vite 8 + ES Modules, 495 files [source + assets + public/public/dist mirror, public/dist 제외], public/dist build output 464 files, mirrored copies under `public/public/dist/` and `public/dist/dist/`, ~69769L)
+│   ├── index.html            ← 뼈대 (1018L, CLI-JAW 대문자 로고, pill theme switch, data-i18n, 로컬 avatar 입력)
 │   ├── manifest.json         ← PWA 매니페스트 (20L) ✨
 │   ├── sw.js                 ← Service Worker 오프라인 캐시 (104L) ✨
 │   ├── icons/                ← PWA 아이콘 세트 ✨
@@ -482,6 +483,7 @@ cli-jaw/
 │   │   ├── tui-choice-selector.test.ts ← choice selector + locale path + zero-result guard 20건 ✨
 │   │   ├── claude-models.test.ts      ← Claude canonical/legacy 모델 유효성 13건
 │   │   ├── claude-i-detection.test.ts ← `JAW_CLAUDE_I_BIN` 우선순위 + native helper fallback 감지 2건
+│   │   ├── agy-runtime.test.ts ← AGY timeout stdout + spawn lifecycle source-contract 테스트
 │   │   ├── config-migrate-claude-models.test.ts ← migrateSettings Claude 정규화 7건
 │   │   ├── agent-args-claude-model.test.ts ← agent args Claude 모델 매핑 8건
 │   │   ├── compact-managed.test.ts    ← managed compact summary + cutoff 10건
@@ -600,7 +602,7 @@ graph LR
 | `src/command-contract/` | cli/commands                                   | capability map + policy + help                                      |
 | `src/prompt/`           | core                                           | A-1/A-2 + 스킬 + 직원 프롬프트 v2                                   |
 | `src/memory/`           | core                                           | 메모리 + worklog + heartbeat + advanced runtime                     |
-| `src/agent/`            | core, prompt, orchestrator, cli/acp-client, native helper output | 핵심 허브 + ACP copilot + Codex App + `claude-i` helper 분기         |
+| `src/agent/`            | core, prompt, orchestrator, cli/acp-client, native helper output | 핵심 허브 + AGY plain text + ACP copilot + Codex App + `claude-e`/legacy `claude-i` helper 분기 |
 | `src/orchestrator/`     | core, prompt, agent                            | planning ↔ agent 상호 + phase 관리 + research dispatch + worker monitor |
 | `src/telegram/`         | core, orchestrator, agent, cli, prompt, memory, messaging | 외부 인터페이스 + lifecycle                              |
 | `src/discord/`          | core, orchestrator, agent, cli, messaging      | Discord 인터페이스 + slash commands                                 |
@@ -624,7 +626,7 @@ graph LR
 11. **Forwarder lifecycle**: named handler attach/detach로 중복 등록 방지
 11.5. **Messaging runtime**: `src/messaging/` — 채널 추상화 (transport registry + unified send + session key)
 12. **symlink 보호**: 실디렉토리 충돌 시 backup 우선
-13. **CLI registry**: `src/cli/registry.ts`에서 CLI 런타임 정의, `/api/cli-registry`로 동기화. `claude-i`는 experimental이며 `jaw-claude-i` helper와 underlying `claude`가 둘 다 필요하다.
+13. **CLI registry**: `src/cli/registry.ts`에서 CLI 런타임 정의, `/api/cli-registry`로 동기화. AGY는 top-level `agy` runtime이며 `ai-e.providers`에 포함하지 않는다. `claude-e`는 experimental이며 legacy `claude-i` helper/event bucket과 underlying `claude`가 둘 다 필요하다.
 14. **Copilot ACP**: JSON-RPC 2.0 over stdio, `session/update` 실시간 스트리밍
 15. **Copilot effort**: `~/.copilot/config.json` `reasoning_effort` 직접 수정
 16. **Copilot quota**: env → file cache(~/.cli-jaw/auth/) → `gh auth token` → macOS keychain → `copilot_internal/user` API (execFileSync, source 바인딩, legacy 마이그레이션)
@@ -777,7 +779,7 @@ graph LR
 | [🤖 agent_spawn.md](agent_spawn.md)                 | agent/ (spawn·args·events) + orchestrator/ (pipeline·parser) + cli/acp-client | spawn + ACP + 오케스트레이션           |
 | [📱 telegram.md](telegram.md)                       | telegram/ (bot·forwarder·telegram-file) + memory/heartbeat                    | 외부 인터페이스 + lifecycle + 파일전송 |
 | *(미작성)* discord.md                                | discord/ (bot·commands·forwarder·discord-file) + messaging/                   | Discord 인터페이스 + 메시징 런타임     |
-| [🎨 frontend.md](frontend.md)                       | public/ 전체 (소스/자산 493개, `public/dist` build 463파일 + mirrored copies) | ES Modules + CSS + Vite + PWA           |
+| [🎨 frontend.md](frontend.md)                       | public/ 전체 (소스/자산 495개, `public/dist` build 464파일 + mirrored copies) | ES Modules + CSS + Vite + PWA           |
 | [🧠 prompt_flow.md](prompt_flow.md)                 | prompt/builder.ts · 직원 프롬프트 · promptCache                               | **핵심** — 정적/동적 + Copilot ACP     |
 | [📄 prompt_basic_A1.md](prompt_basic_A1.md)         | A-1 기본 프롬프트 원문                                                        | EN 기본 프롬프트 레퍼런스              |
 | [📄 prompt_basic_A2.md](prompt_basic_A2.md)         | A-2 프롬프트 템플릿                                                           | 사용자 편집 가능                       |

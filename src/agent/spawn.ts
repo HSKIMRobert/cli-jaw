@@ -52,6 +52,7 @@ import type { SpawnContext, ToolEntry } from '../types/agent.js';
 import { asCliEventRecord, discriminate, fieldString, type CliEventRecord } from '../types/cli-events.js';
 import { isJawRuntimeEvent, handleJawRuntimeEvent } from './claude-e-runtime.js';
 import { appendTraceEvent, stampTraceTool, startTraceRun } from '../trace/store.js';
+import { formatAgyTimeoutMessage, isAgyTimeoutOutput } from './agy-runtime.js';
 
 // ─── State ───────────────────────────────────────────
 
@@ -673,7 +674,8 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     const bucketResumeKey = typeof bucketRow?.resume_key === 'string' ? bucketRow.resume_key : null;
     const bucketUpdatedAt = bucketRow?.updated_at ?? null;
     const resumeKey = buildSessionResumeKey(cli, spawnEnv);
-    const providerSupportsResume = !(cli === 'ai-e' && effectiveProvider !== 'claude');
+    const providerSupportsResume = cli !== 'agy'
+        && !(cli === 'ai-e' && effectiveProvider !== 'claude');
     const canResumeBucketSession = !bucketSessionId || shouldResumeBucketSession(
         cli,
         model,
@@ -734,7 +736,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             cli === 'gemini' ? GEMINI_HISTORY_MAX_CHARS : 8000,
         )
         : '';
-    const promptForArgs = (cli === 'gemini' || cli === 'grok' || cli === 'opencode' || (cli === 'ai-e' && effectiveProvider !== 'claude'))
+    const promptForArgs = (cli === 'agy' || cli === 'gemini' || cli === 'grok' || cli === 'opencode' || (cli === 'ai-e' && effectiveProvider !== 'claude'))
         ? withHistoryPrompt(prompt, historyBlock)
         : prompt;
     const claudeBin = (cli === 'claude-e' || (cli === 'ai-e' && effectiveProvider === 'claude'))
@@ -744,6 +746,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         fastMode: cfg.fastMode,
         sysPrompt,
         includeDirectories,
+        workingDir: settings["workingDir"],
         aiEProvider: effectiveProvider,
         ...(claudeBin ? { claudeBin } : {}),
     };
@@ -1616,6 +1619,19 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     child.stdout.on('data', (chunk) => {
         opts.lifecycle?.onActivity?.('stdout');
         lastOpencodeIoAt = Date.now();
+        if (cli === 'agy') {
+            const text = chunk.toString();
+            ctx.fullText += text;
+            appendTraceEvent({ runId: ctx.traceRunId, source: 'cli_raw', eventType: 'plain_text', raw: text });
+            if (ctx.liveScope) appendLiveRunText(ctx.liveScope, text);
+            broadcast('agent_output', {
+                agentId: agentLabel,
+                cli,
+                text,
+                ...empTag,
+            }, traceAudience);
+            return;
+        }
         buffer += chunk.toString();
         const lines = buffer.split('\n');
         buffer = lines.pop() ?? '';
@@ -1647,14 +1663,23 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         flushClaudeBuffers(ctx, agentLabel, empTag);  // flush any pending thinking/input buffers
         if (cli === 'opencode') flushOpenCodeBuffers(ctx, agentLabel, empTag);
         cleanupEmployeeTmpDir(spawnCwd, settings["workingDir"], agentLabel);
-        opts.lifecycle?.onExit?.(code ?? null);
 
         // [I2] Consume per-process kill reason
         const stdKillReason = consumeKillReason(child.pid);
         const wasKilled = !!stdKillReason;
         const wasSteer = stdKillReason === 'steer';
 
-        const smokeResult = detectSmokeResponse(ctx.fullText, ctx.toolLog, code, cli);
+        const agyTimedOut = cli === 'agy' && isAgyTimeoutOutput(ctx.fullText);
+        const effectiveExitCode = agyTimedOut ? 124 : code;
+        if (agyTimedOut) {
+            const message = formatAgyTimeoutMessage(ctx.fullText);
+            ctx.stderrBuf = ctx.stderrBuf ? `${ctx.stderrBuf}\n${message}` : message;
+            ctx.fullText = '';
+            appendTraceEvent({ runId: ctx.traceRunId, source: 'cli_raw', eventType: 'runtime_error', raw: message });
+        }
+        opts.lifecycle?.onExit?.(effectiveExitCode ?? null);
+
+        const smokeResult = detectSmokeResponse(ctx.fullText, ctx.toolLog, effectiveExitCode, cli);
 
         // Build cost display line (CLI-only feature)
         const costParts = [];
@@ -1669,7 +1694,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         //   - error: code !== 0 && !wasKilled → classifyExitError
         //   - trace: if (traceText) traceText = `⏹️ [interrupted]…`
         handleAgentExit({
-            ctx, code, cli, model, effectiveProvider, agentLabel, mainManaged, origin,
+            ctx, code: effectiveExitCode, cli, model, effectiveProvider, agentLabel, mainManaged, origin,
             resumeKey,
             prompt, opts, cfg, ownerGeneration, forceNew, empSid,
             isResume, wasKilled, wasSteer, smokeResult,

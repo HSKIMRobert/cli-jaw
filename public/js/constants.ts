@@ -15,6 +15,12 @@ export interface CliEntry {
 export type CliRegistry = Record<string, CliEntry>;
 
 const FALLBACK_CLI_REGISTRY: CliRegistry = {
+    agy: {
+        label: 'Antigravity',
+        efforts: [],
+        effortNote: 'AGY print mode uses -p; model/effort flags are not exposed by agy 1.0.0',
+        models: ['gemini-3.5-flash'],
+    },
     'ai-e': {
         label: 'AI-E',
         defaultProvider: 'claude',
@@ -205,7 +211,7 @@ export function getCliMeta(cli: string): CliEntry | null {
     return CLI_REGISTRY[cli] || null;
 }
 
-export const PRIMARY_CLIS: readonly string[] = ['claude', 'codex', 'gemini'];
+export const PRIMARY_CLIS: readonly string[] = ['claude', 'claude-e', 'agy', 'codex', 'gemini'];
 
 export interface RolePreset {
     value: string;

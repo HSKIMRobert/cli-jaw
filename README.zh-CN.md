@@ -2,7 +2,7 @@
 
 # CLI-JAW
 
-### 你的个人 AI 助手。2 行安装。7 个 AI 引擎，一个仪表盘。
+### 你的个人 AI 助手。2 行安装。10 个 AI 运行时，一个仪表盘。
 
 [![npm](https://img.shields.io/npm/v/cli-jaw)](https://npmjs.com/package/cli-jaw)
 [![Version](https://img.shields.io/badge/v2.0.0-GA-brightgreen)](https://github.com/lidge-jun/cli-jaw/releases)
@@ -90,7 +90,7 @@ docker compose up -d       # → http://localhost:3457
 
 ## CLI-JAW 是什么？
 
-CLI-JAW 是一个开源平台，将你已经在用的 AI 编码 CLI — Claude、Codex、Gemini、Grok、OpenCode、Copilot — 统一成**一个助手、一份记忆、一个仪表盘**。
+CLI-JAW 是一个开源平台，将你已经在用的 AI 编码 CLI — Antigravity、AI-E、Claude、Claude E、Codex、Codex App、Gemini、Grok、OpenCode、Copilot — 统一成**一个助手、一份记忆、一个仪表盘**。
 
 你的主 CLI（Boss）调度其他 CLI 作为"员工"。不用在各种应用之间来回切换，直接在一个地方下达指令。
 
@@ -246,12 +246,17 @@ jaw dispatch --agent "Frontend" --task "修复 dashboard.tsx 中的 CSS grid 布
 | CLI | 默认模型 | 认证 | 费用 |
 |---|---|---|---|
 | **Claude** | `opus-4-6` | `claude auth login` | Claude Max 订阅 |
+| **Claude E** | `opus-4-6` | underlying `claude auth login` | 实验性互动 Claude wrapper |
+| **AI-E** | provider-selected | 所选 provider 认证 | 多 provider runtime wrapper |
+| **Antigravity** | `gemini-3.5-flash` | 由 `agy` 在运行时检查 | 实验性 AGY print-mode runtime |
 | **Codex** | `gpt-5.5` | `codex login` | ChatGPT Pro 订阅 |
 | **Codex App** | `gpt-5.4` | `codex login` | ChatGPT Pro 订阅 |
 | **Gemini** | `gemini-3.1-pro-preview` | `gemini` | Gemini Advanced 订阅 |
 | **Grok** | `grok-build` | `grok login --oauth` | Grok 订阅；配额仅限认证/状态 |
 | **OpenCode** | `minimax-m2.7` | `opencode` | 有免费模型 |
 | **Copilot** | `gpt-5-mini` | `copilot login` | 有免费层 |
+
+配额/状态面板保持与 registry 相同的 runtime keyset。Wrapper runtime（`ai-e`, `claude-e`, `codex-app`）委托给 underlying provider；AGY/Grok/OpenCode 这类 CLI 不暴露 quota window 时，会以 auth/status-only 显示。
 
 **回退链**：当一个引擎被限速时，下一个自动接上。用 `/fallback [cli1 cli2...]` 配置。
 
@@ -371,10 +376,10 @@ Computer Use 让你用自然语言控制任何 macOS 应用——Finder、Safari
 
 ```bash
 jaw mcp install @anthropic/context7
-# → 同步到 Claude、Codex、Gemini、OpenCode、Copilot 的配置文件
+# → 同步到 Claude、Codex、Gemini、OpenCode、Copilot、Antigravity 的配置文件
 ```
 
-不用再分别编辑多个 JSON 文件。安装一次，每个 MCP 感知引擎都会获得配置。Grok CLI 是标准运行时，但在 Grok 暴露兼容配置面之前不计为 MCP 同步对象。
+不用再分别编辑多个 JSON 文件。安装一次，每个 MCP 感知引擎都会获得配置。Grok CLI 是标准运行时，但在 Grok 暴露兼容配置面之前不计为 MCP 同步对象。Antigravity MCP 同步是独立的 config target，不等同于 `agy` runtime registry entry。
 
 ```bash
 jaw mcp sync       # 手动编辑后重新同步

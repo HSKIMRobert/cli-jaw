@@ -11,7 +11,7 @@ import { clearTemplateCache, getTemplateDir } from '../prompt/template-loader.js
 import {
     loadUnifiedMcp, saveUnifiedMcp, syncToAll, initMcpConfig,
 } from '../../lib/mcp-sync.js';
-import { CLI_REGISTRY } from '../cli/registry.js';
+import { CLI_REGISTRY, CLI_KEYS } from '../cli/registry.js';
 import { readClaudeCreds, readCodexTokens, fetchClaudeUsage, fetchCodexUsage, readGeminiAccount, fetchGeminiUsage, readGrokStatus } from './quota.js';
 import { fetchCopilotQuota, refreshCopilotFromKeychain } from '../../lib/quota-copilot.js';
 import { migrateLegacyClaudeValue } from '../cli/claude-models.js';
@@ -57,6 +57,34 @@ function redactRuntimeSettings<T extends Record<string, unknown>>(input: T): T {
     if (jawCeo) safe.jawCeo = jawCeo;
     else delete safe.jawCeo;
     return safe as T;
+}
+
+type QuotaStatusEntry = Record<string, unknown>;
+
+function isQuotaStatusEntry(value: unknown): value is QuotaStatusEntry {
+    return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function withQuotaMeta(result: unknown, meta: QuotaStatusEntry): QuotaStatusEntry {
+    const base = isQuotaStatusEntry(result) ? result : {};
+    return Object.fromEntries(
+        Object.entries({ ...base, ...meta }).filter(([, value]) => value !== undefined),
+    );
+}
+
+function buildStatusOnlyQuota(meta: QuotaStatusEntry): QuotaStatusEntry {
+    return withQuotaMeta({
+        authenticated: true,
+        quotaCapable: false,
+        windows: [],
+    }, meta);
+}
+
+function resolveAiEQuotaProvider(): string {
+    const provider = settings["perCli"]?.["ai-e"]?.provider;
+    if (typeof provider === 'string' && provider.trim()) return provider;
+    const entry = CLI_REGISTRY["ai-e"] as Record<string, unknown>;
+    return typeof entry["defaultProvider"] === 'string' ? entry["defaultProvider"] as string : 'claude';
 }
 
 export function registerSettingsRoutes(
@@ -223,14 +251,58 @@ export function registerSettingsRoutes(
         const classify = (result: unknown, hasCreds: boolean) =>
             result ?? (hasCreds ? { error: true } : { authenticated: false });
 
-        res.json({
-            claude: classify(claudeResult, !!claudeCreds),
-            codex: classify(codexResult, !!codexTokens),
-            gemini: classify(geminiResult, !!geminiAccount),
-            grok: readGrokStatus(),
-            opencode: { authenticated: true },
-            copilot: copilotResult ?? { authenticated: false },
+        const claudeQuota = classify(claudeResult, !!claudeCreds);
+        const codexQuota = classify(codexResult, !!codexTokens);
+        const geminiQuota = classify(geminiResult, !!geminiAccount);
+        const grokQuota = readGrokStatus();
+        const copilotQuota = copilotResult ?? { authenticated: false };
+        const opencodeQuota = buildStatusOnlyQuota({
+            quotaSource: 'not-exposed-by-opencode-cli',
+            displayTier: 'OpenCode',
+            account: { type: 'opencode', tier: 'auth/status only' },
         });
+        const agyQuota = buildStatusOnlyQuota({
+            quotaSource: 'not-exposed-by-agy-cli',
+            displayTier: 'Antigravity',
+            account: { type: 'antigravity.google', tier: 'runtime-checked' },
+        });
+        const providerQuota: Record<string, unknown> = {
+            claude: claudeQuota,
+            codex: codexQuota,
+            gemini: geminiQuota,
+            grok: grokQuota,
+            copilot: copilotQuota,
+        };
+        const aiEProvider = resolveAiEQuotaProvider();
+        const aiEQuota = withQuotaMeta(providerQuota[aiEProvider] ?? buildStatusOnlyQuota({
+            quotaSource: 'unknown-ai-e-provider',
+            displayTier: 'AI-E',
+        }), {
+            quotaSource: `ai-e:${aiEProvider}`,
+            displayTier: `AI-E → ${aiEProvider}`,
+            delegatedProvider: aiEProvider,
+        });
+        const quotaByCli: Record<string, unknown> = {
+            agy: agyQuota,
+            'ai-e': aiEQuota,
+            claude: claudeQuota,
+            'claude-e': withQuotaMeta(claudeQuota, {
+                quotaSource: 'claude-e:underlying-claude',
+                displayTier: 'Claude E → Claude',
+                delegatedProvider: 'claude',
+            }),
+            codex: codexQuota,
+            'codex-app': withQuotaMeta(codexQuota, {
+                quotaSource: 'codex-app:underlying-codex',
+                displayTier: 'Codex App → Codex',
+                delegatedProvider: 'codex',
+            }),
+            gemini: geminiQuota,
+            grok: grokQuota,
+            opencode: opencodeQuota,
+            copilot: copilotQuota,
+        };
+        res.json(Object.fromEntries(CLI_KEYS.map((key) => [key, quotaByCli[key] ?? { authenticated: false }])));
     });
 
     app.post('/api/copilot/refresh', requireAuth, async (_, res) => {

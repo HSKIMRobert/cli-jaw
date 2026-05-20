@@ -77,6 +77,13 @@ export function applyCliEnvDefaults(
         return merged;
     }
 
+    if (cli === 'agy') {
+        return {
+            ...extraEnv,
+            NO_COLOR: extraEnv["NO_COLOR"] ?? inheritedEnv["NO_COLOR"] ?? '1',
+        };
+    }
+
     if (cli !== 'opencode') return extraEnv;
     const withPath = prependPathDir(extraEnv, inheritedEnv, getOpencodePreferredBinDir());
     if (withPath["OPENCODE_ENABLE_EXA"] !== undefined) return withPath;

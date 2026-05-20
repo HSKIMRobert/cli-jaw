@@ -10,7 +10,7 @@ aliases: [CLI-JAW Commands, slash commands registry, commands.md]
 
 > `commands.ts`(332L) + `handlers.ts`(383L) + `handlers-runtime.ts`(497L) + `handlers-completions.ts`(95L) + `api-auth.ts`(45L) + `command-context.ts`(140L) + `registry.ts`(117L) + `acp-client.ts`(382L) + `claude-models.ts`(78L) + `compact.ts`(139L)
 > slash registry는 24개 커맨드, 4개 실행 인터페이스. root CLI는 `bin/cli-jaw.ts` + `bin/commands/*.ts` 기준 19개 user-facing command이며, helper까지 포함한 `bin/commands/*.ts` top-level 파일은 22개다. `browser web-ai`는 `browser-web-ai.ts`, `dashboard memory`는 `dashboard-memory.ts`, dispatch unwrap 보조는 `dispatch-helpers.ts`로 분리되어 있다. visible 기준 CLI 22 / Web 20 / Telegram 20 / Discord 20. `cmdline` capability는 contract 전용이며 10개가 보인다.
-> 모델/CLI 선택은 `registry.ts` 단일 소스를 따른다. 현재 registry 런타임은 `claude`, `claude-i`, `codex`, `codex-app`, `gemini`, `grok`, `opencode`, `copilot` 8개이며, `claude-i`는 experimental native interactive wrapper(`jaw-claude-i`)를 통해 Claude CLI를 PTY로 구동한다. Web/CLI/Telegram/Discord는 모두 `makeCommandCtx()`로 통합된 command context를 사용한다.
+> 모델/CLI 선택은 `registry.ts` 단일 소스를 따른다. 현재 registry 런타임은 `agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `gemini`, `grok`, `opencode`, `copilot` 10개이며, `claude-e`는 experimental native interactive wrapper(`jaw-claude-i`)를 통해 Claude CLI를 PTY로 구동하고 legacy session/event bucket은 `claude-i`를 유지한다. Web/CLI/Telegram/Discord는 모두 `makeCommandCtx()`로 통합된 command context를 사용한다.
 > 최근 구조 변화 핵심은 세 가지다: `handlers.ts` 분해(`handlers-runtime.ts`, `handlers-completions.ts`), CLI→server 인증 bootstrap 공통화(`api-auth.ts`), 그리고 Claude Interactive native helper build/test/doctor surface 추가다.
 
 ---
@@ -125,7 +125,8 @@ prompt, quit, file, steer, ide, orchestrate
 - 값이 없으면 현재 상태 조회.
 - 값이 있으면 `settings.perCli[activeCli].model` 또는 `settings.cli`를 갱신한다.
 - remote interface에서도 허용된다.
-- `/cli claude-i`는 `claude-e` runtime surface를 선택한다. helper는 `CLAUDE_E_BIN`, bundled npm `claude-e`, PATH `claude-e`, compatibility `claude-exec`, legacy `jaw-claude-i` / `claude-i`, `native/jaw-claude-i/target/{release,debug}/jaw-claude-i` fallback 순으로 탐지되며, `jaw doctor`는 runtime과 underlying `claude`를 별도로 점검한다.
+- `/cli agy`는 `agy -p` print-mode runtime surface를 선택한다. model/effort flag는 넘기지 않고, 인증은 실행 시 `agy`가 직접 판정한다.
+- `/cli claude-e`는 Claude E runtime surface를 선택한다. helper는 `CLAUDE_E_BIN`, bundled npm `claude-e`, PATH `claude-e`, compatibility `claude-exec`, legacy `jaw-claude-i` / `claude-i`, `native/jaw-claude-i/target/{release,debug}/jaw-claude-i` fallback 순으로 탐지되며, `jaw doctor`는 runtime과 underlying `claude`를 별도로 점검한다.
 
 ### `/fallback [cli1 cli2...|off]`
 
@@ -150,6 +151,7 @@ prompt, quit, file, steer, ide, orchestrate
 - `off`/`reset`이면 `settings.memory.cli`, `settings.memory.model`을 비운다.
 - 모델만 넣으면 registry 기반으로 CLI를 역추론한다.
 - Claude legacy model name은 힌트 맵으로 `claude`에 귀속된다.
+- AGY flush를 지정하면 `agy -p` plain-text 경로를 쓰며 model/effort flag는 넘기지 않는다.
 - Grok flush를 지정하면 표준 `grok -p ... --output-format streaming-json` 경로를 쓰지만, `grok-build`에는 `--effort`를 넘기지 않는다.
 
 ### `/skill [list|reset]`
