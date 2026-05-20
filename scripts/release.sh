@@ -68,12 +68,38 @@ echo "📦 package.json: $PKG_VERSION"
 
 PREV_TAG=$(git tag --sort=-v:refname | grep -E '^v[0-9]' | head -1)
 
-# Sync package.json to npm latest if behind (strip prerelease)
+semver_cmp() {
+  node - "$1" "$2" <<'NODE'
+const [a, b] = process.argv.slice(2).map((value) => String(value || '0.0.0').replace(/-.*/, ''));
+function parts(value) {
+  const match = value.match(/^(\d+)\.(\d+)\.(\d+)$/);
+  if (!match) return [0, 0, 0];
+  return match.slice(1).map(Number);
+}
+const pa = parts(a);
+const pb = parts(b);
+for (let i = 0; i < 3; i += 1) {
+  if (pa[i] > pb[i]) process.exit(1);
+  if (pa[i] < pb[i]) process.exit(2);
+}
+process.exit(0);
+NODE
+}
+
+# Sync package.json to npm latest only if this checkout is behind npm.
+# Never move a release checkout backwards just because npm latest has not
+# caught up yet; failed OTP publishes commonly leave local tags ahead.
 CLEAN_NPM=$(echo "$NPM_LATEST" | sed 's/-.*//')
 CLEAN_PKG=$(echo "$PKG_VERSION" | sed 's/-.*//')
 if [ "$CLEAN_PKG" != "$CLEAN_NPM" ] && [ "$CLEAN_NPM" != "0.0.0" ]; then
-  echo "⚠️  package.json ($CLEAN_PKG) differs from npm ($CLEAN_NPM). Syncing..."
-  npm version "$CLEAN_NPM" --no-git-tag-version --allow-same-version
+  CMP=0
+  semver_cmp "$CLEAN_PKG" "$CLEAN_NPM" || CMP=$?
+  if [ "$CMP" -eq 2 ]; then
+    echo "⚠️  package.json ($CLEAN_PKG) is behind npm ($CLEAN_NPM). Syncing forward..."
+    npm version "$CLEAN_NPM" --no-git-tag-version --allow-same-version
+  else
+    echo "ℹ️  package.json ($CLEAN_PKG) is ahead of npm ($CLEAN_NPM); keeping checkout version."
+  fi
 fi
 
 # ─── Build ─────────────────────────────────────────────
