@@ -86,6 +86,14 @@ function runPackageContentsCheck() {
   return true;
 }
 
+function structureVerifierSkipReason() {
+  if (!hasBash) return 'bash not available';
+  if (!existsSync('structure/verify-counts.sh')) return 'structure verifier not available';
+  if (!commandExists('rg')) return 'ripgrep not available';
+  if (!existsSync('public/dist')) return 'public/dist build output not available';
+  return '';
+}
+
 const checks = [];
 const hasBash = commandExists('bash');
 checks.push(() => run('bash syntax: scripts/install.sh', 'bash', ['-n', 'scripts/install.sh'], {
@@ -138,7 +146,7 @@ checks.push(() => run('installer risk tests', npx, [
 checks.push(runPackageContentsCheck);
 
 checks.push(() => run('structure line-count sync', 'bash', ['structure/verify-counts.sh'], {
-  skip: hasBash && existsSync('structure/verify-counts.sh') ? '' : 'bash or structure verifier not available',
+  skip: structureVerifierSkipReason(),
 }));
 
 let ok = true;
