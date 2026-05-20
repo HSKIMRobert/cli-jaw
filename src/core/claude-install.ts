@@ -18,6 +18,13 @@ export function classifyClaudeInstall(binaryPath: string | null): ClaudeInstallK
         path.join(os.homedir(), '.claude', 'local', 'bin', 'claude'),
         path.join(os.homedir(), '.claude', 'local', 'bin', 'claude.exe'),
     ];
+    if (process.platform === 'win32' && process.env['LOCALAPPDATA']) {
+        nativeDirs.push(
+            path.join(process.env['LOCALAPPDATA'], 'Claude', 'claude.exe'),
+            path.join(process.env['LOCALAPPDATA'], 'Anthropic', 'Claude', 'claude.exe'),
+            path.join(process.env['LOCALAPPDATA'], 'Programs', 'Claude', 'claude.exe'),
+        );
+    }
     if (nativeDirs.includes(binaryPath)) return 'native';
 
     try {
@@ -25,8 +32,16 @@ export function classifyClaudeInstall(binaryPath: string | null): ClaudeInstallK
         if (real.includes(`${path.sep}node_modules${path.sep}@anthropic-ai${path.sep}claude-code${path.sep}`)) {
             return 'node-managed';
         }
-        if (real.includes(`${path.sep}.claude${path.sep}local${path.sep}`)) return 'native';
+        if (real.includes(`${path.sep}.claude${path.sep}`)) return 'native';
         if (real.includes(`${path.sep}.local${path.sep}bin${path.sep}claude`)) return 'native';
+        if (
+            process.platform === 'win32'
+            && process.env['LOCALAPPDATA']
+            && path.basename(real).toLowerCase() === 'claude.exe'
+            && real.toLowerCase().startsWith(process.env['LOCALAPPDATA'].toLowerCase() + path.sep)
+        ) {
+            return 'native';
+        }
     } catch {
         // best-effort classification only
     }

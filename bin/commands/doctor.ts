@@ -131,9 +131,19 @@ function getNpmPrefix() {
 }
 
 function verifyOfficeCli() {
-    const candidate = findBinaryPath('officecli') || path.join(os.homedir(), '.local', 'bin', 'officecli');
+    const candidates = [
+        findBinaryPath('officecli'),
+        path.join(os.homedir(), '.local', 'bin', process.platform === 'win32' ? 'officecli.exe' : 'officecli'),
+        process.platform === 'win32' && process.env['LOCALAPPDATA']
+            ? path.join(process.env['LOCALAPPDATA'], 'OfficeCli', 'officecli.exe')
+            : null,
+    ].filter((candidate): candidate is string => !!candidate);
+    const candidate = candidates.find((entry) => fs.existsSync(entry));
     if (!candidate || !fs.existsSync(candidate)) {
-        throw new Error('WARN: not installed — run: bash "$(npm root -g)/cli-jaw/scripts/install-officecli.sh"');
+        const installHint = process.platform === 'win32'
+            ? 'powershell -ExecutionPolicy Bypass -File "$(npm root -g)\\cli-jaw\\scripts\\install-officecli.ps1" -Update'
+            : 'bash "$(npm root -g)/cli-jaw/scripts/install-officecli.sh"';
+        throw new Error(`WARN: not installed — run: ${installHint}`);
     }
     try {
         const version = execFileSync(candidate, ['--version'], {

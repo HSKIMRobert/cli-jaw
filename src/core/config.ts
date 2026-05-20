@@ -502,6 +502,10 @@ function getAiEPackageCandidates(): string[] {
     const candidates = [
         join(getProjectDir(), 'node_modules', '.bin', npmBin),
         join(process.cwd(), 'node_modules', '.bin', npmBin),
+        join(getProjectDir(), 'node_modules', '@bitkyc08', 'ai-e', 'bin', 'ai-e'),
+        join(process.cwd(), 'node_modules', '@bitkyc08', 'ai-e', 'bin', 'ai-e'),
+        join(getProjectDir(), 'node_modules', '@bitkyc08', 'ai-e', 'target', 'release', helper),
+        join(process.cwd(), 'node_modules', '@bitkyc08', 'ai-e', 'target', 'release', helper),
         join(getProjectDir(), '..', 'ai-e', 'target', 'release', helper),
         join(process.cwd(), '..', 'ai-e', 'target', 'release', helper),
     ];

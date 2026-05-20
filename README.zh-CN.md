@@ -24,28 +24,29 @@
 # macOS / Linux
 JAW_SAFE=1 npm install -g cli-jaw    # skips optional tool/runtime setup
 jaw init                              # 准备好后再交互式配置
-
-# Windows PowerShell
-$env:JAW_SAFE="1"; npm install -g cli-jaw
-jaw init
 ```
+
+Windows 用户应使用下方的 WSL 安装路径。原生 PowerShell 不是 CLI-JAW 支持的安装目标。
 
 </details>
 
 ```bash
+# macOS / Linux / WSL，已安装 Node.js 22+
 npm install -g cli-jaw
 jaw dashboard
 ```
 
 完成。打开 **http://localhost:3457** 即可拥有你的个人 AI 助手。需要 [Node.js 22+](https://nodejs.org)。
 
-> **第一次用？** 安装时会自动配置 Claude、Codex、Gemini、Copilot 和 OpenCode CLI。只需认证其中一个（参见[认证](#认证)）即可开始。
+> **第一次用？** 默认 npm 安装会初始化 CLI-JAW，并尝试配置原生 Claude。其他 AI CLI 是可选项；在 macOS/Linux 上如需安装全部工具，可运行 `CLI_JAW_INSTALL_CLI_TOOLS=1 npm install -g cli-jaw`。Windows 请使用下方 WSL 安装路径。
 
 <details>
 <summary><b>macOS 一键安装</b> — 没有 Node.js？用这个</summary>
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lidge-jun/cli-jaw/master/scripts/install.sh | bash
+source "${ZDOTDIR:-$HOME}/.zshrc" 2>/dev/null || true
+bash "$(npm root -g)/cli-jaw/scripts/verify-fresh-install.sh"
 ```
 
 </details>
@@ -65,6 +66,13 @@ wsl --install
 curl -fsSL https://raw.githubusercontent.com/lidge-jun/cli-jaw/master/scripts/install-wsl.sh | bash
 source ~/.bashrc
 jaw dashboard
+bash "$(npm root -g)/cli-jaw/scripts/verify-fresh-install.sh"
+```
+
+从 Windows PowerShell 进入 WSL 时，请通过 login shell 运行命令，以便加载 WSL profile PATH：
+
+```powershell
+wsl.exe -d Ubuntu -- bash -lc "jaw dashboard"
 ```
 
 </details>
@@ -462,7 +470,7 @@ npm run gate:all       # 发布/文档一致性门禁
 
 | 问题 | 解决办法 |
 |---|---|
-| `cli-jaw: command not found` | 重新运行 `npm install -g cli-jaw`。检查 `~/.local/bin` 或 `npm bin -g` 是否在 `$PATH` 中 |
+| `cli-jaw: command not found` | 重新运行 `npm install -g cli-jaw`。macOS/Linux/WSL：检查 `~/.local/bin` 或 `npm prefix -g` + `/bin` 是否在 `$PATH` 中。从 Windows PowerShell 运行时，请通过 WSL login shell：`wsl.exe -d Ubuntu -- bash -lc "jaw dashboard"` |
 | `Error: node version` | 升级到 Node.js 22+：`nvm install 22` |
 | `NODE_MODULE_VERSION` mismatch | `npm run ensure:native`（自动重编译原生模块） |
 | `EADDRINUSE: port 3457` | 另一个实例正在运行。使用 `--port 3458` 或先停止 |

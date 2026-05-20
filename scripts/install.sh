@@ -19,17 +19,19 @@ ok()    { echo -e "${GREEN}✔${NC} $*"; }
 warn()  { echo -e "${YELLOW}⚠${NC} $*"; }
 fail()  { echo -e "${RED}✖${NC} $*"; exit 1; }
 
-echo ""
-echo -e "${CYAN}${BOLD}"
-echo "   ██████╗██╗     ██╗      ██╗ █████╗ ██╗    ██╗"
-echo "  ██╔════╝██║     ██║      ██║██╔══██╗██║    ██║"
-echo "  ██║     ██║     ██║█████╗██║███████║██║ █╗ ██║"
-echo "  ██║     ██║     ██║╚════╝██║██╔══██║██║███╗██║"
-echo "  ╚██████╗███████╗██║      ██║██║  ██║╚███╔███╔╝"
-echo "   ╚═════╝╚══════╝╚═╝      ╚═╝╚═╝  ╚═╝ ╚══╝╚══╝"
-echo -e "${NC}"
-echo -e "${DIM}  One-Click Installer${NC}"
-echo ""
+print_banner() {
+  echo ""
+  echo -e "${CYAN}${BOLD}"
+  echo "   ██████╗██╗     ██╗      ██╗ █████╗ ██╗    ██╗"
+  echo "  ██╔════╝██║     ██║      ██║██╔══██╗██║    ██║"
+  echo "  ██║     ██║     ██║█████╗██║███████║██║ █╗ ██║"
+  echo "  ██║     ██║     ██║╚════╝██║██╔══██║██║███╗██║"
+  echo "  ╚██████╗███████╗██║      ██║██║  ██║╚███╔███╔╝"
+  echo "   ╚═════╝╚══════╝╚═╝      ╚═╝╚═╝  ╚═╝ ╚══╝╚══╝"
+  echo -e "${NC}"
+  echo -e "${DIM}  One-Click Installer${NC}"
+  echo ""
+}
 
 NODE_MAJOR=22
 
@@ -41,21 +43,43 @@ resolve_cmd() {
   command -v "$1" 2>/dev/null || true
 }
 
+list_path_cmd_candidates() {
+  local name="${1:-}"
+  local dir candidate seen=":"
+  if [ -z "$name" ]; then
+    return 0
+  fi
+
+  IFS=':' read -r -a path_parts <<< "${PATH:-}"
+  for dir in "${path_parts[@]}"; do
+    if [ -z "$dir" ]; then
+      dir="."
+    fi
+    candidate="${dir%/}/$name"
+    case "$seen" in
+      *":$candidate:"*) continue ;;
+    esac
+    seen="${seen}${candidate}:"
+    if [ -x "$candidate" ] && [ ! -d "$candidate" ]; then
+      printf '%s\n' "$candidate"
+    fi
+  done
+}
+
 get_installed_jaw_binary() {
-  local jaw_bin
-  jaw_bin="$(resolve_cmd jaw)"
-  if [ -n "$jaw_bin" ]; then
-    printf '%s\n' "$jaw_bin"
-    return 0
-  fi
-
-  local cli_jaw_bin
-  cli_jaw_bin="$(resolve_cmd cli-jaw)"
-  if [ -n "$cli_jaw_bin" ]; then
-    printf '%s\n' "$cli_jaw_bin"
-    return 0
-  fi
-
+  local name candidate
+  for name in jaw cli-jaw; do
+    while IFS= read -r candidate; do
+      if [ -z "$candidate" ]; then
+        continue
+      fi
+      if [ -n "$(get_binary_version "$candidate")" ]; then
+        printf '%s\n' "$candidate"
+        return 0
+      fi
+      warn "$name exists but failed --version: $candidate"
+    done < <(list_path_cmd_candidates "$name")
+  done
   return 1
 }
 
@@ -71,12 +95,138 @@ get_latest_cli_jaw_version() {
   extract_semver "$(npm view cli-jaw version 2>/dev/null || true)"
 }
 
+ensure_macos_developer_tools() {
+  if [ "$(uname -s)" != "Darwin" ]; then
+    return 0
+  fi
+
+  if xcode-select -p >/dev/null 2>&1 && git --version >/dev/null 2>&1; then
+    return 0
+  fi
+
+  fail "Xcode Command Line Tools are required before installing Node via nvm. Run: xcode-select --install  Then rerun this installer after it completes."
+}
+
 realpath_fallback() {
   local target="${1:-}"
   if [ -z "$target" ]; then
     return 0
   fi
   node -e "const fs=require('fs');const p=process.argv[1];try{console.log(fs.realpathSync(p));}catch{console.log(p)}" "$target" 2>/dev/null || printf '%s\n' "$target"
+}
+
+zsh_config_dir() {
+  printf '%s\n' "${ZDOTDIR:-$HOME}"
+}
+
+is_zsh_shell() {
+  case "${SHELL:-/bin/bash}" in
+    */zsh) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+npm_is_usable() {
+  command -v npm &>/dev/null && npm --version &>/dev/null
+}
+
+ensure_nvm_shell_profile() {
+  local profile="${1:-}"
+  if [ -z "$profile" ] || [ "$profile" = "your shell config" ]; then
+    return 0
+  fi
+
+  case "$profile" in
+    "~/"*) profile="${HOME}/${profile#~/}" ;;
+  esac
+
+  mkdir -p "$(dirname "$profile")"
+  touch "$profile"
+
+  if ! grep -Fq 'NVM_DIR="$HOME/.nvm"' "$profile" 2>/dev/null; then
+    {
+      echo ''
+      echo 'export NVM_DIR="$HOME/.nvm"'
+      echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"'
+      echo '[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"'
+    } >> "$profile"
+  fi
+}
+
+ensure_path_shell_profile() {
+  local profile="${1:-}"
+  local path_line="${2:-}"
+  if [ -z "$profile" ] || [ -z "$path_line" ] || [ "$profile" = "your shell config" ]; then
+    return 0
+  fi
+
+  case "$profile" in
+    "~/"*) profile="${HOME}/${profile#~/}" ;;
+  esac
+
+  mkdir -p "$(dirname "$profile")"
+  touch "$profile"
+
+  if ! grep -Fq "$path_line" "$profile" 2>/dev/null; then
+    {
+      echo ''
+      echo "$path_line"
+    } >> "$profile"
+  fi
+}
+
+ensure_local_bin_path() {
+  local path_line='export PATH="$HOME/.local/bin:$PATH"'
+  case ":${PATH:-}:" in
+    *":$HOME/.local/bin:"*) ;;
+    *) export PATH="$HOME/.local/bin:${PATH:-}" ;;
+  esac
+
+  case "${SHELL:-/bin/bash}" in
+    */zsh)
+      local zdir
+      zdir="$(zsh_config_dir)"
+      ensure_path_shell_profile "$zdir/.zshrc" "$path_line"
+      ensure_path_shell_profile "$zdir/.zprofile" "$path_line"
+      ;;
+    */bash)
+      ensure_path_shell_profile "~/.bashrc" "$path_line"
+      ensure_path_shell_profile "~/.bash_profile" "$path_line"
+      ;;
+    *)
+      ensure_path_shell_profile "~/.profile" "$path_line"
+      ;;
+  esac
+}
+
+is_runnable_cli_tool() {
+  local bin="${1:-}"
+  if [ -z "$bin" ]; then
+    return 1
+  fi
+  command -v "$bin" &>/dev/null && "$bin" --version &>/dev/null
+}
+
+unavailable_required_cli_tools() {
+  local missing=()
+  local bin
+  for bin in claude codex gemini grok copilot opencode; do
+    if ! is_runnable_cli_tool "$bin"; then
+      missing+=("$bin")
+    fi
+  done
+
+  local joined=""
+  if [ "${#missing[@]}" -gt 0 ]; then
+    for bin in "${missing[@]}"; do
+      if [ -n "$joined" ]; then
+        joined="${joined}, ${bin}"
+      else
+        joined="$bin"
+      fi
+    done
+  fi
+  printf '%s\n' "$joined"
 }
 
 # Shell-level Claude install classifier — mirrors src/core/claude-install.ts
@@ -164,18 +314,26 @@ print_cli_dependency_guidance() {
 #  Step 1: Ensure Node.js ≥ 22
 # ═══════════════════════════════════════
 ensure_node() {
+  local install_reason="Node.js ≥ ${NODE_MAJOR} not found"
+
   # Already have Node.js ≥ 22?
   if command -v node &>/dev/null; then
     local ver
     ver=$(node -v | sed 's/v//' | cut -d. -f1)
     if [ "$ver" -ge "$NODE_MAJOR" ] 2>/dev/null; then
-      ok "Node.js $(node -v) detected — good to go"
-      return 0
+      if npm_is_usable; then
+        ok "Node.js $(node -v) with npm $(npm --version) detected — good to go"
+        return 0
+      fi
+      warn "Node.js $(node -v) found but npm is missing or not runnable — repairing Node.js install..."
+      install_reason="Node.js $(node -v) found without runnable npm"
+    else
+      warn "Node.js $(node -v) found but need ≥ ${NODE_MAJOR}"
+      install_reason="Node.js $(node -v) is below ${NODE_MAJOR}"
     fi
-    warn "Node.js $(node -v) found but need ≥ ${NODE_MAJOR}"
   fi
 
-  info "Node.js ≥ ${NODE_MAJOR} not found — installing..."
+  info "${install_reason} — installing..."
 
   # Strategy: brew → nvm → fail
   if command -v brew &>/dev/null; then
@@ -187,12 +345,12 @@ ensure_node() {
       if command -v node &>/dev/null; then
         local brew_ver
         brew_ver=$(node -v | sed 's/v//' | cut -d. -f1)
-        if [ "$brew_ver" -ge "$NODE_MAJOR" ] 2>/dev/null; then
-          ok "Node.js $(node -v) installed via Homebrew"
+        if [ "$brew_ver" -ge "$NODE_MAJOR" ] 2>/dev/null && npm_is_usable; then
+          ok "Node.js $(node -v) with npm $(npm --version) installed via Homebrew"
           return 0
         fi
       fi
-      warn "Homebrew installed but Node.js ≥ ${NODE_MAJOR} not working — falling through to nvm"
+      warn "Homebrew installed but Node.js ≥ ${NODE_MAJOR} with npm is not working — falling through to nvm"
     else
       warn "Homebrew install failed — falling through to nvm"
     fi
@@ -200,10 +358,22 @@ ensure_node() {
 
   # brew unavailable or failed → install nvm + Node.js
   info "Installing via nvm"
+  ensure_macos_developer_tools
   export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
 
+  local shell_rc
+  case "${SHELL:-/bin/bash}" in
+    */zsh)  shell_rc="$(zsh_config_dir)/.zshrc" ;;
+    */bash) shell_rc="$HOME/.bashrc" ;;
+    *)      shell_rc="your shell config" ;;
+  esac
+  ensure_nvm_shell_profile "$shell_rc"
+  if is_zsh_shell; then
+    ensure_nvm_shell_profile "$(zsh_config_dir)/.zprofile"
+  fi
+
   if [ ! -s "$NVM_DIR/nvm.sh" ]; then
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | PROFILE="$shell_rc" bash
   fi
 
   # Source nvm
@@ -217,15 +387,16 @@ ensure_node() {
   nvm install "$NODE_MAJOR"
   nvm use "$NODE_MAJOR"
   nvm alias default "$NODE_MAJOR"
-  ok "Node.js $(node -v) installed via nvm"
+  if ! npm_is_usable; then
+    fail "Node.js installed but npm is not runnable. Please reinstall Node.js ≥ ${NODE_MAJOR} from https://nodejs.org"
+  fi
+  ok "Node.js $(node -v) with npm $(npm --version) installed via nvm"
 
   # Remind user to add nvm to their shell
-  local shell_rc
-  case "${SHELL:-/bin/bash}" in
-    */zsh)  shell_rc="~/.zshrc" ;;
-    */bash) shell_rc="~/.bashrc" ;;
-    *)      shell_rc="your shell config" ;;
-  esac
+  ensure_nvm_shell_profile "$shell_rc"
+  if is_zsh_shell; then
+    ensure_nvm_shell_profile "$(zsh_config_dir)/.zprofile"
+  fi
   echo ""
   warn "For future sessions, nvm is auto-added to ${shell_rc}"
   echo -e "${DIM}   If 'node' is not found after restarting terminal, run: source ${shell_rc}${NC}"
@@ -235,21 +406,30 @@ ensure_node() {
 #  Step 2: Install CLI-JAW
 # ═══════════════════════════════════════
 install_cli_jaw() {
-  local installed_bin installed_version latest_version
+  local installed_bin installed_version latest_version missing_cli_tools
   installed_bin="$(get_installed_jaw_binary || true)"
   installed_version="$(get_binary_version "$installed_bin")"
   latest_version="$(get_latest_cli_jaw_version)"
+  missing_cli_tools="$(unavailable_required_cli_tools)"
 
   # If npm view failed (network issue) and we already have a working install, skip
   if [ -z "$latest_version" ] && [ -n "$installed_bin" ] && [ -n "$installed_version" ]; then
-    warn "Could not fetch latest version (network issue?) — keeping existing ${installed_version}"
-    ok "CLI-JAW ${installed_version} at ${installed_bin} — skipping update"
-    return 0
+    if [ -z "$missing_cli_tools" ]; then
+      warn "Could not fetch latest version (network issue?) — keeping existing ${installed_version}"
+      ok "CLI-JAW ${installed_version} at ${installed_bin} — skipping update"
+      return 0
+    fi
+    warn "Could not fetch latest version, but bundled CLI tools are missing: ${missing_cli_tools}"
+    warn "Attempting npm repair install anyway"
   fi
 
   if [ -n "$installed_bin" ] && [ -n "$installed_version" ] && [ -n "$latest_version" ] && [ "$installed_version" = "$latest_version" ]; then
-    ok "CLI-JAW ${installed_version} already installed at ${installed_bin} — skipping npm install"
-    return 0
+    if [ -z "$missing_cli_tools" ]; then
+      ok "CLI-JAW ${installed_version} already installed at ${installed_bin} — skipping npm install"
+      return 0
+    fi
+    warn "CLI-JAW ${installed_version} already installed, but bundled CLI tools are missing: ${missing_cli_tools}"
+    warn "Re-running npm install to repair the partial install"
   fi
 
   # Detect package manager from existing install path to avoid shared-path contamination
@@ -272,7 +452,22 @@ install_cli_jaw() {
     info "Installing CLI-JAW..."
   fi
   export CLI_JAW_INSTALL_CLI_TOOLS=1
-  export CLI_JAW_REQUIRE_CLI_TOOLS=1
+  if [ "${CLI_JAW_STRICT_ONE_CLICK:-0}" = "1" ] \
+    || [ "${CLI_JAW_STRICT_ONE_CLICK:-}" = "true" ] \
+    || [ "${CLI_JAW_REQUIRE_CLI_TOOLS:-0}" = "1" ] \
+    || [ "${CLI_JAW_REQUIRE_CLI_TOOLS:-}" = "true" ] \
+    || [ "${npm_config_jaw_require_cli_tools:-0}" = "1" ] \
+    || [ "${npm_config_jaw_require_cli_tools:-}" = "true" ]; then
+    export CLI_JAW_REQUIRE_CLI_TOOLS=1
+  else
+    unset CLI_JAW_REQUIRE_CLI_TOOLS 2>/dev/null || true
+    unset npm_config_jaw_require_cli_tools 2>/dev/null || true
+  fi
+  if ! command -v cargo &>/dev/null; then
+    export CLAUDE_E_SKIP_BUILD="${CLAUDE_E_SKIP_BUILD:-1}"
+    warn "Rust Cargo not found — skipping optional claude-e native helper build"
+    warn "Install Rust later and reinstall claude-e if you need the Claude E runtime"
+  fi
   eval "$pkg_cmd"
 
   hash -r 2>/dev/null || true
@@ -413,31 +608,36 @@ run_doctor() {
   fi
 }
 
-# ═══════════════════════════════════════
-#  Run
-# ═══════════════════════════════════════
-ensure_node
-echo ""
-install_cli_jaw
-echo ""
-install_browser_deps
-echo ""
-run_doctor
-echo ""
-install_officecli
-echo ""
-print_cli_dependency_guidance
+main() {
+  print_banner
+  ensure_node
+  ensure_local_bin_path
+  echo ""
+  install_cli_jaw
+  echo ""
+  install_browser_deps
+  echo ""
+  install_officecli
+  echo ""
+  run_doctor
+  echo ""
+  print_cli_dependency_guidance
 
-echo ""
-echo -e "${GREEN}${BOLD}═══════════════════════════════════════${NC}"
-echo -e "${GREEN}${BOLD}  🦈 CLI-JAW is ready!${NC}"
-echo -e "${GREEN}${BOLD}═══════════════════════════════════════${NC}"
-echo ""
-echo -e "  Run:  ${CYAN}jaw dashboard${NC}"
-echo -e "  Also: ${CYAN}jaw serve${NC}  ${DIM}# classic server mode${NC}"
-echo ""
-echo -e "${DIM}  Tip: Authenticate at least one AI engine:${NC}"
-echo -e "${DIM}    gh auth login        # GitHub Copilot (free)${NC}"
-echo -e "${DIM}    claude auth login     # Anthropic Claude${NC}"
-echo -e "${DIM}    codex login           # OpenAI Codex${NC}"
-echo ""
+  echo ""
+  echo -e "${GREEN}${BOLD}═══════════════════════════════════════${NC}"
+  echo -e "${GREEN}${BOLD}  🦈 CLI-JAW is ready!${NC}"
+  echo -e "${GREEN}${BOLD}═══════════════════════════════════════${NC}"
+  echo ""
+  echo -e "  Run:  ${CYAN}jaw dashboard${NC}"
+  echo -e "  Also: ${CYAN}jaw serve${NC}  ${DIM}# classic server mode${NC}"
+  echo ""
+  echo -e "${DIM}  Tip: Authenticate at least one AI engine:${NC}"
+  echo -e "${DIM}    gh auth login        # GitHub Copilot (free)${NC}"
+  echo -e "${DIM}    claude auth login     # Anthropic Claude${NC}"
+  echo -e "${DIM}    codex login           # OpenAI Codex${NC}"
+  echo ""
+}
+
+if [ "${CLI_JAW_SOURCE_ONLY:-0}" != "1" ]; then
+  main "$@"
+fi

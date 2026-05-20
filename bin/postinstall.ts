@@ -66,6 +66,10 @@ const OFFICECLI_SKIP_LOCAL = process.env["CLI_JAW_SKIP_LOCAL_OFFICECLI"] === '1'
     || process.env["CLI_JAW_SKIP_LOCAL_OFFICECLI"] === 'true';
 const OFFICECLI_FORCE_REMOTE = process.env["CLI_JAW_FORCE_REMOTE_OFFICECLI"] === '1'
     || process.env["CLI_JAW_FORCE_REMOTE_OFFICECLI"] === 'true';
+const MCP_SERVERS_SKIP = process.env["CLI_JAW_SKIP_MCP_SERVERS"] === '1'
+    || process.env["CLI_JAW_SKIP_MCP_SERVERS"] === 'true';
+const SKILL_DEPS_SKIP = process.env["CLI_JAW_SKIP_SKILL_DEPS"] === '1'
+    || process.env["CLI_JAW_SKIP_SKILL_DEPS"] === 'true';
 const OFFICECLI_REQUIRE = shouldRequireOfficeCliDuringPostinstall();
 const CLAUDE_NATIVE_INSTALL_URL = 'https://claude.ai/install.sh';
 const CLAUDE_NATIVE_INSTALL_PS_URL = 'https://claude.ai/install.ps1';
@@ -189,6 +193,85 @@ function findBinaryPath(name: string): string | null {
     } catch {
         return null;
     }
+}
+
+export function npmGlobalBinDirFromPrefix(prefix: string | null | undefined, platform: NodeJS.Platform = process.platform): string | null {
+    const trimmed = String(prefix || '').trim();
+    if (!trimmed) return null;
+    return platform === 'win32' ? trimmed : path.join(trimmed, 'bin');
+}
+
+export function isPathEntryPresent(pathValue: string | null | undefined, dir: string, platform: NodeJS.Platform = process.platform): boolean {
+    const target = path.normalize(dir).replace(/[\\/]+$/, '');
+    const normalizedTarget = platform === 'win32' ? target.toLowerCase() : target;
+    const separator = platform === 'win32' ? ';' : path.delimiter;
+    return String(pathValue || '')
+        .split(separator)
+        .map((entry) => path.normalize(entry.trim()).replace(/[\\/]+$/, ''))
+        .filter(Boolean)
+        .some((entry) => (platform === 'win32' ? entry.toLowerCase() : entry) === normalizedTarget);
+}
+
+function readNpmGlobalPrefix(): string | null {
+    try {
+        return execFileSync('npm', ['prefix', '-g'], {
+            encoding: 'utf8',
+            stdio: 'pipe',
+            timeout: 5000,
+            env: postinstallExecEnv(),
+        }).trim();
+    } catch {
+        return null;
+    }
+}
+
+function persistWindowsUserPathDir(dir: string): boolean {
+    const ps = process.env["SystemRoot"] ? path.join(process.env["SystemRoot"], 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe') : 'powershell';
+    const script = `
+$dir = $args[0]
+$current = [Environment]::GetEnvironmentVariable('Path', 'User')
+$entries = @()
+if ($current) { $entries = $current -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ } }
+if (-not ($entries -contains $dir)) {
+  $next = if ($current) { "$current;$dir" } else { $dir }
+  [Environment]::SetEnvironmentVariable('Path', $next, 'User')
+}
+`;
+    try {
+        execFileSync(ps, ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', script, dir], {
+            stdio: 'pipe',
+            timeout: 10000,
+            env: postinstallExecEnv(),
+        });
+        return true;
+    } catch (e: unknown) {
+        const message = errString(e);
+        console.warn(`[jaw:init] ⚠️  could not persist npm global bin on user PATH: ${message || dir}`);
+        return false;
+    }
+}
+
+function ensureNpmGlobalBinOnUserPath(): void {
+    const prefix = readNpmGlobalPrefix();
+    const binDir = npmGlobalBinDirFromPrefix(prefix);
+    if (!binDir) return;
+
+    const currentPath = process.env["PATH"] || process.env["Path"] || process.env["path"] || '';
+    if (isPathEntryPresent(currentPath, binDir)) return;
+
+    if (process.platform === 'win32') {
+        if (persistWindowsUserPathDir(binDir)) {
+            console.log(`[jaw:init] ✅ added npm global bin to the Windows user PATH: ${binDir}`);
+            console.log('[jaw:init]    Open a new PowerShell, then run: jaw --version');
+        } else {
+            console.warn(`[jaw:init] ⚠️  npm global bin is not on PATH: ${binDir}`);
+            console.warn('[jaw:init]    Add it to the Windows user PATH, then open a new PowerShell.');
+        }
+        return;
+    }
+
+    console.warn(`[jaw:init] ⚠️  npm global bin is not on PATH: ${binDir}`);
+    console.warn('[jaw:init]    Add it to your shell profile if `jaw` is not found after install.');
 }
 
 function pathMtimeMs(target: string): number {
@@ -454,10 +537,15 @@ export async function installOfficeCli(opts: InstallOpts = {}) {
     }
 }
 
-const CLI_PACKAGES: { bin: string; pkg: string; brew?: string }[] = [
+const XAI_GROK_NATIVE_INSTALL_URL = 'https://x.ai/cli/install.sh';
+
+type CliToolInstall = { bin: string; pkg: string; brew?: string; installer?: 'npm' | 'xai-native' };
+
+const CLI_PACKAGES: CliToolInstall[] = [
     { bin: 'claude', pkg: '@anthropic-ai/claude-code' },
     { bin: 'codex', pkg: '@openai/codex' },
     { bin: 'gemini', pkg: '@google/gemini-cli' },
+    { bin: 'grok', pkg: 'Grok Build', installer: 'xai-native' },
     { bin: 'copilot', pkg: '@github/copilot' },
     { bin: 'opencode', pkg: 'opencode-ai' },
 ];
@@ -619,12 +707,72 @@ function runClaudeNativeInstall(_cmd: string): void {
     }
 }
 
+function buildGrokNativeInstallCmd(): string {
+    return `curl -fsSL ${XAI_GROK_NATIVE_INSTALL_URL} | bash`;
+}
+
+function runGrokNativeInstall(): void {
+    const env = postinstallExecEnv();
+    const tmpScript = path.join(os.tmpdir(), `grok-install-${Date.now()}.sh`);
+    try {
+        execFileSync('curl', ['-fsSL', '-o', tmpScript, XAI_GROK_NATIVE_INSTALL_URL], {
+            stdio: 'pipe',
+            timeout: 30000,
+            env,
+        });
+        execFileSync('bash', [tmpScript], {
+            stdio: 'pipe',
+            timeout: 180000,
+            env,
+        });
+    } finally {
+        try { fs.unlinkSync(tmpScript); } catch {}
+    }
+}
+
+function installGrokCli(): boolean {
+    if (process.platform === 'win32') {
+        console.warn('[jaw:init] ⚠️  grok: native PowerShell CLI-JAW install is unsupported');
+        console.warn(`[jaw:init]    install Grok inside WSL instead: ${buildGrokNativeInstallCmd()}`);
+        return false;
+    }
+
+    const cmd = buildGrokNativeInstallCmd();
+    console.log(`[jaw:init] 📦 grok (xAI native installer): ${cmd}`);
+    try {
+        runGrokNativeInstall();
+    } catch (e: unknown) {
+        console.error(`[jaw:init] ⚠️  grok: auto-install failed — install manually: ${cmd}`);
+        const message = errString(e);
+        if (message) console.error(`             ${message.slice(0, 160)}`);
+        return false;
+    }
+
+    const existingPath = findRunnableCliBinary('grok');
+    if (existingPath) {
+        console.log(`[jaw:init] ✅ grok native binary verified → ${existingPath}`);
+        return true;
+    }
+
+    console.error('[jaw:init] ⚠️  grok: installer completed but binary was not found or not runnable');
+    return false;
+}
+
 function findClaudeNativeBinary(): string | null {
     const candidates = [
         path.join(home, '.local', 'bin', process.platform === 'win32' ? 'claude.exe' : 'claude'),
         path.join(home, '.local', 'bin', 'claude'),
         path.join(home, '.claude', 'local', 'bin', process.platform === 'win32' ? 'claude.exe' : 'claude'),
         path.join(home, '.claude', 'local', 'bin', 'claude'),
+        process.platform === 'win32' && process.env["LOCALAPPDATA"]
+            ? path.join(process.env["LOCALAPPDATA"], 'Claude', 'claude.exe')
+            : null,
+        process.platform === 'win32' && process.env["LOCALAPPDATA"]
+            ? path.join(process.env["LOCALAPPDATA"], 'Anthropic', 'Claude', 'claude.exe')
+            : null,
+        process.platform === 'win32' && process.env["LOCALAPPDATA"]
+            ? path.join(process.env["LOCALAPPDATA"], 'Programs', 'Claude', 'claude.exe')
+            : null,
         findBinaryPath('claude'),
     ].filter((candidate): candidate is string => !!candidate);
 
@@ -743,7 +891,7 @@ function installClaudeCli(options: { force?: boolean } = {}): boolean {
     }
 
     console.error('[jaw:init] ⚠️  claude: installer completed but native binary was not found or not runnable');
-    console.error('[jaw:init]    expected a working ~/.local/bin/claude, ~/.claude/local/bin/claude, or %USERPROFILE%\\.local\\bin\\claude.exe');
+    console.error('[jaw:init]    expected a working native claude binary under ~/.local/bin, ~/.claude, %USERPROFILE%\\.local\\bin, or %LOCALAPPDATA%');
     return false;
 }
 
@@ -806,7 +954,7 @@ export async function installCliTools(opts: InstallOpts = {}) {
     const failed: string[] = [];
 
     console.log('[jaw:init] installing CLI tools @latest...');
-    for (const { bin, pkg, brew } of CLI_PACKAGES) {
+    for (const { bin, pkg, brew, installer } of CLI_PACKAGES) {
         if (bin === 'claude') {
             if (!shouldInstallClaudeDuringPostinstall()) {
                 console.log('[jaw:init] claude install skipped (CLI_JAW_SKIP_CLAUDE)');
@@ -828,6 +976,15 @@ export async function installCliTools(opts: InstallOpts = {}) {
         const existingPath = findExistingCliBinary(bin);
         if (existingPath) {
             console.log(`[jaw:init] ⏭️  ${bin} already works → ${existingPath}`);
+            continue;
+        }
+        if (installer === 'xai-native') {
+            if (opts.dryRun) { console.log(`  [dry-run] would run ${buildGrokNativeInstallCmd()}`); continue; }
+            if (opts.interactive && opts.ask) {
+                const answer = await opts.ask(`Install ${bin} (${pkg} native installer)? [y/N]`, 'n');
+                if (answer.toLowerCase() !== 'y') { console.log(`  ⏭️  skipped ${bin}`); continue; }
+            }
+            if (!installGrokCli()) failed.push(`${bin} (${pkg})`);
             continue;
         }
         if (opts.dryRun) {
@@ -984,6 +1141,8 @@ export async function runPostinstall() {
         return;
     }
 
+    ensureNpmGlobalBinOnUserPath();
+
     // ── WSL + Windows Node detection ──
     const looksLikeWsl = Boolean(
         process.env['WSL_DISTRO_NAME'] || process.env['WSL_INTEROP'] || process.env['WSLENV']
@@ -1081,8 +1240,16 @@ export async function runPostinstall() {
         console.log('[jaw:init] additional CLI tool install/update skipped by default');
         console.log('[jaw:init] to opt in: CLI_JAW_INSTALL_CLI_TOOLS=1 npm install -g cli-jaw');
     }
-    await installMcpServers();
-    await installSkillDeps();
+    if (MCP_SERVERS_SKIP) {
+        console.log('[jaw:init] MCP server install skipped (CLI_JAW_SKIP_MCP_SERVERS)');
+    } else {
+        await installMcpServers();
+    }
+    if (SKILL_DEPS_SKIP) {
+        console.log('[jaw:init] skill dependency install skipped (CLI_JAW_SKIP_SKILL_DEPS)');
+    } else {
+        await installSkillDeps();
+    }
     await installOfficeCli();
     await maybeReregisterLaunchd();
     console.log('[jaw:init] setup complete ✅');

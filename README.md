@@ -24,28 +24,29 @@
 # macOS / Linux
 JAW_SAFE=1 npm install -g cli-jaw    # skips optional tool/runtime setup
 jaw init                              # interactive setup later when you're ready
-
-# Windows PowerShell
-$env:JAW_SAFE="1"; npm install -g cli-jaw
-jaw init
 ```
+
+Windows users should use the WSL install path below. Native PowerShell is not the supported CLI-JAW install target.
 
 </details>
 
 ```bash
+# macOS / Linux / WSL with Node.js 22+ already installed
 npm install -g cli-jaw
 jaw dashboard
 ```
 
 That's it. Open **http://localhost:3457** and you have a personal AI agent. Requires [Node.js 22+](https://nodejs.org).
 
-> **First time?** The installer automatically sets up Claude, Codex, Gemini, Copilot, and OpenCode CLIs for you. Just authenticate one of them (see [Authenticate](#authenticate)) and you're ready to go.
+> **First time?** The default npm install initializes CLI-JAW and attempts native Claude setup. Other AI CLIs are optional; install them all during npm setup with `CLI_JAW_INSTALL_CLI_TOOLS=1 npm install -g cli-jaw` on macOS/Linux. On Windows, use the WSL install path below.
 
 <details>
 <summary><b>macOS one-click</b> — don't have Node.js? This installs everything</summary>
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lidge-jun/cli-jaw/master/scripts/install.sh | bash
+source "${ZDOTDIR:-$HOME}/.zshrc" 2>/dev/null || true
+bash "$(npm root -g)/cli-jaw/scripts/verify-fresh-install.sh"
 ```
 
 </details>
@@ -65,7 +66,77 @@ Restart, open **Ubuntu**, then:
 curl -fsSL https://raw.githubusercontent.com/lidge-jun/cli-jaw/master/scripts/install-wsl.sh | bash
 source ~/.bashrc
 jaw dashboard
+bash "$(npm root -g)/cli-jaw/scripts/verify-fresh-install.sh"
 ```
+
+From Windows PowerShell into WSL, run commands through a login shell so the WSL profile PATH is loaded:
+
+```powershell
+wsl.exe -d Ubuntu -- bash -lc "jaw dashboard"
+```
+
+</details>
+
+<details>
+<summary><b>Fresh-machine evidence</b> — maintainer release check</summary>
+
+Run this on a clean VM before publishing installer changes. It writes environment snapshots, installer logs, the exact collector/installer/verifier scripts that ran, their SHA-256 hashes, verifier logs, and new-shell PATH probes into `~/cli-jaw-fresh-install-evidence-*`.
+
+```bash
+# macOS Terminal
+COLLECTOR=/tmp/cli-jaw-collect-fresh-install-evidence.sh
+curl -fsSL https://raw.githubusercontent.com/lidge-jun/cli-jaw/master/scripts/collect-fresh-install-evidence.sh -o "$COLLECTOR"
+bash "$COLLECTOR" --target macos
+
+# Ubuntu inside WSL
+COLLECTOR=/tmp/cli-jaw-collect-fresh-install-evidence.sh
+curl -fsSL https://raw.githubusercontent.com/lidge-jun/cli-jaw/master/scripts/collect-fresh-install-evidence.sh -o "$COLLECTOR"
+bash "$COLLECTOR" --target wsl
+```
+
+From Windows PowerShell, enter the supported WSL path:
+
+```powershell
+wsl.exe -d Ubuntu -- bash -lc 'COLLECTOR=/tmp/cli-jaw-collect-fresh-install-evidence.sh; curl -fsSL https://raw.githubusercontent.com/lidge-jun/cli-jaw/master/scripts/collect-fresh-install-evidence.sh -o "$COLLECTOR"; bash "$COLLECTOR" --target wsl'
+```
+
+If the collector says `powershell.exe` is not available inside WSL, run this from Windows PowerShell before auditing:
+
+```powershell
+wsl.exe -d Ubuntu -- bash -lc 'EVIDENCE_DIR="$(ls -dt ~/cli-jaw-fresh-install-evidence-* | head -1)"; { echo "command=wsl.exe -d Ubuntu -- bash -lc jaw --version"; jaw --version; } | tee "$EVIDENCE_DIR/33-powershell-to-wsl-probe.log"'
+```
+
+For an unmerged branch or local VM checkout, pass the local installer and verifier explicitly:
+
+```bash
+bash scripts/collect-fresh-install-evidence.sh --target macos --install-script scripts/install.sh --verifier-script scripts/verify-fresh-install.sh
+bash scripts/collect-fresh-install-evidence.sh --target wsl --install-script scripts/install-wsl.sh --verifier-script scripts/verify-fresh-install.sh
+```
+
+Audit each collected directory before treating it as target evidence:
+
+```bash
+EVIDENCE_DIR="$(ls -dt ~/cli-jaw-fresh-install-evidence-* | head -1)"
+AUDITOR="$(npm root -g)/cli-jaw/scripts/audit-fresh-install-evidence.mjs"
+node "$AUDITOR" "$EVIDENCE_DIR" --target macos
+node "$AUDITOR" "$EVIDENCE_DIR" --target wsl
+
+# For a local checkout, audit with the checkout's auditor:
+node scripts/audit-fresh-install-evidence.mjs "$EVIDENCE_DIR" --target macos
+node scripts/audit-fresh-install-evidence.mjs "$EVIDENCE_DIR" --target wsl
+```
+
+Before publishing installer changes, run the matrix gate with both strict evidence directories:
+
+```bash
+GATE="$(npm root -g)/cli-jaw/scripts/verify-release-evidence.mjs"
+node "$GATE" --macos /path/to/macos-evidence --wsl /path/to/wsl-evidence
+
+# For a local checkout:
+node scripts/verify-release-evidence.mjs --macos /path/to/macos-evidence --wsl /path/to/wsl-evidence
+```
+
+The matrix gate rejects evidence collected with stale collector, installer, or verifier scripts; archived evidence scripts must match the current package or checkout that runs the gate.
 
 </details>
 
@@ -463,7 +534,7 @@ Architecture details: [ARCHITECTURE.md](docs/ARCHITECTURE.md) · Test coverage: 
 
 | Problem | Solution |
 |---|---|
-| `cli-jaw: command not found` | `npm install -g cli-jaw` again. Check `~/.local/bin` or `npm bin -g` is in `$PATH` |
+| `cli-jaw: command not found` | `npm install -g cli-jaw` again. macOS/Linux/WSL: check `~/.local/bin` or `npm prefix -g` + `/bin` is in `$PATH`. From Windows PowerShell, invoke WSL through a login shell: `wsl.exe -d Ubuntu -- bash -lc "jaw dashboard"`. |
 | `Error: node version` | Upgrade to Node.js 22+: `nvm install 22` |
 | `NODE_MODULE_VERSION` mismatch | `npm run ensure:native` (auto-rebuilds native modules) |
 | `EADDRINUSE: port 3457` | Another instance running. Use `--port 3458` or stop it first |

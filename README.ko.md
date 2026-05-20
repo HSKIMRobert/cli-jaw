@@ -24,28 +24,29 @@
 # macOS / Linux
 JAW_SAFE=1 npm install -g cli-jaw    # skips optional tool/runtime setup
 jaw init                              # 준비되면 대화형 설정
-
-# Windows PowerShell
-$env:JAW_SAFE="1"; npm install -g cli-jaw
-jaw init
 ```
+
+Windows 사용자는 아래 WSL 설치 경로를 사용하세요. 네이티브 PowerShell은 지원되는 CLI-JAW 설치 대상이 아닙니다.
 
 </details>
 
 ```bash
+# macOS / Linux / WSL, Node.js 22+가 이미 설치된 경우
 npm install -g cli-jaw
 jaw dashboard
 ```
 
 끝입니다. **http://localhost:3457** 을 열면 나만의 AI 에이전트가 준비됩니다. [Node.js 22+](https://nodejs.org) 필요.
 
-> **처음이세요?** 설치 시 Claude, Codex, Gemini, Copilot, OpenCode CLI가 자동으로 설정됩니다. 하나만 인증하면 바로 시작할 수 있습니다 ([인증](#인증) 참조).
+> **처음이세요?** 기본 npm 설치는 CLI-JAW 초기화와 네이티브 Claude 설정을 시도합니다. 다른 AI CLI는 선택 사항입니다. macOS/Linux에서 npm 설치 중 모두 설치하려면 `CLI_JAW_INSTALL_CLI_TOOLS=1 npm install -g cli-jaw`를 사용하세요. Windows에서는 아래 WSL 설치 경로를 사용하세요.
 
 <details>
 <summary><b>macOS 원클릭</b> — Node.js가 없다면 이걸로</summary>
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lidge-jun/cli-jaw/master/scripts/install.sh | bash
+source "${ZDOTDIR:-$HOME}/.zshrc" 2>/dev/null || true
+bash "$(npm root -g)/cli-jaw/scripts/verify-fresh-install.sh"
 ```
 
 </details>
@@ -65,6 +66,13 @@ wsl --install
 curl -fsSL https://raw.githubusercontent.com/lidge-jun/cli-jaw/master/scripts/install-wsl.sh | bash
 source ~/.bashrc
 jaw dashboard
+bash "$(npm root -g)/cli-jaw/scripts/verify-fresh-install.sh"
+```
+
+Windows PowerShell에서 WSL로 실행할 때는 WSL 프로필 PATH가 로드되도록 login shell을 거치세요:
+
+```powershell
+wsl.exe -d Ubuntu -- bash -lc "jaw dashboard"
 ```
 
 </details>
@@ -462,7 +470,7 @@ npm run gate:all       # 릴리스/문서 정합성 게이트
 
 | 문제 | 해결 방법 |
 |---|---|
-| `cli-jaw: command not found` | `npm install -g cli-jaw` 재실행. `~/.local/bin` 또는 `npm bin -g`가 `$PATH`에 있는지 확인 |
+| `cli-jaw: command not found` | `npm install -g cli-jaw` 재실행. macOS/Linux/WSL에서는 `~/.local/bin` 또는 `npm prefix -g` + `/bin`이 `$PATH`에 있는지 확인. Windows PowerShell에서는 `wsl.exe -d Ubuntu -- bash -lc "jaw dashboard"`처럼 WSL login shell로 실행 |
 | `Error: node version` | Node.js 22+로 업그레이드: `nvm install 22` |
 | `NODE_MODULE_VERSION` mismatch | `npm run ensure:native` (네이티브 모듈 자동 재빌드) |
 | `EADDRINUSE: port 3457` | 다른 인스턴스 실행 중. `--port 3458` 사용 또는 기존 프로세스 종료 |

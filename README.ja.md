@@ -24,28 +24,29 @@
 # macOS / Linux
 JAW_SAFE=1 npm install -g cli-jaw    # skips optional tool/runtime setup
 jaw init                              # 準備ができたら対話型セットアップ
-
-# Windows PowerShell
-$env:JAW_SAFE="1"; npm install -g cli-jaw
-jaw init
 ```
+
+Windows ユーザーは下の WSL インストール手順を使ってください。ネイティブ PowerShell は CLI-JAW のサポート対象インストール先ではありません。
 
 </details>
 
 ```bash
+# macOS / Linux / WSL、Node.js 22+ が既にある場合
 npm install -g cli-jaw
 jaw dashboard
 ```
 
 これで完了です。**http://localhost:3457** を開けば、あなた専用の AI エージェントが使えます。[Node.js 22+](https://nodejs.org) が必要です。
 
-> **初めてですか？** インストール時に Claude、Codex、Gemini、Copilot、OpenCode CLI が自動でセットアップされます。ひとつだけ認証すれば始められます（[認証](#認証)を参照）。
+> **初めてですか？** デフォルトの npm インストールは CLI-JAW の初期化とネイティブ Claude のセットアップを試みます。他の AI CLI は任意です。macOS/Linux で npm インストール時にすべて入れる場合は `CLI_JAW_INSTALL_CLI_TOOLS=1 npm install -g cli-jaw` を使ってください。Windows では下の WSL インストール手順を使ってください。
 
 <details>
 <summary><b>macOS ワンクリック</b> — Node.js がない場合はこちら</summary>
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lidge-jun/cli-jaw/master/scripts/install.sh | bash
+source "${ZDOTDIR:-$HOME}/.zshrc" 2>/dev/null || true
+bash "$(npm root -g)/cli-jaw/scripts/verify-fresh-install.sh"
 ```
 
 </details>
@@ -65,6 +66,13 @@ wsl --install
 curl -fsSL https://raw.githubusercontent.com/lidge-jun/cli-jaw/master/scripts/install-wsl.sh | bash
 source ~/.bashrc
 jaw dashboard
+bash "$(npm root -g)/cli-jaw/scripts/verify-fresh-install.sh"
+```
+
+Windows PowerShell から WSL 内のコマンドを実行する場合は、WSL profile PATH が読み込まれるよう login shell 経由にしてください:
+
+```powershell
+wsl.exe -d Ubuntu -- bash -lc "jaw dashboard"
 ```
 
 </details>
@@ -462,7 +470,7 @@ npm run gate:all       # リリース/ドキュメント整合性ゲート
 
 | 症状 | 対処 |
 |---|---|
-| `cli-jaw: command not found` | `npm install -g cli-jaw` を再実行。`~/.local/bin` または `npm bin -g` が `$PATH` に含まれているか確認 |
+| `cli-jaw: command not found` | `npm install -g cli-jaw` を再実行。macOS/Linux/WSL では `~/.local/bin` または `npm prefix -g` + `/bin` が `$PATH` に含まれているか確認。Windows PowerShell からは `wsl.exe -d Ubuntu -- bash -lc "jaw dashboard"` のように WSL login shell 経由で実行 |
 | `Error: node version` | Node.js 22+ にアップグレード：`nvm install 22` |
 | `NODE_MODULE_VERSION` mismatch | `npm run ensure:native`（ネイティブモジュールの自動リビルド） |
 | `EADDRINUSE: port 3457` | 別のインスタンスが起動中。`--port 3458` で回避 |

@@ -119,6 +119,19 @@ foreach ($sidecar in @("rhwp-field-bridge", "rhwp-officecli-bridge")) {
 
 $pathEntries = (($env:PATH -split ';') | ForEach-Object { $_.Trim() }) | Where-Object { $_ }
 if (-not ($pathEntries -contains $installDir)) {
-  Write-Warn "officecli is not on PATH. Add this location if you want to run it directly:"
+  Write-Warn "officecli is not on PATH. Adding it to the current process and user PATH:"
   Write-Host "  $installDir"
+  $env:PATH = "$installDir;$env:PATH"
+  try {
+    $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+    $userEntries = (($userPath -split ';') | ForEach-Object { $_.Trim() }) | Where-Object { $_ }
+    if (-not ($userEntries -contains $installDir)) {
+      $newUserPath = if ($userPath) { "$userPath;$installDir" } else { $installDir }
+      [Environment]::SetEnvironmentVariable("Path", $newUserPath, "User")
+      Write-Ok "Added officecli to the user PATH. Open a new PowerShell to use it directly."
+    }
+  } catch {
+    Write-Warn "Could not persist user PATH automatically. Add this location manually if needed:"
+    Write-Host "  $installDir"
+  }
 }

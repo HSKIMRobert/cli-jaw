@@ -302,6 +302,106 @@ test('S-026: install.sh uses npm root -g for playwright-core detection', () => {
         'install.sh should include Claude computer-use guidance');
 });
 
+test('S-026b: install.sh makes nvm shell profile durable', () => {
+    const installCode = readFileSync(
+        join(projectRoot, 'scripts', 'install.sh'),
+        'utf8'
+    );
+    assert.ok(installCode.includes('ensure_nvm_shell_profile'), 'install.sh should create/update the shell rc file after nvm install');
+    assert.ok(installCode.includes('touch "$profile"'), 'install.sh should create missing ~/.zshrc or ~/.bashrc');
+    assert.ok(installCode.includes('NVM_DIR="$HOME/.nvm"'), 'install.sh should write the nvm loader block');
+    assert.ok(installCode.includes('PROFILE="$shell_rc" bash'), 'install.sh should force nvm installer to use the prepared profile');
+    assert.ok(installCode.includes('ensure_nvm_shell_profile "$(zsh_config_dir)/.zprofile"'), 'install.sh should also make nvm durable for macOS zsh login shells');
+});
+
+test('S-026b2: install.sh persists ~/.local/bin for native Claude', () => {
+    const installCode = readFileSync(
+        join(projectRoot, 'scripts', 'install.sh'),
+        'utf8'
+    );
+    assert.ok(installCode.includes('ensure_local_bin_path'), 'install.sh should configure ~/.local/bin');
+    assert.ok(installCode.includes('export PATH="$HOME/.local/bin:$PATH"'), 'install.sh should write the native Claude PATH line');
+    assert.ok(installCode.includes('.zprofile'), 'install.sh should cover macOS zsh login shells');
+    assert.ok(installCode.includes('ZDOTDIR'), 'install.sh should respect custom zsh config directories');
+    assert.ok(installCode.includes('ensure_local_bin_path\n'), 'install.sh should apply ~/.local/bin before installing CLI tools');
+});
+
+test('S-026b3: install.sh preflights macOS developer tools before nvm git clone', () => {
+    const installCode = readFileSync(
+        join(projectRoot, 'scripts', 'install.sh'),
+        'utf8'
+    );
+    assert.ok(installCode.includes('ensure_macos_developer_tools'), 'install.sh should preflight macOS developer tools');
+    assert.ok(installCode.includes('xcode-select -p'), 'install.sh should check Xcode Command Line Tools');
+    assert.ok(installCode.includes('git --version'), 'install.sh should verify git is runnable before nvm install');
+    assert.ok(installCode.includes('xcode-select --install'), 'install.sh should give the exact recovery command');
+    assert.ok(
+        installCode.indexOf('ensure_macos_developer_tools') < installCode.indexOf('curl -o- https://raw.githubusercontent.com/nvm-sh/nvm'),
+        'developer tools preflight should run before nvm installer download/clone',
+    );
+});
+
+test('S-026b4: install.sh treats Node and npm as one required toolchain', () => {
+    const installCode = readFileSync(
+        join(projectRoot, 'scripts', 'install.sh'),
+        'utf8'
+    );
+    assert.ok(installCode.includes('npm_is_usable()'), 'install.sh should have an npm usability helper');
+    assert.ok(installCode.includes('command -v npm &>/dev/null && npm --version &>/dev/null'),
+        'npm usability should verify command lookup and execution');
+    assert.ok(installCode.includes('npm is missing or not runnable — repairing Node.js install'),
+        'Node >=22 without npm should trigger repair, not success');
+    assert.ok(installCode.includes('found without runnable npm'),
+        'repair log should not claim Node itself is missing when only npm is broken');
+    assert.ok(installCode.includes('if ! npm_is_usable; then\n    fail "Node.js installed but npm is not runnable.'),
+        'nvm install should fail loudly if npm remains unusable');
+    assert.ok(installCode.includes('Node.js $(node -v) with npm $(npm --version)'),
+        'success output should include both node and npm versions');
+});
+
+test('S-026c: install.sh skips optional claude-e build when Cargo is absent', () => {
+    const installCode = readFileSync(
+        join(projectRoot, 'scripts', 'install.sh'),
+        'utf8'
+    );
+    assert.ok(installCode.includes('command -v cargo'), 'install.sh should check for Cargo before npm install');
+    assert.ok(installCode.includes('CLAUDE_E_SKIP_BUILD'), 'install.sh should skip claude-e native build without Cargo');
+    assert.ok(installCode.includes('optional claude-e native helper'), 'install.sh should explain the optional helper skip');
+});
+
+test('S-026c2: install.sh repairs partial installs instead of skipping latest cli-jaw', () => {
+    const installCode = readFileSync(
+        join(projectRoot, 'scripts', 'install.sh'),
+        'utf8'
+    );
+    assert.ok(installCode.includes('unavailable_required_cli_tools'), 'install.sh should detect missing or broken bundled CLI tools');
+    assert.ok(installCode.includes('is_runnable_cli_tool'), 'install.sh should verify helper CLIs are runnable');
+    assert.ok(installCode.includes('"$bin" --version'), 'install.sh should not trust command -v alone');
+    assert.ok(installCode.includes('claude codex gemini grok copilot opencode'), 'install.sh should check the bundled auto-installed CLIs');
+    assert.ok(installCode.includes('Re-running npm install to repair the partial install'), 'latest cli-jaw should not skip when tools are missing');
+    assert.ok(installCode.includes('Attempting npm repair install anyway'), 'network-version fallback should still repair missing tools');
+    assert.ok(installCode.includes('CLI_JAW_STRICT_ONE_CLICK'), 'one-click strict CLI dependency failures should be explicit opt-in');
+    assert.ok(installCode.includes('unset CLI_JAW_REQUIRE_CLI_TOOLS'), 'one-click install should keep optional backend installs best-effort by default');
+});
+
+test('S-026d: claude-e is optional so npm install works without Cargo', () => {
+    const pkg = JSON.parse(readFileSync(join(projectRoot, 'package.json'), 'utf8'));
+    const lock = JSON.parse(readFileSync(join(projectRoot, 'package-lock.json'), 'utf8'));
+    assert.equal(pkg.dependencies?.['claude-e'], undefined, 'claude-e should not be a hard dependency');
+    assert.equal(pkg.optionalDependencies?.['claude-e'], 'latest', 'claude-e should be optional');
+    assert.equal(lock.packages?.['']?.optionalDependencies?.['claude-e'], 'latest', 'lockfile root should mark claude-e optional');
+    assert.equal(lock.packages?.['node_modules/claude-e']?.optional, true, 'lockfile package entry should mark claude-e optional');
+});
+
+test('S-026e: ai-e is optional so cli-jaw can install the PTY runtime helper', () => {
+    const pkg = JSON.parse(readFileSync(join(projectRoot, 'package.json'), 'utf8'));
+    const lock = JSON.parse(readFileSync(join(projectRoot, 'package-lock.json'), 'utf8'));
+    assert.equal(pkg.dependencies?.['@bitkyc08/ai-e'], undefined, 'ai-e should not be a hard dependency');
+    assert.equal(pkg.optionalDependencies?.['@bitkyc08/ai-e'], 'latest', 'ai-e should track latest like claude-e');
+    assert.equal(lock.packages?.['']?.optionalDependencies?.['@bitkyc08/ai-e'], 'latest', 'lockfile root should mark ai-e optional latest');
+    assert.equal(lock.packages?.['node_modules/@bitkyc08/ai-e']?.optional, true, 'lockfile package entry should mark ai-e optional');
+});
+
 test('S-027: install.sh verifies chromium via --version not just command -v', () => {
     const installCode = readFileSync(
         join(projectRoot, 'scripts', 'install.sh'),
