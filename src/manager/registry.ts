@@ -40,7 +40,7 @@ const DETAIL_TABS: DashboardDetailTab[] = ['overview', 'preview', 'logs', 'setti
 const UI_THEMES: DashboardUiTheme[] = ['auto', 'dark', 'light'];
 const LOCALES: DashboardLocale[] = ['ko', 'en', 'zh', 'ja'];
 const SIDEBAR_MODES: DashboardSidebarMode[] = ['instances', 'board', 'schedule', 'notes', 'reminders', 'settings'];
-const NOTES_VIEW_MODES: DashboardNotesViewMode[] = ['raw', 'split', 'preview', 'settings'];
+const NOTES_VIEW_MODES: DashboardNotesViewMode[] = ['raw', 'split', 'preview', 'settings', 'graph'];
 const NOTES_AUTHORING_MODES: DashboardNotesAuthoringMode[] = ['plain', 'rich', 'wysiwyg'];
 const SHORTCUT_ACTIONS: DashboardShortcutAction[] = [
     'focusInstances',

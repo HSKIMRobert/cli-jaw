@@ -8,7 +8,7 @@ import type {
     VaultIndexSnapshot,
 } from '../types';
 
-export type NotesViewMode = 'raw' | 'split' | 'preview' | 'settings';
+export type NotesViewMode = 'raw' | 'split' | 'preview' | 'settings' | 'graph';
 export type NotesAuthoringMode = 'plain' | 'rich' | 'wysiwyg';
 
 export type NotesTreeSelection = {

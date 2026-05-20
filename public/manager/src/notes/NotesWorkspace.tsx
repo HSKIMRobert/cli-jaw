@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { MarkdownEditor } from './MarkdownEditor';
 import { MarkdownPreview } from './MarkdownPreview';
+import { NotesBacklinksPanel } from './NotesBacklinksPanel';
 import { NotesEmptyState } from './NotesEmptyState';
 import { NotesFrontmatterStrip } from './NotesFrontmatterStrip';
 import { NotesQuickSwitcher } from './NotesQuickSwitcher';
@@ -9,6 +10,11 @@ import { renameNotePath } from './notes-api';
 import { useNoteDocument } from './useNoteDocument';
 import { publishInvalidation } from '../sync/invalidation-bus';
 import type { NotesAuthoringMode, NotesNoteMetadata, NotesVaultIndexSnapshot, NotesViewMode } from './notes-types';
+
+const NotesGraphView = lazy(async () => {
+    const module = await import('./NotesGraphView');
+    return { default: module.NotesGraphView };
+});
 
 type NotesPrimaryMode = 'raw' | 'preview' | 'wysiwyg';
 
@@ -147,6 +153,7 @@ export function NotesWorkspace(props: NotesWorkspaceProps) {
     const showEditor = props.viewMode === 'raw' || props.viewMode === 'split';
     const showPreview = props.viewMode === 'preview' || props.viewMode === 'split';
     const selectedOutgoingLinks = (props.selectedPath && props.vaultIndex?.outgoingLinks?.[props.selectedPath]) || [];
+    const selectedBacklinks = (props.selectedPath && props.vaultIndex?.backlinks?.[props.selectedPath]) || [];
     const indexedNotes = props.vaultIndex?.notes || [];
     const wysiwygOwnsFrontmatter = props.authoringMode === 'wysiwyg' && showEditor;
 
@@ -198,8 +205,20 @@ export function NotesWorkspace(props: NotesWorkspaceProps) {
                             </label>
                         </section>
                     )}
-                    {!props.selectedPath && props.viewMode !== 'settings' && <NotesEmptyState />}
-                    {props.selectedPath && props.viewMode !== 'settings' && (
+                    {props.viewMode === 'graph' && (
+                        <Suspense fallback={<div className="notes-graph-loading">Loading graph...</div>}>
+                            <NotesGraphView
+                                graph={props.vaultIndex?.graph ?? { nodes: [], edges: [] }}
+                                selectedPath={props.selectedPath}
+                                onNavigate={(path) => {
+                                    props.onSelectedPathChange(path);
+                                    props.onViewModeChange('raw');
+                                }}
+                            />
+                        </Suspense>
+                    )}
+                    {!props.selectedPath && props.viewMode !== 'settings' && props.viewMode !== 'graph' && <NotesEmptyState />}
+                    {props.selectedPath && props.viewMode !== 'settings' && props.viewMode !== 'graph' && (
                         <div className="notes-document-grid">
                             <input
                                 className="notes-inline-title"
@@ -244,6 +263,12 @@ export function NotesWorkspace(props: NotesWorkspaceProps) {
                         </div>
                     )}
                 </div>
+                {props.viewMode !== 'graph' && props.viewMode !== 'settings' && props.selectedPath && (
+                    <NotesBacklinksPanel
+                        backlinks={selectedBacklinks}
+                        onNavigate={props.onWikiLinkNavigate}
+                    />
+                )}
             </main>
             <NotesQuickSwitcher
                 open={quickSwitcherOpen}

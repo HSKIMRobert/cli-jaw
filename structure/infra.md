@@ -155,13 +155,13 @@ aliases: [CLI-JAW Infra, infrastructure modules, core runtime]
 
 ---
 
-## src/cli/registry.ts — CLI/모델 단일 소스 (108L)
+## src/cli/registry.ts — CLI/모델 단일 소스 (159L)
 
 **의존 없음** — `core/config.ts`, `cli/commands.ts`, `server.ts`, 프론트엔드가 모두 이 레지스트리를 참조.
 
 | Export | 역할 |
 | --- | --- |
-| `CLI_REGISTRY` | 7개 CLI 정의 (`label`, `binary`, `defaultModel`, `defaultEffort`, `efforts`, `models`, optional `effortNote`) |
+| `CLI_REGISTRY` | 10개 CLI 정의 (`agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `gemini`, `grok`, `opencode`, `copilot`; `label`, `binary`, `defaultModel`, `defaultEffort`, `efforts`, `models`, optional `effortNote`/provider metadata) |
 | `CLI_KEYS` | `Object.keys(CLI_REGISTRY)` — 순서 보장 배열 |
 | `DEFAULT_CLI` | 기본 CLI (`claude` 우선, 없으면 첫 항목) |
 | `buildDefaultPerCli()` | registry에서 기본 `perCli` 객체 빌드 |
@@ -465,6 +465,8 @@ module-level policy로 `browser start` mode 정규화 + agent/debug/manual launc
 | `safeMoveToBackup(pathToMove)` | 충돌 디렉토리 백업 이동 |
 | `ensureSkillsSymlinks(workingDir, opts)` | 스킬 심링크 + 보호 결과 반환 |
 
+Antigravity MCP sync is an existing config target at `~/.gemini/antigravity/mcp_config.json` via `lib/mcp/format-converters.ts`. It remains separate from the AGY runtime registry key `agy`; adding AGY runtime support does not make `ai-e.providers` include `agy`.
+
 ### symlink 보호 정책
 
 - 실디렉토리 충돌 시 `fs.rmSync` 대신 `renameSync`로 백업
@@ -514,7 +516,7 @@ Copilot 할당량 조회 + 인증 토큰 관리. env → file cache → `gh auth
 | `settings.ts` | settings/prompt/heartbeat-md/MCP/registry/status/quota/copilot |
 | `messaging.ts` | upload/file-open/voice/telegram/channel/discord send |
 | `browser.ts` | browser runtime endpoints |
-| `quota.ts` | `/api/quota` helper readers imported by `settings.ts` (Claude/Codex/Gemini/Copilot usage + Grok auth/status-only) |
+| `quota.ts` | `/api/quota` helper readers imported by `settings.ts` (Claude/Codex/Gemini/Copilot usage + Grok auth/status-only; AGY intentionally omitted until a quota/auth API exists) |
 
 핵심 포인트:
 - `server.ts`는 `register*Routes(app, requireAuth, ...)` 호출만 남기고 629L 글루 레이어로 유지된다. 현재 mutation endpoint 53개는 모두 `requireAuth` 미들웨어를 거쳐 인증 없는 상태 변경을 차단한다.

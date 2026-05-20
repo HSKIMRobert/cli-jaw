@@ -8,6 +8,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { JAW_HOME, SETTINGS_PATH } from '../../src/core/config.js';
+import { CLI_KEYS } from '../../src/cli/registry.js';
+
+const CLI_CHOICES = CLI_KEYS.join(', ');
 
 const { values } = parseArgs({
     args: process.argv.slice(3),
@@ -40,7 +43,7 @@ Options:
   --dry-run             Show what would be done without changes
   --force               Overwrite existing settings
   --working-dir <path>  Set working directory
-  --cli <name>          Default CLI (claude, codex, gemini, copilot, opencode)
+  --cli <name>          Default CLI (${CLI_CHOICES})
   --channel <ch>        Active channel (telegram or discord)
   --telegram-token <t>  Telegram bot token
   --allowed-chat-ids <ids>  Comma-separated Telegram chat IDs
@@ -94,7 +97,7 @@ console.log('\n  🦈 cli-jaw 초기 설정\n');
 const workingDir = String(values['working-dir'] ||
     await ask('Working directory', settings.workingDir || JAW_HOME));
 const cli = String(values.cli ||
-    await ask('CLI (claude/codex/gemini)', settings.cli || 'claude'));
+    await ask(`CLI (${CLI_CHOICES})`, settings.cli || 'claude'));
 
 // Channel selection
 const channelFlag = values.channel as string | undefined;

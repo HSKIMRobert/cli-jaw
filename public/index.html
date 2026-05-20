@@ -270,6 +270,7 @@
                     <option value="ai-e">AI-E</option>
                     <option value="claude">Claude</option>
                     <option value="claude-e">Claude E</option>
+                    <option value="agy">Antigravity</option>
                     <option value="codex">Codex</option>
                     <option value="codex-app">Codex App</option>
                     <option value="gemini">Gemini</option>
@@ -341,6 +342,7 @@
                             <option value="ai-e">AI-E</option>
                             <option value="claude">Claude</option>
                             <option value="claude-e">Claude E</option>
+                            <option value="agy">Antigravity</option>
                             <option value="codex">Codex</option>
                             <option value="codex-app">Codex App</option>
                             <option value="gemini">Gemini</option>
@@ -574,6 +576,22 @@
                         <option value="low">🟢 low</option>
                         <option value="medium" selected>🟡 medium</option>
                         <option value="high">🔴 high</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <h4><span data-provider="agy"></span> Antigravity</h4>
+                <div class="settings-row">
+                    <label>Model</label>
+                    <select id="modelAgy"></select>
+                    <input type="text" id="customModelAgy" class="custom-model-input"
+                        data-i18n-placeholder="model.placeholder" placeholder="model ID 입력" style="display:none">
+                </div>
+                <div class="settings-row sub-row">
+                    <label>Effort</label>
+                    <select id="effortAgy">
+                        <option value="" selected>— none</option>
                     </select>
                 </div>
             </div>

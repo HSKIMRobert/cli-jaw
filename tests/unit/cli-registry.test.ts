@@ -16,8 +16,8 @@ const __dirname = dirname(__filename);
 
 // ─── Structure validation ────────────────────────────
 
-test('CLI_KEYS contains exactly 9 known entries', () => {
-    assert.deepEqual(CLI_KEYS.sort(), ['ai-e', 'claude', 'claude-e', 'codex', 'codex-app', 'copilot', 'gemini', 'grok', 'opencode']);
+test('CLI_KEYS contains exactly 10 known entries', () => {
+    assert.deepEqual(CLI_KEYS.sort(), ['agy', 'ai-e', 'claude', 'claude-e', 'codex', 'codex-app', 'copilot', 'gemini', 'grok', 'opencode']);
 });
 
 test('DEFAULT_CLI is claude', () => {
@@ -50,6 +50,15 @@ test('every CLI defaultModel is included in its models list', () => {
 test('registry defaults for gemini and opencode are updated', () => {
     assert.equal(CLI_REGISTRY.gemini.defaultModel, 'gemini-3-flash-preview');
     assert.equal(CLI_REGISTRY.opencode.defaultModel, 'opencode-go/kimi-k2.6');
+});
+
+test('Antigravity registry exposes AGY as a top-level runtime, not an ai-e provider', () => {
+    assert.equal(CLI_REGISTRY.agy.label, 'Antigravity');
+    assert.equal(CLI_REGISTRY.agy.binary, 'agy');
+    assert.equal(CLI_REGISTRY.agy.defaultModel, 'gemini-3.5-flash');
+    assert.deepEqual(CLI_REGISTRY.agy.efforts, []);
+    assert.match(CLI_REGISTRY.agy.effortNote || '', /print mode uses -p/);
+    assert.equal(CLI_REGISTRY['ai-e'].providers.includes('agy'), false);
 });
 
 test('ai-e registry exposes explicit provider selector metadata', () => {
@@ -170,4 +179,12 @@ test('readiness default order covers every canonical CLI', () => {
     const readinessSrc = fs.readFileSync(join(__dirname, '../../src/cli/readiness.ts'), 'utf8');
     const order = readinessSrc.split('\n').find(line => line.includes('const DEFAULT_ORDER')) || '';
     for (const key of CLI_KEYS) assert.match(order, new RegExp(`'${key}'`), `DEFAULT_ORDER must include ${key}`);
+});
+
+test('AGY readiness is installed-only and does not run a prompt', () => {
+    const readinessSrc = fs.readFileSync(join(__dirname, '../../src/cli/readiness.ts'), 'utf8');
+    const agyCase = readinessSrc.match(/case 'agy': \{[\s\S]*?break;\n\s*\}/)?.[0] || '';
+    assert.match(agyCase, /authenticated\s*=\s*true/);
+    assert.match(agyCase, /auth checked by agy at run time/);
+    assert.doesNotMatch(agyCase, /execFileSync/);
 });

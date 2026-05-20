@@ -19,7 +19,7 @@ export type DashboardShortcutAction =
     | 'previousInstance'
     | 'nextInstance';
 export type DashboardShortcutKeymap = Record<DashboardShortcutAction, string>;
-export type DashboardNotesViewMode = 'raw' | 'split' | 'preview' | 'settings';
+export type DashboardNotesViewMode = 'raw' | 'split' | 'preview' | 'settings' | 'graph';
 export type DashboardNotesAuthoringMode = 'plain' | 'rich' | 'wysiwyg';
 export type DashboardActivityTitleSupportStatus = 'ready' | 'legacy' | 'offline';
 export type DashboardProfileId = string;

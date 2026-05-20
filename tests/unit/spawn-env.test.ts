@@ -78,6 +78,20 @@ test('does not modify non-opencode env', () => {
     );
 });
 
+test('sets NO_COLOR for agy plain text output by default', () => {
+    assert.deepEqual(
+        applyCliEnvDefaults('agy', {}, {}),
+        { NO_COLOR: '1' },
+    );
+});
+
+test('preserves explicit agy NO_COLOR override', () => {
+    assert.deepEqual(
+        applyCliEnvDefaults('agy', { NO_COLOR: '0' }, {}),
+        { NO_COLOR: '0' },
+    );
+});
+
 test('builds opencode resume key from effective Exa env', () => {
     assert.equal(buildSessionResumeKey('opencode', { OPENCODE_ENABLE_EXA: 'true' }), 'exa=1');
     assert.equal(buildSessionResumeKey('opencode', { OPENCODE_ENABLE_EXA: '1' }), 'exa=1');

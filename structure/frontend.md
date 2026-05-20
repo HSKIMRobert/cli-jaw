@@ -149,8 +149,8 @@ public/
 | `js/features/process-block-dom.ts` | ProcessBlock DOM ownership, normalization, and row replacement helpers |
 | `js/features/process-log-adapter.ts` | persisted tool log to ProcessStep adapter |
 | `js/features/settings-channel.ts` | active channel + fallback order |
-| `js/features/settings-cli-status.ts` | CLI availability/quota/status, Copilot keychain refresh, Grok auth/status-only badge |
-| `js/features/settings-core.ts` | settings load/update, per-CLI model/effort, locale sync, Claude 1M / Codex fast/context controls |
+| `js/features/settings-cli-status.ts` | CLI availability/quota/status, AGY run-time auth hint, Copilot keychain refresh, generic auth/status-only badge for runtimes without quota windows |
+| `js/features/settings-core.ts` | settings load/update, per-CLI model/effort, locale sync, Claude 1M / Codex fast/context controls; legacy `index.html` keeps active/flush CLI selects and AGY per-CLI controls |
 | `js/features/settings-discord.ts` | Discord settings save/load/toggles |
 | `js/features/settings-mcp.ts` | MCP server list/sync/install |
 | `js/features/settings-stt.ts` | STT engine/provider fields, gemini/openai/vertex/whisper wiring |
@@ -352,7 +352,7 @@ subagent 렌더링 변경 이후 tool history의 canonical UI는 `features/proce
 | `manifest.json` | `standalone`, `theme_color: #22d3ee`, 192/512/maskable icons |
 | `sw.js` | navigation network-first, `/dist/assets/*` cache-first, 그 외 stale-while-revalidate |
 | `icons/` | `icon-192.png`, `icon-512.png`, `icon-512-maskable.png` |
-| `assets/providers/` | `claude`, `claude-color`, `copilot`, `copilot-color`, `gemini`, `gemini-color`, `grok`, `grok-color`, `openai`, `opencode`, `discord`, `telegram` |
+| `assets/providers/` | `antigravity`, `antigravity-color`, `claude`, `claude-color`, `copilot`, `copilot-color`, `gemini`, `gemini-color`, `grok`, `grok-color`, `openai`, `opencode`, `discord`, `telegram` |
 | `assets/fonts/` | `GeistVF.woff2`, `JetBrainsMono-Variable.woff2` |
 | `assets/shark.svg`, `img/shark-sprite.png` | shark brand/sprite assets |
 | `locales/` | `ko.json`, `en.json`, `ja.json`, `zh.json` |
@@ -360,7 +360,7 @@ subagent 렌더링 변경 이후 tool history의 canonical UI는 `features/proce
 
 ### Provider Icons
 
-`provider-icons.ts`는 raw SVG를 직접 import해서 `cli-status`, `headerCli`, memory/skills/agents UI에 재사용한다. `codex`는 OpenAI 계열 아이콘을, `openai`는 GPT/O 계열 이름까지 alias로 묶는다.
+`provider-icons.ts`는 raw SVG를 직접 import해서 `cli-status`, `headerCli`, memory/skills/agents UI에 재사용한다. `agy`는 Antigravity asset alias를 쓰고, `codex`는 OpenAI 계열 아이콘을, `openai`는 GPT/O 계열 이름까지 alias로 묶는다. Manager settings metadata also keeps `agy` in the primary CLI list alongside the legacy settings UI.
 
 ### Locale Behavior
 

@@ -15,6 +15,8 @@ const GEMINI_MODE_MENU_BUTTONS = [
     'button[aria-label*="mode picker" i]',
 ] as const;
 
+const GEMINI_MODE_OPTION_SELECTOR = '[data-test-id^="bard-mode-option-"], [role="menuitem"], [role="option"]';
+
 const GEMINI_MODE_OPTIONS: Record<GeminiModelChoice, { testId: string; labels: string[] }> = {
     'flash-lite': { testId: 'bard-mode-option-fast', labels: ['Flash-Lite', 'Flash Lite'] },
     flash: { testId: 'bard-mode-option-thinking', labels: ['Flash'] },
@@ -69,7 +71,7 @@ export async function selectGeminiModel(page: Page, model: string | undefined): 
 }
 
 async function openGeminiModelMenu(page: Page, usedFallbacks: string[]): Promise<void> {
-    const modeItems = page.locator('[data-test-id^="bard-mode-option-"], [role="menuitem"], [role="option"], button')
+    const modeItems = page.locator(GEMINI_MODE_OPTION_SELECTOR)
         .filter({ hasText: /Flash|Pro|Thinking/i });
     if (await modeItems.first().isVisible().catch(() => false)) return;
     const deadline = Date.now() + 5_000;
@@ -88,7 +90,7 @@ async function openGeminiModelMenu(page: Page, usedFallbacks: string[]): Promise
     if (await textButton.isVisible().catch(() => false)) {
         await textButton.click({ timeout: 5_000 });
         await page.waitForTimeout(350).catch(() => undefined);
-        if (await page.locator('[data-test-id^="bard-mode-option-"], [role="menuitem"]').first().isVisible().catch(() => false)) return;
+        if (await modeItems.first().isVisible().catch(() => false)) return;
     }
     throw new Error(`Gemini mode selector not found. Tried: ${GEMINI_MODE_MENU_BUTTONS.join(', ')}`);
 }
@@ -99,7 +101,7 @@ async function findGeminiModelOption(page: Page, choice: GeminiModelChoice): Pro
     while (Date.now() < deadline) {
         const byTestId = page.locator(`[data-test-id="${option.testId}"]`).first();
         if (await byTestId.isVisible().catch(() => false)) return byTestId;
-        const candidates = await page.locator('[role="menuitem"], [role="option"], button, [data-test-id^="bard-mode-option-"]').all().catch(() => []);
+        const candidates = await page.locator(GEMINI_MODE_OPTION_SELECTOR).all().catch(() => []);
         for (const label of option.labels) {
             const pattern = geminiModeLabelPattern(label);
             for (const candidate of candidates) {

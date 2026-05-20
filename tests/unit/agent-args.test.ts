@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { resolveGeminiIncludeDirectories } from '../../src/agent/args.ts';
+import { resolveAgyAddDirectories, resolveGeminiIncludeDirectories } from '../../src/agent/args.ts';
 import { buildAiERuntimeStatusMeta, buildArgs, buildResumeArgs, resolveAiEProvider, resolveSessionBucket, shouldResumeBucketSession } from '../../src/agent/spawn.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -18,6 +18,60 @@ test('AG-001: claude default excludes --model', () => {
     assert.ok(args.includes('--print'));
     assert.ok(args.includes('--output-format'));
     assert.ok(!args.includes('--model'));
+});
+
+test('AG-000a: agy uses print p-mode with timeout, permissions, and add-dir roots', () => {
+    const args = buildArgs('agy', 'gemini-3.5-flash', '', 'hi', '', 'auto', {
+        workingDir: '/repo',
+        homedir: '/home/jun',
+        includeDirectories: ['/extra'],
+    });
+    assert.deepEqual(args, [
+        '-p', 'hi',
+        '--print-timeout', '10m',
+        '--dangerously-skip-permissions',
+        '--add-dir', '/repo',
+        '--add-dir', '/home/jun',
+        '--add-dir', '/extra',
+    ]);
+});
+
+test('AG-000b: agy safe permissions omit dangerous skip flag', () => {
+    const args = buildArgs('agy', 'gemini-3.5-flash', '', 'hi', '', 'safe', {
+        workingDir: '/repo',
+        homedir: '/home/jun',
+    });
+    assert.ok(!args.includes('--dangerously-skip-permissions'));
+    assert.ok(args.includes('--print-timeout'));
+});
+
+test('AG-000c: agy never receives unsupported model/output/include-directory flags', () => {
+    const args = buildArgs('agy', 'gemini-3.5-flash', 'high', 'hi', '', 'auto', {
+        workingDir: '/repo',
+        includeDirectories: ['/extra'],
+    });
+    assert.ok(!args.includes('--model'));
+    assert.ok(!args.includes('--output-format'));
+    assert.ok(!args.includes('--include-directories'));
+});
+
+test('AG-000d: agy add-dir roots dedupe with working directory first', () => {
+    assert.deepEqual(resolveAgyAddDirectories({
+        workingDir: '/repo/',
+        homedir: '/home/jun',
+        includeDirectories: ['/repo', '/extra', '/extra/'],
+    }), ['/repo', '/home/jun', '/extra']);
+});
+
+test('AG-000e: agy resume falls back to print mode without native resume flags', () => {
+    const args = buildResumeArgs('agy', 'gemini-3.5-flash', '', 'sess-1', 'hi', 'auto', {
+        workingDir: '/repo',
+        homedir: '/home/jun',
+    });
+    assert.deepEqual(args.slice(0, 4), ['-p', 'hi', '--print-timeout', '10m']);
+    assert.ok(!args.includes('--resume'));
+    assert.ok(!args.includes('--continue'));
+    assert.ok(!args.includes('--conversation'));
 });
 
 test('AG-002: claude custom model includes --model', () => {
@@ -147,7 +201,7 @@ test('AG-006h2: ai-e spawn prefers perCli provider over stale active override pr
 
 test('AG-006i: ai-e non-Claude PTY prompt providers are forced fresh until resume is implemented', () => {
     const spawnSrc = fs.readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
-    assert.match(spawnSrc, /providerSupportsResume\s*=\s*!\(cli\s*===\s*'ai-e'\s*&&\s*effectiveProvider\s*!==\s*'claude'\)/);
+    assert.match(spawnSrc, /providerSupportsResume\s*=\s*cli\s*!==\s*'agy'[\s\S]*!\(cli\s*===\s*'ai-e'\s*&&\s*effectiveProvider\s*!==\s*'claude'\)/);
     assert.match(spawnSrc, /providerSupportsResume\s*&&\s*!\s*opts\._skipResume/);
 });
 
