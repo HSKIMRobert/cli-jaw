@@ -2,12 +2,13 @@
 // Extracted from spawn.ts to unify ACP + CLI exit handling.
 
 import fs from 'fs';
+import type { ChildProcess } from 'child_process';
 import { broadcast } from '../core/bus.js';
 import { settings, detectCli } from '../core/config.js';
 import { clearEmployeeSession, insertMessageWithTraceRun, updateSession, clearSessionBucket, markAnchorConsumed } from '../core/db.js';
 import { persistMainSession } from './session-persistence.js';
 import { resolveSessionBucket } from './args.js';
-import { buildContinuationPrompt } from './smoke-detector.js';
+import { buildContinuationPrompt, type SmokeDetectionResult } from './smoke-detector.js';
 import { shouldInvalidateResumeSession } from './resume-classifier.js';
 import { classifyExitError } from './error-classifier.js';
 import { backfillGrokTraceTools } from './grok-trace-backfill.js';
@@ -15,6 +16,7 @@ import { recordError, clearErrors } from './alert-escalation.js';
 import { clearLiveRun, getLiveRun } from './live-run-state.js';
 import { sanitizeToolLogForDurableStorage, serializeSanitizedToolLog } from '../shared/tool-log-sanitize.js';
 import { finalizeTraceRun, linkTraceRunToMessage } from '../trace/store.js';
+import type { ToolEntry } from '../types/agent.js';
 import {
     incrementMemoryFlush,
     resetMemoryFlushCounter,
@@ -22,9 +24,48 @@ import {
     memoryFlushCounter,
 } from './memory-flush-controller.js';
 
+type LifecycleSpawnOptions = {
+    internal?: boolean;
+    _isFallback?: boolean;
+    _isRetry?: boolean;
+    _isCapacityFallback?: boolean;
+    _isSmokeContinuation?: boolean;
+    _skipInsert?: boolean;
+    _skipResume?: boolean;
+    _skipSessionPersist?: boolean;
+    agentId?: string;
+    cli?: string;
+    model?: string;
+    _heartbeatAnchorId?: number;
+};
+
+type LifecycleResolveResult = {
+    text: string;
+    code: number;
+    sessionId?: string | null;
+    cost?: ExitContext['cost'];
+    tools?: ToolEntry[];
+    smoke?: SmokeDetectionResult;
+    diagnostic?: string;
+};
+
+type SpawnAgentRef = (
+    prompt: string,
+    opts?: LifecycleSpawnOptions,
+) => { promise: Promise<LifecycleResolveResult> };
+
+interface LifecycleConfig {
+    effort?: string;
+}
+
+interface FallbackStateEntry {
+    fallbackCli?: string;
+    retriesLeft: number;
+}
+
 // Forward reference to spawnAgent (avoid circular import)
-let _spawnAgent: Function;
-export function setSpawnAgent(fn: Function): void {
+let _spawnAgent: SpawnAgentRef;
+export function setSpawnAgent(fn: SpawnAgentRef): void {
     _spawnAgent = fn;
 }
 
@@ -59,8 +100,8 @@ function lifecycleRuntimeCli(cli: string, provider?: string): string {
 export interface ExitContext {
     fullText: string;
     sessionId: string | null;
-    toolLog: any[];
-    traceLog: any[];
+    toolLog: ToolEntry[];
+    traceLog: string[];
     stderrBuf: string;
     liveScope?: string | null;
     traceRunId?: string | null;
@@ -82,32 +123,29 @@ export interface ExitHandlerParams {
     mainManaged: boolean;
     origin: string;
     prompt: string;
-    opts: any;
-    cfg: any;
+    opts: LifecycleSpawnOptions;
+    cfg: LifecycleConfig;
     ownerGeneration: number;
     forceNew: boolean;
     empSid: string | null;
     isResume: boolean;
     wasKilled: boolean;
     wasSteer: boolean;
-    smokeResult: any;
+    smokeResult: SmokeDetectionResult;
     /** ACP uses '' (from cfg.effort), CLI uses 'medium' */
     effortDefault: string;
     /** Optional cost display line (CLI builds this, ACP passes '') */
     costLine: string;
-    resolve: (result: any) => void;
-    activeProcesses: Map<string, any>;
-    setActiveProcess: (v: any) => void;
+    resolve: (result: LifecycleResolveResult) => void;
+    activeProcesses: Map<string, ChildProcess>;
+    setActiveProcess: (v: ChildProcess | null) => void;
     retryState: {
-        timer: ReturnType<typeof setTimeout> | null;
-        resolve: Function | null;
-        origin: string | null;
         setTimer: (t: ReturnType<typeof setTimeout> | null) => void;
-        setResolve: (r: any) => void;
+        setResolve: (r: ((result: LifecycleResolveResult) => void) | null) => void;
         setOrigin: (o: string | null) => void;
         setIsEmployee: (v: boolean) => void;
     };
-    fallbackState: Map<string, any>;
+    fallbackState: Map<string, FallbackStateEntry>;
     fallbackMaxRetries: number;
     processQueue: () => void;
 }
@@ -158,7 +196,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
         if (smokeSessionId) {
             persistMainSession({
                 ownerGeneration, forceNew, employeeSessionId: empSid,
-                sessionId: smokeSessionId, isFallback: opts._isFallback,
+                sessionId: smokeSessionId, isFallback: opts._isFallback === true,
                 code, cli, model, provider: effectiveProvider, resumeKey: params.resumeKey, effort: effortVal,
                 skipSessionPersist: opts._skipSessionPersist === true,
             });
@@ -174,7 +212,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
         const { promise: contPromise } = _spawnAgent(contPrompt, {
             ...opts, _isSmokeContinuation: true, _skipInsert: true,
         });
-        contPromise.then((r: any) => resolve(r)).catch(() => {
+        contPromise.then((r) => resolve(r)).catch(() => {
             broadcast('agent_done', {
                 text: `❌ Smoke continuation failed. Original: ${ctx.fullText.slice(0, 200)}`,
                 error: true, origin,
@@ -225,7 +263,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
     const persistedSessionId = ctx.sessionId;
     if (persistedSessionId && persistMainSession({
         ownerGeneration, forceNew, employeeSessionId: empSid,
-        sessionId: persistedSessionId, isFallback: opts._isFallback,
+        sessionId: persistedSessionId, isFallback: opts._isFallback === true,
         code, wasKilled, cli, model, provider: effectiveProvider, resumeKey: params.resumeKey, effort: effortVal,
         skipSessionPersist: opts._skipSessionPersist === true,
     })) {
@@ -490,7 +528,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
                 const { promise: retryP } = _spawnAgent(prompt, {
                     ...opts, _isRetry: true, _skipInsert: true,
                 });
-                retryP.then((r: any) => resolve(r)).catch(() => {
+                retryP.then((r) => resolve(r)).catch(() => {
                     broadcast('agent_done', { text: `❌ ${errMsg} (재시도 실패)`, error: true, origin, ...empTag }, isEmployee ? 'internal' : 'public');
                     resolve({ text: '', code: 1 });
                     if (mainManaged && !opts.internal) processQueue();
@@ -517,7 +555,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
                 const { promise: retryP } = _spawnAgent(prompt, {
                     ...opts, cli: fallbackCli, _isFallback: true, _skipInsert: true,
                 });
-                retryP.then((r: any) => resolve(r)).catch(() => {
+                retryP.then((r) => resolve(r)).catch(() => {
                     broadcast('agent_done', {
                         text: `❌ Fallback (${fallbackCli}) failed`, error: true, origin,
                         ...empTag,
@@ -553,7 +591,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
         ? classifyExitError(runtimeCli, resolvedCode, ctx.stderrBuf).message
         : ctx.stderrBuf.trim().slice(0, 500);
     resolve({
-        text: ctx.fullText, code: resolvedCode,
+        text: ctx.fullText, code: resolvedCode ?? 0,
         sessionId: ctx.sessionId, cost: ctx.cost,
         tools: ctx.toolLog, smoke: smokeResult,
         diagnostic,
