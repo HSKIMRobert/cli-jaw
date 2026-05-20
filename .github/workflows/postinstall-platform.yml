@@ -6,6 +6,7 @@ on:
       - main
       - master
     paths:
+      - '.gitattributes'
       - '.github/workflows/postinstall-platform.yml'
       - 'bin/postinstall.ts'
       - 'src/core/claude-install.ts'
@@ -33,6 +34,7 @@ on:
       - 'package-lock.json'
   pull_request:
     paths:
+      - '.gitattributes'
       - '.github/workflows/postinstall-platform.yml'
       - 'bin/postinstall.ts'
       - 'src/core/claude-install.ts'
@@ -180,6 +182,7 @@ jobs:
         shell: pwsh
         run: |
           $workspace = $env:GITHUB_WORKSPACE
-          $linuxWorkspace = (wsl.exe -d Ubuntu-24.04 -- wslpath "$workspace").Trim()
+          $workspaceForWsl = $workspace -replace '\\', '/'
+          $linuxWorkspace = (wsl.exe -d Ubuntu-24.04 -- wslpath "$workspaceForWsl").Trim()
           if (-not $linuxWorkspace) { throw "wslpath returned an empty workspace path" }
           wsl.exe -d Ubuntu-24.04 -- bash -lc "cd '$linuxWorkspace' && npm run test:fresh-install -- --postinstall --skip-doctor"
