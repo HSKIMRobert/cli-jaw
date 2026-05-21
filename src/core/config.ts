@@ -83,12 +83,16 @@ export function clearProjectDirs(): void {
 
 const CONTROL_CHAR_RE = /[\x00-\x1f\x7f]/;
 
+const MAX_PROJECT_DIRS = 20;
+const MAX_PATH_LENGTH = 4096;
+
 export function normalizeProjectDirs(dirs: unknown): string[] | null {
     if (!Array.isArray(dirs) || dirs.length === 0) return null;
     const cleaned = dirs
+        .slice(0, MAX_PROJECT_DIRS)
         .filter((d): d is string => typeof d === 'string')
         .map(d => d.trim())
-        .filter(d => d.length > 0)
+        .filter(d => d.length > 0 && d.length <= MAX_PATH_LENGTH)
         .filter(d => {
             if (CONTROL_CHAR_RE.test(d)) {
                 console.warn(`⚠ Skipping path with control characters: ${JSON.stringify(d)}`);

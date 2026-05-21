@@ -30,6 +30,9 @@ export const projectHandler: SlashHandler = async (args) => {
             const deduped = [...new Set(resolved)];
             setProjectDirs(deduped);
             const applied = getProjectDirs() || [];
+            if (applied.length === 0) {
+                return { text: '❌ All paths were rejected during normalization. No project directories set.' };
+            }
             const lines = ['✅ projectDirs set:', ...applied.map(d => `   ${d}`)];
             if (applied.length < deduped.length) {
                 lines.push('', `⚠ ${deduped.length - applied.length} path(s) were rejected during normalization.`);

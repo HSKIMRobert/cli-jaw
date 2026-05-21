@@ -381,10 +381,15 @@ export async function runSingleAgent(
         .join('→');
 
     const worklogPath = String(worklog?.["path"] || '').trim();
-    const ctxProjectDirs = normalizeProjectDirs(meta?.["projectDirs"]);
+    const serverDirs = (settings["projectDirs"] as string[] | null) || null;
+    const rawCtxDirs = normalizeProjectDirs(meta?.["projectDirs"]);
+    const ctxProjectDirs = rawCtxDirs && serverDirs
+        ? rawCtxDirs.filter(d => serverDirs.includes(d))
+        : null;
+    const effectiveDirs = (ctxProjectDirs && ctxProjectDirs.length > 0 ? ctxProjectDirs : null) || serverDirs;
     const workspaceBlock = buildWorkspaceContextBlock({
         workingDir: settings["workingDir"] || null,
-        projectDirs: ctxProjectDirs || settings["projectDirs"] || null,
+        projectDirs: effectiveDirs,
         worklogPath,
         employeeName: text(emp["name"]),
         task: text(ap["task"]),
@@ -478,7 +483,8 @@ ${worklogBlock}`.trim();
             JAW_EMPLOYEE_MODE: '1',
             JAW_EMPLOYEE_NAME: String(emp["name"] || ''),
             JAW_EMPLOYEE_ROLE: String(ap["role"] || emp["role"] || ''),
-            JAW_WORKSPACE_ROOT: ctxProjectDirs?.[0] || (settings["projectDirs"] as string[] | null)?.[0] || settings["workingDir"] || '',
+            JAW_WORKSPACE_ROOT: effectiveDirs?.[0] || settings["workingDir"] || '',
+            ...(effectiveDirs && effectiveDirs.length > 0 ? { JAW_PROJECT_DIRS: JSON.stringify(effectiveDirs) } : {}),
             JAW_WORKLOG_PATH: worklogPath || '',
             PORT: String(process.env["PORT"] || ''),
         },
