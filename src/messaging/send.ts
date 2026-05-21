@@ -35,7 +35,7 @@ export function normalizeChannelSendRequest(body: Record<string, any>): ChannelS
     const rawPath = body["file_path"] || body["filePath"];
     let filePath: string | undefined;
     if (rawPath) {
-        filePath = assertSendFilePath(String(rawPath), settings["workingDir"] || undefined);
+        filePath = assertSendFilePath(String(rawPath), settings["workingDir"] || undefined, settings["projectDirs"] || null);
     }
     return stripUndefined({
         channel: body["channel"] || 'active',

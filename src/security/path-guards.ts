@@ -88,7 +88,7 @@ export function safeResolveUnder(baseDir: string, unsafeName: string) {
  * Prevents arbitrary file exfiltration via /api/telegram/send, /api/channel/send, etc.
  * @throws 403 path_not_allowed
  */
-export function assertSendFilePath(filePath: string, workingDir?: string): string {
+export function assertSendFilePath(filePath: string, workingDir?: string, projectDirs?: string[] | null): string {
     const resolved = path.resolve(filePath);
 
     // Allow anything under JAW_HOME
@@ -101,6 +101,15 @@ export function assertSendFilePath(filePath: string, workingDir?: string): strin
         const wd = path.resolve(workingDir);
         const wdPref = wd.endsWith(path.sep) ? wd : wd + path.sep;
         if (resolved.startsWith(wdPref) || resolved === wd) return resolved;
+    }
+
+    // Allow files under any active projectDir
+    if (projectDirs) {
+        for (const dir of projectDirs) {
+            const pd = path.resolve(dir);
+            const pdPref = pd.endsWith(path.sep) ? pd : pd + path.sep;
+            if (resolved.startsWith(pdPref) || resolved === pd) return resolved;
+        }
     }
 
     // Allow files under OS temp dir (TTS output, agent temp files)
