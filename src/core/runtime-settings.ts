@@ -3,7 +3,7 @@ import {
     ensureWorkingDirSkillsLinks, initMcpConfig,
 } from '../../lib/mcp-sync.js';
 import { syncCodexContextWindow } from './codex-config.js';
-import { settings, replaceSettings, saveSettings, migrateSettings } from './config.js';
+import { settings, replaceSettings, saveSettings, migrateSettings, normalizeProjectDirs } from './config.js';
 import { syncMainSessionToSettings } from './main-session.js';
 import { mergeSettingsPatch } from './settings-merge.js';
 import { regenerateB } from '../prompt/builder.js';
@@ -53,6 +53,9 @@ export async function applyRuntimeSettingsPatch(
 
     try {
         const merged = mergeSettingsPatch(settings, rawPatch);
+        if ('projectDirs' in rawPatch) {
+            merged["projectDirs"] = normalizeProjectDirs(merged["projectDirs"]);
+        }
         const migrated = migrateSettings(merged);
         replaceSettings(migrated);
         saveSettings(settings);

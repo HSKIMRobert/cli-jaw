@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // bin/commands/project.ts — CLI: jaw project [set|reset|clear|list]
 
-import { loadSettings, getServerUrl } from '../../src/core/config.js';
+import { loadSettings, getServerUrl, setProjectDirs, clearProjectDirs, getProjectDirs } from '../../src/core/config.js';
 import { cliFetch, getCliAuthToken } from '../../src/cli/api-auth.js';
 import { resolveHomePath } from '../../src/core/path-expand.js';
 import { shouldShowHelp, printAndExit } from '../helpers/help.js';
@@ -68,42 +68,84 @@ function parsePaths(input: string): string[] {
     return [...new Set(resolved)];
 }
 
-try {
+function readProjectDirsFromBody(body: Record<string, unknown>): string[] | null {
+    const raw = body["projectDirs"];
+    if (!Array.isArray(raw)) return null;
+    const valid = raw.filter((d): d is string => typeof d === 'string' && d.trim().length > 0);
+    return valid.length > 0 ? valid : null;
+}
+
+function printDirs(dirs: string[] | null): void {
+    if (!dirs || dirs.length === 0) {
+        console.log('No active project directories.');
+    } else {
+        console.log('Active project directories:');
+        dirs.forEach(d => console.log(`   ${d}`));
+    }
+}
+
+async function runViaServer(): Promise<boolean> {
+    try {
+        switch (sub) {
+            case 'set': {
+                const dirs = parsePaths(rest);
+                const body = await applyViaServer({ projectDirs: dirs });
+                const applied = readProjectDirsFromBody(body);
+                console.log(`✅ projectDirs set:`);
+                (applied || dirs).forEach(d => console.log(`   ${d}`));
+                return true;
+            }
+            case 'reset':
+            case 'clear': {
+                await applyViaServer({ projectDirs: null });
+                console.log('✅ projectDirs cleared');
+                return true;
+            }
+            case 'list':
+            default: {
+                await getCliAuthToken(PORT);
+                const res = await cliFetch(`${BASE}/api/settings`);
+                const body = await res.json() as Record<string, unknown>;
+                printDirs(readProjectDirsFromBody(body));
+                return true;
+            }
+        }
+    } catch (e: unknown) {
+        if (isConnRefused(e)) return false;
+        throw e;
+    }
+}
+
+function runViaFile(): void {
     switch (sub) {
         case 'set': {
             const dirs = parsePaths(rest);
-            const body = await applyViaServer({ projectDirs: dirs });
-            const applied = (body as any).projectDirs as string[] | null;
-            console.log(`✅ projectDirs set:`);
-            (applied || dirs).forEach(d => console.log(`   ${d}`));
+            setProjectDirs(dirs);
+            console.log(`✅ projectDirs set (file-only, server not running):`);
+            dirs.forEach(d => console.log(`   ${d}`));
             break;
         }
         case 'reset':
         case 'clear': {
-            await applyViaServer({ projectDirs: null });
-            console.log('✅ projectDirs cleared');
+            clearProjectDirs();
+            console.log('✅ projectDirs cleared (file-only, server not running)');
             break;
         }
         case 'list':
         default: {
-            await getCliAuthToken(PORT);
-            const res = await cliFetch(`${BASE}/api/settings`);
-            const body = await res.json() as Record<string, unknown>;
-            const dirs = body["projectDirs"] as string[] | null;
-            if (!dirs || dirs.length === 0) {
-                console.log('No active project directories.');
-            } else {
-                console.log('Active project directories:');
-                dirs.forEach(d => console.log(`   ${d}`));
-            }
+            printDirs(getProjectDirs());
             break;
         }
     }
-} catch (e: unknown) {
-    if (isConnRefused(e)) {
-        console.error(`Server not running on port ${PORT || 'default'}. Start with: jaw serve`);
-    } else {
-        console.error(`Error: ${errString(e)}`);
+}
+
+try {
+    const handled = await runViaServer();
+    if (!handled) {
+        console.warn(`⚠ Server not running — using file-only mode.`);
+        runViaFile();
     }
+} catch (e: unknown) {
+    console.error(`Error: ${errString(e)}`);
     process.exit(1);
 }
