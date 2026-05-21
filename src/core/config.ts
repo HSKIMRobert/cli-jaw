@@ -83,9 +83,10 @@ export function clearProjectDirs(): void {
 
 const CONTROL_CHAR_RE = /[\x00-\x1f\x7f]/;
 
-export function normalizeProjectDirs(dirs: string[] | null): string[] | null {
-    if (!dirs || dirs.length === 0) return null;
+export function normalizeProjectDirs(dirs: unknown): string[] | null {
+    if (!Array.isArray(dirs) || dirs.length === 0) return null;
     const cleaned = dirs
+        .filter((d): d is string => typeof d === 'string')
         .map(d => d.trim())
         .filter(d => d.length > 0)
         .filter(d => {
@@ -404,6 +405,9 @@ export function loadSettings() {
             saveSettings(merged);
         }
         if (raw.planning) saveSettings(merged);
+
+        // normalize projectDirs on load (reject corrupted/injected values)
+        merged["projectDirs"] = normalizeProjectDirs(merged["projectDirs"]);
 
         // env overrides
         applyEnvOverrides(merged);

@@ -121,8 +121,9 @@ function runViaFile(): void {
         case 'set': {
             const dirs = parsePaths(rest);
             setProjectDirs(dirs);
+            const applied = getProjectDirs() || dirs;
             console.log(`✅ projectDirs set (file-only, server not running):`);
-            dirs.forEach(d => console.log(`   ${d}`));
+            applied.forEach(d => console.log(`   ${d}`));
             break;
         }
         case 'reset':

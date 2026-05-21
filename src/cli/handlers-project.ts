@@ -29,7 +29,11 @@ export const projectHandler: SlashHandler = async (args) => {
             }
             const deduped = [...new Set(resolved)];
             setProjectDirs(deduped);
-            const lines = ['✅ projectDirs set:', ...deduped.map(d => `   ${d}`)];
+            const applied = getProjectDirs() || [];
+            const lines = ['✅ projectDirs set:', ...applied.map(d => `   ${d}`)];
+            if (applied.length < deduped.length) {
+                lines.push('', `⚠ ${deduped.length - applied.length} path(s) were rejected during normalization.`);
+            }
             if (warnings.length) lines.push('', ...warnings);
             return { text: lines.join('\n') };
         }
