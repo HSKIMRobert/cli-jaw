@@ -73,10 +73,14 @@ export function buildApprovedPlanPromptBlock(
 ): string {
     if (!ctx?.plan) return '';
     if (!['A', 'B', 'C'].includes(state)) return '';
-    const projectRoot = workingDir ? resolve(workingDir) : '';
+    const projectRoot = ctx.projectDirs?.length
+        ? ctx.projectDirs.map(d => `Project root: ${resolve(d)}`).join('\n')
+        : workingDir
+            ? `Project root: ${resolve(workingDir)}`
+            : '';
     return [
         '## Approved Plan (authoritative)',
-        projectRoot ? `Project root: ${projectRoot}` : '',
+        projectRoot,
         ctx.plan,
         '---',
         '## Plan consistency guard',

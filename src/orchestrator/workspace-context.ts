@@ -15,6 +15,7 @@ const REPO_PATH_PREFIXES = [
 
 export type WorkspaceContextInput = {
     workingDir?: string | null;
+    projectDirs?: string[] | null;
     worklogPath?: string | null;
     employeeName?: string | null;
     task?: string;
@@ -43,13 +44,21 @@ export function buildResolvedPathHints(task: string | undefined, projectRoot: st
 }
 
 export function buildWorkspaceContextBlock(input: WorkspaceContextInput): string {
-    const projectRoot = resolveWorkspaceRoot(input.workingDir);
-    const devlogRoot = join(projectRoot, 'devlog');
-    const hints = buildResolvedPathHints(input.task, projectRoot);
+    const roots = input.projectDirs?.length
+        ? input.projectDirs.map(d => resolve(d))
+        : [resolveWorkspaceRoot(input.workingDir)];
+
+    const rootLines = roots.length === 1
+        ? `Project root: ${roots[0]}`
+        : roots.map((r, i) => `Project root ${i + 1}: ${r}`).join('\n');
+
+    const primaryRoot = roots[0]!;
+    const devlogRoot = join(primaryRoot, 'devlog');
+    const hints = buildResolvedPathHints(input.task, primaryRoot);
 
     return [
         '## Workspace Context (authoritative)',
-        `Project root: ${projectRoot}`,
+        rootLines,
         `Devlog root: ${devlogRoot}`,
         `Worklog path: ${input.worklogPath || '(none)'}`,
         'Employee runtime cwd: isolated temporary directory, not the project root',

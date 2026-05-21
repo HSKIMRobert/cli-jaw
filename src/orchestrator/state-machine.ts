@@ -35,6 +35,7 @@ export interface OrcContext {
   auditStatus?: AuditVerdict;
   verificationStatus?: VerificationVerdict;
   userApproved?: boolean;
+  projectDirs?: string[] | null;
 }
 
 // ─── State Read/Write (DB-backed) ───────────────────
@@ -194,7 +195,13 @@ Steps:
 ⛔ WAIT for the user to review and approve your plan.
 ⛔ When user approves, run: \`cli-jaw orchestrate A\`
 
-You will receive user feedback with a [PLANNING MODE] prefix. Revise until approved.`,
+You will receive user feedback with a [PLANNING MODE] prefix. Revise until approved.
+
+IMPORTANT — Project Workspace:
+Before writing a plan, you MUST confirm the project workspace with the user.
+Even if projectDirs is already set in settings, ask: "작업할 프로젝트 디렉토리를 확인합니다: <current dirs>. 이대로 진행할까요?"
+If projectDirs is not set, ask: "어떤 프로젝트 디렉토리에서 작업하시겠습니까? (예: jaw project set ~/Developer/my-project)"
+Do NOT proceed with planning until project workspace is confirmed.`,
 
   A: `[PABCD — A: PLAN AUDIT]
 
