@@ -135,6 +135,8 @@ function runViaFile(): void {
             } else {
                 console.log(`✅ projectDirs set (file-only, server not running):`);
                 applied.forEach(d => console.log(`   ${d}`));
+                const rejected = dirs.length - applied.length;
+                if (rejected > 0) console.warn(`⚠ ${rejected} path(s) were rejected during normalization.`);
             }
             break;
         }

@@ -101,17 +101,17 @@ function isUnderRoot(canonical: string, root: string): boolean {
 
 export function assertSendFilePath(filePath: string, workingDir?: string, projectDirs?: string[] | null): string {
     const resolved = path.resolve(filePath);
-    const canonical = safeRealpath(resolved) || resolved;
+    const canonical = safeRealpath(resolved);
+    if (!canonical) throw forbidden('path_not_resolvable');
 
     // Allow anything under JAW_HOME
     const jawHome = resolveHomePath(process.env["CLI_JAW_HOME"] || process.env["JAW_HOME"] || path.join(os.homedir(), '.cli-jaw'));
-    const canonJaw = safeRealpath(jawHome) || jawHome;
-    if (isUnderRoot(canonical, canonJaw)) return canonical;
+    const canonJaw = safeRealpath(jawHome);
+    if (canonJaw && isUnderRoot(canonical, canonJaw)) return canonical;
 
-    // Allow files under the current workingDir (agent-generated files)
     if (workingDir) {
-        const canonWd = safeRealpath(path.resolve(workingDir)) || path.resolve(workingDir);
-        if (isUnderRoot(canonical, canonWd)) return canonical;
+        const canonWd = safeRealpath(path.resolve(workingDir));
+        if (canonWd && isUnderRoot(canonical, canonWd)) return canonical;
     }
 
     if (projectDirs) {
@@ -122,9 +122,8 @@ export function assertSendFilePath(filePath: string, workingDir?: string, projec
         }
     }
 
-    // Allow files under OS temp dir (TTS output, agent temp files)
-    const canonTmp = safeRealpath(path.resolve(os.tmpdir())) || path.resolve(os.tmpdir());
-    if (isUnderRoot(canonical, canonTmp)) return canonical;
+    const canonTmp = safeRealpath(path.resolve(os.tmpdir()));
+    if (canonTmp && isUnderRoot(canonical, canonTmp)) return canonical;
 
     throw forbidden('path_not_allowed');
 }
