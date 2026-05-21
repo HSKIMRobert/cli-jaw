@@ -97,6 +97,8 @@ async function runViaServer(): Promise<boolean> {
                 } else {
                     console.log(`✅ projectDirs set:`);
                     applied.forEach(d => console.log(`   ${d}`));
+                    const rejected = dirs.length - applied.length;
+                    if (rejected > 0) console.warn(`⚠ ${rejected} path(s) were rejected during normalization.`);
                 }
                 return true;
             }

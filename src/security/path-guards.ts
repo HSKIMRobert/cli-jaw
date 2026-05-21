@@ -114,11 +114,11 @@ export function assertSendFilePath(filePath: string, workingDir?: string, projec
         if (isUnderRoot(canonical, canonWd)) return canonical;
     }
 
-    // Allow files under any active projectDir
     if (projectDirs) {
         for (const dir of projectDirs) {
-            const canonPd = safeRealpath(path.resolve(dir)) || path.resolve(dir);
-            if (isUnderRoot(canonical, canonPd)) return canonical;
+            const currentReal = safeRealpath(path.resolve(dir));
+            if (!currentReal || currentReal !== path.resolve(dir)) continue;
+            if (isUnderRoot(canonical, currentReal)) return canonical;
         }
     }
 
