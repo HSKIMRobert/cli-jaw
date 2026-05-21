@@ -382,7 +382,7 @@ export async function runSingleAgent(
 
     const worklogPath = String(worklog?.["path"] || '').trim();
     const serverDirs = (settings["projectDirs"] as string[] | null) || null;
-    const ctxSupplied = Array.isArray(meta?.["projectDirs"]) && (meta?.["projectDirs"] as unknown[]).length > 0;
+    const ctxSupplied = Array.isArray(meta?.["projectDirs"]);
     const rawCtxDirs = normalizeProjectDirs(meta?.["projectDirs"]);
     const ctxProjectDirs = rawCtxDirs && serverDirs
         ? rawCtxDirs.filter(d => serverDirs.includes(d))

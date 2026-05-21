@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { join, resolve, relative, sep } from 'node:path';
 
 const REPO_PATH_PREFIXES = [
@@ -50,7 +50,14 @@ export function buildResolvedPathHints(task: string | undefined, projectRoots: s
             const absolute = resolve(root, p);
             const rel = relative(root, absolute);
             if (rel.startsWith('..') || rel.startsWith(sep + sep)) continue;
-            const status = existsSync(absolute) ? 'exists' : 'not found';
+            let status = 'not found';
+            if (existsSync(absolute)) {
+                try {
+                    const real = realpathSync.native(absolute);
+                    const realRel = relative(root, real);
+                    status = (realRel.startsWith('..') || realRel.startsWith(sep + sep)) ? 'symlink-outside' : 'exists';
+                } catch { status = 'not found'; }
+            }
             lines.push(`- ${p} -> ${JSON.stringify(absolute)} (${status})`);
         }
     }
