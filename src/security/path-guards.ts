@@ -106,25 +106,25 @@ export function assertSendFilePath(filePath: string, workingDir?: string, projec
     // Allow anything under JAW_HOME
     const jawHome = resolveHomePath(process.env["CLI_JAW_HOME"] || process.env["JAW_HOME"] || path.join(os.homedir(), '.cli-jaw'));
     const canonJaw = safeRealpath(jawHome) || jawHome;
-    if (isUnderRoot(canonical, canonJaw)) return resolved;
+    if (isUnderRoot(canonical, canonJaw)) return canonical;
 
     // Allow files under the current workingDir (agent-generated files)
     if (workingDir) {
         const canonWd = safeRealpath(path.resolve(workingDir)) || path.resolve(workingDir);
-        if (isUnderRoot(canonical, canonWd)) return resolved;
+        if (isUnderRoot(canonical, canonWd)) return canonical;
     }
 
     // Allow files under any active projectDir
     if (projectDirs) {
         for (const dir of projectDirs) {
             const canonPd = safeRealpath(path.resolve(dir)) || path.resolve(dir);
-            if (isUnderRoot(canonical, canonPd)) return resolved;
+            if (isUnderRoot(canonical, canonPd)) return canonical;
         }
     }
 
     // Allow files under OS temp dir (TTS output, agent temp files)
     const canonTmp = safeRealpath(path.resolve(os.tmpdir())) || path.resolve(os.tmpdir());
-    if (isUnderRoot(canonical, canonTmp)) return resolved;
+    if (isUnderRoot(canonical, canonTmp)) return canonical;
 
     throw forbidden('path_not_allowed');
 }
