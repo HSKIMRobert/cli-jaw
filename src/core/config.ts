@@ -100,7 +100,21 @@ export function normalizeProjectDirs(dirs: unknown): string[] | null {
             }
             return true;
         })
-        .map(d => path.resolve(d));
+        .map(d => {
+            try {
+                const real = fs.realpathSync.native(d);
+                const stat = fs.statSync(real);
+                if (!stat.isDirectory()) {
+                    console.warn(`⚠ Skipping non-directory path: ${d}`);
+                    return null;
+                }
+                return real;
+            } catch {
+                console.warn(`⚠ Skipping non-existent path: ${d}`);
+                return null;
+            }
+        })
+        .filter((d): d is string => d !== null);
     const deduped = [...new Set(cleaned)];
     return deduped.length > 0 ? deduped : null;
 }
