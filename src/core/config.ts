@@ -2,6 +2,7 @@
 
 import os from 'os';
 import fs from 'fs';
+import path from 'path';
 import { join, resolve } from 'path';
 import { CLI_REGISTRY, CLI_KEYS, DEFAULT_CLI, buildDefaultPerCli } from '../cli/registry.js';
 import { pickFirstReadyCli } from '../cli/readiness.js';
@@ -60,6 +61,40 @@ export function getWsUrl(port?: string | number) {
 /** Locate the cli-jaw package root (for bundled skills_ref/) */
 export function getProjectDir() {
     return dirname(findPackageJson());
+}
+
+// ─── Project workspace dirs ─────────────────────────
+
+export function getProjectDirs(): string[] | null {
+    const dirs = settings["projectDirs"];
+    if (!Array.isArray(dirs) || dirs.length === 0) return null;
+    return dirs;
+}
+
+export function setProjectDirs(dirs: string[] | null): void {
+    const normalized = normalizeProjectDirs(dirs);
+    settings["projectDirs"] = normalized;
+    saveSettings(settings);
+}
+
+export function clearProjectDirs(): void {
+    setProjectDirs(null);
+}
+
+function normalizeProjectDirs(dirs: string[] | null): string[] | null {
+    if (!dirs || dirs.length === 0) return null;
+    const cleaned = dirs
+        .map(d => d.trim())
+        .filter(d => d.length > 0)
+        .filter(d => {
+            if (!path.isAbsolute(d)) {
+                console.warn(`⚠ Skipping non-absolute path: ${d}`);
+                return false;
+            }
+            return true;
+        });
+    const deduped = [...new Set(cleaned)];
+    return deduped.length > 0 ? deduped : null;
 }
 
 // ─── Ensure directories ─────────────────────────────
@@ -161,6 +196,7 @@ function createDefaultSettings() {
             themeSeed: 'jaw-default',
         },
         employees: [],
+        projectDirs: null as string[] | null,
         locale: 'ko',
         avatar: {
             agent: {
