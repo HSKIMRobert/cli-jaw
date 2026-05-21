@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, symlink } from 'node:fs/promises';
-import { join } from 'node:path';
+import { mkdtemp, mkdir, readFile, writeFile, symlink } from 'node:fs/promises';
+import { basename, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
     buildContextPackageResult,
     buildInlineContextOrFail,
     collectPatterns,
     expandContextPaths,
+    prepareContextForBrowser,
     renderContextDryRunReport,
 } from '../../src/browser/web-ai/context-pack/index.js';
 
@@ -66,6 +67,41 @@ test('web-ai context pack renders untrusted file package metadata', async () => 
     assert.match(result.attachmentText, /### File: src\/question\.ts/);
     assert.equal(result.composerText, 'review this');
     assert.match(renderContextDryRunReport(result), /\[context-dry-run\] 1 files/);
+});
+
+test('web-ai context pack upload transport creates a zip archive attachment', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'jaw-ctx-pack-'));
+    const browserHome = await mkdtemp(join(tmpdir(), 'jaw-ctx-home-'));
+    await mkdir(join(dir, 'src'), { recursive: true });
+    await writeFile(join(dir, 'src', 'question.ts'), 'export function ask() { return "ok"; }\n');
+
+    const previousHome = process.env["BROWSER_AGENT_HOME"];
+    process.env["BROWSER_AGENT_HOME"] = browserHome;
+    try {
+        const result = await prepareContextForBrowser({
+            cwd: dir,
+            vendor: 'chatgpt',
+            model: 'pro',
+            prompt: 'review this',
+            contextFromFiles: ['src/*.ts'],
+            contextTransport: 'upload',
+        });
+
+        assert.equal(result?.attachments.length, 1);
+        const attachment = result?.attachments[0];
+        assert.ok(attachment);
+        assert.match(basename(attachment.path), /^web-ai-context-package-.+\.zip$/);
+        assert.equal(attachment.displayPath, basename(attachment.path));
+
+        const zipBytes = await readFile(attachment.path);
+        assert.equal(zipBytes.subarray(0, 4).toString('latin1'), 'PK\u0003\u0004');
+        const zipText = zipBytes.toString('latin1');
+        assert.match(zipText, /CONTEXT_PACKAGE\.md/);
+        assert.match(zipText, /src\/question\.ts/);
+    } finally {
+        if (previousHome === undefined) delete process.env["BROWSER_AGENT_HOME"];
+        else process.env["BROWSER_AGENT_HOME"] = previousHome;
+    }
 });
 
 test('web-ai context pack can force inline composer transport', async () => {
