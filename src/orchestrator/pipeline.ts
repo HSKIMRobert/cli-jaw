@@ -74,9 +74,9 @@ export function buildApprovedPlanPromptBlock(
     if (!ctx?.plan) return '';
     if (!['A', 'B', 'C'].includes(state)) return '';
     const projectRoot = ctx.projectDirs?.length
-        ? ctx.projectDirs.map(d => `Project root: ${resolve(d)}`).join('\n')
+        ? ctx.projectDirs.map(d => `Project root: ${JSON.stringify(resolve(d))}`).join('\n')
         : workingDir
-            ? `Project root: ${resolve(workingDir)}`
+            ? `Project root: ${JSON.stringify(resolve(workingDir))}`
             : '';
     return [
         '## Approved Plan (authoritative)',
@@ -252,6 +252,7 @@ export async function orchestrate(
             ...(ctx || {
                 originalPrompt: '',
                 workingDir: settings["workingDir"] || null,
+                projectDirs: settings["projectDirs"] || null,
                 scopeId: scope,
                 plan: null,
                 workerResults: [],
@@ -260,6 +261,7 @@ export async function orchestrate(
             }),
             originalPrompt: planningTask,
             workingDir: settings["workingDir"] || null,
+            projectDirs: settings["projectDirs"] || null,
             scopeId: scope,
             origin,
             chatId,

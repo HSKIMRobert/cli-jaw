@@ -381,9 +381,10 @@ export async function runSingleAgent(
         .join('→');
 
     const worklogPath = String(worklog?.["path"] || '').trim();
+    const ctxProjectDirs = Array.isArray(meta?.["projectDirs"]) ? meta["projectDirs"] as string[] : null;
     const workspaceBlock = buildWorkspaceContextBlock({
         workingDir: settings["workingDir"] || null,
-        projectDirs: settings["projectDirs"] || null,
+        projectDirs: ctxProjectDirs || settings["projectDirs"] || null,
         worklogPath,
         employeeName: text(emp["name"]),
         task: text(ap["task"]),
