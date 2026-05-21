@@ -15,6 +15,7 @@ import {
     employeeArgumentCompletions, browserArgumentCompletions, fallbackArgumentCompletions,
     flushArgumentCompletions,
 } from './handlers.js';
+import { projectHandler } from './handlers-project.js';
 import type { CliCommandContext } from './command-context.js';
 import type {
     SlashCommand, SlashChoice, SlashResult, ParsedSlashCommand, CompletionCtx,
@@ -180,6 +181,7 @@ export const COMMANDS: SlashCommand[] = [
     { name: 'steer', descKey: 'cmd.steer.desc', tgDescKey: 'cmd.steer.tg_desc', desc: 'Interrupt agent and redirect', args: '<prompt>', category: 'session', interfaces: ['web', 'telegram', 'discord'], handler: steerHandler },
     { name: 'ide', descKey: 'cmd.ide.desc', desc: 'IDE diff view', args: '[pop|on|off]', category: 'tools', interfaces: ['cli'], handler: ideHandler },
     { name: 'orchestrate', aliases: ['pabcd'], descKey: '', desc: 'Enter PABCD orchestration', args: '[P|A|B|C|D|status|reset] [--force]', category: 'tools', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: orchestrateHandler },
+    { name: 'project', aliases: ['proj'], descKey: '', desc: 'Manage project workspace directories', args: '[set|reset|clear|list] [paths...]', category: 'tools', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: projectHandler },
 ];
 
 // ─── Dispatch ────────────────────────────────────────
