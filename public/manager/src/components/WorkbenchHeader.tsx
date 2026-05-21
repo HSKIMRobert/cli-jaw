@@ -23,6 +23,16 @@ export function WorkbenchHeader(props: WorkbenchHeaderProps) {
                 <p className="eyebrow">Selected instance</p>
                 <h2>{instance ? instanceLabel(instance) : 'No instance selected'}</h2>
                 <span>{instance?.workingDir || instance?.url || 'Select an online instance to inspect it.'}</span>
+                {instance?.projectDirs && instance.projectDirs.length > 0 && (
+                    <div className="project-dirs">
+                        <span className="label">Projects:</span>
+                        {instance.projectDirs.map((dir, i) => (
+                            <span key={i} className="project-dir" title={dir}>
+                                {dir.split('/').slice(-2).join('/')}
+                            </span>
+                        ))}
+                    </div>
+                )}
             </div>
             {hasActions && (
                 <div className="detail-header-actions">

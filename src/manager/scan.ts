@@ -62,6 +62,7 @@ function buildBaseRow(port: number, status: DashboardInstanceStatus, checkedAt: 
         instanceId: null,
         homeDisplay: null,
         workingDir: null,
+        projectDirs: null,
         currentCli: null,
         currentModel: null,
         serviceMode: 'unknown',
@@ -83,6 +84,7 @@ export async function scanPort(port: number, fetchImpl: FetchLike, timeoutMs: nu
             const metadata = normalizeSettingsMetadata(settings);
             row.homeDisplay = metadata.homeDisplay;
             row.workingDir = metadata.workingDir;
+            row.projectDirs = metadata.projectDirs;
             row.currentCli = metadata.currentCli;
             row.currentModel = metadata.currentModel;
             row.instanceId = deriveDashboardInstanceId(metadata.homeDisplay);

@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 export type DashboardSettingsMetadata = {
     homeDisplay: string | null;
     workingDir: string | null;
+    projectDirs: string[] | null;
     currentCli: string | null;
     currentModel: string | null;
 };
@@ -48,5 +49,10 @@ export function normalizeSettingsMetadata(settingsBody: unknown): DashboardSetti
             || readString(cliSettings, ['model']);
     }
 
-    return { homeDisplay, workingDir, currentCli, currentModel };
+    const rawProjectDirs = source?.["projectDirs"];
+    const projectDirs = Array.isArray(rawProjectDirs) && rawProjectDirs.length > 0
+        ? rawProjectDirs.filter((d): d is string => typeof d === 'string' && d.trim().length > 0)
+        : null;
+
+    return { homeDisplay, workingDir, projectDirs, currentCli, currentModel };
 }
