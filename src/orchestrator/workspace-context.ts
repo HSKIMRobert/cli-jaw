@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join, resolve, relative, sep } from 'node:path';
 
 const REPO_PATH_PREFIXES = [
     'src/',
@@ -39,8 +39,8 @@ export function buildResolvedPathHints(task: string | undefined, projectRoots: s
         if (p.includes('..')) return [];
         return projectRoots.map(root => {
             const absolute = resolve(root, p);
-            const rootPref = root.endsWith('/') ? root : root + '/';
-            if (!absolute.startsWith(rootPref) && absolute !== root) return null;
+            const rel = relative(root, absolute);
+            if (rel.startsWith('..') || rel.startsWith(sep + sep)) return null;
             const status = existsSync(absolute) ? 'exists' : 'not found';
             return `- ${p} -> ${JSON.stringify(absolute)} (${status})`;
         }).filter(Boolean);
