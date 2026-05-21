@@ -1,6 +1,7 @@
 // ─── Security: Path Guards ───────────────────────────
 // Phase 9.1 — path traversal, id injection, filename abuse 방어
 import path from 'node:path';
+import fs from 'node:fs';
 import os from 'node:os';
 import { resolveHomePath } from '../core/path-expand.js';
 
@@ -88,34 +89,42 @@ export function safeResolveUnder(baseDir: string, unsafeName: string) {
  * Prevents arbitrary file exfiltration via /api/telegram/send, /api/channel/send, etc.
  * @throws 403 path_not_allowed
  */
+function safeRealpath(p: string): string | null {
+    try { return fs.realpathSync.native(p); }
+    catch { return null; }
+}
+
+function isUnderRoot(canonical: string, root: string): boolean {
+    const pref = root.endsWith(path.sep) ? root : root + path.sep;
+    return canonical === root || canonical.startsWith(pref);
+}
+
 export function assertSendFilePath(filePath: string, workingDir?: string, projectDirs?: string[] | null): string {
     const resolved = path.resolve(filePath);
+    const canonical = safeRealpath(resolved) || resolved;
 
     // Allow anything under JAW_HOME
     const jawHome = resolveHomePath(process.env["CLI_JAW_HOME"] || process.env["JAW_HOME"] || path.join(os.homedir(), '.cli-jaw'));
-    const homePref = jawHome.endsWith(path.sep) ? jawHome : jawHome + path.sep;
-    if (resolved.startsWith(homePref) || resolved === jawHome) return resolved;
+    const canonJaw = safeRealpath(jawHome) || jawHome;
+    if (isUnderRoot(canonical, canonJaw)) return resolved;
 
     // Allow files under the current workingDir (agent-generated files)
     if (workingDir) {
-        const wd = path.resolve(workingDir);
-        const wdPref = wd.endsWith(path.sep) ? wd : wd + path.sep;
-        if (resolved.startsWith(wdPref) || resolved === wd) return resolved;
+        const canonWd = safeRealpath(path.resolve(workingDir)) || path.resolve(workingDir);
+        if (isUnderRoot(canonical, canonWd)) return resolved;
     }
 
     // Allow files under any active projectDir
     if (projectDirs) {
         for (const dir of projectDirs) {
-            const pd = path.resolve(dir);
-            const pdPref = pd.endsWith(path.sep) ? pd : pd + path.sep;
-            if (resolved.startsWith(pdPref) || resolved === pd) return resolved;
+            const canonPd = safeRealpath(path.resolve(dir)) || path.resolve(dir);
+            if (isUnderRoot(canonical, canonPd)) return resolved;
         }
     }
 
     // Allow files under OS temp dir (TTS output, agent temp files)
-    const tmpDir = path.resolve(os.tmpdir());
-    const tmpPref = tmpDir.endsWith(path.sep) ? tmpDir : tmpDir + path.sep;
-    if (resolved.startsWith(tmpPref) || resolved === tmpDir) return resolved;
+    const canonTmp = safeRealpath(path.resolve(os.tmpdir())) || path.resolve(os.tmpdir());
+    if (isUnderRoot(canonical, canonTmp)) return resolved;
 
     throw forbidden('path_not_allowed');
 }

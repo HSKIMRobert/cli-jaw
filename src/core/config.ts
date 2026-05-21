@@ -81,18 +81,25 @@ export function clearProjectDirs(): void {
     setProjectDirs(null);
 }
 
-function normalizeProjectDirs(dirs: string[] | null): string[] | null {
+const CONTROL_CHAR_RE = /[\x00-\x1f\x7f]/;
+
+export function normalizeProjectDirs(dirs: string[] | null): string[] | null {
     if (!dirs || dirs.length === 0) return null;
     const cleaned = dirs
         .map(d => d.trim())
         .filter(d => d.length > 0)
         .filter(d => {
+            if (CONTROL_CHAR_RE.test(d)) {
+                console.warn(`⚠ Skipping path with control characters: ${JSON.stringify(d)}`);
+                return false;
+            }
             if (!path.isAbsolute(d)) {
                 console.warn(`⚠ Skipping non-absolute path: ${d}`);
                 return false;
             }
             return true;
-        });
+        })
+        .map(d => path.resolve(d));
     const deduped = [...new Set(cleaned)];
     return deduped.length > 0 ? deduped : null;
 }
