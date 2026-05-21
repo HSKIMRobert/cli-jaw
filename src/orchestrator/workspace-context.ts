@@ -25,6 +25,8 @@ export function resolveWorkspaceRoot(workingDir?: string | null): string {
     return resolve(workingDir || process.cwd());
 }
 
+const MAX_PATH_HINT_TOKENS = 50;
+
 export function buildResolvedPathHints(task: string | undefined, projectRoots: string[]): string {
     if (!task || projectRoots.length === 0) return '';
     const seen = new Set<string>();
@@ -33,6 +35,7 @@ export function buildResolvedPathHints(task: string | undefined, projectRoots: s
         const clean = word.replace(/[),.;:]+$/, '');
         if (!REPO_PATH_PREFIXES.some(prefix => clean === prefix || clean.startsWith(prefix))) continue;
         seen.add(clean);
+        if (seen.size >= MAX_PATH_HINT_TOKENS) break;
     }
     if (!seen.size) return '';
     const lines = [...seen].flatMap(p => {
