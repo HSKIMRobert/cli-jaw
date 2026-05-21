@@ -489,7 +489,11 @@ ${worklogBlock}`.trim();
             JAW_WORKSPACE_ROOT: effectiveDirs?.[0] || settings["workingDir"] || '',
             ...(effectiveDirs && effectiveDirs.length > 0 ? (() => {
                 const val = JSON.stringify(effectiveDirs);
-                return val.length <= 8192 ? { JAW_PROJECT_DIRS: val } : {};
+                if (val.length > 8192) {
+                    console.warn(`⚠ JAW_PROJECT_DIRS exceeds 8192 chars (${val.length}), passing only first root`);
+                    return { JAW_PROJECT_DIRS: JSON.stringify([effectiveDirs[0]]) };
+                }
+                return { JAW_PROJECT_DIRS: val };
             })() : {}),
             JAW_WORKLOG_PATH: worklogPath || '',
             PORT: String(process.env["PORT"] || ''),

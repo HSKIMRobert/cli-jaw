@@ -25,7 +25,9 @@ export function resolveWorkspaceRoot(workingDir?: string | null): string {
     return resolve(workingDir || process.cwd());
 }
 
-const MAX_PATH_HINT_TOKENS = 50;
+const MAX_PATH_HINT_TOKENS = 30;
+const MAX_TOKEN_LENGTH = 256;
+const MAX_HINT_LINES = 100;
 
 export function buildResolvedPathHints(task: string | undefined, projectRoots: string[]): string {
     if (!task || projectRoots.length === 0) return '';
@@ -33,21 +35,25 @@ export function buildResolvedPathHints(task: string | undefined, projectRoots: s
     const words = task.match(/[A-Za-z0-9_./@-]+/g) || [];
     for (const word of words) {
         const clean = word.replace(/[),.;:]+$/, '');
+        if (clean.length > MAX_TOKEN_LENGTH) continue;
         if (!REPO_PATH_PREFIXES.some(prefix => clean === prefix || clean.startsWith(prefix))) continue;
         seen.add(clean);
         if (seen.size >= MAX_PATH_HINT_TOKENS) break;
     }
     if (!seen.size) return '';
-    const lines = [...seen].flatMap(p => {
-        if (p.includes('..')) return [];
-        return projectRoots.map(root => {
+    const lines: string[] = [];
+    for (const p of seen) {
+        if (lines.length >= MAX_HINT_LINES) break;
+        if (p.includes('..')) continue;
+        for (const root of projectRoots) {
+            if (lines.length >= MAX_HINT_LINES) break;
             const absolute = resolve(root, p);
             const rel = relative(root, absolute);
-            if (rel.startsWith('..') || rel.startsWith(sep + sep)) return null;
+            if (rel.startsWith('..') || rel.startsWith(sep + sep)) continue;
             const status = existsSync(absolute) ? 'exists' : 'not found';
-            return `- ${p} -> ${JSON.stringify(absolute)} (${status})`;
-        }).filter(Boolean);
-    }) as string[];
+            lines.push(`- ${p} -> ${JSON.stringify(absolute)} (${status})`);
+        }
+    }
     return `## Resolved Path Hints\n${lines.join('\n')}`;
 }
 
