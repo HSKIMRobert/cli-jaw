@@ -66,6 +66,7 @@ export type DashboardInstance = {
     instanceId: string | null;
     homeDisplay: string | null;
     workingDir: string | null;
+    projectDirs: string[] | null;
     currentCli: string | null;
     currentModel: string | null;
     serviceMode: DashboardServiceMode;
