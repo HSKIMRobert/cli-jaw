@@ -28,7 +28,7 @@ export function WorkbenchHeader(props: WorkbenchHeaderProps) {
                         <span className="label">Projects:</span>
                         {instance.projectDirs.map((dir, i) => (
                             <span key={i} className="project-dir" title={dir}>
-                                {dir.split('/').slice(-2).join('/')}
+                                {dir.split(/[/\\]/).slice(-2).join('/')}
                             </span>
                         ))}
                     </div>

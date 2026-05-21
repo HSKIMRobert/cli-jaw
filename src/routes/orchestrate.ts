@@ -304,7 +304,7 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
             };
             // Phase 57: Pass worklog path so the worker can append progress entries.
             const worklog = dispatchCtx?.worklogPath ? { path: dispatchCtx.worklogPath } : {};
-            const result = await runSingleAgent(ap, emp, worklog, 1, { origin: 'api' }, []);
+            const result = await runSingleAgent(ap, emp, worklog, 1, { origin: 'api', projectDirs: dispatchCtx?.projectDirs }, []);
             finishWorker(slot.agentId, String(result["text"] || ''));
             try {
                 getSecurityAuditLog().append('dispatch_end', String(req.ip || 'local'), {

@@ -49,8 +49,8 @@ export function buildWorkspaceContextBlock(input: WorkspaceContextInput): string
         : [resolveWorkspaceRoot(input.workingDir)];
 
     const rootLines = roots.length === 1
-        ? `Project root: ${roots[0]}`
-        : roots.map((r, i) => `Project root ${i + 1}: ${r}`).join('\n');
+        ? `Project root: ${JSON.stringify(roots[0])}`
+        : roots.map((r, i) => `Project root ${i + 1}: ${JSON.stringify(r)}`).join('\n');
 
     const primaryRoot = roots[0]!;
     const devlogRoot = join(primaryRoot, 'devlog');
