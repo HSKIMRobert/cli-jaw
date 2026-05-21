@@ -5,5 +5,5 @@ export function isClaudeLikeCli(cli: string): boolean {
 }
 
 export function isSessionPersistingCli(cli: string): boolean {
-    return cli !== 'claude';
+    return cli !== 'claude' && cli !== 'agy';
 }

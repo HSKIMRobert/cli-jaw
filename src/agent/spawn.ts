@@ -5,6 +5,7 @@ import os from 'os';
 import crypto from 'node:crypto';
 import { join } from 'path';
 import { spawn, type ChildProcess } from 'child_process';
+import { StringDecoder } from 'node:string_decoder';
 import { broadcast } from '../core/bus.js';
 import { settings, UPLOADS_DIR, detectCli } from '../core/config.js';
 import { migrateLegacyClaudeValue } from '../cli/claude-models.js';
@@ -826,6 +827,9 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         fs.writeFileSync(tmpSysFile, sysPrompt);
         spawnEnv["GEMINI_SYSTEM_MD"] = tmpSysFile;
     }
+    if (cli === 'agy' && sysPrompt) {
+        fs.writeFileSync(join(spawnCwd, 'GEMINI.md'), sysPrompt);
+    }
 
     // ─── Copilot ACP branch ──────────────────────
     if (cli === 'copilot') {
@@ -1619,11 +1623,14 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         }, 30_000);
     }
 
+    const agyUtf8 = cli === 'agy' ? new StringDecoder('utf8') : null;
+
     child.stdout.on('data', (chunk) => {
         opts.lifecycle?.onActivity?.('stdout');
         lastOpencodeIoAt = Date.now();
         if (cli === 'agy') {
-            const text = chunk.toString();
+            const text = agyUtf8!.write(chunk);
+            if (!text) return;
             ctx.fullText += text;
             if (!ctx.sessionId) ctx.sessionId = extractAgyConversationId(ctx.fullText);
             appendTraceEvent({ runId: ctx.traceRunId, source: 'cli_raw', eventType: 'plain_text', raw: text });
@@ -1666,6 +1673,10 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         }
         flushClaudeBuffers(ctx, agentLabel, empTag);  // flush any pending thinking/input buffers
         if (cli === 'opencode') flushOpenCodeBuffers(ctx, agentLabel, empTag);
+        if (agyUtf8) {
+            const remaining = agyUtf8.end();
+            if (remaining) ctx.fullText += remaining;
+        }
         cleanupEmployeeTmpDir(spawnCwd, settings["workingDir"], agentLabel);
 
         // [I2] Consume per-process kill reason
