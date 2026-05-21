@@ -36,12 +36,15 @@ export function buildResolvedPathHints(task: string | undefined, projectRoots: s
     }
     if (!seen.size) return '';
     const lines = [...seen].flatMap(p => {
+        if (p.includes('..')) return [];
         return projectRoots.map(root => {
-            const absolute = join(root, p);
+            const absolute = resolve(root, p);
+            const rootPref = root.endsWith('/') ? root : root + '/';
+            if (!absolute.startsWith(rootPref) && absolute !== root) return null;
             const status = existsSync(absolute) ? 'exists' : 'not found';
             return `- ${p} -> ${JSON.stringify(absolute)} (${status})`;
-        });
-    });
+        }).filter(Boolean);
+    }) as string[];
     return `## Resolved Path Hints\n${lines.join('\n')}`;
 }
 

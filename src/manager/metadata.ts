@@ -17,7 +17,7 @@ function readString(source: Record<string, unknown> | null, keys: string[]): str
     if (!source) return null;
     for (const key of keys) {
         const value = source[key];
-        if (typeof value === 'string' && value.trim()) return value;
+        if (typeof value === 'string' && value.trim()) return value.trim();
     }
     return null;
 }

@@ -91,8 +91,12 @@ async function runViaServer(): Promise<boolean> {
                 const dirs = parsePaths(rest);
                 const body = await applyViaServer({ projectDirs: dirs });
                 const applied = readProjectDirsFromBody(body);
-                console.log(`✅ projectDirs set:`);
-                (applied || dirs).forEach(d => console.log(`   ${d}`));
+                if (!applied || applied.length === 0) {
+                    console.warn('⚠ All paths were rejected during normalization.');
+                } else {
+                    console.log(`✅ projectDirs set:`);
+                    applied.forEach(d => console.log(`   ${d}`));
+                }
                 return true;
             }
             case 'reset':
@@ -121,9 +125,13 @@ function runViaFile(): void {
         case 'set': {
             const dirs = parsePaths(rest);
             setProjectDirs(dirs);
-            const applied = getProjectDirs() || dirs;
-            console.log(`✅ projectDirs set (file-only, server not running):`);
-            applied.forEach(d => console.log(`   ${d}`));
+            const applied = getProjectDirs();
+            if (!applied || applied.length === 0) {
+                console.warn('⚠ All paths were rejected during normalization.');
+            } else {
+                console.log(`✅ projectDirs set (file-only, server not running):`);
+                applied.forEach(d => console.log(`   ${d}`));
+            }
             break;
         }
         case 'reset':
