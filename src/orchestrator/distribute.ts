@@ -2,7 +2,7 @@
 // Extracted from pipeline.ts for 500-line compliance.
 
 import { broadcast } from '../core/bus.js';
-import { settings } from '../core/config.js';
+import { settings, normalizeProjectDirs } from '../core/config.js';
 import { clearEmployeeSession, getEmployeeSession, upsertEmployeeSession } from '../core/db.js';
 import { getEmployeePromptV2 } from '../prompt/builder.js';
 import { spawnAgent, killAgentById } from '../agent/spawn.js';
@@ -381,10 +381,7 @@ export async function runSingleAgent(
         .join('→');
 
     const worklogPath = String(worklog?.["path"] || '').trim();
-    const rawCtxDirs = meta?.["projectDirs"];
-    const ctxProjectDirs = Array.isArray(rawCtxDirs)
-        ? rawCtxDirs.filter((d): d is string => typeof d === 'string' && d.trim().length > 0)
-        : null;
+    const ctxProjectDirs = normalizeProjectDirs(meta?.["projectDirs"]);
     const workspaceBlock = buildWorkspaceContextBlock({
         workingDir: settings["workingDir"] || null,
         projectDirs: ctxProjectDirs || settings["projectDirs"] || null,
