@@ -19,6 +19,19 @@ This repository is a Node.js ESM orchestration runtime for boss/employee dispatc
 - Tool logs are capped by `src/shared/tool-log-sanitize.ts` before WebSocket, `agent_done`, and orchestration snapshot delivery.
 - `jaw browser fetch <url>` is the adaptive URL-reader mirror from agbrowse: use it for a known URL/search-result URL, not as generic search.
 
+## Build
+
+Backend and frontend are separate builds. **Both must run after source changes.**
+
+```bash
+npm run build            # backend only (tsc → dist/)
+npm run build:frontend   # frontend only (vite → public/dist/)
+```
+
+- `public/js/**/*.ts` changes require `npm run build:frontend` — the browser loads Vite-bundled output from `public/dist/`, not raw TS.
+- Backend `src/**/*.ts` changes require `npm run build`.
+- After editing frontend code, ALWAYS run `npm run build:frontend` before reporting the change is applied.
+
 ## Local Gates
 
 Prefer the existing gates only:

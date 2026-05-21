@@ -137,15 +137,22 @@ function syncPerCliModelAndEffortControls(settings: SettingsData | null = null):
         const aiEProvider = cli === 'ai-e' ? getSelectedAiEProvider() : '';
         const modelSel = getModelSelect(cli);
         if (modelSel) {
-            const raw = settings?.perCli?.[cli]?.model || modelSel.value || '';
-            const selected = normalizeModelForDisplay(cli, raw);
-            const models = cli === 'ai-e'
-                ? (meta?.modelsByProvider?.[aiEProvider] || MODEL_MAP[cli] || [])
-                : (MODEL_MAP[cli] || []);
-            setSelectOptions(modelSel, models, { includeCustom: true, selected });
-            if (selected && !Array.from(modelSel.options).some(o => o.value === selected)) {
-                appendCustomOption(modelSel, selected);
-                modelSel.value = selected;
+            if (meta?.modelNote) {
+                modelSel.innerHTML = `<option value="">${escapeHtml(meta.modelNote)}</option>`;
+                modelSel.title = meta.modelNote;
+                modelSel.disabled = true;
+            } else {
+                const raw = settings?.perCli?.[cli]?.model || modelSel.value || '';
+                const selected = normalizeModelForDisplay(cli, raw);
+                const models = cli === 'ai-e'
+                    ? (meta?.modelsByProvider?.[aiEProvider] || MODEL_MAP[cli] || [])
+                    : (MODEL_MAP[cli] || []);
+                setSelectOptions(modelSel, models, { includeCustom: true, selected });
+                if (selected && !Array.from(modelSel.options).some(o => o.value === selected)) {
+                    appendCustomOption(modelSel, selected);
+                    modelSel.value = selected;
+                }
+                modelSel.disabled = false;
             }
         }
 
@@ -313,16 +320,16 @@ export async function loadSettings(): Promise<void> {
 }
 
 export async function updateSettings(): Promise<void> {
-    const s = {
-        cli: (document.getElementById('selCli') as HTMLSelectElement)?.value || 'claude',
-    };
+    const cli = (document.getElementById('selCli') as HTMLSelectElement)?.value || 'claude';
+    const s: Record<string, unknown> = { cli };
+    if (cli === 'ai-e') s['perCli'] = { 'ai-e': { provider: getSelectedAiEProvider() } };
     return trackSettingsSave((async () => {
         const result = await apiJson<SettingsData>('/api/settings', 'PUT', s);
         if (!result) {
             await loadSettings();
             return;
         }
-        const confirmedCli = result.cli || s.cli;
+        const confirmedCli = result.cli || cli;
         const selCli = document.getElementById('selCli') as HTMLSelectElement | null;
         if (selCli && Array.from(selCli.options).some(o => o.value === confirmedCli)) {
             selCli.value = confirmedCli;
@@ -435,7 +442,14 @@ export function onCliChange(save = true): void {
         ? (meta?.modelsByProvider?.[aiEProvider] || MODEL_MAP[cli] || [])
         : (MODEL_MAP[cli] || []);
     const modelSel = document.getElementById('selModel') as HTMLSelectElement | null;
-    setSelectOptions(modelSel, models, { includeCustom: true, includeDefault: true });
+    if (meta?.modelNote && modelSel) {
+        modelSel.innerHTML = `<option value="">${escapeHtml(meta.modelNote)}</option>`;
+        modelSel.title = meta.modelNote;
+        modelSel.disabled = true;
+    } else {
+        setSelectOptions(modelSel, models, { includeCustom: true, includeDefault: true });
+        if (modelSel) { modelSel.disabled = false; modelSel.title = ''; }
+    }
     setHeaderCli(cli);
     syncActiveEffortOptions(cli);
 
@@ -470,7 +484,6 @@ export function onCliChange(save = true): void {
         if (!s) return;
         const ao = s.activeOverrides?.[cli] || {};
         const pc = s.perCli?.[cli] || {};
-        if (cli === 'ai-e') syncAiEProviderControl(s, cli);
         const model = ao.model || pc.model;
         const effort = ao.effort || pc.effort || '';
         if (model && modelSel) {
