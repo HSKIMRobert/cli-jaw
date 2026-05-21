@@ -23,6 +23,15 @@ const GEMINI_MODE_OPTIONS: Record<GeminiModelChoice, { testId: string; labels: s
     pro: { testId: 'bard-mode-option-pro', labels: ['Pro'] },
 };
 
+const GEMINI_DEEP_THINK_ALIASES = new Set([
+    'deepthink',
+    'deep-think',
+    'deep_think',
+    'deep think',
+    'gemini-deepthink',
+    'gemini-deep-think',
+]);
+
 const GEMINI_MODEL_ALIASES: Record<string, GeminiModelChoice> = {
     fast: 'flash-lite',
     'flash-lite': 'flash-lite',
@@ -47,7 +56,13 @@ export function normalizeGeminiModelChoice(model: string | undefined): GeminiMod
     return GEMINI_MODEL_ALIASES[key] || normalizeGeminiModelLabel(key);
 }
 
+export function isGeminiDeepThinkChoice(model: string | undefined): boolean {
+    const key = String(model || '').trim().toLowerCase();
+    return GEMINI_DEEP_THINK_ALIASES.has(key);
+}
+
 export async function selectGeminiModel(page: Page, model: string | undefined): Promise<GeminiModelSelectionResult | null> {
+    if (isGeminiDeepThinkChoice(model)) return null;
     const requested = normalizeGeminiModelChoice(model);
     if (!requested) {
         if (model) throw new Error(`unsupported Gemini model selection: ${model}`);
@@ -106,7 +121,10 @@ async function findGeminiModelOption(page: Page, choice: GeminiModelChoice): Pro
             const pattern = geminiModeLabelPattern(label);
             for (const candidate of candidates) {
                 if (!(await candidate.isVisible().catch(() => false))) continue;
-                const text = (await candidate.innerText({ timeout: 500 }).catch(() => '')).trim().replace(/\s+/g, ' ');
+                const labelEl = candidate.locator('.label').first();
+                const text = await labelEl.isVisible().catch(() => false)
+                    ? (await labelEl.innerText({ timeout: 500 }).catch(() => '')).trim().replace(/\s+/g, ' ')
+                    : (await candidate.innerText({ timeout: 500 }).catch(() => '')).trim().replace(/\s+/g, ' ');
                 if (pattern.test(text)) return candidate;
             }
             const byText = page.getByText(pattern).first();
@@ -128,15 +146,15 @@ async function readGeminiModel(page: Page): Promise<GeminiModelChoice | null> {
 
 function geminiModeLabelPattern(label: string): RegExp {
     const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/[- ]/g, '[- ]');
-    return new RegExp(`^(?:Gemini\\s*)?(?:\\d+(?:\\.\\d+)?\\s+)?${escaped}\\b`, 'i');
+    return new RegExp(`^(?:Gemini\\s*)?(?:\\d+(?:\\.\\d+)?\\s+)?${escaped}(?![\\w-])`, 'i');
 }
 
 function normalizeGeminiModelLabel(label: string): GeminiModelChoice | null {
     const normalized = String(label || '').trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
     const withoutVendor = normalized.replace(/^gemini\s+/, '');
     const withoutVersion = withoutVendor.replace(/^\d+(?:\.\d+)?\s+/, '');
-    if (/^flash lite\b/.test(withoutVersion)) return 'flash-lite';
-    if (/^flash\b/.test(withoutVersion)) return 'flash';
-    if (/^pro\b/.test(withoutVersion)) return 'pro';
+    if (/^flash[ -]lite(?![\w-])/.test(withoutVersion)) return 'flash-lite';
+    if (/^flash(?![\w-])/.test(withoutVersion)) return 'flash';
+    if (/^pro(?![\w-])/.test(withoutVersion)) return 'pro';
     return null;
 }

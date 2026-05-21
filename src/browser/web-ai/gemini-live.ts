@@ -35,6 +35,24 @@ import { selectGeminiModel } from './gemini-model.js';
 import { preflightAttachment } from './chatgpt-attachments.js';
 
 const GEMINI_HOSTS = new Set(['gemini.google.com']);
+const GEMINI_UPLOAD_SELECTORS = [
+    'button[aria-label="Open upload file menu"]',
+    'button[aria-label*="upload file menu" i]',
+    'button[aria-label="Upload & tools"]',
+    'button[aria-label*="Upload" i][aria-label*="tools" i]',
+    'button[aria-label="업로드 및 도구"]',
+    'button[aria-label*="업로드" i][aria-haspopup="menu"]',
+] as const;
+const GEMINI_UPLOAD_ITEM_SELECTOR = [
+    '[role="menuitem"][aria-label^="Upload files"]',
+    'button[aria-label^="Upload files"]',
+    '[role="menuitem"]:has-text("Upload files")',
+    'button:has-text("Upload files")',
+    '[role="menuitem"][aria-label^="파일 업로드"]',
+    '[role="menuitem"]:has-text("파일 업로드")',
+    'button:has-text("파일 업로드")',
+    '[data-test-id="local-images-files-uploader-button"]',
+].join(', ');
 type StagedGeminiError = Error & { stage?: WebAiFailureStage };
 
 function stagedGeminiError(message: string, stage: WebAiFailureStage): StagedGeminiError {
@@ -372,13 +390,13 @@ async function attachGeminiLocalFileLive(
     }
     warnings.push(...preflight.softWarnings);
 
-    const uploadButton = await findFirstSelector(page, ['button[aria-label="Open upload file menu"]', 'button[aria-label*="upload file menu" i]'], 5_000);
+    const uploadButton = await findFirstSelector(page, GEMINI_UPLOAD_SELECTORS, 5_000);
     if (!uploadButton) return { ok: false, error: 'gemini upload file menu button not visible', usedFallbacks };
 
     try {
         await page.keyboard.press('Escape').catch(() => undefined);
-        await page.locator(uploadButton).first().click({ timeout: 5_000 });
-        const uploadItem = page.locator('[role="menuitem"][aria-label^="Upload files"], button[aria-label^="Upload files"]').first();
+        await page.locator(uploadButton).first().click({ timeout: 5_000, force: true });
+        const uploadItem = page.locator(GEMINI_UPLOAD_ITEM_SELECTOR).first();
         await uploadItem.waitFor({ state: 'visible', timeout: 5_000 });
         const chooserPromise = page.waitForEvent('filechooser', { timeout: 15_000 });
         await uploadItem.click({ timeout: 5_000, force: true });
