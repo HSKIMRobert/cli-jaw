@@ -383,6 +383,7 @@ export async function runSingleAgent(
     const worklogPath = String(worklog?.["path"] || '').trim();
     const workspaceBlock = buildWorkspaceContextBlock({
         workingDir: settings["workingDir"] || null,
+        projectDirs: settings["projectDirs"] || null,
         worklogPath,
         employeeName: text(emp["name"]),
         task: text(ap["task"]),

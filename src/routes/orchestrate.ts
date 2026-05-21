@@ -11,7 +11,8 @@ import { resolveOrcScope } from '../orchestrator/scope.js';
 import { getActiveWorkers, claimWorker, finishWorker, failWorker, markWorkerReplayed, getWorkerSlot, WorkerBusyError } from '../orchestrator/worker-registry.js';
 import { findEmployee, runSingleAgent } from '../orchestrator/distribute.js';
 import { getEmployees } from '../core/db.js';
-import { settings } from '../core/config.js';
+import { settings, clearProjectDirs } from '../core/config.js';
+import { broadcast } from '../core/bus.js';
 import { stripUndefined } from '../core/strip-undefined.js';
 import { verifyBossToken } from '../core/boss-auth.js';
 import { resolveDispatchableEmployee, checkRuntimeHints, checkModelSupport } from '../core/employees.js';
@@ -85,6 +86,7 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
             userApproved: ctx.userApproved,
             taskAnchor: ctx.taskAnchor,
             resolvedSelection: ctx.resolvedSelection,
+            projectDirs: ctx.projectDirs,
         } : null;
         res.json({
             orc: {
@@ -424,10 +426,12 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
         if (t === 'D') {
             setState(t, undefined, scope, 'Done');
             resetState(scope);
+            clearProjectDirs();
+            broadcast('settings_change', { projectDirs: null });
         } else {
             setState(
                 t,
-                t === 'P' ? { originalPrompt: '', workingDir: settings["workingDir"] || null, plan: null, workerResults: [], origin: 'api' } : undefined,
+                t === 'P' ? { originalPrompt: '', workingDir: settings["workingDir"] || null, projectDirs: settings["projectDirs"] || null, plan: null, workerResults: [], origin: 'api' } : undefined,
                 scope,
                 t === 'P' ? 'P' : t,
             );
