@@ -25,8 +25,8 @@ export function resolveWorkspaceRoot(workingDir?: string | null): string {
     return resolve(workingDir || process.cwd());
 }
 
-export function buildResolvedPathHints(task: string | undefined, projectRoot: string): string {
-    if (!task) return '';
+export function buildResolvedPathHints(task: string | undefined, projectRoots: string[]): string {
+    if (!task || projectRoots.length === 0) return '';
     const seen = new Set<string>();
     const words = task.match(/[A-Za-z0-9_./@-]+/g) || [];
     for (const word of words) {
@@ -35,10 +35,12 @@ export function buildResolvedPathHints(task: string | undefined, projectRoot: st
         seen.add(clean);
     }
     if (!seen.size) return '';
-    const lines = [...seen].map(path => {
-        const absolute = join(projectRoot, path);
-        const status = existsSync(absolute) ? 'exists' : 'not found';
-        return `- ${path} -> ${absolute} (${status})`;
+    const lines = [...seen].flatMap(p => {
+        return projectRoots.map(root => {
+            const absolute = join(root, p);
+            const status = existsSync(absolute) ? 'exists' : 'not found';
+            return `- ${p} -> ${JSON.stringify(absolute)} (${status})`;
+        });
     });
     return `## Resolved Path Hints\n${lines.join('\n')}`;
 }
@@ -54,12 +56,12 @@ export function buildWorkspaceContextBlock(input: WorkspaceContextInput): string
 
     const primaryRoot = roots[0]!;
     const devlogRoot = join(primaryRoot, 'devlog');
-    const hints = buildResolvedPathHints(input.task, primaryRoot);
+    const hints = buildResolvedPathHints(input.task, roots);
 
     return [
         '## Workspace Context (authoritative)',
         rootLines,
-        `Devlog root: ${devlogRoot}`,
+        `Devlog root: ${JSON.stringify(devlogRoot)}`,
         `Worklog path: ${input.worklogPath || '(none)'}`,
         'Employee runtime cwd: isolated temporary directory, not the project root',
         '',

@@ -51,7 +51,7 @@ export function normalizeSettingsMetadata(settingsBody: unknown): DashboardSetti
 
     const rawProjectDirs = source?.["projectDirs"];
     const filteredDirs = Array.isArray(rawProjectDirs) && rawProjectDirs.length > 0
-        ? rawProjectDirs.filter((d): d is string => typeof d === 'string' && d.trim().length > 0)
+        ? rawProjectDirs.filter((d): d is string => typeof d === 'string' && d.trim().length > 0).map(d => d.trim())
         : [];
     const projectDirs = filteredDirs.length > 0 ? filteredDirs : null;
 
