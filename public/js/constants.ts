@@ -10,6 +10,7 @@ export interface CliEntry {
     modelsByProvider?: Record<string, string[]>;
     effortsByProvider?: Record<string, string[]>;
     effortNote?: string;
+    modelNote?: string;
 }
 
 export type CliRegistry = Record<string, CliEntry>;
@@ -18,8 +19,9 @@ const FALLBACK_CLI_REGISTRY: CliRegistry = {
     agy: {
         label: 'Antigravity',
         efforts: [],
-        effortNote: 'AGY print mode uses the current AGY-selected model; switch models in native AGY UI, no --model/--effort flags in agy 1.0.0',
-        models: ['gemini-3.5-flash'],
+        effortNote: 'Change at TUI',
+        modelNote: 'Change at TUI',
+        models: [],
     },
     'ai-e': {
         label: 'AI-E',
@@ -157,6 +159,9 @@ function normalizeRegistry(input: Record<string, unknown>): CliRegistry {
         };
         if (typeof v['effortNote'] === 'string' && v['effortNote'].trim()) {
             normalized['effortNote'] = v['effortNote'];
+        }
+        if (typeof v['modelNote'] === 'string' && v['modelNote'].trim()) {
+            normalized['modelNote'] = v['modelNote'];
         }
         if (typeof v['defaultProvider'] === 'string') normalized.defaultProvider = v['defaultProvider'];
         if (Array.isArray(v['providers'])) normalized.providers = [...v['providers']] as string[];

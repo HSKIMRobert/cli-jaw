@@ -10,6 +10,11 @@ import type { QuotaEntry } from './settings-types.js';
 const CLI_STATUS_INTERVAL_VALUES = new Set([0, 600, 1800]);
 const DEFAULT_CLI_STATUS_INTERVAL_SEC = 0;
 
+const QUOTA_HIDDEN_CLIS = new Set(['ai-e', 'codex-app']);
+const QUOTA_CUSTOM_MSG: Record<string, string> = {
+    claude: 'Currently subscribed, by June with credit',
+};
+
 let cliStatusTimer: number | null = null;
 
 const CLI_STATUS_COLLAPSED_KEY = 'cliStatusCollapsed';
@@ -120,9 +125,8 @@ export function normalizeQuotaWindowLabel(cliName: string, label: string): strin
 
 function describeStatusOnlyQuota(cliName: string, q: QuotaEntry): string {
     if (q.delegatedProvider) return `Delegates quota/status to ${q.delegatedProvider}`;
-    if (q.quotaSource === 'not-exposed-by-agy-cli') return 'Quota not exposed by AGY CLI';
-    if (q.quotaSource === 'not-exposed-by-grok-cli') return 'Quota not exposed by Grok CLI';
-    if (q.quotaSource === 'not-exposed-by-opencode-cli') return 'Quota not exposed by OpenCode CLI';
+    const match = q.quotaSource?.match(/^not-exposed-by-(.*?)-cli$/);
+    if (match) return `Quota not exposed by ${match[1].toUpperCase()} CLI`;
     if (q.quotaSource) return q.quotaSource;
     return cliName === 'opencode' ? 'Auth/status only' : 'Usage data not exposed by this CLI';
 }
@@ -214,7 +218,16 @@ function renderCliStatus(data: { cliStatus: Record<string, { available: boolean 
         }
 
         let windowsHtml = '';
-        if (q?.quotaCapable === false && q.authenticated !== false && info.available) {
+        const customQuotaMsg = QUOTA_CUSTOM_MSG[name];
+        if (QUOTA_HIDDEN_CLIS.has(name)) {
+            // no quota display for this CLI
+        } else if (customQuotaMsg && info.available) {
+            windowsHtml = `
+                <div style="font-size:10px;color:var(--text-dim);margin:4px 0 0 16px;padding:5px 7px;background:var(--bg-dim, #1e1e2e);border:1px solid var(--border);border-radius:5px">
+                    ${escapeHtml(customQuotaMsg)}
+                </div>
+            `;
+        } else if (q?.quotaCapable === false && q.authenticated !== false && info.available) {
             const usage = q.sessionUsage;
             const contextLine = usage?.contextTokensUsed && usage?.contextWindowTokens
                 ? `Session context: ${Math.round(usage.contextTokensUsed).toLocaleString()} / ${Math.round(usage.contextWindowTokens).toLocaleString()} tokens`
