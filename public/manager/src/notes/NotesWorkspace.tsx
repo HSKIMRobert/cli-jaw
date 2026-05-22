@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { MarkdownEditor } from './MarkdownEditor';
 import { MarkdownPreview } from './MarkdownPreview';
 import { NotesBacklinksPanel } from './NotesBacklinksPanel';
@@ -6,6 +6,9 @@ import { NotesEmptyState } from './NotesEmptyState';
 import { NotesFrontmatterStrip } from './NotesFrontmatterStrip';
 import { NotesQuickSwitcher } from './NotesQuickSwitcher';
 import { NotesToolbar } from './NotesToolbar';
+import { canSaveNote } from './note-revisions';
+import { useRegisterNoteCommands, type NoteCommand } from './notes-command-registry';
+import { isQuickSwitcherShortcut } from './notes-shortcuts';
 import { renameNotePath } from './notes-api';
 import { useNoteDocument } from './useNoteDocument';
 import { publishInvalidation } from '../sync/invalidation-bus';
@@ -113,7 +116,7 @@ export function NotesWorkspace(props: NotesWorkspaceProps) {
     useEffect(() => {
         if (!props.active) return;
         function handleQuickSwitcherShortcut(event: KeyboardEvent): void {
-            if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'p') return;
+            if (!isQuickSwitcherShortcut(event)) return;
             event.preventDefault();
             setQuickSwitcherOpen(open => !open);
         }
@@ -121,6 +124,114 @@ export function NotesWorkspace(props: NotesWorkspaceProps) {
         window.addEventListener('keydown', handleQuickSwitcherShortcut);
         return () => window.removeEventListener('keydown', handleQuickSwitcherShortcut);
     }, [props.active]);
+
+    const saveDisabledReason = !props.selectedPath
+        ? 'No note selected'
+        : document.saving
+            ? 'Save in progress'
+            : !document.dirty
+                ? 'No unsaved changes'
+                : undefined;
+    const workspaceCommands = useMemo<NoteCommand[]>(() => [
+        {
+            id: 'workspace:save',
+            section: 'File',
+            label: 'Save note',
+            shortcut: 'Cmd+S',
+            disabled: !canSaveNote(props.selectedPath, document.dirty, document.saving),
+            disabledReason: saveDisabledReason,
+            keywords: ['write', 'persist'],
+            run: () => void document.save(),
+        },
+        {
+            id: 'workspace:reload',
+            section: 'File',
+            label: 'Reload note from disk',
+            keywords: ['refresh', 'discard'],
+            disabled: !props.selectedPath,
+            disabledReason: 'No note selected',
+            run: () => void document.reloadFromDisk(),
+        },
+        {
+            id: 'workspace:view-raw',
+            section: 'View',
+            label: 'Switch to raw editor',
+            run: () => {
+                props.onViewModeChange('raw');
+                props.onAuthoringModeChange('plain');
+            },
+        },
+        {
+            id: 'workspace:view-split',
+            section: 'View',
+            label: 'Switch to split view',
+            run: () => {
+                props.onViewModeChange('split');
+                props.onAuthoringModeChange('plain');
+            },
+        },
+        {
+            id: 'workspace:view-preview',
+            section: 'View',
+            label: 'Switch to preview',
+            shortcut: 'Cmd+E',
+            run: () => props.onViewModeChange('preview'),
+        },
+        {
+            id: 'workspace:view-wysiwyg',
+            section: 'View',
+            label: 'Switch to WYSIWYG editor',
+            run: () => {
+                props.onViewModeChange('raw');
+                props.onAuthoringModeChange('wysiwyg');
+            },
+        },
+        {
+            id: 'workspace:view-graph',
+            section: 'View',
+            label: 'Open graph view',
+            run: () => props.onViewModeChange('graph'),
+        },
+        {
+            id: 'workspace:open-settings',
+            section: 'View',
+            label: 'Open Notes settings',
+            run: () => props.onViewModeChange('settings'),
+        },
+        {
+            id: 'workspace:toggle-word-wrap',
+            section: 'Editor',
+            label: props.wordWrap ? 'Disable word wrap' : 'Enable word wrap',
+            run: () => props.onWordWrapChange(!props.wordWrap),
+        },
+        {
+            id: 'workspace:open-search',
+            section: 'Navigate',
+            label: 'Search notes',
+            shortcut: 'Cmd+Shift+F',
+            run: props.onOpenSidebarSearch,
+        },
+        {
+            id: 'workspace:quick-switch-note',
+            section: 'Navigate',
+            label: 'Quick switch note',
+            shortcut: 'Cmd+P',
+            run: () => setQuickSwitcherOpen(true),
+        },
+    ], [
+        document.dirty,
+        document.reloadFromDisk,
+        document.save,
+        document.saving,
+        props.onAuthoringModeChange,
+        props.onOpenSidebarSearch,
+        props.onViewModeChange,
+        props.onWordWrapChange,
+        props.selectedPath,
+        props.wordWrap,
+        saveDisabledReason,
+    ]);
+    useRegisterNoteCommands(workspaceCommands, props.active);
 
     async function handleTitleBlur(event: React.FocusEvent<HTMLInputElement>): Promise<void> {
         if (renamingRef.current || !props.selectedPath) return;

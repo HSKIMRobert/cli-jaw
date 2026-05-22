@@ -1,8 +1,9 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { createNoteFile, createNoteFolder, fetchNoteTemplate, fetchNoteTemplates, renameNotePath, trashNotePath } from './notes-api';
 import { applyTemplate } from './template-engine';
 import { NewFolderIcon, NewNoteIcon, NotesFileTree, RefreshIcon } from './NotesFileTree';
 import { NotesSearchSidebar } from './NotesSearchSidebar';
+import { useRegisterNoteCommands, type NoteCommand } from './notes-command-registry';
 import { publishInvalidation } from '../sync/invalidation-bus';
 import { DashboardApiError, type NoteTemplate } from '../api';
 import type { NotesTreeEntry } from './notes-types';
@@ -341,6 +342,77 @@ export function NotesSidebar(props: NotesSidebarProps) {
             setError((err as Error).message);
         }
     }
+
+    const templateDisabledReason = templatesLoaded === 'pending'
+        ? 'Templates are still loading'
+        : templatesLoaded === 'error'
+            ? 'Templates failed to load'
+            : undefined;
+    const sidebarCommands = useMemo<NoteCommand[]>(() => [
+        {
+            id: 'sidebar:new-note',
+            section: 'Create',
+            label: 'New note',
+            shortcut: 'Alt+N',
+            keywords: ['create', 'file'],
+            disabled: templatesLoaded !== 'ok',
+            disabledReason: templateDisabledReason,
+            run: () => void createNote(),
+        },
+        {
+            id: 'sidebar:new-folder',
+            section: 'Create',
+            label: 'New folder',
+            keywords: ['directory'],
+            run: () => void createFolder(),
+        },
+        {
+            id: 'sidebar:today',
+            section: 'Create',
+            label: 'Open today',
+            keywords: ['daily', 'journal'],
+            disabled: templatesLoaded !== 'ok',
+            disabledReason: templateDisabledReason,
+            run: () => void openToday(),
+        },
+        {
+            id: 'sidebar:search',
+            section: 'Navigate',
+            label: 'Search notes',
+            shortcut: 'Cmd+Shift+F',
+            run: props.onOpenSearch,
+        },
+        {
+            id: 'sidebar:refresh',
+            section: 'File',
+            label: 'Refresh notes',
+            disabled: props.loading,
+            disabledReason: 'Refresh already running',
+            run: () => void props.onRefreshTree(),
+        },
+        {
+            id: 'sidebar:clear-tag-filter',
+            section: 'Navigate',
+            label: 'Clear tag filter',
+            disabled: !props.tagFilter,
+            disabledReason: 'No active tag filter',
+            run: props.onClearTagFilter,
+        },
+    ], [
+        props.loading,
+        props.onClearTagFilter,
+        props.onOpenSearch,
+        props.onRefreshTree,
+        props.onSelectedPathChange,
+        props.selectedPath,
+        props.tagFilter,
+        props.tree,
+        selectedFolderPath,
+        templateDisabledReason,
+        templates,
+        templatesLoaded,
+    ]);
+    useRegisterNoteCommands(sidebarCommands);
 
     return (
         <aside className="notes-tree" style={style}>
