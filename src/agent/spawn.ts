@@ -736,9 +736,12 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             cli === 'gemini' ? GEMINI_HISTORY_MAX_CHARS : 8000,
         )
         : '';
-    const promptForArgs = (cli === 'agy' || cli === 'gemini' || cli === 'grok' || cli === 'opencode' || (cli === 'ai-e' && effectiveProvider !== 'claude'))
+    let promptForArgs = (cli === 'agy' || cli === 'gemini' || cli === 'grok' || cli === 'opencode' || (cli === 'ai-e' && effectiveProvider !== 'claude'))
         ? withHistoryPrompt(prompt, historyBlock)
         : prompt;
+    if (cli === 'agy' && sysPrompt) {
+        promptForArgs = `[Operational Context — cli-jaw Integration]\nThe following operational guidelines apply to this session. Follow these task rules and use the tools/commands described:\n\n${sysPrompt}\n\n---\n\n${promptForArgs}`;
+    }
     const claudeBin = (cli === 'claude-e' || (cli === 'ai-e' && effectiveProvider === 'claude'))
         ? detectCli('claude').path
         : null;
@@ -826,9 +829,6 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         const tmpSysFile = join(os.tmpdir(), `jaw-gemini-sys-${agentLabel}.md`);
         fs.writeFileSync(tmpSysFile, sysPrompt);
         spawnEnv["GEMINI_SYSTEM_MD"] = tmpSysFile;
-    }
-    if (cli === 'agy' && sysPrompt) {
-        fs.writeFileSync(join(spawnCwd, 'GEMINI.md'), sysPrompt);
     }
 
     // ─── Copilot ACP branch ──────────────────────

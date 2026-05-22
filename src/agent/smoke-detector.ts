@@ -35,6 +35,10 @@ export function detectSmokeResponse(
     exitCode: number | null,
     cli: string,
 ): SmokeDetectionResult {
+    if (cli === 'agy') {
+        return { isSmoke: false, confidence: 'low', matchedPattern: null, reason: 'agy: no tool log in -p mode' };
+    }
+
     const trimmed = (text || '').trim();
 
     if (!trimmed || trimmed.length < MIN_TEXT_LENGTH) {

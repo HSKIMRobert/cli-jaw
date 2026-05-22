@@ -41,7 +41,7 @@ export function shouldResumeBucketSession(
     if (cli === 'opencode' && requestedResumeKey) {
         return requestedResumeKey === (bucketResumeKey ?? null);
     }
-    if (cli === 'agy') return false;
+    if (cli === 'agy') return !!bucketModel;
     return true;
 }
 
