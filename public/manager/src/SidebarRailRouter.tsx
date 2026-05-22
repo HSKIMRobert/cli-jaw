@@ -20,6 +20,8 @@ import { DashboardRemindersSidebar, type RemindersView } from './dashboard-remin
 import { DashboardRemindersWorkspace } from './dashboard-reminders/DashboardRemindersWorkspace';
 import { useRemindersFeed } from './dashboard-reminders/useRemindersFeed';
 import type { HelpTopicId } from './help/helpContent';
+import { NotesCommandPalette } from './notes/NotesCommandPalette';
+import { NotesCommandProvider } from './notes/notes-command-registry';
 import type { NotesModelState } from './notes/useNotesModel';
 import type {
     DashboardDetailTab,
@@ -126,7 +128,7 @@ export function SidebarRailRouter(props: Props) {
     );
 
     return (
-        <>
+        <NotesCommandProvider>
         {props.jawCeoVoiceOverlay}
         <WorkspaceLayout
             sidebarCollapsed={props.sidebarCollapsed}
@@ -168,6 +170,7 @@ export function SidebarRailRouter(props: Props) {
             )}
             workbench={(
                 <div className="workspace-surface-stack">
+                    <NotesCommandPalette active={props.sidebarMode === 'notes'} />
                     {props.lifecycleMessage && (
                         <section className="state lifecycle-state" role="status">
                             <span>{props.lifecycleMessage}</span>
@@ -224,6 +227,6 @@ export function SidebarRailRouter(props: Props) {
                 </InstanceDrawer>
             )}
         />
-        </>
+        </NotesCommandProvider>
     );
 }
