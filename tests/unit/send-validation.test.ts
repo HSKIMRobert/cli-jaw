@@ -1,6 +1,7 @@
 // Send validation behavior tests — Phase 9
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 
@@ -50,19 +51,26 @@ test('validateDiscordFileSize accepts 5 MiB', async () => {
 test('normalizeChannelSendRequest maps body fields correctly', async () => {
     const { normalizeChannelSendRequest } = await import('../../src/messaging/send.js');
     const jawHome = process.env.CLI_JAW_HOME || process.env.JAW_HOME || path.join(os.homedir(), '.cli-jaw');
-    const testPath = path.join(jawHome, 'output', 'test.png');
-    const req = normalizeChannelSendRequest({
-        channel: 'discord',
-        type: 'photo',
-        file_path: testPath,
-        caption: 'test',
-        chat_id: '123',
-    });
-    assert.equal(req.channel, 'discord');
-    assert.equal(req.type, 'photo');
-    assert.equal(req.filePath, testPath);
-    assert.equal(req.caption, 'test');
-    assert.equal(req.chatId, '123');
+    const testDir = path.join(jawHome, 'output');
+    fs.mkdirSync(testDir, { recursive: true });
+    const testPath = path.join(testDir, `send-test-${Date.now()}.png`);
+    fs.writeFileSync(testPath, '');
+    try {
+        const req = normalizeChannelSendRequest({
+            channel: 'discord',
+            type: 'photo',
+            file_path: testPath,
+            caption: 'test',
+            chat_id: '123',
+        });
+        assert.equal(req.channel, 'discord');
+        assert.equal(req.type, 'photo');
+        assert.equal(req.filePath, fs.realpathSync(testPath));
+        assert.equal(req.caption, 'test');
+        assert.equal(req.chatId, '123');
+    } finally {
+        try { fs.unlinkSync(testPath); } catch {}
+    }
 });
 
 test('normalizeChannelSendRequest defaults channel to active', async () => {

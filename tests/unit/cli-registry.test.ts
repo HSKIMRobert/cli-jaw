@@ -32,7 +32,7 @@ test('every CLI entry has required fields', () => {
         assert.equal(typeof entry.binary, 'string', `${key}.binary must be string`);
         assert.equal(typeof entry.defaultModel, 'string', `${key}.defaultModel must be string`);
         assert.ok(Array.isArray(entry.models), `${key}.models must be array`);
-        assert.ok(entry.models.length > 0, `${key}.models must not be empty`);
+        assert.ok(entry.models.length > 0 || 'modelNote' in entry, `${key}.models must not be empty (or have modelNote for TUI-managed CLIs)`);
         assert.ok(Array.isArray(entry.efforts), `${key}.efforts must be array`);
     }
 });
@@ -40,6 +40,7 @@ test('every CLI entry has required fields', () => {
 test('every CLI defaultModel is included in its models list', () => {
     for (const key of CLI_KEYS) {
         const entry = CLI_REGISTRY[key];
+        if (!entry.defaultModel) continue;
         assert.ok(
             entry.models.includes(entry.defaultModel),
             `${key}.defaultModel "${entry.defaultModel}" not found in models list`
@@ -55,11 +56,10 @@ test('registry defaults for gemini and opencode are updated', () => {
 test('Antigravity registry exposes AGY as a top-level runtime, not an ai-e provider', () => {
     assert.equal(CLI_REGISTRY.agy.label, 'Antigravity');
     assert.equal(CLI_REGISTRY.agy.binary, 'agy');
-    assert.equal(CLI_REGISTRY.agy.defaultModel, 'gemini-3.5-flash');
+    assert.equal(CLI_REGISTRY.agy.defaultModel, '');
     assert.deepEqual(CLI_REGISTRY.agy.efforts, []);
-    assert.match(CLI_REGISTRY.agy.effortNote || '', /current AGY-selected model/);
-    assert.match(CLI_REGISTRY.agy.effortNote || '', /native AGY UI/);
-    assert.match(CLI_REGISTRY.agy.effortNote || '', /no --model\/--effort flags/);
+    assert.deepEqual(CLI_REGISTRY.agy.models, []);
+    assert.match(CLI_REGISTRY.agy.effortNote || '', /Change at TUI/);
     assert.equal(CLI_REGISTRY['ai-e'].providers.includes('agy'), false);
 });
 
