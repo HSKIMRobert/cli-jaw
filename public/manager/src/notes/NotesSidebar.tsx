@@ -7,9 +7,7 @@ import { useRegisterNoteCommands, type NoteCommand } from './notes-command-regis
 import { publishInvalidation } from '../sync/invalidation-bus';
 import { DashboardApiError, type NoteTemplate } from '../api';
 import type { NotesTreeEntry } from './notes-types';
-
 export type NotesSidebarMode = 'files' | 'search';
-
 type NotesSidebarProps = {
     tree: NotesTreeEntry[];
     loading: boolean;

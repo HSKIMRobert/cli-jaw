@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { filterQuickSwitcherNotes } from '../../public/manager/src/notes/NotesQuickSwitcher.tsx';
+import { isQuickSwitcherShortcut } from '../../public/manager/src/notes/notes-shortcuts.ts';
 import type { NoteMetadata } from '../../public/manager/src/types.ts';
 
 function note(path: string, title: string, aliases: string[] = []): NoteMetadata {
@@ -13,6 +14,17 @@ function note(path: string, title: string, aliases: string[] = []): NoteMetadata
         size: 0,
         revision: path,
     };
+}
+
+function keyEvent(key: string, modifiers: Partial<Pick<KeyboardEvent, 'altKey' | 'ctrlKey' | 'metaKey' | 'shiftKey'>> = {}): KeyboardEvent {
+    return {
+        altKey: modifiers.altKey === true,
+        ctrlKey: modifiers.ctrlKey === true,
+        key,
+        metaKey: modifiers.metaKey === true,
+        shiftKey: modifiers.shiftKey === true,
+        target: null,
+    } as KeyboardEvent;
 }
 
 test('quick switcher ranks title prefix above path contains', () => {
@@ -41,4 +53,11 @@ test('quick switcher caps results at the requested limit', () => {
     const results = filterQuickSwitcherNotes(notes, 'note', 50);
 
     assert.equal(results.length, 50);
+});
+
+test('quick switcher shortcut does not consume command palette shortcut', () => {
+    assert.equal(isQuickSwitcherShortcut(keyEvent('p', { metaKey: true })), true);
+    assert.equal(isQuickSwitcherShortcut(keyEvent('p', { ctrlKey: true })), true);
+    assert.equal(isQuickSwitcherShortcut(keyEvent('p', { metaKey: true, shiftKey: true })), false);
+    assert.equal(isQuickSwitcherShortcut(keyEvent('p', { ctrlKey: true, shiftKey: true })), false);
 });

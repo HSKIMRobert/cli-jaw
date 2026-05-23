@@ -204,7 +204,7 @@ test('Notes API and create actions surface backend/fallback failures without unc
     assert.ok(workspace.includes('!event.shiftKey'), 'notes search shortcut must require Shift');
     assert.ok(workspace.includes("import { NotesQuickSwitcher } from './NotesQuickSwitcher'"), 'notes workspace must import the Notes quick switcher');
     assert.ok(workspace.includes('const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false)'), 'notes workspace must own local quick switcher state');
-    assert.ok(workspace.includes("event.key.toLowerCase() !== 'p'"), 'notes quick switcher shortcut must be bound to P');
+    assert.ok(workspace.includes('isQuickSwitcherShortcut(event)'), 'notes quick switcher shortcut must be bound through the shift-safe helper');
     assert.ok(workspace.includes('setQuickSwitcherOpen(open => !open)'), 'Cmd/Ctrl+P must toggle the quick switcher');
     assert.ok(workspace.includes('notes={props.vaultIndex?.notes || []}'), 'quick switcher must consume existing vault index notes');
     assert.ok(workspace.includes('<NotesQuickSwitcher'), 'notes workspace must render the quick switcher');
@@ -366,4 +366,28 @@ test('App renders NotesWorkspace outside Workbench and imports notes CSS', () =>
     assert.ok(main.includes('./manager-dashboard-settings.css'), 'manager dashboard settings CSS must be loaded');
     assert.equal(workbench.includes("'notes'"), false, 'Workbench tabs must not include Notes');
     assert.equal(workbench.includes("'dashboard-settings'"), false, 'Workbench tabs must not include Dashboard settings');
+});
+
+test('Notes command palette is scoped to Notes and reuses Quick Switcher shell', () => {
+    const router = read('public/manager/src/SidebarRailRouter.tsx');
+    const workspace = read('public/manager/src/notes/NotesWorkspace.tsx');
+    const sidebar = read('public/manager/src/notes/NotesSidebar.tsx');
+    const palette = read('public/manager/src/notes/NotesCommandPalette.tsx');
+    const registry = read('public/manager/src/notes/notes-command-registry.tsx');
+    const shortcuts = read('public/manager/src/notes/notes-shortcuts.ts');
+    const quickSwitcherCss = read('public/manager/src/notes/notes-quick-switcher.css');
+
+    assert.ok(router.includes('NotesCommandProvider'), 'Notes route must provide a Notes command registry');
+    assert.ok(router.includes('<NotesCommandPalette'), 'Notes route must render the command palette host');
+    assert.ok(workspace.includes('useRegisterNoteCommands(workspaceCommands, props.active)'), 'workspace commands must only register when Notes is active');
+    assert.ok(sidebar.includes('useRegisterNoteCommands(sidebarCommands)'), 'sidebar must register create/search/refresh commands');
+    assert.ok(workspace.includes('isQuickSwitcherShortcut(event)'), 'quick switcher shortcut must use the shift-safe helper');
+    assert.ok(shortcuts.includes('!event.shiftKey'), 'quick switcher shortcut must reject Shift');
+    assert.ok(shortcuts.includes('event.shiftKey'), 'command palette shortcut must require Shift');
+    assert.ok(registry.includes('useRegisterNoteCommands'), 'command registry must expose the registration hook');
+    assert.ok(registry.includes('duplicate command id'), 'command registry must guard duplicate IDs');
+    assert.ok(palette.includes('filterNoteCommands'), 'command palette filtering must be exported for focused tests');
+    assert.ok(palette.includes('aria-activedescendant'), 'command palette must mirror Quick Switcher active descendant semantics');
+    assert.ok(palette.includes('Promise.resolve(command.run())'), 'command palette must catch async command failures');
+    assert.ok(quickSwitcherCss.includes('.notes-command-palette-backdrop'), 'Quick Switcher CSS file must own command palette modal styles');
 });
