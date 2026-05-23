@@ -111,7 +111,7 @@ async function refreshRuntimeSnapshot(options: { hydrateRun?: boolean } = {}): P
     applyQueuedOverlay(snap.queued || []);
     renderPendingQueue(snap.queued || []);
     if (options.hydrateRun) hydrateActiveRun(snap.activeRun);
-    setStatus(snap.runtime.busy ? 'running' : 'idle');
+    setStatus(snap.runtime.busy ? 'running' : 'idle', snap.activeRun?.cli);
     import('./features/employees.js').then(m => {
         if (typeof m.renderEmployees === 'function') m.renderEmployees();
     });
@@ -355,9 +355,9 @@ export function connect(): void {
         }
         if (msg.type === 'agent_status') {
             if (msg.running !== undefined) {
-                setStatus(msg.running ? 'running' : 'idle');
+                setStatus(msg.running ? 'running' : 'idle', msg.cli);
             } else {
-                setStatus(msg.status || 'idle');
+                setStatus(msg.status || 'idle', msg.cli);
             }
             // Track per-agent phase for badge rendering
             if (msg.agentId && msg.phase) {

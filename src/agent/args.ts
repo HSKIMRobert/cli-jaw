@@ -24,6 +24,7 @@ type BuildArgOptions = {
     pathExists?: (path: string) => boolean;
     aiEProvider?: string;
     agyLogFile?: string;
+    agyPrintTimeout?: string;
 };
 
 export function resolveAiEProvider(explicitProvider: string | null | undefined, model: string | null | undefined): AiEProvider {
@@ -139,7 +140,7 @@ export function buildArgs(cli: string, model: string, effort: string, prompt: st
     switch (cli) {
         case 'agy':
             return ['-p', prompt || '',
-                '--print-timeout', AGY_PRINT_TIMEOUT,
+                '--print-timeout', options.agyPrintTimeout || AGY_PRINT_TIMEOUT,
                 ...(options.agyLogFile ? ['--log-file', options.agyLogFile] : []),
                 ...(autoPerm ? ['--dangerously-skip-permissions'] : []),
                 ...agyAddDirArgs(options)];
@@ -253,7 +254,7 @@ export function buildResumeArgs(cli: string, model: string, effort: string, sess
         case 'agy':
             return ['--conversation', sessionId,
                 '-p', prompt || '',
-                '--print-timeout', AGY_PRINT_TIMEOUT,
+                '--print-timeout', options.agyPrintTimeout || AGY_PRINT_TIMEOUT,
                 ...(options.agyLogFile ? ['--log-file', options.agyLogFile] : []),
                 ...(autoPerm ? ['--dangerously-skip-permissions'] : []),
                 ...agyAddDirArgs(options)];
