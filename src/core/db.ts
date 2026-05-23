@@ -193,10 +193,16 @@ const employeeSessionCols = db.prepare('PRAGMA table_info(employee_sessions)').a
 if (!(employeeSessionCols as Record<string, unknown>[]).some(c => c["name"] === 'model')) {
     db.exec("ALTER TABLE employee_sessions ADD COLUMN model TEXT DEFAULT ''");
 }
+if (!(employeeSessionCols as Record<string, unknown>[]).some(c => c["name"] === 'output_len')) {
+    db.exec('ALTER TABLE employee_sessions ADD COLUMN output_len INTEGER DEFAULT 0');
+}
 
 const sessionBucketCols = db.prepare('PRAGMA table_info(session_buckets)').all();
 if (!(sessionBucketCols as Record<string, unknown>[]).some(c => c["name"] === 'resume_key')) {
     db.exec('ALTER TABLE session_buckets ADD COLUMN resume_key TEXT DEFAULT NULL');
+}
+if (!(sessionBucketCols as Record<string, unknown>[]).some(c => c["name"] === 'output_len')) {
+    db.exec('ALTER TABLE session_buckets ADD COLUMN output_len INTEGER DEFAULT 0');
 }
 
 // ─── Prepared Statements ─────────────────────────────
@@ -239,20 +245,21 @@ export const insertEmployee = db.prepare('INSERT INTO employees (id, name, cli, 
 export const deleteEmployee = db.prepare('DELETE FROM employees WHERE id = ?');
 export const getEmployeeSession = db.prepare('SELECT * FROM employee_sessions WHERE employee_id = ?');
 export const upsertEmployeeSession = db.prepare(
-    'INSERT OR REPLACE INTO employee_sessions (employee_id, session_id, cli, model) VALUES (?, ?, ?, ?)'
+    'INSERT OR REPLACE INTO employee_sessions (employee_id, session_id, cli, model, output_len) VALUES (?, ?, ?, ?, ?)'
 );
 export const clearEmployeeSession = db.prepare('DELETE FROM employee_sessions WHERE employee_id = ?');
 export const clearAllEmployeeSessions = db.prepare('DELETE FROM employee_sessions');
 
 // ─── Session Buckets (per-bucket resume storage) ─────
-export const getSessionBucket = db.prepare('SELECT bucket, session_id, model, resume_key, updated_at FROM session_buckets WHERE bucket = ?');
+export const getSessionBucket = db.prepare('SELECT bucket, session_id, model, resume_key, output_len, updated_at FROM session_buckets WHERE bucket = ?');
 export const upsertSessionBucket = db.prepare(`
-    INSERT INTO session_buckets (bucket, session_id, model, resume_key, updated_at)
-    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+    INSERT INTO session_buckets (bucket, session_id, model, resume_key, output_len, updated_at)
+    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     ON CONFLICT(bucket) DO UPDATE SET
         session_id=excluded.session_id,
         model=excluded.model,
         resume_key=excluded.resume_key,
+        output_len=excluded.output_len,
         updated_at=CURRENT_TIMESTAMP
 `);
 export const clearSessionBucket = db.prepare('DELETE FROM session_buckets WHERE bucket = ?');

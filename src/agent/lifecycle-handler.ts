@@ -148,6 +148,7 @@ export interface ExitHandlerParams {
     fallbackState: Map<string, FallbackStateEntry>;
     fallbackMaxRetries: number;
     processQueue: () => void;
+    outputLen?: number;
 }
 
 /**
@@ -199,6 +200,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
                 sessionId: smokeSessionId, isFallback: opts._isFallback === true,
                 code, cli, model, provider: effectiveProvider, resumeKey: params.resumeKey, effort: effortVal,
                 skipSessionPersist: opts._skipSessionPersist === true,
+                outputLen: params.outputLen,
             });
             console.log(`[jaw:smoke] persisted session ${smokeSessionId.slice(0, 12)}... for continuation`);
         }
@@ -266,6 +268,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
         sessionId: persistedSessionId, isFallback: opts._isFallback === true,
         code, wasKilled, cli, model, provider: effectiveProvider, resumeKey: params.resumeKey, effort: effortVal,
         skipSessionPersist: opts._skipSessionPersist === true,
+        outputLen: params.outputLen,
     })) {
         console.log(`[jaw:session] saved ${cli} session=${persistedSessionId.slice(0, 12)}...${wasKilled ? ' (post-kill)' : ''}`);
     }
@@ -595,6 +598,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
         sessionId: ctx.sessionId, cost: ctx.cost,
         tools: ctx.toolLog, smoke: smokeResult,
         diagnostic,
+        ...(params.outputLen ? { outputLen: params.outputLen } : {}),
     });
     if (mainManaged) processQueue();
 }

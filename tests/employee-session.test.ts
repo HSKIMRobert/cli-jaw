@@ -46,7 +46,7 @@ test('P100-ES-003: upsertEmployeeSession 저장 후 조회 일치', async () => 
     const testModel = 'gpt-5.4';
 
     try {
-        upsertEmployeeSession.run(testId, testSid, testCli, testModel);
+        upsertEmployeeSession.run(testId, testSid, testCli, testModel, 0);
         const row = getEmployeeSession.get(testId);
 
         assert.ok(row, '저장 후 조회 결과가 존재해야 함');
@@ -69,9 +69,9 @@ test('P100-ES-004: upsertEmployeeSession 같은 ID로 업데이트 시 덮어쓰
 
     try {
         // 첫 저장
-        upsertEmployeeSession.run(testId, 'session_old', 'codex', 'gpt-5.4-mini');
+        upsertEmployeeSession.run(testId, 'session_old', 'codex', 'gpt-5.4-mini', 0);
         // 덮어쓰기
-        upsertEmployeeSession.run(testId, 'session_new', 'gemini', 'gemini-3-pro-preview');
+        upsertEmployeeSession.run(testId, 'session_new', 'gemini', 'gemini-3-pro-preview', 0);
 
         const row = getEmployeeSession.get(testId);
         assert.ok(row, '덮어쓰기 후에도 조회 가능해야 함');
@@ -92,8 +92,8 @@ test('P100-ES-005: clearAllEmployeeSessions 전체 삭제 후 조회 시 undefin
     const id2 = `test_clear_2_${Date.now()}`;
 
     // 2개 저장
-    upsertEmployeeSession.run(id1, 'sid1', 'codex', 'gpt-5.4');
-    upsertEmployeeSession.run(id2, 'sid2', 'gemini', 'gemini-3-pro-preview');
+    upsertEmployeeSession.run(id1, 'sid1', 'codex', 'gpt-5.4', 0);
+    upsertEmployeeSession.run(id2, 'sid2', 'gemini', 'gemini-3-pro-preview', 0);
 
     // 전체 삭제
     clearAllEmployeeSessions.run();
@@ -112,7 +112,7 @@ test('P100-ES-006: clearAllEmployeeSessions가 main session 테이블을 건드�
     assert.ok(before, 'main session이 존재해야 함');
 
     // employee 데이터 추가 후 전체 삭제
-    upsertEmployeeSession.run('test_main_guard', 'sid_guard', 'codex', 'gpt-5.4');
+    upsertEmployeeSession.run('test_main_guard', 'sid_guard', 'codex', 'gpt-5.4', 0);
     clearAllEmployeeSessions.run();
 
     // main session 상태 확인

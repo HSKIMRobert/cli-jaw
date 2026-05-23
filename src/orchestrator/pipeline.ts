@@ -117,7 +117,7 @@ async function executePreparedWorkerTask(
     },
 ) {
     const { task, emp, workerPhase } = prepared;
-    upsertEmployeeSession.run(emp["id"], null, emp["cli"], String(emp["model"] || ''));
+    upsertEmployeeSession.run(emp["id"], null, emp["cli"], String(emp["model"] || ''), 0);
     claimWorker(emp as { id: string; name?: string }, task["task"]);
 
     try {

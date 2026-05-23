@@ -18,6 +18,7 @@ export type SessionPersistenceInput = {
     effort: string;
     permissions?: string;
     workingDir?: string;
+    outputLen?: number | undefined;
 };
 
 let sessionOwnershipGeneration = 0;
@@ -71,7 +72,7 @@ export function persistMainSession(input: SessionPersistenceInput): boolean {
     // on cross-model toggles.
     const bucket = resolveSessionBucket(input.cli, input.model, input.provider);
     if (bucket && input.sessionId) {
-        upsertSessionBucket.run(bucket, input.sessionId, input.model, input.resumeKey || null);
+        upsertSessionBucket.run(bucket, input.sessionId, input.model, input.resumeKey || null, input.outputLen ?? 0);
     }
     return true;
 }

@@ -120,6 +120,7 @@ interface SessionBucketRow {
     session_id?: string | null;
     model?: string | null;
     resume_key?: string | null;
+    output_len?: number | null;
     updated_at?: string | number | null;
 }
 
@@ -504,6 +505,7 @@ interface SpawnOpts {
     target?: string;
     requestId?: string;
     employeeSessionId?: string;
+    employeeOutputLen?: number;
     chatId?: string | number;
     cli?: string;
     model?: string;
@@ -1490,6 +1492,9 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     if (!opts.internal) broadcast('agent_status', { status: 'running', cli, agentId: agentLabel, ...runtimeStatusMeta, ...empTag }, traceAudience);
 
     const traceRunId = startTraceRun({ cli, model, workingDir: settings["workingDir"] || null, agentLabel, audience: traceAudience });
+    const agyResumeOffset = cli === 'agy' && isResume
+        ? (empSid ? (opts.employeeOutputLen ?? 0) : (bucketRow?.output_len ?? 0))
+        : 0;
     const ctx: SpawnContext = {
         fullText: '',
         traceLog: [],
@@ -1512,6 +1517,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         traceAudience,
         geminiResultSeen: false,
         ...(opencodeSpawnAudit ? { opencodeSpawnAudit: opencodeSpawnAudit as Record<string, unknown> } : {}),
+        ...(agyResumeOffset > 0 ? { agyResumeOffset, agyBytesReceived: 0 } : {}),
     };
     let geminiWatchdog: ReturnType<typeof setTimeout> | null = null;
 
@@ -1634,6 +1640,22 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             ctx.fullText += text;
             if (!ctx.sessionId) ctx.sessionId = extractAgyConversationId(ctx.fullText);
             appendTraceEvent({ runId: ctx.traceRunId, source: 'cli_raw', eventType: 'plain_text', raw: text });
+            if (ctx.agyResumeOffset && ctx.agyResumeOffset > 0) {
+                ctx.agyBytesReceived = (ctx.agyBytesReceived ?? 0) + text.length;
+                if (ctx.agyBytesReceived <= ctx.agyResumeOffset) return;
+                const newStart = text.length - (ctx.agyBytesReceived - ctx.agyResumeOffset);
+                const newText = newStart > 0 ? text.slice(newStart) : text;
+                ctx.agyResumeOffset = 0;
+                if (!newText) return;
+                if (ctx.liveScope) appendLiveRunText(ctx.liveScope, newText);
+                broadcast('agent_output', {
+                    agentId: agentLabel,
+                    cli,
+                    text: newText,
+                    ...empTag,
+                }, traceAudience);
+                return;
+            }
             if (ctx.liveScope) appendLiveRunText(ctx.liveScope, text);
             broadcast('agent_output', {
                 agentId: agentLabel,
@@ -1676,6 +1698,10 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         if (agyUtf8) {
             const remaining = agyUtf8.end();
             if (remaining) ctx.fullText += remaining;
+        }
+        const agyTotalOutputLen = cli === 'agy' ? ctx.fullText.length : 0;
+        if (cli === 'agy' && agyResumeOffset > 0) {
+            ctx.fullText = ctx.fullText.slice(Math.min(agyResumeOffset, ctx.fullText.length));
         }
         cleanupEmployeeTmpDir(spawnCwd, settings["workingDir"], agentLabel);
 
@@ -1735,6 +1761,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             fallbackState: queueCtrl.fallbackState,
             fallbackMaxRetries: FALLBACK_MAX_RETRIES,
             processQueue,
+            ...(agyTotalOutputLen > 0 ? { outputLen: agyTotalOutputLen } : {}),
         }).catch((err: Error) => {
             console.error('[jaw:lifecycle] handleAgentExit failed (CLI):', err.message);
         });
