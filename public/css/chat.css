@@ -1237,13 +1237,6 @@ div.math-placeholder {
     animation: bounce 1.2s infinite ease-in-out;
 }
 
-.typing-elapsed {
-    font-size: 11px;
-    color: var(--text-dim);
-    font-variant-numeric: tabular-nums;
-    margin-right: 4px;
-}
-
 .typing-dot:nth-child(3) {
     animation-delay: 0.15s;
 }
