@@ -475,10 +475,12 @@ ${worklogBlock}`.trim();
         },
     });
 
+    const empOutputLenFromDb = canResume && typeof empSession?.["output_len"] === 'number'
+        ? empSession["output_len"] as number : 0;
     const { promise } = spawnAgent(taskPrompt, {
         agentId: empId, cli: text(emp["cli"]), model: text(emp["model"]),
         forceNew: !canResume,
-        ...(canResume ? { employeeSessionId: empSessionId } : {}),
+        ...(canResume ? { employeeSessionId: empSessionId, employeeOutputLen: empOutputLenFromDb } : {}),
         sysPrompt: sysPrompt,
         workspaceContext: workspaceBlock,
         origin: text(meta["origin"], 'web'),
@@ -514,7 +516,8 @@ ${worklogBlock}`.trim();
     const resultText = text(r["text"]);
     const isSuccess = r["code"] === 0 || (r["code"] == null && resultText.trim().length > 0);
     if (isSuccess && r["sessionId"] && isSessionPersistingCli(String(emp["cli"] || ''))) {
-        upsertEmployeeSession.run(empId, r["sessionId"], emp["cli"], employeeModel);
+        const empOutputLen = typeof r["outputLen"] === 'number' ? r["outputLen"] : 0;
+        upsertEmployeeSession.run(empId, r["sessionId"], emp["cli"], employeeModel, empOutputLen);
     } else if (!isSessionPersistingCli(String(emp["cli"] || ''))) {
         clearEmployeeSession.run(empId);
     }

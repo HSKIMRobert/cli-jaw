@@ -85,6 +85,8 @@ export interface SpawnContext {
   cliNativeCompactDetected?: boolean;
   stallReason?: string;
   stallWatchdog?: WatchdogHandle;
+  agyResumeOffset?: number;
+  agyBytesReceived?: number;
 }
 
 export interface SpawnResult {
