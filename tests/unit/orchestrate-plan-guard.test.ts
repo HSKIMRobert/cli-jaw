@@ -34,7 +34,7 @@ test('buildApprovedPlanPromptBlock includes numeric and destructive guard langua
     const block = buildApprovedPlanPromptBlock(ctx, 'B', '/repo/root');
 
     assert.ok(block.startsWith('## Approved Plan (authoritative)'));
-    assert.ok(block.includes('Project root: /repo/root'));
+    assert.ok(block.includes('Project root: "/repo/root"'));
     assert.ok(block.includes('64GB to 50GB'));
     assert.ok(block.includes('Never use 8GB'));
     assert.ok(block.includes('repository-relative paths'));

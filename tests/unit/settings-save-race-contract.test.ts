@@ -25,7 +25,7 @@ test('SSR-002: settings-core exports waitForSettingsSaveIdle', () => {
 test('SSR-003: updateSettings restores confirmed server state on failure', () => {
     assert.match(settingsSrc, /const\s+result\s*=\s*await\s+apiJson<SettingsData>\('\/api\/settings',\s*'PUT',\s*s\)/);
     assert.match(settingsSrc, /if\s*\(\s*!result\s*\)\s*\{[\s\S]*await\s+loadSettings\(\);[\s\S]*return;[\s\S]*\}/);
-    assert.match(settingsSrc, /const\s+confirmedCli\s*=\s*result\.cli\s*\|\|\s*s\.cli/);
+    assert.match(settingsSrc, /const\s+confirmedCli\s*=\s*result\.cli\s*\|\|\s*cli/);
     assert.match(settingsSrc, /setHeaderCli\(confirmedCli\)/);
 });
 

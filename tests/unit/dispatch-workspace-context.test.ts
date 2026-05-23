@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readSource } from './source-normalize.js';
@@ -23,26 +23,26 @@ test('workspace context block includes authoritative project paths and cwd warni
     });
 
     assert.ok(block.includes('## Workspace Context (authoritative)'));
-    assert.ok(block.includes(`Project root: ${root}`));
-    assert.ok(block.includes(`Devlog root: ${join(root, 'devlog')}`));
+    assert.ok(block.includes(`Project root: ${JSON.stringify(root)}`));
+    assert.ok(block.includes(`Devlog root: ${JSON.stringify(join(root, 'devlog'))}`));
     assert.ok(block.includes(`Worklog path: ${join(root, 'devlog/worklog.md')}`));
     assert.ok(block.includes('Employee runtime cwd: isolated temporary directory'));
     assert.ok(block.includes('Do not infer repository paths from process.cwd()'));
 });
 
 test('resolved path hints map repo-relative paths to absolute project paths', () => {
-    const root = mkdtempSync(join(tmpdir(), 'jaw-path-hints-'));
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'jaw-path-hints-')));
     mkdirSync(join(root, 'src/orchestrator'), { recursive: true });
     writeFileSync(join(root, 'src/orchestrator/distribute.ts'), '');
 
     const hints = buildResolvedPathHints(
         'read src/orchestrator/distribute.ts and tests/unit/missing.test.ts',
-        root,
+        [root],
     );
 
     assert.ok(hints.includes('## Resolved Path Hints'));
-    assert.ok(hints.includes(`src/orchestrator/distribute.ts -> ${join(root, 'src/orchestrator/distribute.ts')} (exists)`));
-    assert.ok(hints.includes(`tests/unit/missing.test.ts -> ${join(root, 'tests/unit/missing.test.ts')} (not found)`));
+    assert.ok(hints.includes(`src/orchestrator/distribute.ts -> ${JSON.stringify(join(root, 'src/orchestrator/distribute.ts'))} (exists)`));
+    assert.ok(hints.includes(`tests/unit/missing.test.ts -> ${JSON.stringify(join(root, 'tests/unit/missing.test.ts'))} (not found)`));
 });
 
 test('resolveWorkspaceRoot falls back to process cwd when workingDir is empty', () => {
@@ -51,7 +51,7 @@ test('resolveWorkspaceRoot falls back to process cwd when workingDir is empty', 
 });
 
 test('runSingleAgent injects workspace context before task instruction and env', () => {
-    assert.ok(distributeSrc.includes("import { settings } from '../core/config.js';"));
+    assert.ok(distributeSrc.includes("{ settings, normalizeProjectDirs } from '../core/config.js'"));
     assert.ok(distributeSrc.includes("import { buildWorkspaceContextBlock } from './workspace-context.js';"));
     assert.ok(distributeSrc.includes('const workspaceBlock = buildWorkspaceContextBlock({'));
     assert.ok(distributeSrc.includes('workingDir: settings.workingDir || null'));
@@ -61,6 +61,6 @@ test('runSingleAgent injects workspace context before task instruction and env',
     assert.ok(distributeSrc.indexOf('const taskPrompt = `${workspaceBlock}') <
         distributeSrc.indexOf('## Task Instruction [${phaseLabel}]'));
     assert.ok(distributeSrc.includes('workspaceContext: workspaceBlock'));
-    assert.ok(distributeSrc.includes('JAW_WORKSPACE_ROOT: settings.workingDir ||'));
+    assert.ok(distributeSrc.includes('JAW_WORKSPACE_ROOT: effectiveDirs?.[0] || settings.workingDir ||'));
     assert.ok(distributeSrc.includes('JAW_WORKLOG_PATH: worklogPath ||'));
 });
