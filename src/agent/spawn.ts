@@ -750,6 +750,16 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     const agyLogFile = cli === 'agy'
         ? join(os.tmpdir(), `jaw-agy-${agentId || 'main'}-${Date.now()}-${crypto.randomUUID()}.log`)
         : null;
+    const rawTimeoutCfg = (settings as Record<string, unknown>)['agentTimeout'];
+    const globalTimeoutCfg = rawTimeoutCfg && typeof rawTimeoutCfg === 'object'
+        ? rawTimeoutCfg as Record<string, unknown> : {};
+    const cliTimeoutCfg = globalTimeoutCfg[cli] && typeof globalTimeoutCfg[cli] === 'object'
+        ? globalTimeoutCfg[cli] as Record<string, unknown> : {};
+    const mergedTimeoutCfg = { ...globalTimeoutCfg, ...cliTimeoutCfg };
+    const resolvedAbsoluteMs = typeof mergedTimeoutCfg['absoluteMs'] === 'number'
+        ? mergedTimeoutCfg['absoluteMs'] as number : undefined;
+    const agyPrintTimeout = cli === 'agy' && resolvedAbsoluteMs
+        ? `${Math.ceil(resolvedAbsoluteMs / 60000)}m` : undefined;
     const argOptions = {
         fastMode: cfg.fastMode,
         sysPrompt,
@@ -758,6 +768,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         aiEProvider: effectiveProvider,
         ...(claudeBin ? { claudeBin } : {}),
         ...(agyLogFile ? { agyLogFile } : {}),
+        ...(agyPrintTimeout ? { agyPrintTimeout } : {}),
     };
     let args;
     if (isResume) {
@@ -1523,9 +1534,11 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
 
     // ─── Subprocess stall watchdog (Phase 1: #178 OAuth2 stall recovery) ───
     const rawAgentTimeoutCfg = (settings as Record<string, unknown>)["agentTimeout"];
-    const agentTimeoutCfg = rawAgentTimeoutCfg && typeof rawAgentTimeoutCfg === 'object'
-        ? rawAgentTimeoutCfg as Record<string, unknown>
-        : {};
+    const gCfg = rawAgentTimeoutCfg && typeof rawAgentTimeoutCfg === 'object'
+        ? rawAgentTimeoutCfg as Record<string, unknown> : {};
+    const cCfg = gCfg[cli] && typeof gCfg[cli] === 'object'
+        ? gCfg[cli] as Record<string, unknown> : {};
+    const agentTimeoutCfg = { ...gCfg, ...cCfg };
     const watchdogConfig: { firstProgressMs?: number; idleMs?: number; absoluteMs?: number } = {};
     if (typeof agentTimeoutCfg['firstProgressMs'] === 'number') watchdogConfig.firstProgressMs = agentTimeoutCfg['firstProgressMs'];
     if (typeof agentTimeoutCfg['idleMs'] === 'number') watchdogConfig.idleMs = agentTimeoutCfg['idleMs'];
