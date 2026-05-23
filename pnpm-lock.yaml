@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@codemirror/autocomplete':
+        specifier: ^6.20.1
+        version: 6.20.1
       '@codemirror/lang-markdown':
         specifier: ^6.5.0
         version: 6.5.0
@@ -35,6 +38,9 @@ importers:
       better-sqlite3:
         specifier: ^12.8.0
         version: 12.9.0
+      d3:
+        specifier: ^7.9.0
+        version: 7.9.0
       discord.js:
         specifier: ^14.25.1
         version: 14.25.1
@@ -104,6 +110,9 @@ importers:
       remark-parse:
         specifier: ^11.0.0
         version: 11.0.0
+      sqlite-vec:
+        specifier: ^0.1.9
+        version: 0.1.9
       trash:
         specifier: ^10.1.1
         version: 10.1.1
@@ -123,6 +132,9 @@ importers:
       '@types/better-sqlite3':
         specifier: ^7.6.13
         version: 7.6.13
+      '@types/d3':
+        specifier: ^7.4.3
+        version: 7.4.3
       '@types/dompurify':
         specifier: ^3.0.5
         version: 3.2.0
@@ -165,6 +177,13 @@ importers:
       vite:
         specifier: ^8.0.3
         version: 8.0.10(@types/node@25.6.0)(esbuild@0.27.4)(tsx@4.21.0)(yaml@2.8.4)
+    optionalDependencies:
+      '@bitkyc08/ai-e':
+        specifier: latest
+        version: 0.1.2
+      claude-e:
+        specifier: latest
+        version: 0.1.7
 
 packages:
 
@@ -272,6 +291,10 @@ packages:
   '@babel/types@7.29.0':
     resolution: {integrity: sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A==}
     engines: {node: '>=6.9.0'}
+
+  '@bitkyc08/ai-e@0.1.2':
+    resolution: {integrity: sha512-5dDIYTYgWTE7nQXepvRv1WYUYTdKPiyMOrxUaXxrovwI3sbyOtKfduxxm0SoOm+d7rDJiwKkLyG9WJJtliBbWw==}
+    hasBin: true
 
   '@braintree/sanitize-url@7.1.2':
     resolution: {integrity: sha512-jigsZK+sMF/cuiB7sERuo9V7N9jx+dhmHHnQyDSVdpZwVutaBu7WvNYqMDLSgFgfB30n452TP3vjDAvFC973mA==}
@@ -1321,6 +1344,10 @@ packages:
   chunkify@5.0.0:
     resolution: {integrity: sha512-G8dj/3/Gm+1yL4oWSdwIxihZWFlgC4V2zYtIApacI0iPIRKBHlBGOGAiDUBZgrj4H8MBA8g8fPFwnJrWF3wl7Q==}
     engines: {node: '>=18'}
+
+  claude-e@0.1.7:
+    resolution: {integrity: sha512-xw3k+/DzGEExuay0JEJwYzDUDmnYmPsKLZsW5x+3FMoI7KPaxsrIT9ViZLUUpBjUV+PzwY8lhq2ZkUZDxwbuXA==}
+    hasBin: true
 
   cliui@8.0.1:
     resolution: {integrity: sha512-BSeNnyus75C4//NQ9gQt1/csTXyo/8Sb+afLAkzAptFuMsod9HFokGNudZpi/oQV73hnVK+sR+5PVRMd+Dr7YQ==}
@@ -2761,6 +2788,34 @@ packages:
   space-separated-tokens@2.0.2:
     resolution: {integrity: sha512-PEGlAwrG8yXGXRjW32fGbg66JAlOAwbObuqVoJpv/mRgoWDQfgH1wDPvtzWyUSNAXBGSk8h755YDbbcEy3SH2Q==}
 
+  sqlite-vec-darwin-arm64@0.1.9:
+    resolution: {integrity: sha512-jSsZpE42OfBkGL/ItyJTVCUwl6o6Ka3U5rc4j+UBDIQzC1ulSSKMEhQLthsOnF/MdAf1MuAkYhkdKmmcjaIZQg==}
+    cpu: [arm64]
+    os: [darwin]
+
+  sqlite-vec-darwin-x64@0.1.9:
+    resolution: {integrity: sha512-KDlVyqQT7pnOhU1ymB9gs7dMbSoVmKHitT+k1/xkjarcX8bBqPxWrGlK/R+C5WmWkfvWwyq5FfXfiBYCBs6PlA==}
+    cpu: [x64]
+    os: [darwin]
+
+  sqlite-vec-linux-arm64@0.1.9:
+    resolution: {integrity: sha512-5wXVJ9c9kR4CHm/wVqXb/R+XUHTdpZ4nWbPHlS+gc9qQFVHs92Km4bPnCKX4rtcPMzvNis+SIzMJR1SCEwpuUw==}
+    cpu: [arm64]
+    os: [linux]
+
+  sqlite-vec-linux-x64@0.1.9:
+    resolution: {integrity: sha512-w3tCH8xK2finW8fQJ/m8uqKodXUZ9KAuAar2UIhz4BHILfpE0WM/MTGCRfa7RjYbrYim5Luk3guvMOGI7T7JQA==}
+    cpu: [x64]
+    os: [linux]
+
+  sqlite-vec-windows-x64@0.1.9:
+    resolution: {integrity: sha512-y3gEIyy/17bq2QFPQOWLE68TYWcRZkBQVA2XLrTPHNTOp55xJi/BBBmOm40tVMDMjtP+Elpk6UBUXdaq+46b0Q==}
+    cpu: [x64]
+    os: [win32]
+
+  sqlite-vec@0.1.9:
+    resolution: {integrity: sha512-L7XJWRIBNvR9O5+vh1FQ+IGkh/3D2AzVksW5gdtk28m78Hy8skFD0pqReKH1Yp0/BUKRGcffgKvyO/EON5JXpA==}
+
   statuses@2.0.2:
     resolution: {integrity: sha512-DvEy55V3DB7uknRo+4iOGT5fP1slR8wQohVdknigZPMpMstaKJQWhwiYBACJE3Ul2pTnATihhBYnRhZQHGBiRw==}
     engines: {node: '>= 0.8'}
@@ -3277,6 +3332,9 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
+
+  '@bitkyc08/ai-e@0.1.2':
+    optional: true
 
   '@braintree/sanitize-url@7.1.2': {}
 
@@ -4670,6 +4728,9 @@ snapshots:
   chownr@1.1.4: {}
 
   chunkify@5.0.0: {}
+
+  claude-e@0.1.7:
+    optional: true
 
   cliui@8.0.1:
     dependencies:
@@ -6550,6 +6611,29 @@ snapshots:
   source-map-js@1.2.1: {}
 
   space-separated-tokens@2.0.2: {}
+
+  sqlite-vec-darwin-arm64@0.1.9:
+    optional: true
+
+  sqlite-vec-darwin-x64@0.1.9:
+    optional: true
+
+  sqlite-vec-linux-arm64@0.1.9:
+    optional: true
+
+  sqlite-vec-linux-x64@0.1.9:
+    optional: true
+
+  sqlite-vec-windows-x64@0.1.9:
+    optional: true
+
+  sqlite-vec@0.1.9:
+    optionalDependencies:
+      sqlite-vec-darwin-arm64: 0.1.9
+      sqlite-vec-darwin-x64: 0.1.9
+      sqlite-vec-linux-arm64: 0.1.9
+      sqlite-vec-linux-x64: 0.1.9
+      sqlite-vec-windows-x64: 0.1.9
 
   statuses@2.0.2: {}
 
