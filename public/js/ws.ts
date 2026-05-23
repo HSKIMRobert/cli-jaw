@@ -10,6 +10,7 @@ import { escapeHtml, cancelPostRender } from './render.js';
 import type { HeartbeatRuntimeState, OrcStateName, ResolvedSelectionState } from './state.js';
 import { notifyUnreadResponse } from './features/attention-badge.js';
 import { shouldApplyOrcStateEvent } from './features/orchestrate-scope.js';
+import { providerLabel } from './provider-icons.js';
 
 const ROADMAP_PHASES = ['P', 'A', 'B', 'C'] as const;
 
@@ -112,7 +113,7 @@ async function refreshRuntimeSnapshot(options: { hydrateRun?: boolean } = {}): P
     renderPendingQueue(snap.queued || []);
     if (options.hydrateRun) hydrateActiveRun(snap.activeRun);
     setStatus(snap.runtime.busy ? 'running' : 'idle');
-    if (snap.runtime.busy && snap.activeRun?.cli === 'agy') showLiveToolActivity('Antigravity working...');
+    if (snap.runtime.busy && snap.activeRun?.cli) showLiveToolActivity(`${providerLabel(snap.activeRun.cli)} working...`);
     import('./features/employees.js').then(m => {
         if (typeof m.renderEmployees === 'function') m.renderEmployees();
     });
@@ -357,10 +358,10 @@ export function connect(): void {
         if (msg.type === 'agent_status') {
             if (msg.running !== undefined) {
                 setStatus(msg.running ? 'running' : 'idle');
-                if (msg.running && msg.cli === 'agy') showLiveToolActivity('Antigravity working...');
+                if (msg.running && msg.cli) showLiveToolActivity(`${providerLabel(msg.cli)} working...`);
             } else {
                 setStatus(msg.status || 'idle');
-                if (msg.status === 'running' && msg.cli === 'agy') showLiveToolActivity('Antigravity working...');
+                if (msg.status === 'running' && msg.cli) showLiveToolActivity(`${providerLabel(msg.cli)} working...`);
             }
             // Track per-agent phase for badge rendering
             if (msg.agentId && msg.phase) {
