@@ -89,7 +89,7 @@ if (!fs.existsSync(target)) {
 }
 
 runCompiledPostinstall().catch((error) => {
-    console.error('[jaw:init] ❌ postinstall failed');
+    console.error('[jaw:init] ⚠️  postinstall error (non-fatal):');
     console.error(error instanceof Error ? error.message : String(error));
-    process.exit(1);
+    process.exit(0);
 });
