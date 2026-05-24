@@ -58,10 +58,10 @@ export function NotesGraphView(props: NotesGraphViewProps) {
         svg.call(zoom);
 
         const simulation = d3.forceSimulation(nodes)
-            .force('link', d3.forceLink(edges).id((d: any) => d.id).distance(80))
+            .force('link', d3.forceLink<SimNode, SimEdge>(edges).id((d) => d.id).distance(80))
             .force('charge', d3.forceManyBody().strength(-120))
             .force('center', d3.forceCenter(width / 2, height / 2))
-            .force('collision', d3.forceCollide().radius((d: any) =>
+            .force('collision', d3.forceCollide<SimNode>().radius((d) =>
                 radiusScale(connectionCount(d.id, graph.edges)) + 4,
             ));
 
@@ -116,11 +116,11 @@ export function NotesGraphView(props: NotesGraphViewProps) {
 
         simulation.on('tick', () => {
             link
-                .attr('x1', (d: any) => d.source.x)
-                .attr('y1', (d: any) => d.source.y)
-                .attr('x2', (d: any) => d.target.x)
-                .attr('y2', (d: any) => d.target.y);
-            node.attr('transform', (d: any) => `translate(${d.x},${d.y})`);
+                .attr('x1', (d) => (d.source as SimNode).x ?? 0)
+                .attr('y1', (d) => (d.source as SimNode).y ?? 0)
+                .attr('x2', (d) => (d.target as SimNode).x ?? 0)
+                .attr('y2', (d) => (d.target as SimNode).y ?? 0);
+            node.attr('transform', (d) => `translate(${d.x ?? 0},${d.y ?? 0})`);
         });
 
         return () => { simulation.stop(); };
