@@ -1008,8 +1008,8 @@ export async function installCliTools(opts: InstallOpts = {}) {
         deduplicateCliTool(bin, pkg, brew, 'npm');
     }
 
-    if (failed.length > 0 && shouldRequireCliToolsDuringPostinstall()) {
-        throw new Error(`Required CLI tool install failed: ${failed.join(', ')}`);
+    if (failed.length > 0) {
+        console.error(`[jaw:init] ⚠️  CLI tool install failed: ${failed.join(', ')} — install manually later`);
     }
 }
 
@@ -1231,8 +1231,8 @@ export async function runPostinstall() {
     } else {
         if (shouldInstallClaudeDuringPostinstall()) {
             const ok = installClaudeCli({ force: shouldForceClaudeDuringPostinstall() });
-            if (!ok && shouldRequireCliToolsDuringPostinstall()) {
-                throw new Error('Required CLI tool install failed: claude (native installer)');
+            if (!ok) {
+                console.error('[jaw:init] ⚠️  claude install failed — install manually: https://docs.anthropic.com/claude-code');
             }
         } else {
             console.log('[jaw:init] claude install skipped (CLI_JAW_SKIP_CLAUDE)');
@@ -1259,5 +1259,5 @@ export async function runPostinstall() {
 const isEntryPoint = process.argv[1]?.endsWith('postinstall.js')
     || process.argv[1]?.endsWith('postinstall.ts');
 if (isEntryPoint) {
-    runPostinstall().catch(e => { console.error(e); process.exit(1); });
+    runPostinstall().catch(e => { console.error('[jaw:init] ⚠️  postinstall error (non-fatal):', e instanceof Error ? e.message : e); process.exit(0); });
 }

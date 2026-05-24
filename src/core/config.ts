@@ -565,10 +565,6 @@ function getAiEPackageCandidates(): string[] {
     const helper = process.platform === 'win32' ? 'ai-e.exe' : 'ai-e';
     const npmBin = process.platform === 'win32' ? 'ai-e.cmd' : 'ai-e';
     const candidates = [
-        join(getProjectDir(), 'node_modules', '.bin', npmBin),
-        join(process.cwd(), 'node_modules', '.bin', npmBin),
-        join(getProjectDir(), 'node_modules', '@bitkyc08', 'ai-e', 'bin', 'ai-e'),
-        join(process.cwd(), 'node_modules', '@bitkyc08', 'ai-e', 'bin', 'ai-e'),
         join(getProjectDir(), 'node_modules', '@bitkyc08', 'ai-e', 'target', 'release', helper),
         join(process.cwd(), 'node_modules', '@bitkyc08', 'ai-e', 'target', 'release', helper),
         join(getProjectDir(), '..', 'ai-e', 'target', 'release', helper),
@@ -640,12 +636,8 @@ function getClaudeExecPackageCandidates(
         env["CLAUDE_E_BIN"],
         env["CLAUDE_EXEC_BIN"],
         env["JAW_CLAUDE_I_BIN"],
-        join(projectDir, 'node_modules', '.bin', shortNpmBin),
-        join(projectDir, 'node_modules', '.bin', execNpmBin),
-        join(projectDir, 'node_modules', 'claude-e', 'bin', 'claude-e'),
-        join(projectDir, 'node_modules', 'claude-e', 'bin', 'claude-exec'),
-        join(projectDir, 'node_modules', 'claude-e', 'target', 'release', shortHelper),
         join(projectDir, 'node_modules', 'claude-e', 'target', 'release', execHelper),
+        join(projectDir, 'node_modules', 'claude-e', 'target', 'release', shortHelper),
     ];
     return candidates.filter((candidate): candidate is string => typeof candidate === 'string' && candidate.trim().length > 0);
 }
