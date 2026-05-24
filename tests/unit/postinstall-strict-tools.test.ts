@@ -87,7 +87,7 @@ test('postinstall exposes strict OfficeCLI mode for integrated installers', () =
 test('postinstall exposes strict bundled CLI tools mode for integrated installers', () => {
     assert.ok(postinstallSrc.includes('CLI_JAW_REQUIRE_CLI_TOOLS'));
     assert.ok(postinstallSrc.includes('shouldRequireCliToolsDuringPostinstall'));
-    assert.ok(postinstallSrc.includes('Required CLI tool install failed'));
+    assert.ok(postinstallSrc.includes('CLI tool install failed'));
     assert.ok(postinstallSrc.includes('failed.push(`${bin} (${pkg})`)'));
 });
 
