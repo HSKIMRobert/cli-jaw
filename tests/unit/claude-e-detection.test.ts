@@ -28,7 +28,7 @@ test('claude-i helper candidates prefer explicit claude-e env override', () => {
     assert.equal(candidates[0], explicit);
     assert.equal(candidates[1], execAlias);
     assert.equal(candidates[2], legacy);
-    assert.ok(candidates.some((candidate) => candidate.includes(path.join('node_modules', '.bin'))));
+    assert.ok(candidates.some((candidate) => candidate.includes(path.join('target', 'release'))));
     assert.ok(candidates.some((candidate) => candidate.includes(path.join('native', 'jaw-claude-i', 'target', 'release'))));
 });
 
@@ -39,8 +39,8 @@ test('claude-e helper candidates expose package bins and compatibility aliases',
     const candidates = getClaudeExecHelperCandidates(projectDir, { CLAUDE_E_BIN: explicit });
 
     assert.equal(candidates[0], explicit);
-    assert.ok(candidates.some((candidate) => candidate.endsWith(path.join('bin', 'claude-e'))));
-    assert.ok(candidates.some((candidate) => candidate.endsWith(path.join('bin', 'claude-exec'))));
+    assert.ok(candidates.some((candidate) => candidate.endsWith(path.join('target', 'release', 'claude-e'))));
+    assert.ok(candidates.some((candidate) => candidate.endsWith(path.join('target', 'release', 'claude-exec'))));
 });
 
 test('detectCli resolves claude-e through CLAUDE_E_BIN fallback', () => {
