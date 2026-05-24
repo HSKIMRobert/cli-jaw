@@ -1224,35 +1224,53 @@ export async function runPostinstall() {
     copyDefaultSkills();
     propagateSkillsToInstances();
 
-    // 7-9. Install MCP servers, skill deps, officecli runtime. Claude is the default
-    // agent CLI, so keep it spawnable; other agent CLIs remain opt-in.
-    if (shouldInstallCliToolsDuringPostinstall()) {
-        await installCliTools();
-    } else {
-        if (shouldInstallClaudeDuringPostinstall()) {
-            const ok = installClaudeCli({ force: shouldForceClaudeDuringPostinstall() });
-            if (!ok) {
-                console.error('[jaw:init] ⚠️  claude install failed — install manually: https://docs.anthropic.com/claude-code');
-            }
+    // 7-9. Optional installs — collect errors, never abort.
+    const warnings: string[] = [];
+
+    try {
+        if (shouldInstallCliToolsDuringPostinstall()) {
+            await installCliTools();
         } else {
-            console.log('[jaw:init] claude install skipped (CLI_JAW_SKIP_CLAUDE)');
+            if (shouldInstallClaudeDuringPostinstall()) {
+                const ok = installClaudeCli({ force: shouldForceClaudeDuringPostinstall() });
+                if (!ok) warnings.push('claude install failed — install manually: https://docs.anthropic.com/claude-code');
+            } else {
+                console.log('[jaw:init] claude install skipped (CLI_JAW_SKIP_CLAUDE)');
+            }
+            console.log('[jaw:init] additional CLI tool install/update skipped by default');
+            console.log('[jaw:init] to opt in: CLI_JAW_INSTALL_CLI_TOOLS=1 npm install -g cli-jaw');
         }
-        console.log('[jaw:init] additional CLI tool install/update skipped by default');
-        console.log('[jaw:init] to opt in: CLI_JAW_INSTALL_CLI_TOOLS=1 npm install -g cli-jaw');
-    }
-    if (MCP_SERVERS_SKIP) {
-        console.log('[jaw:init] MCP server install skipped (CLI_JAW_SKIP_MCP_SERVERS)');
+    } catch (e) { warnings.push(`CLI tools: ${e instanceof Error ? e.message : e}`); }
+
+    try {
+        if (MCP_SERVERS_SKIP) {
+            console.log('[jaw:init] MCP server install skipped (CLI_JAW_SKIP_MCP_SERVERS)');
+        } else {
+            await installMcpServers();
+        }
+    } catch (e) { warnings.push(`MCP servers: ${e instanceof Error ? e.message : e}`); }
+
+    try {
+        if (SKILL_DEPS_SKIP) {
+            console.log('[jaw:init] skill dependency install skipped (CLI_JAW_SKIP_SKILL_DEPS)');
+        } else {
+            await installSkillDeps();
+        }
+    } catch (e) { warnings.push(`Skill deps: ${e instanceof Error ? e.message : e}`); }
+
+    try { await installOfficeCli(); }
+    catch (e) { warnings.push(`OfficeCLI: ${e instanceof Error ? e.message : e}`); }
+
+    try { await maybeReregisterLaunchd(); }
+    catch (e) { warnings.push(`launchd: ${e instanceof Error ? e.message : e}`); }
+
+    if (warnings.length > 0) {
+        console.error('\n[jaw:init] ⚠️  setup completed with warnings:');
+        for (const w of warnings) console.error(`  - ${w}`);
+        console.error('[jaw:init] cli-jaw is installed and functional. Fix the above manually if needed.\n');
     } else {
-        await installMcpServers();
+        console.log('[jaw:init] setup complete ✅');
     }
-    if (SKILL_DEPS_SKIP) {
-        console.log('[jaw:init] skill dependency install skipped (CLI_JAW_SKIP_SKILL_DEPS)');
-    } else {
-        await installSkillDeps();
-    }
-    await installOfficeCli();
-    await maybeReregisterLaunchd();
-    console.log('[jaw:init] setup complete ✅');
 }
 
 // Auto-run only when executed as CLI entry point (not imported)
