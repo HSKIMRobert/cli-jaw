@@ -845,7 +845,7 @@ try {
       --file <path>
       --context-from-files <glob|path>
       --context-transport <upload|inline>
-      --allow-copy-markdown-fallback
+      --allow-copy-markdown-fallback  Explicitly permit provider Copy button capture; no OS clipboard read
       --new-tab                        Force a fresh provider tab; default reuses pooled or inactive provider tabs first.
       --reuse-tab
       --json

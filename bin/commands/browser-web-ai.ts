@@ -53,6 +53,7 @@ Prompt and context:
   --context-file <path>
   --context-transport <upload|inline>
   --allow-copy-markdown-fallback
+                      Explicitly permit provider Copy button capture; no OS clipboard read
   --allow-grok-context-pack
   --require-source-audit
                       Fail closed when completed answers lack inline sources
