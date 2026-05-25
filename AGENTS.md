@@ -87,9 +87,17 @@ tags: [cli-jaw, ...]
   but new/updated phase docs must use YAML frontmatter.
 - 구현 완료된 문서 제목에 `(fin)` 접두사 추가
 
-### OfficeCLI
+### OfficeCLI (On-Demand)
 
-OfficeCLI is available for Office document operations (.docx, .xlsx, .pptx, .hwpx, and rhwp-backed .hwp). OOXML formats use the main binary. Binary HWP features are operation-gated by `officecli hwp doctor --json` and `officecli capabilities --json`; when rhwp sidecars are missing, commands must fail with explicit dependency reasons rather than silently converting to `.hwpx`.
+OfficeCLI is NOT bundled with cli-jaw postinstall. It is installed on-demand when skills need L1/L2 features or HWP support.
+
+- **Format support**: .docx, .xlsx, .pptx, .hwpx, .hwp (HWP via rhwp sidecars)
+- **Install (forked, CJK + rhwp)**: `bash "$(npm root -g)/cli-jaw/scripts/install-officecli.sh"`
+- **Install (upstream, vanilla)**: `bash "$(npm root -g)/cli-jaw/scripts/install-officecli.sh" --upstream`
+- **Smoke test**: `officecli --version && officecli capabilities --json`
+- **Binary priority**: `OFFICECLI_BIN` env → global `officecli` → not available
+- **Fork**: `lidge-jun/OfficeCLI` (CJK-enhanced, rhwp sidecars) vs. `iOfficeAI/OfficeCLI` (vanilla)
+- **Safety**: Never run parallel officecli processes on the same file
 
 ```bash
 officecli create file.docx                                          # create blank
@@ -107,13 +115,6 @@ officecli validate file.docx                                        # validate
 officecli get file.docx / --json                                    # JSON output
 echo '[...]' | officecli batch data.xlsx --json                     # batch ops
 ```
-
-- Install: `bash scripts/install-officecli.sh`
-- Smoke test: `bash tests/smoke/test_officecli_integration.sh`
-- Binary selection: smoke test prefers `OFFICECLI_BIN`, then global `officecli` on PATH, then `officecli/bin/release/officecli-*`, then `officecli/build-local/officecli` as compatibility fallback
-- CJK/HWP-enhanced binary: global install defaults to `lidge-jun/OfficeCLI`; HWP sidecars should sit beside `officecli` as `rhwp-field-bridge` and `rhwp-officecli-bridge` or platform-suffixed equivalents
-- Same-package safety: do not run multiple `officecli` processes in parallel against the same `.docx`, `.xlsx`, `.pptx`, `.hwpx`, or `.hwp` package; run inspections sequentially to avoid package lock collisions
-- Full docs: [`docs/officecli-integration.md`](docs/officecli-integration.md)
 
 #### OfficeCLI Rebase Hygiene
 
