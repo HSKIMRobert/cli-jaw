@@ -122,7 +122,6 @@ async function main(): Promise<void> {
         } else {
             delete installEnv["JAW_SAFE"];
             installEnv["CLI_JAW_SKIP_CLAUDE"] = '1';
-            installEnv["CLI_JAW_SKIP_OFFICECLI"] = '1';
             installEnv["CLI_JAW_SKIP_MCP_SERVERS"] = '1';
             installEnv["CLI_JAW_SKIP_SKILL_DEPS"] = '1';
         }

@@ -130,7 +130,7 @@ function getNpmPrefix() {
     }
 }
 
-function verifyOfficeCli() {
+function verifyOfficeCli(): { status: 'ok' | 'info' | 'warn'; detail: string } {
     const candidates = [
         findBinaryPath('officecli'),
         path.join(os.homedir(), '.local', 'bin', process.platform === 'win32' ? 'officecli.exe' : 'officecli'),
@@ -143,7 +143,7 @@ function verifyOfficeCli() {
         const installHint = process.platform === 'win32'
             ? 'powershell -ExecutionPolicy Bypass -File "$(npm root -g)\\cli-jaw\\scripts\\install-officecli.ps1" -Update'
             : 'bash "$(npm root -g)/cli-jaw/scripts/install-officecli.sh"';
-        throw new Error(`WARN: not installed — run: ${installHint}`);
+        return { status: 'info', detail: `not installed (optional — install on-demand: ${installHint})` };
     }
     try {
         const version = execFileSync(candidate, ['--version'], {
@@ -151,10 +151,10 @@ function verifyOfficeCli() {
             stdio: 'pipe',
             timeout: 5000,
         }).trim();
-        return `installed (${candidate}) version=${version}`;
+        return { status: 'ok', detail: `installed (${candidate}) version=${version}` };
     } catch (e: unknown) {
         const message = (e as Error).message || String(e);
-        throw new Error(`WARN: found but not runnable (${candidate}) — ${message}`);
+        return { status: 'warn', detail: `found but not runnable (${candidate}) — ${message}` };
     }
 }
 
@@ -497,9 +497,15 @@ if (isWSL()) {
         return 'all detected CLI tools are WSL-native';
     });
 
-    check('OfficeCLI', () => {
-        return verifyOfficeCli();
-    });
+    // OfficeCLI — informational only (no longer bundled; installed on-demand)
+    {
+        const officecli = verifyOfficeCli();
+        results.push({ name: 'OfficeCLI', status: officecli.status, detail: officecli.detail });
+        if (!values.json) {
+            const icon = officecli.status === 'ok' ? '✅' : officecli.status === 'warn' ? '⚠️ ' : 'ℹ️ ';
+            console.log(`  ${icon} OfficeCLI: ${officecli.detail}`);
+        }
+    }
 }
 
 const headless = isHeadless();
