@@ -46,20 +46,14 @@ test('WSL installer makes jaw and bundled CLI tools available immediately', () =
     assert.ok(installerSrc.includes('CLI_JAW_SOURCE_ONLY'));
 });
 
-test('WSL installer installs browser and OfficeCLI helpers', () => {
+test('WSL installer installs browser helpers', () => {
     assert.ok(installerSrc.includes('npm install -g playwright-core'));
-    assert.ok(installerSrc.includes('install_officecli'));
-    assert.ok(installerSrc.includes('verify_officecli_command'));
-    assert.ok(installerSrc.includes('officecli --version'));
-    assert.ok(installerSrc.includes('OfficeCLI install failed. Expected executable at $officecli_bin'));
-    assert.ok(installerSrc.includes('OfficeCLI install failed — continuing without HWP features'));
-    assert.ok(installerSrc.includes('OfficeCLI installer not found in global package — skipping HWP features'));
     assert.ok(installerSrc.includes('install-browser') === false);
 });
 
-test('WSL installer runs doctor after optional OfficeCLI install', () => {
+test('WSL installer runs doctor in main', () => {
     const mainBlock = installerSrc.slice(installerSrc.indexOf('main() {'));
-    assert.ok(mainBlock.indexOf('install_officecli') < mainBlock.indexOf('run_doctor'), 'doctor should report the post-OfficeCLI install state');
+    assert.ok(mainBlock.includes('run_doctor'), 'main should invoke run_doctor');
 });
 
 test('fresh install verifier checks the supported WSL bash login shell path', () => {
@@ -72,7 +66,7 @@ test('fresh install verifier checks the supported WSL bash login shell path', ()
 test('doctor exposes WSL permission and OfficeCLI checks', () => {
     assert.ok(doctorSrc.includes("check('WSL sudo'"));
     assert.ok(doctorSrc.includes("check('npm global prefix'"));
-    assert.ok(doctorSrc.includes("check('OfficeCLI'"));
+    assert.ok(doctorSrc.includes("name: 'OfficeCLI'"));
     assert.ok(doctorSrc.includes('verifyOfficeCli'));
     assert.ok(doctorSrc.includes("execFileSync(candidate, ['--version']"));
     assert.ok(doctorSrc.includes('sudoNonInteractive'));

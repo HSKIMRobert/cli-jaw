@@ -147,35 +147,3 @@ exit 0
     rmSync(result.home, { recursive: true, force: true });
 });
 
-test('WSL installer fails when OfficeCLI is present but not runnable', () => {
-    const result = runInstallerSnippet('verify_officecli_command', (home, bin) => {
-        mkdirSync(join(home, '.local', 'bin'), { recursive: true });
-        writeExecutable(join(bin, 'officecli'), '#!/usr/bin/env bash\nexit 9\n');
-    });
-    assert.notEqual(result.status, 0);
-    assert.match(result.output, /OfficeCLI is on PATH but failed to run/);
-    rmSync(result.home, { recursive: true, force: true });
-});
-
-test('WSL installer warns and continues when packaged OfficeCLI installer is missing', () => {
-    const result = runInstallerSnippet('install_officecli', (_home, bin) => {
-        const root = mkdtempSync(join(tmpdir(), 'jaw-global-root-'));
-        writeExecutable(join(bin, 'npm'), `#!/usr/bin/env bash\nif [ "$1" = "root" ]; then echo ${JSON.stringify(root)}; exit 0; fi\nexit 0\n`);
-    });
-    assert.equal(result.status, 0, result.output);
-    assert.match(result.output, /OfficeCLI installer not found in global package — skipping HWP features/);
-    rmSync(result.home, { recursive: true, force: true });
-});
-
-test('WSL installer warns and continues when packaged OfficeCLI installer exits nonzero', () => {
-    const result = runInstallerSnippet('install_officecli', (_home, bin) => {
-        const globalRoot = mkdtempSync(join(tmpdir(), 'jaw-global-root-'));
-        const installerDir = join(globalRoot, 'cli-jaw', 'scripts');
-        mkdirSync(installerDir, { recursive: true });
-        writeExecutable(join(installerDir, 'install-officecli.sh'), '#!/usr/bin/env bash\nexit 5\n');
-        writeExecutable(join(bin, 'npm'), `#!/usr/bin/env bash\nif [ "$1" = "root" ]; then echo ${JSON.stringify(globalRoot)}; exit 0; fi\nexit 0\n`);
-    });
-    assert.equal(result.status, 0, result.output);
-    assert.match(result.output, /OfficeCLI install failed — continuing without HWP features/);
-    rmSync(result.home, { recursive: true, force: true });
-});

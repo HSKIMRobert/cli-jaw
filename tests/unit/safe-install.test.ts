@@ -473,7 +473,6 @@ test('SAF-004i: install risk gate covers fresh-machine installer regressions', (
     assert.ok(gateSrc.includes('tests/unit/install-sh-exec.test.ts'), 'gate should run executable macOS installer harness');
     assert.ok(gateSrc.includes('tests/unit/fresh-evidence-audit.test.ts'), 'gate should run the evidence auditor fixture tests');
     assert.ok(gateSrc.includes('tests/unit/wsl-installer-exec.test.ts'), 'gate should run WSL installer harness');
-    assert.ok(gateSrc.includes('scripts/install-officecli.ps1'), 'gate should parse Windows PowerShell installer');
     assert.ok(gateSrc.includes('scripts/verify-fresh-install.sh'), 'gate should syntax-check macOS/Linux fresh verifier');
     assert.ok(gateSrc.includes('scripts/collect-fresh-install-evidence.sh'), 'gate should syntax-check the fresh-machine evidence collector');
     assert.ok(gateSrc.includes('scripts/audit-fresh-install-evidence.mjs'), 'gate should syntax-check the fresh-machine evidence auditor');
@@ -655,14 +654,6 @@ test('SAF-006: installSkillDeps is exported', () => {
     assert.ok(postinstallSrc.includes('export async function installSkillDeps'), 'installSkillDeps exported');
 });
 
-test('SAF-006b: installOfficeCli is exported', () => {
-    assert.ok(postinstallSrc.includes('export async function installOfficeCli'), 'installOfficeCli exported');
-});
-
-test('SAF-006c: runPostinstall calls installOfficeCli', () => {
-    assert.ok(postinstallSrc.includes('await installOfficeCli();'), 'runPostinstall should call installOfficeCli');
-});
-
 test('SAF-006c2: Windows OfficeCLI installer persists LOCALAPPDATA OfficeCli on user PATH', () => {
     assert.ok(officeCliPowerShellSrc.includes('[Environment]::SetEnvironmentVariable("Path"'), 'PowerShell installer should persist user PATH');
     assert.ok(officeCliPowerShellSrc.includes('$env:PATH = "$installDir;$env:PATH"'), 'PowerShell installer should update current process PATH');
@@ -688,11 +679,9 @@ test('SAF-008: all install functions support dryRun', () => {
     const cliBlock = postinstallSrc.slice(postinstallSrc.indexOf('installCliTools'));
     const mcpBlock = postinstallSrc.slice(postinstallSrc.indexOf('installMcpServers'));
     const depsBlock = postinstallSrc.slice(postinstallSrc.indexOf('installSkillDeps'));
-    const officeBlock = postinstallSrc.slice(postinstallSrc.indexOf('installOfficeCli'));
     assert.ok(cliBlock.includes('opts.dryRun'), 'installCliTools supports dryRun');
     assert.ok(mcpBlock.includes('opts.dryRun'), 'installMcpServers supports dryRun');
     assert.ok(depsBlock.includes('opts.dryRun'), 'installSkillDeps supports dryRun');
-    assert.ok(officeBlock.includes('opts.dryRun'), 'installOfficeCli supports dryRun');
 });
 
 // ── SAF-009: isEntryPoint guard ──
@@ -744,7 +733,6 @@ test('INIT-004: init.ts imports and calls extracted install functions', () => {
     assert.ok(initSrc.includes('installCliTools'), 'calls installCliTools');
     assert.ok(initSrc.includes('installMcpServers'), 'calls installMcpServers');
     assert.ok(initSrc.includes('installSkillDeps'), 'calls installSkillDeps');
-    assert.ok(initSrc.includes('installOfficeCli'), 'calls installOfficeCli');
 });
 
 // ── INIT-005: --dry-run skips settings write ──
@@ -772,11 +760,3 @@ test('OFF-002: PowerShell installer exists for win32 postinstall', () => {
     assert.ok(officeCliPowerShellSrc.includes('$env:LOCALAPPDATA'), 'PowerShell installer should install under LOCALAPPDATA');
 });
 
-test('OFF-002b: win32 OfficeCLI failure hint points to PowerShell installer', () => {
-    const windowsBlock = postinstallSrc.slice(
-        postinstallSrc.indexOf("if (process.platform === 'win32')"),
-        postinstallSrc.indexOf("const scriptPath = path.join(PROJECT_ROOT, 'scripts', 'install-officecli.sh')"),
-    );
-    assert.ok(windowsBlock.includes('install-officecli.ps1'), 'Windows failure hint should mention the PowerShell installer');
-    assert.ok(!windowsBlock.includes('run manually: install-officecli.sh'), 'Windows failure hint must not point to the Unix shell installer');
-});
