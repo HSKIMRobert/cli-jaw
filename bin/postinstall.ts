@@ -57,20 +57,10 @@ const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = fs.existsSync(path.join(MODULE_DIR, '..', '..', 'scripts'))
     ? path.resolve(MODULE_DIR, '..', '..')
     : path.resolve(MODULE_DIR, '..');
-const OFFICECLI_DEFAULT_REPO = 'lidge-jun/OfficeCLI';
-const OFFICECLI_SKIP = process.env["CLI_JAW_SKIP_OFFICECLI"] === '1'
-    || process.env["CLI_JAW_SKIP_OFFICECLI"] === 'true';
-const OFFICECLI_FORCE = process.env["CLI_JAW_FORCE_OFFICECLI"] === '1'
-    || process.env["CLI_JAW_FORCE_OFFICECLI"] === 'true';
-const OFFICECLI_SKIP_LOCAL = process.env["CLI_JAW_SKIP_LOCAL_OFFICECLI"] === '1'
-    || process.env["CLI_JAW_SKIP_LOCAL_OFFICECLI"] === 'true';
-const OFFICECLI_FORCE_REMOTE = process.env["CLI_JAW_FORCE_REMOTE_OFFICECLI"] === '1'
-    || process.env["CLI_JAW_FORCE_REMOTE_OFFICECLI"] === 'true';
 const MCP_SERVERS_SKIP = process.env["CLI_JAW_SKIP_MCP_SERVERS"] === '1'
     || process.env["CLI_JAW_SKIP_MCP_SERVERS"] === 'true';
 const SKILL_DEPS_SKIP = process.env["CLI_JAW_SKIP_SKILL_DEPS"] === '1'
     || process.env["CLI_JAW_SKIP_SKILL_DEPS"] === 'true';
-const OFFICECLI_REQUIRE = shouldRequireOfficeCliDuringPostinstall();
 const CLAUDE_NATIVE_INSTALL_URL = 'https://claude.ai/install.sh';
 const CLAUDE_NATIVE_INSTALL_PS_URL = 'https://claude.ai/install.ps1';
 
@@ -299,56 +289,6 @@ function latestMtimeMs(target: string, depth = 0): number {
     return latest;
 }
 
-function latestLocalOfficeCliSourceMtime(projectRoot = PROJECT_ROOT): number {
-    const officeRoot = path.join(projectRoot, 'officecli');
-    return Math.max(
-        latestMtimeMs(path.join(officeRoot, 'src')),
-        pathMtimeMs(path.join(officeRoot, 'dev-install.sh')),
-        pathMtimeMs(path.join(officeRoot, 'build.sh')),
-        pathMtimeMs(path.join(officeRoot, 'scripts', 'build-rhwp-sidecars.sh')),
-        pathMtimeMs(path.join(officeRoot, 'officecli.slnx')),
-    );
-}
-
-export function hasLocalOfficeCliCheckout(projectRoot = PROJECT_ROOT): boolean {
-    if (process.platform === 'win32') return false;
-    if (OFFICECLI_SKIP_LOCAL || OFFICECLI_FORCE_REMOTE) return false;
-    return fs.existsSync(path.join(projectRoot, 'officecli', 'dev-install.sh'))
-        && fs.existsSync(path.join(projectRoot, 'officecli', 'src', 'officecli', 'officecli.csproj'));
-}
-
-export function shouldRunLocalOfficeCliInstall(projectRoot = PROJECT_ROOT): boolean {
-    if (!hasLocalOfficeCliCheckout(projectRoot)) return false;
-    if (OFFICECLI_FORCE) return true;
-
-    const officecliPath = findBinaryPath('officecli');
-    const installDir = officecliPath ? path.dirname(officecliPath) : path.join(home, '.local', 'bin');
-    const installedPaths = [
-        officecliPath || path.join(installDir, 'officecli'),
-        path.join(installDir, 'rhwp-field-bridge'),
-        path.join(installDir, 'rhwp-officecli-bridge'),
-    ];
-
-    if (installedPaths.some((candidate) => !fs.existsSync(candidate))) return true;
-    if (!isInstalledLocalOfficeCliUsable(installedPaths)) return true;
-    const installedMtime = Math.min(...installedPaths.map(pathMtimeMs));
-    const sourceMtime = latestLocalOfficeCliSourceMtime(projectRoot);
-    return sourceMtime > installedMtime + 1000;
-}
-
-function isInstalledLocalOfficeCliUsable(installedPaths: string[]): boolean {
-    const [officecliPath, ...sidecarPaths] = installedPaths;
-    if (!officecliPath || !isRunnableCliBinary('officecli', officecliPath)) return false;
-
-    for (const sidecarPath of sidecarPaths) {
-        if (process.platform !== 'win32' && !isSpawnableCliFile(sidecarPath, process.platform).ok) {
-            console.log(`[jaw:init] ⚠️  OfficeCLI sidecar is not executable → ${sidecarPath}`);
-            return false;
-        }
-    }
-    return true;
-}
-
 interface SkillsSymlinkLink {
     action?: unknown;
     status?: unknown;
@@ -426,117 +366,6 @@ export type InstallOpts = {
     ask?: (question: string, defaultVal: string) => Promise<string>;
 };
 
-export async function installOfficeCli(opts: InstallOpts = {}) {
-    if (OFFICECLI_REQUIRE && OFFICECLI_SKIP) {
-        throw new Error('OfficeCLI install required but CLI_JAW_SKIP_OFFICECLI is set');
-    }
-
-    if (OFFICECLI_SKIP) {
-        console.log('[jaw:init] ⏭️  officecli skipped (CLI_JAW_SKIP_OFFICECLI)');
-        return;
-    }
-
-    const rawRepo = process.env["OFFICECLI_REPO"] || OFFICECLI_DEFAULT_REPO;
-    if (!/^[\w.-]+\/[\w.-]+$/.test(rawRepo)) {
-        console.error(`[jaw:init] ❌ OFFICECLI_REPO contains invalid characters: ${rawRepo}`);
-        if (OFFICECLI_REQUIRE) throw new Error(`OFFICECLI_REPO validation failed: ${rawRepo}`);
-        return;
-    }
-    const repo = rawRepo;
-    if (opts.interactive && opts.ask) {
-        const answer = await opts.ask(`Install/update OfficeCLI (${repo})? [Y/n]`, 'y');
-        if (answer.toLowerCase() === 'n') {
-            console.log('[jaw:init] ⏭️  skipped officecli');
-            return;
-        }
-    }
-
-    const localOfficeCliScript = path.join(PROJECT_ROOT, 'officecli', 'dev-install.sh');
-    if (hasLocalOfficeCliCheckout() && shouldRunLocalOfficeCliInstall()) {
-        if (opts.dryRun) {
-            console.log(`  [dry-run] would run bash ${localOfficeCliScript}`);
-            return;
-        }
-        console.log('[jaw:init] 📦 local OfficeCLI checkout is newer; installing via officecli/dev-install.sh...');
-        try {
-            execFileSync('bash', [localOfficeCliScript], {
-                stdio: 'inherit',
-                timeout: 600000,
-                env: postinstallExecEnv(),
-            });
-        } catch (e: unknown) {
-            const status = asRecord(e)["status"];
-            if (OFFICECLI_REQUIRE) {
-                throw new Error(`Local OfficeCLI install required but failed (exit ${fieldString(status, '?')})`);
-            }
-            console.warn(`[jaw:init] ⚠️  local OfficeCLI install failed (exit ${fieldString(status, '?')}); run manually: bash officecli/dev-install.sh`);
-        }
-        return;
-    }
-
-    if (hasLocalOfficeCliCheckout()) {
-        console.log('[jaw:init] ⏭️  local OfficeCLI checkout already installed');
-        return;
-    }
-
-    if (process.platform === 'win32') {
-        const ps = findBinaryPath('pwsh') || findBinaryPath('powershell');
-        const scriptPath = path.join(PROJECT_ROOT, 'scripts', 'install-officecli.ps1');
-        if (!ps || !fs.existsSync(scriptPath)) {
-            if (OFFICECLI_REQUIRE) throw new Error(`OfficeCLI install required but installer unavailable on win32: ${scriptPath}`);
-            console.log('[jaw:init] ⚠️  officecli installer unavailable on win32 — skipped');
-            return;
-        }
-        const args = ps.toLowerCase().includes('powershell')
-            ? ['-ExecutionPolicy', 'Bypass', '-File', scriptPath, '-Update']
-            : ['-File', scriptPath, '-Update'];
-        if (OFFICECLI_FORCE) args.push('-Force');
-        if (repo !== OFFICECLI_DEFAULT_REPO) args.push('-Repo', repo);
-        if (opts.dryRun) {
-            console.log(`  [dry-run] would run ${ps} ${args.join(' ')}`);
-            return;
-        }
-        console.log(`[jaw:init] 📦 ensuring officecli (${repo}) via PowerShell installer...`);
-        try {
-            execFileSync(ps, args, { stdio: 'inherit', timeout: 180000, env: postinstallExecEnv() });
-        } catch (e: unknown) {
-            const status = asRecord(e)["status"];
-            if (OFFICECLI_REQUIRE) {
-                throw new Error(`OfficeCLI install required but failed (exit ${fieldString(status, '?')})`);
-            }
-            console.warn(`[jaw:init] ⚠️  officecli install failed (exit ${fieldString(status, '?')}); skipping — run manually: powershell -ExecutionPolicy Bypass -File scripts/install-officecli.ps1 -Update`);
-        }
-        return;
-    }
-
-    const scriptPath = path.join(PROJECT_ROOT, 'scripts', 'install-officecli.sh');
-    if (!fs.existsSync(scriptPath)) {
-        if (OFFICECLI_REQUIRE) throw new Error(`OfficeCLI install required but installer script not found: ${scriptPath}`);
-        console.log('[jaw:init] ⚠️  officecli installer script not found — skipped');
-        return;
-    }
-    const args = [scriptPath, '--update'];
-    if (OFFICECLI_FORCE) args.push('--force');
-    if (opts.dryRun) {
-        console.log(`  [dry-run] would run bash ${args.join(' ')}`);
-        return;
-    }
-    console.log(`[jaw:init] 📦 ensuring officecli (${repo}) via shell installer...`);
-    try {
-        execFileSync('bash', args, {
-            stdio: 'inherit',
-            timeout: 180000,
-            env: postinstallExecEnv({ ...process.env, OFFICECLI_REPO: repo }),
-        });
-    } catch (e: unknown) {
-        const status = asRecord(e)["status"];
-        if (OFFICECLI_REQUIRE) {
-            throw new Error(`OfficeCLI install required but failed (exit ${fieldString(status, '?')})`);
-        }
-        console.warn(`[jaw:init] ⚠️  officecli install failed (exit ${fieldString(status, '?')}); skipping — run manually: bash scripts/install-officecli.sh`);
-    }
-}
-
 const XAI_GROK_NATIVE_INSTALL_URL = 'https://x.ai/cli/install.sh';
 
 type CliToolInstall = { bin: string; pkg: string; brew?: string; installer?: 'npm' | 'xai-native' };
@@ -558,10 +387,6 @@ function truthyEnv(value: string | undefined): boolean {
 
 export function shouldInstallCliToolsDuringPostinstall(env: NodeJS.ProcessEnv = process.env): boolean {
     return truthyEnv(env["CLI_JAW_INSTALL_CLI_TOOLS"]) || truthyEnv(env["npm_config_jaw_install_cli_tools"]);
-}
-
-export function shouldRequireOfficeCliDuringPostinstall(env: NodeJS.ProcessEnv = process.env): boolean {
-    return truthyEnv(env["CLI_JAW_REQUIRE_OFFICECLI"]) || truthyEnv(env["npm_config_jaw_require_officecli"]);
 }
 
 export function shouldRequireCliToolsDuringPostinstall(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -1257,9 +1082,6 @@ export async function runPostinstall() {
             await installSkillDeps();
         }
     } catch (e) { warnings.push(`Skill deps: ${e instanceof Error ? e.message : e}`); }
-
-    try { await installOfficeCli(); }
-    catch (e) { warnings.push(`OfficeCLI: ${e instanceof Error ? e.message : e}`); }
 
     try { await maybeReregisterLaunchd(); }
     catch (e) { warnings.push(`launchd: ${e instanceof Error ? e.message : e}`); }

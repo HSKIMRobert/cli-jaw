@@ -311,26 +311,6 @@ verify_jaw_command() {
   jaw --version >/dev/null 2>&1 || fail "jaw is on PATH but failed to run"
 }
 
-verify_officecli_command() {
-  local officecli_bin="$NPM_PREFIX/bin/officecli"
-  hash -r 2>/dev/null || true
-
-  if command -v officecli &>/dev/null; then
-    officecli --version >/dev/null 2>&1 || fail "OfficeCLI is on PATH but failed to run"
-    return 0
-  fi
-
-  if [ -x "$officecli_bin" ]; then
-    export PATH="$NPM_PREFIX/bin:$PATH"
-    hash -r 2>/dev/null || true
-    "$officecli_bin" --version >/dev/null 2>&1 || fail "OfficeCLI installed at $officecli_bin but failed to run"
-  fi
-
-  if ! command -v officecli &>/dev/null; then
-    fail "OfficeCLI install failed. Expected executable at $officecli_bin"
-  fi
-}
-
 # ═══════════════════════════════════════
 #  Step 3: Install cli-jaw
 # ═══════════════════════════════════════
@@ -397,29 +377,6 @@ verify_browser_readiness() {
   warn "No runnable Chromium or Windows Chrome fallback detected — browser/web-ai features may need manual Chrome setup"
 }
 
-install_officecli() {
-  local global_root
-  global_root="$(npm root -g 2>/dev/null || true)"
-  local installer="${global_root}/cli-jaw/scripts/install-officecli.sh"
-  if [ ! -f "$installer" ]; then
-    warn "OfficeCLI installer not found in global package — skipping HWP features: $installer"
-    return 0
-  fi
-
-  info "Installing OfficeCLI (optional — HWP support)..."
-  if bash "$installer"; then
-    if command -v officecli &>/dev/null && officecli --version &>/dev/null; then
-      ok "OfficeCLI installed: $(officecli --version 2>/dev/null || echo 'ready')"
-    else
-      warn "OfficeCLI installed but not on PATH — add ~/.local/bin to PATH"
-    fi
-  else
-    warn "OfficeCLI install failed — continuing without HWP features"
-    warn "Install manually: bash \"\$(npm root -g)/cli-jaw/scripts/install-officecli.sh\""
-    return 0
-  fi
-}
-
 # ═══════════════════════════════════════
 #  Step 5: Doctor check
 # ═══════════════════════════════════════
@@ -452,9 +409,6 @@ main() {
   echo ""
 
   install_browser_deps
-  echo ""
-
-  install_officecli
   echo ""
 
   run_doctor
