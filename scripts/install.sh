@@ -571,32 +571,6 @@ install_browser_deps() {
 }
 
 # ═══════════════════════════════════════
-#  Step 4: OfficeCLI (optional — HWP support)
-# ═══════════════════════════════════════
-install_officecli() {
-  local global_root
-  global_root="$(npm root -g 2>/dev/null || true)"
-  local installer="${global_root}/cli-jaw/scripts/install-officecli.sh"
-  if [ ! -f "$installer" ]; then
-    warn "OfficeCLI installer not found — skipping HWP features"
-    return 0
-  fi
-
-  info "Installing OfficeCLI (optional — HWP support)..."
-  if bash "$installer"; then
-    if command -v officecli &>/dev/null && officecli --version &>/dev/null; then
-      ok "OfficeCLI installed: $(officecli --version 2>/dev/null || echo 'ready')"
-    else
-      warn "OfficeCLI installed but not on PATH — add ~/.local/bin to PATH"
-    fi
-  else
-    warn "OfficeCLI install failed — continuing without HWP features"
-    warn "Install manually: bash \"\$(npm root -g)/cli-jaw/scripts/install-officecli.sh\""
-    return 0
-  fi
-}
-
-# ═══════════════════════════════════════
 #  Step 5: Doctor check
 # ═══════════════════════════════════════
 run_doctor() {
@@ -616,8 +590,6 @@ main() {
   install_cli_jaw
   echo ""
   install_browser_deps
-  echo ""
-  install_officecli
   echo ""
   run_doctor
   echo ""
