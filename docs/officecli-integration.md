@@ -5,16 +5,20 @@ aliases: [OfficeCLI Integration, cli-jaw OfficeCLI, officecli 연동]
 ---
 # OfficeCLI 연동 가이드
 
+> **On-Demand Model (since v2.1):** OfficeCLI is no longer installed during `npm install -g cli-jaw`.
+> It is installed on-demand when a skill needs L1/L2 features or HWP support.
+> Basic office document editing uses Python OOXML libraries as the primary path.
+
 OfficeCLI는 cli-jaw에서 오피스 문서를 직접 다룰 때 쓰는 기본 런타임 도구이다. Word, Excel, PowerPoint 파일을 열고, 읽고, 수정하고, 검증하는 일을 하나의 바이너리로 처리한다. Microsoft Office를 따로 설치하지 않아도 된다.
 
 이 통합이 중요한 이유는 에이전트가 문서 작업을 쉘 명령 한 번으로 끝낼 수 있기 때문이다. `.docx`, `.xlsx`, `.pptx`를 각각 다른 툴로 나누지 않아도 되고, `--json` 출력으로 결과를 바로 후속 자동화에 연결할 수 있다. smoke test까지 함께 두었기 때문에 “설치만 되었는가”가 아니라 “실제로 문서 편집이 되는가”를 바로 확인할 수 있다.
 
-사용 흐름은 단순하다. `npm install -g cli-jaw` 또는 `bash scripts/install-officecli.sh`로 전역 OfficeCLI를 준비한다. 그다음 `bash tests/smoke/test_officecli_integration.sh`를 실행해 12개 기본 시나리오를 검증한다. 이 smoke test는 `OFFICECLI_BIN`이 없으면 먼저 PATH의 `officecli`를 찾고, 그래도 없을 때만 저장소 안의 `officecli/bin/release/officecli-*` publish output을 찾는다. 마지막 호환 fallback으로만 기존 `officecli/build-local/officecli`를 사용한다. 다른 바이너리를 강제로 시험하고 싶으면 `OFFICECLI_BIN=/path/to/officecli bash tests/smoke/test_officecli_integration.sh`처럼 실행한다.
+사용 흐름은 단순하다. `bash "$(npm root -g)/cli-jaw/scripts/install-officecli.sh"`로 전역 OfficeCLI를 준비한다. 그다음 `bash tests/smoke/test_officecli_integration.sh`를 실행해 12개 기본 시나리오를 검증한다. 이 smoke test는 `OFFICECLI_BIN`이 없으면 먼저 PATH의 `officecli`를 찾고, 그래도 없을 때만 저장소 안의 `officecli/bin/release/officecli-*` publish output을 찾는다. 마지막 호환 fallback으로만 기존 `officecli/build-local/officecli`를 사용한다. 다른 바이너리를 강제로 시험하고 싶으면 `OFFICECLI_BIN=/path/to/officecli bash tests/smoke/test_officecli_integration.sh`처럼 실행한다.
 
 실무에서는 아래처럼 바로 시작하면 된다.
 
 ```bash
-bash scripts/install-officecli.sh
+bash "$(npm root -g)/cli-jaw/scripts/install-officecli.sh"
 officecli create report.docx
 officecli add report.docx /body --type paragraph --prop text="분기 요약"
 officecli view report.docx text
@@ -44,7 +48,7 @@ sequenceDiagram
     participant Binary as officecli
     participant Test as smoke test
 
-    User->>Script: bash scripts/install-officecli.sh
+    User->>Script: bash "$(npm root -g)/cli-jaw/scripts/install-officecli.sh"
     Script->>Binary: 플랫폼별 바이너리 다운로드
     User->>Test: bash tests/smoke/test_officecli_integration.sh
     Test->>Binary: create, add, set, validate, batch, get
@@ -60,11 +64,11 @@ sequenceDiagram
 | 작업 | 명령 |
 | --- | --- |
 | cli-jaw 글로벌 설치 | `npm install -g cli-jaw` |
-| 기본 설치 (CJK fork) | `bash scripts/install-officecli.sh` |
-| upstream 설치 | `bash scripts/install-officecli.sh --upstream` |
-| 강제 재설치 | `bash scripts/install-officecli.sh --force` |
-| 오래된 경우만 갱신 | `bash scripts/install-officecli.sh --update` |
-| 커스텀 소스 | `OFFICECLI_REPO=other/repo bash scripts/install-officecli.sh` |
+| 기본 설치 (CJK fork) | `bash "$(npm root -g)/cli-jaw/scripts/install-officecli.sh"` |
+| upstream 설치 | `bash "$(npm root -g)/cli-jaw/scripts/install-officecli.sh" --upstream` |
+| 강제 재설치 | `bash "$(npm root -g)/cli-jaw/scripts/install-officecli.sh" --force` |
+| 오래된 경우만 갱신 | `bash "$(npm root -g)/cli-jaw/scripts/install-officecli.sh" --update` |
+| 커스텀 소스 | `OFFICECLI_REPO=other/repo bash "$(npm root -g)/cli-jaw/scripts/install-officecli.sh"` |
 | 버전 확인 | `officecli --version` |
 | smoke test | `bash tests/smoke/test_officecli_integration.sh` |
 | 특정 바이너리 지정 테스트 | `OFFICECLI_BIN=/path/to/officecli bash tests/smoke/test_officecli_integration.sh` |
