@@ -45,6 +45,7 @@ export interface QuestionEnvelopeInput {
     filesReport?: boolean;
     contextTransport?: 'inline' | 'upload' | 'auto' | 'none';
     inlineOnly?: boolean;
+    /** Explicit opt-in for provider Copy button capture; does not read the OS clipboard. */
     allowCopyMarkdownFallback?: boolean;
     allowGrokContextPack?: boolean;
     reuseTab?: boolean;

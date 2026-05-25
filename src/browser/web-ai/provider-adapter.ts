@@ -16,7 +16,7 @@ export type WebAiVendorId = 'chatgpt' | 'gemini' | 'grok';
 export interface WaitForResponseOptions {
     timeoutMs: number;
     minTurnIndex?: number;
-    /** Opt-in flag for copy-markdown fallback. Recorded in usedFallbacks. */
+    /** Explicit opt-in for provider Copy button capture; does not read the OS clipboard. */
     allowCopyMarkdownFallback?: boolean;
 }
 

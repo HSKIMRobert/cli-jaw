@@ -73,6 +73,8 @@ test('BWCLI-006: web-ai CLI exposes context packaging flags', () => {
 
 test('BWCLI-007: copy-markdown fallback flag is wired through CLI and routes', () => {
     assert.match(cliWebAiSrc, /'allow-copy-markdown-fallback': \{ type: 'boolean', default: false \}/);
+    assert.match(cliWebAiSrc, /Explicitly permit provider Copy button capture; no OS clipboard read/);
+    assert.match(cliSrc, /Explicitly permit provider Copy button capture; no OS clipboard read/);
     assert.match(cliWebAiSrc, /allowCopyMarkdownFallback: true/);
     assert.match(routeSrc, /allowCopyMarkdownFallback === 'true'/);
 });
