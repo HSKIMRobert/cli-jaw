@@ -67,8 +67,6 @@ function runPackageContentsCheck() {
   const required = [
     'scripts/install.sh',
     'scripts/install-wsl.sh',
-    'scripts/install-officecli.sh',
-    'scripts/install-officecli.ps1',
     'scripts/verify-fresh-install.sh',
     'scripts/collect-fresh-install-evidence.sh',
     'scripts/audit-fresh-install-evidence.mjs',
@@ -111,22 +109,6 @@ checks.push(() => run('bash syntax: scripts/collect-fresh-install-evidence.sh', 
 checks.push(() => run('node syntax: scripts/audit-fresh-install-evidence.mjs', process.execPath, ['--check', 'scripts/audit-fresh-install-evidence.mjs']));
 checks.push(() => run('node syntax: scripts/verify-release-evidence.mjs', process.execPath, ['--check', 'scripts/verify-release-evidence.mjs']));
 checks.push(() => run('node syntax: scripts/require-release-evidence.mjs', process.execPath, ['--check', 'scripts/require-release-evidence.mjs']));
-
-const powershell = commandExists('pwsh') ? 'pwsh' : commandExists('powershell') ? 'powershell' : null;
-const psParse = [
-  '$errors = $null;',
-  "$null = [System.Management.Automation.PSParser]::Tokenize((Get-Content -Raw 'scripts/install-officecli.ps1'), [ref]$errors);",
-  'if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }',
-].join(' ');
-checks.push(() => run('PowerShell parse: OfficeCLI installer', powershell || 'powershell', [
-  '-NoProfile',
-  '-ExecutionPolicy',
-  'Bypass',
-  '-Command',
-  psParse,
-], {
-  skip: powershell ? '' : 'PowerShell not available',
-}));
 
 checks.push(() => run('installer risk tests', npx, [
   'tsx',

@@ -21,8 +21,6 @@ const installerSensitivePaths = [
   'scripts/install-risk-gate.mjs',
   'scripts/install.sh',
   'scripts/install-wsl.sh',
-  'scripts/install-officecli.ps1',
-  'scripts/install-officecli.sh',
   'scripts/fresh-install-smoke.ts',
   'scripts/verify-fresh-install.sh',
   'scripts/collect-fresh-install-evidence.sh',
