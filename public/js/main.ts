@@ -178,8 +178,24 @@ document.querySelector('.tab-bar')?.addEventListener('click', (e) => {
 document.querySelector('.sidebar-save-bar .btn-save')?.addEventListener('click', handleSave);
 
 // ── Agents Tab ──
+function syncAiEProviderSelectsFromActiveProvider(eventTarget: EventTarget | null): void {
+    const activeProvider = eventTarget instanceof HTMLSelectElement
+        ? eventTarget
+        : document.getElementById('selAiEProvider') as HTMLSelectElement | null;
+    const provider = activeProvider?.value || '';
+    const perCliProvider = document.getElementById('providerAiE') as HTMLSelectElement | null;
+    if (!provider || !perCliProvider) return;
+    if (Array.from(perCliProvider.options).some(option => option.value === provider)) {
+        perCliProvider.value = provider;
+    }
+}
+
 document.getElementById('selCli')?.addEventListener('change', () => onCliChange());
-document.getElementById('selAiEProvider')?.addEventListener('change', () => onCliChange());
+document.getElementById('selAiEProvider')?.addEventListener('change', (event) => {
+    syncAiEProviderSelectsFromActiveProvider(event.target);
+    onCliChange();
+    saveActiveCliSettings();
+});
 document.getElementById('selModel')?.addEventListener('change', () => saveActiveCliSettings());
 document.getElementById('selEffort')?.addEventListener('change', () => saveActiveCliSettings());
 document.getElementById('flushCli')?.addEventListener('change', () => onFlushCliChange());

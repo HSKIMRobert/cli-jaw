@@ -487,6 +487,14 @@ export function onCliChange(save = true): void {
         const model = ao.model || pc.model;
         const effort = ao.effort || pc.effort || '';
         if (model && modelSel) {
+            if (cli === 'ai-e') {
+                const savedProvider = s.perCli?.['ai-e']?.provider || 'claude';
+                const currentProvider = getSelectedAiEProvider();
+                if (savedProvider !== currentProvider) {
+                    syncActiveEffortOptions(cli, effort);
+                    return;
+                }
+            }
             const displayModel = normalizeModelForDisplay(cli, model);
             appendCustomOption(modelSel, displayModel);
             modelSel.value = displayModel;
