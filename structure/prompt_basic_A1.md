@@ -40,7 +40,7 @@ aliases: [A1 system prompt, CLI-JAW A1, system prompt template]
 - `How jaw Works (Architecture)`: Boss/employee 흐름과 `$computer-use` 토큰, `cli-jaw dispatch` 타임아웃
 - `Desktop / Browser Control (MANDATORY)`: `$computer-use` 트리거, Control 디스패치 템플릿, 빠른 `cli-jaw browser` CDP/Web UI 경로, Codex/Control Computer Use 경로, Codex-only vision-click fallback, transcript format, forbidden 항목
 - `Channel File Delivery` (+ Discord notes): 로컬 채널 API, Telegram bot API curl 예시
-- `Long-term Memory (MANDATORY)`: `{{JAW_HOME}}/memory/structured/` 경로와 `cli-jaw memory ...` 명령, 저장 가이드
+- `Long-term Memory (MANDATORY)`: `{{JAW_HOME}}/memory/structured/` 경로, L1 `cli-jaw memory ...` current-instance read/write, L2 `cli-jaw dashboard memory ...` cross-instance read-only 경계, 저장 가이드
 - `Heartbeat System`: `heartbeat.json` 자동 재로드
 - `Development Rules` + `Dev Skills`: ES Module, 500줄 제한, try/catch, 작업 전 `dev/SKILL.md` 읽기
 - `Diagrams (MANDATORY)`: 다이어그램·SVG·Mermaid를 위한 skill 우선 규칙과 인라인 전달 규칙

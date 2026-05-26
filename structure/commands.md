@@ -182,8 +182,8 @@ prompt, quit, file, steer, ide, orchestrate
 | `/memory reindex` | memory reindex |
 | `/memory flush` | memory flush trigger |
 | `/memory adv ...` | integrated memory runtime 상태/초기화/bootstrap/reindex 래퍼 |
-| `/memory embed status` | embedding state (state/mode/provider/chunks/DB size) |
-| `/memory embed estimate` | embedding cost estimate (chunks/batches/seconds/cost) |
+| `/memory embed status` | slash/runtime embedding state (state/mode/provider/chunks/DB size) |
+| `/memory embed estimate` | slash/runtime embedding cost estimate (chunks/batches/seconds/cost) |
 
 ### `/browser [status|tabs]`
 
@@ -215,23 +215,24 @@ prompt, quit, file, steer, ide, orchestrate
 
 ### `jaw dashboard memory` (federation search)
 
-L2 cross-instance read-only memory search. Fans out queries to all `~/.cli-jaw-*` instance SQLite indexes via the dashboard manager server.
+L2 cross-instance read-only memory search. Fans out queries to all `~/.cli-jaw-*` instance SQLite indexes via the dashboard manager server. Use L1 `jaw memory search/read/save` first for normal current-instance memory; use L2 only for explicit dashboard/all-instance/another-home/cross-instance context.
 
 | Subcommand | 동작 |
 | --- | --- |
 | `search <query...>` | FTS5 BM25 + trigram fan-out search across instances |
 | `instances` / `list` | List discovered instances with DB status |
 | `read <instanceId:path>` | Read a `.md` memory file from a specific instance |
-| `config [--provider X] [--api-key X] [--search-mode X]` | Get/set embedding provider configuration |
-| `state` / `embed-state` | Embedding state (state/mode/provider/chunks/DB size/last sync) |
+| `config get` | Get embedding provider configuration |
+| `config set [--provider X] [--api-key X] [--mode X] [--enabled|--disabled]` | Set optional embedding provider configuration |
+| `state` / `embed-state` | Embedding state (state/mode/provider/chunks/DB size/last sync); embedding is default OFF |
 | `estimate` / `embed-estimate` | Embedding cost estimate (chunks/batches/seconds/cost) |
-| `reindex [--force]` | Trigger full re-embedding of all memory chunks |
-| `help` | Show subcommand help |
+| `reindex --embedding` | Trigger full re-embedding of all memory chunks |
+| no subcommand | Show memory subcommand help |
 
 | Option | 동작 |
 | --- | --- |
 | `--instance <ids>` | Comma-separated instance filter (e.g., `3457,3458`) |
-| `--limit <N>` | Max results (default: 20) |
+| `--limit <N>` | Max results (default: 50, max 200) |
 | `--json` | Raw JSON output |
 | `--port <port>` | Dashboard manager port (default: `DASHBOARD_PORT` env or 24576) |
 
