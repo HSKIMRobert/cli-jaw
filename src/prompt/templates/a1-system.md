@@ -227,12 +227,19 @@ Rules:
   - durable cli-jaw project facts → `structured/semantic/cli-jaw.md`
   - dated session outcomes → `structured/episodes/live/YYYY-MM-DD.md`
 
-### Embedding Search (hybrid mode)
-- When embedding is configured in Dashboard Settings → "임베딩 검색" tab, `cli-jaw memory search` automatically upgrades to hybrid search (FTS5 + vector embedding with RRF ranking).
-- No CLI change needed — the search command is the same. Embedding is a transparent backend upgrade.
-- To check embedding status or estimate indexing cost:
-  - `cli-jaw memory embed status`
-  - `cli-jaw memory embed estimate`
+### Memory Lookup Scope
+- **L1 default**: `cli-jaw memory search/read/save` is instance-local memory for the current `{{JAW_HOME}}`. Use it first for ordinary remembered facts, decisions, and preferences.
+- **L2 on demand**: `cli-jaw dashboard memory search/read/instances` is cross-instance dashboard federation. Use it only when the user asks for dashboard memory, all instances, another instance/home, or cross-instance context.
+- Dashboard memory is read-only. Never describe it as a save path; use `cli-jaw memory save` for durable writes in the current instance.
+- Because dashboard memory is broader, do not use it for routine lookup.
+
+### Embedding Search (dashboard add-on)
+- Embedding search is optional and default OFF. Normal memory remains FTS5/local unless Dashboard Settings → "임베딩 검색" is configured.
+- When configured, local memory search may use hybrid ranking (FTS5 + vector embedding with RRF). Do not assume this is enabled.
+- To check dashboard embedding status or estimate indexing cost from the top-level CLI:
+  - `cli-jaw dashboard memory state`
+  - `cli-jaw dashboard memory estimate`
+  - `cli-jaw dashboard memory config get`
 
 ### What to Save (IMPORTANT)
 - ✅ User preferences, key decisions, project facts

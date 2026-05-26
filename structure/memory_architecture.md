@@ -291,6 +291,23 @@ Prefers ES Module only, no CommonJS.
 
 ---
 
+## L1 / L2 Memory Lookup Boundary
+
+| Layer | Command surface | Scope | Write path |
+|------|-----------------|-------|------------|
+| **L1 instance-local** | `jaw memory search/read/save` | 현재 `JAW_HOME`의 structured memory | read/write |
+| **L2 dashboard federation** | `jaw dashboard memory search/read/instances` | dashboard가 관리하는 여러 `~/.cli-jaw*` 인스턴스 | read-only |
+
+운영 원칙:
+
+- L1이 기본이다. 일반적인 과거 결정, 선호, 프로젝트 기억은 먼저 `jaw memory search`로 찾는다.
+- L2는 사용자가 dashboard memory, all instances, 다른 instance/home, cross-instance context를 명시할 때만 쓴다.
+- L2는 더 넓은 검색이지 더 안전한 기본값이 아니다. 다른 인스턴스의 오래된 맥락이 섞일 수 있다.
+- 저장은 항상 현재 인스턴스의 L1 `jaw memory save <file> <content>` 경로로만 한다.
+- Embedding은 L2 dashboard add-on이며 기본 OFF다. 설정 전에는 FTS5/local 검색이 기본이다.
+
+---
+
 ## Embedding Search Layer (Dashboard-level)
 
 > 소스: `src/manager/memory/embedding/` — `provider.ts`, `vec-store.ts`, `sync.ts`, `state-machine.ts`, `index.ts`

@@ -44,6 +44,15 @@ function withLogCapture<T>(fn: () => Promise<T>): Promise<{ result: T; output: s
     });
 }
 
+test('cli: help explains L2 read-only scope and embedding default-off behavior', async () => {
+    const captured = await withLogCapture(async () => {
+        await handleMemory([]);
+    });
+    assert.match(captured.output, /L2 cross-instance memory search \(read-only\)/);
+    assert.match(captured.output, /Companion to `jaw memory` \(L1, instance-local r\/w\)/);
+    assert.match(captured.output, /Embedding commands manage an optional dashboard add-on; default OFF unless configured/);
+});
+
 test('cli: search forwards q + --instance + --limit to query string', async () => {
     const fake = await startFake({
         search: { hits: [], warnings: [], instancesQueried: 0, instancesSucceeded: 0 },
@@ -122,4 +131,91 @@ test('cli: --json passes through JSON', async () => {
     const parsed = JSON.parse(output);
     assert.equal(parsed.ok, true);
     assert.equal(parsed.instances[0].instanceId, '3457');
+});
+
+test('cli: state command reports dashboard embedding state', async () => {
+    const fake = await startFake({
+        'embed-state': {
+            ok: true,
+            status: {
+                state: 'ACTIVE_HYBRID',
+                mode: 'hybrid',
+                provider: 'openai',
+                model: 'text-embedding-3-small',
+                indexedChunks: 42,
+                dbSizeBytes: 1024 * 1024,
+                lastSyncAt: '2026-05-27T00:00:00.000Z',
+            },
+        },
+    });
+    process.env["DASHBOARD_PORT"] = String(fake.port);
+    let output = '';
+    try {
+        const captured = await withLogCapture(async () => {
+            await handleMemory(['state']);
+        });
+        output = captured.output;
+    } finally {
+        await fake.close();
+        delete process.env["DASHBOARD_PORT"];
+    }
+    assert.equal(fake.lastUrl, '/api/dashboard/memory/embed-state');
+    assert.match(output, /State: ACTIVE_HYBRID  Mode: hybrid/);
+    assert.match(output, /Provider: openai\/text-embedding-3-small/);
+    assert.match(output, /Chunks: 42  DB: 1\.0 MB/);
+});
+
+test('cli: estimate command reports dashboard embedding cost estimate', async () => {
+    const fake = await startFake({
+        'embed-estimate': {
+            ok: true,
+            totalChunks: 100,
+            batches: 5,
+            estimatedSeconds: 4,
+            estimatedCost: 0.0012,
+        },
+    });
+    process.env["DASHBOARD_PORT"] = String(fake.port);
+    let output = '';
+    try {
+        const captured = await withLogCapture(async () => {
+            await handleMemory(['estimate']);
+        });
+        output = captured.output;
+    } finally {
+        await fake.close();
+        delete process.env["DASHBOARD_PORT"];
+    }
+    assert.equal(fake.lastUrl, '/api/dashboard/memory/embed-estimate');
+    assert.match(output, /Chunks: 100  Batches: 5  ~4s  \$0\.0012/);
+});
+
+test('cli: config get reads dashboard embedding config', async () => {
+    const fake = await startFake({
+        'embed-config': {
+            ok: true,
+            config: {
+                enabled: false,
+                provider: 'openai',
+                searchMode: 'fts5',
+                apiKeyPresent: false,
+            },
+        },
+    });
+    process.env["DASHBOARD_PORT"] = String(fake.port);
+    let output = '';
+    try {
+        const captured = await withLogCapture(async () => {
+            await handleMemory(['config', 'get']);
+        });
+        output = captured.output;
+    } finally {
+        await fake.close();
+        delete process.env["DASHBOARD_PORT"];
+    }
+    assert.equal(fake.lastUrl, '/api/dashboard/memory/embed-config');
+    const parsed = JSON.parse(output);
+    assert.equal(parsed.ok, true);
+    assert.equal(parsed.config.enabled, false);
+    assert.equal(parsed.config.searchMode, 'fts5');
 });

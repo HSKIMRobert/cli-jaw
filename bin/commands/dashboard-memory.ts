@@ -74,6 +74,7 @@ function printHelp(): void {
     --port <port>      dashboard port (env DASHBOARD_PORT or default ${DASHBOARD_DEFAULT_PORT})
 
   Read-only. Companion to \`jaw memory\` (L1, instance-local r/w).
+  Embedding commands manage an optional dashboard add-on; default OFF unless configured.
 `);
 }
 

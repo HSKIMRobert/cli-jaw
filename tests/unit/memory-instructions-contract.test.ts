@@ -21,6 +21,46 @@ test('memory prompt templates show exact save command arity', () => {
     }
 });
 
+test('memory prompt templates separate L1 local memory from L2 dashboard memory', () => {
+    const a1 = read('src/prompt/templates/a1-system.md');
+    const employee = read('src/prompt/templates/employee.md');
+
+    assert.ok(a1.includes('L1 default'));
+    assert.ok(a1.includes('instance-local memory'));
+    assert.ok(a1.includes('L2 on demand'));
+    assert.ok(a1.includes('cross-instance dashboard federation'));
+    assert.ok(a1.includes('Dashboard memory is read-only'));
+    assert.ok(a1.includes('do not use it for routine lookup'));
+    assert.ok(employee.includes('Use L1 `cli-jaw memory ...` first'));
+    assert.ok(employee.includes('L2 `cli-jaw dashboard memory ...`'));
+    assert.ok(employee.includes('L2 dashboard memory is read-only'));
+});
+
+test('memory prompt templates describe dashboard embedding as default-off add-on', () => {
+    const a1 = read('src/prompt/templates/a1-system.md');
+    const employee = read('src/prompt/templates/employee.md');
+
+    assert.ok(a1.includes('Embedding search is optional and default OFF'));
+    assert.ok(a1.includes('cli-jaw dashboard memory state'));
+    assert.ok(a1.includes('cli-jaw dashboard memory estimate'));
+    assert.ok(a1.includes('cli-jaw dashboard memory config get'));
+    assert.ok(!a1.includes('cli-jaw memory embed status'));
+    assert.ok(!a1.includes('cli-jaw memory embed estimate'));
+    assert.ok(employee.includes('embedding is default OFF unless configured'));
+});
+
+test('memory skill source documents L1/L2 scope without making embedding default', () => {
+    const skill = read('skills_ref/memory/SKILL.md');
+
+    assert.ok(skill.includes('## Scope: L1 vs L2'));
+    assert.ok(skill.includes('L1 instance-local memory'));
+    assert.ok(skill.includes('cli-jaw memory search/read/save'));
+    assert.ok(skill.includes('L2 dashboard memory'));
+    assert.ok(skill.includes('cli-jaw dashboard memory search/read/instances'));
+    assert.ok(skill.includes('cross-instance federation; read-only'));
+    assert.ok(skill.includes('Embedding search is optional and default OFF'));
+});
+
 test('compact handoff reminds agents that memory save requires a file', () => {
     const compact = read('src/core/compact.ts');
 

@@ -51,6 +51,8 @@ Long-term memory:
   - `cli-jaw memory read <file>`
   - `cli-jaw memory save <file> <content>`
 - Never call `cli-jaw memory save` without a destination file.
+- Use L1 `cli-jaw memory ...` first for current-instance memory. Use L2 `cli-jaw dashboard memory ...` only for explicit cross-instance/dashboard memory lookups.
+- L2 dashboard memory is read-only; embedding is default OFF unless configured.
 - You may see `Task Snapshot` context already injected by the orchestrator
 - Search memory before claiming remembered facts
 - If search returns nothing, retry with translated keywords (한↔en)
