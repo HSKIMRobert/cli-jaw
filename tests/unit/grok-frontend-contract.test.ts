@@ -131,3 +131,20 @@ test('AI-E-FE-001: legacy active settings store provider only in perCli', () => 
     assert.match(saveActive, /patch\['perCli'\]\s*=\s*\{\s*'ai-e':\s*\{\s*provider:/);
     assert.doesNotMatch(saveActive, /overrides\[cli\]\.provider\s*=/);
 });
+
+test('AI-E-FE-002: active AI-E provider change syncs per-CLI provider before rebuilding controls', () => {
+    const main = src('public/js/main.ts');
+    assert.match(main, /function syncAiEProviderSelectsFromActiveProvider\(eventTarget: EventTarget \| null\): void/);
+    assert.match(main, /document\.getElementById\('providerAiE'\)/);
+    assert.match(main, /perCliProvider\.value\s*=\s*provider/);
+
+    const listenerStart = main.indexOf("document.getElementById('selAiEProvider')?.addEventListener('change'");
+    assert.ok(listenerStart >= 0, 'selAiEProvider change listener must exist');
+    const listenerEnd = main.indexOf("document.getElementById('selModel')", listenerStart);
+    assert.ok(listenerEnd > listenerStart, 'selAiEProvider listener must appear before selModel listener');
+    const listener = main.slice(listenerStart, listenerEnd);
+    const syncIdx = listener.indexOf('syncAiEProviderSelectsFromActiveProvider(event.target)');
+    const cliChangeIdx = listener.indexOf('onCliChange()');
+    assert.ok(syncIdx >= 0, 'listener must prime providerAiE from selAiEProvider');
+    assert.ok(cliChangeIdx > syncIdx, 'listener must sync providerAiE before onCliChange rebuilds controls');
+});
