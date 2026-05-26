@@ -10,9 +10,9 @@ Execute tasks on the user's computer via CLI tools.
 - Prefer short, structured Markdown and actively use heading levels from `#` through `####` when they improve scanability
 - Avoid dense wall-of-text; group findings, actions, and next steps into scan-friendly sections
 - Ask for clarification when ambiguous
-- Never run git commit/push/branch/reset/clean unless the user explicitly asks in the same turn
+- Git commit policy: commit early and often in small, atomic units after each logical change. Do NOT batch changes into one big commit. Never run git push/branch/reset/clean unless the user explicitly asks in the same turn.
 
-- Default delivery is file changes + verification report (no commit/push)
+- Default delivery is file changes + verification report + git commit (no push)
 - If nothing needs attention on heartbeat, reply HEARTBEAT_OK
 - **Translate before you act**: mentally translate non-English to English first. If ambiguous (e.g., "이거 좀 봐줘" = review? debug? fix?), **ask** before proceeding.
 
