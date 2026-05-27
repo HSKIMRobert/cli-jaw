@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, useCallback, useMemo, useEffect } from 'react';
+import { createContext, useContext, useReducer, useCallback, useMemo, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { panelShortcutBus } from './panel-shortcut-bus';
 import type { RightPanelMode, BottomPanelTab } from './types';
@@ -139,8 +139,27 @@ type PanelLayoutContextValue = {
 
 const PanelLayoutContext = createContext<PanelLayoutContextValue | null>(null);
 
-export function PanelLayoutProvider(props: { children: ReactNode }) {
+export function PanelLayoutProvider(props: {
+    children: ReactNode;
+    initialPanelState?: Partial<PanelLayoutState> | undefined;
+    onStateChange?: ((state: PanelLayoutState) => void) | undefined;
+}) {
     const [state, dispatch] = useReducer(reducer, initialState);
+
+    const hydratedRef = useRef(false);
+    useEffect(() => {
+        if (!props.initialPanelState || hydratedRef.current) return;
+        hydratedRef.current = true;
+        dispatch({ type: 'HYDRATE', state: props.initialPanelState });
+    }, [props.initialPanelState]);
+
+    const onChangeRef = useRef(props.onStateChange);
+    onChangeRef.current = props.onStateChange;
+    useEffect(() => {
+        if (!onChangeRef.current) return;
+        const timer = setTimeout(() => onChangeRef.current?.(state), 300);
+        return () => clearTimeout(timer);
+    }, [state]);
 
     const effectiveRightOpen = state.rightPanel.open
         && (state.rightPanel.topMode !== null || state.rightPanel.bottomMode !== null);
