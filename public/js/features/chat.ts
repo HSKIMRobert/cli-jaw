@@ -177,6 +177,9 @@ export async function sendMessage(source: SendSource = 'enter'): Promise<void> {
                     if (chatEl) chatEl.innerHTML = '';
                 }
                 if (result?.text || result?.recovery) addSystemMsg(renderCommandRecovery(result), '', result.type);
+                if (result?.steerPrompt) {
+                    await apiJson('/api/message', 'POST', { prompt: result.steerPrompt });
+                }
             } catch (err) {
                 addSystemMsg(t('chat.cmd.fail', { msg: (err as Error).message }), '', 'error');
             } finally {
