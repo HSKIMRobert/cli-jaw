@@ -604,8 +604,6 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
     });
 
     // ─── Goal auto-continuation ───
-    // If an active goal exists and agent exited normally (not killed, not error,
-    // not already a goal-continuation), re-invoke with the goal continuation prompt.
     if (
         mainManaged
         && !opts.internal
