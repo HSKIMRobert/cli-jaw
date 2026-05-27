@@ -66,6 +66,7 @@ export function TerminalPanel() {
     const [tabs, setTabs] = useState<TermTab[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [isCreating, setIsCreating] = useState(false);
     const panelRef = useRef<HTMLDivElement | null>(null);
     const runtimesRef = useRef<Map<string, RuntimeTerminal>>(new Map());
     const pendingOutputRef = useRef<Map<string, string>>(new Map());
@@ -126,20 +127,25 @@ export function TerminalPanel() {
 
     const createSession = useCallback(async () => {
         if (!bridge) return;
-        const result = await bridge.create({ cols: 80, rows: 24 });
-        if (!result.ok || !result.id) {
-            setError(result.error ?? 'Failed to start terminal session');
-            return;
+        setIsCreating(true);
+        try {
+            const result = await bridge.create({ cols: 80, rows: 24 });
+            if (!result.ok || !result.id) {
+                setError(result.error ?? 'Failed to start terminal session');
+                return;
+            }
+            createRuntime(result.id);
+            const tab: TermTab = { id: result.id, shell: result.shell ?? 'sh', cwd: result.cwd ?? '~' };
+            setError(null);
+            setTabs(prev => [...prev, tab]);
+            setActiveId(result.id);
+            window.setTimeout(() => {
+                fitTerminal(result.id!);
+                runtimesRef.current.get(result.id!)?.term.focus();
+            }, 0);
+        } finally {
+            setIsCreating(false);
         }
-        createRuntime(result.id);
-        const tab: TermTab = { id: result.id, shell: result.shell ?? 'sh', cwd: result.cwd ?? '~' };
-        setError(null);
-        setTabs(prev => [...prev, tab]);
-        setActiveId(result.id);
-        window.setTimeout(() => {
-            fitTerminal(result.id!);
-            runtimesRef.current.get(result.id!)?.term.focus();
-        }, 0);
     }, [bridge, createRuntime, fitTerminal]);
 
     const closeSession = useCallback((id: string) => {
@@ -224,6 +230,7 @@ export function TerminalPanel() {
     }
 
     const activeTab = tabs.find(tab => tab.id === activeId);
+    const statusText = activeTab?.cwd ?? (isCreating ? 'Starting shell...' : 'No terminal sessions');
 
     return (
         <div className="terminal-panel" ref={panelRef}>
@@ -251,8 +258,8 @@ export function TerminalPanel() {
                         </button>
                     </div>
                 ))}
-                <button type="button" className="terminal-tab terminal-new-tab" aria-label="New terminal" onClick={() => void createSession()}>+</button>
-                <span className="terminal-status">{activeTab?.cwd ?? 'Starting shell...'}</span>
+                <button type="button" className="terminal-tab terminal-new-tab" aria-label="New terminal" disabled={isCreating} onClick={() => void createSession()}>+</button>
+                <span className="terminal-status">{statusText}</span>
             </div>
             <div className="terminal-xterm-host" aria-label="Terminal output">
                 {tabs.map(tab => (
@@ -265,7 +272,7 @@ export function TerminalPanel() {
                 ))}
                 {tabs.length === 0 && (
                     <div className="terminal-empty">
-                        <button type="button" onClick={() => void createSession()}>New terminal</button>
+                        <button type="button" disabled={isCreating} onClick={() => void createSession()}>New terminal</button>
                     </div>
                 )}
             </div>
