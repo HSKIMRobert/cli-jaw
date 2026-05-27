@@ -1,0 +1,96 @@
+.diff-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    font-size: 12px;
+}
+.diff-unavailable {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-dim);
+}
+.diff-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border-subtle);
+    flex-shrink: 0;
+}
+.diff-repo-label {
+    flex: 1;
+    font-size: 11px;
+    color: var(--text-dim);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.diff-refresh {
+    all: unset;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: var(--text-dim);
+}
+.diff-refresh:hover { background: var(--bg-hover); color: var(--text-base); }
+.diff-error {
+    padding: 8px 10px;
+    font-size: 11px;
+    color: var(--status-error);
+    background: var(--bg-error-subtle, rgba(255,0,0,0.05));
+}
+.diff-body {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    overflow: hidden;
+}
+.diff-file-list {
+    width: 200px;
+    min-width: 120px;
+    border-right: 1px solid var(--border-subtle);
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+.diff-file-item {
+    all: unset;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    padding: 4px 8px;
+    font-size: 11px;
+    color: var(--text-base);
+    width: 100%;
+    box-sizing: border-box;
+}
+.diff-file-item:hover { background: var(--bg-hover); }
+.diff-file-item.is-selected { background: var(--bg-active); }
+.diff-file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.diff-file-stats { display: flex; gap: 4px; flex-shrink: 0; font-size: 10px; }
+.diff-ins { color: var(--status-success, #4caf50); }
+.diff-del { color: var(--status-error, #f44336); }
+.diff-status-added .diff-file-name { color: var(--status-success, #4caf50); }
+.diff-status-deleted .diff-file-name { color: var(--status-error, #f44336); }
+.diff-empty {
+    padding: 12px;
+    color: var(--text-dim);
+    text-align: center;
+    font-size: 11px;
+}
+.diff-content {
+    flex: 1;
+    min-width: 0;
+    overflow: auto;
+}
+.diff-pre {
+    margin: 0;
+    padding: 8px;
+    font-family: 'SF Mono', 'Menlo', monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
