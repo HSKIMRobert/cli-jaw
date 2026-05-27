@@ -109,7 +109,7 @@ test('PG-018: assertSendFilePath uses CLI_JAW_HOME/os.homedir instead of HOME-on
         process.env.CLI_JAW_HOME = testHome;
         delete process.env.JAW_HOME;
         delete process.env.HOME;
-        assert.equal(assertSendFilePath(allowedFile), path.resolve(allowedFile));
+        assert.equal(assertSendFilePath(allowedFile), fs.realpathSync.native(allowedFile));
     } finally {
         if (previousCliHome == null) delete process.env.CLI_JAW_HOME;
         else process.env.CLI_JAW_HOME = previousCliHome;

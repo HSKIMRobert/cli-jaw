@@ -75,8 +75,8 @@ PR 전 최소 검증:
 npm run build
 npm test
 npm run typecheck
-bash devlog/structure/check-doc-drift.sh
-bash devlog/structure/verify-counts.sh
+bash structure/check-doc-drift.sh
+bash structure/verify-counts.sh
 ```
 
 추가로 실제 `package.json`에는 아래 스크립트들이 있다.
@@ -95,13 +95,13 @@ bash devlog/structure/verify-counts.sh
 - 파일 수정 후 동기화 검증:
 
 ```bash
-bash devlog/structure/verify-counts.sh
+bash structure/verify-counts.sh
 ```
 
 - 자동 보정:
 
 ```bash
-bash devlog/structure/verify-counts.sh --fix
+bash structure/verify-counts.sh --fix
 ```
 
 ## 7) Devlog 운영 규칙
@@ -112,8 +112,8 @@ bash devlog/structure/verify-counts.sh --fix
 
 ## 8) Structure Sync Scope
 
-- `server.ts`가 route glue layer로 바뀌었으므로 API 변경은 `src/routes/*`와 `devlog/structure/server_api.md`를 함께 본다.
-- CLI command transport 변경은 `src/cli/handlers.ts`, `src/cli/handlers-runtime.ts`, `src/cli/handlers-completions.ts`, `src/cli/api-auth.ts`와 `devlog/structure/commands.md`를 같이 동기화한다.
-- prompt/spawn 구조 변경은 `src/prompt/*`, `src/agent/*`, `src/orchestrator/*`와 `devlog/structure/prompt_flow.md`, `prompt_basic_*.md`, `agent_spawn.md`를 같이 본다.
+- `server.ts`가 route glue layer로 바뀌었으므로 API 변경은 `src/routes/*`와 `structure/server_api.md`를 함께 본다.
+- CLI command transport 변경은 `src/cli/commands.ts`, `src/cli/handlers.ts`, `src/cli/handlers-runtime.ts`, `src/cli/handlers-completions.ts`, `src/cli/handlers-workflows.ts`, `src/cli/api-auth.ts`, `src/command-contract/*`와 `structure/commands.md`를 같이 동기화한다.
+- prompt/spawn 구조 변경은 `src/prompt/*`, `src/agent/*`, `src/orchestrator/*`와 `structure/prompt_flow.md`, `prompt_basic_*.md`, `agent_spawn.md`를 같이 본다.
 - memory/heartbeat runtime 변경은 `src/memory/*`, `src/routes/memory.ts`, `src/routes/jaw-memory.ts`, `src/routes/heartbeat.ts`와 `memory_architecture.md`, `telegram.md`, `infra.md`를 같이 본다.
-- 큰 refactor 뒤에는 parent repo quality gate와 별개로 `devlog/structure` drift 검사까지 같이 통과시킨다.
+- 큰 refactor 뒤에는 parent repo quality gate와 별개로 `structure/` drift 검사까지 같이 통과시킨다.

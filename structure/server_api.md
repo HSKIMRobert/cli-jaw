@@ -6,10 +6,10 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 
 > 📚 [INDEX](INDEX.md) · [체크리스트 ↗](AGENTS.md) · [커맨드 ↗](commands.md) · **서버 API**
 
-# server.ts — Glue + Route Registration (741L)
+# server.ts — Glue + Route Registration (853L)
 
-> Express/WS bootstrap + localhost/LAN opt-in 보안 가드 + base route 13개 + `src/routes/*` 12개 registrar 등록.
-> 현재 라이브 surface는 총 134개 route handler이며, 이 중 `/`를 제외한 API 엔드포인트는 133개다.
+> Express/WS bootstrap + localhost/LAN opt-in 보안 가드 + base route 14개 + `src/routes/*` 12개 registrar 등록.
+> 현재 라이브 surface는 총 135개 route handler이며, 이 중 `/`를 제외한 API 엔드포인트는 134개다.
 > mutation route(`POST`/`PUT`/`DELETE`)는 총 71개고 모두 `requireAuth`를 거친다. 단, `requireAuth()`는 loopback 요청을 토큰 없이 통과시키고, `lanAllowed()`가 true일 때 private IP도 LAN bypass로 통과시킨다.
 > `GET /api/auth/token`은 Bearer bootstrap 전용이며 `Sec-Fetch-Site`가 `same-origin` 또는 `none`이 아닐 때 `403`을 반환한다.
 
@@ -19,7 +19,7 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 
 | Module | Lines | Routes | 역할 |
 | --- | ---: | ---: | --- |
-| `server.ts` | 741L | 13 | Helmet/CORS/Host/rate-limit/WS/bootstrap + base routes + module registration |
+| `server.ts` | 853L | 14 | Helmet/CORS/Host/rate-limit/WS/bootstrap + base routes + module registration |
 | `src/routes/settings.ts` | 316L | 18 | settings/prompt/heartbeat-md/MCP/CLI registry/quota/copilot |
 | `src/routes/memory.ts` | 185L | 13 | memory runtime + KV memory + memory files |
 | `src/routes/browser.ts` | 475L | 41 | browser primitive/tab/debug/doctor/cleanup routes + adaptive fetch + web-ai render/send/poll/watch/sessions/capabilities/context routes |
@@ -55,6 +55,7 @@ employees → heartbeat → skills → jaw-memory → orchestrate
 | `GET` | `/api/health` | `{ ok, version, uptime }` |
 | `GET` | `/api/session` | 현재 main session row 반환 |
 | `GET` | `/api/messages` | `includeTrace=1|true|yes`면 trace 포함 메시지 조회 |
+| `GET` | `/api/messages/search` | 메시지 본문 검색 결과 반환 |
 | `GET` | `/api/messages/latest` | 가장 최근 메시지 스냅샷 반환 |
 | `GET` | `/api/runtime` | uptime, activeAgent, queuePending |
 | `GET` | `/api/auth/token` | same-origin/CLI용 Bearer token bootstrap |
@@ -161,7 +162,7 @@ ensureDirs()
 
 | Category | Endpoints |
 | --- | --- |
-| Core/Auth | `GET /api/health` `GET /api/session` `GET /api/messages` `GET /api/messages/latest` `GET /api/runtime` `GET /api/auth/token` `POST /api/message` `POST /api/stop` `POST /api/clear` `POST /api/session/reset` |
+| Core/Auth | `GET /api/health` `GET /api/session` `GET /api/messages` `GET /api/messages/search` `GET /api/messages/latest` `GET /api/runtime` `GET /api/auth/token` `POST /api/message` `POST /api/stop` `POST /api/clear` `POST /api/session/reset` |
 | Commands | `POST /api/command` `GET /api/commands?interface=` |
 | Settings/Prompt | `GET/PUT /api/settings` `GET /api/codex-context` `GET/PUT /api/prompt` `GET /api/prompt-templates` `PUT /api/prompt-templates/:id` `GET/PUT /api/heartbeat-md` |
 | MCP/CLI/Quota | `GET/PUT /api/mcp` `POST /api/mcp/sync` `POST /api/mcp/install` `POST /api/mcp/reset` `GET /api/cli-registry` `GET /api/cli-status` `GET /api/quota` `POST /api/copilot/refresh` |
@@ -177,7 +178,7 @@ ensureDirs()
 | Traces | `GET /api/traces/:runId` `GET /api/traces/:runId/events` `GET /api/traces/:runId/events/:seq` |
 | i18n | `GET /api/i18n/languages` `GET /api/i18n/:lang` |
 
-> 실제 코드(`server.ts` + `src/routes/*.ts`)에서 추출한 총 134개 route handler 기준이다. 이 중 API 엔드포인트는 133개이고, 나머지 1개는 `/` 엔트리이다. Browser API 41개는 `src/routes/browser.ts`에서 등록된다. 이 중 POST/PUT/DELETE mutation endpoint 74개는 모두 `requireAuth` 보호를 받고, `GET /api/auth/token`은 `Sec-Fetch-Site`가 `same-origin|none`이 아닐 때 `403`을 반환한다.
+> 실제 코드(`server.ts` + `src/routes/*.ts`)에서 추출한 총 135개 route handler 기준이다. 이 중 API 엔드포인트는 134개이고, 나머지 1개는 `/` 엔트리이다. Browser API 41개는 `src/routes/browser.ts`에서 등록된다. 이 중 POST/PUT/DELETE mutation endpoint 74개는 모두 `requireAuth` 보호를 받고, `GET /api/auth/token`은 `Sec-Fetch-Site`가 `same-origin|none`이 아닐 때 `403`을 반환한다.
 
 ### 최근 surface drift
 
@@ -199,8 +200,9 @@ ensureDirs()
 
 ### `/api/commands`
 
-- `COMMANDS`에서 `hidden` 제외 + `interface` 매칭 결과만 내려준다.
-- 응답에는 `name`, `desc`, `args`, `category`, `aliases`가 포함된다.
+- `getVisibleCommands(interface)`를 사용해 command policy와 동일한 hidden/blocked 필터를 적용한다.
+- 응답에는 `name`, `desc`, `args`, `category`, `aliases`, `workflow`, `capability`가 포함된다.
+- workflow slash commands는 `workflow.phase`, `risk`, `output`, `workflowArgs`, `gatedUntilPhase` metadata를 내려주며 Web palette는 이 값을 compact chips로 표시한다.
 
 ### `/api/settings`
 
@@ -253,7 +255,7 @@ ensureDirs()
 
 ## WebSocket Events
 
-연결 시 서버는 현재 상태 스냅샷을 먼저 보낸다: `agent_status`, `queue_update`, 비-IDLE `orc_state`. 현재 브로드캐스트되는 WebSocket 이벤트는 23종이다.
+연결 시 서버는 현재 상태 스냅샷을 먼저 보낸다: `agent_status`, `queue_update`, 비-IDLE `orc_state`. 현재 브로드캐스트되는 WebSocket 이벤트는 33종이다.
 
 | Type | 설명 |
 | --- | --- |
@@ -270,6 +272,8 @@ ensureDirs()
 | `orc_state` | PABCD 상태 변경 |
 | `orchestrate_done` | orchestration 완료/실패 |
 | `agent_added` / `agent_updated` / `agent_deleted` | employee CRUD 반영 |
+| `agent:claude-e:runtime_started` / `agent:claude-e:spawned` / `agent:claude-e:session` / `agent:claude-e:prompt_injected` / `agent:claude-e:stop` / `agent:claude-e:stop_failure` / `agent:claude-e:interrupted` / `agent:claude-e:cleanup` / `agent:claude-e:error` | Claude E native helper lifecycle bridge |
+| `settings_change` | project/workspace settings 변경 신호 |
 | `memory_status` | memory sidebar / runtime 상태 갱신 신호 |
 | `system_notice` | compact refresh 같은 시스템 공지 |
 | `heartbeat_pending` | pending heartbeat job 수 |

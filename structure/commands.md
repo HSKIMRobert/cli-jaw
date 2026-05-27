@@ -8,10 +8,10 @@ aliases: [CLI-JAW Commands, slash commands registry, commands.md]
 
 # src/cli/ — Slash Command Registry & Dispatcher
 
-> `commands.ts`(332L) + `handlers.ts`(383L) + `handlers-runtime.ts`(497L) + `handlers-completions.ts`(95L) + `api-auth.ts`(45L) + `command-context.ts`(140L) + `registry.ts`(117L) + `acp-client.ts`(382L) + `claude-models.ts`(78L) + `compact.ts`(139L)
-> slash registry는 24개 커맨드, 4개 실행 인터페이스. root CLI는 `bin/cli-jaw.ts` + `bin/commands/*.ts` 기준 19개 user-facing command이며, helper까지 포함한 `bin/commands/*.ts` top-level 파일은 22개다. `browser web-ai`는 `browser-web-ai.ts`, `dashboard memory`는 `dashboard-memory.ts`, dispatch unwrap 보조는 `dispatch-helpers.ts`로 분리되어 있다. visible 기준 CLI 22 / Web 20 / Telegram 20 / Discord 20. `cmdline` capability는 contract 전용이며 10개가 보인다.
+> `commands.ts`(349L) + `handlers.ts`(383L) + `handlers-runtime.ts`(499L) + `handlers-completions.ts`(97L) + `handlers-workflows.ts`(83L) + `api-auth.ts`(45L) + `command-context.ts`(140L) + `registry.ts`(160L) + `acp-client.ts`(382L) + `claude-models.ts`(78L) + `compact.ts`(139L)
+> slash registry는 30개 커맨드, 4개 실행 인터페이스. root CLI는 `bin/cli-jaw.ts` + `bin/commands/*.ts` 기준 19개 user-facing command이며, helper까지 포함한 `bin/commands/*.ts` top-level 파일은 22개다. `browser web-ai`는 `browser-web-ai.ts`, `dashboard memory`는 `dashboard-memory.ts`, dispatch unwrap 보조는 `dispatch-helpers.ts`로 분리되어 있다. visible 기준 CLI 28 / Web 26 / Telegram 26 / Discord 26. `cmdline` capability는 contract 전용이며 11개가 보인다.
 > 모델/CLI 선택은 `registry.ts` 단일 소스를 따른다. 현재 registry 런타임은 `agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `gemini`, `grok`, `opencode`, `copilot` 10개이며, `claude-e`는 experimental native interactive wrapper(`jaw-claude-i`)를 통해 Claude CLI를 PTY로 구동하고 legacy session/event bucket은 `claude-i`를 유지한다. Web/CLI/Telegram/Discord는 모두 `makeCommandCtx()`로 통합된 command context를 사용한다.
-> 최근 구조 변화 핵심은 세 가지다: `handlers.ts` 분해(`handlers-runtime.ts`, `handlers-completions.ts`), CLI→server 인증 bootstrap 공통화(`api-auth.ts`), 그리고 Claude Interactive native helper build/test/doctor surface 추가다.
+> 최근 구조 변화 핵심은 네 가지다: `handlers.ts` 분해(`handlers-runtime.ts`, `handlers-completions.ts`), workflow command handler 분리(`handlers-workflows.ts`), CLI→server 인증 bootstrap 공통화(`api-auth.ts`), 그리고 Claude Interactive native helper build/test/doctor surface 추가다.
 
 ---
 
@@ -32,29 +32,31 @@ aliases: [CLI-JAW Commands, slash commands registry, commands.md]
 
 ## Registry Snapshot
 
-### Command 목록 (24)
+### Command 목록 (30)
 
 ```text
 help, commands, status, clear, compact, reset, model, cli, fallback,
 forward, thought, flush, version, skill, employee, mcp, memory, browser,
-prompt, quit, file, steer, ide, orchestrate
+prompt, quit, file, steer, ide, orchestrate, project,
+interview, deliberate, planaudit, goal, autopilot
 ```
 
 ### 인터페이스 가시성
 
 | Interface | Visible | 비고 |
 | --- | ---: | --- |
-| `cli` | 22 | `file` hidden, `steer` 미지원 |
-| `web` | 20 | `commands`, `quit`, `file`, `ide` 미지원 |
-| `telegram` | 20 | remote command set |
-| `discord` | 20 | remote command set |
-| `cmdline` | 10 | 루트 CLI 서브커맨드용 contract-only capability 필터 |
+| `cli` | 28 | `file` hidden, `steer` 미지원 |
+| `web` | 26 | `commands`, `quit`, `file`, `ide` 미지원 |
+| `telegram` | 26 | remote-safe command set |
+| `discord` | 26 | remote-safe command set |
+| `cmdline` | 11 | 루트 CLI 서브커맨드용 contract-only capability 필터; workflow commands는 hidden |
 
 ### 카테고리
 
 - `session`: `help`, `commands`, `status`, `clear`, `compact`, `reset`, `steer`
+- `workflow`: `interview`, `deliberate`, `planaudit`, `goal`, `autopilot`
 - `model`: `model`, `cli`, `fallback`, `forward`, `thought`, `flush`
-- `tools`: `skill`, `employee`, `mcp`, `memory`, `browser`, `prompt`, `ide`, `orchestrate`
+- `tools`: `skill`, `employee`, `mcp`, `memory`, `browser`, `prompt`, `ide`, `orchestrate`, `project`
 - `cli`: `version`, `quit`, `file`
 
 ---
@@ -119,6 +121,15 @@ prompt, quit, file, steer, ide, orchestrate
 - `confirm`이면 가능한 범위에서 다음을 순서대로 실행한다:
   `resetSkills()` → `resetEmployees()` → `syncMcp()` → `resetSession()`
 - 현재 Web/remote ctx의 `resetSession()`은 메시지 history를 지우지 않고 session ID만 비운다.
+
+### Workflow slash commands
+
+- `/interview <request>`: 계획 전 요구사항을 한 질문씩 좁히는 prompt-only workflow.
+- `/deliberate <request-or-plan>`: Planner/Architect/Critic 관점으로 계획을 점검하는 prompt-only workflow.
+- `/planaudit [plan]`: PABCD A에서 직원에게 보낼 수 있는 읽기 전용 감사 task text를 만든다. Phase 1 canonical name은 원격 메뉴 안전성을 위해 `/planaudit`이며 `/plan-audit` alias는 없다.
+- `/goal [objective]`: Phase 1에서는 visible gated stub이다. durable goal state는 Phase 3에서 붙는다.
+- `/autopilot [request]`: Phase 1에서는 visible gated stub이다. 권한, checkpoint, stop control이 있는 bounded loop는 Phase 5에서 붙는다.
+- workflow commands는 CLI/Web/Telegram/Discord에 보이지만 root `cmdline` capability에서는 hidden이다. Telegram/Discord가 `c.name`을 직접 등록하므로 remote command name은 lowercase/digit/underscore-safe 이름만 사용한다.
 
 ### `/model [name]` / `/cli [name]`
 
@@ -303,14 +314,14 @@ fallbackOrder, cli, perCli, showReasoning, memory, telegram, discord
 
 ### `cmdline` hidden 세트
 
-다음 14개는 루트 CLI 서브커맨드 관점에서 숨긴다.
+다음 14개는 명시 hidden set으로, workflow category 5개는 category rule로 루트 CLI 서브커맨드 관점에서 숨긴다.
 
 ```text
 help, clear, model, cli, fallback, status, reset,
 skill, employee, mcp, memory, browser, prompt, version
 ```
 
-그 결과 `cmdline` visible command는 10개다. `file`은 slash registry에서는 hidden이지만 `cmdline` capability hidden set에는 없어서 contract visible 쪽에 남는다.
+그 결과 `cmdline` visible command는 11개다. `file`은 slash registry에서는 hidden이지만 `cmdline` capability hidden set에는 없어서 contract visible 쪽에 남고, `interview`/`deliberate`/`planaudit`/`goal`/`autopilot`은 workflow category라 hidden 처리된다.
 
 ### `getTelegramMenuCommands()`
 

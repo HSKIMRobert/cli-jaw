@@ -15,6 +15,7 @@
 When refreshing docs from recent non-strict commits, check these first:
 
 - `src/orchestrator/parser.ts` / `pipeline.ts`: `/continue` is slash-only; do not document natural-language continue as resume.
+- `src/cli/commands.ts` / `src/cli/handlers-workflows.ts` / `src/command-contract/catalog.ts`: workflow helper commands are `/interview`, `/deliberate`, `/planaudit`, `/goal`, and `/autopilot`; keep `/planaudit` remote-safe and do not document `/plan-audit` as registered unless an interface-aware alias layer exists.
 - `src/agent/args.ts` + `src/agent/spawn.ts`: Gemini full-access must keep auto-approval and pass OS home roots through `--include-directories` so cwd-external folders do not fail with `Path not in workspace`; WSL should include both Linux home and the Windows user home when discoverable.
 - `src/shared/tool-log-sanitize.ts`: bounded tool-log storage/delivery protects Web UI and Manager ProcessBlock hydration.
 - `src/messaging/send.ts` + `src/routes/messaging.ts`: `/api/channel/send` is canonical outbound channel delivery.

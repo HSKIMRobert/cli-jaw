@@ -8,8 +8,8 @@ aliases: [CLI-JAW Source Structure, str_func, source structure reference]
 
 # CLI-JAW — Source Structure & Function Reference
 
-> 마지막 검증: 2026-05-21 (실제 코드베이스 재측정)
-> `server.ts` 847L / `src/routes/` 18 files (registrars + helper modules) / `src/cli/handlers*.ts` 383L + 497L + 95L / `src/cli/api-auth.ts` 45L / `src/agent/` 35 TS files (`spawn.ts` 1739L + `events.ts` 15L + `agy-runtime.ts` 20L + `claude-e-runtime.ts` 44L 포함) / `src/manager/` 69 TS/TSX files (10741L, dashboard manager + board/notes/search/schedule/reminders/connector/routes + notes assets/watcher 서브모듈) / `src/browser/web-ai/` 67 TS files (12415L, ChatGPT/Gemini/Grok 멀티벤더 자동화 + resolver/source-audit/observation helpers + context-pack/tab-pool) / `src/types/` 3 files (304L) / `bin/commands/` 22 top-level ts files + `tui/` 7 helper files / `native/jaw-claude-i/` 11 Rust source files (1934L)
+> 마지막 검증: 2026-05-27 (실제 코드베이스 재측정)
+> `server.ts` 853L / `src/routes/` 18 files (registrars + helper modules, 135 route handlers) / `src/cli/handlers*.ts` 383L + 499L + 97L + workflow 83L / `src/cli/api-auth.ts` 45L / `src/agent/` 35 TS files (`spawn.ts` 1790L + `events.ts` 15L + `agy-runtime.ts` 20L + `claude-e-runtime.ts` 44L 포함) / `src/manager/` 69 TS/TSX files (10823L, dashboard manager + board/notes/search/schedule/reminders/connector/routes + notes assets/watcher 서브모듈) / `src/browser/web-ai/` 68 TS files (12616L, ChatGPT/Gemini/Grok 멀티벤더 자동화 + resolver/source-audit/observation helpers + context-pack/tab-pool) / `src/types/` 3 files (296L) / `bin/commands/` 22 top-level ts files + `tui/` 7 helper files / `native/jaw-claude-i/` 15 Rust source files (1956L)
 > issue #91: OfficeCLI 10-phase integration (dual-audited, 94/94 tests) — closed
 > issue #92: Phase 20 overlay consolidation + GitHub Release v1.0.28-lidge.1 (3 audits passed: A-/A/A) — closed
 > issue #95: Avatar image upload — emoji+image dual support, 4 API endpoints, secure path serving — closed
@@ -27,7 +27,7 @@ aliases: [CLI-JAW Source Structure, str_func, source structure reference]
 
 ```text
 cli-jaw/
-├── server.ts                 ← Express 라우트 base + auth/CORS/rate-limit + WS bootstrap + `register*Routes()` glue + startup stale orc_state guard + graceful shutdown(closeDb) + employee migration + seed defaults + registerAvatarRoutes + async listen bootstrap (await initActiveMessagingRuntime) + orphaned jaw-emp-* cleanup + clearAllEmployeeSessions startup + no-store Vite index serving (847L)
+├── server.ts                 ← Express 라우트 base + auth/CORS/rate-limit + WS bootstrap + `register*Routes()` glue + startup stale orc_state guard + graceful shutdown(closeDb) + employee migration + seed defaults + registerAvatarRoutes + async listen bootstrap (await initActiveMessagingRuntime) + orphaned jaw-emp-* cleanup + clearAllEmployeeSessions startup + no-store Vite index serving (853L)
 ├── lib/                      ← 외부 통합/공용 헬퍼 (5 files)
 │   ├── mcp-sync.ts           ← MCP 통합 + 스킬 복사 + softResetSkills + runSkillReset + trusted repair gate + clone cooldown (73L)
 │   ├── upload.ts             ← 파일 업로드 + Telegram 다운로드 guards(status/timeout/maxBytes) + 유니코드 파일명 (200L)
@@ -36,10 +36,10 @@ cli-jaw/
 │   └── quota-copilot.ts      ← Copilot 할당량 조회 (env → file cache → gh auth token → keychain, execFileSync 보안, source 계정 바인딩) + refreshCopilotFromKeychain (307L)
 ├── src/
 │   ├── core/                 ← 의존 0 인프라 계층 (25 files)
-│   │   ├── config.ts         ← JAW_HOME, settings, CLI 탐지 + `JAW_CLAUDE_I_BIN`/native helper fallback, APP_VERSION + migrateSettings legacy Claude model normalization + avatar settings deep merge + corrupt settings backup (617L)
+│   │   ├── config.ts         ← JAW_HOME, settings, CLI 탐지 + `JAW_CLAUDE_I_BIN`/native helper fallback, APP_VERSION + migrateSettings legacy Claude model normalization + avatar settings deep merge + corrupt settings backup (674L)
 │   │   ├── compact.ts        ← compact 헬퍼 (COMPACT_MARKER_CONTENT, managed summary builder, cutoff logic) (403L)
 │   │   ├── instance.ts       ← 인스턴스 ID, node/jaw 경로, 유닛명 sanitize (58L)
-│   │   ├── db.ts             ← SQLite 스키마 + prepared statements + trace + tool_log + working_dir migration + closeDb() WAL checkpoint + checkOrphanedWal + busy_timeout + clearMessagesScoped + queued_messages table + model-aware clearEmployeeSession (329L)
+│   │   ├── db.ts             ← SQLite 스키마 + prepared statements + trace + tool_log + working_dir migration + closeDb() WAL checkpoint + checkOrphanedWal + busy_timeout + clearMessagesScoped + queued_messages table + model-aware clearEmployeeSession (336L)
 │   │   ├── bus.ts            ← WS + 내부 리스너 broadcast (36L)
 │   │   ├── logger.ts         ← 로거 유틸 (27L)
 │   │   ├── i18n.ts           ← 서버사이드 번역 (90L)
@@ -63,9 +63,9 @@ cli-jaw/
 │   │   └── settings-merge.ts ← perCli/activeOverrides deep merge (52L)
 │   ├── agent/                ← CLI 에이전트 런타임 (35 files incl. events/ + spawn/)
 │   │   ├── alert-escalation.ts ← alert escalation event helper (80L)
-│   │   ├── spawn.ts          ← CLI spawn + ACP/Codex App/AGY plain text/log session capture/claude-e helper 분기 + 큐 + 메모리 flush + 429 retry timer + isAgentBusy + buildHistoryBlock compact cutoff + working_dir scoping + enqueue→processQueue race fix + QueueItem persistent DB queue + makeCleanEnv PATH augment + claude-i runtime error capture (1739L)
+│   │   ├── spawn.ts          ← CLI spawn + ACP/Codex App/AGY plain text/log session capture/claude-e helper 분기 + 큐 + 메모리 flush + 429 retry timer + isAgentBusy + buildHistoryBlock compact cutoff + working_dir scoping + enqueue→processQueue race fix + QueueItem persistent DB queue + makeCleanEnv PATH augment + claude-i runtime error capture (1790L)
 │   │   ├── spawn-env.ts      ← spawn용 child env 빌더 (AGY NO_COLOR, OpenCode/Gemini permissions config 주입 등, 148L)
-│   │   ├── args.ts           ← CLI별 인자 빌더 + AGY print-mode/`--log-file`/`--conversation` resume args + `claude-e` helper run/resume args + session bucket 분리 (346L)
+│   │   ├── args.ts           ← CLI별 인자 빌더 + AGY print-mode/`--log-file`/`--conversation` resume args + `claude-e` helper run/resume args + session bucket 분리 (347L)
 │   │   ├── agy-runtime.ts    ← AGY timeout stdout 판별/메시지 정규화 + stdout/log conversation id 추출 (20L)
 │   │   ├── claude-e-runtime.ts ← `jaw_runtime` helper event를 legacy `agent:claude-i:*` broadcast로 변환 (44L)
 │   │   ├── cli-helpers.ts    ← Claude-like CLI 판별 helper (7L)
@@ -89,8 +89,8 @@ cli-jaw/
 │   │   └── types.ts          ← MessengerChannel, OutboundType, RemoteTarget 타입 (27L)
 │   ├── orchestrator/         ← 직원 오케스트레이션 + 인터페이스 통합 (10 files)
 │   │   ├── state-machine.ts ← PABCD 상태 머신 + broadcast(state,title) + worklog 타이틀 파싱 + employee terminology + OrcContext.workingDir + Project root dispatch contract (363L)
-│   │   ├── pipeline.ts       ← PABCD orchestration (explicit entry only) + plan context persistence + memorySnapshot injection + reset clears boss session + OrcContext workingDir init + Approved Plan Project root guard (455L)
-│   │   ├── distribute.ts     ← runSingleAgent + buildPlanPrompt + parallel helpers + tiered findEmployee + employee resume diagnostics (555L)
+│   │   ├── pipeline.ts       ← PABCD orchestration (explicit entry only) + plan context persistence + memorySnapshot injection + reset clears boss session + OrcContext workingDir init + Approved Plan Project root guard (471L)
+│   │   ├── distribute.ts     ← runSingleAgent + buildPlanPrompt + parallel helpers + tiered findEmployee + employee resume diagnostics (576L)
 │   │   ├── parser.ts         ← triage + subtask JSON + verdict 파싱 + isResetIntent (176L) [needsOrchestration/CODE_KEYWORDS/FILE_PATH_PATTERN/MULTI_TASK_PATTERN 제거됨]
 │   │   ├── gateway.ts        ← submitMessage 통합 진입점 (WebUI+CLI+TG+Discord 공통) + working_dir scoped insertMessage (155L)
 │   │   ├── collect.ts        ← orchestrateAndCollect (bot.ts에서 분리) (65L)
@@ -166,20 +166,21 @@ cli-jaw/
 │   │       ├── electron-metrics.ts ← Electron 메트릭스 수집/조회 (ElectronMetricsStore, createElectronMetricsRouter) (155L)
 │   │       └── desktop-status.ts ← 데스크톱 앱 상태 조회 (readDesktopStatus, createDesktopStatusRouter) (28L)
 │   ├── cli/                  ← 커맨드 시스템
-│   │   ├── commands.ts       ← 슬래시 커맨드 레지스트리 + 디스패처 + 파일경로 필터 + tgDescKey + /commands alias /cmd + /orchestrate alias /pabcd + /compact (332L)
+│   │   ├── commands.ts       ← 슬래시 커맨드 레지스트리 + workflow metadata + 디스패처 + 파일경로 필터 + tgDescKey + /commands alias /cmd + /orchestrate alias /pabcd + /compact (349L)
 │   │   ├── handlers.ts       ← core command handlers + runtime/completion re-export hub + compact re-export (363L)
-│   │   ├── handlers-runtime.ts ← memory/browser/prompt/quit/file/steer/forward/fallback/flush/ide/orchestrate 핸들러 + `LEGACY_MODEL_CLI_HINTS` (497L)
-│   │   ├── handlers-completions.ts ← `/model` `/cli` `/skill` `/employee` `/browser` `/fallback` `/flush` 인자 자동완성 헬퍼 (95L)
+│   │   ├── handlers-runtime.ts ← memory/browser/prompt/quit/file/steer/forward/fallback/flush/ide/orchestrate 핸들러 + `LEGACY_MODEL_CLI_HINTS` (499L)
+│   │   ├── handlers-completions.ts ← `/model` `/cli` `/skill` `/employee` `/browser` `/fallback` `/flush` 인자 자동완성 헬퍼 (97L)
+│   │   ├── handlers-workflows.ts ← `/interview` `/deliberate` `/planaudit` prompt handlers + `/goal` `/autopilot` gated stubs (83L)
 │   │   ├── api-auth.ts       ← CLI→server Bearer token bootstrap (`getCliAuthToken`, `authHeaders`, `cliFetch`) (45L)
 │   │   ├── claude-models.ts  ← Claude 정규 모델셋 (CLAUDE_CANONICAL_MODELS, CLAUDE_LEGACY_VALUE_MAP) + migration/validation helpers (78L)
 │   │   ├── compact.ts        ← /compact 슬래시 커맨드 핸들러 (Claude native + managed 경로 분기) + working_dir scoped (139L)
-│   │   ├── registry.ts       ← 10개 CLI/모델 단일 소스 + canonical defaults + top-level `agy`/`ai-e`/`claude-e` (159L)
+│   │   ├── registry.ts       ← 10개 CLI/모델 단일 소스 + canonical defaults + top-level `agy`/`ai-e`/`claude-e` (160L)
 │   │   ├── readiness.ts      ← CLI별 인증/설치 상태 점검 + AGY runtime auth hint + `claude-e` underlying Claude auth/readiness bridge (CliReadiness[]) (128L)
 │   │   ├── acp-client.ts     ← Copilot ACP JSON-RPC 클라이언트 (382L)
 │   │   ├── command-context.ts ← 공유 커맨드 컨텍스트 팩토리 + runSkillReset 위임 + regenerateB 유지 (140L)
 │   │   ├── connector.ts      ← dashboard connector CLI API bridge (board/notes/reminders/audit) (73L)
 │   │   ├── reminders.ts      ← local reminders CLI action helpers (35L)
-│   │   ├── types.ts          ← CLI helper shared result/shape 타입 (79L)
+│   │   ├── types.ts          ← CLI helper shared result/shape 타입 + workflow command metadata contract (119L)
 │   │   └── tui/
 │   │       ├── store.ts      ← TuiStore (transcript + overlay 상태 통합), OverlayState + SelectorState (68L) ✨
 │   │       ├── transcript.ts ← TranscriptItem union (user/assistant/status) + TranscriptState + 6 mutation 함수 (57L) ✨
@@ -290,23 +291,27 @@ cli-jaw/
 │   │           └── token-estimator.ts ← estimateTokens, resolveMaxInputTokens, buildBudgetReport (40L)
 │   ├── ide/                   ← IDE 연동 (jaw chat TUI 전용)
 │   │   └── diff.ts            ← git diff 감지 + IDE diff 뷰 + 서브모듈 재귀 + fingerprint 비교 (203L)
-│   ├── routes/               ← Express 라우트 추출 (15 files: 12 registrar + quota helper + types + traces, 131 route handlers)
+│   ├── routes/               ← Express 라우트 추출 (18 files: registrar + helper modules, 135 route handlers)
+│   │   ├── _http-error.ts    ← route-level HTTP error helper (16L)
 │   │   ├── types.ts          ← `AuthMiddleware` shared type (3L)
-│   │   ├── employees.ts      ← employee CRUD 라우트 (96L)
-│   │   ├── heartbeat.ts      ← heartbeat read/write 라우트 (43L)
-│   │   ├── skills.ts         ← skill list/enable/disable/reset 라우트 (74L)
-│   │   ├── jaw-memory.ts     ← jaw memory search/read/list/save/init/reflect/flush/soul/soul-activate/bootstrap 라우트 (239L)
-│   │   ├── i18n.ts           ← locale bundle 라우트 (26L)
-│   │   ├── orchestrate.ts    ← PABCD reset/state/workers/snapshot/queue cancel/queue steer/dispatch/worker result/state PUT 라우트 (394L)
-│   │   ├── memory.ts         ← memory status/KV/files/settings 라우트 (185L)
+│   │   ├── employees.ts      ← employee CRUD 라우트 (105L)
+│   │   ├── heartbeat.ts      ← heartbeat read/write 라우트 (47L)
+│   │   ├── skills.ts         ← skill list/enable/disable/reset 라우트 (89L)
+│   │   ├── jaw-memory.ts     ← jaw memory search/read/list/save/init/reflect/flush/soul/soul-activate/bootstrap 라우트 (282L)
+│   │   ├── jaw-ceo.ts        ← Jaw CEO channel/session support routes (321L)
+│   │   ├── i18n.ts           ← locale bundle 라우트 (35L)
+│   │   ├── orchestrate.ts    ← PABCD reset/state/workers/snapshot/queue cancel/queue steer/dispatch/worker result/state PUT 라우트 (444L)
+│   │   ├── memory.ts         ← memory status/KV/files/settings 라우트 (192L)
 │   │   ├── settings.ts       ← settings/prompt/heartbeat-md/MCP/registry/status/quota/copilot 라우트 + CLI_KEYS 기반 quota parity/status-only metadata (316L)
-│   │   ├── messaging.ts      ← upload/file-open/voice/telegram/channel/discord send 라우트 (222L)
+│   │   ├── messaging.ts      ← upload/file-open/voice/telegram/channel/discord send 라우트 (249L)
 │   │   ├── avatar.ts         ← Agent/User 아바타 이미지 업로드/서빙/삭제 + settings.json 메타 저장 + safeResolveUnder 경로 보호 (146L)
-│   │   ├── quota.ts          ← Copilot/Claude/Codex/Gemini/OpenCode quota helper readers + Claude 429 cache (`settings.ts`/`server.ts`에서 사용) (344L)
+│   │   ├── quota.ts          ← Copilot/Claude/Codex/Gemini/OpenCode quota helper readers + Claude 429 cache (`settings.ts`/`server.ts`에서 사용) (459L)
+│   │   ├── runtime-context.ts ← runtime context route helpers (46L)
+│   │   ├── security-audit.ts ← security audit route registrar (18L)
 │   │   ├── traces.ts         ← public trace summary/events read routes (80L)
 │   │   └── browser.ts        ← 브라우저 API 라우트 + `cdpPort(req)` 포트 우선순위 + primitive/tab/debug/doctor/cleanup/web-ai routes (475L)
 │   ├── security/             ← 보안 입력 검증 (3 files)
-│   │   ├── path-guards.ts    ← assertSkillId, assertFilename, assertMemoryRelPath, assertSendFilePath, safeResolveUnder (112L)
+│   │   ├── path-guards.ts    ← assertSkillId, assertFilename, assertMemoryRelPath, assertSendFilePath, safeResolveUnder (129L)
 │   │   ├── decode.ts         ← decodeFilenameSafe (21L)
 │   │   └── network-acl.ts    ← isPrivateIP, isAllowedHost, isAllowedOrigin, originMatchesHost, extractHost (RFC1918 + 169.254 + fe80/fc00 + ::ffff:v4, DNS rebinding guard, 131L)
 │   ├── http/                 ← 응답 계약
@@ -318,16 +323,16 @@ cli-jaw/
 │   │   ├── cli-engine.ts     ← CliEngine union + registry key tuple + `agy`/`ai-e`/`claude-e` discriminators (48L)
 │   │   └── cli-events.ts     ← CLI event record/discriminator helpers (154L)
 │   └── command-contract/     ← 커맨드 인터페이스 통합
-│       ├── catalog.ts        ← COMMANDS → capability map 확장 (43L)
+│       ├── catalog.ts        ← COMMANDS → capability map 확장 (45L)
 │       ├── policy.ts         ← getVisibleCommands, getTelegramMenuCommands (39L)
 │       └── help-renderer.ts  ← renderHelp list/detail mode (44L)
-├── public/                   ← Web UI (Vite 8 + ES Modules, 496 files [source + assets + public/public/dist mirror, public/dist 제외], public/dist build output 464 files, mirrored copies under `public/public/dist/` and `public/dist/dist/`, ~69911L)
+├── public/                   ← Web UI (Vite 8 + ES Modules, 499 files [source + assets + public/public/dist mirror, public/dist 제외], public/dist build output 464 files, mirrored copies under `public/public/dist/` and `public/dist/dist/`, ~70867L)
 │   ├── index.html            ← 뼈대 (1018L, CLI-JAW 대문자 로고, pill theme switch, data-i18n, 로컬 avatar 입력)
 │   ├── manifest.json         ← PWA 매니페스트 (20L) ✨
 │   ├── sw.js                 ← Service Worker 오프라인 캐시 (104L) ✨
 │   ├── icons/                ← PWA 아이콘 세트 ✨
 │   ├── theme-test.html       ← 테마 테스트 페이지
-│   ├── css/                  ← 10 files (4749L)
+│   ├── css/                  ← 11 files (5142L)
 │   │   ├── variables.css     ← Arctic Cyan 테마 + will-change + scrollbar tint + opacity 애니메이션(@keyframes revealUp/Left/Right) + avatar input 스타일 (491L)
 │   │   ├── layout.css        ← opacity 전환 + contain 격리 + 로고 글로우 + status-badge + avatar 업로드 컨트롤 (527L)
 │   │   ├── markdown.css      ← rendering (table·code·KaTeX·Mermaid) + mermaid overlay popup + copy btn (505L)
@@ -435,7 +440,7 @@ cli-jaw/
 ├── bin/
 │   ├── cli-jaw.ts            ← 19개 user-facing 서브커맨드 라우팅 + --home flag (`browser-web-ai.ts`/`dashboard-memory.ts`/`dispatch-helpers.ts` 포함 시 commands top-level 22 files) (202L)
 │   ├── star-prompt.ts        ← `gh` 기반 GitHub star 1회 프롬프트 (TTY 가드 + state 파일, 129L)
-│   ├── postinstall.ts        ← npm install 후 CLI 런타임 + OfficeCLI 자동설치 + MCP + 스킬 + safe 가드 (1263L, Node guard + inline JAW_HOME)
+│   ├── postinstall.ts        ← npm install 후 CLI 런타임 + OfficeCLI 자동설치 + MCP + 스킬 + safe 가드 (1103L, Node guard + inline JAW_HOME)
 │   └── commands/             ← 22 top-level ts files (`browser-web-ai.ts`, `dashboard-memory.ts`, `dispatch-helpers.ts` helper 포함) + `tui/` 7 helper 모듈 (총 5450L + tui 1045L)
 │       ├── serve.ts          ← 서버 시작 (--port/--host/--open) + SIGINT child.kill('SIGINT') orphan fix (119L)
 │       ├── dispatch.ts       ← 직원 호출 (pipe mode 호환) + route contract bridge + worker result polling + ECONNREFUSED retry with escalating delays (197L)
@@ -746,7 +751,7 @@ graph LR
 126. **[fix] PABCD reset stale session resume**: `orchestrateReset()`이 employee session만 클리어하고 boss session(`session` 테이블)은 남겨두어, reset 후 다음 메시지에서 이전 Claude 세션을 resume → 오래된 PABCD 컨텍스트가 그대로 LLM에 주입 → 의도하지 않은 PABCD 재진입. `pipeline.ts` orchestrateReset()에 `clearMainSessionState()` 추가하여 boss session_id null 처리 → 강제 신규 세션.
 127. **[feat] Claude CLI thinking_delta + input_json_delta parsing**: `events.ts`에 `claudeThinkingBuf`/`claudeInputJsonBuf` 버퍼 추가. `thinking_delta` 이벤트 누적 → `content_block_stop`에서 flush → ProcessBlock에 실제 thinking 내용 표시 (기존 "thinking..." 플레이스홀더 대체). `input_json_delta` 누적 → flush → `JSON.parse` → `summarizeToolInput(toolName, input)` → 도구 상세 표시 (예: "Bash" → "Bash `ls /tmp`"). `spawn.ts` flushThinking에 `toolType:'thinking'` + `detail` 필드 추가. 테스트 2건 추가.
 128. **[fix] ProcessBlock UX 정리**: (1) `.process-block`에 `white-space:normal; line-height:1.3` — `.msg`의 `pre-wrap` 상속으로 인한 간격 인플레이션 수정. (2) `createProcessBlock()` innerHTML 공백 제거. (3) `orchestrate-placeholder` CSS 클래스 추가 → process-block 활성 시 숨김. (4) 디스패칭 텍스트 "🎯 작업 분배 중..." → "처리 중…" (밤티 제거). (5) 복사 버튼 top→bottom-right.
-129. **[feat] Typography overhaul**: 폰트 스케일 전면 업그레이드 (`--text-base: 13→15px`, `--text-md: 14→16px`, `--text-lg: 16→18px` 등). `--font-ui`/`--font-display`에 Pretendard + Apple SD Gothic Neo + Malgun Gothic CJK 폴백 추가 (Outfit/Chakra Petch는 CJK 미지원). `.msg` line-height 1.65→1.6 (CJK 최적). GPT-5.4 + Opus Fast 이중 검증. `devlog/structure/stream-events.md` CLI NDJSON 이벤트 레퍼런스 문서 작성.
+129. **[feat] Typography overhaul**: 폰트 스케일 전면 업그레이드 (`--text-base: 13→15px`, `--text-md: 14→16px`, `--text-lg: 16→18px` 등). `--font-ui`/`--font-display`에 Pretendard + Apple SD Gothic Neo + Malgun Gothic CJK 폴백 추가 (Outfit/Chakra Petch는 CJK 미지원). `.msg` line-height 1.65→1.6 (CJK 최적). GPT-5.4 + Opus Fast 이중 검증. `structure/stream-events.md` CLI NDJSON 이벤트 레퍼런스 문서 작성.
 130. **[fix] Font size 16px + line-height 1.3**: `--text-base: 15→16px`, `--text-md: 16→17px`, `--text-lg: 18→19px`. `.msg` line-height 1.6→1.3.
 131. **[fix] Hotfix2 — 5-item bug sweep (GPT-5.4 + Opus-4.6-fast dual audit)**: (1) H2-01: 빈 채팅 ghost bar 제거 — `.chat-messages:not(:has(.msg))` hide rule. (2) H2-02: tool_log 영속화 — DB `tool_log TEXT` migration + `insertMessageWithTrace` 6-param + `loadMessages()` ProcessBlock 재구성 (normal+VS path). (3) H2-05: Claude 스트림 abort 시 `flushClaudeBuffers()` safety net. (4) H2-09: `summarizeToolInput()` type-safe 강화 — `s()` helper로 string coercion + JSON.stringify fallback. (5) H2-10: `stripOrchestration()` regex 축소 — `ORCH_KEYS` targeted match + `[^{}]*` cross-object boundary 방지. 총 910 tests (910 pass, 0 fail, 2 skip).
 132. **[fix] Hotfix3 — Terminology standardization (GPT-5.4 + Opus-4.6-fast dual audit ×2 rounds)**: 12개 이슈 (H3-01~H3-12). "sub-agent"/"worker" → "employee" 용어 통일. (1) `state-machine.ts` PABCD 프리픽스 23곳 worker→employee (최고 영향). (2) `a1-system.md:14` collision guard table + architecture section 신규. (3) `builder.ts:486` `## Worker Role` → `## Employee Role`. (4) `orchestration.md` lines 2-3, 57-63 worker→employee. (5) `employee.md` identity section 추가 (`{{EMP_NAME}}`, `{{EMP_ROLE}}`). (6) `worker-context.md` 4개 phase 모두 worker→employee. (7) `research-worker.md` worker→employee. (8) `constants.ts` ROLE_PRESETS prompt 필드 employee prefix 추가. 총 910 tests (910 pass, 0 fail, 2 skip).
@@ -774,12 +779,12 @@ graph LR
 | 문서                                               | 범위                                                                          | 파일                                   |
 | -------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------- |
 | [🔧 infra.md](infra.md)                             | core/ (config·db·bus·logger·i18n·settings-merge) + security/ + http/          | 의존 0 계층 + Phase 9 보안/응답        |
-| [🌐 server_api.md](server_api.md)                   | server.ts · routes/ · REST API · WebSocket                                    | 라우트 + API 99 handlers / 98 endpoints + guards |
+| [🌐 server_api.md](server_api.md)                   | server.ts · routes/ · REST API · WebSocket                                    | 라우트 + API 135 handlers / 134 endpoints + guards |
 | [⚡ commands.md](commands.md)                       | cli/ (commands·handlers·handlers-runtime·handlers-completions·api-auth·registry) + command-contract/ | 레지스트리 + 디스패처 + capability     |
 | [🤖 agent_spawn.md](agent_spawn.md)                 | agent/ (spawn·args·events) + orchestrator/ (pipeline·parser) + cli/acp-client | spawn + ACP + 오케스트레이션           |
 | [📱 telegram.md](telegram.md)                       | telegram/ (bot·forwarder·telegram-file) + memory/heartbeat                    | 외부 인터페이스 + lifecycle + 파일전송 |
 | *(미작성)* discord.md                                | discord/ (bot·commands·forwarder·discord-file) + messaging/                   | Discord 인터페이스 + 메시징 런타임     |
-| [🎨 frontend.md](frontend.md)                       | public/ 전체 (소스/자산 496개, `public/dist` build 464파일 + mirrored copies) | ES Modules + CSS + Vite + PWA           |
+| [🎨 frontend.md](frontend.md)                       | public/ 전체 (소스/자산 499개, `public/dist` build 464파일 + mirrored copies) | ES Modules + CSS + Vite + PWA           |
 | [🧠 prompt_flow.md](prompt_flow.md)                 | prompt/builder.ts · 직원 프롬프트 · promptCache                               | **핵심** — 정적/동적 + Copilot ACP     |
 | [📄 prompt_basic_A1.md](prompt_basic_A1.md)         | A-1 기본 프롬프트 원문                                                        | EN 기본 프롬프트 레퍼런스              |
 | [📄 prompt_basic_A2.md](prompt_basic_A2.md)         | A-2 프롬프트 템플릿                                                           | 사용자 편집 가능                       |

@@ -354,7 +354,7 @@ P (Plan) → A (Audit) → B (Build) → C (Check) → D (Done) → IDLE
 | **C — Check** | Type-check (`tsc --noEmit`), docs update, consistency check |
 | **D — Done** | Summary of all changes. Returns to idle |
 
-State is database-persisted and survives restarts. Workers cannot modify files — only verify. Activate with `jaw orchestrate`, `/orchestrate`, or `/pabcd`; resume an active worklog explicitly with `/continue`.
+State is database-persisted and survives restarts. Workers cannot modify files — only verify. Activate with `jaw orchestrate`, `/orchestrate`, or `/pabcd`; resume an active worklog explicitly with `/continue`. Workflow helper slash commands are exposed as `/interview`, `/deliberate`, `/planaudit`, `/goal`, and `/autopilot`; in Phase 1, `/goal` and `/autopilot` are visible gated stubs.
 
 ---
 
@@ -420,7 +420,7 @@ Computer Use lets you control any macOS app — Finder, Safari, System Settings,
 📱 Telegram ←→ 🦈 CLI-JAW ←→ 🤖 AI Engines
 ```
 
-Text chat, voice messages (auto-transcribed via STT — speech-to-text), file/photo upload, slash commands (`/cli`, `/model`, `/status`), scheduled task delivery via `every`/`cron` (recurring schedule) heartbeat jobs.
+Text chat, voice messages (auto-transcribed via STT — speech-to-text), file/photo upload, slash commands (`/cli`, `/model`, `/status`, `/interview`, `/deliberate`, `/planaudit`), scheduled task delivery via `every`/`cron` (recurring schedule) heartbeat jobs.
 
 <details>
 <summary>Setup (3 steps)</summary>

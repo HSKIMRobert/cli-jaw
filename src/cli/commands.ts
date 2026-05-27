@@ -16,14 +16,22 @@ import {
     flushArgumentCompletions,
 } from './handlers.js';
 import { projectHandler } from './handlers-project.js';
+import {
+    interviewWorkflowHandler,
+    deliberateWorkflowHandler,
+    planAuditWorkflowHandler,
+    goalWorkflowStubHandler,
+    autopilotWorkflowStubHandler,
+} from './handlers-workflows.js';
 import type { CliCommandContext } from './command-context.js';
 import type {
     SlashCommand, SlashChoice, SlashResult, ParsedSlashCommand, CompletionCtx,
 } from './types.js';
 
-const CATEGORY_ORDER = ['session', 'model', 'tools', 'cli'];
+const CATEGORY_ORDER = ['session', 'workflow', 'model', 'tools', 'cli'];
 const CATEGORY_LABEL = {
     session: 'Session',
+    workflow: 'Workflow',
     model: 'Model',
     tools: 'Tools',
     cli: 'CLI',
@@ -163,6 +171,11 @@ export const COMMANDS: SlashCommand[] = [
     { name: 'clear', descKey: 'cmd.clear.desc', tgDescKey: 'cmd.clear.tg_desc', desc: 'Clear screen', category: 'session', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: clearHandler },
     { name: 'compact', descKey: 'cmd.compact.desc', tgDescKey: 'cmd.compact.tg_desc', desc: 'Compact conversation context', args: '[instructions]', category: 'session', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: compactHandler },
     { name: 'reset', descKey: 'cmd.reset.desc', desc: 'Full reset', args: '[confirm]', category: 'session', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: resetHandler },
+    { name: 'interview', descKey: 'cmd.workflow.interview.desc', tgDescKey: 'cmd.workflow.interview.tg_desc', desc: 'Clarify requirements before planning', args: '<request>', category: 'workflow', interfaces: ['cli', 'web', 'telegram', 'discord'], workflow: { kind: 'workflow', phase: 'requirements', risk: 'low', output: 'prompt', workflowArgs: [{ name: 'request', required: true, kind: 'text' }] }, handler: interviewWorkflowHandler },
+    { name: 'deliberate', descKey: 'cmd.workflow.deliberate.desc', tgDescKey: 'cmd.workflow.deliberate.tg_desc', desc: 'Plan with planner, architect, and critic roles', args: '<request-or-plan>', category: 'workflow', interfaces: ['cli', 'web', 'telegram', 'discord'], workflow: { kind: 'workflow', phase: 'planning', risk: 'low', output: 'plan', prerequisites: ['Clear request or existing plan'], workflowArgs: [{ name: 'request-or-plan', required: true, kind: 'text' }] }, handler: deliberateWorkflowHandler },
+    { name: 'planaudit', descKey: 'cmd.workflow.planAudit.desc', tgDescKey: 'cmd.workflow.planAudit.tg_desc', desc: 'Create a read-only employee audit task', args: '[plan]', category: 'workflow', interfaces: ['cli', 'web', 'telegram', 'discord'], workflow: { kind: 'workflow', phase: 'audit', risk: 'medium', output: 'dispatch', prerequisites: ['Project root', 'PABCD A for automatic dispatch'], workflowArgs: [{ name: 'plan', required: false, kind: 'text' }] }, handler: planAuditWorkflowHandler },
+    { name: 'goal', descKey: 'cmd.workflow.goal.desc', tgDescKey: 'cmd.workflow.goal.tg_desc', desc: 'Persistent goal workflow state', args: '[objective]', category: 'workflow', interfaces: ['cli', 'web', 'telegram', 'discord'], workflow: { kind: 'workflow', phase: 'continuation', risk: 'medium', output: 'state', gatedUntilPhase: 3, workflowArgs: [{ name: 'objective', required: false, kind: 'text' }] }, handler: goalWorkflowStubHandler },
+    { name: 'autopilot', descKey: 'cmd.workflow.autopilot.desc', tgDescKey: 'cmd.workflow.autopilot.tg_desc', desc: 'Bounded automation workflow', args: '[request]', category: 'workflow', interfaces: ['cli', 'web', 'telegram', 'discord'], workflow: { kind: 'workflow', phase: 'execution', risk: 'high', output: 'state', prerequisites: ['Explicit consent', 'Permission profile', 'Checkpoint'], gatedUntilPhase: 5, workflowArgs: [{ name: 'request', required: false, kind: 'text' }] }, handler: autopilotWorkflowStubHandler },
     { name: 'model', descKey: 'cmd.model.desc', tgDescKey: 'cmd.model.tg_desc', desc: 'View/change model', args: '[name]', category: 'model', interfaces: ['cli', 'web', 'telegram', 'discord'], getArgumentCompletions: modelArgumentCompletions, handler: modelHandler },
     { name: 'cli', descKey: 'cmd.cli.desc', tgDescKey: 'cmd.cli.tg_desc', desc: 'View/change CLI', args: '[name]', category: 'model', interfaces: ['cli', 'web', 'telegram', 'discord'], getArgumentCompletions: cliArgumentCompletions, handler: cliHandler },
     { name: 'fallback', descKey: 'cmd.fallback.desc', tgDescKey: 'cmd.fallback.tg_desc', desc: 'Set fallback order', args: '[cli1 cli2...|off]', category: 'model', interfaces: ['cli', 'web', 'telegram', 'discord'], getArgumentCompletions: fallbackArgumentCompletions, handler: fallbackHandler },
@@ -254,6 +267,7 @@ export interface CommandCompletionItem {
     desc: string;
     args: string;
     category: string;
+    workflow?: SlashCommand['workflow'];
     insertText: string;
 }
 
@@ -275,6 +289,7 @@ export function getCompletionItems(partial: string, iface: string = 'cli', local
             desc: (cmd.descKey ? t(cmd.descKey, {}, locale) : cmd.desc) || '',
             args: cmd.args || '',
             category: cmd.category || 'tools',
+            workflow: cmd.workflow,
             insertText: `/${cmd.name}${cmd.args ? ' ' : ''}`,
         }));
 }

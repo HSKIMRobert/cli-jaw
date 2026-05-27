@@ -70,7 +70,8 @@ import {
     messageQueue, resetFallbackState,
 } from './src/agent/spawn.js';
 import { bumpSessionOwnershipGeneration } from './src/agent/session-persistence.js';
-import { parseCommand, executeCommand, COMMANDS } from './src/cli/commands.js';
+import { parseCommand, executeCommand } from './src/cli/commands.js';
+import { getVisibleCommands } from './src/command-contract/policy.js';
 
 import { getState, resetAllStaleStates } from './src/orchestrator/state-machine.js';
 import { resolveOrcScope } from './src/orchestrator/scope.js';
@@ -534,15 +535,20 @@ app.get('/api/commands', (req, res) => {
     const locale = resolveRequestLocale(req, req.query["locale"] as string);
     res.vary('Accept-Language');
     res.set('Content-Language', locale);
-    res.json(COMMANDS
-        .filter(c => c.interfaces.includes(iface) && !c.hidden)
-        .map(c => ({
-            name: c.name,
-            desc: c.descKey ? t(c.descKey, {}, locale) : c.desc,
-            args: c.args || null,
-            category: c.category || 'tools',
-            aliases: c.aliases || [],
-        }))
+    const commands = getVisibleCommands(iface);
+    res.json(commands
+        .map(c => {
+            const capability = (c as { capability?: Record<string, string> }).capability;
+            return {
+                name: c.name,
+                desc: c.descKey ? t(c.descKey, {}, locale) : c.desc,
+                args: c.args || null,
+                category: c.category || 'tools',
+                aliases: c.aliases || [],
+                workflow: c.workflow || null,
+                capability: capability?.[iface] || null,
+            };
+        })
     );
 });
 

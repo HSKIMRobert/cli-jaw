@@ -19,6 +19,45 @@ export type SlashHandler = (
     ctx: CliCommandContext,
 ) => Promise<SlashResult> | SlashResult;
 
+export type WorkflowCommandPhase =
+    | 'requirements'
+    | 'planning'
+    | 'audit'
+    | 'execution'
+    | 'quality'
+    | 'continuation';
+
+export type WorkflowCommandRisk = 'low' | 'medium' | 'high';
+
+export type WorkflowCommandOutput =
+    | 'prompt'
+    | 'plan'
+    | 'dispatch'
+    | 'state'
+    | 'report';
+
+export type WorkflowArgumentKind =
+    | 'text'
+    | 'repo-path'
+    | 'agent'
+    | 'mode';
+
+export interface WorkflowCommandArg {
+    name: string;
+    required: boolean;
+    kind: WorkflowArgumentKind;
+}
+
+export interface WorkflowCommandMeta {
+    kind: 'workflow';
+    phase: WorkflowCommandPhase;
+    risk: WorkflowCommandRisk;
+    output: WorkflowCommandOutput;
+    prerequisites?: readonly string[];
+    workflowArgs?: readonly WorkflowCommandArg[];
+    gatedUntilPhase?: number;
+}
+
 export interface SlashChoice {
     value: string;
     label?: string;
@@ -55,6 +94,7 @@ export interface SlashCommand {
     category?: string;
     interfaces: readonly string[];
     hidden?: boolean;
+    workflow?: WorkflowCommandMeta;
     handler: SlashHandler | ((...args: unknown[]) => unknown);
     getArgumentCompletions?: SlashArgumentCompleter;
 }

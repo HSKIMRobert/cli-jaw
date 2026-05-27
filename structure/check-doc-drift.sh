@@ -43,8 +43,10 @@ for (const line of commandLines) {
   const interfaces = ifaceMatch
     ? ifaceMatch[1].split(',').map((s) => s.trim().replace(/^'|'$/g, '')).filter(Boolean)
     : [];
+  const categoryMatch = line.match(/category: '([^']+)'/);
+  const category = categoryMatch ? categoryMatch[1] : 'tools';
   const hidden = /hidden:\s*true/.test(line);
-  entries.push({ name: match[1], interfaces, hidden });
+  entries.push({ name: match[1], interfaces, hidden, category });
 }
 
 const hiddenMatch = catalog.match(/CMDLINE_HIDDEN = new Set\(\[([\s\S]*?)\]\);/);
@@ -64,7 +66,7 @@ const actual = {
   web: visible('web'),
   telegram: visible('telegram'),
   discord: visible('discord'),
-  cmdline: entries.length - cmdlineHidden.length,
+  cmdline: entries.filter((entry) => !cmdlineHidden.includes(entry.name) && entry.category !== 'workflow').length,
 };
 
 const summary = commandsDoc.split(/\r?\n/).find((line) => /개 커맨드/.test(line) && /CLI \d+/.test(line));
