@@ -116,6 +116,11 @@
         grid-template-rows: minmax(0, 1fr) var(--activity-dock-height, 150px) 48px;
         grid-template-areas: "center" "bottom" "mobile-nav";
     }
+    .dashboard-shell.manager-shell .manager-workspace.is-bottom-panel-open,
+    .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .manager-workspace.is-bottom-panel-open {
+        grid-template-rows: minmax(0, 1fr) var(--bottom-panel-height, var(--activity-dock-height, 150px)) 48px;
+        grid-template-areas: "center" "bottom" "mobile-nav";
+    }
     .manager-activity { display: none; }
     .manager-workspace:not(.is-inspector-collapsed) .manager-activity { display: block; }
     .manager-sidebar {
@@ -134,12 +139,18 @@
     .manager-ceo-panel { display: contents; }
     .manager-workspace.is-right-panel-open .right-panel {
         position: absolute;
+        grid-area: auto;
         z-index: 18;
         top: 0;
         right: 0;
+        left: auto;
         bottom: 48px;
         width: min(86vw, var(--right-panel-width, 360px));
         max-width: min(86vw, 420px);
+        height: auto;
+        max-height: none;
+        align-self: stretch;
+        justify-self: end;
         box-shadow: var(--shadow-panel);
     }
     .command-primary {
@@ -165,6 +176,11 @@
     .dashboard-shell.manager-shell .manager-workspace:not(.is-inspector-collapsed),
     .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .manager-workspace:not(.is-inspector-collapsed) {
         grid-template-rows: minmax(0, 1fr) minmax(120px, var(--activity-dock-height, 150px)) 60px;
+        grid-template-areas: "center" "bottom" "mobile-nav";
+    }
+    .dashboard-shell.manager-shell .manager-workspace.is-bottom-panel-open,
+    .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .manager-workspace.is-bottom-panel-open {
+        grid-template-rows: minmax(0, 1fr) minmax(120px, var(--bottom-panel-height, var(--activity-dock-height, 150px))) 60px;
         grid-template-areas: "center" "bottom" "mobile-nav";
     }
     .manager-sidebar { width: min(85vw, 300px); }
