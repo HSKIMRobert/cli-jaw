@@ -70,21 +70,23 @@ test('ai-e registry exposes explicit provider selector metadata', () => {
     assert.ok(CLI_REGISTRY['ai-e'].modelsByProvider?.copilot.includes('gpt-5-mini'));
 });
 
-test('ai-e detection checks AI_E_BIN, PATH, then local package candidates', () => {
-    const configSrc = fs.readFileSync(join(__dirname, '../../src/core/config.ts'), 'utf8');
-    const aiEBlock = configSrc.match(/if \(name === 'ai-e' \|\| binary === 'ai-e'\) \{[\s\S]*?\n    \}/)?.[0] || '';
+test('ai-e detection checks AI_E_BIN, local package candidates, then PATH', () => {
+    const configSrc = fs.readFileSync(join(__dirname, '../../src/core/cli-detection.ts'), 'utf8');
+    const aiEBlock = configSrc.match(/function detectAiE\(\): CliDetection \{[\s\S]*?\n\}/)?.[0] || '';
     assert.match(aiEBlock, /process\.env\["AI_E_BIN"\]/);
-    assert.match(aiEBlock, /detectCliBinary\('ai-e'\)/);
-    assert.match(aiEBlock, /selectSpawnableCliPath\(getAiEPackageCandidates\(\)\)/);
+    assert.match(aiEBlock, /listCliBinaryCandidates\('ai-e'\)/);
+    assert.match(aiEBlock, /selectCompatibleHelperPath\(getAiEPackageCandidates\(\)/);
     assert.match(configSrc, /'@bitkyc08', 'ai-e'/);
     assert.match(configSrc, /'ai-e', 'target', 'release'/);
+    assert.match(configSrc, /'ai-e', 'target', 'debug'/);
+    assert.match(configSrc, /missing --idle-timeout-ms support/);
     assert.ok(
-        aiEBlock.indexOf('process.env["AI_E_BIN"]') < aiEBlock.indexOf("detectCliBinary('ai-e')"),
-        'AI_E_BIN must be checked before PATH lookup',
+        aiEBlock.indexOf('process.env["AI_E_BIN"]') < aiEBlock.indexOf('getAiEPackageCandidates()'),
+        'AI_E_BIN must be checked before local package candidates',
     );
     assert.ok(
-        aiEBlock.indexOf("detectCliBinary('ai-e')") < aiEBlock.indexOf('getAiEPackageCandidates()'),
-        'PATH lookup must be checked before local package candidates',
+        aiEBlock.indexOf('getAiEPackageCandidates()') < aiEBlock.indexOf("listCliBinaryCandidates('ai-e')"),
+        'local package candidates must be checked before PATH lookup',
     );
 });
 
