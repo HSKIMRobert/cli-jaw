@@ -6,6 +6,9 @@ import { MobileNav } from './components/MobileNav';
 import { SidebarRail } from './components/SidebarRail';
 import { Workbench } from './components/Workbench';
 import { WorkspaceLayout } from './components/WorkspaceLayout';
+import { RightSidebar } from './panels/RightSidebar';
+import { usePanelLayout } from './panels/PanelLayoutProvider';
+import type { RightPanelMode } from './panels/types';
 import { InstancePreview } from './InstancePreview';
 import { DashboardSettingsSidebar, type DashboardSettingsSection } from './dashboard-settings/DashboardSettingsSidebar';
 import { DashboardSettingsWorkspace } from './dashboard-settings/DashboardSettingsWorkspace';
@@ -117,7 +120,12 @@ type Props = {
     onDashboardSettingsPatch: Parameters<typeof DashboardSettingsWorkspace>[0]['onUiPatch'];
 };
 
+function renderRightPanelContent(_mode: RightPanelMode): ReactNode {
+    return <div style={{ padding: '12px', color: 'var(--text-dim)', fontSize: '12px' }}>Panel content (L5/L6)</div>;
+}
+
 export function SidebarRailRouter(props: Props) {
+    const panelLayout = usePanelLayout();
     const [remindersView, setRemindersView] = useState<RemindersView>('matrix');
     const remindersFeed = useRemindersFeed({ active: props.sidebarMode === 'reminders' });
     const notesSelectedHiddenByFilter = Boolean(
@@ -136,6 +144,9 @@ export function SidebarRailRouter(props: Props) {
             inspectorHeight={props.activityDockCollapsed ? 48 : props.activityDockHeight}
             drawerOpen={props.drawerOpen}
             onCloseDrawer={props.onCloseDrawer}
+            rightPanelOpen={panelLayout.effectiveRightOpen}
+            rightPanelWidth={panelLayout.state.rightPanel.width}
+            rightPanelContent={panelLayout.effectiveRightOpen ? <RightSidebar renderPanel={renderRightPanelContent} /> : undefined}
             navigator={(
                 <>
                     <SidebarRail
