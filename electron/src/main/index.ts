@@ -1,4 +1,5 @@
-import { app, BrowserWindow, dialog, screen, session, shell } from 'electron';
+import { app, BrowserWindow, dialog, Menu, screen, session, shell } from 'electron';
+import type { MenuItemConstructorOptions } from 'electron';
 import { fileURLToPath, URL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createServer } from 'node:net';
@@ -252,6 +253,7 @@ app.on('before-quit', async (event) => {
 });
 
 async function bootstrap(): Promise<void> {
+  installManagerApplicationMenu();
   installSecurityHeaders(MANAGER_ORIGIN);
   session.defaultSession.setPermissionRequestHandler((_wc, _permission, cb) => cb(false));
   session.defaultSession.setPermissionCheckHandler(() => false);
@@ -377,8 +379,62 @@ function installDesktopShortcutForwarder(contents: Electron.WebContents): void {
     const action = managerShortcutActionFromInput(input);
     if (!action) return;
     event.preventDefault();
-    mainWindow?.webContents.send('manager:shortcut', action);
+    sendManagerShortcut(action);
   });
+}
+
+function sendManagerShortcut(action: ManagerShortcutAction): void {
+  mainWindow?.webContents.send('manager:shortcut', action);
+}
+
+function installManagerApplicationMenu(): void {
+  const template: MenuItemConstructorOptions[] = [
+    ...(process.platform === 'darwin' ? [{ role: 'appMenu' } as MenuItemConstructorOptions] : []),
+    { role: 'fileMenu' },
+    { role: 'editMenu' },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        ...(DEV_TOOLS_ENABLED ? [{ role: 'toggleDevTools' } as MenuItemConstructorOptions] : []),
+        { type: 'separator' },
+        {
+          label: 'Toggle Right Sidebar',
+          accelerator: 'CommandOrControl+B',
+          click: () => sendManagerShortcut('toggleRightPanel'),
+        },
+        {
+          label: 'Toggle Terminal',
+          accelerator: 'Ctrl+Shift+`',
+          click: () => sendManagerShortcut('focusTerminal'),
+        },
+        {
+          label: 'Toggle Bottom Panel',
+          accelerator: 'CommandOrControl+J',
+          click: () => sendManagerShortcut('toggleBottomPanel'),
+        },
+        {
+          label: 'Open Folder Panel',
+          accelerator: 'CommandOrControl+Shift+E',
+          click: () => sendManagerShortcut('openFolderTree'),
+        },
+        {
+          label: 'Open Diff Panel',
+          accelerator: 'CommandOrControl+Shift+D',
+          click: () => sendManagerShortcut('openDiff'),
+        },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' },
+      ],
+    },
+    { role: 'windowMenu' },
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
 function switchManagerUrl(url: string): void {
