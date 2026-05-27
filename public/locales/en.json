@@ -50,8 +50,6 @@
     "cmd.workflow.interview.title": "Requirements interview",
     "cmd.workflow.deliberate.title": "Role-based plan review",
     "cmd.workflow.planAudit.title": "Read-only plan audit",
-    "cmd.workflow.goal.notReady": "/goal is available after Phase 3 adds durable goal state.",
-    "cmd.workflow.goalRun.notReady": "/goal run is available after Phase 5 adds permissions, checkpoints, and stop controls.",
     "cmd.help.tg_desc": "Show available commands",
     "cmd.status.tg_desc": "Check model, CLI & session status",
     "cmd.clear.tg_desc": "Reset conversation (keep data)",

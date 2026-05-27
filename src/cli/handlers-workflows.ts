@@ -43,8 +43,33 @@ export async function interviewWorkflowHandler(args: string[], ctx: CliCommandCo
     };
 }
 
-export function planWorkflowHandler(args: string[], ctx: CliCommandContext): SlashResult {
+export async function planWorkflowHandler(args: string[], ctx: CliCommandContext): Promise<SlashResult> {
     const locale = ctx.locale || 'ko';
+    const sub = (args[0] || '').toLowerCase();
+
+    if (sub === 'status') {
+        const { getState, getCtx } = await import('../orchestrator/state-machine.js');
+        const { resolveOrcScope } = await import('../orchestrator/scope.js');
+        const settings = typeof ctx.getSettings === 'function' ? ctx.getSettings() : {};
+        const scope = resolveOrcScope({ origin: ctx?.interface || 'web', workingDir: (settings as Record<string, unknown>)['workingDir'] as string | null || null });
+        const state = getState(scope);
+        const orcCtx = getCtx(scope);
+        const hasPlan = !!(orcCtx?.plan);
+        return info(`PABCD state: ${state}\nApproved plan: ${hasPlan ? 'yes' : 'none'}`);
+    }
+
+    if (sub === 'copy') {
+        const { getCtx } = await import('../orchestrator/state-machine.js');
+        const { resolveOrcScope } = await import('../orchestrator/scope.js');
+        const settings = typeof ctx.getSettings === 'function' ? ctx.getSettings() : {};
+        const scope = resolveOrcScope({ origin: ctx?.interface || 'web', workingDir: (settings as Record<string, unknown>)['workingDir'] as string | null || null });
+        const orcCtx = getCtx(scope);
+        if (orcCtx?.plan) {
+            return info(orcCtx.plan);
+        }
+        return info('No approved plan exists. Enter PABCD P first with `/orchestrate P`.');
+    }
+
     const settings = typeof ctx.getSettings === 'function' ? ctx.getSettings() : undefined;
     const artifact = buildPlanCompatArtifact(args, locale, settings);
     return {
@@ -92,34 +117,39 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
 
     if (sub === 'run') {
         const runSub = (args[1] || '').toLowerCase();
-        const { checkPreflightGates, allGatesPassed } = await import('../goal-run/policy.js');
-        const { getState } = await import('../orchestrator/state-machine.js');
-        const { resolveOrcScope } = await import('../orchestrator/scope.js');
-        const scope = resolveOrcScope({ origin: ctx?.interface || 'web', workingDir: null });
-        const goal = getActiveGoal();
-        const gates = checkPreflightGates({
-            hasGoal: !!goal,
-            orcState: getState(scope),
-            workerBusy: false,
-            pendingReplay: false,
-        });
+        const { preflight: runPreflight, startRun, stopRun, getActiveRun } = await import('../goal-run/controller.js');
 
         if (runSub === 'preflight' || runSub === '' || !runSub) {
-            const lines = gates.map(g => `${g.passed ? 'PASS' : 'FAIL'} ${g.gate}${g.reason ? ` — ${g.reason}` : ''}`);
-            const ready = allGatesPassed(gates);
+            const state = runPreflight();
+            const lines = state.gates.map(g => `${g.passed ? 'PASS' : 'FAIL'} ${g.gate}${g.reason ? ` — ${g.reason}` : ''}`);
+            const { allGatesPassed } = await import('../goal-run/policy.js');
+            const ready = allGatesPassed(state.gates);
             return info(`Preflight: ${ready ? 'READY' : 'NOT READY'}\n${lines.join('\n')}`);
         }
         if (runSub === 'start') {
-            if (!allGatesPassed(gates)) {
-                return blocked('Preflight failed. Run `/goal run preflight` to see details.');
+            const state = startRun();
+            if (state.status === 'failed') {
+                return blocked(`Preflight failed: ${state.lastError}\nRun \`/goal run preflight\` to see details.`);
             }
-            return info('Goal run started in assist mode. The agent will create prompts and wait at approval gates.\nUse `/goal run stop` to stop.');
+            return info(`Goal run started in ${state.mode} mode.\nGoal: ${getActiveGoal()?.objective ?? '(unknown)'}\nUse \`/goal run stop\` to stop.`);
         }
         if (runSub === 'stop' || runSub === 'cancel') {
-            return info('Goal run stopped.');
+            const reason = args.slice(2).join(' ').trim() || undefined;
+            const result = stopRun(reason);
+            if (!result) return info('No active goal run to stop.');
+            return info(`Goal run stopped.${result.lastError ? ` Reason: ${result.lastError}` : ''}`);
         }
         if (runSub === 'status') {
-            return info('Goal run status: idle (no active run).');
+            const run = getActiveRun();
+            if (!run) return info('No active goal run. Use `/goal run start` to begin.');
+            const lines = [
+                `Status: ${run.status}`,
+                `Mode: ${run.mode}`,
+                `Goal: ${run.goalId}`,
+                `Budget: ${run.budget.turnsUsed}/${run.budget.maxTurns} turns, ${run.budget.dispatchesUsed}/${run.budget.maxDispatches} dispatches`,
+                run.startedAt ? `Started: ${run.startedAt}` : null,
+            ].filter(Boolean);
+            return info(lines.join('\n'));
         }
         return blocked(`Unknown /goal run subcommand: ${runSub}. Use: preflight, start, stop, status.`);
     }

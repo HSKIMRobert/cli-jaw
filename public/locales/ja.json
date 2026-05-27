@@ -50,8 +50,6 @@
     "cmd.workflow.interview.title": "要件インタビュー",
     "cmd.workflow.deliberate.title": "役割別計画レビュー",
     "cmd.workflow.planAudit.title": "読み取り専用計画監査",
-    "cmd.workflow.goal.notReady": "/goal は Phase 3 で永続ゴール状態が追加された後に使えます。",
-    "cmd.workflow.goalRun.notReady": "/goal run は Phase 5 で権限、チェックポイント、停止制御が追加された後に使えます。",
     "cmd.help.tg_desc": "使用できるコマンドを表示",
     "cmd.status.tg_desc": "モデル、CLI、セッション状態を確認",
     "cmd.clear.tg_desc": "会話をリセット（データは保持）",
