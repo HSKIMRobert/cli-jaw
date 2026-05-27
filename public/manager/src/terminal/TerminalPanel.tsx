@@ -19,6 +19,23 @@ type RuntimeTerminal = {
     opened: boolean;
 };
 
+function createAccessibilityInputBridge(id: string, node: HTMLDivElement, bridge: NonNullable<ReturnType<typeof getTerminalBridge>>): IDisposable {
+    const flushTextareaValue = () => {
+        const textarea = node.querySelector<HTMLTextAreaElement>('textarea.xterm-helper-textarea');
+        if (!textarea) return;
+        textarea.setAttribute('aria-label', 'Terminal input');
+        const value = textarea.value;
+        if (!value) return;
+        textarea.value = '';
+        void bridge.write(id, value.replace(/\r?\n/g, '\r'));
+    };
+    const interval = window.setInterval(flushTextareaValue, 120);
+    flushTextareaValue();
+    return {
+        dispose: () => window.clearInterval(interval),
+    };
+}
+
 function readTheme(): ITheme {
     return {
         background: '#0b1020',
@@ -125,14 +142,15 @@ export function TerminalPanel() {
     }, [bridge, createRuntime, fitTerminal]);
 
     const attachHost = useCallback((id: string, node: HTMLDivElement | null) => {
-        if (!node) return;
+        if (!node || !bridge) return;
         const runtime = runtimesRef.current.get(id);
         if (!runtime || runtime.opened) return;
         runtime.term.open(node);
         runtime.opened = true;
+        runtime.disposables.push(createAccessibilityInputBridge(id, node, bridge));
         fitTerminal(id);
         if (activeIdRef.current === id) runtime.term.focus();
-    }, [fitTerminal]);
+    }, [bridge, fitTerminal]);
 
     useEffect(() => {
         if (!bridge) return;
@@ -214,6 +232,7 @@ export function TerminalPanel() {
                         key={tab.id}
                         ref={node => attachHost(tab.id, node)}
                         className={`terminal-xterm-surface${tab.id === activeId ? ' is-active' : ''}`}
+                        onPointerDown={() => runtimesRef.current.get(tab.id)?.term.focus()}
                     />
                 ))}
             </div>
