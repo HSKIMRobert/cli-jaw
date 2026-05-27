@@ -11,6 +11,7 @@ import type { HeartbeatRuntimeState, OrcStateName, ResolvedSelectionState } from
 import { notifyUnreadResponse } from './features/attention-badge.js';
 import { shouldApplyOrcStateEvent } from './features/orchestrate-scope.js';
 import { providerLabel } from './provider-icons.js';
+import { applyWorkflowEvent, type WorkflowEventMessage } from './features/workflow-event-adapter.js';
 
 const ROADMAP_PHASES = ['I', 'P', 'A', 'B', 'C'] as const;
 
@@ -86,6 +87,14 @@ interface WsMessage {
     deferredPending?: number;
     taskAnchor?: string | null;
     resolvedSelection?: ResolvedSelectionState | null;
+    delaySeconds?: number;
+    attempts?: number;
+    event?: WorkflowEventMessage;
+    code?: string;
+    employeeName?: string;
+    exitCode?: number;
+    error?: string;
+    message?: string;
 }
 
 // Agent phase state (populated by agent_status events from orchestrator)
@@ -469,8 +478,23 @@ export function connect(): void {
             addSystemMsg(t('ws.fallback', { from: escapeHtml(msg.from || ''), to: escapeHtml(msg.to || '') }), 'tool-activity');
         } else if (msg.type === 'agent_smoke') {
             addSystemMsg(`${ICONS.warning} ${escapeHtml(msg.cli || 'agent')}: smoke response detected — auto-continuing`, 'tool-activity');
+        } else if (msg.type === 'goal_done') {
+            state.activeGoal = null;
+            renderGoalCockpit();
+            addSystemMsg(`🎯 Goal completed${msg.source === 'ai_output' ? ' (detected from AI output)' : ''}`, 'tool-activity');
+        } else if (msg.type === 'goal_cancel') {
+            state.activeGoal = null;
+            renderGoalCockpit();
+            addSystemMsg(`🎯 Goal cancelled`, 'tool-activity');
+        } else if (msg.type === 'schedule_wakeup') {
+            addSystemMsg(`⏰ Wakeup scheduled in ${msg.delaySeconds}s — ${escapeHtml(String(msg.reason || ''))}`, 'tool-activity');
+        } else if (msg.type === 'goal_continuation_limit') {
+            addSystemMsg(`⚠️ Goal continuation limit reached (${msg.attempts} attempts)`, 'tool-activity');
         } else if (msg.type === 'goal_continuation') {
             addSystemMsg(`🎯 Active goal — auto-continuing`, 'tool-activity');
+        } else if (msg.type === 'workflow_event') {
+            const evt = msg.event;
+            if (evt) applyWorkflowEvent(evt);
         } else if (msg.type === 'agent_done') {
             finalizeAgent(msg.text || '', msg.toolLog);
             notifyUnreadResponse();
@@ -512,6 +536,22 @@ export function connect(): void {
             // fromQueue=true: backend just drained a queued message (processQueue or steer route)
             // → render user bubble now (chat.ts dropped the optimistic one at enqueue time).
             addMessage(msg.role === 'assistant' ? 'agent' : (msg.role || 'user'), msg.content || '', msg.cli);
+        } else if (msg.type === 'system_notice') {
+            addSystemMsg(`ℹ️ ${escapeHtml(msg.text || '')}`, 'tool-activity');
+        } else if (msg.type === 'worker_stalled') {
+            addSystemMsg(`⚠️ Worker stalled: ${escapeHtml(msg.employeeName || msg.agentId || '')}`, 'tool-activity');
+        } else if (msg.type === 'worker_disconnected') {
+            addSystemMsg(`🔌 Worker disconnected: ${escapeHtml(msg.agentId || '')} (exit ${escapeHtml(String(msg.exitCode ?? '?'))})`, 'tool-activity');
+        } else if (msg.type === 'worker_timeout') {
+            addSystemMsg(`⏱️ Worker timed out: ${escapeHtml(msg.employeeName || msg.agentId || '')}`, 'tool-activity');
+        } else if (msg.type === 'alert_escalation') {
+            addSystemMsg(escapeHtml(msg.message || ''), 'tool-activity');
+        } else if (msg.type === 'schedule_wakeup_failed') {
+            addSystemMsg(`⚠️ Wakeup failed — ${escapeHtml(String(msg.reason || ''))}: ${escapeHtml(msg.error || '')}`, 'tool-activity');
+        } else if (msg.type === 'goal_continuation_failed') {
+            addSystemMsg(`⚠️ Goal continuation failed: ${escapeHtml(msg.error || '')}`, 'tool-activity');
+        } else if (msg.type === 'settings_change') {
+            syncOrchestrateSnapshot('settings_change').catch(() => {});
         }
     };
     state.ws.onopen = () => {
