@@ -9,6 +9,7 @@ import { broadcast } from '../core/bus.js';
 import { sendChannelOutput } from '../messaging/send.js';
 import { insertHeartbeatAnchor } from '../core/db.js';
 import { getState } from '../orchestrator/state-machine.js';
+import { getGoalContinuationPrompt } from '../goal/heartbeat.js';
 import {
     describeHeartbeatSchedule,
     formatHeartbeatNow,
@@ -110,7 +111,9 @@ async function runHeartbeatJob(job: Record<string, any>) {
         const schedule = normalizeHeartbeatSchedule(job["schedule"]);
         const timeZone = getHeartbeatScheduleTimeZone(schedule);
         const now = formatHeartbeatNow(schedule);
-        const prompt = `[heartbeat:${job["name"]}] 현재 시간: ${now} (${timeZone})\n\nBefore responding, you MUST search memory (cli-jaw memory search) for recent conversation context, user preferences, and ongoing tasks. Use this context to ground your response.\n\n${job["prompt"] || '정기 점검입니다. 할 일 없으면 [SILENT]로 응답.'}`;
+        const goalPrompt = getGoalContinuationPrompt();
+        const goalSection = goalPrompt ? `\n\n--- Active Goal ---\n${goalPrompt}\n--- End Goal ---\n` : '';
+        const prompt = `[heartbeat:${job["name"]}] 현재 시간: ${now} (${timeZone})\n\nBefore responding, you MUST search memory (cli-jaw memory search) for recent conversation context, user preferences, and ongoing tasks. Use this context to ground your response.${goalSection}\n\n${job["prompt"] || '정기 점검입니다. 할 일 없으면 [SILENT]로 응답.'}`;
         console.log(`[heartbeat:${job["name"]}] tick (${describeHeartbeatSchedule(schedule)})`);
         const requestId = crypto.randomUUID();
         const result: string = String(await orchestrateAndCollect(prompt, { origin: 'heartbeat', requestId }));
