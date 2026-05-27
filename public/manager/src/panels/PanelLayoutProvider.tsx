@@ -6,6 +6,7 @@ import {
     RIGHT_PANEL_DEFAULT_WIDTH, RIGHT_PANEL_MIN_WIDTH, RIGHT_PANEL_MAX_WIDTH,
     RIGHT_SPLIT_MIN_RATIO, RIGHT_SPLIT_MAX_RATIO,
     BOTTOM_PANEL_DEFAULT_HEIGHT, BOTTOM_PANEL_MIN_HEIGHT, BOTTOM_PANEL_MAX_HEIGHT,
+    RIGHT_PANEL_MODES, BOTTOM_PANEL_TABS,
 } from './types';
 
 export type PanelLayoutState = {
@@ -104,10 +105,16 @@ function reducer(state: PanelLayoutState, action: Action): PanelLayoutState {
             return { ...state, bottomPanel: { ...state.bottomPanel, activeTab: action.tab } };
         case 'HYDRATE': {
             const h = action.state;
-            return {
-                rightPanel: { ...state.rightPanel, ...h.rightPanel },
-                bottomPanel: { ...state.bottomPanel, ...h.bottomPanel },
-            };
+            const rp = { ...state.rightPanel, ...h.rightPanel };
+            rp.width = clampWidth(rp.width);
+            rp.splitRatio = clampRatio(rp.splitRatio);
+            if (rp.topMode !== null && !RIGHT_PANEL_MODES.includes(rp.topMode)) rp.topMode = null;
+            if (rp.bottomMode !== null && !RIGHT_PANEL_MODES.includes(rp.bottomMode)) rp.bottomMode = null;
+            const bp = { ...state.bottomPanel, ...h.bottomPanel };
+            bp.height = clampHeight(bp.height);
+            bp.tabs = (bp.tabs ?? []).filter(t => BOTTOM_PANEL_TABS.includes(t));
+            if (bp.activeTab !== null && !bp.tabs.includes(bp.activeTab)) bp.activeTab = bp.tabs[0] ?? null;
+            return { rightPanel: rp, bottomPanel: bp };
         }
         default:
             return state;
@@ -207,7 +214,7 @@ export function usePanelLayout(): PanelLayoutContextValue {
 }
 
 export function usePanelActions() {
-    const { dispatch } = usePanelLayout();
+    const { dispatch, state } = usePanelLayout();
 
     return useMemo(() => ({
         openRightPanel: (mode: RightPanelMode, slot?: 'top' | 'bottom') =>
@@ -219,7 +226,7 @@ export function usePanelActions() {
         setRightSplitRatio: (ratio: number) =>
             dispatch({ type: 'SET_RIGHT_SPLIT_RATIO', ratio }),
         toggleRightPanel: () =>
-            dispatch({ type: 'SET_RIGHT_OPEN', open: false }),
+            dispatch({ type: 'SET_RIGHT_OPEN', open: !state.rightPanel.open }),
         openBottomTab: (tab: BottomPanelTab) =>
             dispatch({ type: 'OPEN_BOTTOM_TAB', tab }),
         closeBottomTab: (tab: BottomPanelTab) =>
@@ -229,7 +236,7 @@ export function usePanelActions() {
         setBottomHeight: (height: number) =>
             dispatch({ type: 'SET_BOTTOM_HEIGHT', height }),
         toggleBottomPanel: () =>
-            dispatch({ type: 'SET_BOTTOM_OPEN', open: false }),
+            dispatch({ type: 'SET_BOTTOM_OPEN', open: !state.bottomPanel.open }),
         hydrate: (s: Partial<PanelLayoutState>) =>
             dispatch({ type: 'HYDRATE', state: s }),
     }), [dispatch]);
