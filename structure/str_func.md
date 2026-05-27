@@ -9,7 +9,7 @@ aliases: [CLI-JAW Source Structure, str_func, source structure reference]
 # CLI-JAW — Source Structure & Function Reference
 
 > 마지막 검증: 2026-05-27 (실제 코드베이스 재측정)
-> `server.ts` 853L / `src/routes/` 18 files (registrars + helper modules, 135 route handlers) / `src/cli/handlers*.ts` 383L + 499L + 97L + workflow 83L / `src/cli/api-auth.ts` 45L / `src/agent/` 35 TS files (`spawn.ts` 1790L + `events.ts` 15L + `agy-runtime.ts` 20L + `claude-e-runtime.ts` 44L 포함) / `src/manager/` 69 TS/TSX files (10823L, dashboard manager + board/notes/search/schedule/reminders/connector/routes + notes assets/watcher 서브모듈) / `src/browser/web-ai/` 68 TS files (12616L, ChatGPT/Gemini/Grok 멀티벤더 자동화 + resolver/source-audit/observation helpers + context-pack/tab-pool) / `src/types/` 3 files (296L) / `bin/commands/` 22 top-level ts files + `tui/` 7 helper files / `native/jaw-claude-i/` 15 Rust source files (1956L)
+> `server.ts` 853L / `src/routes/` 18 files (registrars + helper modules, 135 route handlers) / `src/cli/handlers*.ts` 397L + 499L + 97L + workflow 95L / `src/cli/api-auth.ts` 45L / `src/workflows/` 2 files (260L, workflow artifact/cache helpers) / `src/agent/` 35 TS files (`spawn.ts` 1790L + `events.ts` 15L + `agy-runtime.ts` 20L + `claude-e-runtime.ts` 44L 포함) / `src/manager/` 69 TS/TSX files (10823L, dashboard manager + board/notes/search/schedule/reminders/connector/routes + notes assets/watcher 서브모듈) / `src/browser/web-ai/` 68 TS files (12616L, ChatGPT/Gemini/Grok 멀티벤더 자동화 + resolver/source-audit/observation helpers + context-pack/tab-pool) / `src/types/` 3 files (296L) / `bin/commands/` 22 top-level ts files + `tui/` 7 helper files / `native/jaw-claude-i/` 15 Rust source files (1956L)
 > issue #91: OfficeCLI 10-phase integration (dual-audited, 94/94 tests) — closed
 > issue #92: Phase 20 overlay consolidation + GitHub Release v1.0.28-lidge.1 (3 audits passed: A-/A/A) — closed
 > issue #95: Avatar image upload — emoji+image dual support, 4 API endpoints, secure path serving — closed
@@ -17,7 +17,7 @@ aliases: [CLI-JAW Source Structure, str_func, source structure reference]
 > issue #100: crypto.randomUUID HTTP/IP 접속 시 채팅 초기화 버그 수정 — closed
 > issue #102: 서비스 모드 리부트 후 직원 파견 실패 — 10건 전수 수정, 11 SRH 테스트, Opus+GPT-5.4 이중 감사 — closed
 > issue #101: VS 스크롤 80+ 메시지 최상단 튕김 — fix 1~14 적용 완료 (measured bootstrap, prefix-sum binary search, spacing model, regression harness, doc resync 포함), dual-model 검증 + regression tests 반영 — closed
-> Phase 9 보안 하드닝 + Phase 17 AI triage + Phase 20.6 모듈 분리 + parallel dispatch + session fix + cli-jaw rename + orchestration v3 + **multi-instance refactor (Phase 1-4.1)** + **interface_unify (submitMessage gateway + collect.ts + command-context.ts)** + **safe_install (postinstall guard + init.ts refactor)** + **repo_hygiene (phase 3 완료)** + **frontend TS migration (Phase A-0 infra + A-1 leaf 6파일)** + **flush model selection 강화(FC-007/008)** + **multi-instance zombie shutdown fix** + **telegram-file retry** + **copilot auth comprehensive** + **markdown CJK bold fix** + **KaTeX copy/rendering audit** + **CI audit-fin-status gate** + **employee custom model __custom__ fix** + **PABCD state machine + visual feedback** + **429 smart retry** + **Telegram voice STT** + **Web voice recording** + **Token keep-alive** + **STT settings UI** + **PDF skill** + **skill reset soft/hard (#64)** + **session hardening rollout (main-session authority + Telegram settings parity + ACP fallback persistence guard + resume classifier)** + **issue66 pasted-text collapse (composer segments + bracketed paste parser)** + **issue29 browser launch policy (launch-policy.ts + `browser start --agent` + prompt/skill contract 갱신)** + **TUI renovation Phases 1-5 (transcript model + config wiring + help overlay + command palette)** + **CLI model selector refresh (locale bootstrap + no-arg `/model`·`/cli` selector + remote reply contract)** + **OfficeCLI integration (#91): CjkHelper.cs + 3 skill rewrite + 3 new overlays + ooxml_core + smoke tests** + **Phase 20 (#92): overlay consolidation → 3 routable skills + shared refs + fork release v1.0.28-lidge.1** + **ProcessBlock UX (copy btn + spacing + placeholder) + Claude thinking_delta/input_json_delta parsing + typography overhaul (font 13→15px, CJK Pretendard fallback, line-height 1.6)** + **Hotfix3 terminology standardization (worker→employee, collision guard)** + **orchestrate reset history preservation + stale PABCD reconnect fix** + **compact command + Claude canonical models + stepRef correlation** + **route extraction (`server.ts` 569L + `src/routes/` 12 files)** + **handlers 3-split + `api-auth.ts`** + **security mutation auth + path-guards `assertSendFilePath`** + **processQueue race fix** + **Codex double-fold regression fix** + **Claude Interactive native wrapper(`jaw-claude-i`)** 반영
+> Phase 9 보안 하드닝 + Phase 17 AI triage + Phase 20.6 모듈 분리 + parallel dispatch + session fix + cli-jaw rename + orchestration v3 + **multi-instance refactor (Phase 1-4.1)** + **interface_unify (submitMessage gateway + collect.ts + command-context.ts)** + **safe_install (postinstall guard + init.ts refactor)** + **repo_hygiene (phase 3 완료)** + **frontend TS migration (Phase A-0 infra + A-1 leaf 6파일)** + **flush model selection 강화(FC-007/008)** + **multi-instance zombie shutdown fix** + **telegram-file retry** + **copilot auth comprehensive** + **markdown CJK bold fix** + **KaTeX copy/rendering audit** + **CI audit-fin-status gate** + **employee custom model __custom__ fix** + **PABCD state machine + visual feedback** + **429 smart retry** + **Telegram voice STT** + **Web voice recording** + **Token keep-alive** + **STT settings UI** + **PDF skill** + **skill reset soft/hard (#64)** + **session hardening rollout (main-session authority + Telegram settings parity + ACP fallback persistence guard + resume classifier)** + **issue66 pasted-text collapse (composer segments + bracketed paste parser)** + **issue29 browser launch policy (launch-policy.ts + `browser start --agent` + prompt/skill contract 갱신)** + **TUI renovation Phases 1-5 (transcript model + config wiring + help overlay + command palette)** + **CLI model selector refresh (locale bootstrap + no-arg `/model`·`/cli` selector + remote reply contract)** + **OfficeCLI integration (#91): CjkHelper.cs + 3 skill rewrite + 3 new overlays + ooxml_core + smoke tests** + **Phase 20 (#92): overlay consolidation → 3 routable skills + shared refs + fork release v1.0.28-lidge.1** + **ProcessBlock UX (copy btn + spacing + placeholder) + Claude thinking_delta/input_json_delta parsing + typography overhaul (font 13→15px, CJK Pretendard fallback, line-height 1.6)** + **Hotfix3 terminology standardization (worker→employee, collision guard)** + **orchestrate reset history preservation + stale PABCD reconnect fix** + **compact command + Claude canonical models + stepRef correlation** + **route extraction (`server.ts` 569L + `src/routes/` 12 files)** + **handlers 3-split + `api-auth.ts`** + **security mutation auth + path-guards `assertSendFilePath`** + **processQueue race fix** + **Codex double-fold regression fix** + **Claude Interactive native wrapper(`jaw-claude-i`)** + **Workflow Phase 2.0(`/plan` PABCD P guide + unknown-command recovery + local artifact cache)** 반영
 >
 > 상세 모듈 문서는 [서브 문서](#서브-문서)를 참조하세요.
 
@@ -167,11 +167,11 @@ cli-jaw/
 │   │       ├── electron-metrics.ts ← Electron 메트릭스 수집/조회 (ElectronMetricsStore, createElectronMetricsRouter) (155L)
 │   │       └── desktop-status.ts ← 데스크톱 앱 상태 조회 (readDesktopStatus, createDesktopStatusRouter) (28L)
 │   ├── cli/                  ← 커맨드 시스템
-│   │   ├── commands.ts       ← 슬래시 커맨드 레지스트리 + workflow metadata + 디스패처 + 파일경로 필터 + tgDescKey + /commands alias /cmd + /orchestrate alias /pabcd + /compact (347L)
-│   │   ├── handlers.ts       ← core command handlers + runtime/completion re-export hub + compact re-export (363L)
+│   │   ├── commands.ts       ← 슬래시 커맨드 레지스트리 + workflow metadata + 디스패처 + 파일경로 필터 + tgDescKey + /commands alias /cmd + /orchestrate alias /pabcd + /compact + /plan compatibility guide + artifact persistence (400L)
+│   │   ├── handlers.ts       ← core command handlers + runtime/completion re-export hub + compact re-export + unknown command recovery payload (397L)
 │   │   ├── handlers-runtime.ts ← memory/browser/prompt/quit/file/steer/forward/fallback/flush/ide/orchestrate 핸들러 + `LEGACY_MODEL_CLI_HINTS` (499L)
 │   │   ├── handlers-completions.ts ← `/model` `/cli` `/skill` `/employee` `/browser` `/fallback` `/flush` 인자 자동완성 헬퍼 (97L)
-│   │   ├── handlers-workflows.ts ← `/interview` `/deliberate` `/planaudit` prompt handlers + `/goal` gated stub + `/goal run` preflight gate (83L)
+│   │   ├── handlers-workflows.ts ← `/plan` PABCD P 안내 + `/interview` `/deliberate` `/planaudit` prompt handlers + `/goal` gated stub + `/goal run` preflight gate (95L)
 │   │   ├── api-auth.ts       ← CLI→server Bearer token bootstrap (`getCliAuthToken`, `authHeaders`, `cliFetch`) (45L)
 │   │   ├── claude-models.ts  ← Claude 정규 모델셋 (CLAUDE_CANONICAL_MODELS, CLAUDE_LEGACY_VALUE_MAP) + migration/validation helpers (78L)
 │   │   ├── compact.ts        ← /compact 슬래시 커맨드 핸들러 (Claude native + managed 경로 분기) + working_dir scoped (139L)
@@ -181,7 +181,7 @@ cli-jaw/
 │   │   ├── command-context.ts ← 공유 커맨드 컨텍스트 팩토리 + runSkillReset 위임 + regenerateB 유지 (140L)
 │   │   ├── connector.ts      ← dashboard connector CLI API bridge (board/notes/reminders/audit) (73L)
 │   │   ├── reminders.ts      ← local reminders CLI action helpers (35L)
-│   │   ├── types.ts          ← CLI helper shared result/shape 타입 + workflow command metadata contract (119L)
+│   │   ├── types.ts          ← CLI helper shared result/shape 타입 + workflow command/artifact/recovery metadata contract (202L)
 │   │   └── tui/
 │   │       ├── store.ts      ← TuiStore (transcript + overlay 상태 통합), OverlayState + SelectorState (68L) ✨
 │   │       ├── transcript.ts ← TranscriptItem union (user/assistant/status) + TranscriptState + 6 mutation 함수 (57L) ✨
@@ -323,21 +323,24 @@ cli-jaw/
 │   │   ├── agent.ts          ← ToolEntry, SpawnContext, SpawnResult 인터페이스 (94L)
 │   │   ├── cli-engine.ts     ← CliEngine union + registry key tuple + `agy`/`ai-e`/`claude-e` discriminators (48L)
 │   │   └── cli-events.ts     ← CLI event record/discriminator helpers (154L)
-│   └── command-contract/     ← 커맨드 인터페이스 통합
+│   ├── command-contract/     ← 커맨드 인터페이스 통합
 │       ├── catalog.ts        ← COMMANDS → capability map 확장 (45L)
 │       ├── policy.ts         ← getVisibleCommands, getTelegramMenuCommands (39L)
 │       └── help-renderer.ts  ← renderHelp list/detail mode (44L)
-├── public/                   ← Web UI (Vite 8 + ES Modules, 499 files [source + assets + public/public/dist mirror, public/dist 제외], public/dist build output 464 files, mirrored copies under `public/public/dist/` and `public/dist/dist/`, ~70867L)
+│   └── workflows/            ← workflow helper artifact/cache layer
+│       ├── artifacts.ts      ← JAW_HOME workflow artifact cache + project key/path safety + unknown command recovery artifact (169L)
+│       └── plan.ts           ← `/plan` compatibility artifact/text builder (PABCD P 안내, non-authoritative) (91L)
+├── public/                   ← Web UI (Vite 8 + ES Modules, 499 files [source + assets + public/public/dist mirror, public/dist 제외], public/dist build output 464 files, mirrored copies under `public/public/dist/` and `public/dist/dist/`, ~71052L)
 │   ├── index.html            ← 뼈대 (1018L, CLI-JAW 대문자 로고, pill theme switch, data-i18n, 로컬 avatar 입력)
 │   ├── manifest.json         ← PWA 매니페스트 (20L) ✨
 │   ├── sw.js                 ← Service Worker 오프라인 캐시 (104L) ✨
 │   ├── icons/                ← PWA 아이콘 세트 ✨
 │   ├── theme-test.html       ← 테마 테스트 페이지
-│   ├── css/                  ← 11 files (5142L)
+│   ├── css/                  ← 11 files (5207L)
 │   │   ├── variables.css     ← Arctic Cyan 테마 + will-change + scrollbar tint + opacity 애니메이션(@keyframes revealUp/Left/Right) + avatar input 스타일 (491L)
 │   │   ├── layout.css        ← opacity 전환 + contain 격리 + 로고 글로우 + status-badge + avatar 업로드 컨트롤 (527L)
 │   │   ├── markdown.css      ← rendering (table·code·KaTeX·Mermaid) + mermaid overlay popup + copy btn (505L)
-│   │   ├── chat.css          ← 채팅 UI (agent-icon+agent-body / user-icon+user-body 레이아웃·입력·첨부·스피너·stream cursor) + contain: content/layout style + empty-state fade hide + .avatar-image 스타일 (1286L)
+│   │   ├── chat.css          ← 채팅 UI (agent-icon+agent-body / user-icon+user-body 레이아웃·입력·첨부·스피너·stream cursor) + contain: content/layout style + empty-state fade hide + .avatar-image + workflow chip + unknown-command recovery 스타일 (1458L)
 │   │   ├── diagram.css       ← Mermaid/HTML 다이어그램 위젯 스타일 + iframe wrapper + overlay clone + semantic SVG 라벨/커넥터 컬러 토큰 (400L) ✨
 │   │   ├── orc-state.css    ← PABCD 상태 글로우 + 펄스 + 배지 + 로드맵 바 + 상어 스프라이트 + light mode (239L)
 │   │   ├── sidebar.css       ← 설정탭·스킬카드·토글·cli-dot(ok/warn/missing) + pulse-warn + cwd-display (340L)
@@ -349,7 +352,7 @@ cli-jaw/
 │   │   ├── en.json           ← 영어 (377키)
 │   │   ├── ja.json           ← 일본어
 │   │   └── zh.json           ← 중국어
-│   └── js/                   ← 72 .ts files (root 17 + features/ 41 + diagram/ 3 + render/ 11, 전 파일 TypeScript)
+│   └── js/                   ← 75 .ts files (root 17 + features/ 43 + diagram/ 3 + render/ 12, 전 파일 TypeScript)
 │       ├── main.ts           ← 앱 진입점 + 모듈 wire + heartbeat schedule validation/save guard + initAvatar() + initHelpDialog() + STT preview shortcut bridge 포함 (563L)
 │       ├── render.ts         ← render public API façade. 기존 caller import surface를 유지하고 실제 구현은 `render/` 하위 모듈로 분리 (17L)
 │       ├── constants.ts      ← CLI_REGISTRY 동적 로딩 + ROLE_PRESETS (CliEntry, CliRegistry 타입) (149L)
@@ -369,19 +372,20 @@ cli-jaw/
 │       │   ├── iframe-renderer.ts  ← Mermaid/HTML 다이어그램을 sandbox iframe에 격리 렌더 (678L) ✨
 │       │   ├── types.ts            ← 위젯 페이로드 타입 (129L) ✨
 │       │   └── widget-validator.ts ← 위젯 입력 검증 (82L) ✨
-│       ├── render/           ← markdown/diagram rendering helpers (11 files, 1103L)
+│       ├── render/           ← markdown/diagram rendering helpers (12 files, 1203L)
 │       │   ├── code-copy.ts  ← 코드 블록 copy button helper (47L)
 │       │   ├── delegations.ts ← render delegation once-guard helper (10L)
 │       │   ├── file-links.ts ← local file path linkification + `/api/file/open` delegation (150L)
 │       │   ├── highlight.ts  ← highlight.js language registration + mounted block rehighlight (83L)
 │       │   ├── html.ts       ← escape/strip helper (26L)
-│       │   ├── markdown.ts   ← marked pipeline + math/SVG shielding + post-render scheduling (84L)
+│       │   ├── markdown.ts   ← marked pipeline + math/SVG shielding + post-render scheduling (90L)
 │       │   ├── math.ts       ← KaTeX shield/unshield (76L)
-│       │   ├── mermaid.ts    ← lazy Mermaid load + queue + observer + render/release/prewarm (250L)
+│       │   ├── mermaid-preprocess.ts ← Mermaid preprocessor helpers (77L)
+│       │   ├── mermaid.ts    ← lazy Mermaid load + queue + observer + render/release/prewarm (267L)
 │       │   ├── post-render.ts ← debounced post-render orchestration (35L)
 │       │   ├── sanitize.ts   ← HTML/SVG sanitizer policy split (51L)
 │       │   └── svg-actions.ts ← inline SVG block render + copy/save/zoom actions + overlay kind split (291L)
-│       └── features/         ← 41 도메인 모듈 (6103L)
+│       └── features/         ← 43 도메인 모듈 (7062L)
 │           ├── i18n.ts       ← 프론트엔드 i18n + applyI18n() (130L)
 │           ├── help-content.ts ← contextual help topic registry + locale key map (75L)
 │           ├── help-dialog.ts ← 전역 help dialog event delegation + safe textContent render + focus restore/Escape capture (164L)
@@ -390,7 +394,7 @@ cli-jaw/
 │           ├── message-actions.ts ← message action buttons and event handlers (157L)
 │           ├── message-history.ts ← message history loading/reconnect restore flow (138L)
 │           ├── message-item-html.ts ← message item HTML helper (34L)
-│           ├── chat.ts       ← 채팅 입력 + 파일 첨부 + 전송 (416L)
+│           ├── chat.ts       ← 채팅 입력 + 파일 첨부 + 전송 + slash command recovery card 복사/재삽입 액션 (472L)
 │           ├── employees.ts  ← 직원 관리 UI (190L)
 │           ├── attention-badge.ts ← 사이드바/탭 attention 뱃지 + 깜빡임 + clear 트리거 (151L) ✨
 │           ├── orchestrate-scope.ts ← PABCD scope barrel re-export (4L) ✨
@@ -413,7 +417,7 @@ cli-jaw/
 │           ├── settings-templates.ts ← 프롬프트 템플릿 모달 (openPromptModal, savePromptFromModal, toggleDevMode) (132L) ✨
 │           ├── voice-recorder.ts ← MediaRecorder 래퍼 + MIME 자동탐지 + pending/error UI + preview STT lifecycle + 녹음 타이머 (254L)
 │           ├── skills.ts     ← 스킬 관리 UI (111L)
-│           ├── slash-commands.ts ← 슬래시 커맨드 자동완성 (229L)
+│           ├── slash-commands.ts ← 슬래시 커맨드 자동완성 + workflow metadata/structured args 렌더 (261L)
 │           ├── sidebar.ts    ← 사이드바 접기 (이중 모드) (119L)
 │           ├── theme.ts      ← pill switch 다크/라이트 (HTMLLinkElement cast) (84L)
 │           ├── appname.ts    ← Agent Name (HTMLInputElement, KeyboardEvent) (44L)
@@ -466,7 +470,7 @@ cli-jaw/
 │       ├── reminders.ts      ← local reminders list/add/done CLI (100L)
 │       ├── dispatch-helpers.ts ← dispatch output unwrap helper (21L)
 │       └── tui/              ← chat 터미널 TUI 분리 (api/input-handler/overlays/renderer/simple-mode/types/ws-handler, 7 files)
-├── tests/                    ← 회귀 방지 테스트 (391 .test.ts files: root 5 / unit 366 / integration 9 / browser 5 / fixtures + smoke)
+├── tests/                    ← 회귀 방지 테스트 (408 .test.ts files: root 5 / unit 379 / integration 10 / browser 5 / fixtures + smoke)
 │   ├── acp-client.test.ts     ← ACP client contract
 │   ├── employee-session.test.ts ← main-session ownership
 │   ├── events.test.ts        ← 이벤트 파서 단위 테스트 + stepRef + compact event parsing
@@ -474,7 +478,7 @@ cli-jaw/
 │   ├── telegram-forwarding.test.ts ← Telegram 포워딩 동작 테스트
 │   ├── plan.md               ← 테스트 인벤토리/상태 추적 노트
 │   ├── fixtures/             ← 테스트 페이로드 픽스처 (71 files)
-│   ├── unit/                 ← Tier 1-2 단위 테스트 (366 .test.ts files)
+│   ├── unit/                 ← Tier 1-2 단위 테스트 (379 .test.ts files)
 │   │   ├── employee-prompt.test.ts ← 직원 프롬프트 14건
 │   │   ├── orchestrator-parsing.test.ts ← subtask 파싱 13건
 │   │   ├── orchestrator-triage.test.ts  ← triage 판단 10건
@@ -493,6 +497,9 @@ cli-jaw/
 │   │   ├── config-migrate-claude-models.test.ts ← migrateSettings Claude 정규화 7건
 │   │   ├── agent-args-claude-model.test.ts ← agent args Claude 모델 매핑 8건
 │   │   ├── compact-managed.test.ts    ← managed compact summary + cutoff 10건
+│   │   ├── workflows-plan.test.ts     ← `/plan` PABCD P 안내 artifact/텍스트 계약 3건
+│   │   ├── workflow-artifacts-contract.test.ts ← JAW_HOME workflow artifact path/cache 안전성 3건
+│   │   ├── unknown-command-recovery.test.ts ← 알 수 없는 slash command 원문 보존 + Web recovery UI 계약 3건
 │   │   ├── render-sanitize.test.ts   ← XSS sanitize 11건
 │   │   ├── render-katex.test.ts      ← KaTeX shield/unshield 테스트
 │   │   ├── telegram-file.test.ts     ← Telegram 파일 전송 재시도/검증
@@ -500,8 +507,8 @@ cli-jaw/
 │   │   ├── service.test.ts           ← 크로스 플랫폼 서비스 27건
 │   │   ├── streaming-render.test.ts ← rAF 스트리밍 렌더러 15건 ✨
 │   │   ├── tool-ui.test.ts          ← 도구 호출 그룹 렌더링 11건 ✨
-│   │   └── ... (366 .test.ts files total)
-│   ├── integration/          ← Tier 3-4 통합 테스트 (9 files)
+│   │   └── ... (379 .test.ts files total)
+│   ├── integration/          ← Tier 3-4 통합 테스트 (10 files)
 │   │   ├── cli-basic.test.ts         ← CLI 기본 통합
 │   │   ├── api-smoke.test.ts         ← API 스모크 (서버 기동)
 │   │   ├── route-registration.test.ts ← 라우트 등록 스모크

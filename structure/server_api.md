@@ -197,6 +197,9 @@ ensureDirs()
 - body `text`를 500자까지 자른 뒤 `parseCommand()`로 해석한다.
 - locale은 body/query/Accept-Language/settings 순으로 정해지고 `Content-Language`가 세팅된다.
 - command가 아니면 `400 { code: 'not_command' }`.
+- slash command 결과는 handler의 `SlashResult`를 그대로 반환한다. Workflow helper는 `artifact`, `originalText`를 포함할 수 있고, 등록되지 않은 slash command는 `recovery.originalText`와 추천 커맨드를 포함한다.
+- `/plan`은 별도 plan mode가 아니라 PABCD P 안내 결과를 반환하며, non-authoritative local-cache workflow artifact를 함께 내려준다.
+- unknown command recovery도 원문 prompt를 보존한 non-authoritative local-cache workflow artifact를 만들며, 저장 위치는 `JAW_HOME/artifacts/workflows/...` 아래로 제한된다.
 
 ### `/api/commands`
 

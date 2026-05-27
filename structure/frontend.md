@@ -12,7 +12,7 @@ aliases: [CLI-JAW Frontend, public architecture, frontend.md]
 > 빌드는 Vite 8 기준이며, `vite.config.ts`는 `public/index.html`과 `public/manager/index.html`을 multi-entry로 빌드한다.
 > 현재 `public/`에서 `public/dist/*`를 제외한 소스/자산/legacy duplicate는 499개다. `public/public/dist/*`까지 generated로 보면 실제 편집 대상 소스/자산은 372개다. 생성 산출물은 `public/dist/` 464개와 별도 중복 트리 `public/public/dist/` 127개가 남아 있고, `public/dist/dist/`는 전자에 재귀 포함된 nested 복제본이다.
 > 메인 UI는 `index.html`에서 Google Fonts `Chakra Petch` + `Outfit`을 불러오고, 로컬 `public/assets/fonts/GeistVF.woff2`와 `JetBrainsMono-Variable.woff2`는 자산으로 보관 중이다.
-> PWA는 `manifest.json` + `sw.js` + `icons/`로 구성된다. 오프라인 메시지 캐시, virtual scroll, markdown/KaTeX/Mermaid 렌더링, sandboxed diagram widget, avatar emoji/image 커스터마이즈, voice recording, PABCD roadmap, subagent-aware ProcessBlock 렌더링, 반응형 사이드바, theme toggle이 현재 런타임의 핵심이다.
+> PWA는 `manifest.json` + `sw.js` + `icons/`로 구성된다. 오프라인 메시지 캐시, virtual scroll, markdown/KaTeX/Mermaid 렌더링, sandboxed diagram widget, avatar emoji/image 커스터마이즈, voice recording, PABCD roadmap, subagent-aware ProcessBlock 렌더링, slash command 복구 액션, 반응형 사이드바, theme toggle이 현재 런타임의 핵심이다.
 
 ---
 
@@ -129,7 +129,7 @@ public/
 | `js/features/avatar.ts` | agent/user avatar emoji 저장 + image upload/reset, `/api/avatar*` 동기화, `.agent-icon`/`.user-icon` DOM 갱신 |
 | `js/features/appname.ts` | sidebar agent name만 localStorage로 저장. 로고/헤더 타이틀은 고정 `CLI-JAW` |
 | `js/features/attention-badge.ts` | window focus/visibility 기반 unread/attention badge |
-| `js/features/chat.ts` | send, slash command dispatch, multi-file attachment upload, stop-mode, clear chat, auto-resize, voice send integration |
+| `js/features/chat.ts` | send, slash command dispatch, unknown-command recovery block, multi-file attachment upload, stop-mode, clear chat, auto-resize, voice send integration |
 | `js/features/chat-messages.ts` | message DOM append/finalization helpers split from `ui.ts` |
 | `js/features/chat-scroll.ts` | bottom-follow/scroll intent helpers and initial settle support |
 | `js/features/employees.ts` | employee CRUD + CLI/model/role 조정 |
@@ -160,7 +160,7 @@ public/
 | `js/features/settings.ts` | barrel re-export |
 | `js/features/sidebar.ts` | responsive collapse/expand, narrow overlay behavior, arrow sync |
 | `js/features/skills.ts` | skill load/filter/toggle |
-| `js/features/slash-commands.ts` | web slash command dropdown + file-path guard + workflow metadata chips(`phase/risk/output`) |
+| `js/features/slash-commands.ts` | web slash command dropdown + file-path guard + workflow metadata chips(`phase/risk/output`) + structured workflow args 렌더 |
 | `js/features/theme.ts` | dark/light theme toggle, hljs theme swap, Mermaid/iframe refresh |
 | `js/features/tool-ui.ts` | legacy finalized tool group + live activity helper. 현재 assistant tool history는 주로 ProcessBlock HTML로 렌더링 |
 | `js/features/trace-drawer.ts` | trace drawer open/close/render controls |
@@ -192,7 +192,7 @@ settings.ts
 | --- | --- |
 | `css/variables.css` | 컬러/타이포/spacing/easing token, light/dark variables, reveal animations |
 | `css/layout.css` | 전체 grid layout, sidebar width, base UI scaffolding |
-| `css/chat.css` | chat area, message layout, input bar, attachments, voice button/arming state, theme switch, virtual scroll container, slash command workflow chips, `.file-path-link` open states (`opening/opened/open-failed`) |
+| `css/chat.css` | chat area, message layout, input bar, attachments, voice button/arming state, theme switch, virtual scroll container, slash command workflow chips, unknown-command recovery block, `.file-path-link` open states (`opening/opened/open-failed`) |
 | `css/orc-state.css` | PABCD roadmap, shark runner, orc glow, state badge |
 | `css/sidebar.css` | left/right sidebar, collapse behavior, status / CLI / app name sections |
 | `css/modals.css` | prompt/template/heartbeat/memory modal shells + form controls |
@@ -375,6 +375,7 @@ subagent 렌더링 변경 이후 tool history의 canonical UI는 `features/proce
 | 초기화 | `hydrateIcons()` → `hydrateProviderIcons()` → `initI18n()` → `loadCliRegistry()` → `connect()` → `initAvatar()` + pending/help/attention 초기화 |
 | 입력 | slash command dropdown, file attachment, drag/drop, auto-resize, voice record/cancel, STT mic pending state |
 | 전송 | 일반 메시지는 `/api/message`, slash command는 `/api/command`, stop 버튼은 `/api/stop` |
+| 복구 | 등록되지 않은 slash command는 입력 원문을 recovery card로 표시하고, 사용자가 복사하거나 입력창에 다시 넣을 수 있다 |
 | 업로드 | 첨부 파일은 병렬 업로드 후 prompt에 합성 |
 | 렌더링 | `render.ts`는 stable façade이고, markdown/KaTeX/Mermaid/code copy/diagram widget/local file-path click-to-open/post-render 작업은 `public/js/render/*` 모듈이 담당한다 |
 | 오프라인 | `idb-cache.ts`가 메시지 히스토리를 IndexedDB에 보관 — scope별 캐시(workingDir), 실시간 upsert, 서버 다운 시 캐시 복원 + tool_log process block 렌더 |

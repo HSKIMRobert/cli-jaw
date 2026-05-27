@@ -44,7 +44,7 @@ git add devlog && git commit -m "chore: update devlog ref" && git push
 
 - `structure/` is the current architecture-doc hub; do not point new docs at `devlog/structure/`.
 - Keep `README.md`, root `AGENTS.md`, root `CLAUDE.md`, and `structure/AGENTS.md` synchronized when command/API/orchestration surfaces change.
-- Recent non-strict hotspots: explicit `/continue`, workflow helper slash commands (`/interview`, `/deliberate`, `/planaudit`, gated `/goal`; bounded automation is `/goal run ...`, not top-level `/autopilot`), Gemini `--skip-trust --approval-mode yolo`, AGY `-p` print-mode runtime, bounded tool-log sanitizer, canonical `/api/channel/send`, heartbeat `every`/`cron` schedules, browser runtime diagnostics/session lifecycle, and `npm run gate:all`.
+- Recent non-strict hotspots: explicit `/continue`, workflow helper slash commands (`/plan` as PABCD P compatibility guide, `/interview`, `/deliberate`, `/planaudit`, gated `/goal`; bounded automation is `/goal run ...`, not top-level `/autopilot`), Gemini `--skip-trust --approval-mode yolo`, AGY `-p` print-mode runtime, bounded tool-log sanitizer, canonical `/api/channel/send`, heartbeat `every`/`cron` schedules, browser runtime diagnostics/session lifecycle, and `npm run gate:all`.
 
 ### Line Count Format (`str_func.md`)
 
