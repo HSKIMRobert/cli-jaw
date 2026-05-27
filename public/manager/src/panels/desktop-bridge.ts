@@ -40,6 +40,11 @@ function hasDesktopDocumentMarker(): boolean {
     return document.documentElement.dataset['cliJawDesktop'] === 'true';
 }
 
+function hasDesktopUserAgent(): boolean {
+    if (typeof navigator === 'undefined') return false;
+    return /\bcli-jaw-desktop(?:\/|\b)/.test(navigator.userAgent);
+}
+
 export function isElectron(): boolean {
-    return getDesktop()?.identify?.()?.electron === true || hasDesktopDocumentMarker();
+    return getDesktop()?.identify?.()?.electron === true || hasDesktopDocumentMarker() || hasDesktopUserAgent();
 }

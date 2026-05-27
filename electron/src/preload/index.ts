@@ -1,5 +1,4 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { homedir } from 'node:os';
 import { getLatestMetrics, setupMetricsBridge } from './metrics.js';
 
 const DESKTOP_IDENTITY = {
@@ -37,10 +36,18 @@ function markDesktopDocument(): void {
   }
 }
 
+function getHomePath(): string {
+  try {
+    return process.env.HOME || process.env.USERPROFILE || '';
+  } catch {
+    return '';
+  }
+}
+
 contextBridge.exposeInMainWorld('cliJawDesktop', {
   identify: () => DESKTOP_IDENTITY,
   getMetrics: () => getLatestMetrics(),
-  getHomePath: () => homedir(),
+  getHomePath,
   terminal: {
     create: (opts?: { cwd?: string }) => ipcRenderer.invoke('terminal:create', opts),
     write: (id: string, data: string) => ipcRenderer.invoke('terminal:write', id, data),
