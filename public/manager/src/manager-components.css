@@ -85,6 +85,18 @@ h2 { font-size: 13px; }
     gap: 8px;
 }
 .command-actions { justify-self: end; }
+.is-electron-titlebar {
+    -webkit-app-region: drag;
+    padding-left: 80px;
+}
+.is-electron-titlebar button,
+.is-electron-titlebar input,
+.is-electron-titlebar select,
+.is-electron-titlebar a,
+.is-electron-titlebar .command-actions,
+.is-electron-titlebar .command-search {
+    -webkit-app-region: no-drag;
+}
 .command-filter-strip {
     min-width: 0;
     display: flex;

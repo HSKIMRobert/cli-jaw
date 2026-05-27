@@ -89,8 +89,8 @@ function parseArgs(argv: string[]): CliFlags {
 }
 
 const FLAGS = parseArgs(process.argv.slice(1));
-const MANAGER_URL = FLAGS.managerUrl;
-const MANAGER_ORIGIN = new URL(MANAGER_URL).origin;
+let MANAGER_URL = FLAGS.managerUrl;
+let MANAGER_ORIGIN = new URL(MANAGER_URL).origin;
 setAllowedOrigin(MANAGER_ORIGIN);
 const PREVIEW_FRAME_POLICY = resolvePreviewFramePolicy(process.env);
 
@@ -269,8 +269,25 @@ function isAllowedFrameNavigation(raw: string): boolean {
     || isPreviewFrameNavigation(raw, PREVIEW_FRAME_POLICY);
 }
 
+const PROBE_PORTS = [3457, 3459];
+
+function switchManagerUrl(url: string): void {
+  MANAGER_URL = url;
+  MANAGER_ORIGIN = new URL(url).origin;
+  setAllowedOrigin(MANAGER_ORIGIN);
+}
+
 async function ensureManagerRunning(): Promise<void> {
   if (await isManagerHealthy(MANAGER_URL)) return;
+
+  for (const port of PROBE_PORTS) {
+    const candidate = `http://127.0.0.1:${port}/`;
+    if (candidate !== MANAGER_URL && await isManagerHealthy(candidate)) {
+      switchManagerUrl(candidate);
+      installSecurityHeaders(MANAGER_ORIGIN);
+      return;
+    }
+  }
 
   if (managerReadyPromise) return managerReadyPromise;
 
@@ -379,6 +396,9 @@ async function createWindow(): Promise<void> {
     width: 1440,
     height: 960,
     show: true,
+    titleBarStyle: 'hiddenInset',
+    trafficLightPosition: { x: 16, y: 16 },
+    icon: join(__dirname, '..', '..', 'build', 'icon.png'),
     webPreferences: {
       contextIsolation: true,
       sandbox: true,
