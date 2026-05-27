@@ -8,7 +8,14 @@ import { detectCli, getClaudeExecHelperCandidates, getClaudeIHelperCandidates } 
 
 function writeExecutable(dir: string, name: string): string {
     const filePath = path.join(dir, name);
-    fs.writeFileSync(filePath, '#!/usr/bin/env sh\necho claude-e 0.1.5\n');
+    fs.writeFileSync(filePath, `#!/usr/bin/env sh
+if [ "$1" = "run" ] && [ "$2" = "--help" ]; then
+  echo "      --idle-timeout-ms <IDLE_TIMEOUT_MS>"
+  echo "      --hard-timeout-ms <HARD_TIMEOUT_MS>"
+  exit 0
+fi
+echo claude-e 0.1.9
+`);
     fs.chmodSync(filePath, 0o755);
     return filePath;
 }
@@ -29,6 +36,7 @@ test('claude-i helper candidates prefer explicit claude-e env override', () => {
     assert.equal(candidates[1], execAlias);
     assert.equal(candidates[2], legacy);
     assert.ok(candidates.some((candidate) => candidate.includes(path.join('target', 'release'))));
+    assert.ok(candidates.some((candidate) => candidate.includes(path.join('target', 'debug'))));
     assert.ok(candidates.some((candidate) => candidate.includes(path.join('native', 'jaw-claude-i', 'target', 'release'))));
 });
 
@@ -41,6 +49,8 @@ test('claude-e helper candidates expose package bins and compatibility aliases',
     assert.equal(candidates[0], explicit);
     assert.ok(candidates.some((candidate) => candidate.endsWith(path.join('target', 'release', 'claude-e'))));
     assert.ok(candidates.some((candidate) => candidate.endsWith(path.join('target', 'release', 'claude-exec'))));
+    assert.ok(candidates.some((candidate) => candidate.endsWith(path.join('target', 'debug', 'claude-e'))));
+    assert.ok(candidates.some((candidate) => candidate.endsWith(path.join('target', 'debug', 'claude-exec'))));
 });
 
 test('detectCli resolves claude-e through CLAUDE_E_BIN fallback', () => {
@@ -53,7 +63,7 @@ test('detectCli resolves claude-e through CLAUDE_E_BIN fallback', () => {
     const oldOverride = process.env.JAW_CLAUDE_I_BIN;
 
     try {
-        process.env.PATH = path.join(dir, 'empty-path');
+        process.env.PATH = '/usr/bin:/bin';
         process.env.CLAUDE_E_BIN = helper;
         delete process.env.CLAUDE_EXEC_BIN;
         delete process.env.JAW_CLAUDE_I_BIN;
