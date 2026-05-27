@@ -54,16 +54,16 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
         }
     });
 
-    app.get('/api/orchestrate/state', (_req, res) => {
+    app.get('/api/orchestrate/state', requireAuth, (_req, res) => {
         const scope = resolveOrcScope({ origin: 'web', workingDir: settings["workingDir"] || null });
         res.json({ scope, state: getState(scope), ctx: getCtx(scope) });
     });
 
-    app.get('/api/orchestrate/workers', (_req, res) => {
+    app.get('/api/orchestrate/workers', requireAuth, (_req, res) => {
         res.json(getActiveWorkers());
     });
 
-    app.get('/api/orchestrate/snapshot', (_req, res) => {
+    app.get('/api/orchestrate/snapshot', requireAuth, (_req, res) => {
         const runtime = getRuntimeSnapshot();
         const scope = resolveOrcScope({ origin: 'web', workingDir: settings["workingDir"] || null });
         const ctx = getCtx(scope);
@@ -173,7 +173,8 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
             console.warn(`[dispatch:deny] ip=${req.ip} ua=${String(req.headers['user-agent'] || '').slice(0, 80)}`);
             return fail(res, 403, 'Dispatch requires boss-scoped token. Employees cannot dispatch.');
         }
-        const { agent: agentName, task, phase } = req.body || {};
+        const { agent: agentName, task: rawTask, phase } = req.body || {};
+        const task = typeof rawTask === 'string' ? rawTask.trim() : '';
         if (!agentName || !task) return fail(res, 400, 'Missing agent or task');
 
         // Phase 57: B-phase workers are READ-ONLY verifiers (Phase 4=Check), not implementers (Phase 3=Dev).

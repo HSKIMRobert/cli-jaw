@@ -22,11 +22,17 @@ function tr(key: string, locale: string, fallback: string): string {
     return value === key ? fallback : value;
 }
 
+async function resolveSettings(ctx: CliCommandContext): Promise<Record<string, unknown>> {
+    if (typeof ctx.getSettings !== 'function') return {};
+    const s = await Promise.resolve(ctx.getSettings());
+    return s && typeof s === 'object' ? s as Record<string, unknown> : {};
+}
+
 export async function interviewWorkflowHandler(args: string[], ctx: CliCommandContext): Promise<SlashResult> {
     const request = joinArgs(args) || '<rough request>';
     const { getState, setState, canTransition, getStatePrompt } = await import('../orchestrator/state-machine.js');
     const { resolveOrcScope } = await import('../orchestrator/scope.js');
-    const settings = typeof ctx.getSettings === 'function' ? ctx.getSettings() : {};
+    const settings = await resolveSettings(ctx);
     const origin = ctx?.interface || 'web';
     const scope = resolveOrcScope({ origin, workingDir: (settings as Record<string, unknown>)['workingDir'] as string | null || null });
     const current = getState(scope);
@@ -50,7 +56,7 @@ export async function planWorkflowHandler(args: string[], ctx: CliCommandContext
     if (sub === 'status') {
         const { getState, getCtx } = await import('../orchestrator/state-machine.js');
         const { resolveOrcScope } = await import('../orchestrator/scope.js');
-        const settings = typeof ctx.getSettings === 'function' ? ctx.getSettings() : {};
+        const settings = await resolveSettings(ctx);
         const scope = resolveOrcScope({ origin: ctx?.interface || 'web', workingDir: (settings as Record<string, unknown>)['workingDir'] as string | null || null });
         const state = getState(scope);
         const orcCtx = getCtx(scope);
@@ -61,7 +67,7 @@ export async function planWorkflowHandler(args: string[], ctx: CliCommandContext
     if (sub === 'copy') {
         const { getCtx } = await import('../orchestrator/state-machine.js');
         const { resolveOrcScope } = await import('../orchestrator/scope.js');
-        const settings = typeof ctx.getSettings === 'function' ? ctx.getSettings() : {};
+        const settings = await resolveSettings(ctx);
         const scope = resolveOrcScope({ origin: ctx?.interface || 'web', workingDir: (settings as Record<string, unknown>)['workingDir'] as string | null || null });
         const orcCtx = getCtx(scope);
         if (orcCtx?.plan) {
@@ -70,7 +76,7 @@ export async function planWorkflowHandler(args: string[], ctx: CliCommandContext
         return info('No approved plan exists. Enter PABCD P first with `/orchestrate P`.');
     }
 
-    const settings = typeof ctx.getSettings === 'function' ? ctx.getSettings() : undefined;
+    const settings = await resolveSettings(ctx);
     const artifact = buildPlanCompatArtifact(args, locale, settings);
     return {
         ok: true,
@@ -81,9 +87,9 @@ export async function planWorkflowHandler(args: string[], ctx: CliCommandContext
     };
 }
 
-export function deliberateWorkflowHandler(args: string[], ctx: CliCommandContext): SlashResult {
+export async function deliberateWorkflowHandler(args: string[], ctx: CliCommandContext): Promise<SlashResult> {
     const locale = ctx.locale || 'ko';
-    const settings = typeof ctx.getSettings === 'function' ? ctx.getSettings() : undefined;
+    const settings = await resolveSettings(ctx);
     const artifact = buildDeliberateArtifact(args, locale, settings);
     const request = joinArgs(args) || '<plan or request>';
     return {
@@ -96,9 +102,9 @@ export function deliberateWorkflowHandler(args: string[], ctx: CliCommandContext
     };
 }
 
-export function planAuditWorkflowHandler(args: string[], ctx: CliCommandContext): SlashResult {
+export async function planAuditWorkflowHandler(args: string[], ctx: CliCommandContext): Promise<SlashResult> {
     const locale = ctx.locale || 'ko';
-    const settings = typeof ctx.getSettings === 'function' ? ctx.getSettings() : undefined;
+    const settings = await resolveSettings(ctx);
     const artifact = buildPlanAuditArtifact(args, locale, settings);
     return {
         ok: true,
@@ -131,7 +137,7 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
             if (state.status === 'failed') {
                 return blocked(`Preflight failed: ${state.lastError}\nRun \`/goal run preflight\` to see details.`);
             }
-            return info(`Goal run started in ${state.mode} mode.\nGoal: ${getActiveGoal()?.objective ?? '(unknown)'}\nUse \`/goal run stop\` to stop.`);
+            return info(`[Preview] Goal run tracking started in ${state.mode} mode.\nGoal: ${getActiveGoal()?.objective ?? '(unknown)'}\nNote: budget enforcement is tracking-only in this release.\nUse \`/goal run stop\` to stop.`);
         }
         if (runSub === 'stop' || runSub === 'cancel') {
             const reason = args.slice(2).join(' ').trim() || undefined;
@@ -162,7 +168,7 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
         if (existing && (existing.status === 'active' || existing.status === 'paused')) {
             return blocked(`Active goal already exists: "${existing.objective}"\nUse /goal done, /goal cancel, or /goal clear first.`);
         }
-        const settings = typeof ctx.getSettings === 'function' ? ctx.getSettings() : {};
+        const settings = await resolveSettings(ctx);
         const wd = (settings as Record<string, unknown>)['workingDir'] as string | undefined;
         const goal = setGoal(objective, wd ? { repoRoot: wd } : {});
         return { ok: true, type: 'info', text: `Goal set: ${goal.objective}\nID: ${goal.id}`, steerPrompt: `[System] User set a new goal: "${goal.objective}" (ID: ${goal.id}). Acknowledge the goal and help the user achieve it.` };
@@ -245,11 +251,12 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
     // Unknown subcommand with args → treat as objective (e.g. `/goal fix the login bug`)
     if (args.length > 0) {
         const objective = args.join(' ').trim();
+        if (objective.length > 2000) return blocked('Objective too long (max 2000 characters).');
         const existing = getActiveGoal();
         if (existing && (existing.status === 'active' || existing.status === 'paused')) {
             return blocked(`Active goal already exists: "${existing.objective}"\nUse /goal done, /goal cancel, or /goal clear first.`);
         }
-        const settings = typeof ctx.getSettings === 'function' ? ctx.getSettings() : {};
+        const settings = await resolveSettings(ctx);
         const wd = (settings as Record<string, unknown>)['workingDir'] as string | undefined;
         const goal = setGoal(objective, wd ? { repoRoot: wd } : {});
         return { ok: true, type: 'info', text: `Goal set: ${goal.objective}\nID: ${goal.id}`, steerPrompt: `[System] User set a new goal: "${goal.objective}" (ID: ${goal.id}). Acknowledge the goal and help the user achieve it.` };
@@ -270,7 +277,7 @@ import { buildAllDispatchTasks } from '../team/dispatcher.js';
 import { allGuardsPassed, blockedGuards } from '../workflows/guards.js';
 import type { TeamMode } from '../team/types.js';
 
-export function teamWorkflowHandler(args: string[], ctx: CliCommandContext): SlashResult {
+export async function teamWorkflowHandler(args: string[], ctx: CliCommandContext): Promise<SlashResult> {
     const sub = (args[0] ?? '').toLowerCase();
 
     if (sub === 'plan') {
@@ -295,7 +302,7 @@ export function teamWorkflowHandler(args: string[], ctx: CliCommandContext): Sla
         const request = args.slice(1).join(' ').trim();
         if (!request) return blocked('Usage: /team audit <request>');
         const plan = createTeamPlan(request, 'audit-team');
-        const settings = typeof ctx.getSettings === 'function' ? ctx.getSettings() : {};
+        const settings = await resolveSettings(ctx);
         const wd = (settings as Record<string, unknown>)['workingDir'] as string | undefined;
         const projectRoot = wd || process.cwd();
         const guards = checkTeamPreflight({
@@ -310,11 +317,12 @@ export function teamWorkflowHandler(args: string[], ctx: CliCommandContext): Sla
         }
         const tasks = buildAllDispatchTasks(plan, projectRoot);
         const lines = [
-            `Team audit ready: ${plan.teamId}`,
+            `[Preview] Team audit tasks prepared: ${plan.teamId}`,
             `Lanes: ${tasks.length}`,
             ...tasks.map(t => `  - ${t.lane.role}: dispatch prepared`),
             '',
-            'Dispatching read-only employees via `cli-jaw dispatch`.',
+            'Note: /team is a preview task-builder. Tasks are not auto-dispatched yet.',
+            'Use `cli-jaw dispatch --agent "Name" --task "..."` to dispatch manually.',
         ];
         return info(lines.join('\n'));
     }

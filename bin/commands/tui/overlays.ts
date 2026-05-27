@@ -58,11 +58,11 @@ export function getMaxPopupRows(): number {
     return Math.max(0, getRows() - 3);
 }
 
-export function redrawInputWithAutocomplete(ctx: TuiContext): void {
+export async function redrawInputWithAutocomplete(ctx: TuiContext): Promise<void> {
     const ac = ctx.store.autocomplete;
     const prevItem = ac.items[ac.selected];
     const prevKey = makeSelectionKey(prevItem, ac.stage);
-    const next = resolveAutocompleteState({
+    const next = await resolveAutocompleteState({
         draft: getPlainCommandDraft(ctx.store.composer),
         prevKey,
         maxPopupRows: getMaxPopupRows(),
@@ -117,7 +117,7 @@ export async function runSlashCommand(ctx: TuiContext, parsed: ParsedSlashComman
     }
 
     if (parsed.name === 'model' && !parsed.args.length) {
-        const argItems = getArgumentCompletionItems('model', '', 'cli', [], makeCliCommandCtx(ctx));
+        const argItems = await getArgumentCompletionItems('model', '', 'cli', [], makeCliCommandCtx(ctx));
         const sel = ov.selector;
         sel.open = true;
         sel.commandName = 'model';
@@ -145,7 +145,7 @@ export async function runSlashCommand(ctx: TuiContext, parsed: ParsedSlashComman
     }
 
     if (parsed.name === 'cli' && !parsed.args.length) {
-        const argItems = getArgumentCompletionItems('cli', '', 'cli', [], makeCliCommandCtx(ctx));
+        const argItems = await getArgumentCompletionItems('cli', '', 'cli', [], makeCliCommandCtx(ctx));
         const sel = ov.selector;
         sel.open = true;
         sel.commandName = 'cli';

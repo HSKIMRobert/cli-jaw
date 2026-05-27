@@ -1,24 +1,24 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 import {
     getActiveGoal, getGoalHistory,
     setGoal, updateGoal, completeGoal, cancelGoal,
     pauseGoal, resumeGoal, clearGoal, resetGoalStore,
 } from '../goal/store.js';
-import type { GoalStatus } from '../goal/types.js';
+import { clearGoalTimers } from '../agent/lifecycle-handler.js';
 
-export function registerGoalRoutes(app: Router): void {
-    app.get('/api/goal', (_req, res) => {
+export function registerGoalRoutes(app: Router, requireAuth: RequestHandler): void {
+    app.get('/api/goal', requireAuth, (_req, res) => {
         const goal = getActiveGoal();
         res.json({ ok: true, goal });
     });
 
-    app.get('/api/goal/history', (req, res) => {
+    app.get('/api/goal/history', requireAuth, (req, res) => {
         const limit = Math.min(Number(req.query['limit']) || 10, 50);
         const history = getGoalHistory();
         res.json({ ok: true, goals: history.goals.slice(0, limit) });
     });
 
-    app.post('/api/goal', (req, res) => {
+    app.post('/api/goal', requireAuth, (req, res) => {
         const body = req.body as Record<string, unknown> | undefined;
         const action = String(body?.['action'] || 'set');
         try {
@@ -57,18 +57,21 @@ export function registerGoalRoutes(app: Router): void {
                 case 'done': {
                     const goal = completeGoal(body?.['note'] as string | undefined);
                     if (!goal) { res.status(404).json({ ok: false, error: 'No active goal' }); return; }
+                    clearGoalTimers();
                     res.json({ ok: true, goal });
                     return;
                 }
                 case 'cancel': {
                     const goal = cancelGoal(body?.['reason'] as string | undefined);
                     if (!goal) { res.status(404).json({ ok: false, error: 'No active goal' }); return; }
+                    clearGoalTimers();
                     res.json({ ok: true, goal });
                     return;
                 }
                 case 'pause': {
                     const goal = pauseGoal();
                     if (!goal) { res.status(400).json({ ok: false, error: 'No active goal to pause' }); return; }
+                    clearGoalTimers();
                     res.json({ ok: true, goal });
                     return;
                 }

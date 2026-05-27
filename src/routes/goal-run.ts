@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 import {
     getActiveRun,
     preflight,
@@ -12,13 +12,13 @@ import type { GoalRunMode } from '../goal-run/types.js';
 
 const VALID_MODES: GoalRunMode[] = ['dry-run', 'assist', 'bounded', 'supervised'];
 
-export function registerGoalRunRoutes(app: Router): void {
-    app.get('/api/goal-run', (_req, res) => {
+export function registerGoalRunRoutes(app: Router, requireAuth: RequestHandler): void {
+    app.get('/api/goal-run', requireAuth, (_req, res) => {
         const run = getActiveRun();
         res.json({ ok: true, run });
     });
 
-    app.get('/api/goal-run/preflight', (req, res) => {
+    app.get('/api/goal-run/preflight', requireAuth, (req, res) => {
         const mode = VALID_MODES.includes(req.query['mode'] as GoalRunMode)
             ? (req.query['mode'] as GoalRunMode)
             : 'assist';
@@ -26,7 +26,7 @@ export function registerGoalRunRoutes(app: Router): void {
         res.json({ ok: true, ...result });
     });
 
-    app.post('/api/goal-run', (req, res) => {
+    app.post('/api/goal-run', requireAuth, (req, res) => {
         const body = req.body as Record<string, unknown> | undefined;
         const action = String(body?.['action'] || 'preflight');
         try {

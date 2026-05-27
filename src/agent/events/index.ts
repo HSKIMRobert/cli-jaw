@@ -237,14 +237,17 @@ export function extractFromEvent(cli: string, event: CliEventRecord, ctx: SpawnC
                         }
                     }
                     if (toolName === 'ScheduleWakeup' && input.delaySeconds && input.prompt) {
-                        if (ctx.scheduleWakeup) {
-                            console.warn('[jaw:wakeup] multiple ScheduleWakeup calls — using latest');
+                        const delay = Number(input.delaySeconds);
+                        if (!Number.isFinite(delay) || delay <= 0) {
+                            console.warn(`[jaw:wakeup] invalid delaySeconds: ${input.delaySeconds} — ignoring`);
+                        } else {
+                            if (ctx.scheduleWakeup) {
+                                console.warn('[jaw:wakeup] multiple ScheduleWakeup calls — using latest');
+                            }
+                            const prompt = String(input.prompt).slice(0, 4000);
+                            const reason = String(input.reason || 'scheduled wakeup').slice(0, 200);
+                            ctx.scheduleWakeup = { delaySeconds: delay, prompt, reason };
                         }
-                        ctx.scheduleWakeup = {
-                            delaySeconds: Number(input.delaySeconds),
-                            prompt: String(input.prompt),
-                            reason: String(input.reason || 'scheduled wakeup'),
-                        };
                     }
                 } catch { /* partial JSON */ }
                 ctx.claudeInputJsonBuf = '';

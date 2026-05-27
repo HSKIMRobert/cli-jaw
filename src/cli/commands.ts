@@ -358,13 +358,13 @@ export interface ArgumentCompletionItem {
     insertText: string;
 }
 
-export function getArgumentCompletionItems(
+export async function getArgumentCompletionItems(
     commandName: string,
     partial: string = '',
     iface: string = 'cli',
     argv: string[] = [],
     ctx: { settings?: { perCli?: Record<string, unknown>; cli?: string }; locale?: string } = {},
-): ArgumentCompletionItem[] {
+): Promise<ArgumentCompletionItem[]> {
     const cmd = findCommand(commandName);
     if (!cmd || cmd.hidden) return [];
     if (!cmd.interfaces.includes(iface)) return [];
@@ -372,7 +372,7 @@ export function getArgumentCompletionItems(
 
     let candidates: SlashChoice[];
     try {
-        const result = cmd.getArgumentCompletions(ctx as CompletionCtx, argv, partial);
+        const result = await Promise.resolve(cmd.getArgumentCompletions(ctx as CompletionCtx, argv, partial));
         candidates = (Array.isArray(result) ? result : []) as SlashChoice[];
     } catch (err: unknown) {
         if (process.env["DEBUG"]) console.warn('[commands:argComplete]', (err as Error).message);

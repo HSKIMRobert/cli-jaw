@@ -30,8 +30,16 @@ const GOAL_CONT_MAX_ATTEMPTS = 20;
 let _goalContAttempts = 0;
 export function resetGoalContAttempts(): void { _goalContAttempts = 0; }
 
-const GOAL_DONE_RE = /\/goal\s+done/i;
-const GOAL_CANCEL_RE = /\/goal\s+cancel/i;
+const _goalTimers = new Map<string, ReturnType<typeof setTimeout>>();
+export function clearGoalTimers(): void {
+    for (const t of _goalTimers.values()) clearTimeout(t);
+    _goalTimers.clear();
+    _goalContAttempts = 0;
+}
+
+// Only match /goal done|cancel at line start or after whitespace — avoids false positives from quoted text
+const GOAL_DONE_RE = /(?:^|\n)\s*\/goal\s+done\b/im;
+const GOAL_CANCEL_RE = /(?:^|\n)\s*\/goal\s+cancel\b/im;
 
 type LifecycleSpawnOptions = {
     internal?: boolean;
@@ -624,12 +632,12 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
         if (activeGoal && activeGoal.status === 'active') {
             if (GOAL_DONE_RE.test(ctx.fullText)) {
                 completeGoal();
-                _goalContAttempts = 0;
+                clearGoalTimers();
                 console.log('[jaw:goal] AI output contained /goal done — goal marked complete');
                 broadcast('goal_done', { goalId: activeGoal.id, source: 'ai_output' });
             } else if (GOAL_CANCEL_RE.test(ctx.fullText)) {
                 cancelGoal();
-                _goalContAttempts = 0;
+                clearGoalTimers();
                 console.log('[jaw:goal] AI output contained /goal cancel — goal cancelled');
                 broadcast('goal_cancel', { goalId: activeGoal.id, source: 'ai_output' });
             }
@@ -652,18 +660,34 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
         if (clampedDelay !== delaySeconds * 1000) {
             console.log(`[jaw:wakeup] delay clamped: ${delaySeconds}s → ${clampedDelay / 1000}s`);
         }
-        console.log(`[jaw:wakeup] ScheduleWakeup intercepted — resuming in ${clampedDelay / 1000}s (${wakeupReason})`);
-        broadcast('schedule_wakeup', { delaySeconds: clampedDelay / 1000, reason: wakeupReason });
-        setTimeout(() => {
-            console.log(`[jaw:wakeup] firing delayed resume (${wakeupReason})`);
-            const { promise: wakeP } = _spawnAgent(wakeupPrompt, {
-                _skipInsert: true,
-            });
-            wakeP.catch((err: Error) => {
-                console.warn('[jaw:wakeup] delayed resume failed:', err.message);
-                broadcast('schedule_wakeup_failed', { reason: wakeupReason, error: err.message });
-            });
-        }, clampedDelay);
+        const goalAtWakeup = getActiveGoal();
+        const goalIdAtWakeup = goalAtWakeup?.id ?? '__none__';
+        _goalContAttempts++;
+        console.log(`[jaw:wakeup] ScheduleWakeup intercepted — resuming in ${clampedDelay / 1000}s (${wakeupReason}) [goal=${goalIdAtWakeup}, attempt=${_goalContAttempts}/${GOAL_CONT_MAX_ATTEMPTS}]`);
+        if (_goalContAttempts > GOAL_CONT_MAX_ATTEMPTS) {
+            console.warn(`[jaw:wakeup] max attempts reached — not scheduling`);
+            broadcast('goal_continuation_limit', { attempts: _goalContAttempts });
+            _goalContAttempts = 0;
+        } else {
+            broadcast('schedule_wakeup', { delaySeconds: clampedDelay / 1000, reason: wakeupReason });
+            const tid = setTimeout(() => {
+                _goalTimers.delete(goalIdAtWakeup);
+                const currentGoal = getActiveGoal();
+                if (!currentGoal || currentGoal.id !== goalIdAtWakeup || currentGoal.status !== 'active') {
+                    console.log(`[jaw:wakeup] goal changed or inactive — skipping resume`);
+                    return;
+                }
+                console.log(`[jaw:wakeup] firing delayed resume (${wakeupReason})`);
+                const { promise: wakeP } = _spawnAgent(wakeupPrompt, {
+                    _skipInsert: true,
+                });
+                wakeP.catch((err: Error) => {
+                    console.warn('[jaw:wakeup] delayed resume failed:', err.message);
+                    broadcast('schedule_wakeup_failed', { reason: wakeupReason, error: err.message });
+                });
+            }, clampedDelay);
+            _goalTimers.set(goalIdAtWakeup, tid);
+        }
     } else if (
     // ─── Goal auto-continuation (max 20 consecutive attempts) ───
         mainManaged
@@ -674,6 +698,8 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
     ) {
         const goalCont = buildGoalContinuation();
         if (goalCont.shouldContinue && goalCont.prompt) {
+            const contGoal = getActiveGoal();
+            const contGoalId = contGoal?.id ?? '__none__';
             _goalContAttempts++;
             if (_goalContAttempts > GOAL_CONT_MAX_ATTEMPTS) {
                 console.warn(`[jaw:goal] max continuation attempts (${GOAL_CONT_MAX_ATTEMPTS}) reached — stopping`);
@@ -683,7 +709,14 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
                 const delay = opts._isGoalContinuation ? 10000 : 2000;
                 console.log(`[jaw:goal] active goal — continuation ${_goalContAttempts}/${GOAL_CONT_MAX_ATTEMPTS} in ${delay}ms`);
                 broadcast('goal_continuation', { reason: goalCont.reason, attempt: _goalContAttempts });
-                setTimeout(() => {
+                const tid = setTimeout(() => {
+                    _goalTimers.delete(contGoalId);
+                    const currentGoal = getActiveGoal();
+                    if (!currentGoal || currentGoal.id !== contGoalId || currentGoal.status !== 'active') {
+                        console.log(`[jaw:goal] goal changed or inactive — skipping continuation`);
+                        _goalContAttempts = 0;
+                        return;
+                    }
                     const { promise: contP } = _spawnAgent(goalCont.prompt!, {
                         ...opts,
                         _isGoalContinuation: true,
@@ -694,6 +727,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
                         broadcast('goal_continuation_failed', { error: err.message });
                     });
                 }, delay);
+                _goalTimers.set(contGoalId, tid);
             }
         } else {
             _goalContAttempts = 0;
