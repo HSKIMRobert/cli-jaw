@@ -1,10 +1,11 @@
 import { ipcMain, type BrowserWindow } from 'electron';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { join, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { homedir } from 'node:os';
-import { existsSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import { discoverShell } from './shell-discovery.js';
 import { sanitizeEnv } from './env-sanitize.js';
+import { isWithinHome } from '../path-security.js';
 
 const MAX_SESSIONS = 8;
 const BUFFER_CAP = 1024 * 1024;
@@ -19,9 +20,12 @@ const sessions = new Map<string, TermSession>();
 let counter = 0;
 
 function isAllowedCwd(cwd: string): boolean {
-    const home = homedir();
-    const resolved = resolve(cwd);
-    return resolved.startsWith(home);
+    if (!isWithinHome(cwd)) return false;
+    try {
+        return statSync(resolve(cwd)).isDirectory();
+    } catch {
+        return false;
+    }
 }
 
 export function registerTerminalIpc(getWindow: () => BrowserWindow | null): void {
