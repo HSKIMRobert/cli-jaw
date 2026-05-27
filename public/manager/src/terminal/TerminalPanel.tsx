@@ -20,11 +20,10 @@ type RuntimeTerminal = {
 };
 
 function readTheme(): ITheme {
-    const style = getComputedStyle(document.documentElement);
     return {
-        background: style.getPropertyValue('--canvas-deep').trim() || '#111827',
-        foreground: style.getPropertyValue('--text-base').trim() || '#e5e7eb',
-        cursor: style.getPropertyValue('--accent-primary').trim() || '#38bdf8',
+        background: '#0b1020',
+        foreground: '#e5edf8',
+        cursor: '#38bdf8',
         selectionBackground: 'rgba(56, 189, 248, 0.22)',
         black: '#0f172a',
         brightBlack: '#475569',
