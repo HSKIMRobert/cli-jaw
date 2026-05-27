@@ -88,6 +88,9 @@ test('manager sidebar rail keeps IDE panel toggles visible', () => {
     assert.ok(layout.includes('display: flex'), 'manager sidebar must allow rail height to grow without clipping its list');
     assert.ok(layout.includes('.manager-sidebar-list { flex: 1 1 auto;'), 'sidebar list must size from remaining space, not a fixed rail height');
     assert.ok(compact.includes('flex-wrap: wrap'), 'expanded rail must wrap utility buttons instead of clipping them');
+    assert.ok(compact.includes('flex: 0 0 100%'), 'expanded rail spacer must force panel toggles onto a second row instead of pushing them past the sidebar edge');
+    assert.ok(compact.includes('min-height: 76px'), 'expanded rail must reserve enough height for its wrapped controls');
+    assert.ok(compact.includes('overflow: visible'), 'expanded rail must not crop wrapped controls');
     assert.ok(compact.includes('.rail-panel-toggle'), 'panel toggles must have distinct visible styling');
 });
 
