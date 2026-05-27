@@ -68,7 +68,7 @@ test('CP-007: telegram menu excludes start/id/settings', { skip: !moduleLoaded &
 test('CP-008: telegram menu has exact expected command set', { skip: !moduleLoaded && 'policy.js not yet created' }, () => {
     const cmds = getTelegramMenuCommands();
     const names = new Set(cmds.map(c => c.name));
-    const expected = new Set(['help', 'status', 'clear', 'compact', 'interview', 'deliberate', 'planaudit', 'goal', 'model', 'cli', 'fallback', 'forward', 'thought', 'flush', 'version', 'skill', 'browser', 'steer', 'reset', 'employee', 'mcp', 'memory', 'prompt', 'orchestrate']);
+    const expected = new Set(['help', 'status', 'clear', 'compact', 'plan', 'interview', 'deliberate', 'planaudit', 'goal', 'model', 'cli', 'fallback', 'forward', 'thought', 'flush', 'version', 'skill', 'browser', 'steer', 'reset', 'employee', 'mcp', 'memory', 'prompt', 'orchestrate']);
     // All expected present
     for (const name of expected) {
         assert.ok(names.has(name), `expected "${name}" in telegram menu`);
@@ -102,7 +102,7 @@ test('CP-012: discord slash command descriptions are <= 100 chars', { skip: !mod
 });
 
 test('CP-013: workflow commands are visible on web and hidden from cmdline', { skip: !moduleLoaded && 'policy.js not yet created' }, () => {
-    const workflowNames = ['interview', 'deliberate', 'planaudit', 'goal'];
+    const workflowNames = ['plan', 'interview', 'deliberate', 'planaudit', 'goal'];
     const web = new Set(getVisibleCommands('web').map(c => c.name));
     const cmdline = new Set(getVisibleCommands('cmdline').map(c => c.name));
 
@@ -119,7 +119,7 @@ test('CP-014: workflow commands are remote-safe for telegram and discord', { ski
         const names = getVisibleCommands(iface)
             .filter(c => c.category === 'workflow')
             .map(c => c.name);
-        assert.deepEqual(names.sort(), ['deliberate', 'goal', 'interview', 'planaudit'].sort());
+        assert.deepEqual(names.sort(), ['deliberate', 'goal', 'interview', 'plan', 'planaudit'].sort());
         for (const name of names) {
             assert.match(name, remoteName, `${iface} workflow command "${name}" must be remote-safe`);
             assert.equal(name.includes('-'), false, `${iface} workflow command "${name}" must not contain hyphen`);

@@ -39,11 +39,12 @@ test('parseCommand: compact command is parsed correctly', () => {
 });
 
 test('parseCommand: workflow commands use remote-safe names', () => {
-    for (const name of ['interview', 'deliberate', 'planaudit', 'goal']) {
+    for (const name of ['plan', 'interview', 'deliberate', 'planaudit', 'goal']) {
         const r = parseCommand(`/${name} draft feature`);
         assert.equal(r.type, 'known');
         assert.equal(r.cmd.name, name);
         assert.deepEqual(r.args, ['draft', 'feature']);
+        assert.equal(r.rawText, `/${name} draft feature`);
     }
 });
 
@@ -85,9 +86,12 @@ test('executeCommand: null parsed returns null', async () => {
 });
 
 test('executeCommand: unknown command returns error result', async () => {
-    const r = await executeCommand({ type: 'unknown', name: 'foo', args: [] }, {});
+    const r = await executeCommand({ type: 'unknown', name: 'foo', args: ['bar'], rawText: '/foo bar' }, {});
     assert.equal(r.ok, false);
     assert.equal(r.code, 'unknown_command');
+    assert.equal(r.originalText, '/foo bar');
+    assert.equal(r.recovery?.originalText, '/foo bar');
+    assert.equal(r.artifact?.kind, 'unknownCommandRecovery');
 });
 
 test('executeCommand: /quit returns exit code', async () => {
@@ -138,6 +142,17 @@ test('executeCommand: /goal run requires later preflight controls', async () => 
     assert.equal(r.ok, false);
     assert.equal(r.code, 'workflow_requires_preflight');
     assert.match(r.text, /Phase 5/);
+});
+
+test('executeCommand: /plan explains PABCD P without entering another mode', async () => {
+    const parsed = parseCommand('/plan build artifact cache');
+    const r = await executeCommand(parsed, { interface: 'web', locale: 'en' });
+    assert.equal(r.ok, true);
+    assert.equal(r.artifact?.kind, 'planCompat');
+    assert.equal(r.artifact?.sourcePrompt, '/plan build artifact cache');
+    assert.equal(r.artifact?.authoritative, false);
+    assert.match(r.text, /PABCD P/);
+    assert.doesNotMatch(r.text, /entered plan mode/i);
 });
 
 test('executeCommand: handler error is caught gracefully', async () => {
