@@ -310,6 +310,58 @@ const GATES = {
             }
         },
     },
+    'workflow-common-layer-no-sdk': {
+        description: 'Workflow/goal/goal-run/team/frontend must not import provider SDKs or create model adapter paths',
+        async check() {
+            try {
+                const scanRoots = [
+                    'src/workflows',
+                    'src/goal',
+                    'src/goal-run',
+                    'src/team',
+                    'public/js',
+                ];
+                const importRe = /from\s+['"](openai|@openai\/agents|@anthropic-ai\/sdk|@google\/generative-ai|@google\/genai|@ai-sdk\/[^'"]+|ai)['"]/;
+                const envRe = /\b(MODEL_ADAPTER_[A-Z_]+|AI_SDK_[A-Z_]+)\b/;
+                /** @type {Array<{file:string, hit:string}>} */
+                const violations = [];
+                /** @param {string} dirAbs */
+                function walk(dirAbs) {
+                    if (!fs.existsSync(dirAbs)) return;
+                    for (const entry of fs.readdirSync(dirAbs, { withFileTypes: true })) {
+                        if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
+                        const abs = path.join(dirAbs, entry.name);
+                        if (entry.isDirectory()) { walk(abs); continue; }
+                        if (!/\.(mjs|cjs|js|ts|tsx)$/.test(entry.name)) continue;
+                        const rel = path.relative(repoRoot, abs);
+                        if (rel.endsWith('release-gates.mjs')) continue;
+                        const text = fs.readFileSync(abs, 'utf8');
+                        if (importRe.test(text)) violations.push({ file: rel, hit: 'forbidden provider SDK import' });
+                        if (envRe.test(text)) violations.push({ file: rel, hit: 'forbidden MODEL_ADAPTER_/AI_SDK_ env var' });
+                    }
+                }
+                for (const root of scanRoots) walk(path.join(repoRoot, root));
+                const dirDenylist = [
+                    'src/workflows/model-adapter',
+                    'src/goal/model-adapter',
+                    'src/goal-run/model-adapter',
+                    'src/team/model-adapter',
+                ];
+                for (const dirRel of dirDenylist) {
+                    if (fs.existsSync(path.join(repoRoot, dirRel))) {
+                        violations.push({ file: dirRel, hit: 'forbidden model-adapter path' });
+                    }
+                }
+                if (violations.length) {
+                    const sample = violations.slice(0, 5).map(v => `${v.file}: ${v.hit}`).join('; ');
+                    return { ok: false, detail: `${violations.length} violation(s): ${sample}` };
+                }
+                return { ok: true, detail: 'workflow common layer clean: no SDK imports, no model-adapter paths' };
+            } catch (err) {
+                return { ok: false, detail: `workflow-common-layer-no-sdk gate threw: ${(err && err.message) || err}` };
+            }
+        },
+    },
 };
 
 function printResult(name, result) {
