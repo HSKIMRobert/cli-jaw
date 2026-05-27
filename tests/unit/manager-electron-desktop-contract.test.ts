@@ -188,6 +188,8 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(browserPanel.includes('if (desktop) return true;'), 'Electron browser webview must allow local/private preview URLs after http/https validation');
     assert.ok(browserPanel.includes('isRestrictedBrowserHost(parsed.hostname)'), 'web UI browser policy must continue blocking local/private hosts');
     assert.ok(browserPanel.includes('Local, private, and same-origin URLs are blocked.'), 'web UI must keep the explicit local/private URL rejection message');
+    assert.ok(browserPanel.includes('const inputRef = useRef<HTMLInputElement | null>(null);'), 'browser Go action must read the visible URL input value for native accessibility value injection');
+    assert.ok(browserPanel.includes('normalizeUrl(inputRef.current?.value ?? inputUrl)'), 'browser Go action must not depend only on React change events');
     assert.ok(router.includes('rightPreviewFilePath'), 'router must keep the selected file path for document preview');
     assert.ok(router.includes("panelLayout.dispatch({ type: 'OPEN_RIGHT_PANEL', mode: 'doc', slot: 'bottom' })"), 'selecting a file must open document preview in a folder/file split view');
     assert.ok(folder.includes('onPreviewFile'), 'folder panel must expose file selection to the preview panel');
@@ -198,6 +200,9 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(css.includes('.right-panel-mode-button.is-active'), 'active right sidebar icon must have visible state');
     assert.ok(css.includes('.right-sub-title'), 'split header labels must be visible and styled');
     assert.ok(css.includes('.right-sub-action'), 'split slot only/close actions must be styled as usable controls');
+    assert.ok(css.includes('.right-panel-body.is-single-panel > .right-sub-panel'), 'single right panels must consume the full sidebar height');
+    assert.ok(css.includes('flex: 1 1 0;'), 'single right panel content must not collapse to header height');
+    assert.ok(css.includes('.right-sub-content {\n    display: flex;'), 'right sidebar content must pass flex height to nested panels');
     assert.ok(css.includes('height: 100%;'), 'right sub content must pass a stable height to nested panels');
     assert.ok(workspace.includes('clampRightPanelRenderWidth'), 'right panel width must be clamped at render time so persisted large widths cannot clip the UI');
     assert.ok(workspace.includes('WORKSPACE_CENTER_MIN_WIDTH'), 'right panel clamp must reserve usable center workspace width');
