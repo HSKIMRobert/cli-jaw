@@ -175,6 +175,9 @@ test('Electron terminal uses xterm plus a PTY backend and representative shortcu
     assert.ok(terminal.includes("import { FitAddon } from '@xterm/addon-fit'"), 'TerminalPanel must fit terminal rows/cols to the panel');
     assert.ok(terminal.includes('term.onData(data => { void bridge.write(id, data); })'), 'xterm input must stream directly to the terminal bridge');
     assert.ok(terminal.includes('term.onResize(({ cols, rows }) => { void bridge.resize(id, cols, rows); })'), 'terminal resize must flow to the PTY backend');
+    assert.ok(terminal.includes('createAccessibilityInputBridge'), 'terminal must include an accessibility input bridge for Computer Use/native text injection');
+    assert.ok(terminal.includes("textarea.value = ''"), 'accessibility input bridge must clear helper textarea after forwarding text to PTY');
+    assert.ok(terminal.includes("value.replace(/\\r?\\n/g, '\\r')"), 'accessibility input bridge must translate submitted newlines into terminal carriage returns');
     assert.ok(terminalMain.includes("import { spawn as spawnPty } from 'node-pty'"), 'Electron terminal backend must use node-pty instead of pipe-backed child_process.spawn');
     assert.ok(terminalMain.includes("const pty = spawnPty(shell, ['-l']"), 'terminal sessions must be created as login PTYs');
     assert.ok(terminalMain.includes('session.pty.write(data)'), 'terminal writes must go to the PTY');
