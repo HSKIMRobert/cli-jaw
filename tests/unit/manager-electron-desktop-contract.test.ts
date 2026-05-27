@@ -276,6 +276,9 @@ test('Electron browser panel uses a hardened webview instead of a CSP-blocked if
     assert.ok(main.includes('webviewTag: true'), 'BrowserWindow must enable webview only for the desktop browser panel');
     assert.ok(main.includes("mainWindow.webContents.on('will-attach-webview'"), 'Electron main must validate every attached webview');
     assert.ok(main.includes('function isAllowedEmbeddedBrowserUrl'), 'webview navigation must use a dedicated URL policy');
+    assert.ok(main.includes("if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;"), 'Electron webview policy must reject non-http protocols before allowing navigation');
+    assert.ok(main.includes('return true;'), 'Electron webview policy must allow local/private http preview URLs after protocol validation');
+    assert.ok(!main.includes('BLOCKED_EMBED_HOSTS'), 'Electron webview policy must not block localhost/private preview URLs in the desktop Browser panel');
     assert.ok(main.includes('hardenEmbeddedBrowserWebContents'), 'webview contents must deny permissions and popups');
     assert.ok(browser.includes("createElement('webview'"), 'BrowserPanel must render Electron webview, not an iframe');
     assert.ok(browser.includes('Browser preview requires the Electron desktop app'), 'web UI must not present a broken iframe browser');

@@ -112,7 +112,6 @@ const EXTERNAL_ALLOWLIST = [
   'openai.com',
   'anthropic.com',
 ];
-const BLOCKED_EMBED_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '0.0.0.0']);
 
 const DEV_TOOLS_ENABLED =
   process.env.NODE_ENV === 'development' || process.env.JAW_ELECTRON_DEVTOOLS === '1';
@@ -324,10 +323,6 @@ function isAllowedEmbeddedBrowserUrl(raw: string): boolean {
   try {
     const parsed = new URL(raw);
     if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
-    const host = parsed.hostname.replace(/^\[|\]$/g, '').toLowerCase();
-    if (BLOCKED_EMBED_HOSTS.has(host)) return false;
-    if (host.endsWith('.local')) return false;
-    if (/^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(host)) return false;
     return true;
   } catch {
     return false;
