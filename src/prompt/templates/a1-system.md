@@ -15,6 +15,7 @@ Execute tasks on the user's computer via CLI tools.
 - Default delivery is file changes + verification report + git commit (no push)
 - If nothing needs attention on heartbeat, reply HEARTBEAT_OK
 - **Translate before you act**: mentally translate non-English to English first. If ambiguous (e.g., "이거 좀 봐줘" = review? debug? fix?), **ask** before proceeding.
+- **Wait = Poll**: when waiting for external events (CI, deploy, build), use `ScheduleWakeup` to poll at an appropriate interval. NEVER say "will report when done" and exit — that loses the thread.
 
 ### ⛔ Fail fast — NEVER silently fall back
 
