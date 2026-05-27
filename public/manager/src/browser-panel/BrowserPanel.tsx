@@ -57,6 +57,7 @@ export function BrowserPanel() {
     const [error, setError] = useState<string | null>(null);
     const [canGoBack, setCanGoBack] = useState(false);
     const [canGoForward, setCanGoForward] = useState(false);
+    const inputRef = useRef<HTMLInputElement | null>(null);
     const webviewRef = useRef<ElectronWebviewElement | null>(null);
 
     const refreshNavState = useCallback(() => {
@@ -118,7 +119,7 @@ export function BrowserPanel() {
     }, [desktop, refreshNavState, url]);
 
     const navigate = useCallback(() => {
-        const target = normalizeUrl(inputUrl);
+        const target = normalizeUrl(inputRef.current?.value ?? inputUrl);
         if (!target) return;
         if (!isUrlAllowed(target, desktop)) {
             setBlocked(true);
@@ -127,6 +128,7 @@ export function BrowserPanel() {
         }
         setBlocked(false);
         setError(null);
+        setInputUrl(target);
         setUrl(target);
     }, [desktop, inputUrl]);
 
@@ -145,6 +147,7 @@ export function BrowserPanel() {
                 <button type="button" className="browser-nav-btn" aria-label="Forward" disabled={!canGoForward} onClick={() => webviewRef.current?.goForward()}>›</button>
                 <button type="button" className="browser-nav-btn" aria-label="Reload" onClick={() => webviewRef.current?.reload()}>↻</button>
                 <input
+                    ref={inputRef}
                     className="browser-url-input"
                     type="text"
                     value={inputUrl}

@@ -120,6 +120,9 @@ body.is-resizing-vertical .panel-resizer { pointer-events: auto !important; }
     display: flex;
     flex-direction: column;
 }
+.right-panel-body.is-single-panel > .right-sub-panel {
+    flex: 1 1 0;
+}
 .right-sub-header {
     display: flex;
     align-items: center;
@@ -173,6 +176,8 @@ body.is-resizing-vertical .panel-resizer { pointer-events: auto !important; }
     color: var(--text-base);
 }
 .right-sub-content {
+    display: flex;
+    flex-direction: column;
     flex: 1;
     min-width: 0;
     min-height: 0;
