@@ -31,13 +31,16 @@ function normalizeUrl(target: string): string | null {
     return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 }
 
-function isSafeUrl(target: string): boolean {
+function isRestrictedBrowserHost(hostname: string): boolean {
+    return BLOCKED_HOSTS.has(hostname) || hostname.endsWith('.local') || isPrivateHost(hostname);
+}
+
+function isUrlAllowed(target: string, desktop: boolean): boolean {
     try {
         const parsed = new URL(target);
         if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
-        if (BLOCKED_HOSTS.has(parsed.hostname)) return false;
-        if (parsed.hostname.endsWith('.local')) return false;
-        if (isPrivateHost(parsed.hostname)) return false;
+        if (desktop) return true;
+        if (isRestrictedBrowserHost(parsed.hostname)) return false;
         if (parsed.origin === window.location.origin) return false;
         return true;
     } catch {
@@ -63,14 +66,14 @@ export function BrowserPanel() {
             setCanGoBack(webview.canGoBack());
             setCanGoForward(webview.canGoForward());
             const current = webview.getURL?.();
-            if (current && isSafeUrl(current)) {
+            if (current && isUrlAllowed(current, desktop)) {
                 setUrl(current);
                 setInputUrl(current);
             }
         } catch {
             // webview may not be ready yet
         }
-    }, []);
+    }, [desktop]);
 
     useEffect(() => {
         const webview = webviewRef.current;
@@ -85,7 +88,7 @@ export function BrowserPanel() {
         };
         const handleNavigate = (event: Event) => {
             const nextUrl = (event as ElectronWebviewEvent).url;
-            if (nextUrl && isSafeUrl(nextUrl)) {
+            if (nextUrl && isUrlAllowed(nextUrl, desktop)) {
                 setUrl(nextUrl);
                 setInputUrl(nextUrl);
             }
@@ -117,15 +120,15 @@ export function BrowserPanel() {
     const navigate = useCallback(() => {
         const target = normalizeUrl(inputUrl);
         if (!target) return;
-        if (!isSafeUrl(target)) {
+        if (!isUrlAllowed(target, desktop)) {
             setBlocked(true);
-            setError('Local, private, and same-origin URLs are blocked.');
+            setError(desktop ? 'Only http and https URLs are supported.' : 'Local, private, and same-origin URLs are blocked.');
             return;
         }
         setBlocked(false);
         setError(null);
         setUrl(target);
-    }, [inputUrl]);
+    }, [desktop, inputUrl]);
 
     if (!desktop) {
         return (

@@ -158,6 +158,7 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     const router = read('public/manager/src/SidebarRailRouter.tsx');
     const folder = read('public/manager/src/folder-panel/FolderPanel.tsx');
     const doc = read('public/manager/src/doc-panel/DocPanel.tsx');
+    const browserPanel = read('public/manager/src/browser-panel/BrowserPanel.tsx');
     const css = read('public/manager/src/panels/panels.css');
     const workspace = read('public/manager/src/components/WorkspaceLayout.tsx');
     const browserCss = read('public/manager/src/browser-panel/browser-panel.css');
@@ -183,6 +184,10 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(sidebar.includes("aria-label={`Close ${label}`}"), 'each right sidebar slot must keep an explicit close control in split and single modes');
     assert.ok(sidebar.includes('key={`${slot}-${mode}`}'), 'switching modes must remount the visible panel instead of leaving stale content painted');
     assert.ok(router.includes("case 'browser': return <Suspense fallback={fallback}><BrowserPanel /></Suspense>;"), 'right sidebar must be able to render the browser panel');
+    assert.ok(browserPanel.includes('function isUrlAllowed(target: string, desktop: boolean): boolean'), 'browser panel URL policy must be desktop-aware');
+    assert.ok(browserPanel.includes('if (desktop) return true;'), 'Electron browser webview must allow local/private preview URLs after http/https validation');
+    assert.ok(browserPanel.includes('isRestrictedBrowserHost(parsed.hostname)'), 'web UI browser policy must continue blocking local/private hosts');
+    assert.ok(browserPanel.includes('Local, private, and same-origin URLs are blocked.'), 'web UI must keep the explicit local/private URL rejection message');
     assert.ok(router.includes('rightPreviewFilePath'), 'router must keep the selected file path for document preview');
     assert.ok(router.includes("panelLayout.dispatch({ type: 'OPEN_RIGHT_PANEL', mode: 'doc', slot: 'bottom' })"), 'selecting a file must open document preview in a folder/file split view');
     assert.ok(folder.includes('onPreviewFile'), 'folder panel must expose file selection to the preview panel');
