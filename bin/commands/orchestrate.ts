@@ -14,7 +14,8 @@ if (shouldShowHelp(process.argv)) printAndExit(`
   Usage: jaw orchestrate <phase>
 
   Phases:
-    P       Enter Planning (from IDLE)
+    I       Enter Interview (from IDLE)
+    P       Enter Planning (from IDLE or I)
     A       Enter Plan Audit (from P)
     B       Enter Build (from A)
     C       Enter Check (from B)
@@ -22,7 +23,8 @@ if (shouldShowHelp(process.argv)) printAndExit(`
     status  Show current phase
     reset   Return to IDLE from any state
 
-  Transitions: P -> A -> B -> C -> D -> IDLE (one-way only).
+  Transitions: IDLE -> I -> P -> A -> B -> C -> D -> IDLE
+  Interview is optional: IDLE -> P is also valid. I -> IDLE ends interview.
 `);
 
 loadSettings();
@@ -86,10 +88,10 @@ const PORT = parsed.port;
 const BASE = getServerUrl(PORT);
 
 const target = parsed.target;
-const valid = ['P', 'A', 'B', 'C', 'D', 'RESET', 'STATUS'];
+const valid = ['I', 'P', 'A', 'B', 'C', 'D', 'RESET', 'STATUS'];
 
 if (!valid.includes(target)) {
-  console.error(`Invalid state: ${target}. Must be one of: P, A, B, C, D, status, reset`);
+  console.error(`Invalid state: ${target}. Must be one of: I, P, A, B, C, D, status, reset`);
   process.exit(1);
 }
 

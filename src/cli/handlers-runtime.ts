@@ -430,7 +430,7 @@ export async function ideHandler(args: string[], ctx: CliCommandContext): Promis
 export async function orchestrateHandler(args: string[], ctx: CliCommandContext): Promise<SlashResult> {
     const { getState, setState, resetState, canTransition, getStatePrompt, getCtx } = await import('../orchestrator/state-machine.js');
     const { resolveOrcScope } = await import('../orchestrator/scope.js');
-    type OrcStateName = 'IDLE' | 'P' | 'A' | 'B' | 'C' | 'D';
+    type OrcStateName = 'IDLE' | 'I' | 'P' | 'A' | 'B' | 'C' | 'D';
 
     // Phase 58: --force overrides audit/verification gates by setting userApproved.
     const force = args.includes('--force');
@@ -462,9 +462,9 @@ export async function orchestrateHandler(args: string[], ctx: CliCommandContext)
         return { ok: true, text: '✅ State → IDLE (reset)' };
     }
 
-    const valid: OrcStateName[] = ['P', 'A', 'B', 'C', 'D'];
+    const valid: OrcStateName[] = ['I', 'P', 'A', 'B', 'C', 'D'];
     if (!valid.includes(target as OrcStateName)) {
-        return { ok: false, text: `Invalid state: ${target}. Must be one of: P, A, B, C, D, status, reset` };
+        return { ok: false, text: `Invalid state: ${target}. Must be one of: I, P, A, B, C, D, status, reset` };
     }
 
     const current = getState(scope);

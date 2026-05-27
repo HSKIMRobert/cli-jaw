@@ -11,7 +11,7 @@ import type { ResolvedSelection } from './parser.js';
 
 // ─── Types ──────────────────────────────────────────
 
-export type OrcStateName = 'IDLE' | 'P' | 'A' | 'B' | 'C' | 'D';
+export type OrcStateName = 'IDLE' | 'I' | 'P' | 'A' | 'B' | 'C' | 'D';
 
 export type AuditVerdict = 'pending' | 'pass' | 'fail';
 export type VerificationVerdict = 'pending' | 'done' | 'needs_fix';
@@ -36,6 +36,13 @@ export interface OrcContext {
   verificationStatus?: VerificationVerdict;
   userApproved?: boolean;
   projectDirs?: string[] | null;
+  // ─── Phase 2.1: Interview state ──────────────────
+  interview?: {
+    request: string;
+    round: number;
+    known: string[];
+    unknown: string[];
+  };
 }
 
 // ─── State Read/Write (DB-backed) ───────────────────
@@ -116,6 +123,18 @@ export function resetAllStaleStates(): number {
 // B state: only worker results get Bb2 prefix, user messages get no prefix.
 
 const PREFIXES: Record<string, string> = {
+  Ip: `[INTERVIEW MODE — User Response]
+You are conducting a requirements interview. The user has responded to your question.
+
+Rules:
+- Ask ONE clarifying question at a time.
+- Separate known facts from assumptions.
+- Do NOT dispatch employees, write files, or start implementation.
+- When the request is clear enough for PABCD P, suggest: "Ready for planning. Run \`cli-jaw orchestrate P\` or \`/orchestrate P\` to proceed."
+- The user can also end the interview with \`cli-jaw orchestrate reset\` to return to IDLE.
+
+User says:`,
+
   Pb2: `[PLANNING MODE — User Feedback]
 The user has reviewed your plan. Apply their feedback and present the revised plan.
 If user explicitly approves, run \`cli-jaw orchestrate A\` to advance.
@@ -166,6 +185,7 @@ Employee results:`,
 };
 
 export function getPrefix(state: OrcStateName, source: 'user' | 'worker' = 'user'): string | null {
+  if (state === 'I') return PREFIXES["Ip"]!;
   if (state === 'P') return PREFIXES["Pb2"]!;
   // Phase 59: distinguish first-entry user message (Ap) from worker verdict (Ab2).
   if (state === 'A') return source === 'worker' ? PREFIXES["Ab2"]! : PREFIXES["Ap"]!;
@@ -176,6 +196,24 @@ export function getPrefix(state: OrcStateName, source: 'user' | 'worker' = 'user
 // ─── State Prompts (stdout on transition) ───────────
 
 const STATE_PROMPTS: Record<string, string> = {
+  I: `[INTERVIEW — Requirements Clarification]
+
+You are now in Interview mode. Your ONLY job is to clarify requirements.
+
+Rules:
+- Ask ONE high-value clarifying question at a time.
+- For each question, optionally suggest 2-3 recommended answer choices.
+- Track what is known, unknown, and what assumptions are risky.
+- Do NOT dispatch employees, write project files, or start implementation.
+- Do NOT invent business decisions — ask the user.
+- Prefer concise Korean-friendly questions when locale is Korean.
+
+When the request is clear enough for PABCD Planning:
+- Summarize: Known facts, Remaining unknowns (if minor), Risky assumptions.
+- Suggest: "Ready for planning. Run \`cli-jaw orchestrate P\` to proceed, or \`cli-jaw orchestrate reset\` to end the interview."
+
+The user can exit interview at any time via \`cli-jaw orchestrate reset\` (→ IDLE) or \`cli-jaw orchestrate P\` (→ Planning).`,
+
   P: `[PABCD — P: PLANNING]
 
 You are now in Planning mode. Your ONLY job right now is to write a plan.
@@ -309,7 +347,8 @@ export function getStatePrompt(target: string): string {
 // ─── Transition Guards ──────────────────────────────
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
-  IDLE: ['P'],
+  IDLE: ['I', 'P'],
+  I: ['P', 'IDLE'],
   P: ['A'],
   A: ['B'],
   B: ['C'],
@@ -329,6 +368,10 @@ export function canTransition(
 ): TransitionResult {
   if (!VALID_TRANSITIONS[from]?.includes(to)) {
     return { ok: false, reason: `Invalid transition: ${from} → ${to}. Force cannot skip phases; start from the next valid phase.` };
+  }
+  // Phase 2.1: I→P soft gate — warn if no interview context, but don't block.
+  if (from === 'I' && to === 'P' && !ctx?.interview) {
+    console.warn('[jaw:pabcd] I→P without interview context — proceeding anyway');
   }
   // Phase 58: Gate A→B on audit verdict (strict equality, not truthy).
   if (from === 'A' && to === 'B') {

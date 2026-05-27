@@ -87,6 +87,7 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
             taskAnchor: ctx.taskAnchor,
             resolvedSelection: ctx.resolvedSelection,
             projectDirs: ctx.projectDirs,
+            interview: ctx.interview,
         } : null;
         res.json({
             orc: {
@@ -396,7 +397,7 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
 
     app.put('/api/orchestrate/state', requireAuth, (req, res) => {
         const target = String(req.body?.state || '').toUpperCase();
-        const valid: OrcStateName[] = ['P', 'A', 'B', 'C', 'D'];
+        const valid: OrcStateName[] = ['I', 'P', 'A', 'B', 'C', 'D'];
         if (!valid.includes(target as OrcStateName)) {
             return fail(res, 400, `Invalid state: ${target}. Must be one of: ${valid.join(', ')}`);
         }
@@ -432,11 +433,16 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
             clearProjectDirs();
             broadcast('settings_change', { projectDirs: null });
         } else {
+            const initCtx = t === 'P'
+                ? { originalPrompt: '', workingDir: settings["workingDir"] || null, projectDirs: settings["projectDirs"] || null, plan: null, workerResults: [], origin: 'api' }
+                : t === 'I'
+                    ? { originalPrompt: req.body?.ctx?.originalPrompt || '', workingDir: settings["workingDir"] || null, projectDirs: settings["projectDirs"] || null, plan: null, workerResults: [], origin: 'api' }
+                    : undefined;
             setState(
                 t,
-                t === 'P' ? { originalPrompt: '', workingDir: settings["workingDir"] || null, projectDirs: settings["projectDirs"] || null, plan: null, workerResults: [], origin: 'api' } : undefined,
+                initCtx,
                 scope,
-                t === 'P' ? 'P' : t,
+                t === 'P' ? 'P' : t === 'I' ? 'Interview' : t,
             );
         }
         res.json({ ok: true, state: getState(scope), current, target: t, force, userInitiated, ctxPresent: Boolean(currentCtx) });

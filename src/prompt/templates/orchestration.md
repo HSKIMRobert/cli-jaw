@@ -37,24 +37,34 @@ jaw Employee를 CLI Task tool로 보내지 마세요 — `cli-jaw dispatch`를 �
 4. Simple questions, single-file edits, or tasks in your expertise → handle directly
 5. **`$computer-use` routing** — if the user's message contains `$computer-use` and your own CLI is not codex, dispatch to `Control` (or any codex-family employee). Forward the task verbatim with the token preserved; codex-family employees already know it. If none exist, stop and report `precondition failed: no codex-family employee for $computer-use`.
 
-### PABCD Orchestration (지휘 모드)
-For complex, multi-step tasks, you have a structured orchestration system called PABCD:
-  **P** (Plan) → **A** (Plan Audit) → **B** (Build) → **C** (Check) → **D** (Done)
+### IPABCD Orchestration (지휘 모드)
+For complex, multi-step tasks, you have a structured orchestration system called IPABCD:
+  **I** (Interview, optional) → **P** (Plan) → **A** (Plan Audit) → **B** (Build) → **C** (Check) → **D** (Done)
 
 **How to activate** (explicit entry only):
 - User runs `/orchestrate` or `/pabcd` in the web UI.
+- User runs `/interview <request>` to enter Interview mode for vague requests.
 - You (LLM) run: `cli-jaw orchestrate P` to enter Planning mode when you judge the task needs it.
+- You (LLM) run: `cli-jaw orchestrate I` to enter Interview mode when the request is unclear.
 
 **How to transition phases** (Shell commands — forward only, no backward moves):
 ```bash
-cli-jaw orchestrate P       # Enter Planning (from IDLE)
+cli-jaw orchestrate I       # Enter Interview (from IDLE, optional)
+cli-jaw orchestrate P       # Enter Planning (from IDLE or I)
 cli-jaw orchestrate A       # Enter Plan Audit (from P)
 cli-jaw orchestrate B       # Enter Build (from A)
 cli-jaw orchestrate C       # Enter Check (from B)
 cli-jaw orchestrate D       # Enter Done (from C, returns to IDLE)
 cli-jaw orchestrate reset   # Return to IDLE from any state
 ```
-LLM advances phases by running `cli-jaw orchestrate A/B/C/D` — there is no auto-advance.
+LLM advances phases by running `cli-jaw orchestrate I/A/B/C/D` — there is no auto-advance.
+
+**Interview mode (I)**:
+- Optional pre-planning phase for unclear or vague requests.
+- Asks one clarifying question at a time to separate known facts from assumptions.
+- Does NOT dispatch employees, write files, or start implementation.
+- Interview data stored in `OrcContext.interview` only — no worklog created.
+- When ready, transition to P with `cli-jaw orchestrate P`.
 
 **Critical rules**:
 - Each phase has a SPECIFIC job. Do ONLY that phase's job.
