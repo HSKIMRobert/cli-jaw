@@ -24,10 +24,14 @@ import {
     memoryFlushCounter,
 } from './memory-flush-controller.js';
 import { buildGoalContinuation } from '../goal/heartbeat.js';
+import { completeGoal, cancelGoal, getActiveGoal } from '../goal/store.js';
 
 const GOAL_CONT_MAX_ATTEMPTS = 20;
 let _goalContAttempts = 0;
 export function resetGoalContAttempts(): void { _goalContAttempts = 0; }
+
+const GOAL_DONE_RE = /\/goal\s+done/i;
+const GOAL_CANCEL_RE = /\/goal\s+cancel/i;
 
 type LifecycleSpawnOptions = {
     internal?: boolean;
@@ -611,6 +615,26 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
         diagnostic,
         ...(params.outputLen ? { outputLen: params.outputLen } : {}),
     });
+
+    // ─── AI-initiated /goal done or /goal cancel ───
+    // The AI can't execute slash commands directly. Detect the pattern in output
+    // and execute it so the continuation loop stops.
+    if (mainManaged && !opts.internal && ctx.fullText) {
+        const activeGoal = getActiveGoal();
+        if (activeGoal && activeGoal.status === 'active') {
+            if (GOAL_DONE_RE.test(ctx.fullText)) {
+                completeGoal();
+                _goalContAttempts = 0;
+                console.log('[jaw:goal] AI output contained /goal done — goal marked complete');
+                broadcast('goal_done', { goalId: activeGoal.id, source: 'ai_output' });
+            } else if (GOAL_CANCEL_RE.test(ctx.fullText)) {
+                cancelGoal();
+                _goalContAttempts = 0;
+                console.log('[jaw:goal] AI output contained /goal cancel — goal cancelled');
+                broadcast('goal_cancel', { goalId: activeGoal.id, source: 'ai_output' });
+            }
+        }
+    }
 
     // ─── ScheduleWakeup server intercept ───
     // When the AI called ScheduleWakeup, the CLI ignores it (only works in /loop).
