@@ -4,6 +4,7 @@ import { resolve, join } from 'node:path';
 import { homedir } from 'node:os';
 import { watch, type FSWatcher } from 'node:fs';
 import { isWithinHome, assertContained } from '../path-security.js';
+import { isAllowedSender } from '../ipc-origin-guard.js';
 
 const READ_CAP = 512 * 1024;
 const DEPTH_LIMIT = 5;
@@ -30,7 +31,8 @@ function isBinary(buf: Buffer): boolean {
 }
 
 export function registerFolderIpc(getWindow: () => BrowserWindow | null): void {
-    ipcMain.handle('folder:pick', async () => {
+    ipcMain.handle('folder:pick', async (event) => {
+        if (!isAllowedSender(event)) return { ok: false, error: 'unauthorized' };
         const win = getWindow();
         if (!win) return { ok: false, error: 'no window' };
         const result = await dialog.showOpenDialog(win, {
@@ -44,7 +46,8 @@ export function registerFolderIpc(getWindow: () => BrowserWindow | null): void {
         return { ok: true, path: picked };
     });
 
-    ipcMain.handle('folder:listDir', async (_event, dirPath: string, _depth?: number) => {
+    ipcMain.handle('folder:listDir', async (event, dirPath: string, _depth?: number) => {
+        if (!isAllowedSender(event)) return { ok: false, error: 'unauthorized' };
         if (!isAllowedByRoot(dirPath)) return { ok: false, error: 'path not allowed — pick a folder first' };
         const resolved = resolve(dirPath);
         try {
@@ -77,7 +80,8 @@ export function registerFolderIpc(getWindow: () => BrowserWindow | null): void {
         }
     });
 
-    ipcMain.handle('folder:readFile', async (_event, filePath: string) => {
+    ipcMain.handle('folder:readFile', async (event, filePath: string) => {
+        if (!isAllowedSender(event)) return { ok: false, error: 'unauthorized' };
         if (!isAllowedByRoot(filePath)) return { ok: false, error: 'path not allowed — pick a folder first' };
         try {
             const ls = await lstat(resolve(filePath));
@@ -97,7 +101,8 @@ export function registerFolderIpc(getWindow: () => BrowserWindow | null): void {
         }
     });
 
-    ipcMain.handle('folder:watchDir', async (_event, dirPath: string) => {
+    ipcMain.handle('folder:watchDir', async (event, dirPath: string) => {
+        if (!isAllowedSender(event)) return;
         if (!isAllowedByRoot(dirPath)) return;
         const resolved = resolve(dirPath);
         if (watchers.has(resolved)) return;
@@ -120,7 +125,8 @@ export function registerFolderIpc(getWindow: () => BrowserWindow | null): void {
         }
     });
 
-    ipcMain.handle('folder:unwatchDir', async (_event, dirPath: string) => {
+    ipcMain.handle('folder:unwatchDir', async (event, dirPath: string) => {
+        if (!isAllowedSender(event)) return;
         const resolved = resolve(dirPath);
         const w = watchers.get(resolved);
         if (w) {

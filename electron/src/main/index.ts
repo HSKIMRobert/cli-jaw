@@ -27,6 +27,7 @@ import { startAppMetricsCollector, type MetricsCollectorHandle } from './lib/app
 import { registerTerminalIpc, cleanupTerminals } from './lib/terminal/index.js';
 import { registerDiffIpc } from './lib/git/ipc.js';
 import { registerFolderIpc, cleanupFolderWatchers } from './lib/folder/ipc.js';
+import { setAllowedOrigin } from './lib/ipc-origin-guard.js';
 
 interface CliFlags {
   port: number;
@@ -90,6 +91,7 @@ function parseArgs(argv: string[]): CliFlags {
 const FLAGS = parseArgs(process.argv.slice(1));
 const MANAGER_URL = FLAGS.managerUrl;
 const MANAGER_ORIGIN = new URL(MANAGER_URL).origin;
+setAllowedOrigin(MANAGER_ORIGIN);
 const PREVIEW_FRAME_POLICY = resolvePreviewFramePolicy(process.env);
 
 const EXTERNAL_ALLOWLIST = [

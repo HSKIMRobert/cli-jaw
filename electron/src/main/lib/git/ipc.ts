@@ -3,6 +3,7 @@ import { execFile } from 'node:child_process';
 import { resolve } from 'node:path';
 import { existsSync } from 'node:fs';
 import { isWithinHome, assertContainedLexical, isValidRef } from '../path-security.js';
+import { isAllowedSender } from '../ipc-origin-guard.js';
 
 const OUTPUT_CAP = 1024 * 1024;
 
@@ -16,7 +17,8 @@ function git(args: string[], cwd: string): Promise<string> {
 }
 
 export function registerDiffIpc(): void {
-    ipcMain.handle('diff:getRepoRoot', async (_event, cwd: string) => {
+    ipcMain.handle('diff:getRepoRoot', async (event, cwd: string) => {
+        if (!isAllowedSender(event)) return { ok: false, error: 'unauthorized' };
         if (!isWithinHome(cwd)) return { ok: false, error: 'path not allowed' };
         const resolved = resolve(cwd);
         if (!existsSync(resolved)) return { ok: false, error: 'path does not exist' };
@@ -28,7 +30,8 @@ export function registerDiffIpc(): void {
         }
     });
 
-    ipcMain.handle('diff:getDiffSummary', async (_event, repoRoot: string, ref?: string) => {
+    ipcMain.handle('diff:getDiffSummary', async (event, repoRoot: string, ref?: string) => {
+        if (!isAllowedSender(event)) return { ok: false, error: 'unauthorized' };
         if (!isWithinHome(repoRoot)) return { ok: false, error: 'path not allowed' };
         if (ref !== undefined && !isValidRef(ref)) return { ok: false, error: 'invalid ref' };
         try {
@@ -51,7 +54,8 @@ export function registerDiffIpc(): void {
         }
     });
 
-    ipcMain.handle('diff:getFileDiff', async (_event, repoRoot: string, filePath: string, ref?: string) => {
+    ipcMain.handle('diff:getFileDiff', async (event, repoRoot: string, filePath: string, ref?: string) => {
+        if (!isAllowedSender(event)) return { ok: false, error: 'unauthorized' };
         if (!isWithinHome(repoRoot)) return { ok: false, error: 'path not allowed' };
         if (!assertContainedLexical(repoRoot, filePath)) return { ok: false, error: 'path traversal' };
         if (ref !== undefined && !isValidRef(ref)) return { ok: false, error: 'invalid ref' };
