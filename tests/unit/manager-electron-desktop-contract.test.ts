@@ -206,6 +206,7 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(browserCss.includes('min-width: 0'), 'browser panel flex children must be allowed to shrink inside the right sidebar');
     assert.ok(browserCss.includes('.browser-webview-host'), 'browser webview must be hosted in a flex child that owns the remaining vertical height');
     assert.ok(browserCss.includes('position: absolute'), 'browser webview must fill the host by inset instead of participating in fragile flex height sizing');
+    assert.ok(browserCss.includes('display: flex'), 'Electron webview must keep its default flex display so the internal guest iframe fills the container');
 });
 
 test('Electron terminal uses xterm plus a PTY backend and representative shortcut', () => {
