@@ -354,6 +354,11 @@ test('workspace polish keeps current center/right/bottom grid areas intact', () 
     const workspace = read('public/manager/src/components/WorkspaceLayout.tsx');
     const layout = read('public/manager/src/manager-layout.css');
     assert.ok(workspace.includes("props.rightPanelOpen && 'is-right-panel-open'"), 'workspace must expose an open-state class for responsive right panel rules');
+    assert.ok(workspace.includes("props.bottomPanelOpen && 'is-bottom-panel-open'"), 'workspace must expose a bottom-panel open class so mobile layouts do not infer it from the legacy inspector state');
     assert.ok(layout.includes('position: relative;'), 'workspace must create a containing block for narrow right-panel overlay layout');
     assert.ok(layout.includes('.manager-workspace.is-right-panel-open .right-panel'), 'narrow layouts must keep the right panel visible as an overlay instead of pushing it offscreen');
+    assert.ok(layout.includes('.manager-workspace.is-bottom-panel-open'), 'mobile layouts must keep an explicit bottom panel grid row when the terminal panel is open');
+    assert.ok(layout.includes('grid-area: auto;'), 'mobile right panel overlay must clear its desktop right grid area to avoid implicit grid clipping');
+    assert.ok(layout.includes('height: auto;'), 'mobile right panel overlay must stretch between top and bottom insets instead of collapsing to its toolbar');
+    assert.ok(layout.includes('justify-self: end;'), 'mobile right panel overlay must anchor to the right edge without creating implicit grid columns');
 });

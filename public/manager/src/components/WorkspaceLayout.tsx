@@ -93,6 +93,7 @@ export function WorkspaceLayout(props: WorkspaceLayoutProps) {
         props.inspectorCollapsed && 'is-inspector-collapsed',
         props.rightPanelOpen && 'is-right-panel-open',
         !props.rightPanelOpen && !props.sidePanel && 'is-right-panel-closed',
+        props.bottomPanelOpen && 'is-bottom-panel-open',
         !props.bottomPanelOpen && 'is-bottom-panel-closed',
         props.sidePanel && 'is-side-panel-open',
         props.drawerOpen && 'is-drawer-open',
