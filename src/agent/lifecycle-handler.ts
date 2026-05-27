@@ -604,17 +604,19 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
     });
 
     // ─── Goal auto-continuation ───
+    // Keep re-spawning as long as the goal is active. Each spawn gets the full
+    // goal context so it can make progress without prior conversation history.
     if (
         mainManaged
         && !opts.internal
         && !wasKilled
         && !wasSteer
-        && !opts._isGoalContinuation
         && (resolvedCode === 0 || resolvedCode === null)
     ) {
         const goalCont = buildGoalContinuation();
         if (goalCont.shouldContinue && goalCont.prompt) {
-            console.log(`[jaw:goal] active goal detected after exit — auto-continuing (${goalCont.reason})`);
+            const delay = opts._isGoalContinuation ? 10000 : 2000;
+            console.log(`[jaw:goal] active goal — scheduling continuation in ${delay}ms (${goalCont.reason})`);
             broadcast('goal_continuation', { reason: goalCont.reason });
             setTimeout(() => {
                 const { promise: contP } = _spawnAgent(goalCont.prompt!, {
@@ -625,7 +627,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
                 contP.catch((err: Error) => {
                     console.warn('[jaw:goal] auto-continuation failed:', err.message);
                 });
-            }, 2000);
+            }, delay);
         }
     }
 
