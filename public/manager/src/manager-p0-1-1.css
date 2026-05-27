@@ -116,11 +116,14 @@
 }
 
 .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .sidebar-rail {
-    min-height: 54px;
+    min-height: 76px;
     flex-wrap: wrap;
     align-content: center;
-    gap: 6px;
-    padding: 8px;
+    align-items: center;
+    column-gap: 6px;
+    row-gap: 4px;
+    overflow: visible;
+    padding: 6px 8px;
 }
 
 .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .rail-button {
@@ -130,8 +133,14 @@
 }
 
 .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .rail-spacer {
-    flex: 1 1 12px;
-    min-width: 12px;
+    flex: 0 0 100%;
+    min-width: 0;
+    height: 0;
+}
+
+.dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .rail-status-dot {
+    flex: 0 0 auto;
+    margin-inline: 4px;
 }
 
 .rail-panel-toggle {
