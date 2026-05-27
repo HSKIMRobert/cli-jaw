@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { isElectron } from './panels/desktop-bridge';
 
 type DesktopStatus = {
     inDesktop: boolean;
@@ -18,6 +19,7 @@ function openCurrentDashboardPath(): void {
 }
 
 export function DesktopLink() {
+    if (isElectron()) return null;
     const [status, setStatus] = useState<DesktopStatus | null>(null);
     const [failed, setFailed] = useState(false);
 
