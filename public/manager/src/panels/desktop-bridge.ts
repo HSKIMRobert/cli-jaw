@@ -35,6 +35,11 @@ export function getDesktop(): CliJawDesktopApi | null {
     return (window as unknown as { cliJawDesktop?: CliJawDesktopApi }).cliJawDesktop ?? null;
 }
 
+function hasDesktopDocumentMarker(): boolean {
+    if (typeof document === 'undefined') return false;
+    return document.documentElement.dataset['cliJawDesktop'] === 'true';
+}
+
 export function isElectron(): boolean {
-    return getDesktop()?.identify?.()?.electron === true;
+    return getDesktop()?.identify?.()?.electron === true || hasDesktopDocumentMarker();
 }
