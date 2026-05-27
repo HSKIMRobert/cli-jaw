@@ -10,19 +10,21 @@
     min-width: 0;
     min-height: 0;
     display: grid;
-    grid-template-columns: 340px minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) var(--activity-dock-height, 150px);
-    grid-template-areas: "sidebar detail" "sidebar activity";
+    grid-template-columns: var(--sidebar-width, 340px) minmax(0, 1fr) var(--right-panel-width, 0px);
+    grid-template-rows: minmax(0, 1fr) var(--bottom-panel-height, var(--activity-dock-height, 150px));
+    grid-template-areas: "sidebar center right" "sidebar bottom right";
     overflow: hidden;
 }
 .manager-workspace.is-side-panel-open {
-    grid-template-columns: 340px minmax(0, 1fr) 420px;
-    grid-template-areas: "sidebar detail ceo" "sidebar activity ceo";
+    --right-panel-width: 420px;
 }
 .manager-shell.is-sidebar-collapsed .manager-workspace,
-.manager-workspace.is-sidebar-collapsed { grid-template-columns: 56px minmax(0, 1fr); }
-.manager-shell.is-sidebar-collapsed .manager-workspace.is-side-panel-open,
-.manager-workspace.is-sidebar-collapsed.is-side-panel-open { grid-template-columns: 56px minmax(0, 1fr) 420px; }
+.manager-workspace.is-sidebar-collapsed { --sidebar-width: 56px; }
+.manager-workspace.is-right-panel-closed { --right-panel-width: 0px; }
+.manager-workspace.is-right-panel-closed .right-panel,
+.manager-workspace.is-right-panel-closed .manager-ceo-panel { display: none; }
+.manager-workspace.is-bottom-panel-closed { --bottom-panel-height: 0px; }
+.manager-workspace.is-bottom-panel-closed .bottom-panel { display: none; }
 .manager-sidebar { grid-area: sidebar; min-width: 0; min-height: 0; overflow: hidden; border-right: 1px solid var(--border-subtle); background: var(--canvas-deep); }
 .manager-command {
     grid-area: command;
@@ -30,8 +32,8 @@
     border-bottom: 1px solid var(--border-subtle);
     background: var(--bg-panel);
 }
-.manager-detail { grid-area: detail; min-width: 0; min-height: 0; overflow: hidden; background: var(--bg-panel); }
-.manager-ceo-panel { grid-area: ceo; min-width: 0; min-height: 0; overflow: hidden; border-left: 1px solid var(--border-subtle); background: var(--bg-panel); }
+.manager-detail { grid-area: center; min-width: 0; min-height: 0; overflow: hidden; background: var(--bg-panel); }
+.manager-ceo-panel { grid-area: right; min-width: 0; min-height: 0; overflow: hidden; border-left: 1px solid var(--border-subtle); background: var(--bg-panel); }
 .workspace-surface-stack {
     min-width: 0;
     min-height: 0;
@@ -54,7 +56,7 @@
     display: none;
 }
 .manager-activity {
-    grid-area: activity; min-width: 0; min-height: 0; overflow: hidden;
+    grid-area: bottom; min-width: 0; min-height: 0; overflow: hidden;
     border-top: 1px solid var(--border-subtle); background: var(--canvas-mid);
 }
 .manager-mobile-nav { display: none; grid-area: mobile-nav; }
@@ -73,19 +75,18 @@
 
 @media (min-width: 1440px) {
     .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .manager-workspace {
-        grid-template-columns: 360px minmax(0, 1fr);
+        --sidebar-width: 360px;
     }
     .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .manager-workspace.is-side-panel-open {
-        grid-template-columns: 360px minmax(0, 1fr) 520px;
+        --right-panel-width: 520px;
     }
 }
 @media (max-width: 1279px) and (min-width: 1024px) {
     .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .manager-workspace {
-        grid-template-columns: 300px minmax(0, 1fr);
-        grid-template-rows: minmax(0, 1fr) var(--activity-dock-height, 150px);
+        --sidebar-width: 300px;
     }
     .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .manager-workspace.is-side-panel-open {
-        grid-template-columns: 300px minmax(0, 1fr) 360px;
+        --right-panel-width: 360px;
     }
     .command-primary { grid-template-columns: minmax(120px, 180px) max-content minmax(max-content, 1fr); }
     .command-search { width: clamp(260px, 38vw, 620px); }
@@ -96,12 +97,14 @@
     .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .manager-workspace {
         grid-template-columns: minmax(0, 1fr);
         grid-template-rows: minmax(0, 1fr) 48px;
-        grid-template-areas: "detail" "mobile-nav";
+        grid-template-areas: "center" "mobile-nav";
+        --right-panel-width: 0px;
+        --bottom-panel-height: 0px;
     }
     .dashboard-shell.manager-shell .manager-workspace:not(.is-inspector-collapsed),
     .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .manager-workspace:not(.is-inspector-collapsed) {
         grid-template-rows: minmax(0, 1fr) var(--activity-dock-height, 150px) 48px;
-        grid-template-areas: "detail" "activity" "mobile-nav";
+        grid-template-areas: "center" "bottom" "mobile-nav";
     }
     .manager-activity { display: none; }
     .manager-workspace:not(.is-inspector-collapsed) .manager-activity { display: block; }
@@ -135,12 +138,14 @@
     .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .manager-workspace {
         grid-template-columns: 1fr;
         grid-template-rows: minmax(0, 1fr) 60px;
-        grid-template-areas: "detail" "mobile-nav";
+        grid-template-areas: "center" "mobile-nav";
+        --right-panel-width: 0px;
+        --bottom-panel-height: 0px;
     }
     .dashboard-shell.manager-shell .manager-workspace:not(.is-inspector-collapsed),
     .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .manager-workspace:not(.is-inspector-collapsed) {
         grid-template-rows: minmax(0, 1fr) minmax(120px, var(--activity-dock-height, 150px)) 60px;
-        grid-template-areas: "detail" "activity" "mobile-nav";
+        grid-template-areas: "center" "bottom" "mobile-nav";
     }
     .manager-sidebar { width: min(85vw, 300px); }
     .manager-activity { display: none; }
