@@ -37,7 +37,9 @@ export function getCommandCatalog() {
             discord: cmd.interfaces.includes('discord')
                 ? (REMOTE_READONLY.has(cmd.name) ? CAPABILITY.readonly : CAPABILITY.full)
                 : CAPABILITY.hidden,
-            cmdline: CMDLINE_HIDDEN.has(cmd.name) ? CAPABILITY.hidden : CAPABILITY.full,
+            cmdline: CMDLINE_HIDDEN.has(cmd.name) || cmd.category === 'workflow'
+                ? CAPABILITY.hidden
+                : CAPABILITY.full,
         },
     }));
 }

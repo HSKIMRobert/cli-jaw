@@ -38,6 +38,21 @@ test('parseCommand: compact command is parsed correctly', () => {
     assert.deepEqual(r.args, ['keep', 'only', 'deployment', 'status']);
 });
 
+test('parseCommand: workflow commands use remote-safe names', () => {
+    for (const name of ['interview', 'deliberate', 'planaudit']) {
+        const r = parseCommand(`/${name} draft feature`);
+        assert.equal(r.type, 'known');
+        assert.equal(r.cmd.name, name);
+        assert.deepEqual(r.args, ['draft', 'feature']);
+    }
+});
+
+test('parseCommand: plan-audit is not registered in Phase 1', () => {
+    const r = parseCommand('/plan-audit draft feature');
+    assert.equal(r.type, 'unknown');
+    assert.equal(r.name, 'plan-audit');
+});
+
 test('parseCommand: command aliases work', () => {
     const r = parseCommand('/h');
     assert.equal(r.type, 'known');
@@ -103,6 +118,22 @@ test('executeCommand: unsupported interface returns error', async () => {
     assert.equal(r.code, 'unsupported_interface');
 });
 
+test('executeCommand: /goal is an explicit gated workflow stub', async () => {
+    const parsed = parseCommand('/goal ship phase 1');
+    const r = await executeCommand(parsed, { interface: 'web', locale: 'en' });
+    assert.equal(r.ok, false);
+    assert.equal(r.code, 'workflow_not_ready');
+    assert.match(r.text, /Phase 3/);
+});
+
+test('executeCommand: /autopilot requires later preflight controls', async () => {
+    const parsed = parseCommand('/autopilot run checks');
+    const r = await executeCommand(parsed, { interface: 'web', locale: 'en' });
+    assert.equal(r.ok, false);
+    assert.equal(r.code, 'workflow_requires_preflight');
+    assert.match(r.text, /Phase 5/);
+});
+
 test('executeCommand: handler error is caught gracefully', async () => {
     const parsed = parseCommand('/status');
     // status handler calls ctx.getSettings etc — passing empty ctx will throw
@@ -138,6 +169,14 @@ test('getCompletionItems returns structured objects', () => {
     assert.ok(ver);
     assert.equal(ver.kind, 'command');
     assert.ok(ver.insertText.startsWith('/version'));
+});
+
+test('getCompletionItems includes workflow metadata', () => {
+    const items = getCompletionItems('/inter', 'web');
+    const interview = items.find(i => i.name === 'interview');
+    assert.ok(interview);
+    assert.equal(interview.workflow?.kind, 'workflow');
+    assert.equal(interview.workflow?.phase, 'requirements');
 });
 
 test('getCompletions: telegram interface excludes cli-only commands', () => {

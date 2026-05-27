@@ -2,6 +2,7 @@
 // src/command-contract/policy.js 가 생성되면 통과
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 let getVisibleCommands, getTelegramMenuCommands, getExecutableCommands;
 
@@ -67,7 +68,7 @@ test('CP-007: telegram menu excludes start/id/settings', { skip: !moduleLoaded &
 test('CP-008: telegram menu has exact expected command set', { skip: !moduleLoaded && 'policy.js not yet created' }, () => {
     const cmds = getTelegramMenuCommands();
     const names = new Set(cmds.map(c => c.name));
-    const expected = new Set(['help', 'status', 'clear', 'compact', 'model', 'cli', 'fallback', 'forward', 'thought', 'flush', 'version', 'skill', 'browser', 'steer', 'reset', 'employee', 'mcp', 'memory', 'prompt', 'orchestrate']);
+    const expected = new Set(['help', 'status', 'clear', 'compact', 'interview', 'deliberate', 'planaudit', 'goal', 'autopilot', 'model', 'cli', 'fallback', 'forward', 'thought', 'flush', 'version', 'skill', 'browser', 'steer', 'reset', 'employee', 'mcp', 'memory', 'prompt', 'orchestrate']);
     // All expected present
     for (const name of expected) {
         assert.ok(names.has(name), `expected "${name}" in telegram menu`);
@@ -98,6 +99,62 @@ test('CP-012: discord slash command descriptions are <= 100 chars', { skip: !mod
         const desc = c.desc || `/${c.name}`;
         assert.ok(desc.length <= 100, `command "${c.name}" desc is ${desc.length} chars (max 100)`);
     }
+});
+
+test('CP-013: workflow commands are visible on web and hidden from cmdline', { skip: !moduleLoaded && 'policy.js not yet created' }, () => {
+    const workflowNames = ['interview', 'deliberate', 'planaudit', 'goal', 'autopilot'];
+    const web = new Set(getVisibleCommands('web').map(c => c.name));
+    const cmdline = new Set(getVisibleCommands('cmdline').map(c => c.name));
+
+    for (const name of workflowNames) {
+        assert.ok(web.has(name), `${name} should be visible on web`);
+        assert.ok(!cmdline.has(name), `${name} should be hidden from cmdline`);
+    }
+});
+
+test('CP-014: workflow commands are remote-safe for telegram and discord', { skip: !moduleLoaded && 'policy.js not yet created' }, () => {
+    const remoteName = /^[a-z0-9_]{1,32}$/;
+    for (const iface of ['telegram', 'discord']) {
+        const names = getVisibleCommands(iface)
+            .filter(c => c.category === 'workflow')
+            .map(c => c.name);
+        assert.deepEqual(names.sort(), ['autopilot', 'deliberate', 'goal', 'interview', 'planaudit'].sort());
+        for (const name of names) {
+            assert.match(name, remoteName, `${iface} workflow command "${name}" must be remote-safe`);
+            assert.equal(name.includes('-'), false, `${iface} workflow command "${name}" must not contain hyphen`);
+        }
+    }
+});
+
+test('CP-015: telegram menu never registers hyphenated command names', { skip: !moduleLoaded && 'policy.js not yet created' }, () => {
+    const cmds = getTelegramMenuCommands();
+    assert.ok(cmds.some(c => c.name === 'planaudit'), 'planaudit should be in telegram menu');
+    assert.ok(!cmds.some(c => c.name === 'plan-audit'), 'plan-audit must not be in telegram menu');
+    for (const c of cmds) {
+        assert.equal(c.name.includes('-'), false, `telegram menu command "${c.name}" must not contain hyphen`);
+    }
+});
+
+test('CP-016: every workflow command tgDescKey is translated in ko/en/ja/zh', { skip: !moduleLoaded && 'policy.js not yet created' }, async () => {
+    const { getCommandCatalog } = await import('../../src/command-contract/catalog.ts');
+    const workflow = getCommandCatalog().filter(c => c.category === 'workflow');
+    const bundles = Object.fromEntries(['ko', 'en', 'ja', 'zh'].map(locale => {
+        const url = new URL(`../../public/locales/${locale}.json`, import.meta.url);
+        return [locale, JSON.parse(readFileSync(url, 'utf8'))];
+    }));
+
+    for (const cmd of workflow) {
+        assert.ok(cmd.tgDescKey, `${cmd.name} should define tgDescKey`);
+        for (const [locale, bundle] of Object.entries(bundles)) {
+            assert.ok(bundle[cmd.tgDescKey], `${locale} missing ${cmd.tgDescKey}`);
+        }
+    }
+});
+
+test('CP-017: autopilot visibility is not runtime readiness', { skip: !moduleLoaded && 'policy.js not yet created' }, () => {
+    const autopilot = getVisibleCommands('web').find(c => c.name === 'autopilot');
+    assert.ok(autopilot, 'autopilot should be visible as a gated stub');
+    assert.equal(autopilot.workflow?.gatedUntilPhase, 5);
 });
 
 test('CP-010: model and cli are writable on telegram', { skip: !moduleLoaded && 'policy.js not yet created' }, async () => {

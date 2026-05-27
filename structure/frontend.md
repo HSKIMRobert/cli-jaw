@@ -10,7 +10,7 @@ aliases: [CLI-JAW Frontend, public architecture, frontend.md]
 
 > Web UI 본체는 Vanilla HTML + CSS + TypeScript ES Modules로 구성된다. Manager 대시보드는 `public/manager/`의 React 19 + TSX 앱이다.
 > 빌드는 Vite 8 기준이며, `vite.config.ts`는 `public/index.html`과 `public/manager/index.html`을 multi-entry로 빌드한다.
-> 현재 `public/`에서 `public/dist/*`를 제외한 소스/자산/legacy duplicate는 493개다. `public/public/dist/*`까지 generated로 보면 실제 편집 대상 소스/자산은 366개다. 생성 산출물은 `public/dist/` 460개와 별도 중복 트리 `public/public/dist/` 127개가 남아 있고, `public/dist/dist/`는 전자에 재귀 포함된 nested 복제본이다.
+> 현재 `public/`에서 `public/dist/*`를 제외한 소스/자산/legacy duplicate는 499개다. `public/public/dist/*`까지 generated로 보면 실제 편집 대상 소스/자산은 372개다. 생성 산출물은 `public/dist/` 464개와 별도 중복 트리 `public/public/dist/` 127개가 남아 있고, `public/dist/dist/`는 전자에 재귀 포함된 nested 복제본이다.
 > 메인 UI는 `index.html`에서 Google Fonts `Chakra Petch` + `Outfit`을 불러오고, 로컬 `public/assets/fonts/GeistVF.woff2`와 `JetBrainsMono-Variable.woff2`는 자산으로 보관 중이다.
 > PWA는 `manifest.json` + `sw.js` + `icons/`로 구성된다. 오프라인 메시지 캐시, virtual scroll, markdown/KaTeX/Mermaid 렌더링, sandboxed diagram widget, avatar emoji/image 커스터마이즈, voice recording, PABCD roadmap, subagent-aware ProcessBlock 렌더링, 반응형 사이드바, theme toggle이 현재 런타임의 핵심이다.
 
@@ -28,15 +28,15 @@ public/
 │   ├── fonts/            ← 2 fonts (GeistVF, JetBrainsMono variable)
 │   ├── providers/        ← 12 SVG provider assets
 │   └── shark.svg
-├── css/                  ← 10 CSS files
+├── css/                  ← 11 CSS files
 ├── icons/                ← 3 PWA icons
 ├── img/                  ← shark sprite
-├── js/                   ← 74 TypeScript modules
+├── js/                   ← 75 TypeScript modules
 │   ├── diagram/          ← 3 diagram pipeline modules
 │   ├── features/         ← 43 feature modules
 │   └── render/           ← 11 markdown/diagram rendering modules
 ├── locales/              ← ko/en/ja/zh JSON bundles
-├── manager/              ← React manager dashboard + notes/search/settings workspaces (251 files)
+├── manager/              ← React manager dashboard + notes/search/settings workspaces (257 files)
 │   ├── index.html        ← Manager HTML entry
 │   └── src/              ← React components/hooks/styles
 └── dist/                 ← Vite build output (generated, nested dist copies remain)
@@ -46,23 +46,23 @@ public/
 
 | 영역 | 파일 수 | 비고 |
 | --- | ---: | --- |
-| `public/` source/assets | 493 | 문서 관례상 `public/dist/*`만 제외, `public/public/dist/*`는 포함 |
-| `public/` source/assets (generated 제외) | 364 | `public/dist/*`, `public/public/dist/*` 모두 제외 |
+| `public/` source/assets | 499 | 문서 관례상 `public/dist/*`만 제외, `public/public/dist/*`는 포함 |
+| `public/` source/assets (generated 제외) | 372 | `public/dist/*`, `public/public/dist/*` 모두 제외 |
 | `public/js/` root | 17 | 전부 TypeScript ES modules, `mermaid-loader.ts`, `uuid.ts`, `virtual-scroll-bootstrap.ts` 포함 |
 | `public/js/diagram/` | 3 | SVG/iframe diagram pipeline |
 | `public/js/render/` | 11 | markdown/KaTeX/Mermaid/SVG/file-link/post-render 책임 분리 |
 | `public/js/features/` | 43 | settings 분해 + help/attention/orchestrate scope + process-step-match + preview shortcut bridge 포함 |
-| `public/manager/` | 251 | React 19 manager dashboard, notes/search, schedule, settings, sync, WYSIWYG source |
-| `public/css/` | 10 | theme/layout/chat/markdown/tool UI/diagram/trace drawer |
+| `public/manager/` | 257 | React 19 manager dashboard, notes/search, schedule, settings, sync, WYSIWYG source |
+| `public/css/` | 11 | theme/layout/chat/markdown/tool UI/diagram/trace drawer |
 | `public/locales/` | 4 | `ko.json`, `en.json`, `ja.json`, `zh.json` |
 | `public/assets/providers/` | 12 | provider SVG 세트. `codex`는 원본 `openai.svg` 색을 유지하고 `codex-app` color variant만 ChatGPT/OpenAI green(`#10A37F`)으로 렌더 |
 | `public/assets/fonts/` | 2 | 로컬 폰트 자산 |
 | `public/icons/` | 3 | PWA icons |
-| `public/dist/` | 460 | generated build output, nested `dist/dist` 포함 |
+| `public/dist/` | 464 | generated build output, nested `dist/dist` 포함 |
 | `public/public/dist/` | 127 | old build duplicate |
 | `public/dist/dist/` | 127 | old build duplicate |
 
-> 참고: `public/dist/` 456개에는 `public/dist/dist/` 127개가 이미 재귀 포함된다. 그래서 별도 루트 기준으로 보면 현재 남아 있는 build tree는 `public/dist/`와 `public/public/dist/` 두 갈래다.
+> 참고: `public/dist/` 464개에는 `public/dist/dist/` 127개가 이미 재귀 포함된다. 그래서 별도 루트 기준으로 보면 현재 남아 있는 build tree는 `public/dist/`와 `public/public/dist/` 두 갈래다.
 
 ---
 
@@ -160,7 +160,7 @@ public/
 | `js/features/settings.ts` | barrel re-export |
 | `js/features/sidebar.ts` | responsive collapse/expand, narrow overlay behavior, arrow sync |
 | `js/features/skills.ts` | skill load/filter/toggle |
-| `js/features/slash-commands.ts` | web slash command dropdown + file-path guard |
+| `js/features/slash-commands.ts` | web slash command dropdown + file-path guard + workflow metadata chips(`phase/risk/output`) |
 | `js/features/theme.ts` | dark/light theme toggle, hljs theme swap, Mermaid/iframe refresh |
 | `js/features/tool-ui.ts` | legacy finalized tool group + live activity helper. 현재 assistant tool history는 주로 ProcessBlock HTML로 렌더링 |
 | `js/features/trace-drawer.ts` | trace drawer open/close/render controls |
@@ -192,7 +192,7 @@ settings.ts
 | --- | --- |
 | `css/variables.css` | 컬러/타이포/spacing/easing token, light/dark variables, reveal animations |
 | `css/layout.css` | 전체 grid layout, sidebar width, base UI scaffolding |
-| `css/chat.css` | chat area, message layout, input bar, attachments, voice button/arming state, theme switch, virtual scroll container, `.file-path-link` open states (`opening/opened/open-failed`) |
+| `css/chat.css` | chat area, message layout, input bar, attachments, voice button/arming state, theme switch, virtual scroll container, slash command workflow chips, `.file-path-link` open states (`opening/opened/open-failed`) |
 | `css/orc-state.css` | PABCD roadmap, shark runner, orc glow, state badge |
 | `css/sidebar.css` | left/right sidebar, collapse behavior, status / CLI / app name sections |
 | `css/modals.css` | prompt/template/heartbeat/memory modal shells + form controls |

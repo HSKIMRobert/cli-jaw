@@ -4,11 +4,24 @@ import { t } from './i18n.js';
 import { api } from '../api.js';
 import { escapeHtml } from '../render.js';
 
+interface WorkflowCommandMeta {
+    kind: 'workflow';
+    phase: string;
+    risk: 'low' | 'medium' | 'high';
+    output: string;
+    prerequisites?: string[];
+    workflowArgs?: Array<{ name: string; required: boolean; kind: string }>;
+    gatedUntilPhase?: number;
+}
+
 interface SlashCommand {
     name: string;
     desc: string;
-    args?: string;
+    args?: string | null;
     category?: string;
+    aliases?: string[];
+    workflow?: WorkflowCommandMeta | null;
+    capability?: string | null;
 }
 
 let cmdList: SlashCommand[] = [];
@@ -29,6 +42,22 @@ const input = (): HTMLTextAreaElement | null => document.getElementById('chatInp
 function filterCommands(partial: string): SlashCommand[] {
     const prefix = String(partial || '').toLowerCase();
     return cmdList.filter(c => (`/${c.name}`).startsWith(prefix));
+}
+
+function formatWorkflowArgs(cmd: SlashCommand): string {
+    const args = cmd.workflow?.workflowArgs || [];
+    if (!args.length) return cmd.args || '';
+    return args.map(a => a.required ? `<${a.name}>` : `[${a.name}]`).join(' ');
+}
+
+function renderWorkflowMeta(cmd: SlashCommand): string {
+    const wf = cmd.workflow;
+    if (!wf) return '';
+    return `<span class="cmd-meta">
+        <span class="cmd-chip">${escapeHtml(wf.phase)}</span>
+        <span class="cmd-chip cmd-risk-${escapeHtml(wf.risk)}">${escapeHtml(wf.risk)}</span>
+        <span class="cmd-chip">${escapeHtml(wf.output)}</span>
+    </span>`;
 }
 
 function showDropdown(): void {
@@ -66,6 +95,8 @@ function render(): void {
 
     el.innerHTML = filtered.map((cmd, i) => {
         const selected = i === selectedIdx;
+        const args = formatWorkflowArgs(cmd);
+        const workflowMeta = renderWorkflowMeta(cmd);
         return `<div class="cmd-item${selected ? ' selected' : ''}"
                      role="option"
                      id="cmd-item-${i}"
@@ -73,7 +104,8 @@ function render(): void {
                      data-index="${i}">
             <span class="cmd-name">/${escapeHtml(cmd.name)}</span>
             <span class="cmd-desc">${escapeHtml(cmd.desc)}</span>
-            ${cmd.args ? `<span class="cmd-args">${escapeHtml(cmd.args)}</span>` : ''}
+            ${workflowMeta}
+            ${args ? `<span class="cmd-args">${escapeHtml(args)}</span>` : ''}
         </div>`;
     }).join('');
 

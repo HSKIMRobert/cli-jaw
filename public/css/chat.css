@@ -1182,18 +1182,52 @@ div.math-placeholder {
     color: var(--accent);
     font-weight: 700;
     font-family: var(--font-mono);
+    flex-shrink: 0;
 }
 
 .cmd-desc {
     flex: 1;
+    min-width: 0;
     color: var(--text-dim);
     font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cmd-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+.cmd-chip {
+    font-size: 11px;
+    line-height: 1.4;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1px 5px;
+    color: var(--text-dim);
+    white-space: nowrap;
+}
+
+.cmd-risk-high {
+    color: var(--error, #b42318);
+}
+
+.cmd-risk-medium {
+    color: var(--warning, #925400);
 }
 
 .cmd-args {
     color: var(--text-dim);
     font-size: 11px;
     opacity: 0.8;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .cmd-empty {
