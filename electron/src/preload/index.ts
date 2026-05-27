@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import { homedir } from 'node:os';
 import { getLatestMetrics, setupMetricsBridge } from './metrics.js';
 
 const DESKTOP_IDENTITY = {
@@ -31,6 +32,7 @@ function installDesktopFetchHeader(): void {
 contextBridge.exposeInMainWorld('cliJawDesktop', {
   identify: () => DESKTOP_IDENTITY,
   getMetrics: () => getLatestMetrics(),
+  getHomePath: () => homedir(),
   terminal: {
     create: (opts?: { cwd?: string }) => ipcRenderer.invoke('terminal:create', opts),
     write: (id: string, data: string) => ipcRenderer.invoke('terminal:write', id, data),

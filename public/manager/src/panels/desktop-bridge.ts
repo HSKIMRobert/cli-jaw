@@ -25,6 +25,7 @@ export type FolderBridgeApi = {
 export type CliJawDesktopApi = {
     identify: () => { name: string; electron: boolean; header: string };
     getMetrics: () => unknown;
+    getHomePath?: (() => string) | undefined;
     terminal?: TerminalBridgeApi | undefined;
     diff?: DiffBridgeApi | undefined;
     folder?: FolderBridgeApi | undefined;
