@@ -246,6 +246,9 @@ test('Electron terminal uses xterm plus a PTY backend and representative shortcu
     assert.ok(terminal.includes('autoCreatedRef'), 'terminal must only auto-create the initial session so closing the last session remains possible');
     assert.ok(terminal.includes('const closeSession = useCallback'), 'terminal session tabs must expose a close action');
     assert.ok(terminal.includes('terminal-tab-close'), 'terminal session tabs must render visible close controls');
+    assert.ok(terminal.includes('isCreating'), 'terminal must track shell creation separately from the tab list');
+    assert.ok(terminal.includes("'No terminal sessions'"), 'terminal empty state must not keep showing a stale Starting shell message after closing the last session');
+    assert.ok(terminal.includes('disabled={isCreating}'), 'terminal new-session buttons must avoid duplicate starts while a shell is already being created');
     assert.ok(bottomTabBar.includes('bottom-tab-item'), 'bottom panel tabs must separate the tab button from the close button');
     assert.ok(bottomTabBar.includes('type="button"\n                        className="bottom-tab-close"'), 'bottom panel close control must be a real button, not a hidden nested role span');
     assert.ok(panelCss.includes('.bottom-tab-item'), 'bottom panel tab wrappers must be styled');
