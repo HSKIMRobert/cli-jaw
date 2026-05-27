@@ -22,12 +22,24 @@
 .browser-nav-btn {
     all: unset;
     cursor: pointer;
-    padding: 2px 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
     border-radius: 3px;
     font-size: 13px;
     color: var(--text-dim);
 }
 .browser-nav-btn:hover { background: var(--bg-hover); color: var(--text-base); }
+.browser-nav-btn:disabled {
+    cursor: default;
+    opacity: 0.38;
+}
+.browser-nav-btn:disabled:hover {
+    background: transparent;
+    color: var(--text-dim);
+}
 .browser-url-input {
     flex: 1;
     padding: 3px 8px;
@@ -39,8 +51,34 @@
     outline: none;
 }
 .browser-url-input:focus { border-color: var(--accent-primary); }
+.browser-go-btn {
+    all: unset;
+    cursor: pointer;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border-subtle);
+    color: var(--text-base);
+    background: var(--bg-raised);
+    font-size: 11px;
+}
+.browser-go-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-strong);
+}
+.browser-status {
+    flex-shrink: 0;
+    padding: 5px 8px;
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--text-dim);
+    font-size: 11px;
+}
+.browser-status.is-error {
+    color: var(--status-error);
+    background: color-mix(in srgb, var(--status-error) 10%, transparent);
+}
 .browser-webview {
     flex: 1;
     min-height: 0;
     border: 0;
+    background: white;
 }

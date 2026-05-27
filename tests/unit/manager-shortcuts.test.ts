@@ -8,9 +8,10 @@ import {
     shortcutMatches,
 } from '../../public/manager/src/manager-shortcuts.js';
 
-function keyEvent(key: string, modifiers: Partial<Pick<KeyboardEvent, 'altKey' | 'ctrlKey' | 'metaKey' | 'shiftKey'>> = {}): KeyboardEvent {
+function keyEvent(key: string, modifiers: Partial<Pick<KeyboardEvent, 'altKey' | 'ctrlKey' | 'metaKey' | 'shiftKey' | 'code'>> = {}): KeyboardEvent {
     return {
         key,
+        code: modifiers.code,
         altKey: modifiers.altKey === true,
         ctrlKey: modifiers.ctrlKey === true,
         metaKey: modifiers.metaKey === true,
@@ -39,6 +40,14 @@ test('manager shortcut action lookup uses the configured keymap', () => {
         actionForShortcutEvent(keyEvent('j', { ctrlKey: true }), DEFAULT_MANAGER_SHORTCUT_KEYMAP),
         null,
     );
+    assert.equal(
+        actionForShortcutEvent(keyEvent('~', { ctrlKey: true, shiftKey: true, code: 'Backquote' }), DEFAULT_MANAGER_SHORTCUT_KEYMAP),
+        'focusTerminal',
+    );
+    assert.equal(
+        actionForShortcutEvent(keyEvent('`', { metaKey: true, code: 'Backquote' }), { focusTerminal: 'Meta+`' }),
+        'focusTerminal',
+    );
 });
 
 test('manager shortcut labels render readable chords', () => {
@@ -55,6 +64,7 @@ test('manager shortcut keymap normalizes legacy registry values', () => {
 
     assert.equal(normalized.focusInstances, DEFAULT_MANAGER_SHORTCUT_KEYMAP.focusInstances);
     assert.equal(normalized.focusActiveSession, DEFAULT_MANAGER_SHORTCUT_KEYMAP.focusActiveSession);
+    assert.equal(normalized.focusTerminal, 'Ctrl+Shift+`');
     assert.equal(normalized.focusNotes, 'Ctrl+Shift+N');
     assert.equal(normalized.previousInstance, DEFAULT_MANAGER_SHORTCUT_KEYMAP.previousInstance);
     assert.equal(normalized.nextInstance, DEFAULT_MANAGER_SHORTCUT_KEYMAP.nextInstance);

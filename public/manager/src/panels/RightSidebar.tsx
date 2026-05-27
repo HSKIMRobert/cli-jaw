@@ -8,10 +8,55 @@ type RightSidebarProps = {
 };
 
 const MODE_LABELS: Record<RightPanelMode, string> = {
-    doc: 'Document',
     folder: 'Folders',
+    doc: 'Document preview',
     diff: 'Diff',
+    browser: 'Browser',
 };
+
+function FolderIcon() {
+    return (
+        <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+            <path d="M3 6.5h5l1.5 2H17v6.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 15V6.5Z" />
+            <path d="M3 6.5V5a1.5 1.5 0 0 1 1.5-1.5h3L9 5.5h6.5A1.5 1.5 0 0 1 17 7v1.5" />
+        </svg>
+    );
+}
+
+function DocIcon() {
+    return (
+        <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+            <path d="M5 3.5h6l4 4V16a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 5 16v-12.5Z" />
+            <path d="M11 3.5v4h4M7.5 11h5M7.5 14h4" />
+        </svg>
+    );
+}
+
+function DiffIcon() {
+    return (
+        <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+            <path d="M6 4v12M14 4v12M4 7h4M4 13h4M12 10h4M14 8v4" />
+        </svg>
+    );
+}
+
+function BrowserIcon() {
+    return (
+        <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+            <rect x="3" y="4" width="14" height="12" rx="2" />
+            <path d="M3 7.5h14M6 6h.01M8.5 6h.01" />
+        </svg>
+    );
+}
+
+const MODE_ICONS: Record<RightPanelMode, ReactNode> = {
+    folder: <FolderIcon />,
+    doc: <DocIcon />,
+    diff: <DiffIcon />,
+    browser: <BrowserIcon />,
+};
+
+const RIGHT_PANEL_TOOLBAR_MODES: RightPanelMode[] = ['folder', 'doc', 'diff', 'browser'];
 
 export function RightSidebar(props: RightSidebarProps) {
     const { state, dispatch, effectiveRightOpen, rightPanelSplit } = usePanelLayout();
@@ -34,45 +79,77 @@ export function RightSidebar(props: RightSidebarProps) {
         dispatch({ type: 'SET_RIGHT_SPLIT_RATIO', ratio: rp.splitRatio + delta / totalHeight });
     }, [dispatch, rp.splitRatio]);
 
+    const handleToolbarModeClick = useCallback((mode: RightPanelMode) => {
+        dispatch({ type: 'SET_RIGHT_BOTTOM_MODE', mode: null });
+        dispatch({ type: 'OPEN_RIGHT_PANEL', mode, slot: 'top' });
+    }, [dispatch]);
+
     if (!effectiveRightOpen) return null;
 
     const isSplit = rightPanelSplit;
     const topFr = isSplit ? rp.splitRatio : 1;
     const bottomFr = isSplit ? 1 - rp.splitRatio : 0;
+    const activeMode = rp.topMode ?? rp.bottomMode;
+
+    function renderPanelSlot(slot: 'top' | 'bottom', mode: RightPanelMode): ReactNode {
+        return (
+            <div key={`${slot}-${mode}`} className="right-sub-panel" aria-label={MODE_LABELS[mode]}>
+                {isSplit ? (
+                    <div className="right-sub-header">
+                        <span className="right-panel-sr-only">{MODE_LABELS[mode]}</span>
+                        <button type="button" className="right-sub-close" aria-label={`Close ${MODE_LABELS[mode]}`} onClick={() => dispatch({ type: 'CLOSE_RIGHT_SUB', slot })}>×</button>
+                    </div>
+                ) : null}
+                <div className="right-sub-content">
+                    {props.renderPanel(mode)}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <aside className="right-panel" aria-label="Right sidebar">
             <PanelResizer direction="horizontal" onDelta={handleWidthDelta} onEnd={handleWidthEnd} />
-            <div
-                ref={bodyRef}
-                className={`right-panel-body ${isSplit ? 'is-split-panel' : 'is-single-panel'}`}
-                style={isSplit ? { gridTemplateRows: `${topFr}fr auto ${bottomFr}fr` } : undefined}
-            >
-                {rp.topMode && (
-                    <div className="right-sub-panel" aria-label={MODE_LABELS[rp.topMode]}>
-                        <div className="right-sub-header">
-                            <span>{MODE_LABELS[rp.topMode]}</span>
-                            <button type="button" className="right-sub-close" aria-label={`Close ${MODE_LABELS[rp.topMode]}`} onClick={() => dispatch({ type: 'CLOSE_RIGHT_SUB', slot: 'top' })}>×</button>
-                        </div>
-                        <div className="right-sub-content">
-                            {props.renderPanel(rp.topMode)}
-                        </div>
-                    </div>
-                )}
-                {isSplit && (
-                    <PanelResizer direction="vertical" onDelta={handleSplitDelta} className="right-split-resizer" />
-                )}
-                {rp.bottomMode && (
-                    <div className="right-sub-panel" aria-label={MODE_LABELS[rp.bottomMode]}>
-                        <div className="right-sub-header">
-                            <span>{MODE_LABELS[rp.bottomMode]}</span>
-                            <button type="button" className="right-sub-close" aria-label={`Close ${MODE_LABELS[rp.bottomMode]}`} onClick={() => dispatch({ type: 'CLOSE_RIGHT_SUB', slot: 'bottom' })}>×</button>
-                        </div>
-                        <div className="right-sub-content">
-                            {props.renderPanel(rp.bottomMode)}
-                        </div>
-                    </div>
-                )}
+            <div className="right-panel-shell">
+                <div className="right-panel-toolbar" aria-label="Right sidebar panels">
+                    {RIGHT_PANEL_TOOLBAR_MODES.map(mode => (
+                        <button
+                            key={mode}
+                            type="button"
+                            className={`right-panel-mode-button${activeMode === mode ? ' is-active' : ''}`}
+                            aria-label={MODE_LABELS[mode]}
+                            aria-pressed={activeMode === mode}
+                            title={MODE_LABELS[mode]}
+                            onClick={() => handleToolbarModeClick(mode)}
+                        >
+                            {MODE_ICONS[mode]}
+                        </button>
+                    ))}
+                    <button
+                        type="button"
+                        className="right-panel-close"
+                        aria-label="Close right sidebar"
+                        title="Close"
+                        onClick={() => dispatch({ type: 'SET_RIGHT_OPEN', open: false })}
+                    >
+                        ×
+                    </button>
+                </div>
+                <div
+                    ref={bodyRef}
+                    className={`right-panel-body ${isSplit ? 'is-split-panel' : 'is-single-panel'}`}
+                    style={isSplit ? { gridTemplateRows: `${topFr}fr auto ${bottomFr}fr` } : undefined}
+                >
+                    {rp.topMode && (
+                        renderPanelSlot('top', rp.topMode)
+                    )}
+                    {isSplit && (
+                        <PanelResizer direction="vertical" onDelta={handleSplitDelta} className="right-split-resizer" />
+                    )}
+                    {rp.bottomMode && (
+                        renderPanelSlot('bottom', rp.bottomMode)
+                    )}
+                </div>
             </div>
         </aside>
     );

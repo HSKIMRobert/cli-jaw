@@ -1,5 +1,5 @@
 export type TerminalBridgeApi = {
-    create: (opts?: { cwd?: string }) => Promise<{ ok: boolean; id?: string; shell?: string; cwd?: string; error?: string }>;
+    create: (opts?: { cwd?: string; cols?: number; rows?: number }) => Promise<{ ok: boolean; id?: string; shell?: string; cwd?: string; error?: string }>;
     write: (id: string, data: string) => Promise<void>;
     resize: (id: string, cols: number, rows: number) => Promise<void>;
     kill: (id: string) => Promise<void>;
@@ -14,6 +14,7 @@ export type DiffBridgeApi = {
 };
 
 export type FolderBridgeApi = {
+    getDefaultRoot: () => Promise<{ ok: boolean; path?: string; error?: string }>;
     pickFolder: () => Promise<{ ok: boolean; path?: string; error?: string }>;
     listDir: (dirPath: string, depth?: number) => Promise<{ ok: boolean; entries?: Array<{ name: string; path: string; kind: 'file' | 'directory'; size: number }>; error?: string }>;
     readFile: (filePath: string) => Promise<{ ok: boolean; content?: string; truncated?: boolean; binary?: boolean; error?: string }>;

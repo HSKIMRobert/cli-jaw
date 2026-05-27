@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, screen, session, shell } from 'electron';
 import { fileURLToPath, URL } from 'node:url';
 import { dirname, join } from 'node:path';
+import { createServer } from 'node:net';
 import type { ChildProcess } from 'node:child_process';
 import { findJawBinary, spawnJawDashboard, gracefulShutdown } from './lib/jaw-spawn.js';
 import { waitForManagerReady, isManagerHealthy, probeOnce } from './lib/health-check.js';
@@ -34,9 +35,12 @@ interface CliFlags {
   attachOnly: boolean;
   spawn: boolean;
   managerUrl: string;
+  managerUrlExplicit: boolean;
 }
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
+const DEFAULT_MANAGER_PORT = 24576;
+const MAX_MANAGER_PORT_PROBES = 50;
 
 function assertLoopbackManagerUrl(raw: string): void {
   let parsed: URL;
@@ -59,10 +63,11 @@ function assertLoopbackManagerUrl(raw: string): void {
 }
 
 function parseArgs(argv: string[]): CliFlags {
-  let port = Number(process.env.JAW_MANAGER_PORT ?? 24576);
+  let port = Number(process.env.JAW_MANAGER_PORT ?? DEFAULT_MANAGER_PORT);
   let attachOnly = false;
   let spawn = false;
   let managerUrl = process.env.JAW_MANAGER_URL ?? '';
+  let managerUrlExplicit = managerUrl.trim().length > 0;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--port') {
@@ -76,16 +81,20 @@ function parseArgs(argv: string[]): CliFlags {
       spawn = true;
     } else if (a === '--manager-url') {
       const v = argv[++i];
-      if (v) managerUrl = v;
+      if (v) {
+        managerUrl = v;
+        managerUrlExplicit = true;
+      }
     } else if (a?.startsWith('--manager-url=')) {
       managerUrl = a.slice('--manager-url='.length);
+      managerUrlExplicit = managerUrl.trim().length > 0;
     }
   }
-  if (!Number.isFinite(port) || port <= 0) port = 24576;
+  if (!Number.isFinite(port) || port <= 0) port = DEFAULT_MANAGER_PORT;
   if (!managerUrl) managerUrl = `http://127.0.0.1:${port}/`;
   if (!managerUrl.endsWith('/')) managerUrl = `${managerUrl}/`;
   assertLoopbackManagerUrl(managerUrl);
-  return { port, attachOnly, spawn, managerUrl };
+  return { port, attachOnly, spawn, managerUrl, managerUrlExplicit };
 }
 
 const FLAGS = parseArgs(process.argv.slice(1));
@@ -102,6 +111,7 @@ const EXTERNAL_ALLOWLIST = [
   'openai.com',
   'anthropic.com',
 ];
+const BLOCKED_EMBED_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '0.0.0.0']);
 
 const DEV_TOOLS_ENABLED =
   process.env.NODE_ENV === 'development' || process.env.JAW_ELECTRON_DEVTOOLS === '1';
@@ -289,7 +299,37 @@ function isAllowedFrameNavigation(raw: string): boolean {
     || isPreviewFrameNavigation(raw, PREVIEW_FRAME_POLICY);
 }
 
-const PROBE_PORTS = [3457, 3459];
+function isAllowedEmbeddedBrowserUrl(raw: string): boolean {
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
+    const host = parsed.hostname.replace(/^\[|\]$/g, '').toLowerCase();
+    if (BLOCKED_EMBED_HOSTS.has(host)) return false;
+    if (host.endsWith('.local')) return false;
+    if (/^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(host)) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function hardenEmbeddedBrowserWebContents(contents: Electron.WebContents): void {
+  if (contents.getType() !== 'webview') return;
+  contents.setWindowOpenHandler(({ url }) => {
+    if (isAllowedEmbeddedBrowserUrl(url)) {
+      void shell.openExternal(url).catch(() => {});
+    }
+    return { action: 'deny' };
+  });
+  contents.on('will-navigate', (event, url) => {
+    if (!isAllowedEmbeddedBrowserUrl(url)) event.preventDefault();
+  });
+  contents.on('will-redirect', (event, url) => {
+    if (!isAllowedEmbeddedBrowserUrl(url)) event.preventDefault();
+  });
+  contents.session.setPermissionRequestHandler((_wc, _permission, cb) => cb(false));
+  contents.session.setPermissionCheckHandler(() => false);
+}
 
 function switchManagerUrl(url: string): void {
   MANAGER_URL = url;
@@ -297,34 +337,85 @@ function switchManagerUrl(url: string): void {
   setAllowedOrigin(MANAGER_ORIGIN);
 }
 
-async function ensureManagerRunning(): Promise<void> {
-  if (await isManagerHealthy(MANAGER_URL)) return;
+function shouldAttachToExistingManager(): boolean {
+  return FLAGS.attachOnly || (FLAGS.managerUrlExplicit && !FLAGS.spawn);
+}
 
-  for (const port of PROBE_PORTS) {
-    const candidate = `http://127.0.0.1:${port}/`;
-    if (candidate !== MANAGER_URL && await isManagerHealthy(candidate)) {
-      switchManagerUrl(candidate);
-      installSecurityHeaders(MANAGER_ORIGIN);
-      return;
+function getManagerUrlPort(url: string): number {
+  const parsed = new URL(url);
+  const port = parsed.port
+    ? Number(parsed.port)
+    : parsed.protocol === 'https:'
+      ? 443
+      : 80;
+  if (!Number.isFinite(port) || port <= 0) {
+    throw new Error(`[jaw-electron] invalid manager URL port: ${url}`);
+  }
+  return port;
+}
+
+function isTcpPortAvailable(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const server = createServer();
+    let done = false;
+    const finish = (available: boolean): void => {
+      if (done) return;
+      done = true;
+      server.removeAllListeners();
+      if (server.listening) {
+        server.close(() => resolve(available));
+        return;
+      }
+      resolve(available);
+    };
+    server.once('error', () => finish(false));
+    server.once('listening', () => finish(true));
+    try {
+      server.listen(port, '127.0.0.1');
+    } catch {
+      finish(false);
     }
+  });
+}
+
+async function findAvailableManagerPort(preferredPort: number): Promise<number> {
+  for (let offset = 0; offset < MAX_MANAGER_PORT_PROBES; offset += 1) {
+    const candidate = preferredPort + offset;
+    if (await isTcpPortAvailable(candidate)) return candidate;
+  }
+  throw new Error(
+    `[jaw-electron] no free manager port from ${preferredPort} to ${preferredPort + MAX_MANAGER_PORT_PROBES - 1}`,
+  );
+}
+
+async function prepareSpawnManagerUrl(): Promise<void> {
+  if (FLAGS.managerUrlExplicit) return;
+  const port = await findAvailableManagerPort(FLAGS.port);
+  const url = `http://127.0.0.1:${port}/`;
+  if (url === MANAGER_URL) return;
+  ringBuffer.append(`[manager port] ${MANAGER_URL} is busy; spawning dashboard at ${url}\n`);
+  switchManagerUrl(url);
+  installSecurityHeaders(MANAGER_ORIGIN);
+}
+
+async function ensureManagerRunning(): Promise<void> {
+  if (shouldAttachToExistingManager()) {
+    if (await isManagerHealthy(MANAGER_URL)) return;
+    const ok = await waitForManagerReady(MANAGER_URL, { timeoutMs: 60_000 });
+    if (!ok) {
+      await showSpawnFailedDialog(
+        `${MANAGER_URL} 에 연결할 수 없습니다. 명시적 attach 모드이므로 서버를 자동 spawn하지 않습니다.`,
+      );
+      app.quit();
+    }
+    return;
   }
 
+  if (managerProcess && await isManagerHealthy(MANAGER_URL)) return;
   if (managerReadyPromise) return managerReadyPromise;
 
   managerReadyPromise = (async () => {
-    if (await isManagerHealthy(MANAGER_URL)) return;
-
-    if (FLAGS.attachOnly) {
-      const ok = await waitForManagerReady(MANAGER_URL, { timeoutMs: 60_000 });
-      if (!ok) {
-        await showSpawnFailedDialog(
-          `${MANAGER_URL} 에 연결할 수 없습니다. --attach-only 모드이므로 서버를 자동 spawn하지 않습니다.`,
-        );
-        app.quit();
-      }
-      return;
-    }
-
+    if (managerProcess && await isManagerHealthy(MANAGER_URL)) return;
     await spawnAndWait();
   })().finally(() => {
     managerReadyPromise = null;
@@ -334,6 +425,7 @@ async function ensureManagerRunning(): Promise<void> {
 }
 
 async function spawnAndWait(): Promise<void> {
+  await prepareSpawnManagerUrl();
   const found = await findJawBinary();
   if (!found.path) {
     const choice = await showJawNotFoundDialog(found.searched);
@@ -351,8 +443,9 @@ async function spawnAndWait(): Promise<void> {
     return;
   }
 
+  const managerPort = getManagerUrlPort(MANAGER_URL);
   managerProcess = spawnJawDashboard(found.path, {
-    port: FLAGS.port,
+    port: managerPort,
     ringBuffer,
   });
 
@@ -374,7 +467,7 @@ function handleManagerExit(code: number | null, signal: NodeJS.Signals | null): 
   ringBuffer.append(`[manager exit] code=${code} signal=${signal}\n`);
   if (shuttingDown || crashLoopStopped) return;
   void (async () => {
-    if (await probeOnce(MANAGER_URL)) {
+    if (shouldAttachToExistingManager() && await probeOnce(MANAGER_URL)) {
       ringBuffer.append(`[manager exit] another instance owns ${MANAGER_URL}; attaching\n`);
       managerProcess = null;
       if (mainWindow) {
@@ -429,7 +522,7 @@ async function createWindow(): Promise<void> {
       nodeIntegration: false,
       webSecurity: true,
       allowRunningInsecureContent: false,
-      webviewTag: false,
+      webviewTag: true,
       preload: PRELOAD_PATH,
       devTools: DEV_TOOLS_ENABLED,
     },
@@ -451,6 +544,24 @@ async function createWindow(): Promise<void> {
     if (!isAllowedFrameNavigation(event.url)) {
       event.preventDefault();
     }
+  });
+  mainWindow.webContents.on('will-attach-webview', (event, webPreferences, params) => {
+    const src = typeof params.src === 'string' ? params.src : '';
+    if (!isAllowedEmbeddedBrowserUrl(src)) {
+      event.preventDefault();
+      return;
+    }
+    delete webPreferences.preload;
+    webPreferences.nodeIntegration = false;
+    webPreferences.contextIsolation = true;
+    webPreferences.sandbox = true;
+    webPreferences.webSecurity = true;
+    webPreferences.allowRunningInsecureContent = false;
+    webPreferences.plugins = false;
+    webPreferences.partition = 'persist:cli-jaw-browser';
+  });
+  app.on('web-contents-created', (_event, contents) => {
+    hardenEmbeddedBrowserWebContents(contents);
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {

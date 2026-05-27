@@ -128,12 +128,17 @@ type Props = {
     onDashboardSettingsPatch: Parameters<typeof DashboardSettingsWorkspace>[0]['onUiPatch'];
 };
 
-function renderRightPanelContent(mode: RightPanelMode): ReactNode {
+function renderRightPanelContent(
+    mode: RightPanelMode,
+    previewFilePath: string | null,
+    onPreviewFile: (path: string) => void,
+): ReactNode {
     const fallback = <div style={{ padding: '12px', color: 'var(--text-dim)', fontSize: '12px' }}>Loading...</div>;
     switch (mode) {
         case 'diff': return <Suspense fallback={fallback}><DiffPanel /></Suspense>;
-        case 'folder': return <Suspense fallback={fallback}><FolderPanel /></Suspense>;
-        case 'doc': return <Suspense fallback={fallback}><DocPanel /></Suspense>;
+        case 'folder': return <Suspense fallback={fallback}><FolderPanel selectedFilePath={previewFilePath} onPreviewFile={onPreviewFile} /></Suspense>;
+        case 'doc': return <Suspense fallback={fallback}><DocPanel filePath={previewFilePath ?? undefined} /></Suspense>;
+        case 'browser': return <Suspense fallback={fallback}><BrowserPanel /></Suspense>;
         default: return null;
     }
 }
@@ -149,6 +154,7 @@ function renderBottomTabContent(tab: BottomPanelTab): ReactNode {
 
 export function SidebarRailRouter(props: Props) {
     const panelLayout = usePanelLayout();
+    const [rightPreviewFilePath, setRightPreviewFilePath] = useState<string | null>(null);
     const [remindersView, setRemindersView] = useState<RemindersView>('matrix');
     const remindersFeed = useRemindersFeed({ active: props.sidebarMode === 'reminders' });
     const notesSelectedHiddenByFilter = Boolean(
@@ -157,6 +163,10 @@ export function SidebarRailRouter(props: Props) {
         && props.notesSelectedNote
         && !props.notesSelectedNote.tags?.includes(props.notesModel.tagFilter),
     );
+    function handleRightPreviewFile(path: string): void {
+        setRightPreviewFilePath(path);
+        panelLayout.dispatch({ type: 'OPEN_RIGHT_PANEL', mode: 'doc', slot: 'bottom' });
+    }
 
     return (
         <NotesCommandProvider>
@@ -169,7 +179,7 @@ export function SidebarRailRouter(props: Props) {
             onCloseDrawer={props.onCloseDrawer}
             rightPanelOpen={panelLayout.effectiveRightOpen}
             rightPanelWidth={panelLayout.state.rightPanel.width}
-            rightPanelContent={panelLayout.effectiveRightOpen ? <RightSidebar renderPanel={renderRightPanelContent} /> : undefined}
+            rightPanelContent={panelLayout.effectiveRightOpen ? <RightSidebar renderPanel={mode => renderRightPanelContent(mode, rightPreviewFilePath, handleRightPreviewFile)} /> : undefined}
             bottomPanelOpen={panelLayout.state.bottomPanel.open}
             bottomPanelHeight={panelLayout.state.bottomPanel.height}
             bottomPanelContent={panelLayout.state.bottomPanel.open ? <BottomPanel renderTab={renderBottomTabContent} /> : undefined}

@@ -2,7 +2,7 @@ import { ipcMain, dialog, type BrowserWindow } from 'electron';
 import { readdir, stat, lstat, readFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { homedir } from 'node:os';
-import { watch, type FSWatcher } from 'node:fs';
+import { statSync, watch, type FSWatcher } from 'node:fs';
 import { isWithinHome, assertContained } from '../path-security.js';
 import { isAllowedSender } from '../ipc-origin-guard.js';
 
@@ -30,7 +30,32 @@ function isBinary(buf: Buffer): boolean {
     return false;
 }
 
+function resolveDefaultRoot(): string {
+    const candidates = [
+        process.env.JAW_WORKSPACE_DIR,
+        process.env.PWD,
+        homedir(),
+    ].filter((v): v is string => typeof v === 'string' && v.trim().length > 0);
+    for (const candidate of candidates) {
+        const resolved = resolve(candidate);
+        try {
+            const s = statSync(resolved);
+            if (s.isDirectory() && isWithinHome(resolved)) return resolved;
+        } catch {
+            // try next candidate
+        }
+    }
+    return homedir();
+}
+
 export function registerFolderIpc(getWindow: () => BrowserWindow | null): void {
+    ipcMain.handle('folder:getDefaultRoot', (event) => {
+        if (!isAllowedSender(event)) return { ok: false, error: 'unauthorized' };
+        const root = resolveDefaultRoot();
+        pickedRoots.add(root);
+        return { ok: true, path: root };
+    });
+
     ipcMain.handle('folder:pick', async (event) => {
         if (!isAllowedSender(event)) return { ok: false, error: 'unauthorized' };
         const win = getWindow();
