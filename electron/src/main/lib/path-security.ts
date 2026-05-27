@@ -1,5 +1,5 @@
 import { realpathSync } from 'node:fs';
-import { resolve, relative, sep } from 'node:path';
+import { resolve, relative, sep, isAbsolute } from 'node:path';
 import { homedir } from 'node:os';
 
 let cachedHome: string | null = null;
@@ -44,7 +44,7 @@ export function assertContainedLexical(base: string, target: string): boolean {
     const resolved = resolve(realBase, target);
     const rel = relative(realBase, resolved);
     if (!rel || rel === '.') return false;
-    return !rel.startsWith('..') && !resolve(rel).startsWith(sep);
+    return !rel.startsWith('..') && !isAbsolute(rel);
 }
 
 export function isValidRef(ref: string): boolean {
