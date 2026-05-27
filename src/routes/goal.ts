@@ -73,8 +73,13 @@ export function registerGoalRoutes(app: Router): void {
                     return;
                 }
                 case 'resume': {
+                    const existing = getActiveGoal();
+                    if (existing && existing.status === 'active') {
+                        res.json({ ok: true, goal: existing, alreadyActive: true });
+                        return;
+                    }
                     const goal = resumeGoal();
-                    if (!goal) { res.status(400).json({ ok: false, error: 'No paused goal to resume' }); return; }
+                    if (!goal) { res.status(400).json({ ok: false, error: 'No active or paused goal to resume' }); return; }
                     res.json({ ok: true, goal });
                     return;
                 }
