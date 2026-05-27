@@ -160,7 +160,7 @@ Limits are intentionally bounded (`MAX_TOOL_LOG_ENTRIES`, per-detail cap, total-
 | `src/orchestrator/parser.ts` | 176L | legacy subtask JSON 파서 + intent matcher + numeric reference + verdict 파서 |
 | `src/orchestrator/pipeline.ts` | 455L | PABCD sole entry point |
 | `src/orchestrator/scope.ts` | 17L | scope stub — 항상 `'default'` 반환 |
-| `src/orchestrator/state-machine.ts` | 363L | PABCD state + prompts + audit/verification verdict |
+| `src/orchestrator/state-machine.ts` | 380L | IPABCD state (I=Interview pre-plan) + prompts + OrcContext.interview + audit/verification verdict |
 | `src/orchestrator/worker-monitor.ts` | 58L | stall/disconnect/timeout monitor |
 | `src/orchestrator/worker-registry.ts` | 171L | worker ownership + replay registry |
 | `src/orchestrator/workspace-context.ts` | 65L | task에서 repo path hint 추출, project root resolve |
