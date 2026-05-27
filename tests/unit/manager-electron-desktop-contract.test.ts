@@ -92,6 +92,9 @@ test('manager sidebar rail keeps IDE panel toggles visible', () => {
     const layout = read('public/manager/src/manager-layout.css');
     const compact = read('public/manager/src/manager-p0-1-1.css');
 
+    assert.ok(rail.includes("import { isElectron } from '../panels/desktop-bridge'"), 'SidebarRail must gate desktop-only controls through Electron detection');
+    assert.ok(rail.includes('const showDesktopPanelToggles = isElectron()'), 'SidebarRail must compute whether desktop panel toggles should render');
+    assert.ok(rail.includes('showDesktopPanelToggles ? ('), 'web UI must not render desktop-only panel toggles');
     assert.ok(rail.includes('aria-label="Toggle terminal panel"'), 'SidebarRail must expose the bottom terminal panel toggle');
     assert.ok(rail.includes("panelActions.openBottomTab('terminal')"), 'bottom panel toggle must open the terminal tab when closed');
     assert.ok(rail.includes('aria-label="Toggle right panel"'), 'SidebarRail must expose the right panel toggle');
@@ -100,7 +103,15 @@ test('manager sidebar rail keeps IDE panel toggles visible', () => {
     assert.ok(layout.includes('.manager-sidebar-list { flex: 1 1 auto;'), 'sidebar list must size from remaining space, not a fixed rail height');
     assert.ok(compact.includes('flex-wrap: wrap'), 'expanded rail must wrap utility buttons instead of clipping them');
     assert.ok(compact.includes('flex: 0 0 100%'), 'expanded rail spacer must force panel toggles onto a second row instead of pushing them past the sidebar edge');
-    assert.ok(compact.includes('min-height: 76px'), 'expanded rail must reserve enough height for its wrapped controls');
+    assert.ok(
+        compact.includes('.dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .sidebar-rail {\n    min-height: 54px;'),
+        'web manager rail must keep the normal single-line height',
+    );
+    assert.ok(
+        compact.includes(':root[data-cli-jaw-desktop="true"] .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .sidebar-rail'),
+        'only Electron should reserve two-line rail height for desktop panel toggles',
+    );
+    assert.ok(compact.includes('min-height: 76px'), 'Electron expanded rail must reserve enough height for its wrapped controls');
     assert.ok(compact.includes('overflow: visible'), 'expanded rail must not crop wrapped controls');
     assert.ok(compact.includes('.rail-panel-toggle'), 'panel toggles must have distinct visible styling');
 });
