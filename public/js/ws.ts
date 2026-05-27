@@ -457,6 +457,8 @@ export function connect(): void {
             addSystemMsg(t('ws.fallback', { from: escapeHtml(msg.from || ''), to: escapeHtml(msg.to || '') }), 'tool-activity');
         } else if (msg.type === 'agent_smoke') {
             addSystemMsg(`${ICONS.warning} ${escapeHtml(msg.cli || 'agent')}: smoke response detected — auto-continuing`, 'tool-activity');
+        } else if (msg.type === 'goal_continuation') {
+            addSystemMsg(`🎯 Active goal — auto-continuing`, 'tool-activity');
         } else if (msg.type === 'agent_done') {
             finalizeAgent(msg.text || '', msg.toolLog);
             notifyUnreadResponse();
