@@ -38,9 +38,6 @@ function getCommandTimeoutMs(text: string): number {
     return /^\/compact(?:\s|$)/i.test(String(text || '').trim()) ? 5 * 60 * 1000 : 10_000;
 }
 
-function isOrchestrateCommand(text: string): boolean {
-    return /^\/(?:orchestrate|pabcd)(?:\s|$)/i.test(String(text || '').trim());
-}
 
 function renderCommandRecovery(result: CommandResult): string {
     const recovery = result.recovery;
@@ -135,7 +132,6 @@ export async function sendMessage(source: SendSource = 'enter'): Promise<void> {
         const isFilePath = firstToken.includes('/') || firstToken.includes('\\');
 
         if (text.startsWith('/') && !state.attachedFiles.length && !isFilePath) {
-            const shouldSyncOrchestrate = isOrchestrateCommand(text);
             input.value = '';
             resetInputHeight();
             slashCmd.close();
@@ -184,9 +180,7 @@ export async function sendMessage(source: SendSource = 'enter'): Promise<void> {
             } catch (err) {
                 addSystemMsg(t('chat.cmd.fail', { msg: (err as Error).message }), '', 'error');
             } finally {
-                if (shouldSyncOrchestrate) {
-                    syncOrchestrateSnapshot('command').catch(() => {});
-                }
+                syncOrchestrateSnapshot('command').catch(() => {});
             }
             return;
         }

@@ -157,8 +157,8 @@ test('CP-017: goal run is the automation surface, not top-level autopilot', { sk
     const goal = web.find(c => c.name === 'goal');
     assert.ok(goal, 'goal should be visible as the workflow state command');
     assert.ok(!web.some(c => c.name === 'autopilot'), 'autopilot should not be visible as a top-level command');
-    assert.equal(goal.workflow?.gatedUntilPhase, 3);
-    assert.ok(goal.workflow?.prerequisites?.some(p => p.includes('/goal run')), 'goal metadata should mention /goal run gating');
+    assert.equal(goal.workflow?.gatedUntilPhase, undefined, 'gatedUntilPhase should be removed (goal is fully functional)');
+    assert.equal(goal.workflow?.prerequisites, undefined, 'stale prerequisites should be removed');
 });
 
 test('CP-010: model and cli are writable on telegram', { skip: !moduleLoaded && 'policy.js not yet created' }, async () => {

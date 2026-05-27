@@ -56,9 +56,7 @@ export interface WorkflowCommandMeta {
     phase: WorkflowCommandPhase;
     risk: WorkflowCommandRisk;
     output: WorkflowCommandOutput;
-    prerequisites?: readonly string[];
     workflowArgs?: readonly WorkflowCommandArg[];
-    gatedUntilPhase?: number;
 }
 
 export type WorkflowArtifactKind =

@@ -133,13 +133,12 @@ process.env["PATH"] = buildServicePath(process.env["PATH"] || '');
 
 // ─── Init ────────────────────────────────────────────
 
-const PORT = process.env["PORT"] || settings["port"] || 3457;
-// DEFAULT_EMPLOYEES + seedDefaultEmployees → src/core/employees.ts
-
 ensureDirs();
 fs.mkdirSync(join(projectRoot, 'public'), { recursive: true });
 runMigration(projectRoot);
 loadSettings();
+
+const PORT = process.env["PORT"] || settings["port"] || 3457;
 
 // DB integrity check on startup
 {

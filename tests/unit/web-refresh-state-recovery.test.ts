@@ -56,16 +56,14 @@ test('WRS-002b: browser restore hooks resync authoritative orchestration snapsho
     assert.ok(wsSrc.includes('reconcileChatBottomAfterRestore(reason)'), 'wrapper should reconcile bottom after snapshot settles');
 });
 
-test('WRS-002c: orchestrate slash commands resync snapshot after command response', () => {
+test('WRS-002c: all slash commands resync snapshot after command response', () => {
     const chatPath = existsSync(join(__dirname, '../../public/js/features/chat.ts'))
         ? join(__dirname, '../../public/js/features/chat.ts')
         : join(__dirname, '../../public/js/features/chat.js');
     const chatSrc = readFileSync(chatPath, 'utf8');
     assert.ok(chatSrc.includes("import { syncOrchestrateSnapshot } from '../ws.js'"), 'chat should import orchestrate snapshot sync');
-    assert.ok(chatSrc.includes('function isOrchestrateCommand'), 'chat should classify orchestrate commands');
-    assert.match(chatSrc, /\/\^\s*\\\/\(\?:orchestrate\|pabcd\)/, 'classifier should match both /orchestrate and /pabcd');
     assert.ok(chatSrc.includes('finally'), 'command path should sync after success and failure');
-    assert.ok(chatSrc.includes("syncOrchestrateSnapshot('command')"), 'orchestrate commands should trigger snapshot sync');
+    assert.ok(chatSrc.includes("syncOrchestrateSnapshot('command')"), 'all commands should trigger snapshot sync');
 });
 
 test('WRS-003: hydrateActiveRun keeps live process block collapsed by default', { skip: !hasUi && 'public/js/ui source not found' }, () => {
