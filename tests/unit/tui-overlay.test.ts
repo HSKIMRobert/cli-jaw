@@ -9,8 +9,8 @@ import {
     syncAutocompleteWindow,
 } from '../../src/cli/tui/overlay.ts';
 
-test('resolveAutocompleteState closes for non-command drafts', () => {
-    const next = resolveAutocompleteState({
+test('resolveAutocompleteState closes for non-command drafts', async () => {
+    const next = await resolveAutocompleteState({
         draft: 'hello',
         prevKey: '',
         maxPopupRows: 10,
@@ -21,8 +21,8 @@ test('resolveAutocompleteState closes for non-command drafts', () => {
     assert.equal(next.open, false);
 });
 
-test('resolveAutocompleteState opens command completion list', () => {
-    const next = resolveAutocompleteState({
+test('resolveAutocompleteState opens command completion list', async () => {
+    const next = await resolveAutocompleteState({
         draft: '/he',
         prevKey: '',
         maxPopupRows: 10,
@@ -36,8 +36,8 @@ test('resolveAutocompleteState opens command completion list', () => {
     assert.equal(next.visibleRows, 1);
 });
 
-test('resolveAutocompleteState opens argument completion list with context header', () => {
-    const next = resolveAutocompleteState({
+test('resolveAutocompleteState opens argument completion list with context header', async () => {
+    const next = await resolveAutocompleteState({
         draft: '/flush cod',
         prevKey: '',
         maxPopupRows: 10,

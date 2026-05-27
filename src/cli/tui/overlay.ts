@@ -81,7 +81,7 @@ export function syncAutocompleteWindow(state: AutocompleteState): void {
     }
 }
 
-export function resolveAutocompleteState(options: ResolveAutocompleteOptions): ResolvedAutocompleteState {
+export async function resolveAutocompleteState(options: ResolveAutocompleteOptions): Promise<ResolvedAutocompleteState> {
     const {
         draft,
         prevKey,
@@ -114,7 +114,7 @@ export function resolveAutocompleteState(options: ResolveAutocompleteOptions): R
         const partial = endsWithSpace ? '' : (tokens[tokens.length - 1] || '');
         const argv = endsWithSpace ? tokens : tokens.slice(0, -1);
 
-        items = getArgumentItems(commandName, partial, argv);
+        items = await Promise.resolve(getArgumentItems(commandName, partial, argv)) as OverlayItem[];
         if (items.length) {
             stage = 'argument';
             contextHeader = `${commandName} ▸ ${items[0]?.commandDesc || '인자 선택'}`;

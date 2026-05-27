@@ -113,7 +113,10 @@ export function saveWorkflowArtifact(artifact: WorkflowArtifact, settings?: unkn
     try {
         fs.mkdirSync(path.dirname(pathOnDisk), { recursive: true });
         fs.writeFileSync(pathOnDisk, JSON.stringify(next, null, 2));
+        next.storage.writeStatus = 'saved';
     } catch (err: unknown) {
+        next.storage.writeStatus = 'failed';
+        next.storage.writeError = (err as Error).message;
         if (process.env["DEBUG"]) console.warn('[workflow-artifact:save]', (err as Error).message);
     }
     return next;

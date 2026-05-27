@@ -100,9 +100,15 @@ describe('Goal Store', () => {
         assert.equal(getGoalHistory().goals.length, 0);
     });
 
-    test('14. setGoal archives existing active goal', () => {
+    test('14. setGoal rejects when active goal exists without replace', () => {
         setGoal('First goal');
-        setGoal('Second goal');
+        assert.throws(() => setGoal('Second goal'), /Active goal already exists/);
+        assert.equal(getActiveGoal()!.objective, 'First goal');
+    });
+
+    test('14b. setGoal with replace archives existing active goal', () => {
+        setGoal('First goal');
+        setGoal('Second goal', { replace: true });
         assert.equal(getActiveGoal()!.objective, 'Second goal');
         assert.equal(getGoalHistory().goals.length, 1);
         assert.equal(getGoalHistory().goals[0]!.objective, 'First goal');

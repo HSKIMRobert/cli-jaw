@@ -275,10 +275,22 @@ function renderGoalCockpit(): void {
         return;
     }
     el.hidden = false;
+    el.replaceChildren();
     const statusClass = goal.status === 'paused' ? 'paused' : goal.status === 'blocked' ? 'blocked' : 'active';
-    el.innerHTML = `<span class="goal-objective" title="${goal.objective}">${goal.objective}</span>` +
-        `<span class="goal-status goal-status--${statusClass}">${goal.status}</span>` +
-        (goal.nextAction ? `<span class="goal-next">${goal.nextAction}</span>` : '');
+    const objSpan = document.createElement('span');
+    objSpan.className = 'goal-objective';
+    objSpan.title = goal.objective;
+    objSpan.textContent = goal.objective;
+    const statusSpan = document.createElement('span');
+    statusSpan.className = `goal-status goal-status--${statusClass}`;
+    statusSpan.textContent = goal.status;
+    el.append(objSpan, statusSpan);
+    if (goal.nextAction) {
+        const nextSpan = document.createElement('span');
+        nextSpan.className = 'goal-next';
+        nextSpan.textContent = goal.nextAction;
+        el.append(nextSpan);
+    }
 }
 
 /** Apply orchestration state to UI (shared by WS events and reconnect snapshot) */

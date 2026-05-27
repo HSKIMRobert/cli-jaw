@@ -104,6 +104,8 @@ export interface WorkflowArtifactStorage {
     path?: string;
     projectKey?: string;
     retentionDays?: number;
+    writeStatus?: 'saved' | 'failed';
+    writeError?: string;
 }
 
 export interface WorkflowArtifactPromotion {

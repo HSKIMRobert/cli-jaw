@@ -35,9 +35,17 @@ export function getGoalHistory(): GoalHistory {
     return readJson<GoalHistory>(HISTORY_PATH) ?? { goals: [] };
 }
 
-export function setGoal(objective: string, opts?: { repoRoot?: string | undefined; budget?: GoalBudget | undefined }): GoalState {
+const MAX_OBJECTIVE_LENGTH = 2000;
+
+export function setGoal(objective: string, opts?: { repoRoot?: string | undefined; budget?: GoalBudget | undefined; replace?: boolean }): GoalState {
+    if (objective.length > MAX_OBJECTIVE_LENGTH) {
+        objective = objective.slice(0, MAX_OBJECTIVE_LENGTH);
+    }
     const existing = getActiveGoal();
     if (existing && (existing.status === 'active' || existing.status === 'paused')) {
+        if (!opts?.replace) {
+            throw new Error(`Active goal already exists: "${existing.objective.slice(0, 80)}". Cancel or complete it first, or pass replace: true.`);
+        }
         archiveGoal(existing);
     }
     const now = new Date().toISOString();
@@ -114,6 +122,8 @@ export function resumeGoal(): GoalState | null {
 export function clearGoal(): boolean {
     const goal = getActiveGoal();
     if (!goal) return false;
+    goal.status = 'cancelled';
+    goal.updatedAt = new Date().toISOString();
     archiveGoal(goal);
     try { fs.unlinkSync(ACTIVE_PATH); } catch { /* noop */ }
     return true;
