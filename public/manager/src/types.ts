@@ -17,7 +17,12 @@ export type DashboardShortcutAction =
     | 'focusActiveSession'
     | 'focusNotes'
     | 'previousInstance'
-    | 'nextInstance';
+    | 'nextInstance'
+    | 'toggleBottomPanel'
+    | 'toggleRightPanel'
+    | 'focusTerminal'
+    | 'openDiff'
+    | 'openFolderTree';
 export type DashboardShortcutKeymap = Record<DashboardShortcutAction, string>;
 export type DashboardNotesViewMode = 'raw' | 'split' | 'preview' | 'settings' | 'graph';
 export type DashboardNotesAuthoringMode = 'plain' | 'rich' | 'wysiwyg';
@@ -239,6 +244,16 @@ export type DashboardRegistryUi = {
     showSelectedRowActions: boolean;
     dashboardShortcutsEnabled: boolean;
     dashboardShortcutKeymap: DashboardShortcutKeymap;
+    panelLayoutVersion?: number | undefined;
+    rightPanelOpen?: boolean | undefined;
+    rightPanelWidth?: number | undefined;
+    rightPanelTopMode?: string | null | undefined;
+    rightPanelBottomMode?: string | null | undefined;
+    rightPanelSplitRatio?: number | undefined;
+    bottomPanelOpen?: boolean | undefined;
+    bottomPanelHeight?: number | undefined;
+    bottomPanelTabs?: string[] | undefined;
+    bottomPanelActiveTab?: string | null | undefined;
 };
 
 export type DashboardRegistryInstance = {
