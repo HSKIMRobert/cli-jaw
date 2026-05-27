@@ -1,4 +1,4 @@
-import { contextBridge } from 'electron';
+import { contextBridge, ipcRenderer } from 'electron';
 import { getLatestMetrics, setupMetricsBridge } from './metrics.js';
 
 const DESKTOP_IDENTITY = {
@@ -31,6 +31,39 @@ function installDesktopFetchHeader(): void {
 contextBridge.exposeInMainWorld('cliJawDesktop', {
   identify: () => DESKTOP_IDENTITY,
   getMetrics: () => getLatestMetrics(),
+  terminal: {
+    create: (opts?: { cwd?: string }) => ipcRenderer.invoke('terminal:create', opts),
+    write: (id: string, data: string) => ipcRenderer.invoke('terminal:write', id, data),
+    resize: (id: string, cols: number, rows: number) => ipcRenderer.invoke('terminal:resize', id, cols, rows),
+    kill: (id: string) => ipcRenderer.invoke('terminal:kill', id),
+    onData: (cb: (id: string, data: string) => void) => {
+      const handler = (_e: unknown, id: string, data: string) => cb(id, data);
+      ipcRenderer.on('terminal:data', handler);
+      return () => { ipcRenderer.removeListener('terminal:data', handler); };
+    },
+    onExit: (cb: (id: string, code: number | null) => void) => {
+      const handler = (_e: unknown, id: string, code: number | null) => cb(id, code);
+      ipcRenderer.on('terminal:exit', handler);
+      return () => { ipcRenderer.removeListener('terminal:exit', handler); };
+    },
+  },
+  diff: {
+    getRepoRoot: (cwd: string) => ipcRenderer.invoke('diff:getRepoRoot', cwd),
+    getDiffSummary: (repoRoot: string, ref?: string) => ipcRenderer.invoke('diff:getDiffSummary', repoRoot, ref),
+    getFileDiff: (repoRoot: string, filePath: string, ref?: string) => ipcRenderer.invoke('diff:getFileDiff', repoRoot, filePath, ref),
+  },
+  folder: {
+    pickFolder: () => ipcRenderer.invoke('folder:pick'),
+    listDir: (dirPath: string, depth?: number) => ipcRenderer.invoke('folder:listDir', dirPath, depth),
+    readFile: (filePath: string) => ipcRenderer.invoke('folder:readFile', filePath),
+    watchDir: (dirPath: string) => ipcRenderer.invoke('folder:watchDir', dirPath),
+    unwatchDir: (dirPath: string) => ipcRenderer.invoke('folder:unwatchDir', dirPath),
+    onDirChange: (cb: (dirPath: string) => void) => {
+      const handler = (_e: unknown, dirPath: string) => cb(dirPath);
+      ipcRenderer.on('folder:changed', handler);
+      return () => { ipcRenderer.removeListener('folder:changed', handler); };
+    },
+  },
 });
 
 installDesktopFetchHeader();
