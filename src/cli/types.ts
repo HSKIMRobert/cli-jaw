@@ -11,6 +11,9 @@ export interface SlashResult {
     code?: string;
     steerPrompt?: string;
     text?: string;
+    originalText?: string;
+    recovery?: UnknownCommandRecovery;
+    artifact?: WorkflowArtifact;
     [k: string]: unknown;
 }
 
@@ -58,6 +61,86 @@ export interface WorkflowCommandMeta {
     gatedUntilPhase?: number;
 }
 
+export type WorkflowArtifactKind =
+    | 'planCompat'
+    | 'unknownCommandRecovery'
+    | 'interviewBrief'
+    | 'deliberationPlan'
+    | 'auditTask';
+
+export type WorkflowArtifactLifetime =
+    | 'ephemeral'
+    | 'session'
+    | 'local-cache'
+    | 'pabcd-worklog'
+    | 'memory'
+    | 'devlog'
+    | 'project-file';
+
+export type WorkflowArtifactFormat = 'plain' | 'markdown';
+
+export interface WorkflowArtifactSection {
+    id: string;
+    title: string;
+    body: string;
+    format: WorkflowArtifactFormat;
+    required?: boolean;
+}
+
+export interface WorkflowArtifactAction {
+    id: string;
+    labelKey: string;
+    kind:
+        | 'copy'
+        | 'reinsert'
+        | 'send-as-chat'
+        | 'start-pabcd'
+        | 'save-jawdev'
+        | 'export-project-file'
+        | 'preview-audit';
+    requiresConfirmation?: boolean;
+}
+
+export interface WorkflowArtifactStorage {
+    mode: 'chat' | 'jaw-home-cache' | 'pabcd-worklog' | 'jawdev-devlog' | 'memory' | 'project-file';
+    path?: string;
+    projectKey?: string;
+    retentionDays?: number;
+}
+
+export interface WorkflowArtifactPromotion {
+    allowedTargets: WorkflowArtifactLifetime[];
+    defaultTarget: WorkflowArtifactLifetime;
+    requiresUserAction: true;
+    guardrails: string[];
+}
+
+export interface WorkflowArtifact {
+    id: string;
+    kind: WorkflowArtifactKind;
+    version: 1;
+    title: string;
+    sourcePrompt: string;
+    summary?: string;
+    locale?: string;
+    createdAt?: string;
+    lifetime: WorkflowArtifactLifetime;
+    durable: boolean;
+    authoritative: boolean;
+    storage: WorkflowArtifactStorage;
+    sections: WorkflowArtifactSection[];
+    suggestedNextActions: WorkflowArtifactAction[];
+    promotion?: WorkflowArtifactPromotion;
+}
+
+export interface UnknownCommandRecovery {
+    kind: 'slash-command-original';
+    commandName: string;
+    args: string[];
+    originalText: string;
+    suggestedCommands: string[];
+}
+
 export interface SlashChoice {
     value: string;
     label?: string;
@@ -100,8 +183,8 @@ export interface SlashCommand {
 }
 
 export type ParsedSlashCommand =
-    | { type: 'known'; cmd: SlashCommand; args: string[]; name: string }
-    | { type: 'unknown'; name: string; args: string[] }
+    | { type: 'known'; cmd: SlashCommand; args: string[]; name: string; rawText?: string }
+    | { type: 'unknown'; name: string; args: string[]; rawText?: string }
     | null;
 
 // Overlay item shape used by autocomplete + palette overlays in src/cli/tui/.
