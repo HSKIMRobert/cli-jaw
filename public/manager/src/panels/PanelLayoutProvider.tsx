@@ -179,10 +179,15 @@ export function PanelLayoutProvider(props: {
         return panelShortcutBus.register((action) => {
             switch (action) {
                 case 'toggleBottomPanel':
-                    dispatch({ type: 'SET_BOTTOM_OPEN', open: !state.bottomPanel.open });
+                    if (state.bottomPanel.open) dispatch({ type: 'SET_BOTTOM_OPEN', open: false });
+                    else dispatch({ type: 'OPEN_BOTTOM_TAB', tab: 'terminal' });
                     return true;
                 case 'toggleRightPanel':
-                    dispatch({ type: 'SET_RIGHT_OPEN', open: !state.rightPanel.open });
+                    if (state.rightPanel.open && (state.rightPanel.topMode !== null || state.rightPanel.bottomMode !== null)) {
+                        dispatch({ type: 'SET_RIGHT_OPEN', open: false });
+                    } else {
+                        dispatch({ type: 'OPEN_RIGHT_PANEL', mode: 'folder', slot: 'top' });
+                    }
                     return true;
                 case 'focusTerminal':
                     dispatch({ type: 'OPEN_BOTTOM_TAB', tab: 'terminal' });
@@ -229,7 +234,9 @@ export function usePanelActions() {
         setRightSplitRatio: (ratio: number) =>
             dispatch({ type: 'SET_RIGHT_SPLIT_RATIO', ratio }),
         toggleRightPanel: () =>
-            dispatch({ type: 'SET_RIGHT_OPEN', open: !state.rightPanel.open }),
+            state.rightPanel.open && (state.rightPanel.topMode !== null || state.rightPanel.bottomMode !== null)
+                ? dispatch({ type: 'SET_RIGHT_OPEN', open: false })
+                : dispatch({ type: 'OPEN_RIGHT_PANEL', mode: 'folder', slot: 'top' }),
         openBottomTab: (tab: BottomPanelTab) =>
             dispatch({ type: 'OPEN_BOTTOM_TAB', tab }),
         closeBottomTab: (tab: BottomPanelTab) =>
@@ -239,7 +246,9 @@ export function usePanelActions() {
         setBottomHeight: (height: number) =>
             dispatch({ type: 'SET_BOTTOM_HEIGHT', height }),
         toggleBottomPanel: () =>
-            dispatch({ type: 'SET_BOTTOM_OPEN', open: !state.bottomPanel.open }),
+            state.bottomPanel.open
+                ? dispatch({ type: 'SET_BOTTOM_OPEN', open: false })
+                : dispatch({ type: 'OPEN_BOTTOM_TAB', tab: 'terminal' }),
         hydrate: (s: Partial<PanelLayoutState>) =>
             dispatch({ type: 'HYDRATE', state: s }),
     }), [dispatch, state.rightPanel.open, state.bottomPanel.open]);

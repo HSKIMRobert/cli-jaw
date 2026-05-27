@@ -48,6 +48,14 @@ test('manager shortcut action lookup uses the configured keymap', () => {
         actionForShortcutEvent(keyEvent('`', { metaKey: true, code: 'Backquote' }), { focusTerminal: 'Meta+`' }),
         'focusTerminal',
     );
+    assert.equal(
+        actionForShortcutEvent(keyEvent('b', { metaKey: true, code: 'KeyB' }), DEFAULT_MANAGER_SHORTCUT_KEYMAP),
+        'toggleRightPanel',
+    );
+    assert.equal(
+        actionForShortcutEvent(keyEvent('b', { metaKey: true, shiftKey: true, code: 'KeyB' }), DEFAULT_MANAGER_SHORTCUT_KEYMAP),
+        'toggleRightPanel',
+    );
 });
 
 test('manager shortcut labels render readable chords', () => {
@@ -64,6 +72,7 @@ test('manager shortcut keymap normalizes legacy registry values', () => {
 
     assert.equal(normalized.focusInstances, DEFAULT_MANAGER_SHORTCUT_KEYMAP.focusInstances);
     assert.equal(normalized.focusActiveSession, DEFAULT_MANAGER_SHORTCUT_KEYMAP.focusActiveSession);
+    assert.equal(normalized.toggleRightPanel, 'Meta+B');
     assert.equal(normalized.focusTerminal, 'Ctrl+Shift+`');
     assert.equal(normalized.focusNotes, 'Ctrl+Shift+N');
     assert.equal(normalized.previousInstance, DEFAULT_MANAGER_SHORTCUT_KEYMAP.previousInstance);

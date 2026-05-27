@@ -134,6 +134,23 @@ test('manager sidebar rail keeps IDE panel toggles visible', () => {
     assert.ok(compact.includes('.rail-panel-toggle'), 'panel toggles must have distinct visible styling');
 });
 
+test('Electron panel shortcuts open usable panels when closed', () => {
+    const provider = read('public/manager/src/panels/PanelLayoutProvider.tsx');
+
+    assert.ok(
+        provider.includes("else dispatch({ type: 'OPEN_BOTTOM_TAB', tab: 'terminal' })"),
+        'toggleBottomPanel shortcut must open a terminal tab when the bottom panel is closed',
+    );
+    assert.ok(
+        provider.includes("else {\n                        dispatch({ type: 'OPEN_RIGHT_PANEL', mode: 'folder', slot: 'top' });"),
+        'toggleRightPanel shortcut must open the folder panel when the right panel has no active mode',
+    );
+    assert.ok(
+        provider.includes("dispatch({ type: 'OPEN_RIGHT_PANEL', mode: 'folder', slot: 'top' })"),
+        'usePanelActions.toggleRightPanel must also open a folder panel from the closed/no-mode state',
+    );
+});
+
 test('Electron right sidebar exposes icon panel switcher and document preview path', () => {
     const types = read('public/manager/src/panels/types.ts');
     const sidebar = read('public/manager/src/panels/RightSidebar.tsx');
@@ -170,6 +187,12 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
 
 test('Electron terminal uses xterm plus a PTY backend and representative shortcut', () => {
     const shortcuts = read('public/manager/src/manager-shortcuts.ts');
+    const app = read('public/manager/src/App.tsx');
+    const main = read('electron/src/main/index.ts');
+    const preload = read('electron/src/preload/index.ts');
+    const desktopBridge = read('public/manager/src/panels/desktop-bridge.ts');
+    const previewBridge = read('public/js/features/preview-shortcut-bridge.ts');
+    const previewMessages = read('public/manager/src/usePreviewShortcutMessages.ts');
     const terminal = read('public/manager/src/terminal/TerminalPanel.tsx');
     const terminalMain = read('electron/src/main/lib/terminal/index.ts');
     const electronConfig = read('electron/electron.vite.config.ts');
@@ -177,7 +200,17 @@ test('Electron terminal uses xterm plus a PTY backend and representative shortcu
 
     assert.ok(shortcuts.includes("focusTerminal: 'Ctrl+Shift+`'"), 'terminal focus must default to Ctrl+Shift+`');
     assert.ok(shortcuts.includes("focusTerminal: ['Ctrl+Shift+`', 'Meta+`']"), 'terminal shortcut must keep common aliases for existing users');
+    assert.ok(shortcuts.includes("toggleRightPanel: 'Meta+B'"), 'right side panel must use the expected Cmd+B shortcut');
+    assert.ok(shortcuts.includes("toggleRightPanel: ['Meta+B', 'Meta+Shift+B']"), 'right side panel must keep the previous Cmd+Shift+B shortcut as an alias');
     assert.ok(shortcuts.includes("event.code === 'Backquote'"), 'shortcut matching must handle shifted backquote key events');
+    assert.ok(main.includes("contents.on('before-input-event'"), 'Electron main must catch shortcuts before iframe/webview focus traps them');
+    assert.ok(main.includes("mainWindow?.webContents.send('manager:shortcut', action)"), 'Electron main must forward desktop shortcuts to the manager renderer');
+    assert.ok(preload.includes("ipcRenderer.on('manager:shortcut', handler)"), 'preload must expose desktop shortcut events');
+    assert.ok(desktopBridge.includes('shortcuts?: ShortcutBridgeApi'), 'frontend desktop bridge type must include shortcut events');
+    assert.ok(app.includes("getDesktop()?.shortcuts?.onAction"), 'manager app must subscribe to Electron desktop shortcut events');
+    assert.ok(previewBridge.includes("e.code === 'Backquote'"), 'classic preview iframe bridge must forward Ctrl+Shift+Backquote');
+    assert.ok(previewMessages.includes('ctrlKey: !!data.ctrlKey'), 'manager preview shortcut bridge must preserve Ctrl modifier');
+    assert.ok(previewMessages.includes('metaKey: !!data.metaKey'), 'manager preview shortcut bridge must preserve Meta modifier');
     assert.ok(terminal.includes("import { Terminal } from '@xterm/xterm'"), 'TerminalPanel must use xterm.js for real terminal input/rendering');
     assert.ok(terminal.includes("import { FitAddon } from '@xterm/addon-fit'"), 'TerminalPanel must fit terminal rows/cols to the panel');
     assert.ok(terminal.includes('term.onData(data => { void bridge.write(id, data); })'), 'xterm input must stream directly to the terminal bridge');

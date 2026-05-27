@@ -12,13 +12,22 @@ export function usePreviewShortcutMessages(args: PreviewShortcutMessageArgs): vo
     useEffect(() => {
         function onPreviewShortcut(event: MessageEvent): void {
             if (!args.enabled) return;
-            const data = event.data as { type?: unknown; key?: unknown; altKey?: unknown; shiftKey?: unknown } | null;
+            const data = event.data as {
+                type?: unknown;
+                key?: unknown;
+                code?: unknown;
+                altKey?: unknown;
+                ctrlKey?: unknown;
+                metaKey?: unknown;
+                shiftKey?: unknown;
+            } | null;
             if (!data || data.type !== 'jaw-preview-shortcut') return;
             const synth = {
                 key: data.key,
+                code: data.code,
                 altKey: !!data.altKey,
-                ctrlKey: false,
-                metaKey: false,
+                ctrlKey: !!data.ctrlKey,
+                metaKey: !!data.metaKey,
                 shiftKey: !!data.shiftKey,
             } as unknown as KeyboardEvent;
             const action = actionForShortcutEvent(synth, args.keymap);
