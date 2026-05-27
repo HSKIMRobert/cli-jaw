@@ -268,7 +268,12 @@
 
 @media (max-width: 1279px) and (min-width: 1024px) {
     .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .manager-workspace {
-        grid-template-columns: 300px minmax(0, 1fr);
+        --sidebar-width: 300px;
+    }
+
+    .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .manager-workspace.is-right-panel-open {
+        grid-template-columns: var(--sidebar-width, 300px) minmax(0, 1fr) var(--right-panel-width, 320px);
+        grid-template-areas: "sidebar center right" "sidebar bottom right";
     }
 
     .rail-button-label {
@@ -282,19 +287,19 @@
 
 @media (max-width: 1023px) {
     .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .manager-workspace {
-        grid-template-columns: minmax(0, 1fr);
+        --sidebar-width: 0px;
     }
 
     .manager-workspace.is-inspector-collapsed {
         grid-template-rows: minmax(0, 1fr);
-        grid-template-areas: "detail";
+        grid-template-areas: "center";
     }
 }
 
 @media (max-width: 767px) {
     .manager-workspace.is-inspector-collapsed {
         grid-template-rows: minmax(0, 1fr) 60px;
-        grid-template-areas: "detail" "mobile-nav";
+        grid-template-areas: "center" "mobile-nav";
     }
 
     .workbench-preview .preview-header {

@@ -77,7 +77,7 @@ test('Electron default launch owns its manager server instead of attaching to we
 test('Electron window fits within the visible display work area', () => {
     const main = read('electron/src/main/index.ts');
 
-    assert.ok(main.includes("import { app, BrowserWindow, dialog, screen, session, shell } from 'electron'"), 'Electron main must import screen for work-area sizing');
+    assert.ok(main.includes("import { app, BrowserWindow, dialog, Menu, screen, session, shell } from 'electron'"), 'Electron main must import screen for work-area sizing');
     assert.ok(main.includes('function getInitialWindowBounds()'), 'Electron main must compute initial bounds before creating BrowserWindow');
     assert.ok(main.includes('screen.getPrimaryDisplay()'), 'initial bounds must use the active display work area');
     assert.ok(main.includes('workArea.height - WINDOW_WORK_AREA_MARGIN'), 'initial height must leave a margin inside the visible work area');
@@ -204,7 +204,12 @@ test('Electron terminal uses xterm plus a PTY backend and representative shortcu
     assert.ok(shortcuts.includes("toggleRightPanel: ['Meta+B', 'Meta+Shift+B']"), 'right side panel must keep the previous Cmd+Shift+B shortcut as an alias');
     assert.ok(shortcuts.includes("event.code === 'Backquote'"), 'shortcut matching must handle shifted backquote key events');
     assert.ok(main.includes("contents.on('before-input-event'"), 'Electron main must catch shortcuts before iframe/webview focus traps them');
-    assert.ok(main.includes("mainWindow?.webContents.send('manager:shortcut', action)"), 'Electron main must forward desktop shortcuts to the manager renderer');
+    assert.ok(main.includes("import { app, BrowserWindow, dialog, Menu, screen, session, shell } from 'electron'"), 'Electron main must import Menu for native accelerators');
+    assert.ok(main.includes('function sendManagerShortcut'), 'Electron main must route all shortcut sources through one sender');
+    assert.ok(main.includes("sendManagerShortcut(action)"), 'Electron before-input-event handler must forward desktop shortcuts to the manager renderer');
+    assert.ok(main.includes('function installManagerApplicationMenu()'), 'Electron main must install application menu accelerators for shortcuts that macOS consumes before the page');
+    assert.ok(main.includes("accelerator: 'CommandOrControl+B'"), 'right sidebar shortcut must be registered as a native app menu accelerator');
+    assert.ok(main.includes("accelerator: 'Ctrl+Shift+`'"), 'terminal shortcut must be registered as a native app menu accelerator');
     assert.ok(preload.includes("ipcRenderer.on('manager:shortcut', handler)"), 'preload must expose desktop shortcut events');
     assert.ok(desktopBridge.includes('shortcuts?: ShortcutBridgeApi'), 'frontend desktop bridge type must include shortcut events');
     assert.ok(app.includes("getDesktop()?.shortcuts?.onAction"), 'manager app must subscribe to Electron desktop shortcut events');
@@ -279,4 +284,29 @@ test('workspace polish keeps current center/right/bottom grid areas intact', () 
         !compact.includes('grid-template-columns: 44px minmax(0, 1fr)'),
         'collapsed-sidebar compact polish must preserve the right panel grid column',
     );
+    assert.ok(
+        polish.includes('.manager-workspace.is-right-panel-open'),
+        'medium-width polish must explicitly preserve the right panel grid column when the panel is open',
+    );
+    assert.ok(
+        !polish.includes('grid-template-columns: 300px minmax(0, 1fr);'),
+        'medium-width polish must not replace the workspace with a two-column grid that pushes the right panel offscreen',
+    );
+    assert.ok(
+        polish.includes('grid-template-areas: "sidebar center right" "sidebar bottom right"'),
+        'medium-width polish must keep the current right grid area name',
+    );
+    assert.ok(
+        polish.includes('grid-template-areas: "center";'),
+        'narrow collapsed-inspector polish must use the current center grid area name',
+    );
+    assert.ok(
+        polish.includes('grid-template-areas: "center" "mobile-nav";'),
+        'mobile collapsed-inspector polish must use the current center grid area name',
+    );
+    const workspace = read('public/manager/src/components/WorkspaceLayout.tsx');
+    const layout = read('public/manager/src/manager-layout.css');
+    assert.ok(workspace.includes("props.rightPanelOpen && 'is-right-panel-open'"), 'workspace must expose an open-state class for responsive right panel rules');
+    assert.ok(layout.includes('position: relative;'), 'workspace must create a containing block for narrow right-panel overlay layout');
+    assert.ok(layout.includes('.manager-workspace.is-right-panel-open .right-panel'), 'narrow layouts must keep the right panel visible as an overlay instead of pushing it offscreen');
 });
