@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 
 type WorkspaceLayoutProps = {
     navigator: ReactNode;
@@ -27,12 +27,60 @@ type WorkspaceLayoutStyle = CSSProperties & {
     '--bottom-panel-height'?: string | undefined;
 };
 
+const RIGHT_PANEL_RENDER_MIN_WIDTH = 260;
+const RIGHT_PANEL_RENDER_MAX_WIDTH = 520;
+const WORKSPACE_CENTER_MIN_WIDTH = 360;
+
+function readViewportWidth(): number {
+    if (typeof window === 'undefined') return 1440;
+    return window.innerWidth;
+}
+
+function useViewportWidth(): number {
+    const [viewportWidth, setViewportWidth] = useState(readViewportWidth);
+
+    useEffect(() => {
+        const handleResize = () => setViewportWidth(readViewportWidth());
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    return viewportWidth;
+}
+
+function clampRightPanelRenderWidth(width: number | undefined, sidebarCollapsed: boolean, viewportWidth: number): number {
+    const desired = typeof width === 'number' && Number.isFinite(width)
+        ? Math.round(width)
+        : RIGHT_PANEL_RENDER_MAX_WIDTH;
+    const sidebarWidth = sidebarCollapsed
+        ? 56
+        : viewportWidth >= 1440 ? 360 : 300;
+    const maxByViewport = Math.max(
+        RIGHT_PANEL_RENDER_MIN_WIDTH,
+        viewportWidth - sidebarWidth - WORKSPACE_CENTER_MIN_WIDTH,
+    );
+    const responsiveMax = Math.min(
+        RIGHT_PANEL_RENDER_MAX_WIDTH,
+        Math.floor(viewportWidth * 0.48),
+        maxByViewport,
+    );
+    return Math.max(
+        RIGHT_PANEL_RENDER_MIN_WIDTH,
+        Math.min(desired, responsiveMax),
+    );
+}
+
 export function WorkspaceLayout(props: WorkspaceLayoutProps) {
+    const viewportWidth = useViewportWidth();
+    const rightPanelWidth = props.rightPanelOpen
+        ? clampRightPanelRenderWidth(props.rightPanelWidth, props.sidebarCollapsed, viewportWidth)
+        : 0;
+
     const style: WorkspaceLayoutStyle = {
         '--activity-dock-height': `${props.inspectorHeight}px`,
         '--sidebar-width': props.sidebarCollapsed ? '56px' : undefined,
         '--right-panel-width': props.rightPanelOpen
-            ? `${props.rightPanelWidth ?? 0}px`
+            ? `${rightPanelWidth}px`
             : props.sidePanel ? undefined : '0px',
         '--bottom-panel-height': props.bottomPanelOpen
             ? `${props.bottomPanelHeight ?? 0}px`

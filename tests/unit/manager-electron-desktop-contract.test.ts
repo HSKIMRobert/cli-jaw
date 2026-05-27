@@ -141,6 +141,8 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     const folder = read('public/manager/src/folder-panel/FolderPanel.tsx');
     const doc = read('public/manager/src/doc-panel/DocPanel.tsx');
     const css = read('public/manager/src/panels/panels.css');
+    const workspace = read('public/manager/src/components/WorkspaceLayout.tsx');
+    const browserCss = read('public/manager/src/browser-panel/browser-panel.css');
 
     assert.ok(types.includes("RightPanelMode = 'folder' | 'doc' | 'diff' | 'browser'"), 'right panel modes must include folders, document preview, diff, and browser');
     assert.ok(types.includes("['folder', 'doc', 'diff', 'browser']"), 'right panel mode order must match the toolbar order');
@@ -159,6 +161,11 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(doc.includes('Open Folders and select a file'), 'empty document preview must explain how to view a file');
     assert.ok(css.includes('.right-panel-toolbar'), 'right sidebar icon toolbar must be styled');
     assert.ok(css.includes('.right-panel-mode-button.is-active'), 'active right sidebar icon must have visible state');
+    assert.ok(workspace.includes('clampRightPanelRenderWidth'), 'right panel width must be clamped at render time so persisted large widths cannot clip the UI');
+    assert.ok(workspace.includes('WORKSPACE_CENTER_MIN_WIDTH'), 'right panel clamp must reserve usable center workspace width');
+    assert.ok(css.includes('max-width: min(520px, 48vw)'), 'right panel must have a responsive CSS max-width');
+    assert.ok(browserCss.includes('overflow: hidden'), 'browser panel must clip inside its own panel instead of escaping the sidebar');
+    assert.ok(browserCss.includes('min-width: 0'), 'browser panel flex children must be allowed to shrink inside the right sidebar');
 });
 
 test('Electron terminal uses xterm plus a PTY backend and representative shortcut', () => {
