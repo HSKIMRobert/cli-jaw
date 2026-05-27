@@ -104,6 +104,7 @@ body[data-orc-state].orc-pulse #chatMessages {
     border: 1px solid color-mix(in oklch, var(--text) 10%, transparent);
     opacity: 0.65;
 }
+.pabc-dot[data-phase="I"].active, .pabc-dot[data-phase="I"].done { background: var(--orc-glow-I); }
 .pabc-dot[data-phase="P"].active, .pabc-dot[data-phase="P"].done { background: var(--orc-glow-P); }
 .pabc-dot[data-phase="A"].active, .pabc-dot[data-phase="A"].done { background: var(--orc-glow-A); }
 .pabc-dot[data-phase="B"].active, .pabc-dot[data-phase="B"].done { background: var(--orc-glow-B); }
@@ -134,7 +135,7 @@ body[data-orc-state].orc-pulse #chatMessages {
     font-size: 13px;
     font-weight: 700;
     letter-spacing: 4px;
-    background: linear-gradient(90deg, var(--orc-glow-P), var(--orc-glow-A), var(--orc-glow-B), var(--orc-glow-C));
+    background: linear-gradient(90deg, var(--orc-glow-I), var(--orc-glow-P), var(--orc-glow-A), var(--orc-glow-B), var(--orc-glow-C));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;

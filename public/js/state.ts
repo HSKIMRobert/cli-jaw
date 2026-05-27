@@ -28,7 +28,7 @@ export interface CliStatusCache {
     [cli: string]: unknown;
 }
 
-export type OrcStateName = 'IDLE' | 'P' | 'A' | 'B' | 'C' | 'D';
+export type OrcStateName = 'IDLE' | 'I' | 'P' | 'A' | 'B' | 'C' | 'D';
 
 export interface HeartbeatRuntimeState {
     pending: number;
@@ -44,6 +44,18 @@ export interface ResolvedSelectionState {
     index: number;
     text: string;
     source: string;
+}
+
+export type GoalStatus = 'active' | 'paused' | 'blocked' | 'complete' | 'cancelled';
+
+export interface ActiveGoalState {
+    id: string;
+    objective: string;
+    status: GoalStatus;
+    createdAt: string;
+    updatedAt: string;
+    lastCheckpointSummary?: string | undefined;
+    nextAction?: string | undefined;
 }
 
 export interface AppState {
@@ -65,6 +77,9 @@ export interface AppState {
     heartbeatRuntime: HeartbeatRuntimeState;
     orcTaskAnchor: string;
     orcResolvedSelection: ResolvedSelectionState | null;
+    activeGoal: ActiveGoalState | null;
+    lastWorkflowSequenceId: number;
+    workflowEventCount: number;
 }
 
 export const state: AppState = {
@@ -86,4 +101,7 @@ export const state: AppState = {
     heartbeatRuntime: { pending: 0, deferredPending: 0 },
     orcTaskAnchor: '',
     orcResolvedSelection: null,
+    activeGoal: null,
+    lastWorkflowSequenceId: -1,
+    workflowEventCount: 0,
 };
