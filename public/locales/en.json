@@ -45,6 +45,8 @@
     "cmd.workflow.planAudit.tg_desc": "Create plan audit task",
     "cmd.workflow.goal.desc": "Goal state and bounded run workflow",
     "cmd.workflow.goal.tg_desc": "Check goal or run state",
+    "cmd.workflow.team.desc": "Parallel team orchestration",
+    "cmd.workflow.team.tg_desc": "Team orchestration",
     "cmd.workflow.interview.title": "Requirements interview",
     "cmd.workflow.deliberate.title": "Role-based plan review",
     "cmd.workflow.planAudit.title": "Read-only plan audit",

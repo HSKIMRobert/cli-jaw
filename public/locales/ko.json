@@ -45,6 +45,8 @@
     "cmd.workflow.planAudit.tg_desc": "계획 감사 작업 생성",
     "cmd.workflow.goal.desc": "목표 상태와 제한 실행 워크플로우",
     "cmd.workflow.goal.tg_desc": "목표 또는 실행 상태 확인",
+    "cmd.workflow.team.desc": "병렬 팀 오케스트레이션",
+    "cmd.workflow.team.tg_desc": "팀 오케스트레이션",
     "cmd.workflow.interview.title": "요구사항 인터뷰",
     "cmd.workflow.deliberate.title": "역할 기반 계획 검토",
     "cmd.workflow.planAudit.title": "읽기 전용 계획 감사",

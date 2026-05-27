@@ -45,6 +45,8 @@
     "cmd.workflow.planAudit.tg_desc": "計画監査タスクを作成",
     "cmd.workflow.goal.desc": "ゴール状態と制限付き実行ワークフロー",
     "cmd.workflow.goal.tg_desc": "ゴールまたは実行状態を確認",
+    "cmd.workflow.team.desc": "並列チームオーケストレーション",
+    "cmd.workflow.team.tg_desc": "チームオーケストレーション",
     "cmd.workflow.interview.title": "要件インタビュー",
     "cmd.workflow.deliberate.title": "役割別計画レビュー",
     "cmd.workflow.planAudit.title": "読み取り専用計画監査",

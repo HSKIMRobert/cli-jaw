@@ -12,7 +12,7 @@ import { notifyUnreadResponse } from './features/attention-badge.js';
 import { shouldApplyOrcStateEvent } from './features/orchestrate-scope.js';
 import { providerLabel } from './provider-icons.js';
 
-const ROADMAP_PHASES = ['P', 'A', 'B', 'C'] as const;
+const ROADMAP_PHASES = ['I', 'P', 'A', 'B', 'C'] as const;
 
 /** Track current phase for resize recalculation */
 let currentSharkPhase: string | null = null;
@@ -112,6 +112,7 @@ async function refreshRuntimeSnapshot(options: { hydrateRun?: boolean } = {}): P
     applyQueuedOverlay(snap.queued || []);
     renderPendingQueue(snap.queued || []);
     if (options.hydrateRun) hydrateActiveRun(snap.activeRun);
+    hydrateGoalState();
     setStatus(snap.runtime.busy ? 'running' : 'idle');
     if (snap.runtime.busy && snap.activeRun?.cli === 'agy') showLiveToolActivity(`${providerLabel(snap.activeRun.cli)} working...`);
     import('./features/employees.js').then(m => {
@@ -242,9 +243,47 @@ function applyOrcContext(ctx: { taskAnchor?: string | null; resolvedSelection?: 
     }
 }
 
+async function hydrateGoalState(): Promise<void> {
+    try {
+        const res = await fetch(`${API_BASE}/api/goal`);
+        if (!res.ok) return;
+        const data = await res.json() as { goal?: { id: string; objective: string; status: string; createdAt: string; updatedAt: string; lastCheckpoint?: { summary: string; nextAction: string } } | null };
+        if (data.goal) {
+            state.activeGoal = {
+                id: data.goal.id,
+                objective: data.goal.objective,
+                status: data.goal.status as 'active' | 'paused' | 'blocked' | 'complete' | 'cancelled',
+                createdAt: data.goal.createdAt,
+                updatedAt: data.goal.updatedAt,
+                lastCheckpointSummary: data.goal.lastCheckpoint?.summary,
+                nextAction: data.goal.lastCheckpoint?.nextAction,
+            };
+        } else {
+            state.activeGoal = null;
+        }
+        renderGoalCockpit();
+    } catch { /* noop */ }
+}
+
+function renderGoalCockpit(): void {
+    const el = document.getElementById('goalCockpit');
+    if (!el) return;
+    const goal = state.activeGoal;
+    if (!goal || goal.status === 'complete' || goal.status === 'cancelled') {
+        el.hidden = true;
+        el.innerHTML = '';
+        return;
+    }
+    el.hidden = false;
+    const statusClass = goal.status === 'paused' ? 'paused' : goal.status === 'blocked' ? 'blocked' : 'active';
+    el.innerHTML = `<span class="goal-objective" title="${goal.objective}">${goal.objective}</span>` +
+        `<span class="goal-status goal-status--${statusClass}">${goal.status}</span>` +
+        (goal.nextAction ? `<span class="goal-next">${goal.nextAction}</span>` : '');
+}
+
 /** Apply orchestration state to UI (shared by WS events and reconnect snapshot) */
 function applyOrcState(orcState: string, title?: string) {
-    const allowed = new Set<OrcStateName>(['IDLE', 'P', 'A', 'B', 'C', 'D']);
+    const allowed = new Set<OrcStateName>(['IDLE', 'I', 'P', 'A', 'B', 'C', 'D']);
     const nextState = allowed.has(orcState as OrcStateName) ? (orcState as OrcStateName) : 'IDLE';
     state.orcState = nextState;
 
@@ -264,7 +303,7 @@ function applyOrcState(orcState: string, title?: string) {
     const badge = document.getElementById('orcStateBadge');
     if (badge) {
         const labels: Record<OrcStateName, string> = {
-            IDLE: '', P: 'PLAN', A: 'AUDIT', B: 'BUILD', C: 'CHECK', D: 'DONE',
+            IDLE: '', I: 'INTERVIEW', P: 'PLAN', A: 'AUDIT', B: 'BUILD', C: 'CHECK', D: 'DONE',
         };
         badge.textContent = labels[nextState];
         badge.style.display = nextState === 'IDLE' ? 'none' : 'inline-block';
@@ -303,7 +342,7 @@ function applyOrcState(orcState: string, title?: string) {
                 const dot = document.getElementById(`dot-${p}`);
                 if (dot) { dot.className = 'pabc-dot done'; dot.setAttribute('data-phase', p); }
             });
-            for (let i = 0; i < 4; i++) {
+            for (let i = 0; i < ROADMAP_PHASES.length; i++) {
                 const c = document.getElementById(`pabc-conn-${i}`);
                 if (c) c.className = 'pabc-connector done';
             }
@@ -324,7 +363,7 @@ function applyOrcState(orcState: string, title?: string) {
                     dot.setAttribute('data-phase', p);
                 }
             });
-            for (let i = 0; i < 4; i++) {
+            for (let i = 0; i < ROADMAP_PHASES.length; i++) {
                 const c = document.getElementById(`pabc-conn-${i}`);
                 if (c) c.className = `pabc-connector ${i < idx ? 'done' : ''}`;
             }

@@ -83,8 +83,9 @@
     --toggle-h: 20px;
     --toggle-knob: 16px;
 
-    /* ─── PABCD State Glow ─── */
+    /* ─── IPABCD State Glow ─── */
     --orc-glow: transparent;
+    --orc-glow-I: oklch(70% 0.15 200);
     --orc-glow-P: oklch(63% 0.17 260);
     --orc-glow-A: oklch(78% 0.16 75);
     --orc-glow-B: oklch(72% 0.17 150);
@@ -156,6 +157,7 @@ body.right-collapsed {
     --noise-opacity: 0.015;
     --scanline-pct: 0.8%;
     --glow-strength: 3%;
+    --orc-glow-I: oklch(58% 0.14 200);
     --orc-glow-P: oklch(56% 0.18 260);
     --orc-glow-A: oklch(63% 0.15 70);
     --orc-glow-B: oklch(62% 0.16 150);
