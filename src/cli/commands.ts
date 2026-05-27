@@ -17,11 +17,13 @@ import {
 } from './handlers.js';
 import { projectHandler } from './handlers-project.js';
 import {
+    planWorkflowHandler,
     interviewWorkflowHandler,
     deliberateWorkflowHandler,
     planAuditWorkflowHandler,
     goalWorkflowStubHandler,
 } from './handlers-workflows.js';
+import { buildUnknownCommandArtifact, saveWorkflowArtifact } from '../workflows/artifacts.js';
 import type { CliCommandContext } from './command-context.js';
 import type {
     SlashCommand, SlashChoice, SlashResult, ParsedSlashCommand, CompletionCtx,
@@ -107,6 +109,43 @@ function scoreCommandCandidate(cmd: SlashCommand, query: string): number {
     return score;
 }
 
+function suggestCommandNames(query: string): string[] {
+    const q = String(query || '').trim().toLowerCase();
+    const ranked = COMMANDS
+        .filter(c => !c.hidden)
+        .map(cmd => ({ cmd, score: scoreCommandCandidate(cmd, q) }))
+        .filter(({ score }) => score >= 0)
+        .sort((a, b) => b.score - a.score || a.cmd.name.localeCompare(b.cmd.name))
+        .slice(0, 5)
+        .map(({ cmd }) => `/${cmd.name}`);
+    if (ranked.length) return ranked;
+    const fallback = ['help', 'plan', 'interview', 'deliberate', 'planaudit'];
+    const available = new Set(COMMANDS.filter(c => !c.hidden).map(c => c.name));
+    return fallback.filter(name => available.has(name)).map(name => `/${name}`);
+}
+
+async function readSettingsSnapshot(ctx: { [k: string]: unknown }): Promise<unknown> {
+    let settingsSnapshot: unknown = (ctx as { settings?: unknown }).settings;
+    const getSettings = (ctx as { getSettings?: () => unknown }).getSettings;
+    if (!settingsSnapshot && typeof getSettings === 'function') {
+        try {
+            settingsSnapshot = await getSettings();
+        } catch {
+            settingsSnapshot = undefined;
+        }
+    }
+    return settingsSnapshot;
+}
+
+async function persistWorkflowArtifactResult(result: SlashResult, ctx: { [k: string]: unknown }): Promise<SlashResult> {
+    if (!result?.artifact || result.artifact.storage.mode !== 'jaw-home-cache') return result;
+    const settingsSnapshot = await readSettingsSnapshot(ctx);
+    return {
+        ...result,
+        artifact: saveWorkflowArtifact(result.artifact, settingsSnapshot),
+    };
+}
+
 function scoreArgumentCandidate(item: SlashChoice, query: string): number {
     const base = scoreToken(item.value, query);
     if (base >= 0) return base;
@@ -170,6 +209,7 @@ export const COMMANDS: SlashCommand[] = [
     { name: 'clear', descKey: 'cmd.clear.desc', tgDescKey: 'cmd.clear.tg_desc', desc: 'Clear screen', category: 'session', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: clearHandler },
     { name: 'compact', descKey: 'cmd.compact.desc', tgDescKey: 'cmd.compact.tg_desc', desc: 'Compact conversation context', args: '[instructions]', category: 'session', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: compactHandler },
     { name: 'reset', descKey: 'cmd.reset.desc', desc: 'Full reset', args: '[confirm]', category: 'session', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: resetHandler },
+    { name: 'plan', descKey: 'cmd.workflow.plan.desc', tgDescKey: 'cmd.workflow.plan.tg_desc', desc: 'Explain cli-jaw PABCD planning flow', args: '[request|status|copy]', category: 'workflow', interfaces: ['cli', 'web', 'telegram', 'discord'], workflow: { kind: 'workflow', phase: 'planning', risk: 'low', output: 'prompt', prerequisites: ['PABCD remains the approved plan owner'], workflowArgs: [{ name: 'request-or-subcommand', required: false, kind: 'text' }] }, handler: planWorkflowHandler },
     { name: 'interview', descKey: 'cmd.workflow.interview.desc', tgDescKey: 'cmd.workflow.interview.tg_desc', desc: 'Clarify requirements before planning', args: '<request>', category: 'workflow', interfaces: ['cli', 'web', 'telegram', 'discord'], workflow: { kind: 'workflow', phase: 'requirements', risk: 'low', output: 'prompt', workflowArgs: [{ name: 'request', required: true, kind: 'text' }] }, handler: interviewWorkflowHandler },
     { name: 'deliberate', descKey: 'cmd.workflow.deliberate.desc', tgDescKey: 'cmd.workflow.deliberate.tg_desc', desc: 'Plan with planner, architect, and critic roles', args: '<request-or-plan>', category: 'workflow', interfaces: ['cli', 'web', 'telegram', 'discord'], workflow: { kind: 'workflow', phase: 'planning', risk: 'low', output: 'plan', prerequisites: ['Clear request or existing plan'], workflowArgs: [{ name: 'request-or-plan', required: true, kind: 'text' }] }, handler: deliberateWorkflowHandler },
     { name: 'planaudit', descKey: 'cmd.workflow.planAudit.desc', tgDescKey: 'cmd.workflow.planAudit.tg_desc', desc: 'Create a read-only employee audit task', args: '[plan]', category: 'workflow', interfaces: ['cli', 'web', 'telegram', 'discord'], workflow: { kind: 'workflow', phase: 'audit', risk: 'medium', output: 'dispatch', prerequisites: ['Project root', 'PABCD A for automatic dispatch'], workflowArgs: [{ name: 'plan', required: false, kind: 'text' }] }, handler: planAuditWorkflowHandler },
@@ -203,7 +243,7 @@ export function parseCommand(text: string): ParsedSlashCommand {
     if (!body) {
         const help = findCommand('help');
         if (!help) return null;
-        return { type: 'known', cmd: help, args: [], name: 'help' };
+        return { type: 'known', cmd: help, args: [], name: 'help', rawText: text };
     }
     // File paths like /users/junny/... or /tmp/foo — not commands
     const firstToken = body.split(/\s+/)[0] || '';
@@ -211,14 +251,23 @@ export function parseCommand(text: string): ParsedSlashCommand {
     const parts = body.split(/\s+/);
     const name = (parts.shift() || '').toLowerCase();
     const cmd = findCommand(name);
-    if (!cmd) return { type: 'unknown', name, args: parts };
-    return { type: 'known', cmd, args: parts, name };
+    if (!cmd) return { type: 'unknown', name, args: parts, rawText: text };
+    return { type: 'known', cmd, args: parts, name, rawText: text };
 }
 
 export async function executeCommand(parsed: ParsedSlashCommand, ctx: { interface?: string; locale?: string; [k: string]: unknown }): Promise<SlashResult | null> {
     const L = ctx?.locale || 'ko';
     if (!parsed) return null;
-    if (parsed.type === 'unknown') return unknownCommand(parsed.name, L);
+    if (parsed.type === 'unknown') {
+        const recovery = {
+            args: parsed.args || [],
+            originalText: parsed.rawText || `/${parsed.name}${parsed.args?.length ? ` ${parsed.args.join(' ')}` : ''}`,
+            suggestedCommands: suggestCommandNames(parsed.name),
+        };
+        const result = unknownCommand(parsed.name, L, recovery);
+        result.artifact = buildUnknownCommandArtifact(result.recovery!, L, await readSettingsSnapshot(ctx));
+        return persistWorkflowArtifactResult(result, ctx);
+    }
     const iface = ctx.interface || 'cli';
     if (!parsed.cmd.interfaces.includes(iface)) {
         return unsupportedCommand(parsed.cmd, iface, L);
@@ -238,7 +287,11 @@ export async function executeCommand(parsed: ParsedSlashCommand, ctx: { interfac
     }
     try {
         const handler = parsed.cmd.handler as (args: string[], ctx: CliCommandContext) => unknown;
-        return normalizeResult(await handler(parsed.args || [], ctx as unknown as CliCommandContext));
+        const commandCtx = { ...ctx, rawText: parsed.rawText };
+        return persistWorkflowArtifactResult(
+            normalizeResult(await handler(parsed.args || [], commandCtx as unknown as CliCommandContext)),
+            commandCtx,
+        );
     } catch (err: unknown) {
         const msg = (err as Error)?.message || String(err);
         return {

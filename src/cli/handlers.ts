@@ -5,7 +5,7 @@ import { CLI_KEYS, buildModelChoicesByCli } from './registry.js';
 import { t } from '../core/i18n.js';
 import { detectCli, settings } from '../core/config.js';
 import type { CliCommandContext } from './command-context.js';
-import type { SlashCommand, SlashResult } from './types.js';
+import type { SlashCommand, SlashResult, UnknownCommandRecovery } from './types.js';
 export { compactHandler } from './compact.js';
 
 const DEFAULT_CLI_CHOICES = [...CLI_KEYS];
@@ -72,11 +72,25 @@ export function formatDuration(seconds: unknown) {
     return `${s}s`;
 }
 
-export function unknownCommand(name: string, locale = 'ko'): SlashResult {
+export function unknownCommand(
+    name: string,
+    locale = 'ko',
+    recovery?: Omit<UnknownCommandRecovery, 'kind' | 'commandName'>,
+): SlashResult {
+    const originalText = recovery?.originalText || `/${name}${recovery?.args?.length ? ` ${recovery.args.join(' ')}` : ''}`;
+    const suggestedCommands = recovery?.suggestedCommands || [];
     return {
         ok: false,
         type: 'error',
         code: 'unknown_command',
+        originalText,
+        recovery: {
+            kind: 'slash-command-original',
+            commandName: name,
+            args: recovery?.args || [],
+            originalText,
+            suggestedCommands,
+        },
         text: t('cmd.unknown', { name }, locale),
     };
 }

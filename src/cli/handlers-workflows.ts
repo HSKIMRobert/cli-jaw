@@ -1,4 +1,5 @@
 import { t } from '../core/i18n.js';
+import { buildPlanCompatArtifact, formatPlanCompatText } from '../workflows/plan.js';
 import type { CliCommandContext } from './command-context.js';
 import type { SlashResult } from './types.js';
 
@@ -31,6 +32,19 @@ export function interviewWorkflowHandler(args: string[], ctx: CliCommandContext)
         'Score goal, constraints, success criteria, and context.',
         'Stop when the spec is clear enough for PABCD P.',
     ].join('\n'));
+}
+
+export function planWorkflowHandler(args: string[], ctx: CliCommandContext): SlashResult {
+    const locale = ctx.locale || 'ko';
+    const settings = typeof ctx.getSettings === 'function' ? ctx.getSettings() : undefined;
+    const artifact = buildPlanCompatArtifact(args, locale, settings);
+    return {
+        ok: true,
+        type: 'info',
+        text: formatPlanCompatText(artifact, locale),
+        artifact,
+        originalText: artifact.sourcePrompt,
+    };
 }
 
 export function deliberateWorkflowHandler(args: string[], ctx: CliCommandContext): SlashResult {
