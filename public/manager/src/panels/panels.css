@@ -30,6 +30,7 @@ body.is-resizing-vertical .panel-resizer { pointer-events: auto !important; }
     grid-area: right;
     min-width: 0;
     min-height: 0;
+    max-width: min(520px, 48vw);
     overflow: hidden;
     display: flex;
     flex-direction: row;
@@ -113,8 +114,9 @@ body.is-resizing-vertical .panel-resizer { pointer-events: auto !important; }
 }
 
 .right-sub-panel {
+    min-width: 0;
     min-height: 0;
-    overflow: auto;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
 }
@@ -142,8 +144,9 @@ body.is-resizing-vertical .panel-resizer { pointer-events: auto !important; }
 .right-sub-close:hover { background: var(--bg-hover); color: var(--text-base); }
 .right-sub-content {
     flex: 1;
+    min-width: 0;
     min-height: 0;
-    overflow: auto;
+    overflow: hidden;
 }
 
 .bottom-panel {
