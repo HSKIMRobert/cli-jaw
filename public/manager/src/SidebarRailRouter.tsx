@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, type ReactNode, Suspense } from 'react';
 import { ActivityDock } from './components/ActivityDock';
 import { InstanceDrawer } from './components/InstanceDrawer';
 import { InstanceNavigator } from './components/InstanceNavigator';
@@ -6,10 +6,17 @@ import { MobileNav } from './components/MobileNav';
 import { SidebarRail } from './components/SidebarRail';
 import { Workbench } from './components/Workbench';
 import { WorkspaceLayout } from './components/WorkspaceLayout';
+import { lazy } from 'react';
 import { RightSidebar } from './panels/RightSidebar';
 import { BottomPanel } from './panels/BottomPanel';
 import { usePanelLayout } from './panels/PanelLayoutProvider';
 import type { RightPanelMode, BottomPanelTab } from './panels/types';
+
+const TerminalPanel = lazy(() => import('./terminal/TerminalPanel').then(m => ({ default: m.TerminalPanel })));
+const DiffPanel = lazy(() => import('./diff-panel/DiffPanel').then(m => ({ default: m.DiffPanel })));
+const FolderPanel = lazy(() => import('./folder-panel/FolderPanel').then(m => ({ default: m.FolderPanel })));
+const DocPanel = lazy(() => import('./doc-panel/DocPanel').then(m => ({ default: m.DocPanel })));
+const BrowserPanel = lazy(() => import('./browser-panel/BrowserPanel').then(m => ({ default: m.BrowserPanel })));
 import { InstancePreview } from './InstancePreview';
 import { DashboardSettingsSidebar, type DashboardSettingsSection } from './dashboard-settings/DashboardSettingsSidebar';
 import { DashboardSettingsWorkspace } from './dashboard-settings/DashboardSettingsWorkspace';
@@ -121,12 +128,23 @@ type Props = {
     onDashboardSettingsPatch: Parameters<typeof DashboardSettingsWorkspace>[0]['onUiPatch'];
 };
 
-function renderRightPanelContent(_mode: RightPanelMode): ReactNode {
-    return <div style={{ padding: '12px', color: 'var(--text-dim)', fontSize: '12px' }}>Panel content (L5/L6)</div>;
+function renderRightPanelContent(mode: RightPanelMode): ReactNode {
+    const fallback = <div style={{ padding: '12px', color: 'var(--text-dim)', fontSize: '12px' }}>Loading...</div>;
+    switch (mode) {
+        case 'diff': return <Suspense fallback={fallback}><DiffPanel /></Suspense>;
+        case 'folder': return <Suspense fallback={fallback}><FolderPanel /></Suspense>;
+        case 'doc': return <Suspense fallback={fallback}><DocPanel /></Suspense>;
+        default: return null;
+    }
 }
 
-function renderBottomTabPlaceholder(_tab: BottomPanelTab): ReactNode {
-    return <div style={{ padding: '12px', color: 'var(--text-dim)', fontSize: '12px' }}>Tab content (L4/L8)</div>;
+function renderBottomTabContent(tab: BottomPanelTab): ReactNode {
+    const fallback = <div style={{ padding: '12px', color: 'var(--text-dim)', fontSize: '12px' }}>Loading...</div>;
+    switch (tab) {
+        case 'terminal': return <Suspense fallback={fallback}><TerminalPanel /></Suspense>;
+        case 'browser': return <Suspense fallback={fallback}><BrowserPanel /></Suspense>;
+        default: return null;
+    }
 }
 
 export function SidebarRailRouter(props: Props) {
@@ -154,7 +172,7 @@ export function SidebarRailRouter(props: Props) {
             rightPanelContent={panelLayout.effectiveRightOpen ? <RightSidebar renderPanel={renderRightPanelContent} /> : undefined}
             bottomPanelOpen={panelLayout.state.bottomPanel.open}
             bottomPanelHeight={panelLayout.state.bottomPanel.height}
-            bottomPanelContent={panelLayout.state.bottomPanel.open ? <BottomPanel renderTab={renderBottomTabPlaceholder} /> : undefined}
+            bottomPanelContent={panelLayout.state.bottomPanel.open ? <BottomPanel renderTab={renderBottomTabContent} /> : undefined}
             navigator={(
                 <>
                     <SidebarRail
