@@ -57,6 +57,7 @@ const MODE_ICONS: Record<RightPanelMode, ReactNode> = {
 };
 
 const RIGHT_PANEL_TOOLBAR_MODES: RightPanelMode[] = ['folder', 'doc', 'diff', 'browser'];
+const RIGHT_SPLIT_SLOT_MIN_HEIGHT = 180;
 
 export function RightSidebar(props: RightSidebarProps) {
     const { state, dispatch, effectiveRightOpen, rightPanelSplit } = usePanelLayout();
@@ -84,20 +85,47 @@ export function RightSidebar(props: RightSidebarProps) {
         dispatch({ type: 'OPEN_RIGHT_PANEL', mode, slot: 'top' });
     }, [dispatch]);
 
+    const handleSoloSlot = useCallback((slot: 'top' | 'bottom') => {
+        dispatch({ type: 'SOLO_RIGHT_SUB', slot });
+    }, [dispatch]);
+
     if (!effectiveRightOpen) return null;
 
     const isSplit = rightPanelSplit;
     const topFr = isSplit ? rp.splitRatio : 1;
     const bottomFr = isSplit ? 1 - rp.splitRatio : 0;
     const activeMode = rp.topMode ?? rp.bottomMode;
+    const splitRows = isSplit
+        ? `minmax(${RIGHT_SPLIT_SLOT_MIN_HEIGHT}px, ${topFr}fr) auto minmax(${RIGHT_SPLIT_SLOT_MIN_HEIGHT}px, ${bottomFr}fr)`
+        : undefined;
 
     function renderPanelSlot(slot: 'top' | 'bottom', mode: RightPanelMode): ReactNode {
+        const label = MODE_LABELS[mode];
         return (
-            <div key={`${slot}-${mode}`} className="right-sub-panel" aria-label={MODE_LABELS[mode]}>
+            <div key={`${slot}-${mode}`} className="right-sub-panel" aria-label={label}>
                 {isSplit ? (
                     <div className="right-sub-header">
-                        <span className="right-panel-sr-only">{MODE_LABELS[mode]}</span>
-                        <button type="button" className="right-sub-close" aria-label={`Close ${MODE_LABELS[mode]}`} onClick={() => dispatch({ type: 'CLOSE_RIGHT_SUB', slot })}>×</button>
+                        <span className="right-sub-title">{label}</span>
+                        <div className="right-sub-actions">
+                            <button
+                                type="button"
+                                className="right-sub-action"
+                                aria-label={`Show only ${label}`}
+                                title={`Show only ${label}`}
+                                onClick={() => handleSoloSlot(slot)}
+                            >
+                                Only
+                            </button>
+                            <button
+                                type="button"
+                                className="right-sub-action right-sub-close"
+                                aria-label={`Close ${label}`}
+                                title={`Close ${label}`}
+                                onClick={() => dispatch({ type: 'CLOSE_RIGHT_SUB', slot })}
+                            >
+                                ×
+                            </button>
+                        </div>
                     </div>
                 ) : null}
                 <div className="right-sub-content">
@@ -138,7 +166,7 @@ export function RightSidebar(props: RightSidebarProps) {
                 <div
                     ref={bodyRef}
                     className={`right-panel-body ${isSplit ? 'is-split-panel' : 'is-single-panel'}`}
-                    style={isSplit ? { gridTemplateRows: `${topFr}fr auto ${bottomFr}fr` } : undefined}
+                    style={isSplit ? { gridTemplateRows: splitRows } : undefined}
                 >
                     {rp.topMode && (
                         renderPanelSlot('top', rp.topMode)

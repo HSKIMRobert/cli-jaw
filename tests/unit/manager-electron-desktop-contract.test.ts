@@ -153,6 +153,7 @@ test('Electron panel shortcuts open usable panels when closed', () => {
 
 test('Electron right sidebar exposes icon panel switcher and document preview path', () => {
     const types = read('public/manager/src/panels/types.ts');
+    const provider = read('public/manager/src/panels/PanelLayoutProvider.tsx');
     const sidebar = read('public/manager/src/panels/RightSidebar.tsx');
     const router = read('public/manager/src/SidebarRailRouter.tsx');
     const folder = read('public/manager/src/folder-panel/FolderPanel.tsx');
@@ -163,11 +164,21 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
 
     assert.ok(types.includes("RightPanelMode = 'folder' | 'doc' | 'diff' | 'browser'"), 'right panel modes must include folders, document preview, diff, and browser');
     assert.ok(types.includes("['folder', 'doc', 'diff', 'browser']"), 'right panel mode order must match the toolbar order');
+    assert.ok(types.includes('RIGHT_SPLIT_MIN_RATIO = 0.3'), 'right panel split must not allow a slot to collapse into an unusable 20% strip');
+    assert.ok(types.includes('RIGHT_SPLIT_MAX_RATIO = 0.7'), 'right panel split must reserve usable height for both slots');
+    assert.ok(provider.includes("{ type: 'SOLO_RIGHT_SUB'; slot: 'top' | 'bottom' }"), 'layout reducer must expose a first-class solo action for split slots');
+    assert.ok(provider.includes("case 'SOLO_RIGHT_SUB'"), 'layout reducer must support promoting a split slot to a single full-height panel');
+    assert.ok(provider.includes('next.topMode = next.bottomMode'), 'closing the top split slot must promote the remaining bottom slot into the full-height top slot');
     assert.ok(sidebar.includes('RIGHT_PANEL_TOOLBAR_MODES'), 'RightSidebar must render a mode toolbar');
+    assert.ok(sidebar.includes('RIGHT_SPLIT_SLOT_MIN_HEIGHT'), 'split slots must have a stable minimum height instead of relying only on fractional rows');
     assert.ok(sidebar.includes('right-panel-mode-button'), 'right sidebar mode controls must be compact icon buttons');
     assert.ok(sidebar.includes("aria-label={MODE_LABELS[mode]}"), 'icon buttons must keep accessible names');
     assert.ok(sidebar.includes("dispatch({ type: 'SET_RIGHT_BOTTOM_MODE', mode: null })"), 'toolbar buttons must collapse split state into a single visible panel');
     assert.ok(sidebar.includes("dispatch({ type: 'OPEN_RIGHT_PANEL', mode, slot: 'top' })"), 'toolbar buttons must switch the visible top panel');
+    assert.ok(sidebar.includes('right-sub-title'), 'split panels must show visible slot labels instead of screen-reader-only labels');
+    assert.ok(sidebar.includes('right-sub-actions'), 'split panels must expose visible slot actions');
+    assert.ok(sidebar.includes("aria-label={`Show only ${label}`}"), 'split panels must expose explicit tree/document only controls');
+    assert.ok(sidebar.includes("dispatch({ type: 'SOLO_RIGHT_SUB', slot })"), 'split-only controls must promote a slot to a single panel');
     assert.ok(sidebar.includes('key={`${slot}-${mode}`}'), 'switching modes must remount the visible panel instead of leaving stale content painted');
     assert.ok(router.includes("case 'browser': return <Suspense fallback={fallback}><BrowserPanel /></Suspense>;"), 'right sidebar must be able to render the browser panel');
     assert.ok(router.includes('rightPreviewFilePath'), 'router must keep the selected file path for document preview');
@@ -178,11 +189,16 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(doc.includes('Open Folders and select a file'), 'empty document preview must explain how to view a file');
     assert.ok(css.includes('.right-panel-toolbar'), 'right sidebar icon toolbar must be styled');
     assert.ok(css.includes('.right-panel-mode-button.is-active'), 'active right sidebar icon must have visible state');
+    assert.ok(css.includes('.right-sub-title'), 'split header labels must be visible and styled');
+    assert.ok(css.includes('.right-sub-action'), 'split slot only/close actions must be styled as usable controls');
+    assert.ok(css.includes('height: 100%;'), 'right sub content must pass a stable height to nested panels');
     assert.ok(workspace.includes('clampRightPanelRenderWidth'), 'right panel width must be clamped at render time so persisted large widths cannot clip the UI');
     assert.ok(workspace.includes('WORKSPACE_CENTER_MIN_WIDTH'), 'right panel clamp must reserve usable center workspace width');
     assert.ok(css.includes('max-width: min(520px, 48vw)'), 'right panel must have a responsive CSS max-width');
     assert.ok(browserCss.includes('overflow: hidden'), 'browser panel must clip inside its own panel instead of escaping the sidebar');
     assert.ok(browserCss.includes('min-width: 0'), 'browser panel flex children must be allowed to shrink inside the right sidebar');
+    assert.ok(browserCss.includes('.browser-webview-host'), 'browser webview must be hosted in a flex child that owns the remaining vertical height');
+    assert.ok(browserCss.includes('position: absolute'), 'browser webview must fill the host by inset instead of participating in fragile flex height sizing');
 });
 
 test('Electron terminal uses xterm plus a PTY backend and representative shortcut', () => {
@@ -197,6 +213,8 @@ test('Electron terminal uses xterm plus a PTY backend and representative shortcu
     const terminalMain = read('electron/src/main/lib/terminal/index.ts');
     const electronConfig = read('electron/electron.vite.config.ts');
     const terminalCss = read('public/manager/src/terminal/terminal.css');
+    const bottomTabBar = read('public/manager/src/panels/BottomPanelTabBar.tsx');
+    const panelCss = read('public/manager/src/panels/panels.css');
 
     assert.ok(shortcuts.includes("focusTerminal: 'Ctrl+Shift+`'"), 'terminal focus must default to Ctrl+Shift+`');
     assert.ok(shortcuts.includes("focusTerminal: ['Ctrl+Shift+`', 'Meta+`']"), 'terminal shortcut must keep common aliases for existing users');
@@ -223,12 +241,21 @@ test('Electron terminal uses xterm plus a PTY backend and representative shortcu
     assert.ok(terminal.includes('createAccessibilityInputBridge'), 'terminal must include an accessibility input bridge for Computer Use/native text injection');
     assert.ok(terminal.includes("textarea.value = ''"), 'accessibility input bridge must clear helper textarea after forwarding text to PTY');
     assert.ok(terminal.includes("value.replace(/\\r?\\n/g, '\\r')"), 'accessibility input bridge must translate submitted newlines into terminal carriage returns');
+    assert.ok(terminal.includes('autoCreatedRef'), 'terminal must only auto-create the initial session so closing the last session remains possible');
+    assert.ok(terminal.includes('const closeSession = useCallback'), 'terminal session tabs must expose a close action');
+    assert.ok(terminal.includes('terminal-tab-close'), 'terminal session tabs must render visible close controls');
+    assert.ok(bottomTabBar.includes('bottom-tab-item'), 'bottom panel tabs must separate the tab button from the close button');
+    assert.ok(bottomTabBar.includes('type="button"\n                        className="bottom-tab-close"'), 'bottom panel close control must be a real button, not a hidden nested role span');
+    assert.ok(panelCss.includes('.bottom-tab-item'), 'bottom panel tab wrappers must be styled');
+    assert.ok(panelCss.includes('.bottom-tab-close:hover'), 'bottom panel close controls must be visibly styled');
+    assert.ok(!panelCss.includes('opacity: 0;'), 'bottom panel close controls must not be hidden until hover');
     assert.ok(terminalMain.includes("import { spawn as spawnPty } from 'node-pty'"), 'Electron terminal backend must use node-pty instead of pipe-backed child_process.spawn');
     assert.ok(terminalMain.includes("const pty = spawnPty(shell, ['-l']"), 'terminal sessions must be created as login PTYs');
     assert.ok(terminalMain.includes('session.pty.write(data)'), 'terminal writes must go to the PTY');
     assert.ok(terminalMain.includes('session.pty.resize('), 'terminal resize must resize the PTY');
     assert.ok(electronConfig.includes("'node-pty'"), 'electron-vite must externalize node-pty native bindings');
     assert.ok(terminalCss.includes('.terminal-xterm-host'), 'xterm host must be styled');
+    assert.ok(terminalCss.includes('.terminal-tab-close'), 'terminal session close controls must be styled');
 });
 
 test('Electron browser panel uses a hardened webview instead of a CSP-blocked iframe', () => {

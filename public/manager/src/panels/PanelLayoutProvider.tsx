@@ -33,6 +33,7 @@ type Action =
     | { type: 'SET_RIGHT_SPLIT_RATIO'; ratio: number }
     | { type: 'OPEN_RIGHT_PANEL'; mode: RightPanelMode; slot?: 'top' | 'bottom' | undefined }
     | { type: 'CLOSE_RIGHT_SUB'; slot: 'top' | 'bottom' }
+    | { type: 'SOLO_RIGHT_SUB'; slot: 'top' | 'bottom' }
     | { type: 'SET_BOTTOM_OPEN'; open: boolean }
     | { type: 'SET_BOTTOM_HEIGHT'; height: number }
     | { type: 'OPEN_BOTTOM_TAB'; tab: BottomPanelTab }
@@ -85,8 +86,27 @@ function reducer(state: PanelLayoutState, action: Action): PanelLayoutState {
                 ...rp,
                 [action.slot === 'top' ? 'topMode' : 'bottomMode']: null,
             };
+            if (next.topMode === null && next.bottomMode !== null) {
+                next.topMode = next.bottomMode;
+                next.bottomMode = null;
+            }
             if (next.topMode === null && next.bottomMode === null) next.open = false;
             return { ...state, rightPanel: next };
+        }
+        case 'SOLO_RIGHT_SUB': {
+            const rp = state.rightPanel;
+            const mode = action.slot === 'top' ? rp.topMode : rp.bottomMode;
+            if (mode === null) return state;
+            return {
+                ...state,
+                rightPanel: {
+                    ...rp,
+                    open: true,
+                    topMode: mode,
+                    bottomMode: null,
+                    splitRatio: 0.5,
+                },
+            };
         }
         case 'SET_BOTTOM_OPEN':
             return { ...state, bottomPanel: { ...state.bottomPanel, open: action.open } };
@@ -229,6 +249,8 @@ export function usePanelActions() {
             dispatch({ type: 'OPEN_RIGHT_PANEL', mode, slot }),
         closeRightSub: (slot: 'top' | 'bottom') =>
             dispatch({ type: 'CLOSE_RIGHT_SUB', slot }),
+        soloRightSub: (slot: 'top' | 'bottom') =>
+            dispatch({ type: 'SOLO_RIGHT_SUB', slot }),
         setRightWidth: (width: number) =>
             dispatch({ type: 'SET_RIGHT_WIDTH', width }),
         setRightSplitRatio: (ratio: number) =>
