@@ -7,10 +7,12 @@ import { parseArgs } from 'node:util';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { getServerUrl } from '../../src/core/config.js';
+import { settings, loadSettings } from '../../src/core/config.js';
 import { shouldOpenBrowserByDefault } from '../../src/core/browser-open-default.js';
 import fs from 'node:fs';
 import { shouldShowHelp, printAndExit } from '../helpers/help.js';
+
+loadSettings();
 
 if (shouldShowHelp(process.argv)) printAndExit(`
   jaw serve — start jaw server (foreground)
@@ -32,7 +34,7 @@ const { values } = parseArgs({
     args: process.argv.slice(3),
     allowNegative: true,
     options: {
-        port: { type: 'string', default: process.env["PORT"] || '3457' },
+        port: { type: 'string', default: process.env["PORT"] || settings["port"] || '3457' },
         host: { type: 'string', default: '0.0.0.0' },
         open: { type: 'boolean', default: shouldOpenBrowserByDefault() },
         lan: { type: 'boolean', default: false },

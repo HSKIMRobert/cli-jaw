@@ -19,11 +19,12 @@ function openCurrentDashboardPath(): void {
 }
 
 export function DesktopLink() {
-    if (isElectron()) return null;
+    const inElectron = isElectron();
     const [status, setStatus] = useState<DesktopStatus | null>(null);
     const [failed, setFailed] = useState(false);
 
     useEffect(() => {
+        if (inElectron) return;
         let cancelled = false;
         fetchDesktopStatus()
             .then((next) => {
@@ -35,7 +36,9 @@ export function DesktopLink() {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [inElectron]);
+
+    if (inElectron) return null;
 
     if (status?.inDesktop) {
         return (

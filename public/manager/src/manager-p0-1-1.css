@@ -2,6 +2,21 @@
     gap: 4px;
     padding: 6px 10px;
 }
+.command-center.command-bar.is-electron-titlebar,
+:root[data-cli-jaw-desktop="true"] .command-center.command-bar {
+    padding: 6px 10px 6px 92px;
+}
+:root[data-cli-jaw-desktop="true"] .command-center.command-bar {
+    -webkit-app-region: drag;
+}
+:root[data-cli-jaw-desktop="true"] .command-center.command-bar button,
+:root[data-cli-jaw-desktop="true"] .command-center.command-bar input,
+:root[data-cli-jaw-desktop="true"] .command-center.command-bar select,
+:root[data-cli-jaw-desktop="true"] .command-center.command-bar a,
+:root[data-cli-jaw-desktop="true"] .command-center.command-bar .command-actions,
+:root[data-cli-jaw-desktop="true"] .command-center.command-bar .command-search {
+    -webkit-app-region: no-drag;
+}
 
 .command-primary {
     gap: 8px;
@@ -98,6 +113,42 @@
     width: 32px;
     min-width: 32px;
     min-height: 32px;
+}
+
+.dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .sidebar-rail {
+    min-height: 54px;
+    flex-wrap: wrap;
+    align-content: center;
+    gap: 6px;
+    padding: 8px;
+}
+
+.dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .rail-button {
+    width: 30px;
+    min-width: 30px;
+    min-height: 30px;
+}
+
+.dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .rail-spacer {
+    flex: 1 1 12px;
+    min-width: 12px;
+}
+
+.rail-panel-toggle {
+    border-color: color-mix(in srgb, var(--accent) 28%, var(--border-subtle));
+    background: color-mix(in srgb, var(--accent) 7%, transparent);
+    color: var(--text-primary);
+}
+
+.rail-panel-toggle:hover:not(:disabled),
+.rail-panel-toggle:focus-visible {
+    border-color: color-mix(in srgb, var(--accent) 54%, var(--border-strong));
+    background: color-mix(in srgb, var(--accent) 14%, var(--bg-raised));
+}
+
+.rail-panel-toggle.is-active {
+    border-color: color-mix(in srgb, var(--accent) 70%, var(--border-strong));
+    background: color-mix(in srgb, var(--accent) 18%, var(--bg-raised));
 }
 
 .manager-sidebar .instance-groups {
