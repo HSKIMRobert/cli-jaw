@@ -34,10 +34,16 @@ test('serve command honors persisted dashboard port when no explicit port is pas
 
 test('Electron desktop mode hides the browser-only desktop link', () => {
     const desktopLink = read('public/manager/src/desktop-link.tsx');
+    const desktopBridge = read('public/manager/src/panels/desktop-bridge.ts');
 
     assert.ok(desktopLink.includes('const inElectron = isElectron()'), 'DesktopLink must read Electron state without changing hook order');
     assert.ok(desktopLink.includes('if (inElectron) return;'), 'DesktopLink effect must skip desktop-status fetch inside Electron');
     assert.ok(desktopLink.includes('if (inElectron) return null;'), 'DesktopLink must render nothing inside Electron');
+    assert.ok(desktopBridge.includes('hasDesktopDocumentMarker()'), 'Electron detection must fall back to the preload document marker');
+    assert.ok(
+        desktopBridge.includes("document.documentElement.dataset.cliJawDesktop === 'true'"),
+        'Electron detection must use the preload marker when the bridge object is unavailable',
+    );
 });
 
 test('Electron titlebar spacing survives React timing and CSS cascade', () => {
