@@ -31,6 +31,7 @@ import './settings-embedding.css';
 import './jaw-ceo/jaw-ceo.css';
 import './jaw-ceo/jaw-ceo-console.css';
 import './jaw-ceo/jaw-ceo-virtual.css';
+import './panels/panels.css';
 
 const root = document.getElementById('manager-root');
 if (!root) throw new Error('manager-root not found');
