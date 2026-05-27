@@ -29,6 +29,14 @@ function installDesktopFetchHeader(): void {
   };
 }
 
+function markDesktopDocument(): void {
+  try {
+    document.documentElement.dataset.cliJawDesktop = 'true';
+  } catch (err) {
+    console.warn('[cli-jaw-desktop] failed to mark desktop document', err);
+  }
+}
+
 contextBridge.exposeInMainWorld('cliJawDesktop', {
   identify: () => DESKTOP_IDENTITY,
   getMetrics: () => getLatestMetrics(),
@@ -68,5 +76,6 @@ contextBridge.exposeInMainWorld('cliJawDesktop', {
   },
 });
 
+markDesktopDocument();
 installDesktopFetchHeader();
 setupMetricsBridge();

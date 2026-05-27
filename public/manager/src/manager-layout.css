@@ -25,7 +25,16 @@
 .manager-workspace.is-right-panel-closed .manager-ceo-panel { display: none; }
 .manager-workspace.is-bottom-panel-closed { --bottom-panel-height: 0px; }
 .manager-workspace.is-bottom-panel-closed .bottom-panel { display: none; }
-.manager-sidebar { grid-area: sidebar; min-width: 0; min-height: 0; overflow: hidden; border-right: 1px solid var(--border-subtle); background: var(--canvas-deep); }
+.manager-sidebar {
+    grid-area: sidebar;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border-subtle);
+    background: var(--canvas-deep);
+}
 .manager-command {
     grid-area: command;
     min-width: 0;
@@ -68,7 +77,7 @@
     border-bottom: 1px solid var(--border-subtle);
     padding: 10px;
 }
-.manager-sidebar-list { height: calc(100% - 54px); min-height: 0; overflow: auto; }
+.manager-sidebar-list { flex: 1 1 auto; min-height: 0; overflow: auto; }
 .manager-shell.is-sidebar-collapsed .manager-sidebar-list { display: none; }
 .manager-shell.is-sidebar-collapsed .sidebar-rail { height: 100%; min-height: 0; flex-direction: column; border-bottom: 0; padding: 10px 8px; }
 .manager-shell.is-sidebar-collapsed .rail-spacer { flex: 1; }

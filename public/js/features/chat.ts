@@ -27,6 +27,7 @@ interface CommandResult {
     code?: string;
     text?: string;
     type?: string;
+    steerPrompt?: string;
     originalText?: string;
     recovery?: UnknownCommandRecovery;
 }
