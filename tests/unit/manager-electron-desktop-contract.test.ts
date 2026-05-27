@@ -70,3 +70,33 @@ test('manager sidebar rail keeps IDE panel toggles visible', () => {
     assert.ok(compact.includes('flex-wrap: wrap'), 'expanded rail must wrap utility buttons instead of clipping them');
     assert.ok(compact.includes('.rail-panel-toggle'), 'panel toggles must have distinct visible styling');
 });
+
+test('workspace polish keeps current center/right/bottom grid areas intact', () => {
+    const polish = read('public/manager/src/manager-polish.css');
+    const compact = read('public/manager/src/manager-p0-1-1.css');
+
+    assert.ok(
+        !polish.includes('"sidebar detail"'),
+        'collapsed inspector polish must not use the obsolete detail grid area name',
+    );
+    assert.ok(
+        !polish.includes('"sidebar detail ceo"'),
+        'side panel polish must not use the obsolete ceo grid area name',
+    );
+    assert.ok(
+        polish.includes('--activity-dock-height: 0px'),
+        'collapsed inspector polish must collapse the dock without replacing the workspace grid template',
+    );
+    assert.ok(
+        polish.includes('--sidebar-width: 320px'),
+        'wide-sidebar polish must adjust the sidebar variable instead of replacing grid columns',
+    );
+    assert.ok(
+        compact.includes('--sidebar-width: 44px'),
+        'collapsed-sidebar compact polish must adjust the sidebar variable instead of replacing grid columns',
+    );
+    assert.ok(
+        !compact.includes('grid-template-columns: 44px minmax(0, 1fr)'),
+        'collapsed-sidebar compact polish must preserve the right panel grid column',
+    );
+});
