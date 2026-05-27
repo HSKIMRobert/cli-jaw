@@ -1,5 +1,6 @@
-import { createContext, useContext, useReducer, useCallback, useMemo } from 'react';
+import { createContext, useContext, useReducer, useCallback, useMemo, useEffect } from 'react';
 import type { ReactNode } from 'react';
+import { panelShortcutBus } from './panel-shortcut-bus';
 import type { RightPanelMode, BottomPanelTab } from './types';
 import {
     RIGHT_PANEL_DEFAULT_WIDTH, RIGHT_PANEL_MIN_WIDTH, RIGHT_PANEL_MAX_WIDTH,
@@ -144,6 +145,30 @@ export function PanelLayoutProvider(props: { children: ReactNode }) {
     const effectiveRightOpen = state.rightPanel.open
         && (state.rightPanel.topMode !== null || state.rightPanel.bottomMode !== null);
     const rightPanelSplit = state.rightPanel.topMode !== null && state.rightPanel.bottomMode !== null;
+
+    useEffect(() => {
+        return panelShortcutBus.register((action) => {
+            switch (action) {
+                case 'toggleBottomPanel':
+                    dispatch({ type: 'SET_BOTTOM_OPEN', open: !state.bottomPanel.open });
+                    return true;
+                case 'toggleRightPanel':
+                    dispatch({ type: 'SET_RIGHT_OPEN', open: !state.rightPanel.open });
+                    return true;
+                case 'focusTerminal':
+                    dispatch({ type: 'OPEN_BOTTOM_TAB', tab: 'terminal' });
+                    return true;
+                case 'openDiff':
+                    dispatch({ type: 'OPEN_RIGHT_PANEL', mode: 'diff' });
+                    return true;
+                case 'openFolderTree':
+                    dispatch({ type: 'OPEN_RIGHT_PANEL', mode: 'folder' });
+                    return true;
+                default:
+                    return false;
+            }
+        });
+    }, [state.bottomPanel.open, state.rightPanel.open]);
 
     const value = useMemo(() => ({
         state, dispatch, effectiveRightOpen, rightPanelSplit,

@@ -24,6 +24,9 @@ import {
 } from './lib/deep-link.js';
 import { RingBuffer } from './lib/ring-buffer.js';
 import { startAppMetricsCollector, type MetricsCollectorHandle } from './lib/app-metrics.js';
+import { registerTerminalIpc, cleanupTerminals } from './lib/terminal/index.js';
+import { registerDiffIpc } from './lib/git/ipc.js';
+import { registerFolderIpc, cleanupFolderWatchers } from './lib/folder/ipc.js';
 
 interface CliFlags {
   port: number;
@@ -183,6 +186,8 @@ app.on('before-quit', async (event) => {
     }
     metricsCollector = null;
   }
+  cleanupTerminals();
+  cleanupFolderWatchers();
   if (!managerProcess) return;
   event.preventDefault();
   shuttingDown = true;
@@ -199,6 +204,10 @@ async function bootstrap(): Promise<void> {
   installSecurityHeaders(MANAGER_ORIGIN);
   session.defaultSession.setPermissionRequestHandler((_wc, _permission, cb) => cb(false));
   session.defaultSession.setPermissionCheckHandler(() => false);
+
+  registerTerminalIpc(() => mainWindow);
+  registerDiffIpc();
+  registerFolderIpc(() => mainWindow);
 
   await ensureManagerRunning();
   await createWindow();
