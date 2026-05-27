@@ -21,9 +21,13 @@ export const DEFAULT_MANAGER_SHORTCUT_KEYMAP: DashboardShortcutKeymap = {
     nextInstance: 'Alt+J',
     toggleBottomPanel: 'Meta+J',
     toggleRightPanel: 'Meta+Shift+B',
-    focusTerminal: 'Meta+`',
+    focusTerminal: 'Ctrl+Shift+`',
     openDiff: 'Meta+Shift+D',
     openFolderTree: 'Meta+Shift+E',
+};
+
+const MANAGER_SHORTCUT_ALIASES: Partial<Record<DashboardShortcutAction, string[]>> = {
+    focusTerminal: ['Ctrl+Shift+`', 'Meta+`'],
 };
 
 type ParsedShortcut = {
@@ -78,6 +82,7 @@ export function normalizeManagerShortcutKeymap(value: unknown): DashboardShortcu
 }
 
 function resolveEventKey(event: KeyboardEvent): string {
+    if (event.code === 'Backquote') return '`';
     const k = normalizeKey(event.key);
     if (k.length === 1) return k;
     // macOS Option+letter produces special chars (e.g. ∆ for Alt+J).
@@ -105,6 +110,7 @@ export function actionForShortcutEvent(
     const shortcuts = normalizeManagerShortcutKeymap(keymap);
     for (const action of MANAGER_SHORTCUT_ACTIONS) {
         if (shortcutMatches(event, shortcuts[action])) return action;
+        if (MANAGER_SHORTCUT_ALIASES[action]?.some(shortcut => shortcutMatches(event, shortcut))) return action;
     }
     return null;
 }

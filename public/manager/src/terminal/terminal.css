@@ -51,3 +51,43 @@
     line-height: 1.4;
 }
 .terminal-hidden { display: none; }
+.terminal-xterm-host {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    padding: 6px 8px;
+}
+.terminal-xterm-surface {
+    position: absolute;
+    inset: 6px 8px;
+    display: none;
+    min-width: 0;
+    min-height: 0;
+}
+.terminal-xterm-surface.is-active {
+    display: block;
+}
+.terminal-xterm-surface .xterm {
+    height: 100%;
+}
+.terminal-xterm-surface .xterm-viewport {
+    background: transparent !important;
+}
+.terminal-status {
+    margin-left: auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-dim);
+    font-size: 11px;
+}
+.terminal-error {
+    flex-shrink: 0;
+    padding: 6px 8px;
+    border-top: 1px solid var(--border-subtle);
+    color: var(--danger, #f87171);
+    background: color-mix(in srgb, var(--danger, #f87171) 8%, transparent);
+    font-size: 12px;
+}

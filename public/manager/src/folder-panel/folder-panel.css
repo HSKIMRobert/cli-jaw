@@ -63,6 +63,10 @@
     color: var(--text-base);
 }
 .folder-entry-btn:hover { background: var(--bg-hover); }
+.folder-entry[aria-selected="true"] .folder-entry-btn {
+    color: var(--accent-primary);
+    background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+}
 .folder-entry-icon { width: 12px; text-align: center; flex-shrink: 0; color: var(--text-dim); }
 .folder-entry-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .folder-entry-directory .folder-entry-name { font-weight: 500; }

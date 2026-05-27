@@ -1,5 +1,6 @@
 import { ipcMain, type BrowserWindow } from 'electron';
-import { spawn, type ChildProcess } from 'node:child_process';
+import type { IPty } from 'node-pty';
+import { spawn as spawnPty } from 'node-pty';
 import { resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { existsSync, statSync } from 'node:fs';
@@ -13,7 +14,7 @@ const BUFFER_CAP = 1024 * 1024;
 
 type TermSession = {
     id: string;
-    proc: ChildProcess;
+    pty: IPty;
     buffer: string;
 };
 
@@ -29,8 +30,14 @@ function isAllowedCwd(cwd: string): boolean {
     }
 }
 
+function clampDimension(value: unknown, fallback: number, min: number, max: number): number {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return fallback;
+    return Math.max(min, Math.min(max, Math.floor(numeric)));
+}
+
 export function registerTerminalIpc(getWindow: () => BrowserWindow | null): void {
-    ipcMain.handle('terminal:create', (event, opts?: { cwd?: string }) => {
+    ipcMain.handle('terminal:create', (event, opts?: { cwd?: string; cols?: number; rows?: number }) => {
         if (!isAllowedSender(event)) return { ok: false, error: 'unauthorized' };
         if (sessions.size >= MAX_SESSIONS) {
             return { ok: false, error: 'max sessions reached' };
@@ -40,19 +47,21 @@ export function registerTerminalIpc(getWindow: () => BrowserWindow | null): void
         let cwd = opts?.cwd ?? homedir();
         if (!isAllowedCwd(cwd) || !existsSync(cwd)) cwd = homedir();
         const env = sanitizeEnv();
+        const cols = clampDimension(opts?.cols, 80, 20, 500);
+        const rows = clampDimension(opts?.rows, 24, 4, 200);
 
-        const proc = spawn(shell, ['-l'], {
+        const pty = spawnPty(shell, ['-l'], {
+            name: 'xterm-256color',
+            cols,
+            rows,
             cwd,
             env,
-            stdio: ['pipe', 'pipe', 'pipe'],
-            windowsHide: true,
         });
 
-        const session: TermSession = { id, proc, buffer: '' };
+        const session: TermSession = { id, pty, buffer: '' };
         sessions.set(id, session);
 
-        proc.stdout?.on('data', (chunk: Buffer) => {
-            const text = chunk.toString('utf-8');
+        pty.onData((text: string) => {
             session.buffer += text;
             if (session.buffer.length > BUFFER_CAP) {
                 session.buffer = session.buffer.slice(-BUFFER_CAP);
@@ -63,19 +72,11 @@ export function registerTerminalIpc(getWindow: () => BrowserWindow | null): void
             }
         });
 
-        proc.stderr?.on('data', (chunk: Buffer) => {
-            const text = chunk.toString('utf-8');
-            const win = getWindow();
-            if (win && !win.isDestroyed()) {
-                win.webContents.send('terminal:data', id, text);
-            }
-        });
-
-        proc.on('exit', (code) => {
+        pty.onExit(({ exitCode }) => {
             sessions.delete(id);
             const win = getWindow();
             if (win && !win.isDestroyed()) {
-                win.webContents.send('terminal:exit', id, code);
+                win.webContents.send('terminal:exit', id, exitCode);
             }
         });
 
@@ -86,34 +87,31 @@ export function registerTerminalIpc(getWindow: () => BrowserWindow | null): void
         if (!isAllowedSender(event)) return;
         const session = sessions.get(id);
         if (!session) return;
-        session.proc.stdin?.write(data);
+        session.pty.write(data);
     });
 
     ipcMain.handle('terminal:resize', (event, id: string, cols: number, rows: number) => {
         if (!isAllowedSender(event)) return;
-        // resize only works with node-pty; with spawn we send SIGWINCH
         const session = sessions.get(id);
         if (!session) return;
-        try {
-            // Environment variable approach for shell resize
-            session.proc.stdin?.write(`\x1b[8;${rows};${cols}t`);
-        } catch {
-            // ignore
-        }
+        session.pty.resize(
+            clampDimension(cols, 80, 20, 500),
+            clampDimension(rows, 24, 4, 200),
+        );
     });
 
     ipcMain.handle('terminal:kill', (event, id: string) => {
         if (!isAllowedSender(event)) return;
         const session = sessions.get(id);
         if (!session) return;
-        session.proc.kill('SIGTERM');
+        session.pty.kill();
         sessions.delete(id);
     });
 }
 
 export function cleanupTerminals(): void {
     for (const [, session] of sessions) {
-        try { session.proc.kill('SIGTERM'); } catch { /* ignore */ }
+        try { session.pty.kill(); } catch { /* ignore */ }
     }
     sessions.clear();
 }

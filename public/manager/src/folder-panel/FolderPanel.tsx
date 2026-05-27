@@ -13,7 +13,12 @@ function getFolderBridge(): FolderBridgeApi | null {
     return getDesktop()?.folder ?? null;
 }
 
-export function FolderPanel() {
+type FolderPanelProps = {
+    selectedFilePath?: string | null | undefined;
+    onPreviewFile?: ((path: string) => void) | undefined;
+};
+
+export function FolderPanel(props: FolderPanelProps) {
     const bridge = getFolderBridge();
     const [rootPath, setRootPath] = useState<string | null>(null);
     const [entries, setEntries] = useState<FolderEntry[]>([]);
@@ -66,6 +71,22 @@ export function FolderPanel() {
     }, [bridge, loadDir, rootPath]);
 
     useEffect(() => {
+        if (!bridge || rootPath) return;
+        let cancelled = false;
+        void (async () => {
+            const result = await bridge.getDefaultRoot();
+            if (cancelled) return;
+            if (result.ok && result.path) {
+                setRootPath(result.path);
+                await loadDir(result.path);
+                return;
+            }
+            setError(result.error ?? 'Failed to open default folder');
+        })();
+        return () => { cancelled = true; };
+    }, [bridge, loadDir, rootPath]);
+
+    useEffect(() => {
         if (!bridge || !rootPath) return;
         void bridge.watchDir(rootPath);
         const unsub = bridge.onDirChange(() => {
@@ -83,11 +104,13 @@ export function FolderPanel() {
                 <div
                     className={`folder-entry folder-entry-${entry.kind}`}
                     role="treeitem"
+                    aria-selected={entry.kind === 'file' && entry.path === props.selectedFilePath}
                     style={{ paddingLeft: `${8 + depth * 16}px` }}
                 >
                     <button type="button" className="folder-entry-btn"
                         onClick={() => {
                             if (entry.kind === 'directory') toggleExpand(entry.path);
+                            else props.onPreviewFile?.(entry.path);
                         }}>
                         <span className="folder-entry-icon">
                             {entry.kind === 'directory' ? (expanded.has(entry.path) ? '▾' : '▸') : '·'}

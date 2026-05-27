@@ -40,7 +40,7 @@ export function DocPanel(props: { filePath?: string | undefined }) {
     }
 
     if (!props.filePath) {
-        return <div className="doc-panel doc-empty">Select a file to preview</div>;
+        return <div className="doc-panel doc-empty">Open Folders and select a file to preview it here.</div>;
     }
 
     if (error) {

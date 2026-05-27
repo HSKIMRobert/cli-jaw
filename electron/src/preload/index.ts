@@ -70,6 +70,7 @@ contextBridge.exposeInMainWorld('cliJawDesktop', {
     getFileDiff: (repoRoot: string, filePath: string, ref?: string) => ipcRenderer.invoke('diff:getFileDiff', repoRoot, filePath, ref),
   },
   folder: {
+    getDefaultRoot: () => ipcRenderer.invoke('folder:getDefaultRoot'),
     pickFolder: () => ipcRenderer.invoke('folder:pick'),
     listDir: (dirPath: string, depth?: number) => ipcRenderer.invoke('folder:listDir', dirPath, depth),
     readFile: (filePath: string) => ipcRenderer.invoke('folder:readFile', filePath),
