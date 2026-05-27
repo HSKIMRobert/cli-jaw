@@ -1,3 +1,5 @@
+import type { DashboardShortcutAction } from '../types';
+
 export type TerminalBridgeApi = {
     create: (opts?: { cwd?: string; cols?: number; rows?: number }) => Promise<{ ok: boolean; id?: string; shell?: string; cwd?: string; error?: string }>;
     write: (id: string, data: string) => Promise<void>;
@@ -23,6 +25,10 @@ export type FolderBridgeApi = {
     onDirChange: (cb: (dirPath: string) => void) => () => void;
 };
 
+export type ShortcutBridgeApi = {
+    onAction: (cb: (action: DashboardShortcutAction) => void) => () => void;
+};
+
 export type CliJawDesktopApi = {
     identify: () => { name: string; electron: boolean; header: string };
     getMetrics: () => unknown;
@@ -30,6 +36,7 @@ export type CliJawDesktopApi = {
     terminal?: TerminalBridgeApi | undefined;
     diff?: DiffBridgeApi | undefined;
     folder?: FolderBridgeApi | undefined;
+    shortcuts?: ShortcutBridgeApi | undefined;
 };
 
 export function getDesktop(): CliJawDesktopApi | null {

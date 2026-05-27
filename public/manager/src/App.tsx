@@ -37,6 +37,7 @@ import { actionForShortcutEvent, isManagerShortcutEditableTarget } from './manag
 import { reconcileActiveProfileFilter } from './profile-filter';
 import type { DashboardDetailTab, DashboardInstance, DashboardInstanceStatus, DashboardLifecycleAction, DashboardNotesAuthoringMode, DashboardNotesViewMode, DashboardProfile, DashboardScanResult, DashboardShortcutAction, DashboardSidebarMode } from './types';
 import { panelShortcutBus } from './panels/panel-shortcut-bus';
+import { getDesktop } from './panels/desktop-bridge';
 import type { PanelLayoutState } from './panels/PanelLayoutProvider';
 import type { RightPanelMode, BottomPanelTab } from './panels/types';
 import { RIGHT_PANEL_DEFAULT_WIDTH, BOTTOM_PANEL_DEFAULT_HEIGHT } from './panels/types';
@@ -425,6 +426,14 @@ export function App() {
             selectRelativeInstance(1);
         }
     }
+
+    useEffect(() => {
+        if (!view.dashboardShortcutsEnabled) return undefined;
+        const unsubscribe = getDesktop()?.shortcuts?.onAction?.((action) => {
+            runManagerShortcut(action);
+        });
+        return unsubscribe;
+    }, [filtered, selectedInstance, view.dashboardShortcutsEnabled, view.sidebarMode, view.activeDetailTab, settingsDirty]);
 
     useEffect(() => {
         function onKeyDown(event: KeyboardEvent): void {

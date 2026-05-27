@@ -121,6 +121,25 @@ const WINDOW_WORK_AREA_MARGIN = 80;
 const MIN_VISIBLE_WINDOW_WIDTH = 960;
 const MIN_VISIBLE_WINDOW_HEIGHT = 640;
 
+type ManagerShortcutAction =
+  | 'toggleBottomPanel'
+  | 'toggleRightPanel'
+  | 'focusTerminal'
+  | 'openDiff'
+  | 'openFolderTree';
+
+type DesktopKeyboardInput = {
+  type?: string;
+  key?: string;
+  code?: string;
+  isAutoRepeat?: boolean;
+  isComposing?: boolean;
+  shift?: boolean;
+  control?: boolean;
+  alt?: boolean;
+  meta?: boolean;
+};
+
 const ringBuffer = new RingBuffer(1024 * 1024);
 let managerProcess: ChildProcess | null = null;
 let mainWindow: BrowserWindow | null = null;
@@ -315,6 +334,7 @@ function isAllowedEmbeddedBrowserUrl(raw: string): boolean {
 
 function hardenEmbeddedBrowserWebContents(contents: Electron.WebContents): void {
   if (contents.getType() !== 'webview') return;
+  installDesktopShortcutForwarder(contents);
   contents.setWindowOpenHandler(({ url }) => {
     if (isAllowedEmbeddedBrowserUrl(url)) {
       void shell.openExternal(url).catch(() => {});
@@ -329,6 +349,36 @@ function hardenEmbeddedBrowserWebContents(contents: Electron.WebContents): void 
   });
   contents.session.setPermissionRequestHandler((_wc, _permission, cb) => cb(false));
   contents.session.setPermissionCheckHandler(() => false);
+}
+
+function isCode(input: DesktopKeyboardInput, code: string, fallbackKey: string): boolean {
+  return input.code === code || String(input.key ?? '').toLowerCase() === fallbackKey;
+}
+
+function managerShortcutActionFromInput(input: DesktopKeyboardInput): ManagerShortcutAction | null {
+  if (input.type !== 'keyDown' || input.isAutoRepeat || input.isComposing) return null;
+  const ctrl = input.control === true;
+  const meta = input.meta === true;
+  const shift = input.shift === true;
+  const alt = input.alt === true;
+
+  if (ctrl && shift && !meta && !alt && isCode(input, 'Backquote', '`')) return 'focusTerminal';
+  if (meta && !ctrl && !shift && !alt && isCode(input, 'Backquote', '`')) return 'focusTerminal';
+  if (meta && !ctrl && !shift && !alt && isCode(input, 'KeyB', 'b')) return 'toggleRightPanel';
+  if (meta && !ctrl && shift && !alt && isCode(input, 'KeyB', 'b')) return 'toggleRightPanel';
+  if (meta && !ctrl && !shift && !alt && isCode(input, 'KeyJ', 'j')) return 'toggleBottomPanel';
+  if (meta && !ctrl && shift && !alt && isCode(input, 'KeyD', 'd')) return 'openDiff';
+  if (meta && !ctrl && shift && !alt && isCode(input, 'KeyE', 'e')) return 'openFolderTree';
+  return null;
+}
+
+function installDesktopShortcutForwarder(contents: Electron.WebContents): void {
+  contents.on('before-input-event', (event, input) => {
+    const action = managerShortcutActionFromInput(input);
+    if (!action) return;
+    event.preventDefault();
+    mainWindow?.webContents.send('manager:shortcut', action);
+  });
 }
 
 function switchManagerUrl(url: string): void {
@@ -563,6 +613,7 @@ async function createWindow(): Promise<void> {
   app.on('web-contents-created', (_event, contents) => {
     hardenEmbeddedBrowserWebContents(contents);
   });
+  installDesktopShortcutForwarder(mainWindow.webContents);
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     try {

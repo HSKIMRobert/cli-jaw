@@ -20,13 +20,14 @@ export const DEFAULT_MANAGER_SHORTCUT_KEYMAP: DashboardShortcutKeymap = {
     previousInstance: 'Alt+K',
     nextInstance: 'Alt+J',
     toggleBottomPanel: 'Meta+J',
-    toggleRightPanel: 'Meta+Shift+B',
+    toggleRightPanel: 'Meta+B',
     focusTerminal: 'Ctrl+Shift+`',
     openDiff: 'Meta+Shift+D',
     openFolderTree: 'Meta+Shift+E',
 };
 
 const MANAGER_SHORTCUT_ALIASES: Partial<Record<DashboardShortcutAction, string[]>> = {
+    toggleRightPanel: ['Meta+B', 'Meta+Shift+B'],
     focusTerminal: ['Ctrl+Shift+`', 'Meta+`'],
 };
 

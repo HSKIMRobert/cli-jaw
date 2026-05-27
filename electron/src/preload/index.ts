@@ -82,6 +82,13 @@ contextBridge.exposeInMainWorld('cliJawDesktop', {
       return () => { ipcRenderer.removeListener('folder:changed', handler); };
     },
   },
+  shortcuts: {
+    onAction: (cb: (action: string) => void) => {
+      const handler = (_e: unknown, action: string) => cb(action);
+      ipcRenderer.on('manager:shortcut', handler);
+      return () => { ipcRenderer.removeListener('manager:shortcut', handler); };
+    },
+  },
 });
 
 markDesktopDocument();
