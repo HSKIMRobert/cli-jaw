@@ -41,14 +41,17 @@ type Action =
     | { type: 'HYDRATE'; state: Partial<PanelLayoutState> };
 
 function clampWidth(w: number): number {
+    if (typeof w !== 'number' || !Number.isFinite(w)) return RIGHT_PANEL_DEFAULT_WIDTH;
     return Math.min(RIGHT_PANEL_MAX_WIDTH, Math.max(RIGHT_PANEL_MIN_WIDTH, Math.round(w)));
 }
 
 function clampHeight(h: number): number {
+    if (typeof h !== 'number' || !Number.isFinite(h)) return BOTTOM_PANEL_DEFAULT_HEIGHT;
     return Math.min(BOTTOM_PANEL_MAX_HEIGHT, Math.max(BOTTOM_PANEL_MIN_HEIGHT, Math.round(h)));
 }
 
 function clampRatio(r: number): number {
+    if (typeof r !== 'number' || !Number.isFinite(r)) return 0.5;
     return Math.min(RIGHT_SPLIT_MAX_RATIO, Math.max(RIGHT_SPLIT_MIN_RATIO, r));
 }
 
@@ -239,5 +242,5 @@ export function usePanelActions() {
             dispatch({ type: 'SET_BOTTOM_OPEN', open: !state.bottomPanel.open }),
         hydrate: (s: Partial<PanelLayoutState>) =>
             dispatch({ type: 'HYDRATE', state: s }),
-    }), [dispatch]);
+    }), [dispatch, state.rightPanel.open, state.bottomPanel.open]);
 }

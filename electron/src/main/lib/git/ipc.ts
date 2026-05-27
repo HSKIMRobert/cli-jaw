@@ -2,7 +2,7 @@ import { ipcMain } from 'electron';
 import { execFile } from 'node:child_process';
 import { resolve } from 'node:path';
 import { existsSync } from 'node:fs';
-import { isWithinHome, assertContained, isValidRef } from '../path-security.js';
+import { isWithinHome, assertContainedLexical, isValidRef } from '../path-security.js';
 
 const OUTPUT_CAP = 1024 * 1024;
 
@@ -53,7 +53,7 @@ export function registerDiffIpc(): void {
 
     ipcMain.handle('diff:getFileDiff', async (_event, repoRoot: string, filePath: string, ref?: string) => {
         if (!isWithinHome(repoRoot)) return { ok: false, error: 'path not allowed' };
-        if (!assertContained(repoRoot, resolve(repoRoot, filePath))) return { ok: false, error: 'path traversal' };
+        if (!assertContainedLexical(repoRoot, filePath)) return { ok: false, error: 'path traversal' };
         if (ref !== undefined && !isValidRef(ref)) return { ok: false, error: 'invalid ref' };
         try {
             const args = ['diff', '--no-color'];

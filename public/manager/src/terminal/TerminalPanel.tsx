@@ -16,6 +16,8 @@ export function TerminalPanel() {
     const [activeId, setActiveId] = useState<string | null>(null);
     const termRef = useRef<HTMLDivElement>(null);
     const cleanupRef = useRef<Array<() => void>>([]);
+    const sessionsRef = useRef(sessions);
+    sessionsRef.current = sessions;
 
     const createSession = useCallback(async () => {
         if (!bridge) return;
@@ -52,7 +54,7 @@ export function TerminalPanel() {
         return () => {
             cleanupRef.current.forEach(fn => fn());
             cleanupRef.current = [];
-            sessions.forEach(s => { void bridge.kill(s.id); });
+            sessionsRef.current.forEach(s => { void bridge.kill(s.id); });
         };
     }, [bridge]);
 

@@ -34,6 +34,19 @@ export function isWithinHome(target: string): boolean {
     return realTarget === home || realTarget.startsWith(home + sep);
 }
 
+export function assertContainedLexical(base: string, target: string): boolean {
+    let realBase: string;
+    try {
+        realBase = realpathSync(resolve(base));
+    } catch {
+        return false;
+    }
+    const resolved = resolve(realBase, target);
+    const rel = relative(realBase, resolved);
+    if (!rel || rel === '.') return false;
+    return !rel.startsWith('..') && !resolve(rel).startsWith(sep);
+}
+
 export function isValidRef(ref: string): boolean {
     if (!ref || ref.startsWith('-')) return false;
     return /^[a-zA-Z0-9_.\/~^@{}\-]+$/.test(ref);
