@@ -7,8 +7,9 @@ import { SidebarRail } from './components/SidebarRail';
 import { Workbench } from './components/Workbench';
 import { WorkspaceLayout } from './components/WorkspaceLayout';
 import { RightSidebar } from './panels/RightSidebar';
+import { BottomPanel } from './panels/BottomPanel';
 import { usePanelLayout } from './panels/PanelLayoutProvider';
-import type { RightPanelMode } from './panels/types';
+import type { RightPanelMode, BottomPanelTab } from './panels/types';
 import { InstancePreview } from './InstancePreview';
 import { DashboardSettingsSidebar, type DashboardSettingsSection } from './dashboard-settings/DashboardSettingsSidebar';
 import { DashboardSettingsWorkspace } from './dashboard-settings/DashboardSettingsWorkspace';
@@ -124,6 +125,10 @@ function renderRightPanelContent(_mode: RightPanelMode): ReactNode {
     return <div style={{ padding: '12px', color: 'var(--text-dim)', fontSize: '12px' }}>Panel content (L5/L6)</div>;
 }
 
+function renderBottomTabPlaceholder(_tab: BottomPanelTab): ReactNode {
+    return <div style={{ padding: '12px', color: 'var(--text-dim)', fontSize: '12px' }}>Tab content (L4/L8)</div>;
+}
+
 export function SidebarRailRouter(props: Props) {
     const panelLayout = usePanelLayout();
     const [remindersView, setRemindersView] = useState<RemindersView>('matrix');
@@ -147,6 +152,9 @@ export function SidebarRailRouter(props: Props) {
             rightPanelOpen={panelLayout.effectiveRightOpen}
             rightPanelWidth={panelLayout.state.rightPanel.width}
             rightPanelContent={panelLayout.effectiveRightOpen ? <RightSidebar renderPanel={renderRightPanelContent} /> : undefined}
+            bottomPanelOpen={panelLayout.state.bottomPanel.open}
+            bottomPanelHeight={panelLayout.state.bottomPanel.height}
+            bottomPanelContent={panelLayout.state.bottomPanel.open ? <BottomPanel renderTab={renderBottomTabPlaceholder} /> : undefined}
             navigator={(
                 <>
                     <SidebarRail
