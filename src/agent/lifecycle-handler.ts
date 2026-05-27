@@ -25,6 +25,10 @@ import {
 } from './memory-flush-controller.js';
 import { buildGoalContinuation } from '../goal/heartbeat.js';
 
+const GOAL_CONT_MAX_ATTEMPTS = 20;
+let _goalContAttempts = 0;
+export function resetGoalContAttempts(): void { _goalContAttempts = 0; }
+
 type LifecycleSpawnOptions = {
     internal?: boolean;
     _isFallback?: boolean;
@@ -613,6 +617,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
     // cli-jaw intercepts the params and schedules a delayed --resume of the same session.
     if (
         ctx.scheduleWakeup
+        && ctx.scheduleWakeup.prompt.trim()
         && mainManaged
         && !opts.internal
         && !wasKilled
@@ -620,6 +625,9 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
     ) {
         const { delaySeconds, prompt: wakeupPrompt, reason: wakeupReason } = ctx.scheduleWakeup;
         const clampedDelay = Math.max(60, Math.min(3600, delaySeconds)) * 1000;
+        if (clampedDelay !== delaySeconds * 1000) {
+            console.log(`[jaw:wakeup] delay clamped: ${delaySeconds}s → ${clampedDelay / 1000}s`);
+        }
         console.log(`[jaw:wakeup] ScheduleWakeup intercepted — resuming in ${clampedDelay / 1000}s (${wakeupReason})`);
         broadcast('schedule_wakeup', { delaySeconds: clampedDelay / 1000, reason: wakeupReason });
         setTimeout(() => {
@@ -629,11 +637,11 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
             });
             wakeP.catch((err: Error) => {
                 console.warn('[jaw:wakeup] delayed resume failed:', err.message);
+                broadcast('schedule_wakeup_failed', { reason: wakeupReason, error: err.message });
             });
         }, clampedDelay);
-        // Skip goal continuation — wakeup subsumes it
     } else if (
-    // ─── Goal auto-continuation ───
+    // ─── Goal auto-continuation (max 20 consecutive attempts) ───
         mainManaged
         && !opts.internal
         && !wasKilled
@@ -642,19 +650,29 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
     ) {
         const goalCont = buildGoalContinuation();
         if (goalCont.shouldContinue && goalCont.prompt) {
-            const delay = opts._isGoalContinuation ? 10000 : 2000;
-            console.log(`[jaw:goal] active goal — scheduling continuation in ${delay}ms (${goalCont.reason})`);
-            broadcast('goal_continuation', { reason: goalCont.reason });
-            setTimeout(() => {
-                const { promise: contP } = _spawnAgent(goalCont.prompt!, {
-                    ...opts,
-                    _isGoalContinuation: true,
-                    _skipInsert: true,
-                });
-                contP.catch((err: Error) => {
-                    console.warn('[jaw:goal] auto-continuation failed:', err.message);
-                });
-            }, delay);
+            _goalContAttempts++;
+            if (_goalContAttempts > GOAL_CONT_MAX_ATTEMPTS) {
+                console.warn(`[jaw:goal] max continuation attempts (${GOAL_CONT_MAX_ATTEMPTS}) reached — stopping`);
+                broadcast('goal_continuation_limit', { attempts: _goalContAttempts });
+                _goalContAttempts = 0;
+            } else {
+                const delay = opts._isGoalContinuation ? 10000 : 2000;
+                console.log(`[jaw:goal] active goal — continuation ${_goalContAttempts}/${GOAL_CONT_MAX_ATTEMPTS} in ${delay}ms`);
+                broadcast('goal_continuation', { reason: goalCont.reason, attempt: _goalContAttempts });
+                setTimeout(() => {
+                    const { promise: contP } = _spawnAgent(goalCont.prompt!, {
+                        ...opts,
+                        _isGoalContinuation: true,
+                        _skipInsert: true,
+                    });
+                    contP.catch((err: Error) => {
+                        console.warn('[jaw:goal] auto-continuation failed:', err.message);
+                        broadcast('goal_continuation_failed', { error: err.message });
+                    });
+                }, delay);
+            }
+        } else {
+            _goalContAttempts = 0;
         }
     }
 
