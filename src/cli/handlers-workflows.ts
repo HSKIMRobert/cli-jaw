@@ -64,20 +64,18 @@ export function planAuditWorkflowHandler(args: string[], ctx: CliCommandContext)
     ].join('\n'));
 }
 
-export function goalWorkflowStubHandler(_args: string[], ctx: CliCommandContext): SlashResult {
+export function goalWorkflowStubHandler(args: string[], ctx: CliCommandContext): SlashResult {
     const locale = ctx.locale || 'ko';
+    if ((args[0] || '').toLowerCase() === 'run') {
+        return blocked(tr(
+            'cmd.workflow.goalRun.notReady',
+            locale,
+            '/goal run is available after Phase 5 adds permissions, checkpoints, and stop controls.',
+        ), 'workflow_requires_preflight');
+    }
     return blocked(tr(
         'cmd.workflow.goal.notReady',
         locale,
         '/goal is available after Phase 3 adds durable goal state.',
     ));
-}
-
-export function autopilotWorkflowStubHandler(_args: string[], ctx: CliCommandContext): SlashResult {
-    const locale = ctx.locale || 'ko';
-    return blocked(tr(
-        'cmd.workflow.autopilot.notReady',
-        locale,
-        '/autopilot is available after Phase 5 adds permissions, checkpoints, and stop controls.',
-    ), 'workflow_requires_preflight');
 }

@@ -68,7 +68,7 @@ test('CP-007: telegram menu excludes start/id/settings', { skip: !moduleLoaded &
 test('CP-008: telegram menu has exact expected command set', { skip: !moduleLoaded && 'policy.js not yet created' }, () => {
     const cmds = getTelegramMenuCommands();
     const names = new Set(cmds.map(c => c.name));
-    const expected = new Set(['help', 'status', 'clear', 'compact', 'interview', 'deliberate', 'planaudit', 'goal', 'autopilot', 'model', 'cli', 'fallback', 'forward', 'thought', 'flush', 'version', 'skill', 'browser', 'steer', 'reset', 'employee', 'mcp', 'memory', 'prompt', 'orchestrate']);
+    const expected = new Set(['help', 'status', 'clear', 'compact', 'interview', 'deliberate', 'planaudit', 'goal', 'model', 'cli', 'fallback', 'forward', 'thought', 'flush', 'version', 'skill', 'browser', 'steer', 'reset', 'employee', 'mcp', 'memory', 'prompt', 'orchestrate']);
     // All expected present
     for (const name of expected) {
         assert.ok(names.has(name), `expected "${name}" in telegram menu`);
@@ -102,7 +102,7 @@ test('CP-012: discord slash command descriptions are <= 100 chars', { skip: !mod
 });
 
 test('CP-013: workflow commands are visible on web and hidden from cmdline', { skip: !moduleLoaded && 'policy.js not yet created' }, () => {
-    const workflowNames = ['interview', 'deliberate', 'planaudit', 'goal', 'autopilot'];
+    const workflowNames = ['interview', 'deliberate', 'planaudit', 'goal'];
     const web = new Set(getVisibleCommands('web').map(c => c.name));
     const cmdline = new Set(getVisibleCommands('cmdline').map(c => c.name));
 
@@ -110,6 +110,7 @@ test('CP-013: workflow commands are visible on web and hidden from cmdline', { s
         assert.ok(web.has(name), `${name} should be visible on web`);
         assert.ok(!cmdline.has(name), `${name} should be hidden from cmdline`);
     }
+    assert.ok(!web.has('autopilot'), 'autopilot should not be a top-level workflow command');
 });
 
 test('CP-014: workflow commands are remote-safe for telegram and discord', { skip: !moduleLoaded && 'policy.js not yet created' }, () => {
@@ -118,7 +119,7 @@ test('CP-014: workflow commands are remote-safe for telegram and discord', { ski
         const names = getVisibleCommands(iface)
             .filter(c => c.category === 'workflow')
             .map(c => c.name);
-        assert.deepEqual(names.sort(), ['autopilot', 'deliberate', 'goal', 'interview', 'planaudit'].sort());
+        assert.deepEqual(names.sort(), ['deliberate', 'goal', 'interview', 'planaudit'].sort());
         for (const name of names) {
             assert.match(name, remoteName, `${iface} workflow command "${name}" must be remote-safe`);
             assert.equal(name.includes('-'), false, `${iface} workflow command "${name}" must not contain hyphen`);
@@ -151,10 +152,13 @@ test('CP-016: every workflow command tgDescKey is translated in ko/en/ja/zh', { 
     }
 });
 
-test('CP-017: autopilot visibility is not runtime readiness', { skip: !moduleLoaded && 'policy.js not yet created' }, () => {
-    const autopilot = getVisibleCommands('web').find(c => c.name === 'autopilot');
-    assert.ok(autopilot, 'autopilot should be visible as a gated stub');
-    assert.equal(autopilot.workflow?.gatedUntilPhase, 5);
+test('CP-017: goal run is the automation surface, not top-level autopilot', { skip: !moduleLoaded && 'policy.js not yet created' }, () => {
+    const web = getVisibleCommands('web');
+    const goal = web.find(c => c.name === 'goal');
+    assert.ok(goal, 'goal should be visible as the workflow state command');
+    assert.ok(!web.some(c => c.name === 'autopilot'), 'autopilot should not be visible as a top-level command');
+    assert.equal(goal.workflow?.gatedUntilPhase, 3);
+    assert.ok(goal.workflow?.prerequisites?.some(p => p.includes('/goal run')), 'goal metadata should mention /goal run gating');
 });
 
 test('CP-010: model and cli are writable on telegram', { skip: !moduleLoaded && 'policy.js not yet created' }, async () => {
