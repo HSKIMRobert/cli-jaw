@@ -25,8 +25,8 @@ test('GR-003: goal route requires objective for set action', () => {
     assert.ok(routeSrc.includes("'objective is required'"), 'set action must validate objective');
 });
 
-test('GR-004: goal route requires confirm for clear and reset', () => {
-    assert.ok(routeSrc.includes('confirm') && routeSrc.includes('clear'), 'clear must require confirm');
+test('GR-004: goal route supports clear and reset without confirmation', () => {
+    assert.ok(routeSrc.includes('clear') && !routeSrc.includes('confirm'), 'clear must not require confirm');
     assert.ok(routeSrc.includes('reset'), 'reset action must exist');
 });
 
@@ -45,7 +45,7 @@ test('GR-006: goal handler supports all subcommands', () => {
 
 test('GR-007: goal handler supports /goal run with preflight', () => {
     assert.ok(handlerSrc.includes("sub === 'run'"), 'handler must check for run subcommand');
-    assert.ok(handlerSrc.includes('checkPreflightGates'), 'run must check preflight gates');
+    assert.ok(handlerSrc.includes('preflight') && handlerSrc.includes('allGatesPassed'), 'run must check preflight gates');
 });
 
 test('GR-008: goal store uses atomic writes', () => {

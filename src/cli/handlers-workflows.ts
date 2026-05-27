@@ -156,11 +156,15 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
 
     if (sub === 'set') {
         const objective = args.slice(1).join(' ').trim();
-        if (!objective) return blocked('Usage: /goal set <objective>');
+        if (!objective) return blocked('Usage: /goal <objective>');
+        const existing = getActiveGoal();
+        if (existing && (existing.status === 'active' || existing.status === 'paused')) {
+            return blocked(`Active goal already exists: "${existing.objective}"\nUse /goal done, /goal cancel, or /goal clear first.`);
+        }
         const settings = typeof ctx.getSettings === 'function' ? ctx.getSettings() : {};
         const wd = (settings as Record<string, unknown>)['workingDir'] as string | undefined;
         const goal = setGoal(objective, wd ? { repoRoot: wd } : {});
-        return info(`Goal set: ${goal.objective}\nID: ${goal.id}`);
+        return { ok: true, type: 'info', text: `Goal set: ${goal.objective}\nID: ${goal.id}`, steerPrompt: `[System] User set a new goal: "${goal.objective}" (ID: ${goal.id}). Acknowledge the goal and help the user achieve it.` };
     }
 
     if (sub === 'status' || sub === '--json') {
@@ -214,13 +218,11 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
     }
 
     if (sub === 'clear') {
-        if (!args.includes('--yes')) return info('Run `/goal clear --yes` to clear the active goal.');
         const ok = clearGoal();
         return ok ? info('Active goal cleared.') : blocked('No active goal to clear.');
     }
 
     if (sub === 'reset') {
-        if (!args.includes('--yes')) return info('Run `/goal reset --yes` to reset the entire goal store and history.');
         resetGoalStore();
         return info('Goal store and history reset.');
     }
@@ -235,12 +237,25 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
         return info(lines.join('\n'));
     }
 
-    // No subcommand — treat as status if goal exists, otherwise show usage
+    // Unknown subcommand with args → treat as objective (e.g. `/goal fix the login bug`)
+    if (args.length > 0) {
+        const objective = args.join(' ').trim();
+        const existing = getActiveGoal();
+        if (existing && (existing.status === 'active' || existing.status === 'paused')) {
+            return blocked(`Active goal already exists: "${existing.objective}"\nUse /goal done, /goal cancel, or /goal clear first.`);
+        }
+        const settings = typeof ctx.getSettings === 'function' ? ctx.getSettings() : {};
+        const wd = (settings as Record<string, unknown>)['workingDir'] as string | undefined;
+        const goal = setGoal(objective, wd ? { repoRoot: wd } : {});
+        return { ok: true, type: 'info', text: `Goal set: ${goal.objective}\nID: ${goal.id}`, steerPrompt: `[System] User set a new goal: "${goal.objective}" (ID: ${goal.id}). Acknowledge the goal and help the user achieve it.` };
+    }
+
+    // No args at all — show status or usage
     const goal = getActiveGoal();
     if (goal) {
         return info(`Active goal: ${goal.objective}\nStatus: ${goal.status}\nUse /goal status for details.`);
     }
-    return info('No active goal. Use `/goal set <objective>` to create one.\nSubcommands: set, status, update, done, cancel, pause, resume, clear, reset, history');
+    return info('No active goal. Use `/goal <objective>` to create one.\nSubcommands: status, update, done, cancel, pause, resume, clear, reset, history');
 }
 
 // ─── /team handler ──────────────────────────────────

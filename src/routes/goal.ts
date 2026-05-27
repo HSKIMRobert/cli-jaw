@@ -29,6 +29,11 @@ export function registerGoalRoutes(app: Router): void {
                         res.status(400).json({ ok: false, error: 'objective is required' });
                         return;
                     }
+                    const existing = getActiveGoal();
+                    if (existing && (existing.status === 'active' || existing.status === 'paused')) {
+                        res.status(409).json({ ok: false, error: `Active goal already exists: "${existing.objective}". Cancel or complete it first.` });
+                        return;
+                    }
                     const repoRoot = body?.['repoRoot'] as string | undefined;
                     const budget = body?.['budget'] as Record<string, number> | undefined;
                     const goal = setGoal(objective, {
@@ -74,13 +79,11 @@ export function registerGoalRoutes(app: Router): void {
                     return;
                 }
                 case 'clear': {
-                    if (!body?.['confirm']) { res.status(400).json({ ok: false, error: 'Pass confirm: true to clear active goal' }); return; }
                     const ok = clearGoal();
                     res.json({ ok, cleared: ok });
                     return;
                 }
                 case 'reset': {
-                    if (!body?.['confirm']) { res.status(400).json({ ok: false, error: 'Pass confirm: true to reset goal store' }); return; }
                     resetGoalStore();
                     res.json({ ok: true, reset: true });
                     return;
