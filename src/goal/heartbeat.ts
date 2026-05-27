@@ -46,7 +46,7 @@ export function buildGoalContinuation(): GoalContinuationResult {
         'If the goal is complete, run `/goal done`.',
         'If blocked, explain what is needed.',
         '',
-        'RULE: If you need to wait for an external event (CI, deploy, build), register a temporary heartbeat job in heartbeat.json to poll. ScheduleWakeup only works in /loop mode. NEVER say "will report when done" and exit.',
+        'RULE: If you need to wait for an external event (CI, deploy, build), use ScheduleWakeup to schedule a delayed check. The server intercepts ScheduleWakeup and resumes this session after the delay. NEVER say "will report when done" and exit.',
     ].join('\n');
 
     return { shouldContinue: true, reason: 'goal_active', prompt };

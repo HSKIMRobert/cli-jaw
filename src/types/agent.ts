@@ -87,6 +87,11 @@ export interface SpawnContext {
   stallWatchdog?: WatchdogHandle;
   agyResumeOffset?: number;
   agyBytesReceived?: number;
+  scheduleWakeup?: {
+    delaySeconds: number;
+    prompt: string;
+    reason: string;
+  };
 }
 
 export interface SpawnResult {

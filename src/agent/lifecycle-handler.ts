@@ -112,6 +112,11 @@ export interface ExitContext {
     duration?: number | null;
     cliNativeCompactDetected?: boolean;
     stallReason?: string;
+    scheduleWakeup?: {
+        delaySeconds: number;
+        prompt: string;
+        reason: string;
+    };
 }
 
 export interface ExitHandlerParams {
@@ -603,10 +608,32 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
         ...(params.outputLen ? { outputLen: params.outputLen } : {}),
     });
 
-    // ─── Goal auto-continuation ───
-    // Keep re-spawning as long as the goal is active. Each spawn gets the full
-    // goal context so it can make progress without prior conversation history.
+    // ─── ScheduleWakeup server intercept ───
+    // When the AI called ScheduleWakeup, the CLI ignores it (only works in /loop).
+    // cli-jaw intercepts the params and schedules a delayed --resume of the same session.
     if (
+        ctx.scheduleWakeup
+        && mainManaged
+        && !opts.internal
+        && !wasKilled
+        && (resolvedCode === 0 || resolvedCode === null)
+    ) {
+        const { delaySeconds, prompt: wakeupPrompt, reason: wakeupReason } = ctx.scheduleWakeup;
+        const clampedDelay = Math.max(60, Math.min(3600, delaySeconds)) * 1000;
+        console.log(`[jaw:wakeup] ScheduleWakeup intercepted — resuming in ${clampedDelay / 1000}s (${wakeupReason})`);
+        broadcast('schedule_wakeup', { delaySeconds: clampedDelay / 1000, reason: wakeupReason });
+        setTimeout(() => {
+            console.log(`[jaw:wakeup] firing delayed resume (${wakeupReason})`);
+            const { promise: wakeP } = _spawnAgent(wakeupPrompt, {
+                _skipInsert: true,
+            });
+            wakeP.catch((err: Error) => {
+                console.warn('[jaw:wakeup] delayed resume failed:', err.message);
+            });
+        }, clampedDelay);
+        // Skip goal continuation — wakeup subsumes it
+    } else if (
+    // ─── Goal auto-continuation ───
         mainManaged
         && !opts.internal
         && !wasKilled

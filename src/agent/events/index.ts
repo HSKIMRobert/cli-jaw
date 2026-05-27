@@ -236,6 +236,13 @@ export function extractFromEvent(cli: string, event: CliEventRecord, ctx: SpawnC
                             emitAgentTool(ctx, agentLabel, existing, empTag);
                         }
                     }
+                    if (toolName === 'ScheduleWakeup' && input.delaySeconds && input.prompt) {
+                        ctx.scheduleWakeup = {
+                            delaySeconds: Number(input.delaySeconds),
+                            prompt: String(input.prompt),
+                            reason: String(input.reason || 'scheduled wakeup'),
+                        };
+                    }
                 } catch { /* partial JSON */ }
                 ctx.claudeInputJsonBuf = '';
                 ctx.claudeCurrentToolName = '';
