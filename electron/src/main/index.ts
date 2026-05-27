@@ -398,7 +398,9 @@ async function createWindow(): Promise<void> {
     show: true,
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 16, y: 16 },
-    icon: join(__dirname, '..', '..', 'build', 'icon.png'),
+    icon: app.isPackaged
+      ? join(process.resourcesPath, 'icon.png')
+      : join(__dirname, '..', '..', 'build', 'icon.png'),
     webPreferences: {
       contextIsolation: true,
       sandbox: true,
