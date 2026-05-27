@@ -35,8 +35,9 @@ cli-jaw/
 │   ├── stt.ts                ← 음성인식 엔진 (Gemini REST → Whisper fallback, settings.json 연동, mimeType 파라미터) (231L)
 │   └── quota-copilot.ts      ← Copilot 할당량 조회 (env → file cache → gh auth token → keychain, execFileSync 보안, source 계정 바인딩) + refreshCopilotFromKeychain (307L)
 ├── src/
-│   ├── core/                 ← 의존 0 인프라 계층 (25 files)
-│   │   ├── config.ts         ← JAW_HOME, settings, CLI 탐지 + `JAW_CLAUDE_I_BIN`/native helper fallback, APP_VERSION + migrateSettings legacy Claude model normalization + avatar settings deep merge + corrupt settings backup (674L)
+│   ├── core/                 ← 의존 0 인프라 계층 (26 files)
+│   │   ├── config.ts         ← JAW_HOME, settings, APP_VERSION + migrateSettings legacy Claude model normalization + avatar settings deep merge + corrupt settings backup + CLI 탐지 re-export hub (493L)
+│   │   ├── cli-detection.ts  ← CLI 탐지 + stale `claude-e`/`ai-e` helper `--idle-timeout-ms` compatibility probe + local package release/debug candidates (250L)
 │   │   ├── compact.ts        ← compact 헬퍼 (COMPACT_MARKER_CONTENT, managed summary builder, cutoff logic) (403L)
 │   │   ├── instance.ts       ← 인스턴스 ID, node/jaw 경로, 유닛명 sanitize (58L)
 │   │   ├── db.ts             ← SQLite 스키마 + prepared statements + trace + tool_log + working_dir migration + closeDb() WAL checkpoint + checkOrphanedWal + busy_timeout + clearMessagesScoped + queued_messages table + model-aware clearEmployeeSession (336L)
