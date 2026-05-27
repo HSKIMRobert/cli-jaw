@@ -63,7 +63,7 @@ graph LR
 | [agent_spawn.md](agent_spawn.md) | CLI spawn + ACP 분기 + AGY print-mode + Claude Interactive helper + Gemini full-access flags + Grok streaming-json runtime + 오케스트레이션 | spawn, ACP, AGY, claude-e, Gemini, Grok, 멀티에이전트 |
 | [memory_architecture.md](memory_architecture.md) | History Block + Flush + Advanced Runtime + Task Snapshot | 메모리, flush, runtime, snapshot |
 | [infra.md](infra.md) | config, db, bus, security 등 코어 모듈 | 인프라, SQLite, EventBus |
-| [commands.md](commands.md) | 30개 슬래시 커맨드 + workflow category(`/interview`, `/deliberate`, `/planaudit`, `/goal`, `/autopilot`) + root CLI 19개 user-facing command + 10개 CLI registry runtime | 커맨드, 디스패처, 레지스트리 |
+| [commands.md](commands.md) | 29개 슬래시 커맨드 + workflow category(`/interview`, `/deliberate`, `/planaudit`, `/goal`; 자동 실행은 `/goal run ...`) + root CLI 19개 user-facing command + 10개 CLI registry runtime | 커맨드, 디스패처, 레지스트리 |
 | [server_api.md](server_api.md) | `server.ts` 글루 + `src/routes/` API 135 handlers / 134 endpoints + 33 WebSocket events | REST, WebSocket, 라우트 |
 | [stream-events.md](stream-events.md) | CLI NDJSON 이벤트 트레이스 + Grok streaming-json + ProcessBlock 매핑 | NDJSON, stepRef, ProcessBlock, Grok |
 | [🎨 frontend.md](frontend.md) | `public/` 소스/자산 499개(`dist` 제외) / 372개(generated 제외) + `public/dist/` 생성물 464개, slash workflow chips, Manager notes/search/settings/reminders/WYSIWYG, ProcessBlock 렌더링 | 프론트엔드, Vite 8, PWA, ProcessBlock |

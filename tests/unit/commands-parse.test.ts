@@ -39,7 +39,7 @@ test('parseCommand: compact command is parsed correctly', () => {
 });
 
 test('parseCommand: workflow commands use remote-safe names', () => {
-    for (const name of ['interview', 'deliberate', 'planaudit']) {
+    for (const name of ['interview', 'deliberate', 'planaudit', 'goal']) {
         const r = parseCommand(`/${name} draft feature`);
         assert.equal(r.type, 'known');
         assert.equal(r.cmd.name, name);
@@ -51,6 +51,12 @@ test('parseCommand: plan-audit is not registered in Phase 1', () => {
     const r = parseCommand('/plan-audit draft feature');
     assert.equal(r.type, 'unknown');
     assert.equal(r.name, 'plan-audit');
+});
+
+test('parseCommand: autopilot is not a top-level workflow command', () => {
+    const r = parseCommand('/autopilot run checks');
+    assert.equal(r.type, 'unknown');
+    assert.equal(r.name, 'autopilot');
 });
 
 test('parseCommand: command aliases work', () => {
@@ -126,8 +132,8 @@ test('executeCommand: /goal is an explicit gated workflow stub', async () => {
     assert.match(r.text, /Phase 3/);
 });
 
-test('executeCommand: /autopilot requires later preflight controls', async () => {
-    const parsed = parseCommand('/autopilot run checks');
+test('executeCommand: /goal run requires later preflight controls', async () => {
+    const parsed = parseCommand('/goal run checks');
     const r = await executeCommand(parsed, { interface: 'web', locale: 'en' });
     assert.equal(r.ok, false);
     assert.equal(r.code, 'workflow_requires_preflight');

@@ -354,7 +354,7 @@ P (Plan) → A (Audit) → B (Build) → C (Check) → D (Done) → IDLE
 | **C — Check** | Type-check (`tsc --noEmit`), docs update, consistency check |
 | **D — Done** | Summary of all changes. Returns to idle |
 
-State is database-persisted and survives restarts. Workers cannot modify files — only verify. Activate with `jaw orchestrate`, `/orchestrate`, or `/pabcd`; resume an active worklog explicitly with `/continue`. Workflow helper slash commands are exposed as `/interview`, `/deliberate`, `/planaudit`, `/goal`, and `/autopilot`; in Phase 1, `/goal` and `/autopilot` are visible gated stubs.
+State is database-persisted and survives restarts. Workers cannot modify files — only verify. Activate with `jaw orchestrate`, `/orchestrate`, or `/pabcd`; resume an active worklog explicitly with `/continue`. Workflow helper slash commands are exposed as `/interview`, `/deliberate`, `/planaudit`, and `/goal`; bounded automation is expressed as `/goal run ...`, not a separate top-level `/autopilot`. In Phase 1, `/goal` is a visible gated stub and `/goal run ...` stays blocked until later runtime controls land.
 
 ---
 
