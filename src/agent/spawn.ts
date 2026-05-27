@@ -494,6 +494,7 @@ interface SpawnOpts {
     _isRetry?: boolean;      // 429 delay retry 중 여부
     _isCapacityFallback?: boolean;
     _isSmokeContinuation?: boolean;  // Auto-retry after smoke response detected
+    _isGoalContinuation?: boolean;
     _skipInsert?: boolean;
     _skipHistory?: boolean;
     _skipResume?: boolean;
@@ -536,7 +537,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     const origin = opts.origin || 'web';
     const empSid = opts.employeeSessionId || null;
     const mainManaged = !forceNew && !empSid && !opts.internal;
-    const gateEligibleMain = mainManaged && !opts.agentId && !opts.internal && !opts._isFallback && !opts._isSmokeContinuation;
+    const gateEligibleMain = mainManaged && !opts.agentId && !opts.internal && !opts._isFallback && !opts._isSmokeContinuation && !opts._isGoalContinuation;
     const isEmployee = !mainManaged;
     const empTag = isEmployee ? { isEmployee: true } : {};
 
@@ -722,7 +723,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     // ─── User prompt wrapper (boss main only) ───
     // #99: compact timestamp (moved from builder.ts system prompt → user prompt)
     // + memory search nudge
-    if (!opts.agentId && !opts.internal && !opts._isSmokeContinuation) {
+    if (!opts.agentId && !opts.internal && !opts._isSmokeContinuation && !opts._isGoalContinuation) {
         const _d = new Date(); const _p = (n: number) => String(n).padStart(2, '0');
         const _h = _d.getHours(); const _h12 = _h % 12 || 12;
         const ts = `${_p(_d.getFullYear() % 100)}${_p(_d.getMonth() + 1)}${_p(_d.getDate())}-${_p(_h12)}:${_p(_d.getMinutes())}${_h < 12 ? 'AM' : 'PM'}.`;

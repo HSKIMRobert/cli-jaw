@@ -23,11 +23,13 @@ import {
     triggerMemoryFlush,
     memoryFlushCounter,
 } from './memory-flush-controller.js';
+import { buildGoalContinuation } from '../goal/heartbeat.js';
 
 type LifecycleSpawnOptions = {
     internal?: boolean;
     _isFallback?: boolean;
     _isRetry?: boolean;
+    _isGoalContinuation?: boolean;
     _isCapacityFallback?: boolean;
     _isSmokeContinuation?: boolean;
     _skipInsert?: boolean;
@@ -600,6 +602,35 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
         diagnostic,
         ...(params.outputLen ? { outputLen: params.outputLen } : {}),
     });
+
+    // ─── Goal auto-continuation ───
+    // If an active goal exists and agent exited normally (not killed, not error,
+    // not already a goal-continuation), re-invoke with the goal continuation prompt.
+    if (
+        mainManaged
+        && !opts.internal
+        && !wasKilled
+        && !wasSteer
+        && !opts._isGoalContinuation
+        && (resolvedCode === 0 || resolvedCode === null)
+    ) {
+        const goalCont = buildGoalContinuation();
+        if (goalCont.shouldContinue && goalCont.prompt) {
+            console.log(`[jaw:goal] active goal detected after exit — auto-continuing (${goalCont.reason})`);
+            broadcast('goal_continuation', { reason: goalCont.reason });
+            setTimeout(() => {
+                const { promise: contP } = _spawnAgent(goalCont.prompt!, {
+                    ...opts,
+                    _isGoalContinuation: true,
+                    _skipInsert: true,
+                });
+                contP.catch((err: Error) => {
+                    console.warn('[jaw:goal] auto-continuation failed:', err.message);
+                });
+            }, 2000);
+        }
+    }
+
     if (mainManaged) processQueue();
 }
 
