@@ -21,7 +21,8 @@ import {
     interviewWorkflowHandler,
     deliberateWorkflowHandler,
     planAuditWorkflowHandler,
-    goalWorkflowStubHandler,
+    goalWorkflowHandler,
+    teamWorkflowHandler,
 } from './handlers-workflows.js';
 import { buildUnknownCommandArtifact, saveWorkflowArtifact } from '../workflows/artifacts.js';
 import type { CliCommandContext } from './command-context.js';
@@ -213,7 +214,8 @@ export const COMMANDS: SlashCommand[] = [
     { name: 'interview', descKey: 'cmd.workflow.interview.desc', tgDescKey: 'cmd.workflow.interview.tg_desc', desc: 'Clarify requirements before planning', args: '<request>', category: 'workflow', interfaces: ['cli', 'web', 'telegram', 'discord'], workflow: { kind: 'workflow', phase: 'requirements', risk: 'low', output: 'prompt', workflowArgs: [{ name: 'request', required: true, kind: 'text' }] }, handler: interviewWorkflowHandler },
     { name: 'deliberate', descKey: 'cmd.workflow.deliberate.desc', tgDescKey: 'cmd.workflow.deliberate.tg_desc', desc: 'Plan with planner, architect, and critic roles', args: '<request-or-plan>', category: 'workflow', interfaces: ['cli', 'web', 'telegram', 'discord'], workflow: { kind: 'workflow', phase: 'planning', risk: 'low', output: 'plan', prerequisites: ['Clear request or existing plan'], workflowArgs: [{ name: 'request-or-plan', required: true, kind: 'text' }] }, handler: deliberateWorkflowHandler },
     { name: 'planaudit', descKey: 'cmd.workflow.planAudit.desc', tgDescKey: 'cmd.workflow.planAudit.tg_desc', desc: 'Create a read-only employee audit task', args: '[plan]', category: 'workflow', interfaces: ['cli', 'web', 'telegram', 'discord'], workflow: { kind: 'workflow', phase: 'audit', risk: 'medium', output: 'dispatch', prerequisites: ['Project root', 'PABCD A for automatic dispatch'], workflowArgs: [{ name: 'plan', required: false, kind: 'text' }] }, handler: planAuditWorkflowHandler },
-    { name: 'goal', descKey: 'cmd.workflow.goal.desc', tgDescKey: 'cmd.workflow.goal.tg_desc', desc: 'Persistent goal and bounded run workflow', args: '[set|status|run|pause|resume|clear|reset] [args...]', category: 'workflow', interfaces: ['cli', 'web', 'telegram', 'discord'], workflow: { kind: 'workflow', phase: 'continuation', risk: 'medium', output: 'state', prerequisites: ['/goal run remains gated until Phase 5 automation controls land'], gatedUntilPhase: 3, workflowArgs: [{ name: 'subcommand-or-objective', required: false, kind: 'text' }] }, handler: goalWorkflowStubHandler },
+    { name: 'goal', descKey: 'cmd.workflow.goal.desc', tgDescKey: 'cmd.workflow.goal.tg_desc', desc: 'Persistent goal and bounded run workflow', args: '[set|status|run|pause|resume|clear|reset] [args...]', category: 'workflow', interfaces: ['cli', 'web', 'telegram', 'discord'], workflow: { kind: 'workflow', phase: 'continuation', risk: 'medium', output: 'state', prerequisites: ['/goal run remains gated until Phase 5 automation controls land'], gatedUntilPhase: 3, workflowArgs: [{ name: 'subcommand-or-objective', required: false, kind: 'text' }] }, handler: goalWorkflowHandler },
+    { name: 'team', descKey: 'cmd.workflow.team.desc', tgDescKey: 'cmd.workflow.team.tg_desc', desc: 'Parallel team orchestration', args: '[plan|audit|status|collect|stop] [args...]', category: 'workflow', interfaces: ['cli', 'web', 'telegram', 'discord'], workflow: { kind: 'workflow', phase: 'execution', risk: 'medium', output: 'dispatch', prerequisites: ['PABCD IDLE or A', 'No busy workers'], workflowArgs: [{ name: 'subcommand', required: true, kind: 'text' }] }, handler: teamWorkflowHandler },
     { name: 'model', descKey: 'cmd.model.desc', tgDescKey: 'cmd.model.tg_desc', desc: 'View/change model', args: '[name]', category: 'model', interfaces: ['cli', 'web', 'telegram', 'discord'], getArgumentCompletions: modelArgumentCompletions, handler: modelHandler },
     { name: 'cli', descKey: 'cmd.cli.desc', tgDescKey: 'cmd.cli.tg_desc', desc: 'View/change CLI', args: '[name]', category: 'model', interfaces: ['cli', 'web', 'telegram', 'discord'], getArgumentCompletions: cliArgumentCompletions, handler: cliHandler },
     { name: 'fallback', descKey: 'cmd.fallback.desc', tgDescKey: 'cmd.fallback.tg_desc', desc: 'Set fallback order', args: '[cli1 cli2...|off]', category: 'model', interfaces: ['cli', 'web', 'telegram', 'discord'], getArgumentCompletions: fallbackArgumentCompletions, handler: fallbackHandler },
@@ -231,7 +233,7 @@ export const COMMANDS: SlashCommand[] = [
     { name: 'file', descKey: 'cmd.file.desc', desc: 'Attach file', args: '<path> [caption]', category: 'cli', interfaces: ['cli'], hidden: true, handler: fileHandler },
     { name: 'steer', descKey: 'cmd.steer.desc', tgDescKey: 'cmd.steer.tg_desc', desc: 'Interrupt agent and redirect', args: '<prompt>', category: 'session', interfaces: ['web', 'telegram', 'discord'], handler: steerHandler },
     { name: 'ide', descKey: 'cmd.ide.desc', desc: 'IDE diff view', args: '[pop|on|off]', category: 'tools', interfaces: ['cli'], handler: ideHandler },
-    { name: 'orchestrate', aliases: ['pabcd'], descKey: '', desc: 'Enter PABCD orchestration', args: '[P|A|B|C|D|status|reset] [--force]', category: 'tools', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: orchestrateHandler },
+    { name: 'orchestrate', aliases: ['pabcd'], descKey: '', desc: 'Enter PABCD orchestration', args: '[I|P|A|B|C|D|status|reset] [--force]', category: 'tools', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: orchestrateHandler },
     { name: 'project', aliases: ['proj'], descKey: '', desc: 'Manage project workspace directories', args: '[set|reset|clear|list] [paths...]', category: 'tools', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: projectHandler },
 ];
 

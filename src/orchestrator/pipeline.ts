@@ -287,6 +287,34 @@ export async function orchestrate(
         ctx = nextCtx;
     }
 
+    // ─── Phase 2.1: Interview initial turn (mirrors P pattern) ───
+    const isInitialInterviewTurn = state === 'I'
+        && !meta["_workerResult"]
+        && !meta["_skipPrefix"]
+        && !ctx?.interview;
+
+    if (isInitialInterviewTurn) {
+        const interviewRequest = ctx?.originalPrompt || userText || '';
+        prompt = `${getStatePrompt('I')}\n\nUser request:\n${interviewRequest}`;
+        skipPrefix = true;
+
+        const nextCtx: OrcContext = {
+            ...(ctx || {
+                originalPrompt: interviewRequest,
+                workingDir: settings["workingDir"] || null,
+                projectDirs: settings["projectDirs"] || null,
+                scopeId: scope,
+                plan: null,
+                workerResults: [],
+                origin,
+                chatId,
+            }),
+            interview: { request: interviewRequest, round: 1, known: [], unknown: [] },
+        };
+        setState('I', nextCtx, scope, 'Interview');
+        ctx = nextCtx;
+    }
+
     // prefix injection
     if (origin === 'heartbeat') {
         skipPrefix = true;

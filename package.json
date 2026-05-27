@@ -99,6 +99,7 @@
     "gate:browser-primitives-catalog": "node scripts/release-gates.mjs browser-primitives-catalog",
     "gate:action-memory-safe-replay": "node scripts/release-gates.mjs action-memory-safe-replay",
     "gate:model-adapter-frozen": "node scripts/release-gates.mjs model-adapter-frozen",
+    "gate:workflow-common-layer-no-sdk": "node scripts/release-gates.mjs workflow-common-layer-no-sdk",
     "gate:all": "node scripts/release-gates.mjs",
     "prepublishOnly": "node scripts/require-release-evidence.mjs && npm run build && npm run build:frontend",
     "electron:dev": "concurrently -k -n jaw,electron \"node scripts/electron-dev-manager.mjs\" \"npm --prefix electron run dev\"",
