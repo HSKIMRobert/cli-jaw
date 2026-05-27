@@ -116,7 +116,7 @@
 }
 
 .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .sidebar-rail {
-    min-height: 76px;
+    min-height: 54px;
     flex-wrap: wrap;
     align-content: center;
     align-items: center;
@@ -124,6 +124,10 @@
     row-gap: 4px;
     overflow: visible;
     padding: 6px 8px;
+}
+
+:root[data-cli-jaw-desktop="true"] .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .sidebar-rail {
+    min-height: 76px;
 }
 
 .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .rail-button {

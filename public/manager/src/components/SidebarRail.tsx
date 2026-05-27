@@ -1,5 +1,6 @@
 import type { DashboardSidebarMode } from '../types';
 import { usePanelActions, usePanelLayout } from '../panels/PanelLayoutProvider';
+import { isElectron } from '../panels/desktop-bridge';
 
 type SidebarRailProps = {
     onlineCount: number;
@@ -124,6 +125,7 @@ export function SidebarRail(props: SidebarRailProps) {
     const panelActions = usePanelActions();
     const bottomOpen = panelLayout.state.bottomPanel.open;
     const rightOpen = panelLayout.effectiveRightOpen;
+    const showDesktopPanelToggles = isElectron();
     return (
         <div className="sidebar-rail">
             <button
@@ -202,39 +204,43 @@ export function SidebarRail(props: SidebarRailProps) {
             >
                 <SettingsIcon />
             </button>
-            <div className="rail-spacer" />
-            <button
-                className={`rail-button rail-panel-toggle${bottomOpen ? ' is-active' : ''}`}
-                type="button"
-                onClick={() => {
-                    if (bottomOpen) {
-                        panelActions.toggleBottomPanel();
-                    } else {
-                        panelActions.openBottomTab('terminal');
-                    }
-                }}
-                aria-label="Toggle terminal panel"
-                aria-pressed={bottomOpen}
-                title="Terminal (⌃`)"
-            >
-                <TerminalIcon />
-            </button>
-            <button
-                className={`rail-button rail-panel-toggle${rightOpen ? ' is-active' : ''}`}
-                type="button"
-                onClick={() => {
-                    if (rightOpen) {
-                        panelActions.toggleRightPanel();
-                    } else {
-                        panelActions.openRightPanel('folder');
-                    }
-                }}
-                aria-label="Toggle right panel"
-                aria-pressed={rightOpen}
-                title="Side panel (⌘B)"
-            >
-                <PanelRightIcon />
-            </button>
+            {showDesktopPanelToggles ? (
+                <>
+                    <div className="rail-spacer" />
+                    <button
+                        className={`rail-button rail-panel-toggle${bottomOpen ? ' is-active' : ''}`}
+                        type="button"
+                        onClick={() => {
+                            if (bottomOpen) {
+                                panelActions.toggleBottomPanel();
+                            } else {
+                                panelActions.openBottomTab('terminal');
+                            }
+                        }}
+                        aria-label="Toggle terminal panel"
+                        aria-pressed={bottomOpen}
+                        title="Terminal (⌃`)"
+                    >
+                        <TerminalIcon />
+                    </button>
+                    <button
+                        className={`rail-button rail-panel-toggle${rightOpen ? ' is-active' : ''}`}
+                        type="button"
+                        onClick={() => {
+                            if (rightOpen) {
+                                panelActions.toggleRightPanel();
+                            } else {
+                                panelActions.openRightPanel('folder');
+                            }
+                        }}
+                        aria-label="Toggle right panel"
+                        aria-pressed={rightOpen}
+                        title="Side panel (⌘B)"
+                    >
+                        <PanelRightIcon />
+                    </button>
+                </>
+            ) : null}
             <button
                 className={`rail-button rail-help-button${props.helpOpen ? ' is-active' : ''}`}
                 type="button"
