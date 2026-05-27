@@ -59,6 +59,9 @@
     gap: 4px;
     padding: 6px 10px;
 }
+.command-bar.is-electron-titlebar {
+    padding-left: 80px;
+}
 
 .command-primary {
     gap: 8px;
