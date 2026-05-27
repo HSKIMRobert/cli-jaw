@@ -86,4 +86,36 @@ describe('PABCD state-machine', () => {
         assert.equal(getState('default'), 'P');
         assert.equal(getCtx('default'), null);
     });
+    test('19. IDLE→I valid', () => {
+        assert.equal(canTransition('IDLE', 'I').ok, true);
+    });
+    test('20. I→P valid', () => {
+        assert.equal(canTransition('I', 'P').ok, true);
+    });
+    test('21. I→IDLE valid (reset path)', () => {
+        assert.equal(canTransition('I', 'IDLE').ok, true);
+    });
+    test('22. I→B invalid (must go through P)', () => {
+        assert.equal(canTransition('I', 'B').ok, false);
+    });
+    test('23. prefix I user = Ip (INTERVIEW MODE)', () => {
+        assert.ok(getPrefix('I', 'user')!.includes('INTERVIEW MODE'));
+    });
+    test('24. statePrompt I not empty', () => {
+        assert.ok(getStatePrompt('I').length > 0);
+    });
+    test('25. setState I preserves interview ctx', () => {
+        const ctx = {
+            originalPrompt: 'build academy',
+            workingDir: null,
+            plan: null,
+            workerResults: [],
+            origin: 'web',
+            interview: { request: 'build academy', round: 1, known: [], unknown: [] },
+        };
+        setState('I', ctx, 'default');
+        assert.equal(getState('default'), 'I');
+        const saved = getCtx('default');
+        assert.deepEqual(saved!.interview, ctx.interview);
+    });
 });
