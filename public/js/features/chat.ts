@@ -15,7 +15,21 @@ import { waitForSettingsSaveIdle } from './settings-core.js';
 
 let activeObjectURLs: string[] = [];
 
-interface CommandResult { code?: string; text?: string; type?: string; }
+interface UnknownCommandRecovery {
+    kind: 'slash-command-original';
+    commandName: string;
+    args: string[];
+    originalText: string;
+    suggestedCommands?: string[];
+}
+
+interface CommandResult {
+    code?: string;
+    text?: string;
+    type?: string;
+    originalText?: string;
+    recovery?: UnknownCommandRecovery;
+}
 interface MessageResult { queued?: boolean; pending?: number; continued?: boolean; noPendingContinue?: boolean; error?: string; queuedId?: string; }
 
 function getCommandTimeoutMs(text: string): number {
@@ -26,6 +40,48 @@ function getCommandTimeoutMs(text: string): number {
 function isOrchestrateCommand(text: string): boolean {
     return /^\/(?:orchestrate|pabcd)(?:\s|$)/i.test(String(text || '').trim());
 }
+
+function renderCommandRecovery(result: CommandResult): string {
+    const recovery = result.recovery;
+    if (!recovery?.originalText) return result.text ? escapeHtml(result.text) : '';
+    const suggestions = (recovery.suggestedCommands || []).slice(0, 5);
+    const suggestionHtml = suggestions.length
+        ? `<div class="cmd-recovery-suggestions">${suggestions.map(s => `<code>${escapeHtml(s)}</code>`).join(' ')}</div>`
+        : '';
+    const original = escapeHtml(recovery.originalText);
+    const body = result.text ? `<div>${escapeHtml(result.text)}</div>` : '';
+    return `${body}
+        <div class="cmd-recovery" data-cmd-recovery>
+            <div class="cmd-recovery-label">${escapeHtml(t('cmd.recovery.originalPrompt'))}</div>
+            <pre class="cmd-recovery-text">${original}</pre>
+            ${suggestionHtml}
+            <div class="cmd-recovery-actions">
+                <button type="button" class="cmd-recovery-btn" data-cmd-recovery-action="reinsert" data-cmd-text="${original}">${escapeHtml(t('cmd.artifact.action.reinsert'))}</button>
+                <button type="button" class="cmd-recovery-btn" data-cmd-recovery-action="copy" data-cmd-text="${original}">${escapeHtml(t('cmd.artifact.action.copy'))}</button>
+            </div>
+        </div>`;
+}
+
+document.addEventListener('click', async (event) => {
+    const target = event.target as HTMLElement | null;
+    const btn = target?.closest('[data-cmd-recovery-action]') as HTMLButtonElement | null;
+    if (!btn) return;
+    const action = btn.dataset['cmdRecoveryAction'] || '';
+    const text = btn.dataset['cmdText'] || '';
+    if (!text) return;
+    if (action === 'reinsert') {
+        const input = document.getElementById('chatInput') as HTMLTextAreaElement | null;
+        if (!input) return;
+        input.value = text;
+        input.focus();
+        input.selectionStart = input.selectionEnd = input.value.length;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        return;
+    }
+    if (action === 'copy') {
+        await navigator.clipboard?.writeText(text).catch(() => {});
+    }
+});
 
 // In-flight guard: prevents double-send from rapid clicks / Enter-bursts while the
 // POST to /api/message is outstanding. Server-side dedup in gateway.ts is the
@@ -120,7 +176,7 @@ export async function sendMessage(source: SendSource = 'enter'): Promise<void> {
                     const chatEl = document.getElementById('chatMessages');
                     if (chatEl) chatEl.innerHTML = '';
                 }
-                if (result?.text) addSystemMsg(escapeHtml(result.text), '', result.type);
+                if (result?.text || result?.recovery) addSystemMsg(renderCommandRecovery(result), '', result.type);
             } catch (err) {
                 addSystemMsg(t('chat.cmd.fail', { msg: (err as Error).message }), '', 'error');
             } finally {

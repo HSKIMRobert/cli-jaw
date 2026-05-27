@@ -1245,6 +1245,71 @@ div.math-placeholder {
     border-radius: 2px;
 }
 
+.cmd-recovery {
+    margin-top: 8px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px;
+    background: color-mix(in oklch, var(--surface) 80%, var(--bg));
+}
+
+.cmd-recovery-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+}
+
+.cmd-recovery-text {
+    margin: 0;
+    max-height: 160px;
+    overflow: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.cmd-recovery-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+}
+
+.cmd-recovery-suggestions code {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1px 5px;
+    color: var(--text-dim);
+    font-size: 11px;
+}
+
+.cmd-recovery-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.cmd-recovery-btn {
+    min-height: 28px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text);
+    padding: 3px 8px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.cmd-recovery-btn:hover,
+.cmd-recovery-btn:focus-visible {
+    border-color: var(--accent);
+}
+
 /* ── Loading / Typing ── */
 .typing-indicator {
     display: none;
