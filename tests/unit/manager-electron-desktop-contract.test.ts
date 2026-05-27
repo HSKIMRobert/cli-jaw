@@ -44,6 +44,16 @@ test('Electron desktop mode hides the browser-only desktop link', () => {
         desktopBridge.includes("document.documentElement.dataset.cliJawDesktop === 'true'"),
         'Electron detection must use the preload marker when the bridge object is unavailable',
     );
+    assert.ok(desktopBridge.includes('hasDesktopUserAgent()'), 'Electron detection must fall back to the Electron user-agent token');
+    assert.ok(desktopBridge.includes('cli-jaw-desktop'), 'Electron detection must use the desktop user-agent token');
+});
+
+test('Electron shell stamps manager requests with a desktop user-agent token', () => {
+    const main = read('electron/src/main/index.ts');
+
+    assert.ok(main.includes("const DESKTOP_USER_AGENT_TOKEN = 'cli-jaw-desktop'"), 'Electron main must define a stable desktop user-agent token');
+    assert.ok(main.includes('mainWindow.webContents.setUserAgent'), 'Electron main must stamp BrowserWindow user-agent before loading manager UI');
+    assert.ok(main.includes('app.getVersion()'), 'desktop user-agent token should include the packaged app version');
 });
 
 test('Electron titlebar spacing survives React timing and CSS cascade', () => {
@@ -54,6 +64,16 @@ test('Electron titlebar spacing survives React timing and CSS cascade', () => {
     assert.ok(compact.includes(':root[data-cli-jaw-desktop="true"] .command-center.command-bar'), 'desktop titlebar CSS must work from the preload document marker');
     assert.ok(compact.includes('padding: 6px 10px 6px 92px'), 'desktop titlebar padding must reserve room for macOS traffic lights');
     assert.ok(compact.includes('-webkit-app-region: no-drag'), 'desktop titlebar controls must remain clickable');
+});
+
+test('Electron preload bridge avoids unsupported sandbox Node builtins', () => {
+    const preload = read('electron/src/preload/index.ts');
+    const diffPanel = read('public/manager/src/diff-panel/DiffPanel.tsx');
+
+    assert.ok(!preload.includes('node:os'), 'sandboxed preload must not import node:os because it prevents cliJawDesktop from being exposed');
+    assert.ok(preload.includes('contextBridge.exposeInMainWorld'), 'preload must expose cliJawDesktop through contextBridge');
+    assert.ok(preload.includes('getHomePath'), 'preload must still provide a home-path bridge helper');
+    assert.ok(diffPanel.includes("desktop?.getHomePath?.() || '/tmp'"), 'diff panel must tolerate an empty home path from the sandbox preload');
 });
 
 test('manager sidebar rail keeps IDE panel toggles visible', () => {

@@ -121,6 +121,7 @@ let metricsCollector: MetricsCollectorHandle | null = null;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const PRELOAD_PATH = join(__dirname, '..', 'preload', 'index.js');
+const DESKTOP_USER_AGENT_TOKEN = 'cli-jaw-desktop';
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
@@ -412,6 +413,10 @@ async function createWindow(): Promise<void> {
       devTools: DEV_TOOLS_ENABLED,
     },
   });
+  const userAgent = mainWindow.webContents.getUserAgent();
+  if (!userAgent.includes(DESKTOP_USER_AGENT_TOKEN)) {
+    mainWindow.webContents.setUserAgent(`${userAgent} ${DESKTOP_USER_AGENT_TOKEN}/${app.getVersion()}`);
+  }
 
   const guardNavigation = (event: Electron.Event, url: string): void => {
     if (!isManagerNavigation(url, MANAGER_ORIGIN)) {
