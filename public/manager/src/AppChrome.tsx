@@ -5,7 +5,7 @@ import { ManagerShell } from './components/ManagerShell';
 import { HelpDrawer } from './help/HelpDrawer';
 import { type HelpTopicId } from './help/helpContent';
 import { SidebarRailRouter } from './SidebarRailRouter';
-import { PanelLayoutProvider } from './panels/PanelLayoutProvider';
+import { PanelLayoutProvider, type PanelLayoutState } from './panels/PanelLayoutProvider';
 import { ElectronMetricsPanel } from './electron-metrics';
 import { IframeBridge } from './sync/IframeBridge';
 import { VisibilityBridge } from './sync/VisibilityBridge';
@@ -89,6 +89,8 @@ type AppChromeProps = {
     onDismissLifecycleMessage: () => void;
     handleDashboardSettingsPatch: Parameters<typeof SidebarRailRouter>[0]['onDashboardSettingsPatch'];
     activityUnreadOpenAndMarkSeen: () => void;
+    panelInitialState?: Partial<PanelLayoutState> | undefined;
+    onPanelStateChange?: ((state: PanelLayoutState) => void) | undefined;
 };
 
 export function AppChrome(props: AppChromeProps) {
@@ -96,7 +98,7 @@ export function AppChrome(props: AppChromeProps) {
         <>
             <IframeBridge />
             <VisibilityBridge />
-            <PanelLayoutProvider>
+            <PanelLayoutProvider initialPanelState={props.panelInitialState} onStateChange={props.onPanelStateChange}>
             <ManagerShell
                 sidebarCollapsed={props.view.sidebarCollapsed}
                 commandBar={<CommandBar query={props.query} loading={props.loading} onQueryChange={props.setQuery} onRefresh={() => void props.load()} onOpenDrawer={() => props.view.setDrawerOpen(true)} theme={props.theme.theme} onThemeChange={props.theme.setTheme} onOpenPalette={props.palette.toggle} />}

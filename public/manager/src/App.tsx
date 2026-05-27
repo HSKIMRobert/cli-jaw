@@ -37,6 +37,9 @@ import { actionForShortcutEvent, isManagerShortcutEditableTarget } from './manag
 import { reconcileActiveProfileFilter } from './profile-filter';
 import type { DashboardDetailTab, DashboardInstance, DashboardInstanceStatus, DashboardLifecycleAction, DashboardNotesAuthoringMode, DashboardNotesViewMode, DashboardProfile, DashboardScanResult, DashboardShortcutAction, DashboardSidebarMode } from './types';
 import { panelShortcutBus } from './panels/panel-shortcut-bus';
+import type { PanelLayoutState } from './panels/PanelLayoutProvider';
+import type { RightPanelMode, BottomPanelTab } from './panels/types';
+import { RIGHT_PANEL_DEFAULT_WIDTH, BOTTOM_PANEL_DEFAULT_HEIGHT } from './panels/types';
 export function App() {
     const [data, setData] = useState<DashboardScanResult | null>(null);
     const [loading, setLoading] = useState(true);
@@ -46,6 +49,7 @@ export function App() {
     const [customHome, setCustomHome] = useState('');
     const [showHidden, setShowHidden] = useState(false);
     const [hydrated, setHydrated] = useState(false);
+    const [panelInitialState, setPanelInitialState] = useState<Partial<PanelLayoutState> | undefined>(undefined);
     const [lifecycleBusyPort, setLifecycleBusyPort] = useState<number | null>(null);
     const [lifecycleMessage, setLifecycleMessage] = useState<string | null>(null);
     const [transitioningPort, setTransitioningPort] = useState<number | null>(null);
@@ -212,6 +216,23 @@ export function App() {
                 activityUnread.hydrateSeenAt(ui.activitySeenAt ?? null, ui.activitySeenByPort || {});
                 setActiveProfileIds(loaded.registry.activeProfileFilter || []);
                 theme.syncFromRegistry(ui.uiTheme);
+                const panelInit: Partial<PanelLayoutState> = {};
+                if (ui.panelLayoutVersion) {
+                    panelInit.rightPanel = {
+                        open: ui.rightPanelOpen ?? false,
+                        width: ui.rightPanelWidth ?? RIGHT_PANEL_DEFAULT_WIDTH,
+                        topMode: (ui.rightPanelTopMode as RightPanelMode | null) ?? null,
+                        bottomMode: (ui.rightPanelBottomMode as RightPanelMode | null) ?? null,
+                        splitRatio: ui.rightPanelSplitRatio ?? 0.5,
+                    };
+                    panelInit.bottomPanel = {
+                        open: ui.bottomPanelOpen ?? false,
+                        height: ui.bottomPanelHeight ?? BOTTOM_PANEL_DEFAULT_HEIGHT,
+                        tabs: (ui.bottomPanelTabs ?? []) as BottomPanelTab[],
+                        activeTab: (ui.bottomPanelActiveTab ?? null) as BottomPanelTab | null,
+                    };
+                }
+                setPanelInitialState(panelInit);
             } finally {
                 setHydrated(true);
                 await load();
@@ -223,6 +244,21 @@ export function App() {
     async function saveUi(ui: Parameters<typeof registry.save>[0]['ui']): Promise<void> {
         if (!hydrated || ui === undefined) return;
         await registry.save({ ui });
+    }
+
+    function handlePanelStateChange(ps: PanelLayoutState): void {
+        void saveUi({
+            panelLayoutVersion: 1,
+            rightPanelOpen: ps.rightPanel.open,
+            rightPanelWidth: ps.rightPanel.width,
+            rightPanelTopMode: ps.rightPanel.topMode,
+            rightPanelBottomMode: ps.rightPanel.bottomMode,
+            rightPanelSplitRatio: ps.rightPanel.splitRatio,
+            bottomPanelOpen: ps.bottomPanel.open,
+            bottomPanelHeight: ps.bottomPanel.height,
+            bottomPanelTabs: ps.bottomPanel.tabs,
+            bottomPanelActiveTab: ps.bottomPanel.activeTab,
+        });
     }
 
     const profileCounts = useMemo(() => {
@@ -486,5 +522,5 @@ export function App() {
         />
     );
 
-    return <AppChrome view={view} palette={palette} theme={theme} query={query} loading={loading} showHidden={showHidden} instances={instances} selectedInstance={selectedInstance} data={data} summary={summary} scheduleGroup={scheduleGroup} boardView={boardView} notesModel={notesModel} notesSelectedNote={notesSelectedNote} notesDirtyPath={notesDirtyPath} notesSidebarMode={notesSidebarMode} notesSearchFocusToken={notesSearchFocusToken} settingsSection={dashboardSettingsSection} dashboardSettingsUi={dashboardSettingsUi} titleSupport={titleSupport} activityEvents={activityEvents} busyPorts={messageActivity.busyPorts} titlesByPort={messageActivity.titlesByPort} lifecycleMessage={lifecycleMessage} error={error} registryMessage={registry.error || labelEditor.error || managerEvents.error} workbenchHeader={workbenchHeader} detailContent={detailContent} instanceListContent={instanceListContent} drawerProfileFilters={profileChipStrip(profiles)} jawCeoWorkbenchButton={jawCeoBridge.workbenchButton} jawCeoVoiceOverlay={jawCeoBridge.voiceOverlay} jawCeoConsoleContent={jawCeoBridge.consoleContent} previewEnabled={previewEnabled} previewRefreshKey={previewRefreshKey} autoUnloadNotice={autoUnloadNotice} helpOpen={helpOpen} helpTopic={helpTopic} setQuery={setQuery} setShowHidden={setShowHidden} setPreviewEnabled={setPreviewEnabled} setAutoUnloadNotice={setAutoUnloadNotice} setHelpOpen={setHelpOpen} setHelpTopic={setHelpTopic} onOpenHelpTopic={openHelpTopic} setNotesSidebarMode={setNotesSidebarMode} setBoardView={setBoardView} setScheduleGroup={setScheduleGroup} setDashboardSettingsSection={setDashboardSettingsSection} load={load} cycleTheme={cycleTheme} openSelectedInBrowser={openSelectedInBrowser} handleSelectInstance={handleSelectInstance} handleSidebarModeChange={handleSidebarModeChange} handleSidebarToggle={handleSidebarToggle} handleNotesSelectedPathChange={handleNotesSelectedPathChange} handleNotesViewModeChange={handleNotesViewModeChange} handleNotesAuthoringModeChange={handleNotesAuthoringModeChange} handleNotesWordWrapChange={handleNotesWordWrapChange} handleNotesTreeWidthChange={handleNotesTreeWidthChange} openNotesSidebarSearch={openNotesSidebarSearch} setNotesDirtyPath={setNotesDirtyPath} handleTabChange={handleTabChange} handleActivityToggle={handleActivityToggle} handleActivityHeight={handleActivityHeight} onDismissLifecycleMessage={() => setLifecycleMessage(null)} handleDashboardSettingsPatch={handleDashboardSettingsPatch} activityUnreadOpenAndMarkSeen={activityUnread.openAndMarkSeen} />;
+    return <AppChrome view={view} palette={palette} theme={theme} query={query} loading={loading} showHidden={showHidden} instances={instances} selectedInstance={selectedInstance} data={data} summary={summary} scheduleGroup={scheduleGroup} boardView={boardView} notesModel={notesModel} notesSelectedNote={notesSelectedNote} notesDirtyPath={notesDirtyPath} notesSidebarMode={notesSidebarMode} notesSearchFocusToken={notesSearchFocusToken} settingsSection={dashboardSettingsSection} dashboardSettingsUi={dashboardSettingsUi} titleSupport={titleSupport} activityEvents={activityEvents} busyPorts={messageActivity.busyPorts} titlesByPort={messageActivity.titlesByPort} lifecycleMessage={lifecycleMessage} error={error} registryMessage={registry.error || labelEditor.error || managerEvents.error} workbenchHeader={workbenchHeader} detailContent={detailContent} instanceListContent={instanceListContent} drawerProfileFilters={profileChipStrip(profiles)} jawCeoWorkbenchButton={jawCeoBridge.workbenchButton} jawCeoVoiceOverlay={jawCeoBridge.voiceOverlay} jawCeoConsoleContent={jawCeoBridge.consoleContent} previewEnabled={previewEnabled} previewRefreshKey={previewRefreshKey} autoUnloadNotice={autoUnloadNotice} helpOpen={helpOpen} helpTopic={helpTopic} setQuery={setQuery} setShowHidden={setShowHidden} setPreviewEnabled={setPreviewEnabled} setAutoUnloadNotice={setAutoUnloadNotice} setHelpOpen={setHelpOpen} setHelpTopic={setHelpTopic} onOpenHelpTopic={openHelpTopic} setNotesSidebarMode={setNotesSidebarMode} setBoardView={setBoardView} setScheduleGroup={setScheduleGroup} setDashboardSettingsSection={setDashboardSettingsSection} load={load} cycleTheme={cycleTheme} openSelectedInBrowser={openSelectedInBrowser} handleSelectInstance={handleSelectInstance} handleSidebarModeChange={handleSidebarModeChange} handleSidebarToggle={handleSidebarToggle} handleNotesSelectedPathChange={handleNotesSelectedPathChange} handleNotesViewModeChange={handleNotesViewModeChange} handleNotesAuthoringModeChange={handleNotesAuthoringModeChange} handleNotesWordWrapChange={handleNotesWordWrapChange} handleNotesTreeWidthChange={handleNotesTreeWidthChange} openNotesSidebarSearch={openNotesSidebarSearch} setNotesDirtyPath={setNotesDirtyPath} handleTabChange={handleTabChange} handleActivityToggle={handleActivityToggle} handleActivityHeight={handleActivityHeight} onDismissLifecycleMessage={() => setLifecycleMessage(null)} handleDashboardSettingsPatch={handleDashboardSettingsPatch} activityUnreadOpenAndMarkSeen={activityUnread.openAndMarkSeen} panelInitialState={panelInitialState} onPanelStateChange={handlePanelStateChange} />;
 }
