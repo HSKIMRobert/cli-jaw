@@ -50,8 +50,6 @@
     "cmd.workflow.interview.title": "需求访谈",
     "cmd.workflow.deliberate.title": "角色式计划审查",
     "cmd.workflow.planAudit.title": "只读计划审计",
-    "cmd.workflow.goal.notReady": "/goal 会在 Phase 3 加入持久目标状态后可用。",
-    "cmd.workflow.goalRun.notReady": "/goal run 会在 Phase 5 加入权限、检查点和停止控制后可用。",
     "cmd.help.tg_desc": "显示可用命令",
     "cmd.status.tg_desc": "检查模型、CLI 和会话状态",
     "cmd.clear.tg_desc": "重置对话（保留数据）",
