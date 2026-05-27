@@ -79,7 +79,7 @@ export async function handleDiscordSlashCommand(interaction: ChatInputCommandInt
     const result = await executeCommand(parsed, makeDiscordCommandCtx());
 
     // Steer: reply then actually perform orchestration
-    if (result?.type === 'steer' && result?.steerPrompt) {
+    if (result?.steerPrompt) {
         await interaction.reply(result.text || 'Redirecting...');
         // Fire orchestration in the channel (like Telegram's tgOrchestrate after steer)
         const channel = interaction.channel;

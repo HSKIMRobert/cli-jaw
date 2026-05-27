@@ -517,7 +517,7 @@ async function _initTelegramInner() {
             // ── /steer special path: kill + re-orchestrate with full TG UX ──
             // steerHandler already killed the agent and waited for exit.
             // Just start tgOrchestrate for typing indicator + result delivery.
-            if (result?.type === 'steer' && result?.steerPrompt) {
+            if (result?.steerPrompt) {
                 const steerPrompt = result.steerPrompt;
                 await ctx.reply(result.text || '🔄');
                 try {
