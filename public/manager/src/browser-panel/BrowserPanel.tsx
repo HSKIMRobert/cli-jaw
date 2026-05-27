@@ -156,13 +156,15 @@ export function BrowserPanel() {
                     {error ?? (loading ? 'Loading...' : 'Blocked')}
                 </div>
             )}
-            {createElement('webview', {
-                ref: webviewRef,
-                className: 'browser-webview',
-                src: url,
-                partition: 'persist:cli-jaw-browser',
-                webpreferences: 'contextIsolation=yes,sandbox=yes,nodeIntegration=no',
-            })}
+            <div className="browser-webview-host">
+                {createElement('webview', {
+                    ref: webviewRef,
+                    className: 'browser-webview',
+                    src: url,
+                    partition: 'persist:cli-jaw-browser',
+                    webpreferences: 'contextIsolation=yes,sandbox=yes,nodeIntegration=no',
+                })}
+            </div>
         </div>
     );
 }

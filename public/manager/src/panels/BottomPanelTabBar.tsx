@@ -37,24 +37,31 @@ export function BottomPanelTabBar(props: BottomPanelTabBarProps) {
     return (
         <div className="bottom-tab-bar" role="tablist" onKeyDown={handleKeyDown}>
             {props.tabs.map(tab => (
-                <button
+                <div
                     key={tab}
-                    type="button"
-                    role="tab"
-                    className={`bottom-tab ${tab === props.activeTab ? 'is-active' : ''}`}
-                    aria-selected={tab === props.activeTab}
-                    tabIndex={tab === props.activeTab ? 0 : -1}
-                    onClick={() => props.onActivate(tab)}
+                    className={`bottom-tab-item ${tab === props.activeTab ? 'is-active' : ''}`}
+                    role="presentation"
                 >
-                    <span>{TAB_LABELS[tab]}</span>
-                    <span
+                    <button
+                        type="button"
+                        role="tab"
+                        className={`bottom-tab ${tab === props.activeTab ? 'is-active' : ''}`}
+                        aria-selected={tab === props.activeTab}
+                        tabIndex={tab === props.activeTab ? 0 : -1}
+                        onClick={() => props.onActivate(tab)}
+                    >
+                        <span>{TAB_LABELS[tab]}</span>
+                    </button>
+                    <button
+                        type="button"
                         className="bottom-tab-close"
-                        role="button"
                         aria-label={`Close ${TAB_LABELS[tab]}`}
-                        tabIndex={-1}
-                        onClick={e => { e.stopPropagation(); props.onClose(tab); }}
-                    >×</span>
-                </button>
+                        title={`Close ${TAB_LABELS[tab]}`}
+                        onClick={() => props.onClose(tab)}
+                    >
+                        ×
+                    </button>
+                </div>
             ))}
             <button type="button" className="bottom-collapse-button" aria-label="Collapse panel" onClick={props.onCollapse}>
                 ▼

@@ -71,6 +71,7 @@ export function TerminalPanel() {
     const pendingOutputRef = useRef<Map<string, string>>(new Map());
     const tabsRef = useRef<TermTab[]>(tabs);
     const activeIdRef = useRef<string | null>(activeId);
+    const autoCreatedRef = useRef(false);
 
     tabsRef.current = tabs;
     activeIdRef.current = activeId;
@@ -141,6 +142,17 @@ export function TerminalPanel() {
         }, 0);
     }, [bridge, createRuntime, fitTerminal]);
 
+    const closeSession = useCallback((id: string) => {
+        if (!bridge) return;
+        void bridge.kill(id);
+        disposeRuntime(id);
+        setTabs(prev => {
+            const next = prev.filter(tab => tab.id !== id);
+            setActiveId(current => current === id ? (next[0]?.id ?? null) : current);
+            return next;
+        });
+    }, [bridge, disposeRuntime]);
+
     const attachHost = useCallback((id: string, node: HTMLDivElement | null) => {
         if (!node || !bridge) return;
         const runtime = runtimesRef.current.get(id);
@@ -154,7 +166,10 @@ export function TerminalPanel() {
 
     useEffect(() => {
         if (!bridge) return;
-        if (tabs.length === 0) void createSession();
+        if (tabs.length === 0 && !autoCreatedRef.current) {
+            autoCreatedRef.current = true;
+            void createSession();
+        }
     }, [bridge, tabs.length, createSession]);
 
     useEffect(() => {
@@ -214,14 +229,27 @@ export function TerminalPanel() {
         <div className="terminal-panel" ref={panelRef}>
             <div className="terminal-tab-bar">
                 {tabs.map(tab => (
-                    <button
+                    <div
                         key={tab.id}
-                        type="button"
-                        className={`terminal-tab ${tab.id === activeId ? 'is-active' : ''}`}
-                        onClick={() => setActiveId(tab.id)}
+                        className={`terminal-tab-item ${tab.id === activeId ? 'is-active' : ''}`}
                     >
-                        {tab.shell.split('/').pop()}
-                    </button>
+                        <button
+                            type="button"
+                            className="terminal-tab"
+                            onClick={() => setActiveId(tab.id)}
+                        >
+                            {tab.shell.split('/').pop()}
+                        </button>
+                        <button
+                            type="button"
+                            className="terminal-tab-close"
+                            aria-label={`Close ${tab.shell.split('/').pop() ?? 'terminal'} session`}
+                            title="Close terminal session"
+                            onClick={() => closeSession(tab.id)}
+                        >
+                            ×
+                        </button>
+                    </div>
                 ))}
                 <button type="button" className="terminal-tab terminal-new-tab" aria-label="New terminal" onClick={() => void createSession()}>+</button>
                 <span className="terminal-status">{activeTab?.cwd ?? 'Starting shell...'}</span>
@@ -235,6 +263,11 @@ export function TerminalPanel() {
                         onPointerDown={() => runtimesRef.current.get(tab.id)?.term.focus()}
                     />
                 ))}
+                {tabs.length === 0 && (
+                    <div className="terminal-empty">
+                        <button type="button" onClick={() => void createSession()}>New terminal</button>
+                    </div>
+                )}
             </div>
             {error && <div className="terminal-error" role="status">{error}</div>}
         </div>
