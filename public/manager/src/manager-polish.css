@@ -1,14 +1,9 @@
 .manager-workspace.is-inspector-collapsed {
-    grid-template-rows: minmax(0, 1fr);
-    grid-template-areas: "sidebar detail";
-}
-
-.manager-workspace.is-inspector-collapsed.is-side-panel-open {
-    grid-template-areas: "sidebar detail ceo";
+    --activity-dock-height: 0px;
 }
 
 .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .manager-workspace {
-    grid-template-columns: 320px minmax(0, 1fr);
+    --sidebar-width: 320px;
 }
 
 .manager-workspace.is-inspector-collapsed .manager-activity {
@@ -156,7 +151,7 @@
 
 .manager-shell.is-sidebar-collapsed .manager-workspace,
 .manager-workspace.is-sidebar-collapsed {
-    grid-template-columns: 44px minmax(0, 1fr);
+    --sidebar-width: 44px;
 }
 
 .manager-shell.is-sidebar-collapsed .sidebar-rail {

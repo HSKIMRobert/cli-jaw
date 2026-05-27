@@ -102,7 +102,7 @@
 
 .manager-shell.is-sidebar-collapsed .manager-workspace,
 .manager-workspace.is-sidebar-collapsed {
-    grid-template-columns: 44px minmax(0, 1fr);
+    --sidebar-width: 44px;
 }
 
 .manager-shell.is-sidebar-collapsed .sidebar-rail {
