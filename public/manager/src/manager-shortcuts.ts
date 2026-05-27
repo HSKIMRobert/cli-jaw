@@ -6,6 +6,11 @@ export const MANAGER_SHORTCUT_ACTIONS: DashboardShortcutAction[] = [
     'focusNotes',
     'previousInstance',
     'nextInstance',
+    'toggleBottomPanel',
+    'toggleRightPanel',
+    'focusTerminal',
+    'openDiff',
+    'openFolderTree',
 ];
 
 export const DEFAULT_MANAGER_SHORTCUT_KEYMAP: DashboardShortcutKeymap = {
@@ -14,6 +19,11 @@ export const DEFAULT_MANAGER_SHORTCUT_KEYMAP: DashboardShortcutKeymap = {
     focusNotes: 'Alt+N',
     previousInstance: 'Alt+K',
     nextInstance: 'Alt+J',
+    toggleBottomPanel: 'Meta+J',
+    toggleRightPanel: 'Meta+Shift+B',
+    focusTerminal: 'Meta+`',
+    openDiff: 'Meta+Shift+D',
+    openFolderTree: 'Meta+Shift+E',
 };
 
 type ParsedShortcut = {

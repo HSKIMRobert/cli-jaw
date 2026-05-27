@@ -36,6 +36,7 @@ import { useJawCeoDashboardBridge } from './jaw-ceo/useJawCeoDashboardBridge';
 import { actionForShortcutEvent, isManagerShortcutEditableTarget } from './manager-shortcuts';
 import { reconcileActiveProfileFilter } from './profile-filter';
 import type { DashboardDetailTab, DashboardInstance, DashboardInstanceStatus, DashboardLifecycleAction, DashboardNotesAuthoringMode, DashboardNotesViewMode, DashboardProfile, DashboardScanResult, DashboardShortcutAction, DashboardSidebarMode } from './types';
+import { panelShortcutBus } from './panels/panel-shortcut-bus';
 export function App() {
     const [data, setData] = useState<DashboardScanResult | null>(null);
     const [loading, setLoading] = useState(true);
@@ -361,6 +362,7 @@ export function App() {
     }
 
     function runManagerShortcut(action: DashboardShortcutAction): void {
+        if (panelShortcutBus.dispatch(action)) return;
         if (action === 'focusInstances') {
             handleSidebarModeChange('instances');
             view.setDrawerOpen(false);
