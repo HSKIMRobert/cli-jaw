@@ -23,7 +23,8 @@ export function DiffPanel() {
 
     const loadRepo = useCallback(async () => {
         if (!bridge) return;
-        const home = '~';
+        const desktop = getDesktop();
+        const home = desktop?.getHomePath?.() ?? '/tmp';
         const result = await bridge.getRepoRoot(home);
         if (result.ok && result.root) {
             setRepoRoot(result.root);
