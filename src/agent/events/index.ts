@@ -237,6 +237,9 @@ export function extractFromEvent(cli: string, event: CliEventRecord, ctx: SpawnC
                         }
                     }
                     if (toolName === 'ScheduleWakeup' && input.delaySeconds && input.prompt) {
+                        if (ctx.scheduleWakeup) {
+                            console.warn('[jaw:wakeup] multiple ScheduleWakeup calls — using latest');
+                        }
                         ctx.scheduleWakeup = {
                             delaySeconds: Number(input.delaySeconds),
                             prompt: String(input.prompt),

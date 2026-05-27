@@ -157,6 +157,7 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
     if (sub === 'set') {
         const objective = args.slice(1).join(' ').trim();
         if (!objective) return blocked('Usage: /goal <objective>');
+        if (objective.length > 2000) return blocked('Objective too long (max 2000 characters).');
         const existing = getActiveGoal();
         if (existing && (existing.status === 'active' || existing.status === 'paused')) {
             return blocked(`Active goal already exists: "${existing.objective}"\nUse /goal done, /goal cancel, or /goal clear first.`);
