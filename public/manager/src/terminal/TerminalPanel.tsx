@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getTerminalBridge } from './terminal-bridge';
 import './terminal.css';
 
+const OUTPUT_DOM_CAP = 200_000;
+
 type TermSession = {
     id: string;
     shell: string;
@@ -35,7 +37,12 @@ export function TerminalPanel() {
             const el = termRef.current;
             if (!el) return;
             const pre = el.querySelector(`[data-term-id="${_id}"]`);
-            if (pre) pre.textContent += data;
+            if (pre) {
+                pre.textContent += data;
+                if ((pre.textContent?.length ?? 0) > OUTPUT_DOM_CAP) {
+                    pre.textContent = pre.textContent!.slice(-OUTPUT_DOM_CAP);
+                }
+            }
         });
         const unsub2 = bridge.onExit((id, _code) => {
             setSessions(prev => prev.filter(s => s.id !== id));
@@ -45,6 +52,7 @@ export function TerminalPanel() {
         return () => {
             cleanupRef.current.forEach(fn => fn());
             cleanupRef.current = [];
+            sessions.forEach(s => { void bridge.kill(s.id); });
         };
     }, [bridge]);
 
