@@ -195,26 +195,30 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
         const note = args.slice(1).join(' ').trim() || undefined;
         const goal = completeGoal(note);
         if (!goal) return blocked('No active goal to complete.');
-        return info(`Goal completed: ${goal.objective}${note ? ` — ${note}` : ''}`);
+        return { ok: true, type: 'info', text: `Goal completed: ${goal.objective}${note ? ` — ${note}` : ''}`, steerPrompt: `[System] Goal completed: "${goal.objective}". No active goal remains.` };
     }
 
     if (sub === 'cancel') {
         const reason = args.slice(1).join(' ').trim() || undefined;
         const goal = cancelGoal(reason);
         if (!goal) return blocked('No active goal to cancel.');
-        return info(`Goal cancelled: ${goal.objective}`);
+        return { ok: true, type: 'info', text: `Goal cancelled: ${goal.objective}`, steerPrompt: `[System] Goal cancelled: "${goal.objective}". No active goal remains.` };
     }
 
     if (sub === 'pause') {
         const goal = pauseGoal();
         if (!goal) return blocked('No active goal to pause.');
-        return info(`Goal paused: ${goal.objective}`);
+        return { ok: true, type: 'info', text: `Goal paused: ${goal.objective}`, steerPrompt: `[System] Goal paused: "${goal.objective}". Do not continue working on this goal until the user resumes it.` };
     }
 
     if (sub === 'resume') {
+        const existing = getActiveGoal();
+        if (existing && existing.status === 'active') {
+            return { ok: true, type: 'info', text: `Goal already active: ${existing.objective}`, steerPrompt: `[System] User resumed active goal: "${existing.objective}" (ID: ${existing.id}). Continue working on this goal.` };
+        }
         const goal = resumeGoal();
-        if (!goal) return blocked('No paused goal to resume.');
-        return info(`Goal resumed: ${goal.objective}`);
+        if (!goal) return blocked('No active or paused goal to resume.');
+        return { ok: true, type: 'info', text: `Goal resumed: ${goal.objective}`, steerPrompt: `[System] User resumed goal: "${goal.objective}" (ID: ${goal.id}). Continue working on this goal.` };
     }
 
     if (sub === 'clear') {
