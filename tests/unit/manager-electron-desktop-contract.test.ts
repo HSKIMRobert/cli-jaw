@@ -56,6 +56,17 @@ test('Electron shell stamps manager requests with a desktop user-agent token', (
     assert.ok(main.includes('app.getVersion()'), 'desktop user-agent token should include the packaged app version');
 });
 
+test('Electron window fits within the visible display work area', () => {
+    const main = read('electron/src/main/index.ts');
+
+    assert.ok(main.includes("import { app, BrowserWindow, dialog, screen, session, shell } from 'electron'"), 'Electron main must import screen for work-area sizing');
+    assert.ok(main.includes('function getInitialWindowBounds()'), 'Electron main must compute initial bounds before creating BrowserWindow');
+    assert.ok(main.includes('screen.getPrimaryDisplay()'), 'initial bounds must use the active display work area');
+    assert.ok(main.includes('workArea.height - WINDOW_WORK_AREA_MARGIN'), 'initial height must leave a margin inside the visible work area');
+    assert.ok(main.includes('...initialWindowBounds'), 'BrowserWindow must use the clamped work-area bounds');
+    assert.ok(main.includes('minHeight: MIN_VISIBLE_WINDOW_HEIGHT'), 'BrowserWindow must keep a sane minimum after fitting to the work area');
+});
+
 test('Electron titlebar spacing survives React timing and CSS cascade', () => {
     const preload = read('electron/src/preload/index.ts');
     const compact = read('public/manager/src/manager-p0-1-1.css');

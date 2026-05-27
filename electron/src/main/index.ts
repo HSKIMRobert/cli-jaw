@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, session, shell } from 'electron';
+import { app, BrowserWindow, dialog, screen, session, shell } from 'electron';
 import { fileURLToPath, URL } from 'node:url';
 import { dirname, join } from 'node:path';
 import type { ChildProcess } from 'node:child_process';
@@ -105,6 +105,11 @@ const EXTERNAL_ALLOWLIST = [
 
 const DEV_TOOLS_ENABLED =
   process.env.NODE_ENV === 'development' || process.env.JAW_ELECTRON_DEVTOOLS === '1';
+const DEFAULT_WINDOW_WIDTH = 1440;
+const DEFAULT_WINDOW_HEIGHT = 960;
+const WINDOW_WORK_AREA_MARGIN = 80;
+const MIN_VISIBLE_WINDOW_WIDTH = 960;
+const MIN_VISIBLE_WINDOW_HEIGHT = 640;
 
 const ringBuffer = new RingBuffer(1024 * 1024);
 let managerProcess: ChildProcess | null = null;
@@ -169,6 +174,20 @@ if (!gotLock) {
     dialog.showErrorBox('jaw Electron', String(err?.stack ?? err));
     app.quit();
   });
+}
+
+function getInitialWindowBounds(): { width: number; height: number; x: number; y: number } {
+  const { workArea } = screen.getPrimaryDisplay();
+  const maxWidth = Math.max(MIN_VISIBLE_WINDOW_WIDTH, workArea.width - WINDOW_WORK_AREA_MARGIN);
+  const maxHeight = Math.max(MIN_VISIBLE_WINDOW_HEIGHT, workArea.height - WINDOW_WORK_AREA_MARGIN);
+  const width = Math.min(DEFAULT_WINDOW_WIDTH, maxWidth);
+  const height = Math.min(DEFAULT_WINDOW_HEIGHT, maxHeight);
+  return {
+    width,
+    height,
+    x: Math.round(workArea.x + (workArea.width - width) / 2),
+    y: Math.round(workArea.y + (workArea.height - height) / 2),
+  };
 }
 
 app.on('window-all-closed', () => {
@@ -393,9 +412,11 @@ function handleManagerExit(code: number | null, signal: NodeJS.Signals | null): 
 }
 
 async function createWindow(): Promise<void> {
+  const initialWindowBounds = getInitialWindowBounds();
   mainWindow = new BrowserWindow({
-    width: 1440,
-    height: 960,
+    ...initialWindowBounds,
+    minWidth: MIN_VISIBLE_WINDOW_WIDTH,
+    minHeight: MIN_VISIBLE_WINDOW_HEIGHT,
     show: true,
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 16, y: 16 },
