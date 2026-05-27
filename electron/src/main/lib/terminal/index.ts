@@ -6,6 +6,7 @@ import { existsSync, statSync } from 'node:fs';
 import { discoverShell } from './shell-discovery.js';
 import { sanitizeEnv } from './env-sanitize.js';
 import { isWithinHome } from '../path-security.js';
+import { isAllowedSender } from '../ipc-origin-guard.js';
 
 const MAX_SESSIONS = 8;
 const BUFFER_CAP = 1024 * 1024;
@@ -29,7 +30,8 @@ function isAllowedCwd(cwd: string): boolean {
 }
 
 export function registerTerminalIpc(getWindow: () => BrowserWindow | null): void {
-    ipcMain.handle('terminal:create', (_event, opts?: { cwd?: string }) => {
+    ipcMain.handle('terminal:create', (event, opts?: { cwd?: string }) => {
+        if (!isAllowedSender(event)) return { ok: false, error: 'unauthorized' };
         if (sessions.size >= MAX_SESSIONS) {
             return { ok: false, error: 'max sessions reached' };
         }
@@ -80,13 +82,15 @@ export function registerTerminalIpc(getWindow: () => BrowserWindow | null): void
         return { ok: true, id, shell, cwd };
     });
 
-    ipcMain.handle('terminal:write', (_event, id: string, data: string) => {
+    ipcMain.handle('terminal:write', (event, id: string, data: string) => {
+        if (!isAllowedSender(event)) return;
         const session = sessions.get(id);
         if (!session) return;
         session.proc.stdin?.write(data);
     });
 
-    ipcMain.handle('terminal:resize', (_event, id: string, cols: number, rows: number) => {
+    ipcMain.handle('terminal:resize', (event, id: string, cols: number, rows: number) => {
+        if (!isAllowedSender(event)) return;
         // resize only works with node-pty; with spawn we send SIGWINCH
         const session = sessions.get(id);
         if (!session) return;
@@ -98,7 +102,8 @@ export function registerTerminalIpc(getWindow: () => BrowserWindow | null): void
         }
     });
 
-    ipcMain.handle('terminal:kill', (_event, id: string) => {
+    ipcMain.handle('terminal:kill', (event, id: string) => {
+        if (!isAllowedSender(event)) return;
         const session = sessions.get(id);
         if (!session) return;
         session.proc.kill('SIGTERM');
