@@ -5,6 +5,7 @@ import { ManagerShell } from './components/ManagerShell';
 import { HelpDrawer } from './help/HelpDrawer';
 import { type HelpTopicId } from './help/helpContent';
 import { SidebarRailRouter } from './SidebarRailRouter';
+import { PanelLayoutProvider } from './panels/PanelLayoutProvider';
 import { ElectronMetricsPanel } from './electron-metrics';
 import { IframeBridge } from './sync/IframeBridge';
 import { VisibilityBridge } from './sync/VisibilityBridge';
@@ -95,6 +96,7 @@ export function AppChrome(props: AppChromeProps) {
         <>
             <IframeBridge />
             <VisibilityBridge />
+            <PanelLayoutProvider>
             <ManagerShell
                 sidebarCollapsed={props.view.sidebarCollapsed}
                 commandBar={<CommandBar query={props.query} loading={props.loading} onQueryChange={props.setQuery} onRefresh={() => void props.load()} onOpenDrawer={() => props.view.setDrawerOpen(true)} theme={props.theme.theme} onThemeChange={props.theme.setTheme} onOpenPalette={props.palette.toggle} />}
@@ -127,6 +129,7 @@ export function AppChrome(props: AppChromeProps) {
                 )}
                 activityHeight={props.view.activityDockCollapsed ? 48 : props.view.activityDockHeight}
             />
+            </PanelLayoutProvider>
             <CommandPalette open={props.palette.open} onClose={props.palette.close} instances={props.instances} getLabel={instanceLabel}
                 onSelectInstance={props.handleSelectInstance} theme={props.theme.theme} onCycleTheme={props.cycleTheme} onRefresh={() => void props.load()}
                 onToggleHidden={() => { const next = !props.showHidden; props.setShowHidden(next); void props.load(next); }}
