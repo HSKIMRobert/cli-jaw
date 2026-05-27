@@ -354,7 +354,7 @@ P (Plan) → A (Audit) → B (Build) → C (Check) → D (Done) → IDLE
 | **C — Check** | Type-check (`tsc --noEmit`), docs update, consistency check |
 | **D — Done** | Summary of all changes. Returns to idle |
 
-State is database-persisted and survives restarts. Workers cannot modify files — only verify. Activate with `jaw orchestrate`, `/orchestrate`, or `/pabcd`; resume an active worklog explicitly with `/continue`. Workflow helper slash commands are exposed as `/interview`, `/deliberate`, `/planaudit`, and `/goal`; bounded automation is expressed as `/goal run ...`, not a separate top-level `/autopilot`. In Phase 1, `/goal` is a visible gated stub and `/goal run ...` stays blocked until later runtime controls land.
+State is database-persisted and survives restarts. Workers cannot modify files — only verify. Activate with `jaw orchestrate`, `/orchestrate`, or `/pabcd`; resume an active worklog explicitly with `/continue`. Workflow helper slash commands are exposed as `/plan`, `/interview`, `/deliberate`, `/planaudit`, and `/goal`; `/plan` is a compatibility guide that explains "this is PABCD P" and points to the right next command instead of creating a second planning mode. Bounded automation is expressed as `/goal run ...`, not a separate top-level `/autopilot`. In Phase 1, `/goal` is a visible gated stub and `/goal run ...` stays blocked until later runtime controls land.
 
 ---
 
@@ -420,7 +420,7 @@ Computer Use lets you control any macOS app — Finder, Safari, System Settings,
 📱 Telegram ←→ 🦈 CLI-JAW ←→ 🤖 AI Engines
 ```
 
-Text chat, voice messages (auto-transcribed via STT — speech-to-text), file/photo upload, slash commands (`/cli`, `/model`, `/status`, `/interview`, `/deliberate`, `/planaudit`), scheduled task delivery via `every`/`cron` (recurring schedule) heartbeat jobs.
+Text chat, voice messages (auto-transcribed via STT — speech-to-text), file/photo upload, slash commands (`/cli`, `/model`, `/status`, `/plan`, `/interview`, `/deliberate`, `/planaudit`), scheduled task delivery via `every`/`cron` (recurring schedule) heartbeat jobs.
 
 <details>
 <summary>Setup (3 steps)</summary>
