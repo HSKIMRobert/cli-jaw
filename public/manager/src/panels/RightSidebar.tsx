@@ -103,10 +103,10 @@ export function RightSidebar(props: RightSidebarProps) {
         const label = MODE_LABELS[mode];
         return (
             <div key={`${slot}-${mode}`} className="right-sub-panel" aria-label={label}>
-                {isSplit ? (
-                    <div className="right-sub-header">
-                        <span className="right-sub-title">{label}</span>
-                        <div className="right-sub-actions">
+                <div className="right-sub-header">
+                    <span className="right-sub-title">{label}</span>
+                    <div className="right-sub-actions">
+                        {isSplit ? (
                             <button
                                 type="button"
                                 className="right-sub-action"
@@ -116,18 +116,18 @@ export function RightSidebar(props: RightSidebarProps) {
                             >
                                 Only
                             </button>
-                            <button
-                                type="button"
-                                className="right-sub-action right-sub-close"
-                                aria-label={`Close ${label}`}
-                                title={`Close ${label}`}
-                                onClick={() => dispatch({ type: 'CLOSE_RIGHT_SUB', slot })}
-                            >
-                                ×
-                            </button>
-                        </div>
+                        ) : null}
+                        <button
+                            type="button"
+                            className="right-sub-action right-sub-close"
+                            aria-label={`Close ${label}`}
+                            title={`Close ${label}`}
+                            onClick={() => dispatch({ type: 'CLOSE_RIGHT_SUB', slot })}
+                        >
+                            ×
+                        </button>
                     </div>
-                ) : null}
+                </div>
                 <div className="right-sub-content">
                     {props.renderPanel(mode)}
                 </div>
