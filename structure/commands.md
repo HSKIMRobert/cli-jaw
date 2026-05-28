@@ -125,7 +125,7 @@ ide, orchestrate, project
 ### Workflow slash commands
 
 - `/plan [request|status|copy]`: 다른 CLI의 `/plan` 습관을 cli-jaw에 맞춰 설명하는 compatibility command. 새 plan mode를 만들지 않고 "cli-jaw에서는 이게 PABCD P"라고 안내하며, 필요하면 `/interview`, `/deliberate`, `/planaudit`, `/orchestrate P`로 이어가게 한다. 결과는 non-authoritative local-cache workflow artifact다.
-- `/interview <request>`: IPABCD I(Interview) 상태 머신으로 진입. 요구사항을 한 질문씩 좁히며 known/unknown을 분리한 뒤, 충분히 명확해지면 P로 전환. 인터뷰 데이터는 `OrcContext.interview`에만 저장되고 워크로그는 생성하지 않는다.
+- `/interview <request>`: IPABCD I(Interview) 상태 머신으로 진입. 요구사항을 라운드당 1~3개 질문으로 좁히며, LLM이 응답마다 `<interview_tracker>` 블록으로 known/unknown을 구조화 추출한다. 이 트래커는 `OrcContext.interview`(known/unknown/round)에 저장되고 `orc_state` WS로 Web UI interview 패널에 실시간 표시되며, 충분히 명확해지면 P로 전환. 인터뷰 데이터는 워크로그를 생성하지 않는다.
 - `/deliberate <request-or-plan>`: Planner/Architect/Critic 관점으로 계획을 점검하는 prompt-only workflow.
 - `/planaudit [plan]`: PABCD A에서 직원에게 보낼 수 있는 읽기 전용 감사 task text를 만든다. Phase 1 canonical name은 원격 메뉴 안전성을 위해 `/planaudit`이며 `/plan-audit` alias는 없다.
 - `/goal [set|status|run|pause|resume|clear|reset] [args...]`: Phase 1에서는 visible gated stub이다. durable goal state는 Phase 3에서 붙고, 권한/checkpoint/stop control이 있는 bounded run은 `/goal run ...` 하위 동작으로 Phase 5에서 붙는다.
