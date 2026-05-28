@@ -23,7 +23,11 @@ function PanelRightIcon() {
 export function DesktopPanelControls() {
     const panelLayout = usePanelLayout();
     const panelActions = usePanelActions();
-    const capabilities = resolvePanelCapabilities(currentManagerSurface());
+    const surface = currentManagerSurface();
+
+    if (surface !== 'electron') return null;
+
+    const capabilities = resolvePanelCapabilities(surface);
     const terminalCapability = capabilities.terminal;
     const rightCapability = capabilities.folder;
     const terminalEnabled = panelCapabilityEnabled(terminalCapability);

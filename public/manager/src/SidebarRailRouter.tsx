@@ -10,6 +10,7 @@ import { lazy } from 'react';
 import { RightSidebar } from './panels/RightSidebar';
 import { BottomPanel, type BottomPanelRenderControls } from './panels/BottomPanel';
 import { usePanelLayout } from './panels/PanelLayoutProvider';
+import { currentManagerSurface } from './panels/panel-capabilities';
 import type { RightPanelMode, BottomPanelTab } from './panels/types';
 
 const TerminalPanel = lazy(() => import('./terminal/TerminalPanel').then(m => ({ default: m.TerminalPanel })));
@@ -169,6 +170,9 @@ export function SidebarRailRouter(props: Props) {
     const [rightPreviewFilePath, setRightPreviewFilePath] = useState<string | null>(null);
     const [remindersView, setRemindersView] = useState<RemindersView>('matrix');
     const remindersFeed = useRemindersFeed({ active: props.sidebarMode === 'reminders' });
+    const desktopPanelsAvailable = currentManagerSurface() === 'electron';
+    const rightPanelOpen = desktopPanelsAvailable && panelLayout.effectiveRightOpen;
+    const bottomPanelOpen = desktopPanelsAvailable && panelLayout.state.bottomPanel.open;
     const notesSelectedHiddenByFilter = Boolean(
         props.notesModel.tagFilter
         && props.notesSelectedPath
@@ -189,12 +193,12 @@ export function SidebarRailRouter(props: Props) {
             inspectorHeight={props.activityDockCollapsed ? 48 : props.activityDockHeight}
             drawerOpen={props.drawerOpen}
             onCloseDrawer={props.onCloseDrawer}
-            rightPanelOpen={panelLayout.effectiveRightOpen}
+            rightPanelOpen={rightPanelOpen}
             rightPanelWidth={panelLayout.state.rightPanel.width}
-            rightPanelContent={panelLayout.effectiveRightOpen ? <RightSidebar renderPanel={mode => renderRightPanelContent(mode, rightPreviewFilePath, handleRightPreviewFile, props.selectedInstance, props.dashboardSettingsUi, props.onDashboardSettingsPatch, props.notesModel)} /> : undefined}
-            bottomPanelOpen={panelLayout.state.bottomPanel.open}
+            rightPanelContent={rightPanelOpen ? <RightSidebar renderPanel={mode => renderRightPanelContent(mode, rightPreviewFilePath, handleRightPreviewFile, props.selectedInstance, props.dashboardSettingsUi, props.onDashboardSettingsPatch, props.notesModel)} /> : undefined}
+            bottomPanelOpen={bottomPanelOpen}
             bottomPanelHeight={panelLayout.state.bottomPanel.height}
-            bottomPanelContent={panelLayout.state.bottomPanel.tabs.length > 0 ? <BottomPanel renderTab={renderBottomTabContent} /> : undefined}
+            bottomPanelContent={bottomPanelOpen && panelLayout.state.bottomPanel.tabs.length > 0 ? <BottomPanel renderTab={renderBottomTabContent} /> : undefined}
             navigator={(
                 <>
                     <SidebarRail
