@@ -7,6 +7,14 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+# Portable matcher: prefer ripgrep, fall back to grep -E when rg is not on PATH.
+# Non-interactive shells frequently lack `rg`; without this fallback the
+# `rg ... || true` guards below silently swallow every match, so every line-count
+# check is skipped ("미기재") and the whole script becomes a vacuous pass.
+if ! command -v rg >/dev/null 2>&1; then
+  rg() { grep -E "$@"; }
+fi
+
 DOC="structure/str_func.md"
 FIX=false
 [[ "${1:-}" == "--fix" ]] && FIX=true
@@ -36,6 +44,7 @@ declare -a CHECKS=(
   "spawn.ts.*CLI spawn|src/agent/spawn.ts"
   "args.ts.*인자|src/agent/args.ts"
   "pipeline.ts.*PABCD orchestration|src/orchestrator/pipeline.ts"
+  "state-machine.ts.*IPABCD|src/orchestrator/state-machine.ts"
   "parser.ts.*triage|src/orchestrator/parser.ts"
   "distribute.ts|src/orchestrator/distribute.ts"
   "gateway.ts.*submitMessage|src/orchestrator/gateway.ts"
@@ -43,6 +52,7 @@ declare -a CHECKS=(
   "builder.ts.*프롬프트|src/prompt/builder.ts"
   "commands.ts.*레지스트리|src/cli/commands.ts"
   "handlers.ts.*핸들러|src/cli/handlers.ts"
+  "handlers-workflows.ts|src/cli/handlers-workflows.ts"
   "registry.ts.*CLI/모델 단일 소스|src/cli/registry.ts"
   "acp-client.ts|src/cli/acp-client.ts"
   "command-context.ts.*공유 커맨드|src/cli/command-context.ts"
@@ -57,6 +67,7 @@ declare -a CHECKS=(
   "index.ts.*re-export|src/browser/index.ts"
   "quota.ts.*할당|src/routes/quota.ts"
   "browser.ts.*라우트|src/routes/browser.ts"
+  "orchestrate.ts.*reset/state/workers|src/routes/orchestrate.ts"
   "path-guards.ts|src/security/path-guards.ts"
   "decode.ts|src/security/decode.ts"
   "response.ts.*ok\(|src/http/response.ts"
