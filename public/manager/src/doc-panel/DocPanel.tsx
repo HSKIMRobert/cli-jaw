@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { getDesktop, type FolderBridgeApi } from '../panels/desktop-bridge';
 import { MarkdownRenderer } from '../notes/rendering/MarkdownRenderer';
 import { CodeBlock } from '../notes/rendering/CodeBlock';
+import { fetchNoteFile } from '../notes/notes-api';
 import './doc-panel.css';
 
 const EXT_LANG: Record<string, string> = {
@@ -22,6 +23,10 @@ function isMarkdown(filePath: string): boolean {
 
 function getFileBridge(): Pick<FolderBridgeApi, 'readFile'> | null {
     return getDesktop()?.folder ?? null;
+}
+
+function isNotesRelativePath(filePath: string): boolean {
+    return !filePath.startsWith('/') && !/^[a-zA-Z]:[\\/]/.test(filePath);
 }
 
 function DocContent(props: { filePath: string; content: string }) {
@@ -46,31 +51,42 @@ export function DocPanel(props: { filePath?: string | undefined }) {
     const [binary, setBinary] = useState(false);
 
     useEffect(() => {
-        if (!bridge || !props.filePath) {
+        if (!props.filePath) {
             setContent('');
             setError(null);
             return;
         }
         void (async () => {
-            const result = await bridge.readFile(props.filePath!);
-            if (result.ok && result.content !== undefined) {
-                if (result.binary) {
-                    setBinary(true);
-                    setContent('');
+            if (bridge) {
+                const result = await bridge.readFile(props.filePath!);
+                if (result.ok && result.content !== undefined) {
+                    if (result.binary) {
+                        setBinary(true);
+                        setContent('');
+                    } else {
+                        setBinary(false);
+                        setContent(result.content);
+                    }
+                    setError(null);
                 } else {
-                    setBinary(false);
-                    setContent(result.content);
+                    setError(result.error ?? 'Failed to read file');
                 }
+                return;
+            }
+            if (!isNotesRelativePath(props.filePath!)) {
+                setError('Document preview for arbitrary local files requires Electron desktop app');
+                return;
+            }
+            try {
+                const note = await fetchNoteFile(props.filePath!);
+                setBinary(false);
+                setContent(note.content);
                 setError(null);
-            } else {
-                setError(result.error ?? 'Failed to read file');
+            } catch (err) {
+                setError((err as Error).message);
             }
         })();
     }, [bridge, props.filePath]);
-
-    if (!bridge) {
-        return <div className="doc-panel doc-unavailable">Document view requires Electron desktop app</div>;
-    }
 
     if (!props.filePath) {
         return <div className="doc-panel doc-empty">Open Folders and select a file to preview it here.</div>;

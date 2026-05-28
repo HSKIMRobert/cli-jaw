@@ -143,11 +143,12 @@ function renderRightPanelContent(
     selectedInstance: DashboardInstance | null,
     dashboardSettingsUi: DashboardRegistryUi,
     onDashboardSettingsPatch: (patch: Partial<DashboardRegistryUi>) => void,
+    notesModel: NotesModelState,
 ): ReactNode {
     const fallback = <div style={{ padding: '12px', color: 'var(--text-dim)', fontSize: '12px' }}>Loading...</div>;
     switch (mode) {
         case 'diff': return <Suspense fallback={fallback}><DiffPanel selectedInstance={selectedInstance} settings={dashboardSettingsUi} onSettingsPatch={onDashboardSettingsPatch} /></Suspense>;
-        case 'folder': return <Suspense fallback={fallback}><FolderPanel selectedFilePath={previewFilePath} onPreviewFile={onPreviewFile} /></Suspense>;
+        case 'folder': return <Suspense fallback={fallback}><FolderPanel selectedFilePath={previewFilePath} notesTree={notesModel.tree} notesRoot={notesModel.notesRoot} onPreviewFile={onPreviewFile} /></Suspense>;
         case 'doc': return <Suspense fallback={fallback}><DocPanel filePath={previewFilePath ?? undefined} /></Suspense>;
         case 'browser': return <Suspense fallback={fallback}><BrowserPanel /></Suspense>;
         default: return null;
@@ -190,7 +191,7 @@ export function SidebarRailRouter(props: Props) {
             onCloseDrawer={props.onCloseDrawer}
             rightPanelOpen={panelLayout.effectiveRightOpen}
             rightPanelWidth={panelLayout.state.rightPanel.width}
-            rightPanelContent={panelLayout.effectiveRightOpen ? <RightSidebar renderPanel={mode => renderRightPanelContent(mode, rightPreviewFilePath, handleRightPreviewFile, props.selectedInstance, props.dashboardSettingsUi, props.onDashboardSettingsPatch)} /> : undefined}
+            rightPanelContent={panelLayout.effectiveRightOpen ? <RightSidebar renderPanel={mode => renderRightPanelContent(mode, rightPreviewFilePath, handleRightPreviewFile, props.selectedInstance, props.dashboardSettingsUi, props.onDashboardSettingsPatch, props.notesModel)} /> : undefined}
             bottomPanelOpen={panelLayout.state.bottomPanel.open}
             bottomPanelHeight={panelLayout.state.bottomPanel.height}
             bottomPanelContent={panelLayout.state.bottomPanel.tabs.length > 0 ? <BottomPanel renderTab={renderBottomTabContent} /> : undefined}

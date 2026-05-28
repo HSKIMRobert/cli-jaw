@@ -1,5 +1,5 @@
 import { usePanelActions, usePanelLayout } from '../panels/PanelLayoutProvider';
-import { isElectron } from '../panels/desktop-bridge';
+import { currentManagerSurface, panelCapabilityEnabled, resolvePanelCapabilities } from '../panels/panel-capabilities';
 
 function TerminalIcon() {
     return (
@@ -23,7 +23,11 @@ function PanelRightIcon() {
 export function DesktopPanelControls() {
     const panelLayout = usePanelLayout();
     const panelActions = usePanelActions();
-    if (!isElectron()) return null;
+    const capabilities = resolvePanelCapabilities(currentManagerSurface());
+    const terminalCapability = capabilities.terminal;
+    const rightCapability = capabilities.folder;
+    const terminalEnabled = panelCapabilityEnabled(terminalCapability);
+    const rightEnabled = panelCapabilityEnabled(rightCapability);
 
     const bottomOpen = panelLayout.state.bottomPanel.open;
     const rightOpen = panelLayout.effectiveRightOpen;
@@ -33,7 +37,9 @@ export function DesktopPanelControls() {
             <button
                 className={`command-panel-toggle${bottomOpen ? ' is-active' : ''}`}
                 type="button"
+                disabled={!terminalEnabled}
                 onClick={() => {
+                    if (!terminalEnabled) return;
                     if (bottomOpen) {
                         panelActions.toggleBottomPanel();
                     } else {
@@ -42,14 +48,16 @@ export function DesktopPanelControls() {
                 }}
                 aria-label="Toggle terminal panel"
                 aria-pressed={bottomOpen}
-                title="Terminal (Ctrl+Shift+`)"
+                title={terminalCapability.reason ?? 'Terminal (Ctrl+Shift+`)'}
             >
                 <TerminalIcon />
             </button>
             <button
                 className={`command-panel-toggle${rightOpen ? ' is-active' : ''}`}
                 type="button"
+                disabled={!rightEnabled}
                 onClick={() => {
+                    if (!rightEnabled) return;
                     if (rightOpen) {
                         panelActions.toggleRightPanel();
                     } else {
@@ -58,7 +66,7 @@ export function DesktopPanelControls() {
                 }}
                 aria-label="Toggle right panel"
                 aria-pressed={rightOpen}
-                title="Side panel (Command+B)"
+                title={rightCapability.reason ?? 'Side panel (Command+B)'}
             >
                 <PanelRightIcon />
             </button>

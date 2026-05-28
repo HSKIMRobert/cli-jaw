@@ -1,13 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getDesktop, type FolderBridgeApi } from '../panels/desktop-bridge';
+import type { NotesTreeEntry } from '../notes/notes-types';
+import { createElectronFolderSource, createNotesVaultFolderSource, type FolderPanelEntry } from './folder-sources';
 import './folder-panel.css';
-
-type FolderEntry = {
-    name: string;
-    path: string;
-    kind: 'file' | 'directory';
-    size: number;
-};
 
 function getFolderBridge(): FolderBridgeApi | null {
     return getDesktop()?.folder ?? null;
@@ -15,35 +10,42 @@ function getFolderBridge(): FolderBridgeApi | null {
 
 type FolderPanelProps = {
     selectedFilePath?: string | null | undefined;
+    notesTree?: NotesTreeEntry[] | undefined;
+    notesRoot?: string | null | undefined;
     onPreviewFile?: ((path: string) => void) | undefined;
 };
 
 export function FolderPanel(props: FolderPanelProps) {
     const bridge = getFolderBridge();
+    const source = useMemo(
+        () => bridge ? createElectronFolderSource(bridge) : createNotesVaultFolderSource(props.notesTree ?? [], props.notesRoot ?? null),
+        [bridge, props.notesRoot, props.notesTree],
+    );
     const [rootPath, setRootPath] = useState<string | null>(null);
-    const [entries, setEntries] = useState<FolderEntry[]>([]);
+    const [entries, setEntries] = useState<FolderPanelEntry[]>([]);
     const [expanded, setExpanded] = useState<Set<string>>(new Set());
-    const [childrenCache, setChildrenCache] = useState<Map<string, FolderEntry[]>>(new Map());
+    const [childrenCache, setChildrenCache] = useState<Map<string, FolderPanelEntry[]>>(new Map());
     const [error, setError] = useState<string | null>(null);
 
     const loadDir = useCallback(async (dirPath: string) => {
-        if (!bridge) return;
-        const result = await bridge.listDir(dirPath);
-        if (result.ok && result.entries) {
-            setEntries(result.entries);
+        try {
+            const nextEntries = await source.listDir(dirPath);
+            setEntries(nextEntries);
             setError(null);
-        } else {
-            setError(result.error ?? 'Failed to list directory');
+        } catch (err) {
+            setError((err as Error).message);
         }
-    }, [bridge]);
+    }, [source]);
 
     const loadChildren = useCallback(async (dirPath: string) => {
-        if (!bridge || childrenCache.has(dirPath)) return;
-        const result = await bridge.listDir(dirPath);
-        if (result.ok && result.entries) {
-            setChildrenCache(prev => new Map(prev).set(dirPath, result.entries!));
+        if (childrenCache.has(dirPath)) return;
+        try {
+            const nextEntries = await source.listDir(dirPath);
+            setChildrenCache(prev => new Map(prev).set(dirPath, nextEntries));
+        } catch (err) {
+            setError((err as Error).message);
         }
-    }, [bridge, childrenCache]);
+    }, [childrenCache, source]);
 
     const toggleExpand = useCallback((entryPath: string) => {
         setExpanded(prev => {
@@ -59,46 +61,42 @@ export function FolderPanel(props: FolderPanelProps) {
     }, [loadChildren]);
 
     const pickFolder = useCallback(async () => {
-        if (!bridge) return;
-        const result = await bridge.pickFolder();
-        if (result.ok && result.path) {
-            if (rootPath) void bridge.unwatchDir(rootPath);
-            setRootPath(result.path);
+        if (!source.pickRoot) return;
+        const picked = await source.pickRoot();
+        if (picked) {
+            if (rootPath && source.unwatchDir) void source.unwatchDir(rootPath);
+            setRootPath(picked);
             setExpanded(new Set());
             setChildrenCache(new Map());
-            await loadDir(result.path);
+            await loadDir(picked);
         }
-    }, [bridge, loadDir, rootPath]);
+    }, [loadDir, rootPath, source]);
 
     useEffect(() => {
-        if (!bridge || rootPath) return;
+        if (rootPath !== null) return;
         let cancelled = false;
         void (async () => {
-            const result = await bridge.getDefaultRoot();
+            const nextRoot = await source.getDefaultRoot();
             if (cancelled) return;
-            if (result.ok && result.path) {
-                setRootPath(result.path);
-                await loadDir(result.path);
-                return;
-            }
-            setError(result.error ?? 'Failed to open default folder');
+            setRootPath(nextRoot);
+            await loadDir(nextRoot);
         })();
         return () => { cancelled = true; };
-    }, [bridge, loadDir, rootPath]);
+    }, [loadDir, rootPath, source]);
 
     useEffect(() => {
-        if (!bridge || !rootPath) return;
-        void bridge.watchDir(rootPath);
-        const unsub = bridge.onDirChange(() => {
+        if (!source.watchDir || !source.onDirChange || rootPath === null) return;
+        void source.watchDir(rootPath);
+        const unsub = source.onDirChange(() => {
             void loadDir(rootPath);
         });
         return () => {
             unsub();
-            void bridge.unwatchDir(rootPath);
+            void source.unwatchDir?.(rootPath);
         };
-    }, [bridge, rootPath, loadDir]);
+    }, [source, rootPath, loadDir]);
 
-    function renderEntries(items: FolderEntry[], depth: number): React.ReactNode[] {
+    function renderEntries(items: FolderPanelEntry[], depth: number): React.ReactNode[] {
         return items.map(entry => (
             <div key={entry.path}>
                 <div
@@ -124,25 +122,21 @@ export function FolderPanel(props: FolderPanelProps) {
         ));
     }
 
-    if (!bridge) {
-        return <div className="folder-panel folder-unavailable">Folder view requires Electron desktop app</div>;
-    }
-
     return (
         <div className="folder-panel">
             <div className="folder-toolbar">
-                <button type="button" className="folder-pick-btn" onClick={() => void pickFolder()}>
-                    {rootPath ? rootPath.split('/').pop() : 'Pick folder...'}
+                <button type="button" className="folder-pick-btn" onClick={() => void pickFolder()} disabled={!source.canPickRoot}>
+                    {source.canPickRoot ? (rootPath ? rootPath.split('/').pop() : 'Pick folder...') : source.label}
                 </button>
-                {rootPath && (
+                {rootPath !== null && (
                     <button type="button" className="folder-refresh" onClick={() => void loadDir(rootPath)}>↻</button>
                 )}
             </div>
             {error && <div className="folder-error">{error}</div>}
             <div className="folder-tree" role="tree">
                 {renderEntries(entries, 0)}
-                {entries.length === 0 && !error && rootPath && (
-                    <div className="folder-empty">Empty directory</div>
+                {entries.length === 0 && !error && rootPath !== null && (
+                    <div className="folder-empty">{source.kind === 'notes-vault' ? 'No notes in vault' : 'Empty directory'}</div>
                 )}
             </div>
         </div>
