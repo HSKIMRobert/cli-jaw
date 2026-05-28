@@ -4,6 +4,7 @@ import { api, apiJson } from '../api.js';
 import { ICONS } from '../icons.js';
 import { t } from '../locale.js';
 import { t as i18n } from './i18n.js';
+import { copyText } from './copy-text.js';
 
 interface MemoryFile {
     name: string;
@@ -394,9 +395,7 @@ export async function reindexAdvancedMemory(): Promise<void> {
 export function openCorruptedFolder(): void {
     const text = $('advStorageRoot')?.textContent || '';
     const path = text ? `${text}/corrupted` : 'JAW_HOME/memory/structured/corrupted';
-    if (navigator.clipboard?.writeText) {
-        navigator.clipboard.writeText(path).catch(() => { });
-    }
+    void copyText(path);
     alert(`Corrupted folder path copied/shown:\n${path}`);
 }
 

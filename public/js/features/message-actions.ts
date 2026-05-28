@@ -3,6 +3,7 @@ import { escapeHtml } from '../render.js';
 import { ICONS } from '../icons.js';
 import { bindToolItemInteractions } from './tool-ui.js';
 import { bindProcessBlockInteractions } from './process-block.js';
+import { copyText } from './copy-text.js';
 
 type MessageActionSource = {
     role: string;
@@ -72,8 +73,8 @@ function setCopied(btn: HTMLElement): void {
 async function copyMessage(btn: HTMLElement): Promise<void> {
     const msg = btn.closest('.msg');
     if (!msg) return;
-    await navigator.clipboard.writeText(messageText(msg));
-    setCopied(btn);
+    const result = await copyText(messageText(msg));
+    if (result.ok) setCopied(btn);
 }
 
 async function pinMessage(btn: HTMLElement, options: MessageActionsOptions): Promise<void> {

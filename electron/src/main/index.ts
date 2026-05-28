@@ -34,9 +34,16 @@ import { startAppMetricsCollector, type MetricsCollectorHandle } from './lib/app
 import { registerTerminalIpc, cleanupTerminals } from './lib/terminal/index.js';
 import { registerDiffIpc } from './lib/git/ipc.js';
 import { registerFolderIpc, cleanupFolderWatchers } from './lib/folder/ipc.js';
+import { registerClipboardIpc } from './lib/clipboard/ipc.js';
+import { registerPermissionDiagnosticsIpc } from './lib/permission-diagnostics/ipc.js';
 import { setAllowedOrigin } from './lib/ipc-origin-guard.js';
 import { primeMacAutomationPermission } from './lib/mac-automation-permission.js';
 import { showQuitProgress } from './lib/quit-progress.js';
+import {
+  recordElectronPermissionDenial,
+  resolveElectronPermissionDecision,
+  type ElectronPermissionSurface,
+} from './lib/electron-permissions.js';
 
 interface CliFlags {
   port: number;
@@ -267,12 +274,13 @@ async function requestApplicationQuit(reason: string): Promise<void> {
 async function bootstrap(): Promise<void> {
   installManagerApplicationMenu();
   installSecurityHeaders(MANAGER_ORIGIN);
-  session.defaultSession.setPermissionRequestHandler((_wc, _permission, cb) => cb(false));
-  session.defaultSession.setPermissionCheckHandler(() => false);
+  installDefaultSessionPermissionHandlers();
 
   registerTerminalIpc(() => mainWindow);
   registerDiffIpc();
   registerFolderIpc(() => mainWindow);
+  registerClipboardIpc();
+  registerPermissionDiagnosticsIpc();
 
   await ensureManagerRunning();
   await createWindow();
@@ -354,6 +362,78 @@ function installSecurityHeaders(managerOrigin: string): void {
   });
 }
 
+function permissionRequestUrl(contents: Electron.WebContents | null, fallback?: string): string {
+  return fallback || contents?.getURL() || MANAGER_URL;
+}
+
+function permissionSurfaceForUrl(raw: string): ElectronPermissionSurface {
+  return isPreviewFrameNavigation(raw, PREVIEW_FRAME_POLICY) ? 'preview-frame' : 'manager-window';
+}
+
+function permissionMediaType(details: unknown): string | undefined {
+  if (!details || typeof details !== 'object') return undefined;
+  const maybeMediaType = (details as { mediaType?: unknown }).mediaType;
+  if (typeof maybeMediaType === 'string') return maybeMediaType;
+  const maybeMediaTypes = (details as { mediaTypes?: unknown }).mediaTypes;
+  if (Array.isArray(maybeMediaTypes)) {
+    const first = maybeMediaTypes.find((value): value is string => typeof value === 'string');
+    if (first) return first;
+  }
+  return undefined;
+}
+
+function isElectronPermissionAllowed(
+  surface: ElectronPermissionSurface,
+  permission: string,
+  requestingUrl: string,
+  mediaType?: string,
+): boolean {
+  const result = resolveElectronPermissionDecision({
+    permission,
+    requestingUrl,
+    managerOrigin: MANAGER_ORIGIN,
+    previewPolicy: PREVIEW_FRAME_POLICY,
+    surface,
+    ...(mediaType ? { mediaType } : {}),
+  });
+  if (result.decision === 'allow') return true;
+  recordElectronPermissionDenial({
+    surface,
+    permission,
+    requestingUrl,
+    reason: result.reason,
+  });
+  ringBuffer.append(`[permission denied] ${surface} ${permission} ${requestingUrl}: ${result.reason}\n`);
+  return false;
+}
+
+function installDefaultSessionPermissionHandlers(): void {
+  session.defaultSession.setPermissionRequestHandler((contents, permission, callback, details) => {
+    const detailValues = details as { requestingUrl?: string } | undefined;
+    const requestingUrl = permissionRequestUrl(contents, detailValues?.requestingUrl);
+    callback(isElectronPermissionAllowed(
+      permissionSurfaceForUrl(requestingUrl),
+      String(permission),
+      requestingUrl,
+      permissionMediaType(details),
+    ));
+  });
+
+  session.defaultSession.setPermissionCheckHandler((contents, permission, requestingOrigin, details) => {
+    const detailValues = details as { requestingUrl?: string; securityOrigin?: string } | undefined;
+    const requestingUrl = permissionRequestUrl(
+      contents,
+      detailValues?.requestingUrl || detailValues?.securityOrigin || requestingOrigin,
+    );
+    return isElectronPermissionAllowed(
+      permissionSurfaceForUrl(requestingUrl),
+      String(permission),
+      requestingUrl,
+      permissionMediaType(details),
+    );
+  });
+}
+
 function isAllowedFrameNavigation(raw: string): boolean {
   return isManagerNavigation(raw, MANAGER_ORIGIN)
     || isPreviewFrameNavigation(raw, PREVIEW_FRAME_POLICY);
@@ -405,8 +485,12 @@ function hardenEmbeddedBrowserWebContents(contents: Electron.WebContents): void 
   contents.on('will-redirect', (event, url) => {
     if (!isAllowedEmbeddedBrowserUrl(url)) event.preventDefault();
   });
-  contents.session.setPermissionRequestHandler((_wc, _permission, cb) => cb(false));
-  contents.session.setPermissionCheckHandler(() => false);
+  contents.session.setPermissionRequestHandler((wc, permission, cb, details) => {
+    cb(isElectronPermissionAllowed('embedded-browser-webview', String(permission), details.requestingUrl || wc.getURL()));
+  });
+  contents.session.setPermissionCheckHandler((_wc, permission, requestingOrigin, details) => (
+    isElectronPermissionAllowed('embedded-browser-webview', String(permission), details.requestingUrl || details.securityOrigin || requestingOrigin, details.mediaType)
+  ));
 }
 
 function registerGlobalWebContentsHardening(): void {

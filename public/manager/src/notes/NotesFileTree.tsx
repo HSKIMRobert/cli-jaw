@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type DragEvent, type KeyboardEvent, type MouseEvent } from 'react';
+import { copyText } from '../clipboard/copy-text';
 import type { NotesTreeEntry } from './notes-types';
 
 type NotesTrashItem = { path: string; kind: NotesTreeEntry['kind'] };
@@ -433,7 +434,9 @@ export function NotesFileTree(props: NotesFileTreeProps) {
 
             event.preventDefault();
             const absolute = paths.map(p => `${root}/${p}`).join('\n');
-            void navigator.clipboard.writeText(absolute);
+            void copyText(absolute).then(result => {
+                if (!result.ok) console.error('[notes:path-copy]', result.error);
+            });
         }
 
         window.addEventListener('keydown', handleCopyPath);

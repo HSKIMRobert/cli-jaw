@@ -1,8 +1,22 @@
 // ── Copy button event delegation ──
+import { copyText } from '../features/copy-text.js';
 import { t } from '../features/i18n.js';
 
 // ── Copy button event delegation (one-time setup) ──
 let codeCopyDelegationReady = false;
+
+function copyCodeAndFlash(target: HTMLElement, code: string): void {
+    void copyText(code).then(result => {
+        if (!result.ok) return;
+        const orig = target.textContent || '';
+        target.textContent = t('code.copied');
+        target.classList.add('copied');
+        setTimeout(() => {
+            target.textContent = orig;
+            target.classList.remove('copied');
+        }, 1500);
+    });
+}
 
 export function ensureCodeCopyDelegation(): void {
     if (codeCopyDelegationReady) return;
@@ -16,15 +30,7 @@ export function ensureCodeCopyDelegation(): void {
             if (!block) return;
             const codeEl = block.querySelector('pre code');
             if (!codeEl) return;
-            navigator.clipboard.writeText(codeEl.textContent || '').then(() => {
-                const orig = copyBtn.textContent || '';
-                copyBtn.textContent = t('code.copied');
-                copyBtn.classList.add('copied');
-                setTimeout(() => {
-                    copyBtn.textContent = orig;
-                    copyBtn.classList.remove('copied');
-                }, 1500);
-            }).catch(() => { /* clipboard API fail silently */ });
+            copyCodeAndFlash(copyBtn, codeEl.textContent || '');
             return;
         }
         // Legacy structure: .code-lang-label inside .code-block-wrapper
@@ -34,14 +40,6 @@ export function ensureCodeCopyDelegation(): void {
         if (!wrapper) return;
         const codeEl = wrapper.querySelector('pre code');
         if (!codeEl) return;
-        navigator.clipboard.writeText(codeEl.textContent || '').then(() => {
-            const orig = label.textContent || '';
-            label.textContent = t('code.copied');
-            label.classList.add('copied');
-            setTimeout(() => {
-                label.textContent = orig;
-                label.classList.remove('copied');
-            }, 1500);
-        }).catch(() => { /* clipboard API fail silently */ });
+        copyCodeAndFlash(label, codeEl.textContent || '');
     });
 }

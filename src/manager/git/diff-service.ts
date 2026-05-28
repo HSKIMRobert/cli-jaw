@@ -198,7 +198,15 @@ export async function resolveRepoCandidates(candidates: DiffRootCandidate[]): Pr
     return resolvedCandidates;
 }
 
+export async function getRepoRoot(cwd: string): Promise<string> {
+    if (!isWithinHome(cwd)) throw new Error('path not allowed');
+    const resolved = resolve(cwd);
+    if (!existsSync(resolved)) throw new Error('path does not exist');
+    return (await git(['rev-parse', '--show-toplevel'], resolved)).trim();
+}
+
 export async function getDiffSummary(repoRoot: string, options: DiffOptions): Promise<DiffFileSummary[]> {
+    if (!isWithinHome(repoRoot)) throw new Error('path not allowed');
     const args = ['-c', 'core.quotepath=false', 'diff', '--numstat'];
     pushDiffModeArgs(args, options);
     args.push('--');
@@ -209,6 +217,7 @@ export async function getDiffSummary(repoRoot: string, options: DiffOptions): Pr
 }
 
 export async function getFileDiff(repoRoot: string, filePath: string, options: DiffOptions): Promise<string> {
+    if (!isWithinHome(repoRoot)) throw new Error('path not allowed');
     if (!assertContainedLexical(repoRoot, filePath)) throw new Error('path traversal');
     if (await isUntracked(repoRoot, filePath)) {
         return await git(['-c', 'core.quotepath=false', 'diff', '--no-color', '--no-index', '--', '/dev/null', filePath], repoRoot, [0, 1]);

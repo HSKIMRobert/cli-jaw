@@ -250,7 +250,8 @@ test('CodeBlock uses highlight.js core with curated language aliases and safe fa
     });
     assert.ok(highlight.includes('hljs.getLanguage(normalized)'), 'unknown languages must be checked before highlight');
     assert.ok(highlight.includes('highlighted: false'), 'unknown languages must fall back safely');
-    assert.ok(codeBlock.includes('navigator.clipboard.writeText(props.code)'), 'copy button must copy source text');
+    assert.ok(codeBlock.includes("import { copyText } from '../../clipboard/copy-text';"), 'copy button must use the shared clipboard helper');
+    assert.ok(codeBlock.includes('await copyText(props.code)'), 'copy button must copy source text through the shared helper');
 });
 
 test('Notes app imports KaTeX CSS and notes CSS owns rich preview styling', () => {

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { copyText } from '../../clipboard/copy-text';
 import { highlightCode } from './highlight-languages';
 
 type CodeBlockProps = {
@@ -12,13 +13,13 @@ export function CodeBlock(props: CodeBlockProps) {
     const label = result.language || 'text';
 
     async function copyCode(): Promise<void> {
-        try {
-            await navigator.clipboard.writeText(props.code);
+        const result = await copyText(props.code);
+        if (result.ok) {
             setCopied(true);
             window.setTimeout(() => setCopied(false), 1200);
-        } catch (err) {
-            console.error('[notes:code-copy]', err);
+            return;
         }
+        console.error('[notes:code-copy]', result.error);
     }
 
     return (

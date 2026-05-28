@@ -13,6 +13,7 @@ import { clearUnreadResponses } from './attention-badge.js';
 import { syncOrchestrateSnapshot } from '../ws.js';
 import { waitForSettingsSaveIdle } from './settings-core.js';
 import { isChatNearBottom, markFollowingBottom, reconcileChatBottomAfterLayout } from './chat-scroll.js';
+import { copyText } from './copy-text.js';
 import { isLocalPreviewRelayOrigin, previewParentOrigin } from '../preview-parent-origin.js';
 
 let activeObjectURLs: string[] = [];
@@ -140,7 +141,7 @@ document.addEventListener('click', async (event) => {
         return;
     }
     if (action === 'copy') {
-        await navigator.clipboard?.writeText(text).catch(() => {});
+        await copyText(text);
     }
 });
 
