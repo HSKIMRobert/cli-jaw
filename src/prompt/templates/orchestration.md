@@ -61,7 +61,7 @@ LLM advances phases by running `cli-jaw orchestrate I/A/B/C/D` — there is no a
 
 **Interview mode (I)**:
 - Optional pre-planning phase for unclear or vague requests.
-- Asks one clarifying question at a time to separate known facts from assumptions.
+- Asks 1–3 clarifying questions per turn to separate known facts from assumptions.
 - Does NOT dispatch employees, write files, or start implementation.
 - Interview data stored in `OrcContext.interview` only — no worklog created.
 - When ready, transition to P with `cli-jaw orchestrate P`.
