@@ -195,9 +195,10 @@ export function extractToolLabels(cli: string, event: CliEventRecord, ctx: Spawn
                 if (block.type === 'tool_use') {
                     const isAgent = block.name === 'Agent';
                     const description = block.input?.description || block.input?.["subagent_type"] || 'subagent';
+                    const hasInput = Boolean(block.input && Object.keys(block.input).length > 0);
                     const toolDetail = isAgent
                         ? (block.input?.prompt ? `prompt: ${clipText(String(block.input.prompt), 300)}` : undefined)
-                        : summarizeToolInput(block.name || 'tool', block.input || {});
+                        : hasInput ? summarizeToolInput(block.name || 'tool', block.input || {}) : undefined;
                     pushToolLabel(labels, stripUndefined({
                         icon: isAgent ? '🤖' : '🔧',
                         label: isAgent ? `subagent: ${buildPreview(description, 60)}` : (block.name || 'tool'),
