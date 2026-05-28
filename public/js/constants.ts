@@ -97,7 +97,6 @@ const FALLBACK_CLI_REGISTRY: CliRegistry = {
         label: 'Cursor',
         efforts: ['none', 'none-fast', 'low', 'low-fast', 'medium', 'medium-fast', 'high', 'high-fast', 'xhigh', 'xhigh-fast', 'max', 'max-fast'],
         effortNote: 'Cursor effort resolves to model IDs; cli-jaw never passes --effort',
-        modelNote: 'Use cursor-agent --list-models to refresh account-specific choices',
         models: ['auto', 'composer-2.5', 'composer-2', 'gpt-5.5', 'gpt-5.4', 'gpt-5.3-codex', 'claude-opus-4-7', 'claude-opus-4-7-thinking', 'gemini-3.1-pro', 'grok-4.3'],
     },
     gemini: {
