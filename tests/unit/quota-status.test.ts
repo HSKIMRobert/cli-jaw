@@ -183,7 +183,7 @@ test('QS-005b: /api/quota returns every top-level CLI runtime key', () => {
         settingsRouteSrc.includes('CLI_KEYS.map((key) => [key, quotaByCli[key]'),
         '/api/quota should be keyed by CLI_KEYS instead of a hand-maintained subset',
     );
-    for (const key of ['agy', "'ai-e'", 'claude', "'claude-e'", 'codex', "'codex-app'", 'gemini', 'grok', 'opencode', 'copilot']) {
+    for (const key of ['agy', "'ai-e'", 'claude', "'claude-e'", 'codex', "'codex-app'", 'cursor', 'gemini', 'grok', 'opencode', 'copilot']) {
         assert.ok(settingsRouteSrc.includes(`${key}:`), `/api/quota should define ${key}`);
     }
 });
@@ -199,6 +199,20 @@ test('QS-005c: AGY quota is explicit auth/status-only metadata', () => {
     assert.ok(
         settingsRouteSrc.includes("displayTier: 'Antigravity'"),
         'AGY should have display metadata for the status UI',
+    );
+});
+
+test('QS-005c2: Cursor quota is explicit auth/status-only metadata', () => {
+    const settingsRouteSrc = readSource(
+        path.join(import.meta.dirname, '../../src/routes/settings.ts'), 'utf8'
+    );
+    assert.ok(
+        settingsRouteSrc.includes("quotaSource: 'not-exposed-by-cursor-cli'"),
+        'Cursor should not fake quota windows',
+    );
+    assert.ok(
+        settingsRouteSrc.includes("displayTier: 'Cursor'"),
+        'Cursor should have display metadata for the status UI',
     );
 });
 

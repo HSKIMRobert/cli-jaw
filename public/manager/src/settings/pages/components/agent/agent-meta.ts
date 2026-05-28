@@ -25,7 +25,7 @@ export type ActiveOverride = {
     effort?: string;
 };
 
-export const PRIMARY_CLIS: ReadonlyArray<string> = ['claude', 'claude-e', 'agy', 'codex', 'gemini'];
+export const PRIMARY_CLIS: ReadonlyArray<string> = ['claude', 'claude-e', 'agy', 'codex', 'cursor', 'gemini'];
 
 export const CLI_META: Record<string, CliMeta> = {
     agy: {
@@ -97,6 +97,12 @@ export const CLI_META: Record<string, CliMeta> = {
         label: 'Codex App',
         models: ['gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.3-codex'],
         efforts: ['low', 'medium', 'high', 'xhigh'],
+    },
+    cursor: {
+        label: 'Cursor',
+        models: ['auto', 'composer-2.5', 'composer-2', 'gpt-5.5', 'gpt-5.4', 'gpt-5.3-codex', 'claude-opus-4-7', 'claude-opus-4-7-thinking', 'gemini-3.1-pro', 'grok-4.3'],
+        efforts: ['none', 'none-fast', 'low', 'low-fast', 'medium', 'medium-fast', 'high', 'high-fast', 'xhigh', 'xhigh-fast', 'max', 'max-fast'],
+        effortNote: 'Cursor effort resolves to model IDs; no separate --effort flag',
     },
     gemini: {
         label: 'Gemini',

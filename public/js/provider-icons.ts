@@ -53,6 +53,7 @@ const PROVIDER_LABEL_ALIASES: Record<string, string> = {
     'jaw-claude-i': 'Claude E',
     'claude-i': 'Claude E',
     'agy': 'Antigravity',
+    cursor: 'Cursor',
 };
 
 function resolveProviderSlug(slug: string): ProviderSlug | null {

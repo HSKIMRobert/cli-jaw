@@ -3,6 +3,7 @@
 
 import { existsSync } from 'node:fs';
 import os from 'node:os';
+import { resolveCursorModelVariant } from './cursor-runtime.js';
 
 const isCodexSparkModel = (model: string) => !!model && /spark/i.test(model);
 const GEMINI_MAX_INCLUDE_DIRECTORIES = 5;
@@ -221,6 +222,15 @@ export function buildArgs(cli: string, model: string, effort: string, prompt: st
                 ...(autoPerm ? ['--dangerously-bypass-approvals-and-sandbox'] : []),
                 '--skip-git-repo-check', '--json'];
         }
+        case 'cursor': {
+            const cursorModel = resolveCursorModelVariant(model, effort);
+            return ['-p',
+                '--trust',
+                '--output-format', 'stream-json',
+                ...(cursorModel && cursorModel !== 'default' ? ['--model', cursorModel] : []),
+                ...(autoPerm ? ['--force'] : []),
+                prompt || ''];
+        }
         case 'gemini':
             return ['-p', prompt || '',
                 ...(model && model !== 'default' ? ['-m', model] : []),
@@ -316,6 +326,16 @@ export function buildResumeArgs(cli: string, model: string, effort: string, sess
                 ...(autoPerm ? ['--dangerously-bypass-approvals-and-sandbox'] : []),
                 '--skip-git-repo-check',
                 sessionId, prompt || '', '--json'];
+        }
+        case 'cursor': {
+            const cursorModel = resolveCursorModelVariant(model, effort);
+            return ['--resume', sessionId,
+                '-p',
+                '--trust',
+                '--output-format', 'stream-json',
+                ...(cursorModel && cursorModel !== 'default' ? ['--model', cursorModel] : []),
+                ...(autoPerm ? ['--force'] : []),
+                prompt || ''];
         }
         case 'gemini':
             return ['--resume', sessionId,

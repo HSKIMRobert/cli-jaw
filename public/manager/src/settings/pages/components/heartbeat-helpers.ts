@@ -20,6 +20,7 @@ export const TARGET_FALLBACK = [
     'codex',
     'codex-app',
     'copilot',
+    'cursor',
     'gemini',
     'grok',
     'opencode',

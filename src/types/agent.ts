@@ -67,6 +67,9 @@ export interface SpawnContext {
   opencodeLastEventType?: string;
   opencodeLastEventAt?: number;
   opencodeSpawnAudit?: Record<string, unknown>;
+  cursorAssistantText?: string;
+  cursorAssistantSeq?: number;
+  cursorToolCallIds?: Set<string>;
   acpSubagentToolCallIds?: Set<string>;
   acpSubagentLabels?: Map<string, string>;
   // Gemini watchdog flag (set on 'result' event, triggers kill timer in spawn.ts)

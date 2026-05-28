@@ -19,6 +19,7 @@ import {
 } from './helpers.js';
 import { handleClaudeEvent, handleClaudeRateLimitEvent, finalizeClaudeRateLimitOnResult } from './claude.js';
 import { handleCodexEvent } from './codex.js';
+import { handleCursorEvent } from './cursor.js';
 import { handleGeminiEvent } from './gemini.js';
 import { handleGrokEvent } from './grok.js';
 import { handleOpenCodeEvent } from './opencode.js';
@@ -29,6 +30,7 @@ export function extractSessionId(cli: string, event: CliEventRecord): string | n
         case 'claude':
         case 'claude-e': return event.type === 'system' ? event.session_id ?? null : null;
         case 'codex': return event.type === 'thread.started' ? event.thread_id ?? null : null;
+        case 'cursor': return event.session_id ?? event.sessionId ?? null;
         case 'gemini': return event.type === 'init' ? event.session_id ?? null : null;
         case 'grok': return event.type === 'end' ? event.sessionId ?? null : null;
         case 'opencode': return event.sessionID ?? null;
@@ -70,6 +72,14 @@ export function extractOutputChunk(cli: string, event: CliEventRecord, ctx?: Spa
             return chunk;
         }
         if (event.type === 'text') return String(event.data || event.text || '');
+        return '';
+    }
+    if (cli === 'cursor') {
+        if (ctx?.pendingOutputChunk) {
+            const chunk = ctx.pendingOutputChunk;
+            ctx.pendingOutputChunk = '';
+            return chunk;
+        }
         return '';
     }
     // claude-e transcript assistant records are snapshots; extractFromEvent
@@ -326,6 +336,9 @@ export function extractFromEvent(cli: string, event: CliEventRecord, ctx: SpawnC
             break;
         case 'codex':
             handleCodexEvent(event, ctx, agentLabel, empTag);
+            break;
+        case 'cursor':
+            handleCursorEvent(event, ctx, agentLabel, empTag);
             break;
         case 'gemini':
             handleGeminiEvent(event, ctx, agentLabel, empTag);

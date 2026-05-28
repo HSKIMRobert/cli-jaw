@@ -164,6 +164,7 @@ function renderCliStatus(data: { cliStatus: Record<string, { available: boolean 
         'claude-e': { install: 'Install claude-e helper', auth: 'claude auth' },
         codex: { install: 'npm i -g @openai/codex', auth: 'codex login' },
         'codex-app': { install: 'npm i -g @openai/codex', auth: 'codex login' },
+        cursor: { install: 'curl https://cursor.com/install -fsS | bash', auth: 'cursor-agent login or set CURSOR_API_KEY' },
         gemini: { install: 'npm i -g @google/gemini-cli', auth: `gemini  (${t('cli.gemini.auth')})` },
         grok: { install: 'curl -fsSL https://x.ai/cli/install.sh | bash', auth: 'grok login --oauth' },
         opencode: { install: 'npm i -g opencode-ai', auth: 'opencode auth' },

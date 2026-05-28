@@ -16,8 +16,8 @@ const __dirname = dirname(__filename);
 
 // ─── Structure validation ────────────────────────────
 
-test('CLI_KEYS contains exactly 10 known entries', () => {
-    assert.deepEqual(CLI_KEYS.sort(), ['agy', 'ai-e', 'claude', 'claude-e', 'codex', 'codex-app', 'copilot', 'gemini', 'grok', 'opencode']);
+test('CLI_KEYS contains exactly 11 known entries', () => {
+    assert.deepEqual(CLI_KEYS.sort(), ['agy', 'ai-e', 'claude', 'claude-e', 'codex', 'codex-app', 'copilot', 'cursor', 'gemini', 'grok', 'opencode']);
 });
 
 test('DEFAULT_CLI is claude', () => {
@@ -61,6 +61,17 @@ test('Antigravity registry exposes AGY as a top-level runtime, not an ai-e provi
     assert.deepEqual(CLI_REGISTRY.agy.models, []);
     assert.match(CLI_REGISTRY.agy.effortNote || '', /Change at TUI/);
     assert.equal(CLI_REGISTRY['ai-e'].providers.includes('agy'), false);
+});
+
+test('Cursor registry exposes Cursor as a top-level runtime, not an ai-e provider', () => {
+    assert.equal(CLI_REGISTRY.cursor.label, 'Cursor');
+    assert.equal(CLI_REGISTRY.cursor.binary, 'cursor-agent');
+    assert.equal(CLI_REGISTRY.cursor.defaultModel, 'gpt-5.5');
+    assert.equal(CLI_REGISTRY.cursor.defaultEffort, 'medium-fast');
+    assert.ok(CLI_REGISTRY.cursor.models.includes('auto'));
+    assert.ok(CLI_REGISTRY.cursor.efforts.includes('high-fast'));
+    assert.match(CLI_REGISTRY.cursor.effortNote || '', /model IDs/);
+    assert.equal(CLI_REGISTRY['ai-e'].providers.includes('cursor'), false);
 });
 
 test('ai-e registry exposes explicit provider selector metadata', () => {
