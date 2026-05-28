@@ -1442,6 +1442,44 @@ mark.backlink-highlight {
     text-shadow: 0 0 4px var(--canvas-deep, #111);
 }
 
+/* ── Table context menu ── */
+
+.notes-table-context-menu {
+    position: fixed;
+    z-index: 100;
+    min-width: 190px;
+    padding: 4px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    background: var(--canvas-panel);
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--text-primary) 14%, transparent);
+}
+
+.notes-table-context-menu-item {
+    display: block;
+    width: 100%;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.notes-table-context-menu-item:hover,
+.notes-table-context-menu-item:focus-visible {
+    background: var(--accent-soft);
+}
+
+.notes-table-context-menu-separator {
+    height: 1px;
+    margin: 4px 8px;
+    background: var(--border-subtle);
+}
+
 /* ── Vim mode status bar ── */
 
 .notes-editor .cm-vim-panel {
