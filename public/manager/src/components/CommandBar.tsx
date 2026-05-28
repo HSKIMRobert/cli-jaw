@@ -1,6 +1,7 @@
 import type { DashboardUiTheme } from '../types';
 import { DesktopLink } from '../desktop-link';
 import { CommandCenter } from './CommandCenter';
+import { DesktopPanelControls } from './DesktopPanelControls';
 import { ThemeSwitch } from './ThemeSwitch';
 
 type CommandBarProps = {
@@ -41,6 +42,7 @@ export function CommandBar(props: CommandBarProps) {
             )}
             actions={(
                 <div className="command-actions-group">
+                    <DesktopPanelControls />
                     <DesktopLink />
                     <button
                         type="button"

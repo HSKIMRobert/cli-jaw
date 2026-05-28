@@ -105,18 +105,22 @@ test('Electron preload bridge avoids unsupported sandbox Node builtins', () => {
     assert.ok(diffPanel.includes("desktop?.getHomePath?.() || '/tmp'"), 'diff panel must tolerate an empty home path from the sandbox preload');
 });
 
-test('manager sidebar rail keeps IDE panel toggles visible', () => {
+test('manager desktop panel toggles live in the command bar to keep the sidebar rail single-line', () => {
     const rail = read('public/manager/src/components/SidebarRail.tsx');
+    const commandBar = read('public/manager/src/components/CommandBar.tsx');
+    const controls = read('public/manager/src/components/DesktopPanelControls.tsx');
     const layout = read('public/manager/src/manager-layout.css');
     const compact = read('public/manager/src/manager-p0-1-1.css');
 
-    assert.ok(rail.includes("import { isElectron } from '../panels/desktop-bridge'"), 'SidebarRail must gate desktop-only controls through Electron detection');
-    assert.ok(rail.includes('const showDesktopPanelToggles = isElectron()'), 'SidebarRail must compute whether desktop panel toggles should render');
-    assert.ok(rail.includes('showDesktopPanelToggles ? ('), 'web UI must not render desktop-only panel toggles');
-    assert.ok(rail.includes('aria-label="Toggle terminal panel"'), 'SidebarRail must expose the bottom terminal panel toggle');
-    assert.ok(rail.includes("panelActions.openBottomTab('terminal')"), 'bottom panel toggle must open the terminal tab when closed');
-    assert.ok(rail.includes('aria-label="Toggle right panel"'), 'SidebarRail must expose the right panel toggle');
-    assert.ok(rail.includes("panelActions.openRightPanel('folder')"), 'right panel toggle must open the folder panel when closed');
+    assert.ok(commandBar.includes('<DesktopPanelControls />'), 'CommandBar must host desktop panel toggles near the other titlebar actions');
+    assert.ok(controls.includes("import { isElectron } from '../panels/desktop-bridge'"), 'DesktopPanelControls must gate desktop-only controls through Electron detection');
+    assert.ok(controls.includes('if (!isElectron()) return null'), 'web UI must not render desktop-only panel toggles');
+    assert.ok(controls.includes('aria-label="Toggle terminal panel"'), 'DesktopPanelControls must expose the bottom terminal panel toggle');
+    assert.ok(controls.includes("panelActions.openBottomTab('terminal')"), 'bottom panel toggle must open the terminal tab when closed');
+    assert.ok(controls.includes('aria-label="Toggle right panel"'), 'DesktopPanelControls must expose the right panel toggle');
+    assert.ok(controls.includes("panelActions.openRightPanel('folder')"), 'right panel toggle must open the folder panel when closed');
+    assert.equal(rail.includes('aria-label="Toggle terminal panel"'), false, 'SidebarRail must not render desktop panel toggles that force a second icon row');
+    assert.equal(rail.includes('aria-label="Toggle right panel"'), false, 'SidebarRail must keep right-panel controls out of the left rail');
     assert.ok(layout.includes('display: flex'), 'manager sidebar must allow rail height to grow without clipping its list');
     assert.ok(layout.includes('.manager-sidebar-list { flex: 1 1 auto;'), 'sidebar list must size from remaining space, not a fixed rail height');
     assert.ok(
@@ -130,7 +134,7 @@ test('manager sidebar rail keeps IDE panel toggles visible', () => {
     assert.ok(compact.includes('flex-wrap: nowrap'), 'Electron expanded rail must keep desktop panel toggles on one row');
     assert.ok(compact.includes('flex: 1 1 auto'), 'Electron expanded rail spacer must shrink so utility toggles stay in the same row');
     assert.ok(compact.includes('min-width: 4px'), 'Electron expanded rail spacer must keep a small visual gap without forcing a second row');
-    assert.ok(compact.includes('.rail-panel-toggle'), 'panel toggles must have distinct visible styling');
+    assert.ok(compact.includes('.command-panel-toggle'), 'command bar panel toggles must have distinct visible styling');
 });
 
 test('Electron panel shortcuts open usable panels when closed', () => {
