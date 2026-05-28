@@ -10,6 +10,16 @@ import {
 } from './notes-graph-settings';
 import type { NotesVaultIndexSnapshot } from '../notes-types';
 
+export type NotesGraphRuntimeBoundary = {
+    dataPlane: 'dashboard-notes-api';
+    shellPanels: 'render-only';
+};
+
+export const NOTES_GRAPH_RUNTIME_BOUNDARY: NotesGraphRuntimeBoundary = {
+    dataPlane: 'dashboard-notes-api',
+    shellPanels: 'render-only',
+};
+
 type NotesGraphWorkspaceProps = {
     vaultIndex: NotesVaultIndexSnapshot | null;
     selectedPath: string | null;
@@ -23,6 +33,9 @@ function defaultSettings(): NotesGraphSettings {
 }
 
 export function NotesGraphWorkspace(props: NotesGraphWorkspaceProps) {
+    // Graph is intentionally web-capable: data comes from the dashboard notes API.
+    // Electron side panels may render Jawsidian content, but must not become the
+    // source of graph connectivity or persistence.
     const [draft, setDraft] = useState<NotesGraphSettings>(() => normalizeNotesGraphSettings(props.settings ?? defaultSettings()));
     const [fitToken, setFitToken] = useState(0);
     const persistTimerRef = useRef<number | null>(null);

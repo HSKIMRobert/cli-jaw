@@ -25,6 +25,14 @@ export type NotesGraphRenderData = {
 
 type GraphShape = { nodes: NoteGraphNode[]; edges: NoteGraphEdge[] };
 
+const NODE_KIND_ORDER: Record<NoteGraphNode['kind'], number> = {
+    note: 0,
+    tag: 1,
+    missing: 2,
+    ambiguous: 3,
+    attachment: 4,
+};
+
 function normalizeTag(tag: string): string {
     return tag.trim().replace(/^#/, '').toLowerCase();
 }
@@ -74,6 +82,8 @@ function buildWorkingGraph(snapshot: NotesVaultIndexSnapshot, settings: NotesGra
         if (!nodes.has(note.path)) nodes.set(note.path, { id: note.path, title: note.title, kind: 'note', path: note.path });
     }
     const edges: NoteGraphEdge[] = snapshot.graph.edges.map(edge => ({ ...edge }));
+    // The server-owned vault index is the authority for wikilink connectivity,
+    // including missing/ambiguous nodes. The client only adds virtual tag edges.
     if (settings.showTags) {
         for (const note of snapshot.notes) {
             for (const rawTag of note.tags) {
@@ -123,8 +133,7 @@ function focusedNodeIds(edges: NoteGraphEdge[], selectedPath: string, maxDepth: 
 }
 
 function compareNodes(a: NotesGraphRenderNode, b: NotesGraphRenderNode): number {
-    const kindOrder = { note: 0, tag: 1, missing: 2, ambiguous: 3, attachment: 4 };
-    return kindOrder[a.kind] - kindOrder[b.kind] || a.title.localeCompare(b.title) || a.id.localeCompare(b.id);
+    return NODE_KIND_ORDER[a.kind] - NODE_KIND_ORDER[b.kind] || a.title.localeCompare(b.title) || a.id.localeCompare(b.id);
 }
 
 export function deriveNotesGraphData(
