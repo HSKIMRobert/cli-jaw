@@ -29,6 +29,10 @@ export type ShortcutBridgeApi = {
     onAction: (cb: (action: DashboardShortcutAction) => void) => () => void;
 };
 
+export type BrowserBridgeApi = {
+    onOpenUrl: (cb: (payload: { url: string; disposition: 'current-tab' | 'new-tab' }) => void) => () => void;
+};
+
 export type CliJawDesktopApi = {
     identify: () => { name: string; electron: boolean; header: string };
     getMetrics: () => unknown;
@@ -37,6 +41,7 @@ export type CliJawDesktopApi = {
     diff?: DiffBridgeApi | undefined;
     folder?: FolderBridgeApi | undefined;
     shortcuts?: ShortcutBridgeApi | undefined;
+    browser?: BrowserBridgeApi | undefined;
 };
 
 export function getDesktop(): CliJawDesktopApi | null {

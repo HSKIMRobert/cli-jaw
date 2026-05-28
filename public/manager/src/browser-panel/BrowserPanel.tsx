@@ -1,5 +1,5 @@
 import { createElement, useCallback, useEffect, useRef, useState } from 'react';
-import { isElectron } from '../panels/desktop-bridge';
+import { getDesktop, isElectron } from '../panels/desktop-bridge';
 import './browser-panel.css';
 
 const BLOCKED_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '0.0.0.0']);
@@ -13,6 +13,11 @@ type ElectronWebviewElement = HTMLElement & {
     goBack: () => void;
     goForward: () => void;
     getURL?: () => string;
+};
+
+type BrowserOpenPayload = {
+    url: string;
+    disposition: 'current-tab' | 'new-tab';
 };
 
 type ElectronWebviewEvent = Event & {
@@ -42,10 +47,29 @@ function isPrivateHost(hostname: string): boolean {
     return /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(hostname);
 }
 
+function bareHostname(target: string): string {
+    const authority = target.split(/[/?#]/, 1)[0] ?? '';
+    if (authority.startsWith('[')) {
+        const end = authority.indexOf(']');
+        return end > 0 ? authority.slice(1, end).toLowerCase() : authority.toLowerCase();
+    }
+    return authority.split(':', 1)[0]?.toLowerCase() ?? '';
+}
+
+function shouldDefaultToHttp(target: string): boolean {
+    const authority = target.split(/[/?#]/, 1)[0] ?? '';
+    const host = bareHostname(target);
+    if (!host) return false;
+    if (host === 'localhost' || host === '0.0.0.0' || host === '127.0.0.1' || host === '::1') return true;
+    if (host.endsWith('.local') || isPrivateHost(host)) return true;
+    return /:\d+$/.test(authority);
+}
+
 function normalizeUrl(target: string): string | null {
     const trimmed = target.trim();
     if (!trimmed) return null;
-    return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    return `${shouldDefaultToHttp(trimmed) ? 'http' : 'https'}://${trimmed}`;
 }
 
 function isRestrictedBrowserHost(hostname: string): boolean {
@@ -96,16 +120,12 @@ export function BrowserPanel() {
     const [activeTabId, setActiveTabId] = useState(initialTab.current.id);
     const inputRef = useRef<HTMLInputElement | null>(null);
     const webviewRefs = useRef<Map<string, ElectronWebviewElement>>(new Map());
+    const webviewCleanupRefs = useRef<Map<string, () => void>>(new Map());
 
     const activeTab = tabs.find(tab => tab.id === activeTabId) ?? tabs[0] ?? initialTab.current;
 
     const updateTab = useCallback((id: string, patch: Partial<BrowserTabState>) => {
         setTabs(current => current.map(tab => tab.id === id ? { ...tab, ...patch } : tab));
-    }, []);
-
-    const setWebviewRef = useCallback((id: string, node: Element | null) => {
-        if (node) webviewRefs.current.set(id, node as ElectronWebviewElement);
-        else webviewRefs.current.delete(id);
     }, []);
 
     const refreshNavState = useCallback((tabId: string) => {
@@ -128,10 +148,8 @@ export function BrowserPanel() {
         }
     }, [desktop, updateTab]);
 
-    useEffect(() => {
-        const tabId = activeTab.id;
-        const webview = webviewRefs.current.get(tabId);
-        if (!desktop || !webview) return;
+    const attachWebviewEvents = useCallback((tabId: string, webview: ElectronWebviewElement) => {
+        if (!desktop) return () => {};
         const handleStart = () => {
             updateTab(tabId, { loading: true, error: null });
         };
@@ -189,13 +207,63 @@ export function BrowserPanel() {
             webview.removeEventListener('render-process-gone', handleRenderGone);
             webview.removeEventListener('dom-ready', handleDomReady);
         };
-    }, [activeTab.id, desktop, refreshNavState, updateTab]);
+    }, [desktop, refreshNavState, updateTab]);
 
-    const addTab = useCallback(() => {
-        const tab = createBrowserTab(`browser-tab-${nextTabIndex.current++}`);
+    const setWebviewRef = useCallback((id: string, node: Element | null) => {
+        webviewCleanupRefs.current.get(id)?.();
+        webviewCleanupRefs.current.delete(id);
+        if (!node) {
+            webviewRefs.current.delete(id);
+            return;
+        }
+        const webview = node as ElectronWebviewElement;
+        webviewRefs.current.set(id, webview);
+        webviewCleanupRefs.current.set(id, attachWebviewEvents(id, webview));
+        refreshNavState(id);
+    }, [attachWebviewEvents, refreshNavState]);
+
+    useEffect(() => () => {
+        for (const cleanup of webviewCleanupRefs.current.values()) cleanup();
+        webviewCleanupRefs.current.clear();
+        webviewRefs.current.clear();
+    }, []);
+
+    const blockedUrlMessage = useCallback(() => (
+        desktop ? 'Only http and https URLs are supported.' : 'Local, private, and same-origin URLs are blocked.'
+    ), [desktop]);
+
+    const openUrlInTab = useCallback((tabId: string, rawTarget: string) => {
+        const target = normalizeUrl(rawTarget);
+        if (!target) return;
+        if (!isUrlAllowed(target, desktop)) {
+            updateTab(tabId, {
+                blocked: true,
+                inputUrl: rawTarget,
+                error: blockedUrlMessage(),
+            });
+            return;
+        }
+        updateTab(tabId, {
+            blocked: false,
+            error: null,
+            inputUrl: target,
+            url: target,
+            title: titleFromUrl(target),
+        });
+    }, [blockedUrlMessage, desktop, updateTab]);
+
+    const addTab = useCallback((rawTarget = DEFAULT_BROWSER_URL) => {
+        const target = normalizeUrl(rawTarget) ?? DEFAULT_BROWSER_URL;
+        const allowed = isUrlAllowed(target, desktop);
+        const tab = createBrowserTab(`browser-tab-${nextTabIndex.current++}`, allowed ? target : DEFAULT_BROWSER_URL);
+        if (!allowed) {
+            tab.blocked = true;
+            tab.inputUrl = rawTarget;
+            tab.error = blockedUrlMessage();
+        }
         setTabs(current => [...current, tab]);
         setActiveTabId(tab.id);
-    }, []);
+    }, [blockedUrlMessage, desktop]);
 
     const closeTab = useCallback((id: string) => {
         setTabs(current => {
@@ -215,23 +283,18 @@ export function BrowserPanel() {
     }, [activeTabId]);
 
     const navigate = useCallback(() => {
-        const target = normalizeUrl(inputRef.current?.value ?? activeTab.inputUrl);
-        if (!target) return;
-        if (!isUrlAllowed(target, desktop)) {
-            updateTab(activeTab.id, {
-                blocked: true,
-                error: desktop ? 'Only http and https URLs are supported.' : 'Local, private, and same-origin URLs are blocked.',
-            });
-            return;
-        }
-        updateTab(activeTab.id, {
-            blocked: false,
-            error: null,
-            inputUrl: target,
-            url: target,
-            title: titleFromUrl(target),
+        openUrlInTab(activeTab.id, inputRef.current?.value ?? activeTab.inputUrl);
+    }, [activeTab.id, activeTab.inputUrl, openUrlInTab]);
+
+    useEffect(() => {
+        return getDesktop()?.browser?.onOpenUrl?.((payload: BrowserOpenPayload) => {
+            if (payload.disposition === 'current-tab') {
+                openUrlInTab(activeTabId, payload.url);
+            } else {
+                addTab(payload.url);
+            }
         });
-    }, [activeTab.id, activeTab.inputUrl, desktop, updateTab]);
+    }, [activeTabId, addTab, openUrlInTab]);
 
     if (!desktop) {
         return (
@@ -267,7 +330,7 @@ export function BrowserPanel() {
                         </button>
                     </div>
                 ))}
-                <button type="button" className="browser-tab-add" aria-label="New browser tab" title="New tab" onClick={addTab}>+</button>
+                <button type="button" className="browser-tab-add" aria-label="New browser tab" title="New tab" onClick={() => addTab()}>+</button>
             </div>
             <div className="browser-toolbar">
                 <button type="button" className="browser-nav-btn" aria-label="Back" disabled={!activeTab.canGoBack} onClick={() => webviewRefs.current.get(activeTab.id)?.goBack()}>‹</button>
@@ -297,6 +360,7 @@ export function BrowserPanel() {
                             className: 'browser-webview',
                             src: tab.url,
                             partition: 'persist:cli-jaw-browser',
+                            allowpopups: true,
                             webpreferences: 'contextIsolation=yes,sandbox=yes,nodeIntegration=no',
                         })}
                     </div>

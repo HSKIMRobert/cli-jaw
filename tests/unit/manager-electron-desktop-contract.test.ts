@@ -188,11 +188,14 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(browserPanel.includes('isRestrictedBrowserHost(parsed.hostname)'), 'web UI browser policy must continue blocking local/private hosts');
     assert.ok(browserPanel.includes('Local, private, and same-origin URLs are blocked.'), 'web UI must keep the explicit local/private URL rejection message');
     assert.ok(browserPanel.includes('const inputRef = useRef<HTMLInputElement | null>(null);'), 'browser Go action must read the visible URL input value for native accessibility value injection');
-    assert.ok(browserPanel.includes('normalizeUrl(inputRef.current?.value ?? activeTab.inputUrl)'), 'browser Go action must not depend only on React change events');
+    assert.ok(browserPanel.includes('openUrlInTab(activeTab.id, inputRef.current?.value ?? activeTab.inputUrl)'), 'browser Go action must not depend only on React change events');
+    assert.ok(browserPanel.includes('function shouldDefaultToHttp'), 'browser panel must treat localhost/private bare targets as http previews instead of defaulting them to https');
     assert.ok(browserPanel.includes('type BrowserTabState'), 'browser panel must track tab-specific URL/loading/error state');
     assert.ok(browserPanel.includes('browser-tab-strip'), 'browser panel must expose a tab strip for multiple browser tabs');
     assert.ok(browserPanel.includes('aria-label="New browser tab"'), 'browser panel must expose an explicit new-tab control');
     assert.ok(browserPanel.includes("webview.addEventListener('render-process-gone'"), 'browser panel must detect crashed/killed webview renderers using Electron current API');
+    assert.ok(browserPanel.includes('attachWebviewEvents'), 'browser panel must attach navigation/crash handlers per webview, not only to the currently active tab');
+    assert.ok(browserPanel.includes("getDesktop()?.browser?.onOpenUrl"), 'browser panel must accept Electron popup/new-window requests and route them into tabs');
     assert.ok(router.includes('rightPreviewFilePath'), 'router must keep the selected file path for document preview');
     assert.ok(router.includes("panelLayout.dispatch({ type: 'OPEN_RIGHT_PANEL', mode: 'doc', slot: 'bottom' })"), 'selecting a file must open document preview in a folder/file split view');
     assert.ok(folder.includes('onPreviewFile'), 'folder panel must expose file selection to the preview panel');
@@ -290,13 +293,24 @@ test('Electron browser panel uses a hardened webview instead of a CSP-blocked if
     assert.ok(main.includes('webviewTag: true'), 'BrowserWindow must enable webview only for the desktop browser panel');
     assert.ok(main.includes("mainWindow.webContents.on('will-attach-webview'"), 'Electron main must validate every attached webview');
     assert.ok(main.includes('function isAllowedEmbeddedBrowserUrl'), 'webview navigation must use a dedicated URL policy');
-    assert.ok(main.includes("if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;"), 'Electron webview policy must reject non-http protocols before allowing navigation');
-    assert.ok(main.includes('return true;'), 'Electron webview policy must allow local/private http preview URLs after protocol validation');
+    assert.ok(main.includes('function normalizeAllowedEmbeddedBrowserUrl'), 'webview navigation must normalize allowed http/https URLs before forwarding them');
+    assert.ok(main.includes("if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null;"), 'Electron webview policy must reject non-http protocols before allowing navigation');
+    assert.ok(main.includes('if (parsed.username || parsed.password) return null;'), 'Electron webview policy must reject credential-bearing URLs');
+    assert.ok(main.includes('return normalizeAllowedEmbeddedBrowserUrl(raw) !== null;'), 'Electron webview policy must allow local/private http preview URLs after protocol validation');
     assert.ok(!main.includes('BLOCKED_EMBED_HOSTS'), 'Electron webview policy must not block localhost/private preview URLs in the desktop Browser panel');
     assert.ok(main.includes('hardenEmbeddedBrowserWebContents'), 'webview contents must deny permissions and popups');
+    assert.ok(main.includes("mainWindow.webContents.send('browser:open-url'"), 'webview popup/new-window requests must be routed back into the Browser panel');
+    assert.ok(main.includes('registerGlobalWebContentsHardening'), 'global webContents hardening must be registered once instead of per window recreation');
     assert.ok(browser.includes("createElement('webview'"), 'BrowserPanel must render Electron webview, not an iframe');
+    assert.ok(browser.includes('allowpopups: true'), 'BrowserPanel must allow popup requests so main can convert target=_blank clicks into in-app tabs');
+    assert.ok(browser.includes("partition: 'persist:cli-jaw-browser'"), 'BrowserPanel must keep a persistent Electron browser session partition');
     assert.ok(browser.includes('Browser preview requires the Electron desktop app'), 'web UI must not present a broken iframe browser');
     assert.ok(css.includes('.browser-go-btn'), 'browser toolbar must expose an explicit go action');
+
+    const preload = read('electron/src/preload/index.ts');
+    const desktopBridge = read('public/manager/src/panels/desktop-bridge.ts');
+    assert.ok(preload.includes("ipcRenderer.on('browser:open-url', handler)"), 'preload must expose Browser panel popup routing events');
+    assert.ok(desktopBridge.includes('browser?: BrowserBridgeApi'), 'desktop bridge type must include Browser panel popup routing events');
 });
 
 test('Electron folder IPC exposes a usable default root for folder/file split view', () => {

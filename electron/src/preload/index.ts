@@ -89,6 +89,13 @@ contextBridge.exposeInMainWorld('cliJawDesktop', {
       return () => { ipcRenderer.removeListener('manager:shortcut', handler); };
     },
   },
+  browser: {
+    onOpenUrl: (cb: (payload: { url: string; disposition: 'current-tab' | 'new-tab' }) => void) => {
+      const handler = (_e: unknown, payload: { url: string; disposition: 'current-tab' | 'new-tab' }) => cb(payload);
+      ipcRenderer.on('browser:open-url', handler);
+      return () => { ipcRenderer.removeListener('browser:open-url', handler); };
+    },
+  },
 });
 
 markDesktopDocument();
