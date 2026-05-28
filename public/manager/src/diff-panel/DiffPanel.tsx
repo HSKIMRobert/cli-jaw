@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { getDesktop, type DiffBridgeApi, type DiffOptions, type DiffResolvedRoot } from '../panels/desktop-bridge';
 import type { DashboardDiffMode, DashboardInstance, DashboardRegistryUi } from '../types';
 import { buildDiffRootCandidates } from './diff-root-candidates';
@@ -22,6 +22,23 @@ type DiffPanelProps = {
 };
 
 const DIFF_MODES: DashboardDiffMode[] = ['unstaged', 'staged', 'head', 'base'];
+
+function getDiffLineClass(line: string): string {
+    if (line.startsWith('@@')) return 'diff-line-hunk';
+    if (line.startsWith('diff ') || line.startsWith('index ')) return 'diff-line-meta';
+    if (line.startsWith('--- ') || line.startsWith('+++ ')) return 'diff-line-meta';
+    if (line.startsWith('+')) return 'diff-line-add';
+    if (line.startsWith('-')) return 'diff-line-del';
+    return '';
+}
+
+function renderDiffLines(text: string): ReactNode {
+    if (!text) return null;
+    return text.split('\n').map((line, i) => {
+        const cls = getDiffLineClass(line);
+        return <div key={i} className={`diff-line${cls ? ` ${cls}` : ''}`}>{line}</div>;
+    });
+}
 
 function getDiffBridge(): DiffBridgeApi | null {
     return getDesktop()?.diff ?? null;
@@ -193,7 +210,7 @@ export function DiffPanel(props: DiffPanelProps) {
                     {files.length === 0 && !error && <div className="diff-empty">No changes</div>}
                 </div>
                 <div className="diff-content">
-                    <pre className="diff-pre">{diffContent}</pre>
+                    <pre className="diff-pre">{renderDiffLines(diffContent)}</pre>
                 </div>
             </div>
         </div>
