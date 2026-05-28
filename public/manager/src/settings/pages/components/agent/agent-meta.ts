@@ -100,7 +100,17 @@ export const CLI_META: Record<string, CliMeta> = {
     },
     cursor: {
         label: 'Cursor',
-        models: ['auto', 'composer-2.5', 'composer-2', 'gpt-5.5', 'gpt-5.4', 'gpt-5.3-codex', 'claude-opus-4-7', 'claude-opus-4-7-thinking', 'gemini-3.1-pro', 'grok-4.3'],
+        models: [
+            'auto', 'composer-2.5', 'composer-2',
+            'gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-nano',
+            'gpt-5.3-codex', 'gpt-5.2', 'gpt-5.2-codex',
+            'gpt-5.1-codex-max', 'gpt-5.1-codex-mini', 'gpt-5.1',
+            'claude-opus-4-7', 'claude-opus-4-7-thinking',
+            'claude-4.6-opus', 'claude-4.6-sonnet',
+            'claude-4.5-opus-high', 'claude-4.5-sonnet', 'claude-4-sonnet',
+            'gemini-3.1-pro', 'gemini-3-flash', 'gemini-3.5-flash',
+            'grok-4.3', 'grok-build-0.1', 'gpt-5-mini', 'kimi-k2.5',
+        ],
         efforts: ['none', 'none-fast', 'low', 'low-fast', 'medium', 'medium-fast', 'high', 'high-fast', 'xhigh', 'xhigh-fast', 'max', 'max-fast'],
         effortNote: 'Cursor effort resolves to model IDs; no separate --effort flag',
     },

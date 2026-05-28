@@ -2,7 +2,7 @@
 
 # CLI-JAW
 
-### Your personal AI agent. 2 lines to install. 10 AI runtime surfaces in one dashboard.
+### Your personal AI agent. 2 lines to install. 11 AI runtime surfaces in one dashboard.
 
 [![npm](https://img.shields.io/npm/v/cli-jaw)](https://npmjs.com/package/cli-jaw)
 [![Version](https://img.shields.io/badge/v2.0.0-GA-brightgreen)](https://github.com/lidge-jun/cli-jaw/releases)
@@ -161,7 +161,7 @@ docker compose up -d       # → http://localhost:3457
 
 ## What is CLI-JAW?
 
-CLI-JAW is an open-source platform that unifies the AI coding CLIs you already use — Claude, Claude E, AI-E, Antigravity, Codex, Codex App, Gemini, Grok, OpenCode, and Copilot — into **one assistant with one memory and one dashboard**.
+CLI-JAW is an open-source platform that unifies the AI coding CLIs you already use — Claude, Claude E, AI-E, Antigravity, Codex, Codex App, Cursor, Gemini, Grok, OpenCode, and Copilot — into **one assistant with one memory and one dashboard**.
 
 Your main CLI (the “Boss”) calls the others as “employees.” You stop copy-pasting between apps and start giving orders from a single place.
 
@@ -189,6 +189,7 @@ opencode             # OpenCode — free models available
 # Paid (monthly subscription you already pay for)
 claude auth login    # Anthropic Claude Max
 codex login          # OpenAI ChatGPT Pro
+cursor-agent login   # Cursor
 gemini               # Google Gemini Advanced
 grok login --oauth   # xAI Grok / Grok Heavy
 ```
@@ -199,11 +200,12 @@ Check everything at once: `jaw doctor`
 <summary>Example jaw doctor output</summary>
 
 ```
-🦈 CLI-JAW Doctor — 12 checks
+🦈 CLI-JAW Doctor — 13 checks
 
  ✅ Node.js        v22.15.0
  ✅ Claude CLI      installed
  ✅ Codex CLI       installed
+ ✅ Cursor CLI      installed
  ⚠️ Gemini CLI      not found (optional)
  ✅ OpenCode CLI    installed
  ✅ Copilot CLI     installed
@@ -322,12 +324,13 @@ No per-token API billing. Route through subscriptions you already pay for.
 | **Antigravity** | AGY-selected | checked by `agy` at run time | Experimental AGY print-mode runtime with `--conversation` resume; model switching stays in native AGY UI |
 | **Codex** | `gpt-5.5` | `codex login` | ChatGPT Pro subscription |
 | **Codex App** | `gpt-5.4` | `codex login` | ChatGPT Pro subscription |
+| **Cursor** | `composer-2.5-fast` | `cursor-agent login` or `CURSOR_API_KEY` | Cursor subscription; quota is auth/status-only |
 | **Gemini** | `gemini-3.1-pro-preview` | `gemini` | Gemini Advanced subscription |
 | **Grok** | `grok-build` | `grok login --oauth` | Grok subscription; quota is auth/status-only |
 | **OpenCode** | `minimax-m2.7` | `opencode` | Free models available |
 | **Copilot** | `gpt-5-mini` | `copilot login` | Free tier available |
 
-The quota/status panel keeps the same runtime keyset as the registry. Wrapper runtimes (`ai-e`, `claude-e`, `codex-app`) delegate to their underlying provider, while AGY/Grok/OpenCode are shown as auth/status-only when their CLIs do not expose quota windows.
+The quota/status panel keeps the same runtime keyset as the registry. Wrapper runtimes (`ai-e`, `claude-e`, `codex-app`) delegate to their underlying provider, while AGY/Cursor/Grok/OpenCode are shown as auth/status-only when their CLIs do not expose quota windows.
 
 **Fallback chain**: if one engine is rate-limited, the next picks up. Configure with `/fallback [cli1 cli2...]`.
 
@@ -529,7 +532,7 @@ Architecture details: [ARCHITECTURE.md](docs/ARCHITECTURE.md) · Test coverage: 
 
 | | CLI-JAW 2.0 | Hermes Agent | Claude Code |
 |---|---|---|---|
-| **Model access** | Antigravity, AI-E, Claude, Claude E, Codex, Codex App, Gemini, Grok, OpenCode, and Copilot through vendor/native auth where supported | API keys (OpenRouter 200+, Nous Portal) | Anthropic only |
+| **Model access** | Antigravity, AI-E, Claude, Claude E, Codex, Codex App, Cursor, Gemini, Grok, OpenCode, and Copilot through vendor/native auth where supported | API keys (OpenRouter 200+, Nous Portal) | Anthropic only |
 | **Cost model** | Monthly subscriptions you already pay for | Per-token API billing | Anthropic subscription |
 | **Primary UI** | Manager dashboard + Web app + Mac app + terminal UI | Terminal only | CLI + IDE plugins |
 | **Dashboard** | Multi-instance manager, Kanban, Notes workspace | None | None |

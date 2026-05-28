@@ -1,6 +1,6 @@
 # cli-jaw
 
-System-level AI agent with full computer control via CLI wrapping (agy, ai-e, claude, claude-e, codex, codex-app, gemini, grok, opencode, copilot).
+System-level AI agent with full computer control via CLI wrapping (agy, ai-e, claude, claude-e, codex, codex-app, cursor, gemini, grok, opencode, copilot).
 
 ## Repository Structure
 

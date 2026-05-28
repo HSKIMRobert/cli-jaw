@@ -2,7 +2,7 @@
 
 # CLI-JAW
 
-### 你的个人 AI 助手。2 行安装。10 个 AI 运行时，一个仪表盘。
+### 你的个人 AI 助手。2 行安装。11 个 AI 运行时，一个仪表盘。
 
 [![npm](https://img.shields.io/npm/v/cli-jaw)](https://npmjs.com/package/cli-jaw)
 [![Version](https://img.shields.io/badge/v2.0.0-GA-brightgreen)](https://github.com/lidge-jun/cli-jaw/releases)
@@ -90,7 +90,7 @@ docker compose up -d       # → http://localhost:3457
 
 ## CLI-JAW 是什么？
 
-CLI-JAW 是一个开源平台，将你已经在用的 AI 编码 CLI — Antigravity、AI-E、Claude、Claude E、Codex、Codex App、Gemini、Grok、OpenCode、Copilot — 统一成**一个助手、一份记忆、一个仪表盘**。
+CLI-JAW 是一个开源平台，将你已经在用的 AI 编码 CLI — Antigravity、AI-E、Claude、Claude E、Codex、Codex App、Cursor、Gemini、Grok、OpenCode、Copilot — 统一成**一个助手、一份记忆、一个仪表盘**。
 
 你的主 CLI（Boss）调度其他 CLI 作为"员工"。不用在各种应用之间来回切换，直接在一个地方下达指令。
 
@@ -118,6 +118,7 @@ opencode             # OpenCode — 有免费模型
 # 付费（你已经在付的月订阅）
 claude auth login    # Anthropic Claude Max
 codex login          # OpenAI ChatGPT Pro
+cursor-agent login   # Cursor
 gemini               # Google Gemini Advanced
 grok login --oauth   # xAI Grok / Grok Heavy
 ```
@@ -128,11 +129,12 @@ grok login --oauth   # xAI Grok / Grok Heavy
 <summary>jaw doctor 输出示例</summary>
 
 ```
-🦈 CLI-JAW Doctor — 12 checks
+🦈 CLI-JAW Doctor — 13 checks
 
  ✅ Node.js        v22.15.0
  ✅ Claude CLI      installed
  ✅ Codex CLI       installed
+ ✅ Cursor CLI      installed
  ⚠️ Gemini CLI      not found (optional)
  ✅ OpenCode CLI    installed
  ✅ Copilot CLI     installed
@@ -251,12 +253,13 @@ jaw dispatch --agent "Frontend" --task "修复 dashboard.tsx 中的 CSS grid 布
 | **Antigravity** | AGY-selected | 由 `agy` 在运行时检查 | 支持 `--conversation` resume 的实验性 AGY print-mode runtime；模型切换保留在 native AGY UI |
 | **Codex** | `gpt-5.5` | `codex login` | ChatGPT Pro 订阅 |
 | **Codex App** | `gpt-5.4` | `codex login` | ChatGPT Pro 订阅 |
+| **Cursor** | `composer-2.5-fast` | `cursor-agent login` 或 `CURSOR_API_KEY` | Cursor 订阅；quota 为 auth/status-only |
 | **Gemini** | `gemini-3.1-pro-preview` | `gemini` | Gemini Advanced 订阅 |
 | **Grok** | `grok-build` | `grok login --oauth` | Grok 订阅；配额仅限认证/状态 |
 | **OpenCode** | `minimax-m2.7` | `opencode` | 有免费模型 |
 | **Copilot** | `gpt-5-mini` | `copilot login` | 有免费层 |
 
-配额/状态面板保持与 registry 相同的 runtime keyset。Wrapper runtime（`ai-e`, `claude-e`, `codex-app`）委托给 underlying provider；AGY/Grok/OpenCode 这类 CLI 不暴露 quota window 时，会以 auth/status-only 显示。
+配额/状态面板保持与 registry 相同的 runtime keyset。Wrapper runtime（`ai-e`, `claude-e`, `codex-app`）委托给 underlying provider；AGY/Cursor/Grok/OpenCode 这类 CLI 不暴露 quota window 时，会以 auth/status-only 显示。
 
 **回退链**：当一个引擎被限速时，下一个自动接上。用 `/fallback [cli1 cli2...]` 配置。
 
@@ -457,7 +460,7 @@ npm run gate:all       # 发布/文档一致性门禁
 
 | | CLI-JAW 2.0 | Hermes Agent | Claude Code |
 |---|---|---|---|
-| **模型接入** | Antigravity、AI-E、Claude、Claude E、Codex、Codex App、Gemini、Grok、OpenCode 和 Copilot（通过厂商/原生认证） | API 密钥（OpenRouter 200+、Nous Portal） | 仅 Anthropic |
+| **模型接入** | Antigravity、AI-E、Claude、Claude E、Codex、Codex App、Cursor、Gemini、Grok、OpenCode 和 Copilot（通过厂商/原生认证） | API 密钥（OpenRouter 200+、Nous Portal） | 仅 Anthropic |
 | **费用模型** | 你已经在付的月订阅 | 按 token API 计费 | Anthropic 订阅 |
 | **主 UI** | 管理仪表盘 + Web 应用 + Mac 应用 + 终端 UI | 仅终端 | CLI + IDE 插件 |
 | **仪表盘** | 多实例管理器、看板、笔记工作区 | 无 | 无 |

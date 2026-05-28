@@ -2,7 +2,7 @@
 
 # CLI-JAW
 
-### あなた専用の AI エージェント。2 行でインストール。10 個の AI ランタイムをひとつのダッシュボードに。
+### あなた専用の AI エージェント。2 行でインストール。11 個の AI ランタイムをひとつのダッシュボードに。
 
 [![npm](https://img.shields.io/npm/v/cli-jaw)](https://npmjs.com/package/cli-jaw)
 [![Version](https://img.shields.io/badge/v2.0.0-GA-brightgreen)](https://github.com/lidge-jun/cli-jaw/releases)
@@ -90,7 +90,7 @@ docker compose up -d       # → http://localhost:3457
 
 ## CLI-JAW とは
 
-CLI-JAW は、すでに使っている AI コーディング CLI — Antigravity、AI-E、Claude、Claude E、Codex、Codex App、Gemini、Grok、OpenCode、Copilot — を**ひとつのアシスタント、ひとつのメモリ、ひとつのダッシュボード**に統合するオープンソースプラットフォームです。
+CLI-JAW は、すでに使っている AI コーディング CLI — Antigravity、AI-E、Claude、Claude E、Codex、Codex App、Cursor、Gemini、Grok、OpenCode、Copilot — を**ひとつのアシスタント、ひとつのメモリ、ひとつのダッシュボード**に統合するオープンソースプラットフォームです。
 
 メイン CLI（Boss）が他の CLI を「Employee（従業員）」として呼び出します。アプリを切り替える必要はなく、ひとつの場所から指示できます。
 
@@ -118,6 +118,7 @@ opencode             # OpenCode — 無料モデルあり
 # 有料（すでに支払い中の月額サブスクリプション）
 claude auth login    # Anthropic Claude Max
 codex login          # OpenAI ChatGPT Pro
+cursor-agent login   # Cursor
 gemini               # Google Gemini Advanced
 grok login --oauth   # xAI Grok / Grok Heavy
 ```
@@ -128,11 +129,12 @@ grok login --oauth   # xAI Grok / Grok Heavy
 <summary>jaw doctor の出力例</summary>
 
 ```
-🦈 CLI-JAW Doctor — 12 checks
+🦈 CLI-JAW Doctor — 13 checks
 
  ✅ Node.js        v22.15.0
  ✅ Claude CLI      installed
  ✅ Codex CLI       installed
+ ✅ Cursor CLI      installed
  ⚠️ Gemini CLI      not found (optional)
  ✅ OpenCode CLI    installed
  ✅ Copilot CLI     installed
@@ -251,12 +253,13 @@ Employee は「Frontend は CSS、Backend は API」用。サブエージェン�
 | **Antigravity** | AGY-selected | `agy` 実行時に確認 | `--conversation` resume 対応の実験的な AGY print-mode runtime。モデル変更は native AGY UI 側 |
 | **Codex** | `gpt-5.5` | `codex login` | ChatGPT Pro サブスクリプション |
 | **Codex App** | `gpt-5.4` | `codex login` | ChatGPT Pro サブスクリプション |
+| **Cursor** | `composer-2.5-fast` | `cursor-agent login` または `CURSOR_API_KEY` | Cursor サブスクリプション。quota は auth/status-only |
 | **Gemini** | `gemini-3.1-pro-preview` | `gemini` | Gemini Advanced サブスクリプション |
 | **Grok** | `grok-build` | `grok login --oauth` | Grok サブスクリプション；クォータは認証/ステータスのみ |
 | **OpenCode** | `minimax-m2.7` | `opencode` | 無料モデルあり |
 | **Copilot** | `gpt-5-mini` | `copilot login` | 無料枠あり |
 
-クォータ/ステータスパネルは registry と同じ runtime キーセットを維持します。Wrapper runtime（`ai-e`, `claude-e`, `codex-app`）は underlying provider に委譲し、AGY/Grok/OpenCode のように CLI が quota window を公開しない場合は auth/status-only として表示します。
+クォータ/ステータスパネルは registry と同じ runtime キーセットを維持します。Wrapper runtime（`ai-e`, `claude-e`, `codex-app`）は underlying provider に委譲し、AGY/Cursor/Grok/OpenCode のように CLI が quota window を公開しない場合は auth/status-only として表示します。
 
 **フォールバックチェーン**：あるエンジンがレートリミットされると、次のエンジンが自動で引き継ぎます。`/fallback [cli1 cli2...]` で設定。
 
@@ -457,7 +460,7 @@ npm run gate:all       # リリース/ドキュメント整合性ゲート
 
 | | CLI-JAW 2.0 | Hermes Agent | Claude Code |
 |---|---|---|---|
-| **モデルアクセス** | Antigravity、AI-E、Claude、Claude E、Codex、Codex App、Gemini、Grok、OpenCode、Copilot — ベンダー/ネイティブ認証経由 | API キー（OpenRouter 200+、Nous Portal） | Anthropic のみ |
+| **モデルアクセス** | Antigravity、AI-E、Claude、Claude E、Codex、Codex App、Cursor、Gemini、Grok、OpenCode、Copilot — ベンダー/ネイティブ認証経由 | API キー（OpenRouter 200+、Nous Portal） | Anthropic のみ |
 | **コストモデル** | 契約済みの月額サブスクリプション | トークン単位の API 課金 | Anthropic サブスクリプション |
 | **メイン UI** | マネージャーダッシュボード + Web アプリ + Mac アプリ + ターミナル UI | ターミナルのみ | CLI + IDE プラグイン |
 | **ダッシュボード** | マルチインスタンスマネージャー、カンバン、ノートワークスペース | なし | なし |
