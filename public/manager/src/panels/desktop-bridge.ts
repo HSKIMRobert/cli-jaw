@@ -55,6 +55,15 @@ export type BrowserBridgeApi = {
     onOpenUrl: (cb: (payload: { url: string; disposition: 'current-tab' | 'new-tab' }) => void) => () => void;
 };
 
+export type DesktopShellCapability = 'terminal' | 'diff' | 'folder' | 'shortcuts' | 'browser';
+
+/**
+ * Electron shell-only bridge.
+ *
+ * Jawsidian notes and graph data must continue to flow through the dashboard
+ * HTTP APIs so the web dashboard and Electron render the same vault index.
+ * These capabilities are host integrations, not graph connectivity sources.
+ */
 export type CliJawDesktopApi = {
     identify: () => { name: string; electron: boolean; header: string };
     getMetrics: () => unknown;
