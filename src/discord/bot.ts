@@ -199,6 +199,7 @@ export async function initDiscord() {
             GatewayIntentBits.DirectMessages,
         ],
         partials: [Partials.Channel], // Required for DM events
+        allowedMentions: { parse: [] },
     });
 
     // ── Error handler: disable Discord on network failure ──
