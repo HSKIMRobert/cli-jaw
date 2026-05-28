@@ -23,6 +23,19 @@ function tr(key: string, locale: string, fallback: string): string {
     return value === key ? fallback : value;
 }
 
+async function fireSteerForWebCli(
+    ctx: CliCommandContext,
+    result: SlashResult,
+): Promise<SlashResult> {
+    if (!result.steerPrompt) return result;
+    const iface = ctx.interface || 'web';
+    if (iface === 'telegram' || iface === 'discord') return result;
+    const { submitMessage } = await import('../orchestrator/gateway.js');
+    submitMessage(result.steerPrompt, { origin: iface as 'cli' | 'web' });
+    const { steerPrompt: _stripped, ...rest } = result;
+    return rest;
+}
+
 async function resolveSettings(ctx: CliCommandContext): Promise<Record<string, unknown>> {
     if (typeof ctx.getSettings !== 'function') return {};
     const s = await Promise.resolve(ctx.getSettings());
@@ -42,12 +55,12 @@ export async function interviewWorkflowHandler(args: string[], ctx: CliCommandCo
         return blocked(`Cannot enter Interview: ${gate.reason}\nCurrent state: ${current}`);
     }
     setState('I', { originalPrompt: request, workingDir: (settings as Record<string, unknown>)['workingDir'] as string | null || null, plan: null, workerResults: [], origin }, scope, 'Interview');
-    return {
+    return fireSteerForWebCli(ctx, {
         ok: true,
         type: 'info',
         text: `Interview started: ${request}`,
         steerPrompt: `You are now in Interview mode for: "${request}". Start by identifying what is known vs unknown, then ask your first clarifying question.`,
-    };
+    });
 }
 
 export async function planWorkflowHandler(args: string[], ctx: CliCommandContext): Promise<SlashResult> {
@@ -93,28 +106,28 @@ export async function deliberateWorkflowHandler(args: string[], ctx: CliCommandC
     const settings = await resolveSettings(ctx);
     const artifact = buildDeliberateArtifact(args, locale, settings);
     const request = joinArgs(args) || '<plan or request>';
-    return {
+    return fireSteerForWebCli(ctx, {
         ok: true,
         type: 'info',
         text: formatDeliberateText(artifact, locale),
         artifact,
         originalText: artifact.sourcePrompt,
         steerPrompt: `Deliberate on: "${request}". List 2-4 viable options, then give Planner/Architect/Critic analysis. End with one recommendation and pre-code verification checklist.`,
-    };
+    });
 }
 
 export async function planAuditWorkflowHandler(args: string[], ctx: CliCommandContext): Promise<SlashResult> {
     const locale = ctx.locale || 'ko';
     const settings = await resolveSettings(ctx);
     const artifact = buildPlanAuditArtifact(args, locale, settings);
-    return {
+    return fireSteerForWebCli(ctx, {
         ok: true,
         type: 'info',
         text: formatPlanAuditText(artifact, locale),
         artifact,
         originalText: artifact.sourcePrompt,
         steerPrompt: `Audit this plan read-only. Check file paths, imports, signatures against real code. Verdict: PASS or FAIL.`,
-    };
+    });
 }
 
 export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext): Promise<SlashResult> {
@@ -172,7 +185,7 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
         const settings = await resolveSettings(ctx);
         const wd = (settings as Record<string, unknown>)['workingDir'] as string | undefined;
         const goal = setGoal(objective, wd ? { repoRoot: wd } : {});
-        return { ok: true, type: 'info', text: `Goal set: ${goal.objective}\nID: ${goal.id}`, steerPrompt: `[System] User set a new goal: "${goal.objective}" (ID: ${goal.id}). Acknowledge the goal and help the user achieve it.` };
+        return fireSteerForWebCli(ctx, { ok: true, type: 'info', text: `Goal set: ${goal.objective}\nID: ${goal.id}`, steerPrompt: `[System] User set a new goal: "${goal.objective}" (ID: ${goal.id}). Acknowledge the goal and help the user achieve it.` });
     }
 
     if (sub === 'status' || sub === '--json') {
@@ -204,7 +217,7 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
         clearGoalTimers();
         const goal = completeGoal(note);
         if (!goal) return blocked('No active goal to complete.');
-        return { ok: true, type: 'info', text: `Goal completed: ${goal.objective}${note ? ` — ${note}` : ''}`, steerPrompt: `[System] Goal completed: "${goal.objective}". No active goal remains.` };
+        return fireSteerForWebCli(ctx, { ok: true, type: 'info', text: `Goal completed: ${goal.objective}${note ? ` — ${note}` : ''}`, steerPrompt: `[System] Goal completed: "${goal.objective}". No active goal remains.` });
     }
 
     if (sub === 'cancel') {
@@ -212,24 +225,24 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
         clearGoalTimers();
         const goal = cancelGoal(reason);
         if (!goal) return blocked('No active goal to cancel.');
-        return { ok: true, type: 'info', text: `Goal cancelled: ${goal.objective}`, steerPrompt: `[System] Goal cancelled: "${goal.objective}". No active goal remains.` };
+        return fireSteerForWebCli(ctx, { ok: true, type: 'info', text: `Goal cancelled: ${goal.objective}`, steerPrompt: `[System] Goal cancelled: "${goal.objective}". No active goal remains.` });
     }
 
     if (sub === 'pause') {
         clearGoalTimers();
         const goal = pauseGoal();
         if (!goal) return blocked('No active goal to pause.');
-        return { ok: true, type: 'info', text: `Goal paused: ${goal.objective}`, steerPrompt: `[System] Goal paused: "${goal.objective}". Do not continue working on this goal until the user resumes it.` };
+        return fireSteerForWebCli(ctx, { ok: true, type: 'info', text: `Goal paused: ${goal.objective}`, steerPrompt: `[System] Goal paused: "${goal.objective}". Do not continue working on this goal until the user resumes it.` });
     }
 
     if (sub === 'resume') {
         const existing = getActiveGoal();
         if (existing && existing.status === 'active') {
-            return { ok: true, type: 'info', text: `Goal already active: ${existing.objective}`, steerPrompt: `[System] User resumed active goal: "${existing.objective}" (ID: ${existing.id}). Continue working on this goal.` };
+            return fireSteerForWebCli(ctx, { ok: true, type: 'info', text: `Goal already active: ${existing.objective}`, steerPrompt: `[System] User resumed active goal: "${existing.objective}" (ID: ${existing.id}). Continue working on this goal.` });
         }
         const goal = resumeGoal();
         if (!goal) return blocked('No active or paused goal to resume.');
-        return { ok: true, type: 'info', text: `Goal resumed: ${goal.objective}`, steerPrompt: `[System] User resumed goal: "${goal.objective}" (ID: ${goal.id}). Continue working on this goal.` };
+        return fireSteerForWebCli(ctx, { ok: true, type: 'info', text: `Goal resumed: ${goal.objective}`, steerPrompt: `[System] User resumed goal: "${goal.objective}" (ID: ${goal.id}). Continue working on this goal.` });
     }
 
     if (sub === 'clear') {
@@ -265,7 +278,7 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
         const settings = await resolveSettings(ctx);
         const wd = (settings as Record<string, unknown>)['workingDir'] as string | undefined;
         const goal = setGoal(objective, wd ? { repoRoot: wd } : {});
-        return { ok: true, type: 'info', text: `Goal set: ${goal.objective}\nID: ${goal.id}`, steerPrompt: `[System] User set a new goal: "${goal.objective}" (ID: ${goal.id}). Acknowledge the goal and help the user achieve it.` };
+        return fireSteerForWebCli(ctx, { ok: true, type: 'info', text: `Goal set: ${goal.objective}\nID: ${goal.id}`, steerPrompt: `[System] User set a new goal: "${goal.objective}" (ID: ${goal.id}). Acknowledge the goal and help the user achieve it.` });
     }
 
     // No args at all — show status or usage
