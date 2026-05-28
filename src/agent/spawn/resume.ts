@@ -38,6 +38,10 @@ export function shouldResumeBucketSession(
     if (cli === 'copilot' && bucketModel) {
         return normalizeModelForCli(cli, requestedModel) === normalizeModelForCli(cli, bucketModel);
     }
+    if (cli === 'cursor') {
+        if (!bucketModel) return false;
+        return normalizeModelForCli(cli, requestedModel) === normalizeModelForCli(cli, bucketModel);
+    }
     if (cli === 'opencode' && requestedResumeKey) {
         return requestedResumeKey === (bucketResumeKey ?? null);
     }

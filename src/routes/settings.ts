@@ -266,6 +266,11 @@ export function registerSettingsRoutes(
             displayTier: 'Antigravity',
             account: { type: 'antigravity.google', tier: 'runtime-checked' },
         });
+        const cursorQuota = buildStatusOnlyQuota({
+            quotaSource: 'not-exposed-by-cursor-cli',
+            displayTier: 'Cursor',
+            account: { type: 'cursor', tier: 'auth/status only' },
+        });
         const providerQuota: Record<string, unknown> = {
             claude: claudeQuota,
             codex: codexQuota,
@@ -297,6 +302,7 @@ export function registerSettingsRoutes(
                 displayTier: 'Codex App → Codex',
                 delegatedProvider: 'codex',
             }),
+            cursor: cursorQuota,
             gemini: geminiQuota,
             grok: grokQuota,
             opencode: opencodeQuota,

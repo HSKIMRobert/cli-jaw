@@ -23,6 +23,7 @@ export type CliEngine =
     | 'codex'
     | 'codex-app'
     | 'copilot'
+    | 'cursor'
     | 'gemini'
     | 'grok'
     | 'opencode';
@@ -42,6 +43,7 @@ export const CLI_ENGINES = [
     'codex',
     'codex-app',
     'copilot',
+    'cursor',
     'gemini',
     'grok',
     'opencode',

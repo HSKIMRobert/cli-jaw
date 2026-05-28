@@ -54,6 +54,7 @@ import { asCliEventRecord, discriminate, fieldString, type CliEventRecord } from
 import { isJawRuntimeEvent, handleJawRuntimeEvent } from './claude-e-runtime.js';
 import { appendTraceEvent, stampTraceTool, startTraceRun } from '../trace/store.js';
 import { extractAgyConversationId, formatAgyTimeoutMessage, isAgyTimeoutOutput } from './agy-runtime.js';
+import { resolveCursorModelVariant } from './cursor-runtime.js';
 
 // ─── State ───────────────────────────────────────────
 
@@ -645,6 +646,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     const model = cli === 'ai-e' && effectiveProvider === 'claude'
         ? migrateLegacyClaudeValue(requestedModel)
         : requestedModel;
+    const runtimeModel = cli === 'cursor' ? resolveCursorModelVariant(model, effort) : model;
     if (mainManaged) {
         setCurrentMainMeta(stripUndefined({
             origin,
@@ -653,7 +655,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             requestId: opts.requestId,
             scopeId: liveScope,
             cli,
-            model,
+            model: runtimeModel,
             effectiveProvider,
         }));
     }
@@ -668,7 +670,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     // Bucket-aware resume: codex-spark is kept in its own session bucket so
     // cross-model resume (gpt-5.4 ↔ gpt-5.3-codex-spark) doesn't send a
     // mismatched session_id to the server.
-    const currentBucket = resolveSessionBucket(cli, model, effectiveProvider);
+    const currentBucket = resolveSessionBucket(cli, runtimeModel, effectiveProvider);
     const envDefaultsCli = cli === 'ai-e' ? effectiveProvider : cli;
     const cliEnv = applyCliEnvDefaults(envDefaultsCli, opts.env);
     const spawnEnv = makeCleanEnv(cliEnv);
@@ -681,7 +683,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     const providerSupportsResume = !(cli === 'ai-e' && effectiveProvider !== 'claude');
     const canResumeBucketSession = !bucketSessionId || shouldResumeBucketSession(
         cli,
-        model,
+        runtimeModel,
         bucketModel,
         resumeKey,
         bucketResumeKey,
@@ -690,7 +692,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     const isResume = empSid
         ? true
         : (providerSupportsResume && !opts._skipResume && !forceNew && !!bucketSessionId && canResumeBucketSession);
-    const runtimeStatusMeta = buildAiERuntimeStatusMeta(cli, effectiveProvider, model);
+    const runtimeStatusMeta = buildAiERuntimeStatusMeta(cli, effectiveProvider, runtimeModel);
 
     // ─── Bootstrap compact 1-shot injection (Phase 52: bucket-aware) ───
     // Vendor-agnostic: compact handler reset session_id and stored bootstrap in DB.
@@ -716,7 +718,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         } else if (cli === 'opencode' && resumeKey !== (bucketResumeKey ?? null)) {
             console.log(`[jaw:resume] ${cli} resume key changed ${bucketResumeKey ?? 'none'} → ${resumeKey}; starting fresh session`);
         } else {
-            console.log(`[jaw:resume] ${cli} model changed ${bucketModel} → ${model}; starting fresh session`);
+            console.log(`[jaw:resume] ${cli} model changed ${bucketModel} → ${runtimeModel}; starting fresh session`);
         }
     }
 
@@ -739,7 +741,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             cli === 'gemini' ? GEMINI_HISTORY_MAX_CHARS : 8000,
         )
         : '';
-    let promptForArgs = (cli === 'agy' || cli === 'gemini' || cli === 'grok' || cli === 'opencode' || (cli === 'ai-e' && effectiveProvider !== 'claude'))
+    let promptForArgs = (cli === 'agy' || cli === 'cursor' || cli === 'gemini' || cli === 'grok' || cli === 'opencode' || (cli === 'ai-e' && effectiveProvider !== 'claude'))
         ? withHistoryPrompt(prompt, historyBlock)
         : prompt;
     if (cli === 'agy' && sysPrompt) {
@@ -775,9 +777,9 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     if (isResume) {
         const sid = resumeSessionId || '';
         console.log(`[jaw:resume] ${cli} session=${sid.slice(0, 12)}...`);
-        args = buildResumeArgs(cli, model, effort, sid, prompt, permissions, argOptions);
+        args = buildResumeArgs(cli, runtimeModel, effort, sid, prompt, permissions, argOptions);
     } else {
-        args = buildArgs(cli, model, effort, promptForArgs, sysPrompt, permissions, argOptions);
+        args = buildArgs(cli, runtimeModel, effort, promptForArgs, sysPrompt, permissions, argOptions);
     }
 
     const agentLabel = agentId || 'main';
@@ -1487,7 +1489,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     });
 
     if (mainManaged && !opts.internal && !opts._skipInsert) {
-        insertMessage.run('user', prompt, cli, model, settings["workingDir"] || null);
+        insertMessage.run('user', prompt, cli, runtimeModel, settings["workingDir"] || null);
     }
 
     if (cli === 'claude') {
@@ -1504,7 +1506,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
 
     if (!opts.internal) broadcast('agent_status', { status: 'running', cli, agentId: agentLabel, ...runtimeStatusMeta, ...empTag }, traceAudience);
 
-    const traceRunId = startTraceRun({ cli, model, workingDir: settings["workingDir"] || null, agentLabel, audience: traceAudience });
+    const traceRunId = startTraceRun({ cli, model: runtimeModel, workingDir: settings["workingDir"] || null, agentLabel, audience: traceAudience });
     const agyResumeOffset = cli === 'agy' && isResume
         ? (empSid ? (opts.employeeOutputLen ?? 0) : (bucketRow?.output_len ?? 0))
         : 0;
@@ -1764,7 +1766,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         //   - error: code !== 0 && !wasKilled → classifyExitError
         //   - trace: if (traceText) traceText = `⏹️ [interrupted]…`
         handleAgentExit({
-            ctx, code: effectiveExitCode, cli, model, effectiveProvider, agentLabel, mainManaged, origin,
+            ctx, code: effectiveExitCode, cli, model: runtimeModel, effectiveProvider, agentLabel, mainManaged, origin,
             resumeKey,
             prompt, opts, cfg, ownerGeneration, forceNew, empSid,
             isResume, wasKilled, wasSteer, smokeResult,

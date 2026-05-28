@@ -51,6 +51,26 @@ export function getCliReadiness(): CliReadiness[] {
                 source = authenticated ? 'auth.json' : 'none';
                 break;
             }
+            case 'cursor': {
+                if (process.env["CURSOR_API_KEY"]) {
+                    authenticated = true;
+                    source = 'CURSOR_API_KEY';
+                    break;
+                }
+                try {
+                    const out = execFileSync(info.path || 'cursor-agent', ['status'], {
+                        encoding: 'utf8',
+                        timeout: 5000,
+                        stdio: ['ignore', 'pipe', 'pipe'],
+                    });
+                    authenticated = /logged in|authenticated/i.test(out);
+                    source = authenticated ? 'cursor-agent status' : 'none';
+                } catch {
+                    authenticated = false;
+                    source = 'none';
+                }
+                break;
+            }
             case 'gemini': {
                 const gem = readGeminiAccount();
                 authenticated = !!gem?.account?.email;
@@ -109,7 +129,7 @@ export function getCliReadiness(): CliReadiness[] {
     return results;
 }
 
-const DEFAULT_ORDER: readonly CliEngine[] = ['claude', 'claude-e', 'agy', 'codex', 'codex-app', 'copilot', 'gemini', 'grok', 'opencode', 'ai-e'];
+const DEFAULT_ORDER: readonly CliEngine[] = ['claude', 'claude-e', 'agy', 'codex', 'codex-app', 'cursor', 'copilot', 'gemini', 'grok', 'opencode', 'ai-e'];
 
 export function pickFirstReadyCli(order: readonly CliEngine[] = DEFAULT_ORDER): CliEngine {
     const readiness = getCliReadiness();

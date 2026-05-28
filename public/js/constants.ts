@@ -93,6 +93,13 @@ const FALLBACK_CLI_REGISTRY: CliRegistry = {
         efforts: ['low', 'medium', 'high', 'xhigh'],
         models: ['gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.3-codex', 'gpt-5.3-codex-spark'],
     },
+    cursor: {
+        label: 'Cursor',
+        efforts: ['none', 'none-fast', 'low', 'low-fast', 'medium', 'medium-fast', 'high', 'high-fast', 'xhigh', 'xhigh-fast', 'max', 'max-fast'],
+        effortNote: 'Cursor effort resolves to model IDs; cli-jaw never passes --effort',
+        modelNote: 'Use cursor-agent --list-models to refresh account-specific choices',
+        models: ['auto', 'composer-2.5', 'composer-2', 'gpt-5.5', 'gpt-5.4', 'gpt-5.3-codex', 'claude-opus-4-7', 'claude-opus-4-7-thinking', 'gemini-3.1-pro', 'grok-4.3'],
+    },
     gemini: {
         label: 'Gemini',
         efforts: [],
@@ -216,7 +223,7 @@ export function getCliMeta(cli: string): CliEntry | null {
     return CLI_REGISTRY[cli] || null;
 }
 
-export const PRIMARY_CLIS: readonly string[] = ['claude', 'claude-e', 'agy', 'codex', 'gemini'];
+export const PRIMARY_CLIS: readonly string[] = ['claude', 'claude-e', 'agy', 'codex', 'cursor', 'gemini'];
 
 export interface RolePreset {
     value: string;
