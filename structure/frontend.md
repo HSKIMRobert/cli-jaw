@@ -193,7 +193,7 @@ settings.ts
 | `css/variables.css` | 컬러/타이포/spacing/easing token, light/dark variables, reveal animations |
 | `css/layout.css` | 전체 grid layout, sidebar width, base UI scaffolding |
 | `css/chat.css` | chat area, message layout, input bar, attachments, voice button/arming state, theme switch, virtual scroll container, slash command workflow chips, unknown-command recovery block, `.file-path-link` open states (`opening/opened/open-failed`) |
-| `css/orc-state.css` | PABCD roadmap, shark runner, orc glow, state badge |
+| `css/orc-state.css` | PABCD roadmap, shark runner, orc glow, state badge, interview panel (known/unknown 트래커) |
 | `css/sidebar.css` | left/right sidebar, collapse behavior, status / CLI / app name sections |
 | `css/modals.css` | prompt/template/heartbeat/memory modal shells + form controls |
 | `css/markdown.css` | markdown rendering, code block, copy button, tables, mermaid/KaTeX styles |
@@ -210,7 +210,7 @@ settings.ts
 | 채팅 레이아웃 | agent 메시지는 bubble 대신 `agent-icon + agent-body` 2컬럼 구조 |
 | 아바타 | emoji 입력 저장 + PNG/JPEG/WebP/GIF 업로드 버튼이 sidebar settings에 통합되어 있고, 이미지 활성 시 `.avatar-image`로 렌더링 |
 | 성능 | `.chat-messages` `contain: content`, `.msg` `contain: layout style`로 reflow 격리 |
-| PABCD | roadmap visibility, shark sprite animation, state glow는 `orc-state.css`가 담당 |
+| PABCD | roadmap visibility, shark sprite animation, state glow는 `orc-state.css`가 담당. Interview known/unknown 트래커 패널 DOM은 `#interviewPanel`, 렌더는 `ws.ts`의 `renderInterviewPanel()`이 `orc_state` payload의 `interview`(known/unknown/round)에서 처리 |
 | Diagram | widget/overlay/copy/save/zoom 버튼은 `diagram.css`와 `diagram/iframe-renderer.ts`가 함께 처리 |
 
 ---
@@ -246,7 +246,7 @@ Manager 서버는 `jaw dashboard serve`가 실행하는 `src/manager/server.ts`�
 
 Desktop-only Browser panel은 `webview` 기반이다. `browser-url.ts`가 주소창 입력을 분류한다. `https?://`와 domain/local/IP/port 형태는 URL로 이동하고, 공백이 있거나 hostname으로 보기 어려운 입력은 `https://www.google.com/search?q=...`로 변환한다. 기본 새 탭은 `https://www.google.com/`이다. Web UI에서는 같은 Browser panel을 노출하지 않아 local/private/same-origin iframe 혼동을 만들지 않는다.
 
-Desktop-only Diff panel은 `$HOME`에서 `git rev-parse`를 시작하지 않는다. `SidebarRailRouter`가 선택된 `DashboardInstance`와 registry UI diff 설정을 `DiffPanel`로 넘기고, `diff-root-candidates.ts`가 `projectDirs[]` → `workingDir` → pinned root → home fallback 순서로 후보를 만든다. root policy가 `working-dir-first` 또는 `manual`이면 순서를 바꾼다. 실제 git repo 검증과 diff 읽기는 Electron main IPC(`diff:getRepoCandidates`, `diff:getDiffSummary`, `diff:getFileDiff`)가 맡고, `core.quotepath=false`, ref validation, home/path traversal guard를 유지한다.
+Desktop-only Diff panel은 `$HOME`에서 `git rev-parse`를 시작하지 않는다. `SidebarRailRouter`가 선택된 `DashboardInstance`와 registry UI diff 설정을 `DiffPanel`로 넘기고, `diff-root-candidates.ts`가 `projectDirs[]` → `workingDir` → pinned root → home fallback 순서로 후보를 만든다. root policy가 `working-dir-first` 또는 `manual`이면 순서를 바꾼다. 실제 git repo 검증과 diff 읽기는 이제 server-backed dashboard API(`diff-client.ts`의 `createDashboardGitDiffClient` → `POST /api/dashboard/git/{repo-candidates,diff-summary,file-diff}` → `src/manager/routes/dashboard-git.ts` → `src/manager/git/diff-service.ts`)가 맡는다. Electron main의 git IPC는 이 서버 경로로 대체됐고, `core.quotepath=false`, ref validation, home/path traversal guard는 diff-service에서 유지한다.
 
 Dashboard Settings의 Developer tools 섹션은 Diff 기본값(`diffRootPolicy`, `diffDefaultMode`, `diffBaseRef`, `diffIncludeUntracked`)을 registry UI state에 저장한다. 사용자가 Diff panel에서 repo root를 고르면 `diffPinnedRootByPort`에 instance port별 root가 저장되어 다음 open에서 우선 후보로 쓰인다.
 
@@ -338,7 +338,7 @@ subagent 렌더링 변경 이후 tool history의 canonical UI는 `features/proce
 | `public/manager/src/usePreviewSttLifecycle.ts` | 31L | Preview STT lifecycle -> Jaw CEO voice release hook |
 | `public/manager/src/api.ts` | 276L | Dashboard API wrapper, including typed notes search fetch |
 | `public/manager/src/browser-panel/browser-url.ts` | 55L | Browser panel Google default/search normalization + local/private URL classification |
-| `public/manager/src/diff-panel/DiffPanel.tsx` | 201L | Electron Git Diff panel root selector, diff mode controls, file list, content preview |
+| `public/manager/src/diff-panel/DiffPanel.tsx` | 219L | Desktop Git Diff panel root selector, diff mode controls, file list, content preview (data via `diff-client.ts` → `/api/dashboard/git/*`) |
 | `public/manager/src/diff-panel/diff-root-candidates.ts` | 54L | Selected-instance `projectDirs`/`workingDir`/pinned/home candidate builder |
 | `public/manager/src/dashboard-settings/DashboardDeveloperSettingsSection.tsx` | 123L | Developer tools settings section for Git Diff defaults |
 | `public/manager/src/dashboard-reminders/DashboardRemindersWorkspace.tsx` | 329L | Reminders matrix, top-priority strip, quick-create rows, done toggle, drag/drop, detail popover entry |
