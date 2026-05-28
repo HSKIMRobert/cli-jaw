@@ -79,6 +79,15 @@ export type DashboardInstance = {
     healthReason: string | null;
 };
 
+export type DashboardInstanceMessageResult = {
+    queued?: boolean;
+    pending?: number;
+    continued?: boolean;
+    noPendingContinue?: boolean;
+    error?: string;
+    queuedId?: string;
+};
+
 export type DashboardProfile = {
     profileId: DashboardProfileId;
     label: string;

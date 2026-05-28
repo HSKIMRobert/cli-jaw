@@ -108,7 +108,7 @@ export function createPreviewOriginProxyController(
     options: PreviewOriginProxyOptions,
 ): PreviewOriginProxyController {
     const bindHost = options.bindHost || '127.0.0.1';
-    const timeoutMs = options.requestTimeoutMs || 5_000;
+    const timeoutMs = options.requestTimeoutMs || 30_000;
     const range = validatePreviewOriginProxyOptions(options);
     const targetRange: PortRange = { from: range.targetFrom, to: range.targetTo };
     const states = new Map<number, PreviewServerState>();
@@ -165,13 +165,20 @@ export function createPreviewOriginProxyController(
             return;
         }
 
+        let deadlineTimer: ReturnType<typeof setTimeout> | null = null;
+        const clearDeadline = () => {
+            if (deadlineTimer) {
+                clearTimeout(deadlineTimer);
+                deadlineTimer = null;
+            }
+        };
+
         const upstream = http.request({
             hostname: MANAGED_INSTANCE_HOST,
             port: state.targetPort,
             method: req.method,
             path: req.url || '/',
             headers: rewriteUpstreamRequestHeaders(req.headers, state.targetPort),
-            timeout: timeoutMs,
         }, (upstreamRes) => {
             const headers = sanitizeProxyResponseHeaders(upstreamRes.headers, {
                 targetOrigin: targetOriginForPort(state.targetPort),
@@ -181,15 +188,20 @@ export function createPreviewOriginProxyController(
             headers['x-jaw-preview-port'] = String(state.previewPort);
             headers['x-jaw-target-port'] = String(state.targetPort);
             res.writeHead(upstreamRes.statusCode || 502, upstreamRes.statusMessage, headers);
+            upstreamRes.on('end', clearDeadline);
+            upstreamRes.on('close', clearDeadline);
             upstreamRes.pipe(res);
         });
 
-        upstream.on('timeout', () => {
+        deadlineTimer = setTimeout(() => {
             upstream.destroy(new Error('preview proxy timeout'));
-        });
+        }, timeoutMs);
+
         upstream.on('error', (error: Error) => {
+            clearDeadline();
             sendDiagnostic(res, error.message === 'preview proxy timeout' ? 504 : 502, error.message);
         });
+        upstream.on('close', clearDeadline);
         req.pipe(upstream);
     }
 

@@ -22,7 +22,10 @@ function writeJson(filePath: string, data: unknown): void {
 function readJson<T>(filePath: string): T | null {
     try {
         return JSON.parse(fs.readFileSync(filePath, 'utf8')) as T;
-    } catch {
+    } catch (error) {
+        if (fs.existsSync(filePath)) {
+            console.warn(`[goal] failed to read ${filePath}: ${(error as Error).message}`);
+        }
         return null;
     }
 }
@@ -81,23 +84,29 @@ export function updateGoal(summary: string, nextAction = ''): GoalState | null {
 
 export function completeGoal(note?: string): GoalState | null {
     const goal = getActiveGoal();
-    if (!goal) return null;
+    if (!goal) {
+        forceDeleteActive();
+        return null;
+    }
     goal.status = 'complete';
     if (note) goal.completionNote = note;
     goal.updatedAt = new Date().toISOString();
     archiveGoal(goal);
-    try { fs.unlinkSync(ACTIVE_PATH); } catch { /* noop */ }
+    forceDeleteActive();
     return goal;
 }
 
 export function cancelGoal(reason?: string): GoalState | null {
     const goal = getActiveGoal();
-    if (!goal) return null;
+    if (!goal) {
+        forceDeleteActive();
+        return null;
+    }
     goal.status = 'cancelled';
     if (reason) goal.cancelReason = reason;
     goal.updatedAt = new Date().toISOString();
     archiveGoal(goal);
-    try { fs.unlinkSync(ACTIVE_PATH); } catch { /* noop */ }
+    forceDeleteActive();
     return goal;
 }
 
@@ -121,17 +130,24 @@ export function resumeGoal(): GoalState | null {
 
 export function clearGoal(): boolean {
     const goal = getActiveGoal();
-    if (!goal) return false;
+    if (!goal) {
+        forceDeleteActive();
+        return false;
+    }
     goal.status = 'cancelled';
     goal.updatedAt = new Date().toISOString();
     archiveGoal(goal);
-    try { fs.unlinkSync(ACTIVE_PATH); } catch { /* noop */ }
+    forceDeleteActive();
     return true;
 }
 
 export function resetGoalStore(): void {
     try { fs.unlinkSync(ACTIVE_PATH); } catch { /* noop */ }
     try { fs.unlinkSync(HISTORY_PATH); } catch { /* noop */ }
+}
+
+function forceDeleteActive(): void {
+    try { fs.unlinkSync(ACTIVE_PATH); } catch { /* file may not exist */ }
 }
 
 function archiveGoal(goal: GoalState): void {

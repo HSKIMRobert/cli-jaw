@@ -10,7 +10,7 @@ import {
     stat,
     writeFile,
 } from 'node:fs/promises';
-import { basename, dirname } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { dashboardPath } from '../dashboard-home.js';
 import type {
     DashboardNoteFileResponse,
@@ -357,4 +357,92 @@ export class NotesStore {
             size,
         };
     }
+
+    // ── Themes & CSS Snippets ──
+
+    private snippetsDir(): string {
+        return join(this.root, '_snippets');
+    }
+
+    private snippetsConfigPath(): string {
+        return join(this.snippetsDir(), '.config.json');
+    }
+
+    private async readSnippetsConfig(): Promise<SnippetsConfig> {
+        try {
+            const raw = await this.fs.readFile(this.snippetsConfigPath(), 'utf8');
+            return JSON.parse(raw) as SnippetsConfig;
+        } catch {
+            return { enabled: {}, activeTheme: null };
+        }
+    }
+
+    private async writeSnippetsConfig(config: SnippetsConfig): Promise<void> {
+        const dir = this.snippetsDir();
+        await this.fs.mkdir(dir, { recursive: true });
+        await this.fs.writeFile(this.snippetsConfigPath(), JSON.stringify(config, null, 2));
+    }
+
+    async listSnippets(): Promise<{ snippets: SnippetInfo[]; activeTheme: string | null }> {
+        await this.ensureRoot();
+        const dir = this.snippetsDir();
+        const config = await this.readSnippetsConfig();
+        const snippets: SnippetInfo[] = [];
+        try {
+            const entries = await this.fs.readdir(dir, { withFileTypes: true });
+            for (const entry of entries) {
+                if (entry.name.startsWith('.')) continue;
+                if (!entry.isFile() || !entry.name.endsWith('.css')) continue;
+                snippets.push({
+                    name: entry.name.replace(/\.css$/, ''),
+                    file: entry.name,
+                    enabled: config.enabled[entry.name] === true,
+                });
+            }
+        } catch { /* dir doesn't exist */ }
+        return { snippets: snippets.sort((a, b) => a.name.localeCompare(b.name)), activeTheme: config.activeTheme };
+    }
+
+    private assertSnippetName(name: string): string {
+        const fileName = name.endsWith('.css') ? name : `${name}.css`;
+        if (!/^[A-Za-z0-9][A-Za-z0-9._-]*\.css$/.test(fileName)) {
+            throw notePathError(400, 'invalid_snippet_name', 'invalid snippet name');
+        }
+        return fileName;
+    }
+
+    async readSnippet(name: string): Promise<string> {
+        const fileName = this.assertSnippetName(name);
+        const filePath = join(this.snippetsDir(), fileName);
+        return await this.fs.readFile(filePath, 'utf8');
+    }
+
+    async toggleSnippet(name: string, enabled: boolean): Promise<void> {
+        const fileName = this.assertSnippetName(name);
+        const config = await this.readSnippetsConfig();
+        config.enabled[fileName] = enabled;
+        await this.writeSnippetsConfig(config);
+    }
+
+    private static readonly BUILTIN_THEMES = new Set(['default', 'sepia', 'nord', 'solarized-dark']);
+
+    async setActiveTheme(theme: string | null): Promise<void> {
+        if (theme !== null && !NotesStore.BUILTIN_THEMES.has(theme)) {
+            throw notePathError(400, 'invalid_theme', 'unknown theme name');
+        }
+        const config = await this.readSnippetsConfig();
+        config.activeTheme = theme;
+        await this.writeSnippetsConfig(config);
+    }
 }
+
+type SnippetsConfig = {
+    enabled: Record<string, boolean>;
+    activeTheme: string | null;
+};
+
+export type SnippetInfo = {
+    name: string;
+    file: string;
+    enabled: boolean;
+};

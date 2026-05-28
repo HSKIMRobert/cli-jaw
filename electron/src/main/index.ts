@@ -11,8 +11,11 @@ import {
   buildPreviewFrameOrigins,
   isManagerNavigation,
   isPreviewFrameNavigation,
-  resolvePreviewFramePolicy,
 } from './lib/navigation-policy.js';
+import {
+  previewSpawnEnvForManager,
+  resolvePreviewFramePolicyForManager,
+} from './lib/preview-ports.js';
 import {
   showJawNotFoundDialog,
   showCrashLoopDialog,
@@ -104,7 +107,7 @@ const FLAGS = parseArgs(process.argv.slice(1));
 let MANAGER_URL = FLAGS.managerUrl;
 let MANAGER_ORIGIN = new URL(MANAGER_URL).origin;
 setAllowedOrigin(MANAGER_ORIGIN);
-const PREVIEW_FRAME_POLICY = resolvePreviewFramePolicy(process.env);
+let PREVIEW_FRAME_POLICY = resolvePreviewFramePolicyForManager(getManagerUrlPort(MANAGER_URL));
 
 const EXTERNAL_ALLOWLIST = [
   'github.com',
@@ -503,6 +506,7 @@ function installManagerApplicationMenu(): void {
 function switchManagerUrl(url: string): void {
   MANAGER_URL = url;
   MANAGER_ORIGIN = new URL(url).origin;
+  PREVIEW_FRAME_POLICY = resolvePreviewFramePolicyForManager(getManagerUrlPort(url));
   setAllowedOrigin(MANAGER_ORIGIN);
 }
 
@@ -613,9 +617,11 @@ async function spawnAndWait(): Promise<void> {
   }
 
   const managerPort = getManagerUrlPort(MANAGER_URL);
+  PREVIEW_FRAME_POLICY = resolvePreviewFramePolicyForManager(managerPort);
   managerProcess = spawnJawDashboard(found.path, {
     port: managerPort,
     ringBuffer,
+    env: previewSpawnEnvForManager(managerPort),
   });
 
   managerProcess.on('exit', handleManagerExit);

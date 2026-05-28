@@ -52,7 +52,7 @@ import {
     onFlushCliChange, loadFlushAgentSidebar,
     closePromptModal, savePromptFromModal, syncMcpServers, installMcpGlobal,
     loadCliStatus, scheduleCliStatusRefresh, setCliStatusInterval,
-    initCliStatusToggle, isCliStatusExpanded, expandCliStatus,
+    initCliStatusToggle, initCliStatusPreviewHooks, isCliStatusExpanded, expandCliStatus, isEmbeddedPreviewFrame,
     setTelegram, setForwardAll, setTelegramMentionOnly, saveTelegramSettings,
     setDiscord, setDiscordForwardAll, setDiscordAllowBots, setDiscordMentionOnly, saveDiscordSettings, setActiveChannel,
     saveFallbackOrder,
@@ -526,6 +526,7 @@ async function bootstrap(): Promise<void> {
     loadFlushAgentSidebar();
     scheduleCliStatusRefresh();
     initCliStatusToggle();
+    initCliStatusPreviewHooks();
     if (isCliStatusExpanded()) loadCliStatus();
     // loadMessages() is handled by ws.js onopen (clear + reload)
     initSidebar();
@@ -541,8 +542,8 @@ async function bootstrap(): Promise<void> {
     // Phase 127-F2: prewarm Mermaid at idle so first diagram renders fast
     prewarmMermaid();
 
-    // Register Service Worker (production only — Vite HMR handles dev)
-    if ('serviceWorker' in navigator && !import.meta.env.DEV) {
+    // Register Service Worker (production only — Vite HMR handles dev; skip embedded dashboard preview iframes)
+    if ('serviceWorker' in navigator && !import.meta.env.DEV && !isEmbeddedPreviewFrame()) {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
     }
 }

@@ -96,6 +96,18 @@
 .terminal-xterm-surface.is-active {
     display: block;
 }
+.terminal-a11y-input {
+    position: absolute;
+    top: 0;
+    left: -9999em;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    resize: none;
+    overflow: hidden;
+}
 .terminal-xterm-surface .xterm {
     height: 100%;
 }

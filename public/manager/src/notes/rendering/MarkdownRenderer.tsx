@@ -124,6 +124,9 @@ export function MarkdownRenderer(props: MarkdownRendererProps) {
                 img: ({ src, alt, ...imageProps }: ComponentProps<'img'>) => {
                     const safeSrc = typeof src === 'string' ? notesImageSrc(src) : '';
                     if (!safeSrc) return null;
+                    if (safeSrc.endsWith('.pdf')) {
+                        return <iframe src={safeSrc} title={alt ?? 'PDF embed'} className="notes-pdf-embed" />;
+                    }
                     return <img {...imageProps} src={safeSrc} alt={alt ?? ''} loading="lazy" />;
                 },
                 p: wikiTransform('p'),

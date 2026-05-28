@@ -290,7 +290,7 @@ test('QS-010e: QuotaEntry type includes auth/status-only fields', () => {
     }
 });
 
-test('QS-010f: frontend renders generic status-only quota rows, not Grok-only rows', () => {
+test('QS-010f: frontend renders generic status-only quota rows with setup hints', () => {
     assert.ok(
         settingsSrc.includes('q?.quotaCapable === false'),
         'status-only rendering should key off quotaCapable=false',
@@ -298,6 +298,10 @@ test('QS-010f: frontend renders generic status-only quota rows, not Grok-only ro
     assert.ok(
         settingsSrc.includes('describeStatusOnlyQuota'),
         'status-only rows should use provider-aware copy',
+    );
+    assert.ok(
+        settingsSrc.includes('QUOTA_SETUP_HINTS'),
+        'status-only rows should expose actionable setup commands',
     );
     assert.ok(
         !settingsSrc.includes("name === 'grok' && q?.quotaCapable === false"),

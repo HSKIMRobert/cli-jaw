@@ -287,6 +287,33 @@ test('websocket proxy does not apply HTTP request timeout after upgrade', async 
     }
 });
 
+test('slow upstream response completes before end-to-end deadline', async () => {
+    const { targetPort, previewFrom } = await freePortPair();
+    const server = http.createServer((_req, res) => {
+        setTimeout(() => {
+            res.writeHead(200, { 'content-type': 'application/json' });
+            res.end('{"ok":true}');
+        }, 120);
+    });
+    await new Promise<void>(resolve => server.listen(targetPort, '127.0.0.1', () => resolve()));
+    const controller = createPreviewOriginProxyController({
+        scanFrom: targetPort,
+        scanCount: 1,
+        previewFrom,
+        managerPort: 24576,
+        requestTimeoutMs: 500,
+    });
+    try {
+        await controller.ensureTarget(targetPort);
+        const response = await requestText(previewFrom, '/api/quota');
+        assert.equal(response.status, 200);
+        assert.equal(response.body, '{"ok":true}');
+    } finally {
+        await controller.close();
+        await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+});
+
 test('diagnostic html is visible when upstream target closes and close is idempotent', async () => {
     const { targetPort, previewFrom } = await freePortPair();
     const target = await startTarget(targetPort);

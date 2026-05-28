@@ -9,6 +9,7 @@ import {
     isAllowedOriginHeader,
     isExpectedHostHeader,
 } from '../security.js';
+import { requireNotesAuth, notesCorsPreflight, getAuthStatus } from './auth.js';
 import { stripUndefined } from '../../core/strip-undefined.js';
 import type { DashboardPutNoteRequest } from '../types.js';
 import { NOTE_ASSET_JSON_LIMIT, NotesAssetStore } from './assets.js';
@@ -18,16 +19,20 @@ import { NotesStore } from './store.js';
 import { NotesTrash } from './trash.js';
 import type { DashboardTrashNoteKind } from '../types.js';
 import { createNotesWatcher, type NotesWatcher } from './watcher.js';
+import { NoteGitManager } from './git.js';
+import { PluginManager } from './plugins.js';
 import { NotesVaultIndex } from './vault-index.js';
 import { detectNotesCapabilities } from './capabilities.js';
 import { searchNotes } from './search.js';
 
 export type DashboardNotesRouterOptions = {
     managerPort: number;
+    settingsPath?: string;
     store?: NotesStore;
     assetStore?: NotesAssetStore;
     trash?: NotesTrash;
     watcher?: NotesWatcher;
+    wsTokenIssuer?: { issueToken: () => string };
 };
 
 type RouteBody = Record<string, unknown>;
@@ -151,7 +156,74 @@ export function createDashboardNotesRouter(options: DashboardNotesRouterOptions)
         watcherVersion: watcher.version,
     });
 
-    router.use(requireManagerOrigin(options.managerPort));
+    const settingsPath = options.settingsPath || '';
+    router.use(notesCorsPreflight({ managerPort: options.managerPort, settingsPath }));
+    router.use(requireNotesAuth({ managerPort: options.managerPort, settingsPath }));
+
+    router.get('/auth/status', (_req, res) => {
+        res.json(getAuthStatus(settingsPath));
+    });
+
+    router.post('/ws-token', (_req, res) => {
+        if (!options.wsTokenIssuer) {
+            res.status(501).json({ ok: false, error: 'WebSocket not available' });
+            return;
+        }
+        res.json({ token: options.wsTokenIssuer.issueToken() });
+    });
+
+    const gitManager = new NoteGitManager(store.rootPath());
+
+    router.get('/history/status', asyncRoute(async (_req, res) => {
+        const available = await gitManager.isAvailable();
+        res.json({ available, initialized: gitManager.isInitialized() });
+    }));
+
+    router.post('/history/init', asyncRoute(async (_req, res) => {
+        await gitManager.init();
+        res.json({ ok: true, initialized: gitManager.isInitialized() });
+    }));
+
+    router.get('/history', asyncRoute(async (req, res) => {
+        const path = requireString(req.query["path"], 'invalid_note_path', 'path query is required');
+        const limit = typeof req.query["limit"] === 'string' ? Number(req.query["limit"]) : 50;
+        res.json(await gitManager.log(path, limit));
+    }));
+
+    router.get('/history/show', asyncRoute(async (req, res) => {
+        const hash = requireString(req.query["hash"], 'invalid_git_hash', 'hash query is required');
+        const path = requireString(req.query["path"], 'invalid_note_path', 'path query is required');
+        const content = await gitManager.show(hash, path);
+        res.json({ hash, path, content });
+    }));
+
+    router.get('/history/diff', asyncRoute(async (req, res) => {
+        const from = requireString(req.query["from"], 'invalid_git_hash', 'from query is required');
+        const to = requireString(req.query["to"], 'invalid_git_hash', 'to query is required');
+        const path = requireString(req.query["path"], 'invalid_note_path', 'path query is required');
+        const diff = await gitManager.diff(from, to, path);
+        res.json({ from, to, path, diff });
+    }));
+
+    router.post('/history/flush', asyncRoute(async (_req, res) => {
+        await gitManager.flush();
+        res.json({ ok: true });
+    }));
+
+    const pluginManager = new PluginManager(store.rootPath());
+
+    router.get('/plugins', asyncRoute(async (_req, res) => {
+        res.json(await pluginManager.listPlugins());
+    }));
+
+    router.get('/plugins/:id/asset/*assetPath', asyncRoute(async (req, res) => {
+        const id = String(req.params['id'] ?? '');
+        const rawAssetPath = req.params['assetPath'];
+        const assetPath = Array.isArray(rawAssetPath) ? rawAssetPath.join('/') : String(rawAssetPath ?? '');
+        const result = await pluginManager.getPluginAsset(id, assetPath);
+        if (!result) { res.status(404).json({ error: 'Plugin asset not found' }); return; }
+        res.type(result.mime).send(result.content);
+    }));
 
     router.get('/version', (_req, res) => {
         res.json({ version: watcher.version() });
@@ -206,6 +278,36 @@ export function createDashboardNotesRouter(options: DashboardNotesRouterOptions)
         res.json(await store.readTemplate(name));
     }));
 
+    router.get('/snippets', asyncRoute(async (_req, res) => {
+        res.json(await store.listSnippets());
+    }));
+
+    router.get('/snippets/file', asyncRoute(async (req, res) => {
+        const name = requireString(req.query["name"], 'invalid_snippet_name', 'name query is required');
+        const css = await store.readSnippet(name);
+        res.type('text/css').send(css);
+    }));
+
+    router.put('/snippets/toggle', asyncRoute(async (req, res) => {
+        const name = requireString(req.body?.name, 'invalid_snippet_name', 'name is required');
+        const enabled = req.body?.enabled === true;
+        await store.toggleSnippet(name, enabled);
+        res.json({ ok: true });
+    }));
+
+    router.put('/theme', asyncRoute(async (req, res) => {
+        const theme = req.body?.theme ?? null;
+        await store.setActiveTheme(typeof theme === 'string' ? theme : null);
+        res.json({ ok: true });
+    }));
+
+    router.put('/plugins/:id/toggle', asyncRoute(async (req, res) => {
+        const id = String(req.params['id'] ?? '');
+        const enabled = req.body?.enabled === true;
+        await pluginManager.togglePlugin(id, enabled);
+        res.json({ ok: true });
+    }));
+
     router.get('/search', asyncRoute(async (req, res) => {
         const q = requireString(req.query["q"], 'invalid_note_search_query', 'q query param is required');
         const limit = typeof req.query["limit"] === 'string' ? Number(req.query["limit"]) : undefined;
@@ -239,7 +341,9 @@ export function createDashboardNotesRouter(options: DashboardNotesRouterOptions)
             content: requireString(body["content"], 'invalid_note_content', 'content is required'),
             baseRevision: optionalString(body["baseRevision"]),
         });
-        res.json(await store.writeFile(request));
+        const result = await store.writeFile(request);
+        if (gitManager.isInitialized()) gitManager.scheduleAutoCommit(request.path);
+        res.json(result);
     }));
 
     router.post('/folder', asyncRoute(async (req, res) => {

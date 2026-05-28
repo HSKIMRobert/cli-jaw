@@ -89,16 +89,34 @@ async function resolveAgentId(name: string): Promise<string | null> {
     return found?.id || null;
 }
 
-async function pollWorkerResult(agentId: string): Promise<DispatchResultBody> {
+class DispatchPollError extends Error {
+    constructor(message: string, public readonly agentId: string, public readonly agentName: string) {
+        super(message);
+        this.name = 'DispatchPollError';
+    }
+}
+
+async function pollWorkerResult(agentId: string, agentName = ''): Promise<DispatchResultBody> {
     const deadline = Date.now() + 600_000;
+    let lastState = 'unknown';
     while (Date.now() < deadline) {
-        const res = await cliFetch(`${BASE}/api/orchestrate/worker/${encodeURIComponent(agentId)}/result`);
+        let res: Response;
+        try {
+            res = await cliFetch(`${BASE}/api/orchestrate/worker/${encodeURIComponent(agentId)}/result`);
+        } catch (fetchErr) {
+            throw new DispatchPollError(
+                `dispatch poll failed: ${errString(fetchErr)}`,
+                agentId,
+                agentName,
+            );
+        }
         const body = await res.json() as DispatchResultBody;
-        if (!res.ok) throw new Error(body.error || `poll failed: ${res.status}`);
+        if (!res.ok) throw new DispatchPollError(body.error || `poll failed: ${res.status}`, agentId, agentName);
+        lastState = body.state || 'unknown';
         if (body.state !== 'running') return body;
         await sleep(2_000);
     }
-    throw new Error(`Timed out waiting for worker result: ${agentId}`);
+    throw new DispatchPollError(`timed out after 10 minutes (last state: ${lastState})`, agentId, agentName);
 }
 
 function resultStatus(body: DispatchResultBody): string {
@@ -181,8 +199,8 @@ try {
                 console.error(`❌ ${body.error || `Failed: ${res.status}`}`);
                 process.exit(1);
             }
-            console.error(`⏳ ${agent} is already running, polling worker result...`);
-            const polled = await pollWorkerResult(pollAgentId);
+            console.error(`⏳ ${agent} is already running (agentId: ${pollAgentId}), polling worker result...`);
+            const polled = await pollWorkerResult(pollAgentId, agent);
             printDispatchResult(agent, polled);
             process.exit(dispatchExitCode(polled));
         }
@@ -192,6 +210,14 @@ try {
     printDispatchResult(agent, body);
     process.exit(dispatchExitCode(body));
 } catch (e: unknown) {
-    console.error(`❌ Error: ${errString(e)}`);
+    if (e instanceof DispatchPollError) {
+        console.error(`❌ ${e.message}`);
+        console.error(`  agentId:  ${e.agentId}`);
+        console.error(`  agent:    ${e.agentName || agent}`);
+        console.error(`  recover:  cli-jaw dispatch --agent "${e.agentName || agent}" --task "(resume polling)"`);
+        console.error(`  poll:     curl -s ${BASE}/api/orchestrate/worker/${encodeURIComponent(e.agentId)}/result`);
+    } else {
+        console.error(`❌ Error: ${errString(e)}`);
+    }
     process.exit(1);
 }

@@ -1,8 +1,11 @@
 // Reverse-engineered Antigravity / AGY quota reader.
 
-import { execFileSync } from 'child_process';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { stripUndefined } from '../core/strip-undefined.js';
 import { fetchGeminiUsage, readGeminiAccount } from './quota.js';
+
+const execFileAsync = promisify(execFile);
 
 type QuotaRecord = Record<string, unknown>;
 
@@ -34,17 +37,46 @@ function usedPercentFromRemaining(remaining?: number, exhausted?: boolean): numb
     return Math.max(0, Math.min(100, Math.round((1 - remaining) * 100)));
 }
 
-export function normalizeAntigravityUsageSnapshot(snapshot: AntigravityQuotaSnapshot): QuotaRecord {
-    const models = Array.isArray(snapshot.models) ? snapshot.models : [];
-    const windows = models
-        .filter((model) => !model.isAutocompleteOnly)
-        .slice(0, 8)
-        .map((model) => stripUndefined({
-            label: model.label || model.modelId || 'Model',
+type AgyQuotaFamily = 'gem' | 'cla';
+
+function classifyAgyQuotaFamily(model: AntigravityModelQuota): AgyQuotaFamily | null {
+    const haystack = `${model.label || ''} ${model.modelId || ''}`.toLowerCase();
+    if (haystack.includes('gemini')) return 'gem';
+    if (
+        haystack.includes('claude')
+        || haystack.includes('opus')
+        || haystack.includes('sonnet')
+        || haystack.includes('gpt-oss')
+        || haystack.includes('gpt_oss')
+    ) {
+        return 'cla';
+    }
+    return null;
+}
+
+export function collapseAgyQuotaWindows(models: AntigravityModelQuota[]) {
+    const buckets = new Map<AgyQuotaFamily, { label: string; percent: number; resetsAt: string | null; modelId?: string }>();
+    for (const model of models) {
+        if (model.isAutocompleteOnly) continue;
+        const family = classifyAgyQuotaFamily(model);
+        if (!family || buckets.has(family)) continue;
+        // Antigravity quota pools are linked per family; any model in the pool shows the same value.
+        buckets.set(family, stripUndefined({
+            label: family === 'gem' ? 'Gem' : 'Cla',
             percent: usedPercentFromRemaining(model.remainingPercentage, model.isExhausted),
             resetsAt: model.resetTime ?? null,
             modelId: model.modelId,
         }));
+    }
+    return (['gem', 'cla'] as const).flatMap((family) => {
+        const window = buckets.get(family);
+        return window ? [window] : [];
+    });
+}
+
+export function normalizeAntigravityUsageSnapshot(snapshot: AntigravityQuotaSnapshot): QuotaRecord {
+    const models = Array.isArray(snapshot.models) ? snapshot.models : [];
+    const windows = collapseAgyQuotaWindows(models);
 
     return stripUndefined({
         authenticated: true,
@@ -53,7 +85,7 @@ export function normalizeAntigravityUsageSnapshot(snapshot: AntigravityQuotaSnap
         displayTier: snapshot.planType ? `Antigravity ${snapshot.planType}` : 'Antigravity',
         account: stripUndefined({
             type: 'antigravity.google',
-            tier: snapshot.planType ?? 'Google Cloud Code',
+            tier: snapshot.planType,
             email: snapshot.email,
         }),
         windows,
@@ -61,18 +93,18 @@ export function normalizeAntigravityUsageSnapshot(snapshot: AntigravityQuotaSnap
     });
 }
 
-function runAntigravityUsageJson(): AntigravityQuotaSnapshot | null {
+async function runAntigravityUsageJson(): Promise<AntigravityQuotaSnapshot | null> {
     const commands: Array<[string, string[]]> = [
         ['antigravity-usage', ['--json']],
         ['npx', ['--yes', 'antigravity-usage', '--json']],
     ];
     for (const [binary, args] of commands) {
         try {
-            const out = execFileSync(binary, args, {
+            const { stdout } = await execFileAsync(binary, args, {
                 encoding: 'utf8',
                 timeout: 15000,
-                stdio: ['ignore', 'pipe', 'pipe'],
-            }).trim();
+            });
+            const out = stdout.trim();
             if (!out.startsWith('{')) continue;
             return JSON.parse(out) as AntigravityQuotaSnapshot;
         } catch {
@@ -95,7 +127,7 @@ function buildAgyStatusOnly(): QuotaRecord {
 }
 
 export async function fetchAgyUsage(): Promise<QuotaRecord> {
-    const snapshot = runAntigravityUsageJson();
+    const snapshot = await runAntigravityUsageJson();
     if (snapshot?.models?.length) {
         return normalizeAntigravityUsageSnapshot(snapshot);
     }
@@ -111,7 +143,6 @@ export async function fetchAgyUsage(): Promise<QuotaRecord> {
                 displayTier: 'Antigravity',
                 account: stripUndefined({
                     type: 'antigravity.google',
-                    tier: 'Google Cloud Code',
                     email: geminiUsage.account?.email,
                 }),
                 reverseEngineered: true,
