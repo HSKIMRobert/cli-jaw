@@ -158,7 +158,7 @@ function renderCliStatus(data: { cliStatus: Record<string, { available: boolean 
     const el = document.getElementById('cliStatusList');
 
     const AUTH_HINTS: Record<string, { install: string; auth: string }> = {
-        agy: { install: 'curl -fsSL https://antigravity.google/cli/install.sh | bash', auth: 'agy auth is checked by the CLI at run time' },
+        agy: { install: 'curl -fsSL https://antigravity.google/cli/install.sh | bash', auth: 'agy runtime auth, antigravity-usage login, or ~/.gemini oauth for quota' },
         'ai-e': { install: 'Install AI-E helper', auth: 'delegates to selected AI-E provider' },
         claude: { install: 'npm i -g @anthropic-ai/claude-code', auth: 'claude auth' },
         'claude-e': { install: 'Install claude-e helper', auth: 'claude auth' },
