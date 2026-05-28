@@ -139,8 +139,8 @@
 }
 
 .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .rail-spacer {
-    flex: 0 0 100%;
-    min-width: 0;
+    flex: 1 1 auto;
+    min-width: 4px;
     height: 0;
 }
 

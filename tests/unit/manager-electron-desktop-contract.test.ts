@@ -148,6 +148,16 @@ test('Electron panel shortcuts open usable panels when closed', () => {
         provider.includes("dispatch({ type: 'OPEN_RIGHT_PANEL', mode: 'folder', slot: 'top' })"),
         'usePanelActions.toggleRightPanel must also open a folder panel from the closed/no-mode state',
     );
+    assert.ok(
+        provider.includes("if (next.topMode !== null && next.topMode === next.bottomMode) next.bottomMode = null;"),
+        'right panel hydration/open must collapse duplicate top and bottom modes into one usable panel',
+    );
+    const compact = read('public/manager/src/manager-p0-1-1.css');
+    assert.equal(
+        compact.includes('flex: 0 0 100%'),
+        false,
+        'Electron panel spacer must not force panel toggles onto a clipped second rail row',
+    );
 });
 
 test('Electron right sidebar exposes icon panel switcher and document preview path', () => {
