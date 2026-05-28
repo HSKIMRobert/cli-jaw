@@ -120,6 +120,7 @@ export function BrowserPanel() {
     const [activeTabId, setActiveTabId] = useState(initialTab.current.id);
     const inputRef = useRef<HTMLInputElement | null>(null);
     const editingTabIdRef = useRef<string | null>(null);
+    const inputDraftRef = useRef<{ tabId: string; value: string } | null>(null);
     const webviewRefs = useRef<Map<string, ElectronWebviewElement>>(new Map());
     const webviewCleanupRefs = useRef<Map<string, () => void>>(new Map());
 
@@ -289,14 +290,21 @@ export function BrowserPanel() {
     }, [activeTabId]);
 
     const navigate = useCallback(() => {
-        const rawTarget = inputRef.current?.value ?? activeTab.inputUrl;
+        const rawTarget = inputDraftRef.current?.tabId === activeTab.id
+            ? inputDraftRef.current.value
+            : inputRef.current?.value ?? activeTab.inputUrl;
         editingTabIdRef.current = null;
+        inputDraftRef.current = null;
         openUrlInTab(activeTab.id, rawTarget);
     }, [activeTab.id, activeTab.inputUrl, openUrlInTab]);
 
     const markUrlEditing = useCallback(() => {
         editingTabIdRef.current = activeTab.id;
-    }, [activeTab.id]);
+        inputDraftRef.current = {
+            tabId: activeTab.id,
+            value: inputRef.current?.value ?? activeTab.inputUrl,
+        };
+    }, [activeTab.id, activeTab.inputUrl]);
 
     const clearUrlEditingSoon = useCallback(() => {
         window.setTimeout(() => {
@@ -304,7 +312,7 @@ export function BrowserPanel() {
                 editingTabIdRef.current = null;
                 refreshNavState(activeTab.id);
             }
-        }, 0);
+        }, 150);
     }, [activeTab.id, refreshNavState]);
 
     useEffect(() => {
@@ -366,12 +374,16 @@ export function BrowserPanel() {
                     onBlur={clearUrlEditingSoon}
                     onChange={event => {
                         editingTabIdRef.current = activeTab.id;
+                        inputDraftRef.current = {
+                            tabId: activeTab.id,
+                            value: event.target.value,
+                        };
                         updateTab(activeTab.id, { inputUrl: event.target.value });
                     }}
                     onKeyDown={event => { if (event.key === 'Enter') navigate(); }}
                     aria-label="URL"
                 />
-                <button type="button" className="browser-go-btn" onClick={navigate}>Go</button>
+                <button type="button" className="browser-go-btn" onMouseDown={event => event.preventDefault()} onClick={navigate}>Go</button>
             </div>
             {(activeTab.blocked || activeTab.error || activeTab.loading) && (
                 <div className={`browser-status${activeTab.error ? ' is-error' : ''}`}>
