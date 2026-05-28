@@ -80,6 +80,24 @@ test('Electron app primes macOS Automation permission for Computer Use', () => {
     assert.ok(helper.includes('CLI_JAW_SKIP_AUTOMATION_PRIME'), 'Automation priming must remain disableable for tests or support cases');
 });
 
+test('Electron quit path shows progress and exits after manager cleanup', () => {
+    const main = read('electron/src/main/index.ts');
+    const quitProgress = read('electron/src/main/lib/quit-progress.ts');
+
+    assert.ok(main.includes("import { showQuitProgress } from './lib/quit-progress.js'"), 'Electron main must import the quit progress overlay helper');
+    assert.ok(main.includes('const QUIT_WINDOW_HIDE_DELAY_MS = 600'), 'quit flow must hide the window quickly if shutdown takes longer than a visible beat');
+    assert.ok(main.includes("app.on('before-quit', (event) =>"), 'Cmd+Q must use the coordinated quit path');
+    assert.ok(main.includes("void requestApplicationQuit('before-quit')"), 'Cmd+Q must not leave the user staring at a blocked window');
+    assert.ok(main.includes('async function requestApplicationQuit'), 'Electron main must centralize app quit coordination');
+    assert.ok(main.includes('showQuitProgress(mainWindow, ringBuffer)'), 'quit flow must provide visible progress before manager cleanup');
+    assert.ok(main.includes('mainWindow.hide()'), 'quit flow must remove the window if cleanup takes too long');
+    assert.ok(main.includes('app.exit(0)'), 'quit flow must exit after cleanup without re-entering before-quit');
+    assert.ok(main.includes("void requestApplicationQuit('window-close')"), 'red close button must use the same quit behavior as Cmd+Q');
+    assert.ok(quitProgress.includes('cli-jaw-quit-overlay'), 'quit overlay must be injected into the renderer');
+    assert.ok(quitProgress.includes('Quitting cli-jaw...'), 'quit overlay must tell the user shutdown is in progress');
+    assert.ok(quitProgress.includes('animation: cliJawQuitSpin'), 'quit overlay must include a visible spinner');
+});
+
 test('Electron default launch owns its manager server instead of attaching to web UI', () => {
     const main = read('electron/src/main/index.ts');
 
