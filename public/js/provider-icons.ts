@@ -8,6 +8,7 @@ import geminiSvg from '../assets/providers/gemini-color.svg?raw';
 import antigravitySvg from '../assets/providers/antigravity-color.svg?raw';
 import grokSvg from '../assets/providers/grok-color.svg?raw';
 import copilotSvg from '../assets/providers/copilot-color.svg?raw';
+import cursorSvg from '../assets/providers/cursor-color.svg?raw';
 
 // Mono variants for dark/light mode flexibility
 import claudeMonoSvg from '../assets/providers/claude.svg?raw';
@@ -15,13 +16,14 @@ import geminiMonoSvg from '../assets/providers/gemini.svg?raw';
 import antigravityMonoSvg from '../assets/providers/antigravity.svg?raw';
 import grokMonoSvg from '../assets/providers/grok.svg?raw';
 import copilotMonoSvg from '../assets/providers/copilot.svg?raw';
+import cursorMonoSvg from '../assets/providers/cursor.svg?raw';
 
 // Service icons (Discord, Telegram)
 import discordSvg from '../assets/providers/discord.svg?raw';
 import telegramSvg from '../assets/providers/telegram.svg?raw';
 import opencodeSvg from '../assets/providers/opencode.svg?raw';
 
-export type ProviderSlug = 'ai-e' | 'claude' | 'openai' | 'gemini' | 'antigravity' | 'grok' | 'copilot' | 'codex' | 'codex-app' | 'opencode' | 'discord' | 'telegram';
+export type ProviderSlug = 'ai-e' | 'claude' | 'openai' | 'gemini' | 'antigravity' | 'grok' | 'copilot' | 'cursor' | 'codex' | 'codex-app' | 'opencode' | 'discord' | 'telegram';
 
 interface ProviderIcon {
     color: string;
@@ -39,6 +41,7 @@ const PROVIDER_ICONS: Record<ProviderSlug, ProviderIcon> = {
     antigravity: { color: antigravitySvg, mono: antigravityMonoSvg, label: 'Antigravity' },
     grok:     { color: grokSvg,    mono: grokMonoSvg,     label: 'Grok' },
     copilot:  { color: copilotSvg, mono: copilotMonoSvg,  label: 'Copilot' },
+    cursor:   { color: cursorSvg,  mono: cursorMonoSvg,   label: 'Cursor' },
     codex:    { color: openaiSvg, mono: openaiSvg,  label: 'Codex' },
     'codex-app': { color: openaiColorSvg, mono: openaiSvg, label: 'Codex App' },
     opencode: { color: opencodeSvg, mono: opencodeSvg,   label: 'OpenCode' },
@@ -64,6 +67,7 @@ function resolveProviderSlug(slug: string): ProviderSlug | null {
     if (normalized === 'antigravity' || normalized === 'agy' || normalized === 'googleantigravity') return 'antigravity';
     if (normalized === 'grok' || normalized.startsWith('grok')) return 'grok';
     if (normalized.startsWith('copilot') || normalized === 'githubcopilot') return 'copilot';
+    if (normalized === 'cursor' || normalized.startsWith('cursor')) return 'cursor';
     if (normalized === 'codexapp' || normalized === 'codexappserver') return 'codex-app';
     if (normalized === 'codex') return 'codex';
     if (normalized === 'opencode') return 'opencode';

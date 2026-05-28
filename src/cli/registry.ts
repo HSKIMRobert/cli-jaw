@@ -87,7 +87,6 @@ export const CLI_REGISTRY = {
         defaultEffort: 'medium-fast',
         efforts: ['none', 'none-fast', 'low', 'low-fast', 'medium', 'medium-fast', 'high', 'high-fast', 'xhigh', 'xhigh-fast', 'max', 'max-fast'],
         effortNote: 'Cursor effort resolves to model IDs; cli-jaw never passes --effort',
-        modelNote: 'Use cursor-agent --list-models to refresh account-specific choices',
         models: [
             'auto',
             'composer-2.5',
