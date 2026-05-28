@@ -56,6 +56,30 @@ test('Electron shell stamps manager requests with a desktop user-agent token', (
     assert.ok(main.includes('app.getVersion()'), 'desktop user-agent token should include the packaged app version');
 });
 
+test('Electron app primes macOS Automation permission for Computer Use', () => {
+    const main = read('electron/src/main/index.ts');
+    const helper = read('electron/src/main/lib/mac-automation-permission.ts');
+    const builder = read('electron/electron-builder.yml');
+    const entitlements = read('electron/build/entitlements.mac.plist');
+
+    assert.ok(builder.includes('NSAppleEventsUsageDescription'), 'Electron Info.plist must explain AppleEvents usage so macOS can show the Automation prompt');
+    assert.ok(builder.includes('afterSign: build/after-sign.mjs'), 'mac packaging must run the ad-hoc signing hook so TCC sees the cli-jaw bundle identity');
+    assert.ok(builder.includes('entitlements: build/entitlements.mac.plist'), 'mac packaging must include AppleEvents entitlements when signing is enabled');
+    assert.ok(entitlements.includes('com.apple.security.automation.apple-events'), 'mac entitlements must allow prompting for AppleEvents Automation');
+    const afterSign = read('electron/build/after-sign.mjs');
+    assert.ok(afterSign.includes("execFileSync('/usr/bin/codesign'"), 'afterSign hook must invoke codesign directly');
+    assert.ok(afterSign.includes("'--sign',\n    '-'"), 'afterSign hook must use an ad-hoc signature');
+    assert.ok(afterSign.includes('entitlements.mac.plist'), 'afterSign hook must sign with AppleEvents entitlements');
+    assert.ok(main.includes("import { primeMacAutomationPermission } from './lib/mac-automation-permission.js'"), 'Electron main must import the Automation priming helper');
+    assert.ok(main.includes('primeMacAutomationPermission({'), 'Electron startup must trigger an AppleEvent so cli-jaw appears in Privacy > Automation');
+    assert.ok(main.includes('onBlocked: showAutomationPermissionDialog'), 'Electron startup must show a user-visible dialog when Automation priming cannot complete');
+    assert.ok(main.includes('Privacy_Automation'), 'Automation permission dialog must offer a direct System Settings path');
+    assert.ok(helper.includes('/usr/bin/osascript'), 'Automation priming must use the macOS AppleScript bridge');
+    assert.ok(helper.includes('tell application "System Events"'), 'Automation priming must request System Events control');
+    assert.ok(helper.includes('com.google.Chrome'), 'Automation priming should also request Chrome control when Chrome is already running');
+    assert.ok(helper.includes('CLI_JAW_SKIP_AUTOMATION_PRIME'), 'Automation priming must remain disableable for tests or support cases');
+});
+
 test('Electron default launch owns its manager server instead of attaching to web UI', () => {
     const main = read('electron/src/main/index.ts');
 
