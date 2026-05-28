@@ -100,3 +100,42 @@ test('notes vault index connects markdown note links in the graph', async (t) =>
     assert.equal(snapshot.backlinks['docs/beta.md']?.[0]?.sourcePath, 'overview.md');
     assert.equal(snapshot.unresolvedLinks.length, 0);
 });
+
+test('notes vault index treats markdown-escaped wikilinks like preview rendering', async (t) => {
+    const root = tmpRoot();
+    t.after(() => {
+        rmSync(root, { recursive: true, force: true });
+    });
+
+    mkdirSync(join(root, 'octopus'), { recursive: true });
+    writeFileSync(join(root, 'about-jaw.md'), [
+        '# Jaw Agent',
+        '\\[\\[Project Alpha]]',
+        '\\[\\[Workbook Factory 개발자-동업자 액세스 체크리스트]]',
+    ].join('\n'));
+    writeFileSync(join(root, 'Project Alpha.md'), '# Project Alpha');
+    writeFileSync(join(root, 'octopus', 'Workbook Factory 개발자-동업자 액세스 체크리스트.md'), '# Workbook');
+
+    const index = new NotesVaultIndex({ root });
+    const snapshot = await index.snapshot();
+
+    assert.deepEqual(snapshot.graph.edges.map(edge => ({
+        source: edge.source,
+        target: edge.target,
+        raw: edge.raw,
+        status: edge.status,
+    })), [
+        {
+            source: 'about-jaw.md',
+            target: 'octopus/Workbook Factory 개발자-동업자 액세스 체크리스트.md',
+            raw: '\\[\\[Workbook Factory 개발자-동업자 액세스 체크리스트]]',
+            status: 'resolved',
+        },
+        {
+            source: 'about-jaw.md',
+            target: 'Project Alpha.md',
+            raw: '\\[\\[Project Alpha]]',
+            status: 'resolved',
+        },
+    ]);
+});

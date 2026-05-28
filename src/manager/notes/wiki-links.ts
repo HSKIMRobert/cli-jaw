@@ -22,6 +22,10 @@ type ParsedMarkdownLinkTarget = {
 };
 
 const URL_SCHEME_RE = /^[a-z][a-z0-9+.-]*:/i;
+const WIKI_OPEN = '[[';
+const WIKI_OPEN_MARKDOWN_ESCAPED = '\\[\\[';
+const WIKI_CLOSE = ']]';
+const WIKI_CLOSE_MARKDOWN_ESCAPED = '\\]\\]';
 
 function lineStarts(source: string): number[] {
     const starts = [0];
@@ -75,6 +79,16 @@ function parseInner(inner: string): { target: string; displayText?: string; head
         ...(displayPart ? { displayText: displayPart } : {}),
         ...(heading ? { heading } : {}),
     };
+}
+
+function earliestMatch(text: string, cursor: number, patterns: readonly string[]): { index: number; pattern: string } | null {
+    let best: { index: number; pattern: string } | null = null;
+    for (const pattern of patterns) {
+        const index = text.indexOf(pattern, cursor);
+        if (index === -1) continue;
+        if (!best || index < best.index) best = { index, pattern };
+    }
+    return best;
 }
 
 function safeDecodePath(value: string): string {
@@ -133,21 +147,24 @@ function scanTextNode(
     const refs: NoteLinkRef[] = [];
     let cursor = 0;
     while (cursor < text.length) {
-        const open = text.indexOf('[[', cursor);
-        if (open === -1) break;
-        if (isEscaped(text, open)) {
-            cursor = open + 2;
+        const openMatch = earliestMatch(text, cursor, [WIKI_OPEN, WIKI_OPEN_MARKDOWN_ESCAPED]);
+        if (!openMatch) break;
+        const open = openMatch.index;
+        if (openMatch.pattern === WIKI_OPEN && isEscaped(text, open)) {
+            cursor = open + WIKI_OPEN.length;
             continue;
         }
-        const close = text.indexOf(']]', open + 2);
-        if (close === -1) break;
+        const innerStart = open + openMatch.pattern.length;
+        const closeMatch = earliestMatch(text, innerStart, [WIKI_CLOSE, WIKI_CLOSE_MARKDOWN_ESCAPED]);
+        if (!closeMatch) break;
+        const close = closeMatch.index;
         const startOffset = absoluteStart + open;
-        const endOffset = absoluteStart + close + 2;
-        const parsed = parseInner(text.slice(open + 2, close));
+        const endOffset = absoluteStart + close + closeMatch.pattern.length;
+        const parsed = parseInner(text.slice(innerStart, close));
         const position = offsetToLineColumn(starts, startOffset);
         refs.push({
             sourcePath,
-            raw: text.slice(open, close + 2),
+            raw: text.slice(open, close + closeMatch.pattern.length),
             target: parsed.target,
             ...(parsed.displayText ? { displayText: parsed.displayText } : {}),
             ...(parsed.heading ? { heading: parsed.heading } : {}),
@@ -158,7 +175,7 @@ function scanTextNode(
             status: 'missing',
             reason: 'not_found',
         });
-        cursor = close + 2;
+        cursor = close + closeMatch.pattern.length;
     }
     return refs;
 }
