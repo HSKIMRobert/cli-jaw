@@ -107,6 +107,17 @@ function titleFromUrl(target: string): string {
     }
 }
 
+function embeddedBrowserUserAgent(): string {
+    const chromeVersion = navigator.userAgent.match(/\bChrome\/([0-9.]+)/)?.[1] ?? '120.0.0.0';
+    const platform = navigator.platform.toLowerCase();
+    const osToken = platform.includes('mac')
+        ? 'Macintosh; Intel Mac OS X 10_15_7'
+        : platform.includes('win')
+            ? 'Windows NT 10.0; Win64; x64'
+            : 'X11; Linux x86_64';
+    return `Mozilla/5.0 (${osToken}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
+}
+
 function createBrowserTab(id: string, target = DEFAULT_BROWSER_URL): BrowserTabState {
     return {
         id,
@@ -133,6 +144,7 @@ export function BrowserPanel() {
     const pendingNavigationRefs = useRef<Map<string, string>>(new Map());
     const webviewRefs = useRef<Map<string, ElectronWebviewElement>>(new Map());
     const webviewCleanupRefs = useRef<Map<string, () => void>>(new Map());
+    const webviewUserAgent = useRef(embeddedBrowserUserAgent());
 
     const activeTab = tabs.find(tab => tab.id === activeTabId) ?? tabs[0] ?? initialTab.current;
 
@@ -431,6 +443,7 @@ export function BrowserPanel() {
                         className: 'browser-webview',
                         src: activeTab.url,
                         partition: 'persist:cli-jaw-browser',
+                        useragent: webviewUserAgent.current,
                         allowpopups: 'true',
                         webpreferences: 'contextIsolation=yes,sandbox=yes,nodeIntegration=no',
                     })}
