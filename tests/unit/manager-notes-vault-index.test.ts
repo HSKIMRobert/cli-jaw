@@ -68,3 +68,35 @@ test('notes vault index builds metadata, resolved/unresolved links, backlinks, a
     assert.ok(second.version > first.version);
     assert.equal(second.outgoingLinks['alpha.md']?.[0]?.resolvedPath, 'beta.md');
 });
+
+test('notes vault index connects markdown note links in the graph', async (t) => {
+    const root = tmpRoot();
+    t.after(() => {
+        rmSync(root, { recursive: true, force: true });
+    });
+
+    mkdirSync(join(root, 'docs'), { recursive: true });
+    writeFileSync(join(root, 'overview.md'), [
+        '# Overview',
+        'See [Beta doc](docs/beta.md) and [Nested](docs/nested.md).',
+        'Skip [External](https://example.com) and ![Image](docs/beta.md).',
+    ].join('\n'));
+    writeFileSync(join(root, 'docs', 'beta.md'), '# Beta');
+    writeFileSync(join(root, 'docs', 'nested.md'), 'Back to [Overview](../overview.md).');
+
+    const index = new NotesVaultIndex({ root });
+    const snapshot = await index.snapshot();
+
+    assert.deepEqual(snapshot.graph.edges.map(edge => ({
+        source: edge.source,
+        target: edge.target,
+        raw: edge.raw,
+        status: edge.status,
+    })), [
+        { source: 'docs/nested.md', target: 'overview.md', raw: '[Overview](../overview.md)', status: 'resolved' },
+        { source: 'overview.md', target: 'docs/beta.md', raw: '[Beta doc](docs/beta.md)', status: 'resolved' },
+        { source: 'overview.md', target: 'docs/nested.md', raw: '[Nested](docs/nested.md)', status: 'resolved' },
+    ]);
+    assert.equal(snapshot.backlinks['docs/beta.md']?.[0]?.sourcePath, 'overview.md');
+    assert.equal(snapshot.unresolvedLinks.length, 0);
+});
