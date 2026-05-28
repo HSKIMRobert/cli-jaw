@@ -31,6 +31,7 @@ import { registerDiffIpc } from './lib/git/ipc.js';
 import { registerFolderIpc, cleanupFolderWatchers } from './lib/folder/ipc.js';
 import { setAllowedOrigin } from './lib/ipc-origin-guard.js';
 import { primeMacAutomationPermission } from './lib/mac-automation-permission.js';
+import { showQuitProgress } from './lib/quit-progress.js';
 
 interface CliFlags {
   port: number;
@@ -121,6 +122,7 @@ const DEFAULT_WINDOW_HEIGHT = 960;
 const WINDOW_WORK_AREA_MARGIN = 80;
 const MIN_VISIBLE_WINDOW_WIDTH = 960;
 const MIN_VISIBLE_WINDOW_HEIGHT = 640;
+const QUIT_WINDOW_HIDE_DELAY_MS = 600;
 
 type ManagerShortcutAction =
   | 'toggleBottomPanel'
@@ -227,12 +229,25 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-app.on('before-quit', async (event) => {
+app.on('before-quit', (event) => {
   if (shutdownComplete) return;
-  if (shuttingDown) {
-    event.preventDefault();
+  event.preventDefault();
+  void requestApplicationQuit('before-quit');
+});
+
+async function requestApplicationQuit(reason: string): Promise<void> {
+  if (shutdownComplete) {
+    app.exit(0);
     return;
   }
+  if (shuttingDown) return;
+  shuttingDown = true;
+  ringBuffer.append(`[quit] requested by ${reason}\n`);
+  showQuitProgress(mainWindow, ringBuffer);
+  setTimeout(() => {
+    if (!mainWindow || mainWindow.isDestroyed() || shutdownComplete) return;
+    mainWindow.hide();
+  }, QUIT_WINDOW_HIDE_DELAY_MS);
   if (metricsCollector) {
     try {
       metricsCollector.stop();
@@ -243,17 +258,15 @@ app.on('before-quit', async (event) => {
   }
   cleanupTerminals();
   cleanupFolderWatchers();
-  if (!managerProcess) return;
-  event.preventDefault();
-  shuttingDown = true;
+  const child = managerProcess;
+  managerProcess = null;
   try {
-    await gracefulShutdown(managerProcess, 5000);
+    if (child) await gracefulShutdown(child, 5000);
   } finally {
-    managerProcess = null;
     shutdownComplete = true;
-    app.quit();
+    app.exit(0);
   }
-});
+}
 
 async function bootstrap(): Promise<void> {
   installManagerApplicationMenu();
@@ -738,6 +751,11 @@ async function createWindow(): Promise<void> {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+  });
+  mainWindow.on('close', (event) => {
+    if (shutdownComplete || shuttingDown) return;
+    event.preventDefault();
+    void requestApplicationQuit('window-close');
   });
 
   if (DEV_TOOLS_ENABLED) {
