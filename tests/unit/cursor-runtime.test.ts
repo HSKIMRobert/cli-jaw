@@ -15,6 +15,8 @@ test('Cursor effort resolves to model IDs instead of CLI flags', () => {
     assert.equal(resolveCursorModelVariant('gpt-5.2', 'medium-fast'), 'gpt-5.2-fast');
     assert.equal(resolveCursorModelVariant('gpt-5.4-mini', 'high-fast'), 'gpt-5.4-mini-high');
     assert.equal(resolveCursorModelVariant('claude-opus-4-7-thinking', 'high'), 'claude-opus-4-7-thinking-high');
+    assert.equal(resolveCursorModelVariant('claude-opus-4-8-thinking', 'high'), 'claude-opus-4-8-thinking-high');
+    assert.equal(resolveCursorModelVariant('claude-opus-4-8', 'max'), 'claude-opus-4-8-max');
 });
 
 test('Cursor full model IDs stay unchanged', () => {
@@ -23,10 +25,11 @@ test('Cursor full model IDs stay unchanged', () => {
 });
 
 test('Cursor model inventory mirrors observed cursor-agent list-models support', () => {
-    assert.equal(CURSOR_MODEL_IDS.length, 111);
+    assert.equal(CURSOR_MODEL_IDS.length, 131);
     assert.ok(CURSOR_MODEL_IDS.includes('composer-2.5-fast'));
     assert.ok(CURSOR_MODEL_IDS.includes('gpt-5.5-extra-high-fast'));
     assert.ok(CURSOR_MODEL_IDS.includes('claude-opus-4-7-thinking-max-fast'));
+    assert.ok(CURSOR_MODEL_IDS.includes('claude-opus-4-8-thinking-max-fast'));
     assert.ok(CURSOR_MODEL_IDS.includes('gemini-3.1-pro'));
     assert.ok(CURSOR_MODEL_IDS.includes('grok-4.3'));
 });
