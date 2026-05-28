@@ -56,6 +56,21 @@ function clampRatio(r: number): number {
     return Math.min(RIGHT_SPLIT_MAX_RATIO, Math.max(RIGHT_SPLIT_MIN_RATIO, r));
 }
 
+function normalizeRightPanel(panel: PanelLayoutState['rightPanel']): PanelLayoutState['rightPanel'] {
+    const next = { ...panel };
+    next.width = clampWidth(next.width);
+    next.splitRatio = clampRatio(next.splitRatio);
+    if (next.topMode !== null && !RIGHT_PANEL_MODES.includes(next.topMode)) next.topMode = null;
+    if (next.bottomMode !== null && !RIGHT_PANEL_MODES.includes(next.bottomMode)) next.bottomMode = null;
+    if (next.topMode === null && next.bottomMode !== null) {
+        next.topMode = next.bottomMode;
+        next.bottomMode = null;
+    }
+    if (next.topMode !== null && next.topMode === next.bottomMode) next.bottomMode = null;
+    if (next.topMode === null && next.bottomMode === null) next.open = false;
+    return next;
+}
+
 function reducer(state: PanelLayoutState, action: Action): PanelLayoutState {
     switch (action.type) {
         case 'SET_RIGHT_OPEN':
@@ -73,11 +88,11 @@ function reducer(state: PanelLayoutState, action: Action): PanelLayoutState {
             const slot = action.slot ?? (rp.topMode === null ? 'top' : 'bottom');
             return {
                 ...state,
-                rightPanel: {
+                rightPanel: normalizeRightPanel({
                     ...rp,
                     open: true,
                     [slot === 'top' ? 'topMode' : 'bottomMode']: action.mode,
-                },
+                }),
             };
         }
         case 'CLOSE_RIGHT_SUB': {
@@ -128,11 +143,7 @@ function reducer(state: PanelLayoutState, action: Action): PanelLayoutState {
             return { ...state, bottomPanel: { ...state.bottomPanel, activeTab: action.tab } };
         case 'HYDRATE': {
             const h = action.state;
-            const rp = { ...state.rightPanel, ...h.rightPanel };
-            rp.width = clampWidth(rp.width);
-            rp.splitRatio = clampRatio(rp.splitRatio);
-            if (rp.topMode !== null && !RIGHT_PANEL_MODES.includes(rp.topMode)) rp.topMode = null;
-            if (rp.bottomMode !== null && !RIGHT_PANEL_MODES.includes(rp.bottomMode)) rp.bottomMode = null;
+            const rp = normalizeRightPanel({ ...state.rightPanel, ...h.rightPanel });
             const bp = { ...state.bottomPanel, ...h.bottomPanel };
             bp.height = clampHeight(bp.height);
             bp.tabs = (bp.tabs ?? []).filter(t => BOTTOM_PANEL_TABS.includes(t));
