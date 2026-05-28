@@ -25,6 +25,7 @@ type ElectronWebviewEvent = Event & {
     title?: string;
     errorCode?: number;
     errorDescription?: string;
+    validatedURL?: string;
     isMainFrame?: boolean;
     details?: {
         reason?: string;
@@ -207,6 +208,9 @@ export function BrowserPanel() {
         const handleFail = (event: Event) => {
             const failure = event as ElectronWebviewEvent;
             if (failure.isMainFrame === false) return;
+            const pendingTarget = pendingNavigationRefs.current.get(tabId);
+            const failedUrl = failure.validatedURL ?? failure.url;
+            if (pendingTarget && failedUrl && !sameBrowserUrl(failedUrl, pendingTarget)) return;
             pendingNavigationRefs.current.delete(tabId);
             updateTab(tabId, {
                 loading: false,
@@ -248,7 +252,6 @@ export function BrowserPanel() {
         webviewCleanupRefs.current.delete(id);
         if (!node) {
             webviewRefs.current.delete(id);
-            pendingNavigationRefs.current.delete(id);
             return;
         }
         const webview = node as ElectronWebviewElement;
@@ -303,6 +306,7 @@ export function BrowserPanel() {
     }, [blockedUrlMessage, desktop]);
 
     const closeTab = useCallback((id: string) => {
+        pendingNavigationRefs.current.delete(id);
         setTabs(current => {
             if (current.length <= 1) {
                 const replacement = createBrowserTab(`browser-tab-${nextTabIndex.current++}`);
