@@ -87,6 +87,7 @@ interface WsMessage {
     deferredPending?: number;
     taskAnchor?: string | null;
     resolvedSelection?: ResolvedSelectionState | null;
+    interview?: { known: string[]; unknown: string[]; round: number } | null;
     delaySeconds?: number;
     attempts?: number;
     event?: WorkflowEventMessage;
@@ -236,7 +237,7 @@ function applyHeartbeatRuntime(input: Partial<HeartbeatRuntimeState> | null | un
     }
 }
 
-function applyOrcContext(ctx: { taskAnchor?: string | null; resolvedSelection?: ResolvedSelectionState | null } | null): void {
+function applyOrcContext(ctx: { taskAnchor?: string | null; resolvedSelection?: ResolvedSelectionState | null; interview?: { known: string[]; unknown: string[]; round: number } | null } | null): void {
     state.orcTaskAnchor = String(ctx?.taskAnchor || '').trim();
     state.orcResolvedSelection = ctx?.resolvedSelection || null;
 
@@ -250,6 +251,24 @@ function applyOrcContext(ctx: { taskAnchor?: string | null; resolvedSelection?: 
         el.textContent = '';
         el.hidden = true;
     }
+    renderInterviewPanel(ctx?.interview || null);
+}
+
+function renderInterviewPanel(interview: { known: string[]; unknown: string[]; round: number } | null): void {
+    const panel = document.getElementById('interviewPanel');
+    if (!panel) return;
+    if (!interview || (!interview.known.length && !interview.unknown.length)) {
+        panel.hidden = true;
+        return;
+    }
+    panel.hidden = false;
+    const knownHtml = interview.known.map(k => `<li class="iv-known">${escapeHtml(k)}</li>`).join('');
+    const unknownHtml = interview.unknown.map(u => `<li class="iv-unknown">${escapeHtml(u)}</li>`).join('');
+    panel.innerHTML = `
+        <div class="iv-section"><strong>Known (${interview.known.length})</strong><ul>${knownHtml}</ul></div>
+        <div class="iv-section"><strong>Unknown (${interview.unknown.length})</strong><ul>${unknownHtml}</ul></div>
+        <div class="iv-round">Round ${interview.round}</div>
+    `;
 }
 
 async function hydrateGoalState(): Promise<void> {
@@ -529,6 +548,7 @@ export function connect(): void {
             applyOrcContext({
                 taskAnchor: msg.taskAnchor || null,
                 resolvedSelection: msg.resolvedSelection || null,
+                interview: msg.interview || null,
             });
         } else if (msg.type === 'memory_status') {
             import('./features/memory.js').then(m => m.refreshMemorySidebar());

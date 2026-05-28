@@ -381,6 +381,30 @@ export async function orchestrate(
     // (phase transitions via CLI commands, user reset, etc.)
     state = getState(scope);
 
+    if (state === 'I' && !meta["_workerResult"]) {
+        const ivCtx = getCtx(scope);
+        if (ivCtx?.interview) {
+            const trackerMatch = (result["text"] as string || '').match(
+                /<interview_tracker>\s*\n?known:\s*(\[.*?\])\s*\n?unknown:\s*(\[.*?\])\s*\n?<\/interview_tracker>/s
+            );
+            if (trackerMatch) {
+                try {
+                    const rawKnown = JSON.parse(trackerMatch[1]!);
+                    const rawUnknown = JSON.parse(trackerMatch[2]!);
+                    const known = Array.isArray(rawKnown) ? rawKnown.filter((v): v is string => typeof v === 'string') : [];
+                    const unknown = Array.isArray(rawUnknown) ? rawUnknown.filter((v): v is string => typeof v === 'string') : [];
+                    setState('I', {
+                        ...ivCtx,
+                        interview: { ...ivCtx.interview, round: ivCtx.interview.round + 1, known, unknown },
+                    }, scope, 'Interview');
+                } catch { /* malformed JSON — keep existing state */ }
+                result["text"] = (result["text"] as string).replace(
+                    /<interview_tracker>[\s\S]*?<\/interview_tracker>/g, ''
+                ).trim();
+            }
+        }
+    }
+
     if (state === 'P' && !meta["_workerResult"]) {
         const savedCtx = getCtx(scope);
         if (savedCtx) {

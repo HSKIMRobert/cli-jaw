@@ -97,6 +97,7 @@ export function setState(
     scope,
     taskAnchor: ctx?.taskAnchor || null,
     resolvedSelection: ctx?.resolvedSelection || null,
+    interview: ctx?.interview || null,
   });
 }
 
@@ -127,8 +128,9 @@ const PREFIXES: Record<string, string> = {
 You are conducting a requirements interview. The user has responded to your question.
 
 Rules:
-- Ask ONE clarifying question at a time.
+- Ask 1–3 clarifying questions per turn. Group related questions together.
 - Separate known facts from assumptions.
+- After processing the user's response, update and include the <interview_tracker> block.
 - Do NOT dispatch employees, write files, or start implementation.
 - When the request is clear enough for PABCD P, suggest: "Ready for planning. Run \`cli-jaw orchestrate P\` or \`/orchestrate P\` to proceed."
 - The user can also end the interview with \`cli-jaw orchestrate reset\` to return to IDLE.
@@ -201,9 +203,21 @@ const STATE_PROMPTS: Record<string, string> = {
 You are now in Interview mode. Your ONLY job is to clarify requirements.
 
 Rules:
-- Ask ONE high-value clarifying question at a time.
+- Ask 1–3 high-value clarifying questions per turn. Group related questions.
 - For each question, optionally suggest 2-3 recommended answer choices.
 - Track what is known, unknown, and what assumptions are risky.
+
+At the end of every response, include this structured block (it will be parsed and stripped from display):
+
+<interview_tracker>
+known: ["fact 1", "fact 2"]
+unknown: ["question 1", "question 2"]
+</interview_tracker>
+
+- \`known\`: facts confirmed by the user or clearly stated in the request
+- \`unknown\`: items still needing clarification
+- Update both arrays cumulatively each turn — carry forward all prior items
+- If a previously unknown item becomes known, move it to known
 - Do NOT dispatch employees, write project files, or start implementation.
 - Do NOT invent business decisions — ask the user.
 - Prefer concise Korean-friendly questions when locale is Korean.
