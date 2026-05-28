@@ -24,7 +24,7 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 | `src/routes/memory.ts` | 185L | 13 | memory runtime + KV memory + memory files |
 | `src/routes/browser.ts` | 475L | 41 | browser primitive/tab/debug/doctor/cleanup routes + adaptive fetch + web-ai render/send/poll/watch/sessions/capabilities/context routes |
 | `src/routes/jaw-memory.ts` | 239L | 11 | jaw memory search/read/save/list/init/reflect/flush/soul/soul-activate/bootstrap |
-| `src/routes/orchestrate.ts` | 394L | 11 | reset/state/workers/snapshot/queue cancel/hold/queue steer/dispatch/worker result/state PUT |
+| `src/routes/orchestrate.ts` | 472L | 11 | reset/state/workers/snapshot/queue cancel/hold/queue steer/dispatch/worker result/state PUT |
 | `src/routes/goal.ts` | 89L | 3 | durable goal state get/history/set-update-complete-cancel-pause-resume |
 | `src/routes/goal-run.ts` | 81L | 3 | bounded goal-run state/preflight/start-pause-resume-stop |
 | `src/routes/messaging.ts` | 222L | 6 | upload/file-open/voice/telegram/channel/discord send |
@@ -263,7 +263,7 @@ ensureDirs()
 
 ## WebSocket Events
 
-연결 시 서버는 현재 상태 스냅샷을 먼저 보낸다: `agent_status`, `queue_update`, 비-IDLE `orc_state`. 현재 브로드캐스트되는 WebSocket 이벤트는 40종이다.
+연결 시 서버는 현재 상태 스냅샷을 먼저 보낸다: `agent_status`, `queue_update`, 비-IDLE `orc_state`. 현재 브로드캐스트되는 WebSocket 이벤트는 41종이다.
 
 | Type | 설명 |
 | --- | --- |
@@ -277,8 +277,9 @@ ensureDirs()
 | `queue_update` | 대기열 길이 갱신 |
 | `clear` / `session_reset` | UI clear / session reset broadcast |
 | `new_message` | Telegram/Discord inbound message |
-| `orc_state` | PABCD 상태 변경 |
+| `orc_state` | PABCD 상태 변경 + `taskAnchor`/`resolvedSelection`/`interview`(known/unknown/round 트래커) 컨텍스트 |
 | `orchestrate_done` | orchestration 완료/실패 |
+| `steer_started` | `/steer` 또는 goal/workflow 재지시가 실행 중 agent를 kill 후 새 프롬프트로 재시작 (`prompt`/`origin`) |
 | `agent_added` / `agent_updated` / `agent_deleted` | employee CRUD 반영 |
 | `agent:claude-e:runtime_started` / `agent:claude-e:spawned` / `agent:claude-e:session` / `agent:claude-e:prompt_injected` / `agent:claude-e:stop` / `agent:claude-e:stop_failure` / `agent:claude-e:interrupted` / `agent:claude-e:cleanup` / `agent:claude-e:error` | Claude E native helper lifecycle bridge |
 | `settings_change` | project/workspace settings 변경 신호 |
@@ -297,7 +298,7 @@ ensureDirs()
 
 ## Manager Dashboard Server Surface
 
-`jaw dashboard serve`가 띄우는 별도 manager 서버(`src/manager/server.ts`)는 core `server.ts` route count에 포함하지 않는다. 현재 manager 전용 API는 scan/proxy/lifecycle 외에 board, notes, schedule, reminders를 함께 제공한다.
+`jaw dashboard serve`가 띄우는 별도 manager 서버(`src/manager/server.ts`)는 core `server.ts` route count에 포함하지 않는다. 현재 manager 전용 API는 scan/proxy/lifecycle 외에 board, notes, schedule, reminders, git diff, memory federation을 함께 제공한다.
 
 | Surface | Endpoints |
 | --- | --- |
@@ -308,6 +309,7 @@ ensureDirs()
 | Schedule | `GET/POST/PATCH/DELETE /api/dashboard/schedule` plus schedule runner-backed dispatch |
 | Reminders | `GET /api/dashboard/reminders` `POST /api/dashboard/reminders` `POST /api/dashboard/reminders/from-message` `PATCH /api/dashboard/reminders/:id` |
 | Desktop/Electron | `GET /api/dashboard/desktop-status` `GET/POST /api/dashboard/electron-metrics` |
+| Git diff | `POST /api/dashboard/git/repo-candidates` `POST /api/dashboard/git/diff-summary` `POST /api/dashboard/git/file-diff` (`src/manager/routes/dashboard-git.ts` → `git/diff-service.ts`; desktop Diff panel data path, `core.quotepath=false` + ref/path-traversal guard) |
 | Memory federation | `GET /api/dashboard/memory/search` `GET /api/dashboard/memory/instances` `GET /api/dashboard/memory/read` |
 | Memory embedding | `GET /api/dashboard/memory/embed-config` `POST /api/dashboard/memory/embed-config` `GET /api/dashboard/memory/embed-state` `GET /api/dashboard/memory/embed-estimate` `GET /api/dashboard/memory/reindex-stream` (SSE) `POST /api/dashboard/memory/reindex` |
 
