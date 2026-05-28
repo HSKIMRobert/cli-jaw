@@ -119,6 +119,7 @@ export function BrowserPanel() {
     const [tabs, setTabs] = useState<BrowserTabState[]>(() => [initialTab.current]);
     const [activeTabId, setActiveTabId] = useState(initialTab.current.id);
     const inputRef = useRef<HTMLInputElement | null>(null);
+    const editingTabIdRef = useRef<string | null>(null);
     const webviewRefs = useRef<Map<string, ElectronWebviewElement>>(new Map());
     const webviewCleanupRefs = useRef<Map<string, () => void>>(new Map());
 
@@ -139,8 +140,10 @@ export function BrowserPanel() {
             const current = webview.getURL?.();
             if (current && isUrlAllowed(current, desktop)) {
                 patch.url = current;
-                patch.inputUrl = current;
                 patch.title = titleFromUrl(current);
+                if (editingTabIdRef.current !== tabId) {
+                    patch.inputUrl = current;
+                }
             }
             updateTab(tabId, patch);
         } catch {
@@ -160,11 +163,14 @@ export function BrowserPanel() {
         const handleNavigate = (event: Event) => {
             const nextUrl = (event as ElectronWebviewEvent).url;
             if (nextUrl && isUrlAllowed(nextUrl, desktop)) {
-                updateTab(tabId, {
+                const patch: Partial<BrowserTabState> = {
                     url: nextUrl,
-                    inputUrl: nextUrl,
                     title: titleFromUrl(nextUrl),
-                });
+                };
+                if (editingTabIdRef.current !== tabId) {
+                    patch.inputUrl = nextUrl;
+                }
+                updateTab(tabId, patch);
             }
             refreshNavState(tabId);
         };
@@ -283,8 +289,23 @@ export function BrowserPanel() {
     }, [activeTabId]);
 
     const navigate = useCallback(() => {
-        openUrlInTab(activeTab.id, inputRef.current?.value ?? activeTab.inputUrl);
+        const rawTarget = inputRef.current?.value ?? activeTab.inputUrl;
+        editingTabIdRef.current = null;
+        openUrlInTab(activeTab.id, rawTarget);
     }, [activeTab.id, activeTab.inputUrl, openUrlInTab]);
+
+    const markUrlEditing = useCallback(() => {
+        editingTabIdRef.current = activeTab.id;
+    }, [activeTab.id]);
+
+    const clearUrlEditingSoon = useCallback(() => {
+        window.setTimeout(() => {
+            if (document.activeElement !== inputRef.current && editingTabIdRef.current === activeTab.id) {
+                editingTabIdRef.current = null;
+                refreshNavState(activeTab.id);
+            }
+        }, 0);
+    }, [activeTab.id, refreshNavState]);
 
     useEffect(() => {
         return getDesktop()?.browser?.onOpenUrl?.((payload: BrowserOpenPayload) => {
@@ -341,7 +362,12 @@ export function BrowserPanel() {
                     className="browser-url-input"
                     type="text"
                     value={activeTab.inputUrl}
-                    onChange={event => updateTab(activeTab.id, { inputUrl: event.target.value })}
+                    onFocus={markUrlEditing}
+                    onBlur={clearUrlEditingSoon}
+                    onChange={event => {
+                        editingTabIdRef.current = activeTab.id;
+                        updateTab(activeTab.id, { inputUrl: event.target.value });
+                    }}
                     onKeyDown={event => { if (event.key === 'Enter') navigate(); }}
                     aria-label="URL"
                 />
