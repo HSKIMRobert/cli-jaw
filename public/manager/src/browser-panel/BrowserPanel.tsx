@@ -432,7 +432,7 @@ export function BrowserPanel() {
                             className: 'browser-webview',
                             src: tab.url,
                             partition: 'persist:cli-jaw-browser',
-                            allowpopups: true,
+                            allowpopups: 'true',
                             webpreferences: 'contextIsolation=yes,sandbox=yes,nodeIntegration=no',
                         })}
                     </div>

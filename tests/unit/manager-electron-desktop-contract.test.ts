@@ -312,7 +312,7 @@ test('Electron browser panel uses a hardened webview instead of a CSP-blocked if
     assert.ok(main.includes("mainWindow.webContents.send('browser:open-url'"), 'webview popup/new-window requests must be routed back into the Browser panel');
     assert.ok(main.includes('registerGlobalWebContentsHardening'), 'global webContents hardening must be registered once instead of per window recreation');
     assert.ok(browser.includes("createElement('webview'"), 'BrowserPanel must render Electron webview, not an iframe');
-    assert.ok(browser.includes('allowpopups: true'), 'BrowserPanel must allow popup requests so main can convert target=_blank clicks into in-app tabs');
+    assert.ok(browser.includes("allowpopups: 'true'"), 'BrowserPanel must render the Electron allowpopups attribute so main can convert target=_blank clicks into in-app tabs');
     assert.ok(browser.includes("partition: 'persist:cli-jaw-browser'"), 'BrowserPanel must keep a persistent Electron browser session partition');
     assert.ok(browser.includes('Browser preview requires the Electron desktop app'), 'web UI must not present a broken iframe browser');
     assert.ok(css.includes('.browser-go-btn'), 'browser toolbar must expose an explicit go action');
