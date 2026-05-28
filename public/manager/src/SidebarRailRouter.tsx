@@ -8,7 +8,7 @@ import { Workbench } from './components/Workbench';
 import { WorkspaceLayout } from './components/WorkspaceLayout';
 import { lazy } from 'react';
 import { RightSidebar } from './panels/RightSidebar';
-import { BottomPanel } from './panels/BottomPanel';
+import { BottomPanel, type BottomPanelRenderControls } from './panels/BottomPanel';
 import { usePanelLayout } from './panels/PanelLayoutProvider';
 import type { RightPanelMode, BottomPanelTab } from './panels/types';
 
@@ -145,11 +145,11 @@ function renderRightPanelContent(
     }
 }
 
-function renderBottomTabContent(tab: BottomPanelTab): ReactNode {
+function renderBottomTabContent(tab: BottomPanelTab, controls: BottomPanelRenderControls): ReactNode {
     const fallback = <div style={{ padding: '12px', color: 'var(--text-dim)', fontSize: '12px' }}>Loading...</div>;
     switch (tab) {
-        case 'terminal': return <Suspense fallback={fallback}><TerminalPanel /></Suspense>;
-        case 'browser': return <Suspense fallback={fallback}><BrowserPanel /></Suspense>;
+        case 'terminal': return <Suspense fallback={fallback}><TerminalPanel onCollapse={controls.onCollapse} onEmptySessions={controls.onCloseTab} /></Suspense>;
+        case 'browser': return <Suspense fallback={fallback}><BrowserPanel onCollapse={controls.onCollapse} /></Suspense>;
         default: return null;
     }
 }
@@ -184,7 +184,7 @@ export function SidebarRailRouter(props: Props) {
             rightPanelContent={panelLayout.effectiveRightOpen ? <RightSidebar renderPanel={mode => renderRightPanelContent(mode, rightPreviewFilePath, handleRightPreviewFile)} /> : undefined}
             bottomPanelOpen={panelLayout.state.bottomPanel.open}
             bottomPanelHeight={panelLayout.state.bottomPanel.height}
-            bottomPanelContent={panelLayout.state.bottomPanel.open ? <BottomPanel renderTab={renderBottomTabContent} /> : undefined}
+            bottomPanelContent={panelLayout.state.bottomPanel.tabs.length > 0 ? <BottomPanel renderTab={renderBottomTabContent} /> : undefined}
             navigator={(
                 <>
                     <SidebarRail

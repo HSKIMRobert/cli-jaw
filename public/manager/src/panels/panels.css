@@ -266,3 +266,6 @@ body.is-resizing-vertical .panel-resizer { pointer-events: auto !important; }
     min-height: 0;
     overflow: auto;
 }
+.bottom-panel.has-content-owned-chrome .bottom-panel-content {
+    overflow: hidden;
+}

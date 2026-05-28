@@ -44,6 +44,10 @@ type BrowserTabState = {
     canGoForward: boolean;
 };
 
+type BrowserPanelProps = {
+    onCollapse?: () => void;
+};
+
 function isPrivateHost(hostname: string): boolean {
     return /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(hostname);
 }
@@ -132,7 +136,7 @@ function createBrowserTab(id: string, target = DEFAULT_BROWSER_URL): BrowserTabS
     };
 }
 
-export function BrowserPanel() {
+export function BrowserPanel(props: BrowserPanelProps = {}) {
     const desktop = isElectron();
     const initialTab = useRef<BrowserTabState>(createBrowserTab('browser-tab-1'));
     const nextTabIndex = useRef(2);
@@ -406,6 +410,17 @@ export function BrowserPanel() {
                     </div>
                 ))}
                 <button type="button" className="browser-tab-add" aria-label="New browser tab" title="New tab" onClick={() => addTab()}>+</button>
+                {props.onCollapse && (
+                    <button
+                        type="button"
+                        className="browser-collapse-button"
+                        aria-label="Collapse browser panel"
+                        title="Collapse browser panel"
+                        onClick={props.onCollapse}
+                    >
+                        ▼
+                    </button>
+                )}
             </div>
             <div className="browser-toolbar">
                 <button type="button" className="browser-nav-btn" aria-label="Back" disabled={!activeTab.canGoBack} onClick={() => webviewRefs.current.get(activeTab.id)?.goBack()}>‹</button>
