@@ -204,6 +204,8 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(browserPanel.includes('browser-tab-strip'), 'browser panel must expose a tab strip for multiple browser tabs');
     assert.ok(browserPanel.includes('aria-label="New browser tab"'), 'browser panel must expose an explicit new-tab control');
     assert.ok(browserPanel.includes('<div key={activeTab.id} className="browser-webview-host is-active">'), 'browser panel must mount only the active Electron webview so hidden guest views cannot leave new tabs blank');
+    assert.ok(browserPanel.includes('function embeddedBrowserUserAgent()'), 'browser panel must provide a browser-like user agent for embedded pages');
+    assert.ok(browserPanel.includes('useragent: webviewUserAgent.current'), 'Electron webview must avoid the default Electron user agent to reduce site challenge loops');
     assert.ok(browserPanel.includes("webview.addEventListener('render-process-gone'"), 'browser panel must detect crashed/killed webview renderers using Electron current API');
     assert.ok(browserPanel.includes('attachWebviewEvents'), 'browser panel must attach navigation/crash handlers per webview, not only to the currently active tab');
     assert.ok(browserPanel.includes("getDesktop()?.browser?.onOpenUrl"), 'browser panel must accept Electron popup/new-window requests and route them into tabs');
