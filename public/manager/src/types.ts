@@ -28,6 +28,37 @@ export type DashboardDiffMode = 'unstaged' | 'staged' | 'head' | 'base';
 export type DashboardDiffRootPolicy = 'project-first' | 'working-dir-first' | 'manual';
 export type DashboardNotesViewMode = 'raw' | 'split' | 'preview' | 'settings' | 'graph';
 export type DashboardNotesAuthoringMode = 'plain' | 'rich' | 'wysiwyg';
+
+export type DashboardNotesGraphSection = 'filters' | 'display' | 'forces' | 'groups';
+
+export type DashboardNotesGraphGroup = {
+    id: string;
+    label: string;
+    query: string;
+    color: string;
+    enabled: boolean;
+};
+
+export type DashboardNotesGraphSettings = {
+    version: 1;
+    panelOpen: boolean;
+    collapsedSections: Partial<Record<DashboardNotesGraphSection, boolean>>;
+    query: string;
+    existingFilesOnly: boolean;
+    showOrphans: boolean;
+    showTags: boolean;
+    showAttachments: boolean;
+    focusSelected: boolean;
+    focusDepth: number;
+    groupMode: 'off' | 'query';
+    groups: DashboardNotesGraphGroup[];
+    nodeSize: number;
+    linkDistance: number;
+    chargeStrength: number;
+    labelDensity: number;
+    showArrows: boolean;
+    animate: boolean;
+};
 export type DashboardActivityTitleSupportStatus = 'ready' | 'legacy' | 'offline';
 export type DashboardProfileId = string;
 
@@ -250,6 +281,7 @@ export type DashboardRegistryUi = {
     notesWordWrap: boolean;
     notesVimMode: boolean;
     notesTreeWidth: number;
+    notesGraphSettings: DashboardNotesGraphSettings;
     showLatestActivityTitles: boolean;
     showInlineLabelEditor: boolean;
     showSidebarRuntimeLine: boolean;
@@ -415,7 +447,7 @@ export type NoteMetadata = {
 export type NoteGraphNode = {
     id: string;
     title: string;
-    kind: 'note' | 'missing' | 'ambiguous';
+    kind: 'note' | 'missing' | 'ambiguous' | 'tag' | 'attachment';
     path?: string;
     candidatePaths?: string[];
 };

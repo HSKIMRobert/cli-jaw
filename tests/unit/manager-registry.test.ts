@@ -75,6 +75,9 @@ test('manager registry defaults when file is missing', () => {
     assert.equal(loaded.registry.ui.diffDefaultMode, 'unstaged');
     assert.equal(loaded.registry.ui.diffBaseRef, 'HEAD');
     assert.equal(loaded.registry.ui.diffIncludeUntracked, true);
+    assert.equal(loaded.registry.ui.notesGraphSettings.version, 1);
+    assert.equal(loaded.registry.ui.notesGraphSettings.existingFilesOnly, false);
+    assert.equal(loaded.registry.ui.notesGraphSettings.showOrphans, true);
     assert.deepEqual(loaded.registry.profiles, {});
     assert.deepEqual(loaded.registry.activeProfileFilter, []);
     assert.equal(loaded.status.loaded, true);
@@ -134,6 +137,29 @@ test('manager registry clamps scan and UI values', () => {
             diffDefaultMode: 'base',
             diffBaseRef: ' origin/master ',
             diffIncludeUntracked: false,
+            notesGraphSettings: {
+                version: 99,
+                panelOpen: false,
+                collapsedSections: { filters: true, bad: true },
+                query: ' tag:core ',
+                existingFilesOnly: true,
+                showOrphans: false,
+                showTags: false,
+                showAttachments: true,
+                focusSelected: true,
+                focusDepth: 99,
+                groupMode: 'query',
+                groups: [
+                    { id: ' hot ', label: ' Hot ', query: 'tag:hot', color: '#ff7b72', enabled: false },
+                    { id: 'empty', label: 'Empty', query: '', color: 'bad', enabled: true },
+                ],
+                nodeSize: 99,
+                linkDistance: 999,
+                chargeStrength: -9999,
+                labelDensity: 5,
+                showArrows: true,
+                animate: false,
+            },
         },
         instances: {
             3457: { label: ' main ', favorite: true, group: 'daily', hidden: false },
@@ -173,6 +199,17 @@ test('manager registry clamps scan and UI values', () => {
     assert.equal(loaded.registry.ui.diffDefaultMode, 'base');
     assert.equal(loaded.registry.ui.diffBaseRef, 'origin/master');
     assert.equal(loaded.registry.ui.diffIncludeUntracked, false);
+    assert.deepEqual(loaded.registry.ui.notesGraphSettings.collapsedSections, { filters: true });
+    assert.equal(loaded.registry.ui.notesGraphSettings.query, 'tag:core');
+    assert.equal(loaded.registry.ui.notesGraphSettings.existingFilesOnly, true);
+    assert.equal(loaded.registry.ui.notesGraphSettings.showOrphans, false);
+    assert.equal(loaded.registry.ui.notesGraphSettings.focusDepth, 4);
+    assert.equal(loaded.registry.ui.notesGraphSettings.nodeSize, 2);
+    assert.equal(loaded.registry.ui.notesGraphSettings.linkDistance, 240);
+    assert.equal(loaded.registry.ui.notesGraphSettings.chargeStrength, -800);
+    assert.equal(loaded.registry.ui.notesGraphSettings.labelDensity, 1);
+    assert.equal(loaded.registry.ui.notesGraphSettings.groups.length, 1);
+    assert.equal(loaded.registry.ui.notesGraphSettings.groups[0]?.label, 'Hot');
     assert.equal(loaded.registry.instances['3457']?.label, 'main');
     assert.equal(loaded.registry.instances.bad, undefined);
     assert.equal(loaded.registry.profiles.default?.label, 'Default');
@@ -207,6 +244,26 @@ test('manager registry patch persists instance preferences', () => {
             diffDefaultMode: 'staged',
             diffBaseRef: 'main',
             diffIncludeUntracked: false,
+            notesGraphSettings: {
+                version: 1,
+                panelOpen: true,
+                collapsedSections: { groups: true },
+                query: 'kind:missing',
+                existingFilesOnly: false,
+                showOrphans: true,
+                showTags: true,
+                showAttachments: false,
+                focusSelected: true,
+                focusDepth: 2,
+                groupMode: 'query',
+                groups: [{ id: 'missing', label: 'Missing', query: 'kind:missing', color: '#ff7b72', enabled: true }],
+                nodeSize: 1.2,
+                linkDistance: 110,
+                chargeStrength: -240,
+                labelDensity: 0.7,
+                showArrows: true,
+                animate: false,
+            },
         },
         instances: { 3461: { label: 'worker', favorite: true, hidden: true } },
         profiles: { default: { label: 'Default', homePath: '/Users/jun/.cli-jaw', pinned: true } },
@@ -232,6 +289,9 @@ test('manager registry patch persists instance preferences', () => {
     assert.equal(saved.registry.ui.diffDefaultMode, 'staged');
     assert.equal(saved.registry.ui.diffBaseRef, 'main');
     assert.equal(saved.registry.ui.diffIncludeUntracked, false);
+    assert.equal(saved.registry.ui.notesGraphSettings.query, 'kind:missing');
+    assert.equal(saved.registry.ui.notesGraphSettings.groups[0]?.id, 'missing');
+    assert.equal(saved.registry.ui.notesGraphSettings.focusDepth, 2);
     assert.equal(saved.registry.instances['3461']?.label, 'worker');
     assert.equal(saved.registry.instances['3461']?.favorite, true);
     assert.equal(saved.registry.instances['3461']?.hidden, true);

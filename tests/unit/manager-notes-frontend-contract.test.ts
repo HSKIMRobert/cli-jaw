@@ -25,6 +25,13 @@ test('Notes workspace frontend files and API wrapper exist', () => {
         'public/manager/src/notes/notes-api.ts',
         'public/manager/src/notes/notes-search.css',
         'public/manager/src/notes/notes-quick-switcher.css',
+        'public/manager/src/notes/notes-graph.css',
+        'public/manager/src/notes/graph/notes-graph-settings.ts',
+        'public/manager/src/notes/graph/notes-graph-filter.ts',
+        'public/manager/src/notes/graph/notes-graph-force.ts',
+        'public/manager/src/notes/graph/NotesGraphCanvas.tsx',
+        'public/manager/src/notes/graph/NotesGraphControlsPanel.tsx',
+        'public/manager/src/notes/graph/NotesGraphWorkspace.tsx',
         'public/manager/src/notes/wiki-link-resolver.ts',
         'public/manager/src/notes/wiki-link-suggestions.ts',
         'public/manager/src/notes/wiki-link-codemirror-completion.ts',
@@ -50,6 +57,11 @@ test('Notes API and create actions surface backend/fallback failures without unc
     const model = read('public/manager/src/notes/useNotesModel.ts');
     const tree = read('public/manager/src/notes/NotesFileTree.tsx');
     const workspace = read('public/manager/src/notes/NotesWorkspace.tsx');
+    const graphSettings = read('public/manager/src/notes/graph/notes-graph-settings.ts');
+    const graphFilter = read('public/manager/src/notes/graph/notes-graph-filter.ts');
+    const graphWorkspace = read('public/manager/src/notes/graph/NotesGraphWorkspace.tsx');
+    const graphControls = read('public/manager/src/notes/graph/NotesGraphControlsPanel.tsx');
+    const graphCss = read('public/manager/src/notes/notes-graph.css');
     const toolbar = read('public/manager/src/notes/NotesToolbar.tsx');
     const searchSidebar = read('public/manager/src/notes/NotesSearchSidebar.tsx');
     const quickSwitcher = read('public/manager/src/notes/NotesQuickSwitcher.tsx');
@@ -227,6 +239,17 @@ test('Notes API and create actions surface backend/fallback failures without unc
     assert.ok(router.includes('onOpenSearch={props.onOpenNotesSearch}'), 'SidebarRailRouter must pass the focus-aware search opener to NotesSidebar');
     assert.equal(app.includes("sidebarSearchActive={notesSidebarMode === 'search'}"), false, 'App must not pass removed toolbar search active state to NotesWorkspace');
     assert.ok(router.includes('onOpenSidebarSearch={props.onOpenNotesSearch}'), 'SidebarRailRouter must pass search opener to NotesWorkspace');
+    assert.ok(main.includes("./notes/notes-graph.css"), 'manager entrypoint must load dedicated graph CSS');
+    assert.ok(app.includes('handleNotesGraphSettingsChange'), 'App must persist graph controls through dashboard registry UI');
+    assert.ok(router.includes('notesGraphSettings={props.notesGraphSettings}'), 'router must pass graph settings to NotesWorkspace');
+    assert.ok(workspace.includes("import('./graph/NotesGraphWorkspace')"), 'NotesWorkspace must lazy-load the graph workspace');
+    assert.ok(workspace.includes('onSettingsChange={props.onNotesGraphSettingsChange}'), 'NotesWorkspace must wire graph settings persistence');
+    assert.ok(graphSettings.includes('existingFilesOnly: false'), 'graph settings must default to showing unresolved links');
+    assert.ok(graphFilter.includes("node.kind === 'missing'"), 'graph filter must keep missing-link node handling explicit');
+    assert.ok(graphFilter.includes('settings.focusSelected'), 'graph filter must support selected-note focus mode');
+    assert.ok(graphWorkspace.includes('NotesGraphControlsPanel'), 'graph workspace must render the controls panel');
+    assert.ok(graphControls.includes('Focus selected'), 'graph controls must expose focus selected');
+    assert.ok(graphCss.includes('.notes-graph-controls'), 'graph CSS must style the controls panel');
     assert.ok(searchSidebar.includes('AbortController'), 'notes search sidebar must cancel stale searches');
     assert.ok(searchSidebar.includes('isAbortError'), 'notes search sidebar must distinguish aborts from real failures');
     assert.ok(searchSidebar.includes('notes-search-error'), 'notes search sidebar must render actionable errors');

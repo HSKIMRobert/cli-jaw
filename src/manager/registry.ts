@@ -26,6 +26,7 @@ import type {
     DashboardScanResult,
     DashboardSidebarMode,
     DashboardNotesAuthoringMode,
+    DashboardNotesGraphSettings,
     DashboardNotesViewMode,
     DashboardUiTheme,
     DashboardLocale,
@@ -44,6 +45,7 @@ const LOCALES: DashboardLocale[] = ['ko', 'en', 'zh', 'ja'];
 const SIDEBAR_MODES: DashboardSidebarMode[] = ['instances', 'board', 'schedule', 'notes', 'reminders', 'settings'];
 const NOTES_VIEW_MODES: DashboardNotesViewMode[] = ['raw', 'split', 'preview', 'settings', 'graph'];
 const NOTES_AUTHORING_MODES: DashboardNotesAuthoringMode[] = ['plain', 'rich', 'wysiwyg'];
+const NOTES_GRAPH_SECTIONS = ['filters', 'display', 'forces', 'groups'] as const;
 const DIFF_ROOT_POLICIES: DashboardDiffRootPolicy[] = ['project-first', 'working-dir-first', 'manual'];
 const DIFF_MODES: DashboardDiffMode[] = ['unstaged', 'staged', 'head', 'base'];
 const SHORTCUT_ACTIONS: DashboardShortcutAction[] = [
@@ -60,6 +62,27 @@ export const DEFAULT_DASHBOARD_SHORTCUT_KEYMAP: DashboardShortcutKeymap = {
     focusNotes: 'Alt+N',
     previousInstance: 'Alt+K',
     nextInstance: 'Alt+J',
+};
+
+export const DEFAULT_DASHBOARD_NOTES_GRAPH_SETTINGS: DashboardNotesGraphSettings = {
+    version: 1,
+    panelOpen: true,
+    collapsedSections: {},
+    query: '',
+    existingFilesOnly: false,
+    showOrphans: true,
+    showTags: true,
+    showAttachments: false,
+    focusSelected: false,
+    focusDepth: 1,
+    groupMode: 'query',
+    groups: [],
+    nodeSize: 1,
+    linkDistance: 92,
+    chargeStrength: -180,
+    labelDensity: 0.6,
+    showArrows: false,
+    animate: true,
 };
 
 export type DashboardRegistryLoadResult = {
@@ -102,6 +125,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function clampInt(value: unknown, fallback: number, min: number, max: number): number {
     const parsed = Number(value);
     if (!Number.isInteger(parsed)) return fallback;
+    return Math.min(max, Math.max(min, parsed));
+}
+
+function clampNumber(value: unknown, fallback: number, min: number, max: number): number {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return fallback;
     return Math.min(max, Math.max(min, parsed));
 }
 
@@ -173,6 +202,57 @@ function normalizeShortcutKeymap(value: unknown): DashboardShortcutKeymap {
     return keymap;
 }
 
+function readGraphColor(value: unknown, fallback: string): string {
+    if (typeof value !== 'string') return fallback;
+    const trimmed = value.trim();
+    return /^#[0-9a-f]{6}$/i.test(trimmed) ? trimmed : fallback;
+}
+
+function normalizeNotesGraphSettings(value: unknown): DashboardNotesGraphSettings {
+    const input = isRecord(value) ? value : {};
+    const fallback = DEFAULT_DASHBOARD_NOTES_GRAPH_SETTINGS;
+    const collapsedInput = isRecord(input["collapsedSections"]) ? input["collapsedSections"] : {};
+    const collapsedSections: DashboardNotesGraphSettings["collapsedSections"] = {};
+    for (const section of NOTES_GRAPH_SECTIONS) {
+        if (typeof collapsedInput[section] === 'boolean') collapsedSections[section] = collapsedInput[section];
+    }
+    const groupsInput = Array.isArray(input["groups"]) ? input["groups"] : [];
+    const groups = groupsInput.flatMap((candidate, index) => {
+        if (!isRecord(candidate)) return [];
+        const id = readString(candidate["id"]) ?? `group-${index + 1}`;
+        const label = readString(candidate["label"]) ?? `Group ${index + 1}`;
+        const query = readString(candidate["query"]) ?? '';
+        if (!query) return [];
+        return [{
+            id,
+            label,
+            query: query.slice(0, 240),
+            color: readGraphColor(candidate["color"], '#7c9cff'),
+            enabled: typeof candidate["enabled"] === 'boolean' ? candidate["enabled"] : true,
+        }];
+    }).slice(0, 20);
+    return {
+        version: 1,
+        panelOpen: typeof input["panelOpen"] === 'boolean' ? input["panelOpen"] : fallback.panelOpen,
+        collapsedSections,
+        query: typeof input["query"] === 'string' ? input["query"].trim().slice(0, 240) : fallback.query,
+        existingFilesOnly: typeof input["existingFilesOnly"] === 'boolean' ? input["existingFilesOnly"] : fallback.existingFilesOnly,
+        showOrphans: typeof input["showOrphans"] === 'boolean' ? input["showOrphans"] : fallback.showOrphans,
+        showTags: typeof input["showTags"] === 'boolean' ? input["showTags"] : fallback.showTags,
+        showAttachments: typeof input["showAttachments"] === 'boolean' ? input["showAttachments"] : fallback.showAttachments,
+        focusSelected: typeof input["focusSelected"] === 'boolean' ? input["focusSelected"] : fallback.focusSelected,
+        focusDepth: clampInt(input["focusDepth"], fallback.focusDepth, 1, 4),
+        groupMode: input["groupMode"] === 'off' || input["groupMode"] === 'query' ? input["groupMode"] : fallback.groupMode,
+        groups,
+        nodeSize: clampNumber(input["nodeSize"], fallback.nodeSize, 0.6, 2),
+        linkDistance: clampInt(input["linkDistance"], fallback.linkDistance, 40, 240),
+        chargeStrength: clampInt(input["chargeStrength"], fallback.chargeStrength, -800, -20),
+        labelDensity: clampNumber(input["labelDensity"], fallback.labelDensity, 0, 1),
+        showArrows: typeof input["showArrows"] === 'boolean' ? input["showArrows"] : fallback.showArrows,
+        animate: typeof input["animate"] === 'boolean' ? input["animate"] : fallback.animate,
+    };
+}
+
 function defaultUi(): DashboardRegistryUi {
     return {
         selectedPort: null,
@@ -191,6 +271,7 @@ function defaultUi(): DashboardRegistryUi {
         notesWordWrap: true,
         notesVimMode: false,
         notesTreeWidth: DEFAULT_NOTES_TREE_WIDTH,
+        notesGraphSettings: { ...DEFAULT_DASHBOARD_NOTES_GRAPH_SETTINGS, collapsedSections: {}, groups: [] },
         showLatestActivityTitles: true,
         showInlineLabelEditor: true,
         showSidebarRuntimeLine: true,
@@ -263,6 +344,7 @@ function normalizeUi(value: unknown): DashboardRegistryUi {
         notesWordWrap: typeof input["notesWordWrap"] === 'boolean' ? input["notesWordWrap"] : fallback.notesWordWrap,
         notesVimMode: typeof input["notesVimMode"] === 'boolean' ? input["notesVimMode"] : fallback.notesVimMode,
         notesTreeWidth: clampInt(input["notesTreeWidth"], fallback.notesTreeWidth, MIN_NOTES_TREE_WIDTH, MAX_NOTES_TREE_WIDTH),
+        notesGraphSettings: normalizeNotesGraphSettings(input["notesGraphSettings"]),
         showLatestActivityTitles: typeof input["showLatestActivityTitles"] === 'boolean' ? input["showLatestActivityTitles"] : fallback.showLatestActivityTitles,
         showInlineLabelEditor: typeof input["showInlineLabelEditor"] === 'boolean' ? input["showInlineLabelEditor"] : fallback.showInlineLabelEditor,
         showSidebarRuntimeLine: typeof input["showSidebarRuntimeLine"] === 'boolean' ? input["showSidebarRuntimeLine"] : fallback.showSidebarRuntimeLine,

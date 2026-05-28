@@ -15,6 +15,7 @@ import './manager-notes.css';
 import './notes/notes-tags.css';
 import './notes/notes-quick-switcher.css';
 import './notes/notes-search.css';
+import './notes/notes-graph.css';
 import './manager-dashboard-board.css';
 import './manager-dashboard-board-stages.css';
 import './manager-dashboard-board-interactions.css';
