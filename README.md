@@ -5,7 +5,7 @@
 ### Your personal AI agent. 2 lines to install. 11 AI runtime surfaces in one dashboard.
 
 [![npm](https://img.shields.io/npm/v/cli-jaw)](https://npmjs.com/package/cli-jaw)
-[![Version](https://img.shields.io/badge/v2.0.0-GA-brightgreen)](https://github.com/lidge-jun/cli-jaw/releases)
+[![Version](https://img.shields.io/badge/v2.0.13-GA-brightgreen)](https://github.com/lidge-jun/cli-jaw/releases)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)](https://typescriptlang.org)
 [![Node](https://img.shields.io/badge/node-%3E%3D22-blue)](https://nodejs.org)
 [![License](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
@@ -274,6 +274,20 @@ Monitor each AI engine's health and usage at a glance.
 
 </div>
 
+### Desktop App
+
+Prefer a native window to a browser tab? CLI-JAW ships an **Electron desktop shell** — a thin native wrapper that boots the manager dashboard and supervises the underlying `jaw dashboard serve` process for you. Nothing to keep open in a terminal, no tab to lose.
+
+```bash
+# one-time, from the repo root
+npm install && npm --prefix electron install
+
+npm run electron:dev          # develop with hot reload
+npm run electron:dist:mac     # build a universal .dmg + .zip  (also :win / :linux)
+```
+
+The packaged app lands in `electron/dist/` (`cli-jaw.app`, `cli-jaw-<version>-universal.dmg`). Native modules (`better-sqlite3`, `playwright-core`, `sharp`, `canvas`) live only in the manager server — the Electron main process never loads them. Builds are currently **unsigned / un-notarized**, so on first launch macOS Gatekeeper needs a right-click → **Open**.
+
 ---
 
 ## How the Employee System Works
@@ -318,17 +332,17 @@ No per-token API billing. Route through subscriptions you already pay for.
 
 | CLI | Default Model | Auth | Cost |
 |---|---|---|---|
-| **Claude** | `opus-4-6` | `claude auth login` | Claude Max subscription |
-| **Claude E** | `opus-4-6` | underlying `claude auth login` | Experimental interactive Claude wrapper |
+| **Claude** | `sonnet` | `claude auth login` | Claude Max subscription |
+| **Claude E** | `sonnet` | underlying `claude auth login` | Experimental interactive Claude wrapper |
 | **AI-E** | provider-selected | selected provider auth | Multi-provider runtime wrapper |
 | **Antigravity** | AGY-selected | checked by `agy` at run time | Experimental AGY print-mode runtime with `--conversation` resume; model switching stays in native AGY UI |
-| **Codex** | `gpt-5.5` | `codex login` | ChatGPT Pro subscription |
+| **Codex** | `gpt-5.4` | `codex login` | ChatGPT Pro subscription |
 | **Codex App** | `gpt-5.4` | `codex login` | ChatGPT Pro subscription |
-| **Cursor** | `composer-2.5-fast` | `cursor-agent login` or `CURSOR_API_KEY` | Cursor subscription; quota is auth/status-only |
-| **Gemini** | `gemini-3.1-pro-preview` | `gemini` | Gemini Advanced subscription |
+| **Cursor** | `composer-2.5` | `cursor-agent login` or `CURSOR_API_KEY` | Cursor subscription; quota is auth/status-only |
+| **Gemini** | `gemini-3-flash-preview` | `gemini` | Gemini Advanced subscription |
 | **Grok** | `grok-build` | `grok login --oauth` | Grok subscription; quota is auth/status-only |
-| **OpenCode** | `minimax-m2.7` | `opencode` | Free models available |
-| **Copilot** | `gpt-5-mini` | `copilot login` | Free tier available |
+| **OpenCode** | `opencode-go/kimi-k2.6` | `opencode` | Free models available |
+| **Copilot** | `claude-sonnet-4.6` | `copilot login` | Free tier available |
 
 The quota/status panel keeps the same runtime keyset as the registry. Wrapper runtimes (`ai-e`, `claude-e`, `codex-app`) delegate to their underlying provider, while AGY/Cursor/Grok/OpenCode are shown as auth/status-only when their CLIs do not expose quota windows.
 
