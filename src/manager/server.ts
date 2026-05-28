@@ -42,6 +42,7 @@ import { RemindersStore } from './reminders/store.js';
 import { startRemindersScheduler } from './reminders/scheduler.js';
 import { createDashboardConnectorRouter } from './connector/routes.js';
 import { createDashboardMemoryRouter } from './routes/dashboard-memory.js';
+import { createDashboardGitRouter } from './routes/dashboard-git.js';
 import { VecStore, getVecDbPath, createProvider, syncAllInstances } from './memory/embedding/index.js';
 import type { EmbeddingConfig } from './memory/embedding/index.js';
 import { addBroadcastListener } from '../core/bus.js';
@@ -198,6 +199,13 @@ app.use('/api/dashboard/reminders', createDashboardRemindersRouter({ store: remi
 app.use('/api/dashboard/connector', createDashboardConnectorRouter({ remindersStore }));
 
 const dashboardHome = resolveDashboardHome();
+app.use('/api/dashboard/git', createDashboardGitRouter({
+    homePath: dashboardHome,
+    resolveInstance: async (instancePort: number) => {
+        if (instancePort < scanFrom || instancePort >= scanFrom + scanCount) return null;
+        return await scanSinglePort(instancePort);
+    },
+}));
 
 function loadEmbeddingConfig(): EmbeddingConfig | null {
     const p = join(dashboardHome, 'embedding.json');
