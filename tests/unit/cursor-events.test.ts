@@ -96,3 +96,63 @@ test('Cursor tool calls update running entries to done', () => {
     assert.equal(ctx.toolLog.length, 1);
     assert.equal(ctx.toolLog[0]?.status, 'done');
 });
+
+test('Cursor nested stream-json tool_call labels Read/Shell with args', () => {
+    const ctx = makeContext();
+    extractFromEvent('cursor', {
+        type: 'tool_call',
+        subtype: 'started',
+        call_id: 'tool-read-1',
+        tool_call: {
+            readToolCall: {
+                args: { path: '/etc/hosts' },
+            },
+        },
+    }, ctx, 'cursor');
+    assert.equal(ctx.toolLog.length, 1);
+    assert.equal(ctx.toolLog[0]?.label, 'Read');
+    assert.equal(ctx.toolLog[0]?.detail, '/etc/hosts');
+    assert.equal(ctx.toolLog[0]?.status, 'running');
+
+    extractFromEvent('cursor', {
+        type: 'tool_call',
+        subtype: 'completed',
+        call_id: 'tool-read-1',
+        tool_call: {
+            readToolCall: {
+                args: { path: '/etc/hosts' },
+                result: { success: { path: '/etc/hosts' } },
+            },
+        },
+    }, ctx, 'cursor');
+    assert.equal(ctx.toolLog.length, 1);
+    assert.equal(ctx.toolLog[0]?.label, 'Read');
+    assert.equal(ctx.toolLog[0]?.status, 'done');
+
+    extractFromEvent('cursor', {
+        type: 'tool_call',
+        subtype: 'started',
+        call_id: 'tool-shell-1',
+        tool_call: {
+            shellToolCall: {
+                args: { command: 'pwd', description: 'Print current working directory' },
+            },
+        },
+    }, ctx, 'cursor');
+    assert.equal(ctx.toolLog.length, 2);
+    assert.equal(ctx.toolLog[1]?.label, 'Bash');
+    assert.equal(ctx.toolLog[1]?.detail, 'pwd');
+
+    extractFromEvent('cursor', {
+        type: 'tool_call',
+        subtype: 'completed',
+        call_id: 'tool-shell-1',
+        tool_call: {
+            shellToolCall: {
+                result: { rejected: { command: 'pwd', reason: '' } },
+            },
+        },
+    }, ctx, 'cursor');
+    assert.equal(ctx.toolLog.length, 2);
+    assert.equal(ctx.toolLog[1]?.status, 'error');
+});
