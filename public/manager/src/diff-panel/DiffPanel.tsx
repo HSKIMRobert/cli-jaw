@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { getDesktop, type DiffBridgeApi, type DiffOptions, type DiffResolvedRoot } from '../panels/desktop-bridge';
 import type { DashboardDiffMode, DashboardInstance, DashboardRegistryUi } from '../types';
+import { createDashboardGitDiffClient } from './diff-client';
 import { buildDiffRootCandidates } from './diff-root-candidates';
 import './diff-panel.css';
 
@@ -59,7 +60,11 @@ function rootTitle(root: DiffResolvedRoot): string {
 }
 
 export function DiffPanel(props: DiffPanelProps) {
-    const bridge = getDiffBridge();
+    const desktopBridge = getDiffBridge();
+    const bridge = useMemo(
+        () => desktopBridge ?? createDashboardGitDiffClient(props.selectedInstance, props.settings),
+        [desktopBridge, props.selectedInstance, props.settings],
+    );
     const [repoCandidates, setRepoCandidates] = useState<DiffResolvedRoot[]>([]);
     const [repoRoot, setRepoRoot] = useState<string | null>(null);
     const [files, setFiles] = useState<DiffFileSummary[]>([]);
@@ -138,10 +143,6 @@ export function DiffPanel(props: DiffPanelProps) {
 
     function handleModeChange(mode: DashboardDiffMode): void {
         props.onSettingsPatch?.({ diffDefaultMode: mode });
-    }
-
-    if (!bridge) {
-        return <div className="diff-panel diff-unavailable">Diff viewer requires Electron desktop app</div>;
     }
 
     return (
