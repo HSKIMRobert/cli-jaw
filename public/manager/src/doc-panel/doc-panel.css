@@ -45,3 +45,13 @@
     white-space: pre-wrap;
     word-break: break-all;
 }
+.doc-markdown {
+    padding: 12px 16px;
+}
+.doc-content .notes-code-block {
+    margin: 0;
+    border-radius: 0;
+}
+.doc-content .notes-code-block pre {
+    max-height: none;
+}
