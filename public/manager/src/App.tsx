@@ -39,8 +39,7 @@ import type { DashboardDetailTab, DashboardInstance, DashboardInstanceStatus, Da
 import { panelShortcutBus } from './panels/panel-shortcut-bus';
 import { getDesktop } from './panels/desktop-bridge';
 import type { PanelLayoutState } from './panels/PanelLayoutProvider';
-import type { RightPanelMode, BottomPanelTab } from './panels/types';
-import { RIGHT_PANEL_DEFAULT_WIDTH, BOTTOM_PANEL_DEFAULT_HEIGHT } from './panels/types';
+import { panelLayoutInitialStateFromUi, panelLayoutUiFromState } from './panels/panel-layout-registry-state';
 export function App() {
     const [data, setData] = useState<DashboardScanResult | null>(null);
     const [loading, setLoading] = useState(true);
@@ -94,7 +93,6 @@ export function App() {
     const instances = data?.instances || [];
     const messageActivity = useInstanceMessageEvents(instances);
     const labelEditor = useInstanceLabelEditor(registry.save, setData);
-
     const profiles = useMemo(() => data?.manager.profiles || [], [data]);
     const effectiveProfileIds = useMemo(() => {
         const known = new Set(profiles.map(profile => profile.profileId));
@@ -152,7 +150,6 @@ export function App() {
         window.open(selectedInstance.url, '_blank', 'noopener,noreferrer');
     }
     useEffect(() => { document.documentElement.lang = view.locale; }, [view.locale]);
-
     useEffect(() => {
         function onKeyDown(event: KeyboardEvent): void {
             if (event.key !== '?' || event.metaKey || event.ctrlKey || event.altKey) return;
@@ -177,7 +174,6 @@ export function App() {
             setLoading(false);
         }
     }
-
     async function refreshInstance(port: number): Promise<void> {
         const instance = await fetchInstanceStatus(port);
         if (!instance) return;
@@ -186,9 +182,7 @@ export function App() {
             instances: current.instances.map(row => row.port === port ? instance : row),
         } : current);
     }
-
     useInvalidationSubscription('instances', () => void load(), 'app');
-
     useEffect(() => {
         async function initialize(): Promise<void> {
             try {
@@ -218,23 +212,7 @@ export function App() {
                 activityUnread.hydrateSeenAt(ui.activitySeenAt ?? null, ui.activitySeenByPort || {});
                 setActiveProfileIds(loaded.registry.activeProfileFilter || []);
                 theme.syncFromRegistry(ui.uiTheme);
-                const panelInit: Partial<PanelLayoutState> = {};
-                if (ui.panelLayoutVersion) {
-                    panelInit.rightPanel = {
-                        open: ui.rightPanelOpen ?? false,
-                        width: ui.rightPanelWidth ?? RIGHT_PANEL_DEFAULT_WIDTH,
-                        topMode: (ui.rightPanelTopMode as RightPanelMode | null) ?? null,
-                        bottomMode: (ui.rightPanelBottomMode as RightPanelMode | null) ?? null,
-                        splitRatio: ui.rightPanelSplitRatio ?? 0.5,
-                    };
-                    panelInit.bottomPanel = {
-                        open: ui.bottomPanelOpen ?? false,
-                        height: ui.bottomPanelHeight ?? BOTTOM_PANEL_DEFAULT_HEIGHT,
-                        tabs: (ui.bottomPanelTabs ?? []) as BottomPanelTab[],
-                        activeTab: (ui.bottomPanelActiveTab ?? null) as BottomPanelTab | null,
-                    };
-                }
-                setPanelInitialState(panelInit);
+                setPanelInitialState(panelLayoutInitialStateFromUi(ui));
             } finally {
                 setHydrated(true);
                 await load();
@@ -247,22 +225,9 @@ export function App() {
         if (!hydrated || ui === undefined) return;
         await registry.save({ ui });
     }
-
     function handlePanelStateChange(ps: PanelLayoutState): void {
-        void saveUi({
-            panelLayoutVersion: 1,
-            rightPanelOpen: ps.rightPanel.open,
-            rightPanelWidth: ps.rightPanel.width,
-            rightPanelTopMode: ps.rightPanel.topMode,
-            rightPanelBottomMode: ps.rightPanel.bottomMode,
-            rightPanelSplitRatio: ps.rightPanel.splitRatio,
-            bottomPanelOpen: ps.bottomPanel.open,
-            bottomPanelHeight: ps.bottomPanel.height,
-            bottomPanelTabs: ps.bottomPanel.tabs,
-            bottomPanelActiveTab: ps.bottomPanel.activeTab,
-        });
+        void saveUi(panelLayoutUiFromState(ps));
     }
-
     const profileCounts = useMemo(() => {
         return instances.reduce((acc, instance) => {
             if (instance.profileId) acc[instance.profileId] = (acc[instance.profileId] || 0) + 1;
@@ -284,7 +249,6 @@ export function App() {
         setActiveProfileIds(next);
         void registry.save({ activeProfileFilter: next });
     }
-
     function canLeaveDirtySettings(): boolean {
         if (view.activeDetailTab !== 'settings' || !settingsDirty) return true;
         return window.confirm('Discard unsaved Settings changes?');
@@ -300,9 +264,7 @@ export function App() {
         view.setDrawerOpen(false);
         void saveUi({ selectedPort: instance.port, selectedTab: 'preview', activityDockCollapsed: true });
     }
-
     function handleOpenJawCeoWorker(port: number): void { const instance = instances.find(row => row.port === port); if (instance) handlePreview(instance); }
-
     function handleSelectInstance(instance: DashboardInstance): void {
         if (!canLeaveDirtySettings()) return;
         setSettingsDirty(false);
@@ -365,7 +327,6 @@ export function App() {
     function handleNotesWordWrapChange(value: boolean): void { view.setNotesWordWrap(value); void saveUi({ notesWordWrap: value }); }
     function handleNotesVimModeChange(value: boolean): void { view.setNotesVimMode(value); void saveUi({ notesVimMode: value }); }
     function handleNotesTreeWidthChange(value: number): void { view.setNotesTreeWidth(value); void saveUi({ notesTreeWidth: value }); }
-
     const notesModel = useNotesModel({
         active: view.sidebarMode === 'notes',
         selectedPath: view.notesSelectedPath,
@@ -375,7 +336,6 @@ export function App() {
     const notesSelectedNote = view.notesSelectedPath
         ? notesModel.index?.notes.find(n => n.path === view.notesSelectedPath) ?? null
         : null;
-
     function handleDashboardSettingsPatch(ui: NonNullable<Parameters<typeof saveUi>[0]>): void {
         if (ui.showLatestActivityTitles !== undefined) view.setShowLatestActivityTitles(ui.showLatestActivityTitles);
         if (ui.showInlineLabelEditor !== undefined) view.setShowInlineLabelEditor(ui.showInlineLabelEditor);
@@ -428,7 +388,6 @@ export function App() {
             selectRelativeInstance(1);
         }
     }
-
     useEffect(() => {
         if (!view.dashboardShortcutsEnabled) return undefined;
         const unsubscribe = getDesktop()?.shortcuts?.onAction?.((action) => {
@@ -517,7 +476,6 @@ export function App() {
             onMarkActivitySeen={activityUnread.markPortSeen} onInstanceLabelSave={labelEditor.saveInstanceLabel}
             onLifecycle={(action, instance) => void handleLifecycle(action, instance)} />
     );
-
     const workbenchHeader = <WorkbenchHeader instance={selectedInstance} previewEnabled={previewEnabled} onPreviewEnabledChange={setPreviewEnabled} onPreviewRefresh={() => setPreviewRefreshKey(key => key + 1)} onOpenHelpTopic={openHelpTopic} />;
     const dashboardSettingsUi = dashboardSettingsUiFromView(view, theme.theme), titleSupport = summarizeActivityTitleSupport(messageActivity.titleSupportByPort);
     const profileChipStrip = (chipProfiles: DashboardProfile[]) => chipProfiles.length > 0 ? <div className="profile-chip-strip drawer-chip-strip" aria-label="Profile filters">{chipProfiles.map(profile => <ProfileChip key={profile.profileId} profile={profile} active={activeProfileIds.includes(profile.profileId)} count={profileCounts[profile.profileId] || 0} onToggle={toggleProfile} />)}</div> : null;

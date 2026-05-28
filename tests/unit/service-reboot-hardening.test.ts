@@ -9,6 +9,7 @@ import { readSource } from './source-normalize.js';
 const ROOT = process.cwd();
 const SERVER = path.join(ROOT, 'server.ts');
 const CONFIG = path.join(ROOT, 'src/core/config.ts');
+const CLI_DETECTION = path.join(ROOT, 'src/core/cli-detection.ts');
 const CLI_DETECT = path.join(ROOT, 'src/core/cli-detect.ts');
 const SPAWN = path.join(ROOT, 'src/agent/spawn.ts');
 const QUEUE = path.join(ROOT, 'src/agent/spawn/queue.ts');
@@ -64,11 +65,12 @@ test('SRH-004: service installers use shared service PATH builder instead of raw
 test('SRH-005: spawn path and detectCli logic use service-safe PATH handling', () => {
     const spawnSrc = readSource(SPAWN, 'utf8');
     const configSrc = readSource(CONFIG, 'utf8');
+    const cliDetectionSrc = readSource(CLI_DETECTION, 'utf8');
     const cliDetectSrc = readSource(CLI_DETECT, 'utf8');
     const lifecycleSrc = readSource(LIFECYCLE, 'utf8');
     const dbSrc = readSource(DB, 'utf8');
 
-    assert.match(spawnSrc, /env\.PATH = buildServicePath\(env\.PATH \|\| ''\)/);
+    assert.match(spawnSrc, /env(?:\.PATH|\["PATH"\]) = buildServicePath\(env(?:\.PATH|\["PATH"\]) \|\| ''\)/);
     assert.match(spawnSrc, /const spawnCommand = cli === 'opencode' && process\.platform !== 'win32'/);
     assert.match(spawnSrc, /\? \(resolvedOpencodeBinary \|\| detected\.path \|\| cli\)/);
     assert.match(spawnSrc, /: \(detected\.path \|\| cli\)/);
@@ -76,7 +78,8 @@ test('SRH-005: spawn path and detectCli logic use service-safe PATH handling', (
     assert.match(spawnSrc, /clearEmployeeSession\.run\(opts\.agentId\)/);
     assert.match(lifecycleSrc, /clearEmployeeSession\.run\(opts\.agentId\)/);
     assert.match(dbSrc, /export const clearEmployeeSession = db\.prepare\('DELETE FROM employee_sessions WHERE employee_id = \?'\)/);
-    assert.match(configSrc, /return detectCliBinary\(binary\)/);
+    assert.match(configSrc, /export \{ detectAllCli, detectCli/);
+    assert.match(cliDetectionSrc, /return detectCliBinary\(binary\)/);
     assert.match(cliDetectSrc, /buildCliDetectionEnv\(seedPath\)/);
     assert.match(cliDetectSrc, /buildServicePath\(seedPath\)/);
     assert.match(cliDetectSrc, /\['-a', name\]/);
