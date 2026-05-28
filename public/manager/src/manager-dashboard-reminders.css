@@ -451,6 +451,35 @@
     color: var(--ink-muted);
 }
 
+/* ── Dark mode overrides (explicit dark + auto-dark) ── */
+[data-theme="dark"] .dashboard-reminders-quadrant[data-tone="red"]   { background: color-mix(in srgb, #ff3b30 8%, var(--surface-base)); }
+[data-theme="dark"] .dashboard-reminders-quadrant[data-tone="green"] { background: color-mix(in srgb, #34c759 8%, var(--surface-base)); }
+[data-theme="dark"] .dashboard-reminders-quadrant[data-tone="amber"] { background: color-mix(in srgb, #ff9f0a 8%, var(--surface-base)); }
+[data-theme="dark"] .dashboard-reminders-quadrant[data-tone="blue"]  { background: color-mix(in srgb, #007aff 8%, var(--surface-base)); }
+
+[data-theme="dark"] .dashboard-reminders-quadrant > header,
+[data-theme="dark"] .dashboard-reminders-smart-list > header { background: rgba(0, 0, 0, 0.24); }
+
+[data-theme="dark"] .dashboard-reminders-row { background: rgba(255, 255, 255, 0.06); border-bottom-color: rgba(255, 255, 255, 0.06); }
+[data-theme="dark"] .dashboard-reminders-row[data-status="focused"] { background: color-mix(in srgb, var(--accent) 10%, rgba(255, 255, 255, 0.08)); }
+[data-theme="dark"] .dashboard-reminders-row-check { background: rgba(255, 255, 255, 0.08); }
+[data-theme="dark"] .dashboard-reminders-create-row { background: rgba(255, 255, 255, 0.04); border-bottom-color: rgba(255, 255, 255, 0.06); }
+
+@media (prefers-color-scheme: dark) {
+    [data-theme="auto"] .dashboard-reminders-quadrant[data-tone="red"]   { background: color-mix(in srgb, #ff3b30 8%, var(--surface-base)); }
+    [data-theme="auto"] .dashboard-reminders-quadrant[data-tone="green"] { background: color-mix(in srgb, #34c759 8%, var(--surface-base)); }
+    [data-theme="auto"] .dashboard-reminders-quadrant[data-tone="amber"] { background: color-mix(in srgb, #ff9f0a 8%, var(--surface-base)); }
+    [data-theme="auto"] .dashboard-reminders-quadrant[data-tone="blue"]  { background: color-mix(in srgb, #007aff 8%, var(--surface-base)); }
+
+    [data-theme="auto"] .dashboard-reminders-quadrant > header,
+    [data-theme="auto"] .dashboard-reminders-smart-list > header { background: rgba(0, 0, 0, 0.24); }
+
+    [data-theme="auto"] .dashboard-reminders-row { background: rgba(255, 255, 255, 0.06); border-bottom-color: rgba(255, 255, 255, 0.06); }
+    [data-theme="auto"] .dashboard-reminders-row[data-status="focused"] { background: color-mix(in srgb, var(--accent) 10%, rgba(255, 255, 255, 0.08)); }
+    [data-theme="auto"] .dashboard-reminders-row-check { background: rgba(255, 255, 255, 0.08); }
+    [data-theme="auto"] .dashboard-reminders-create-row { background: rgba(255, 255, 255, 0.04); border-bottom-color: rgba(255, 255, 255, 0.06); }
+}
+
 .dashboard-reminders-smart-list {
     margin: 22px;
     display: grid;

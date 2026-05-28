@@ -46,7 +46,7 @@
 
 .embed-step.is-done .embed-step-badge {
     background: rgba(50, 200, 110, 0.15);
-    color: #32c86e;
+    color: var(--status-running);
 }
 
 .embed-step.is-active .embed-step-badge {
@@ -157,12 +157,12 @@
 
 .dashboard-embed-ok {
     font-size: 12px;
-    color: #32c86e;
+    color: var(--status-running);
     margin: 6px 0 0;
 }
 
 .dashboard-embed-err {
     font-size: 12px;
-    color: var(--text-error, #e55);
+    color: var(--error-text);
     margin: 6px 0 0;
 }

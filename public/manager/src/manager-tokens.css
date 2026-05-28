@@ -64,6 +64,7 @@
     --accent-soft:    #1e2b3d;
     --selection-bg:   color-mix(in srgb, var(--accent) 40%, transparent);
     --status-running: #34d399;
+    --status-success: #4caf50;
     --status-warn:    #f5a524;
     --status-error:   #f87171;
     --status-idle:    #7b8797;
@@ -112,6 +113,14 @@
     --inset-glow:      rgba(255, 255, 255, 0.03);
     --rail-top:        #0d141c;
     --rail-bottom:     #0a1017;
+
+    /* alias tokens for notes/panels (previously undeclared) */
+    --canvas-panel:       oklch(16% 0.01 260);
+    --canvas-base:        oklch(13% 0.005 260);
+    --danger-soft:        color-mix(in srgb, var(--status-error) 12%, transparent);
+    --accent-primary:     var(--accent);
+    --surface-secondary:  var(--surface-raised);
+    --text-tertiary:      var(--text-dim);
 }
 
 /* Light palette. */
@@ -131,6 +140,7 @@
     --accent-soft:    var(--jp-blue-100);
     --selection-bg:   color-mix(in srgb, var(--accent) 30%, transparent);
     --status-running: var(--jp-green-600);
+    --status-success: var(--jp-green-600);
     --status-warn:    var(--jp-amber-600);
     --status-error:   var(--jp-red-600);
     --status-idle:    var(--jp-slate-500);
@@ -177,6 +187,13 @@
     --inset-glow:      rgba(0, 0, 0, 0.02);
     --rail-top:        #ffffff;
     --rail-bottom:     var(--jp-gray-50);
+
+    --canvas-panel:       oklch(97% 0.005 260);
+    --canvas-base:        oklch(99% 0.002 260);
+    --danger-soft:        color-mix(in srgb, var(--status-error) 8%, transparent);
+    --accent-primary:     var(--accent);
+    --surface-secondary:  var(--surface-raised);
+    --text-tertiary:      var(--text-dim);
 }
 
 /* Auto: follow OS, default to dark when query is unsupported. */
@@ -197,6 +214,7 @@
         --accent-soft:    var(--jp-blue-100);
         --selection-bg:   color-mix(in srgb, var(--accent) 30%, transparent);
         --status-running: var(--jp-green-600);
+        --status-success: var(--jp-green-600);
         --status-warn:    var(--jp-amber-600);
         --status-error:   var(--jp-red-600);
         --status-idle:    var(--jp-slate-500);
@@ -243,5 +261,12 @@
         --inset-glow:      rgba(0, 0, 0, 0.02);
         --rail-top:        #ffffff;
         --rail-bottom:     var(--jp-gray-50);
+
+        --canvas-panel:       oklch(97% 0.005 260);
+        --canvas-base:        oklch(99% 0.002 260);
+        --danger-soft:        color-mix(in srgb, var(--status-error) 8%, transparent);
+        --accent-primary:     var(--accent);
+        --surface-secondary:  var(--surface-raised);
+        --text-tertiary:      var(--text-dim);
     }
 }

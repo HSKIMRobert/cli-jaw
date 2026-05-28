@@ -152,6 +152,17 @@
     font-size: 11px;
 }
 
+/* ── Dark mode overrides (explicit dark + auto-dark) ── */
+[data-theme="dark"] .dashboard-reminders-top-priority li { background: color-mix(in srgb, #ff3b30 8%, var(--surface-base)); }
+[data-theme="dark"] .dashboard-reminders-top-priority .dashboard-reminders-row { background: rgba(255, 255, 255, 0.06); }
+[data-theme="dark"] .dashboard-reminders-sidebar-priority { background: color-mix(in srgb, var(--surface-base) 92%, transparent); }
+
+@media (prefers-color-scheme: dark) {
+    [data-theme="auto"] .dashboard-reminders-top-priority li { background: color-mix(in srgb, #ff3b30 8%, var(--surface-base)); }
+    [data-theme="auto"] .dashboard-reminders-top-priority .dashboard-reminders-row { background: rgba(255, 255, 255, 0.06); }
+    [data-theme="auto"] .dashboard-reminders-sidebar-priority { background: color-mix(in srgb, var(--surface-base) 92%, transparent); }
+}
+
 @media (max-width: 900px) {
     .dashboard-reminders-top-priority {
         grid-template-columns: 1fr;

@@ -212,7 +212,7 @@ function renderBasicFiles(files: MemoryFile[]) {
                 <span style="font-size:12px;font-family:monospace">${escapeHtml(f.name)}</span>
                 <span style="font-size:10px;color:var(--accent);margin-left:6px">${f.entries} entries</span>
             </div>
-            <button data-mem-delete="${escapeHtml(f.name)}" style="background:none;border:none;color:#f55;cursor:pointer;font-size:14px">${ICONS.trash}</button>
+            <button data-mem-delete="${escapeHtml(f.name)}" style="background:none;border:none;color:var(--error);cursor:pointer;font-size:14px">${ICONS.trash}</button>
         </div>
     `).join('');
 }
