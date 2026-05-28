@@ -89,6 +89,14 @@ function isUrlAllowed(target: string, desktop: boolean): boolean {
     }
 }
 
+function sameBrowserUrl(left: string, right: string): boolean {
+    try {
+        return new URL(left).href === new URL(right).href;
+    } catch {
+        return left === right;
+    }
+}
+
 function titleFromUrl(target: string): string {
     try {
         const parsed = new URL(target);
@@ -121,6 +129,7 @@ export function BrowserPanel() {
     const inputRef = useRef<HTMLInputElement | null>(null);
     const editingTabIdRef = useRef<string | null>(null);
     const inputDraftRef = useRef<{ tabId: string; value: string } | null>(null);
+    const pendingNavigationRefs = useRef<Map<string, string>>(new Map());
     const webviewRefs = useRef<Map<string, ElectronWebviewElement>>(new Map());
     const webviewCleanupRefs = useRef<Map<string, () => void>>(new Map());
 
@@ -140,6 +149,14 @@ export function BrowserPanel() {
             };
             const current = webview.getURL?.();
             if (current && isUrlAllowed(current, desktop)) {
+                const pendingTarget = pendingNavigationRefs.current.get(tabId);
+                if (pendingTarget && !sameBrowserUrl(current, pendingTarget)) {
+                    updateTab(tabId, patch);
+                    return;
+                }
+                if (pendingTarget) {
+                    pendingNavigationRefs.current.delete(tabId);
+                }
                 patch.url = current;
                 patch.title = titleFromUrl(current);
                 if (editingTabIdRef.current !== tabId) {
@@ -164,6 +181,14 @@ export function BrowserPanel() {
         const handleNavigate = (event: Event) => {
             const nextUrl = (event as ElectronWebviewEvent).url;
             if (nextUrl && isUrlAllowed(nextUrl, desktop)) {
+                const pendingTarget = pendingNavigationRefs.current.get(tabId);
+                if (pendingTarget && !sameBrowserUrl(nextUrl, pendingTarget)) {
+                    refreshNavState(tabId);
+                    return;
+                }
+                if (pendingTarget) {
+                    pendingNavigationRefs.current.delete(tabId);
+                }
                 const patch: Partial<BrowserTabState> = {
                     url: nextUrl,
                     title: titleFromUrl(nextUrl),
@@ -182,6 +207,7 @@ export function BrowserPanel() {
         const handleFail = (event: Event) => {
             const failure = event as ElectronWebviewEvent;
             if (failure.isMainFrame === false) return;
+            pendingNavigationRefs.current.delete(tabId);
             updateTab(tabId, {
                 loading: false,
                 error: failure.errorDescription ?? `Navigation failed (${failure.errorCode ?? 'unknown'})`,
@@ -190,6 +216,7 @@ export function BrowserPanel() {
         };
         const handleRenderGone = (event: Event) => {
             const reason = (event as ElectronWebviewEvent).details?.reason ?? 'gone';
+            pendingNavigationRefs.current.delete(tabId);
             updateTab(tabId, {
                 loading: false,
                 error: `Browser tab process ${reason}. Reload this tab or open a new tab.`,
@@ -221,6 +248,7 @@ export function BrowserPanel() {
         webviewCleanupRefs.current.delete(id);
         if (!node) {
             webviewRefs.current.delete(id);
+            pendingNavigationRefs.current.delete(id);
             return;
         }
         const webview = node as ElectronWebviewElement;
@@ -243,6 +271,7 @@ export function BrowserPanel() {
         const target = normalizeUrl(rawTarget);
         if (!target) return;
         if (!isUrlAllowed(target, desktop)) {
+            pendingNavigationRefs.current.delete(tabId);
             updateTab(tabId, {
                 blocked: true,
                 inputUrl: rawTarget,
@@ -250,6 +279,7 @@ export function BrowserPanel() {
             });
             return;
         }
+        pendingNavigationRefs.current.set(tabId, target);
         updateTab(tabId, {
             blocked: false,
             error: null,
