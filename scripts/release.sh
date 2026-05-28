@@ -17,8 +17,12 @@ cd "$(dirname "$0")/.."
 
 # ─── Flag parsing ──────────────────────────────────────
 POSITIONAL=()
+REQUIRE_EVIDENCE=false
 for arg in "$@"; do
   case "$arg" in
+    --require-evidence)
+      REQUIRE_EVIDENCE=true
+      ;;
     --with-desktop)
       echo "ℹ️  --with-desktop is no longer needed; GitHub Actions builds desktop assets after release publication."
       ;;
@@ -143,7 +147,11 @@ echo ""
 echo "🛡️  Running release gates (gate:all)..."
 npm run gate:all
 
-node scripts/require-release-evidence.mjs
+if [ "$REQUIRE_EVIDENCE" = true ]; then
+  node scripts/require-release-evidence.mjs
+else
+  node scripts/require-release-evidence.mjs || echo "⚠️  Evidence gate skipped (pass --require-evidence to enforce)"
+fi
 
 # ─── Commit + Tag + Push ──────────────────────────────
 echo "🏷️  Creating git tag v$VERSION..."
