@@ -280,7 +280,7 @@ export type DashboardNoteAssetResponse = {
     ok: true;
     path: string;
     markdown: string;
-    mime: 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif';
+    mime: 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif' | 'application/pdf';
     size: number;
 };
 

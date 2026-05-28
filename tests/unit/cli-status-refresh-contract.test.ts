@@ -30,7 +30,10 @@ test('CLI status interval setting drives automatic refresh scheduling', () => {
     assert.ok(status.includes('DEFAULT_CLI_STATUS_INTERVAL_SEC = 0'), 'scheduler default must be manual');
     assert.ok(status.includes('scheduleCliStatusRefresh'), 'settings-cli-status must export an auto refresh scheduler');
     assert.ok(status.includes('window.setInterval'), 'scheduler must install a timer');
-    assert.ok(status.includes('document.hidden || !document.hasFocus()'), 'scheduler must skip refresh while the Chrome tab/window is inactive');
+    assert.ok(status.includes('document.hidden'), 'scheduler must skip refresh while the document is hidden');
+    assert.ok(status.includes('isEmbeddedPreviewFrame'), 'scheduler must allow refresh inside dashboard preview iframes without window focus');
+    assert.ok(status.includes('initCliStatusPreviewHooks'), 'iframe preview must reload CLI status when preview tab becomes visible');
+    assert.ok(status.includes('/api/cli-status'), 'loader must fetch cli-status before quota for progressive render');
     assert.ok(status.includes('loadCliStatus(true)'), 'timer must force a fresh status/quota refresh');
     assert.ok(status.includes('window.clearInterval'), 'scheduler must clear the previous timer');
     assert.ok(status.includes('interval <= 0'), 'manual mode must disable the timer');
@@ -38,4 +41,21 @@ test('CLI status interval setting drives automatic refresh scheduling', () => {
 
     assert.ok(main.includes('scheduleCliStatusRefresh()'), 'bootstrap must start CLI status auto refresh');
     assert.ok(main.includes('setCliStatusInterval(this.value)'), 'select changes must reschedule auto refresh');
+});
+
+test('CLI status account line hides provider noise and Google Cloud Code', () => {
+    const status = read('public/js/features/settings-cli-status.ts');
+    assert.ok(status.includes('ACCOUNT_LABEL_SKIP'), 'account line must skip noisy tier labels');
+    assert.ok(status.includes('google cloud code'), 'account line must hide Google Cloud Code tier');
+    assert.ok(status.includes('PROVIDER_ACCOUNT_TYPES'), 'account line must hide provider ids like cursor');
+    assert.ok(!status.includes('parts.push(type)'), 'account line must not render account.type');
+});
+
+test('CLI status skips fetch while sidebar section is collapsed', () => {
+    const status = read('public/js/features/settings-cli-status.ts');
+    assert.ok(status.includes('if (!cliStatusExpanded) return;'), 'loadCliStatus must no-op when collapsed');
+    assert.ok(status.includes('if (!cliStatusExpanded) return;\n        void loadCliStatus(false);'), 'preview visibility must not load collapsed CLI status');
+    assert.ok(status.includes('scheduleEmbeddedQuotaRetry'), 'iframe quota retry must run in background');
+    assert.ok(status.includes('QUOTA_LOAD_DEFER_MS'), 'initial quota fetch must defer so chat load is not starved');
+    assert.ok(status.includes('scheduleQuotaFetch'), 'quota fetch must be schedulable separately from cli-status');
 });

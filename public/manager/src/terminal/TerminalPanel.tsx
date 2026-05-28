@@ -19,20 +19,59 @@ type RuntimeTerminal = {
     opened: boolean;
 };
 
-function createAccessibilityInputBridge(id: string, node: HTMLDivElement, bridge: NonNullable<ReturnType<typeof getTerminalBridge>>): IDisposable {
-    const flushTextareaValue = () => {
-        const textarea = node.querySelector<HTMLTextAreaElement>('textarea.xterm-helper-textarea');
-        if (!textarea) return;
-        textarea.setAttribute('aria-label', 'Terminal input');
-        const value = textarea.value;
-        if (!value) return;
-        textarea.value = '';
-        void bridge.write(id, value.replace(/\r?\n/g, '\r'));
+const ACCESSIBILITY_INPUT_FLUSH_MS = 120;
+
+function normalizeTerminalInputValue(value: string): string {
+    return value.replace(/\r?\n/g, '\r');
+}
+
+function createAccessibilityInputBridge(
+    node: HTMLDivElement,
+    writeInput: (value: string) => void,
+): IDisposable {
+    let watchedTextarea: HTMLTextAreaElement | null = null;
+    let composing = false;
+    const onCompositionStart = () => { composing = true; };
+    const onCompositionEnd = () => {
+        window.setTimeout(() => {
+            composing = false;
+            flushTextareaValue();
+        }, 0);
     };
-    const interval = window.setInterval(flushTextareaValue, 120);
+    const bindTextarea = (textarea: HTMLTextAreaElement) => {
+        if (watchedTextarea === textarea) return;
+        if (watchedTextarea) {
+            watchedTextarea.removeEventListener('input', flushTextareaValue);
+            watchedTextarea.removeEventListener('compositionstart', onCompositionStart);
+            watchedTextarea.removeEventListener('compositionend', onCompositionEnd);
+        }
+        watchedTextarea = textarea;
+        watchedTextarea.addEventListener('input', flushTextareaValue);
+        watchedTextarea.addEventListener('compositionstart', onCompositionStart);
+        watchedTextarea.addEventListener('compositionend', onCompositionEnd);
+    };
+    function flushTextareaValue() {
+        const textarea = node.querySelector<HTMLTextAreaElement>('textarea.terminal-a11y-input');
+        if (!textarea) return;
+        bindTextarea(textarea);
+        if (composing) return;
+        const rawValue = textarea.value;
+        if (!rawValue) return;
+        textarea.value = '';
+        const value = normalizeTerminalInputValue(rawValue);
+        writeInput(value);
+    }
+    const interval = window.setInterval(flushTextareaValue, ACCESSIBILITY_INPUT_FLUSH_MS);
     flushTextareaValue();
     return {
-        dispose: () => window.clearInterval(interval),
+        dispose: () => {
+            window.clearInterval(interval);
+            if (watchedTextarea) {
+                watchedTextarea.removeEventListener('input', flushTextareaValue);
+                watchedTextarea.removeEventListener('compositionstart', onCompositionStart);
+                watchedTextarea.removeEventListener('compositionend', onCompositionEnd);
+            }
+        },
     };
 }
 
@@ -114,7 +153,9 @@ export function TerminalPanel() {
         const fit = new FitAddon();
         term.loadAddon(fit);
         const disposables = [
-            term.onData(data => { void bridge.write(id, data); }),
+            term.onData(data => {
+                void bridge.write(id, data);
+            }),
             term.onResize(({ cols, rows }) => { void bridge.resize(id, cols, rows); }),
         ];
         runtimesRef.current.set(id, { term, fit, disposables, opened: false });
@@ -165,7 +206,9 @@ export function TerminalPanel() {
         if (!runtime || runtime.opened) return;
         runtime.term.open(node);
         runtime.opened = true;
-        runtime.disposables.push(createAccessibilityInputBridge(id, node, bridge));
+        runtime.disposables.push(createAccessibilityInputBridge(node, value => {
+            void bridge.write(id, value);
+        }));
         fitTerminal(id);
         if (activeIdRef.current === id) runtime.term.focus();
     }, [bridge, fitTerminal]);
@@ -268,7 +311,17 @@ export function TerminalPanel() {
                         ref={node => attachHost(tab.id, node)}
                         className={`terminal-xterm-surface${tab.id === activeId ? ' is-active' : ''}`}
                         onPointerDown={() => runtimesRef.current.get(tab.id)?.term.focus()}
-                    />
+                    >
+                        <textarea
+                            className="terminal-a11y-input"
+                            aria-label="Terminal automation input"
+                            autoCapitalize="off"
+                            autoComplete="off"
+                            autoCorrect="off"
+                            spellCheck={false}
+                            tabIndex={tab.id === activeId ? 0 : -1}
+                        />
+                    </div>
                 ))}
                 {tabs.length === 0 && (
                     <div className="terminal-empty">

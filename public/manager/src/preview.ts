@@ -26,6 +26,11 @@ function isLoopbackHost(hostname: string): boolean {
     return hostname === '127.0.0.1' || hostname === 'localhost' || hostname === '::1' || hostname === '[::1]';
 }
 
+/** Safari dashboard iframe fails intermittently on dedicated preview origins (ITP + cross-origin). */
+export function prefersLegacyPreviewTransport(userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : ''): boolean {
+    return /Safari/i.test(userAgent) && !/Chrome|Chromium|CriOS|Edg|OPR|Android/i.test(userAgent);
+}
+
 function isPreviewTheme(value: PreviewArgument): value is PreviewTheme {
     return value === 'dark' || value === 'light';
 }
@@ -90,7 +95,12 @@ export function buildPreviewState(
     }
     const originPreview = proxy.preview?.instances[String(instance.port)];
     const { theme, transport } = resolvePreviewArgument(previewArgument);
-    if (transport !== 'legacy-path' && proxy.preview?.enabled && originPreview?.status === 'ready' && originPreview.url) {
+    const useOriginPort = transport !== 'legacy-path'
+        && proxy.preview?.enabled
+        && originPreview?.status === 'ready'
+        && originPreview.url
+        && !prefersLegacyPreviewTransport();
+    if (useOriginPort) {
         return {
             canPreview: true,
             src: appendPreviewTheme(normalizePreviewUrlForCurrentHost(originPreview.url), theme),

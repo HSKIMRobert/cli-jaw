@@ -12,10 +12,17 @@ export interface GoalContinuationResult {
     prompt?: string;
 }
 
+const STALE_GOAL_MS = 24 * 60 * 60 * 1000;
+
 export function buildGoalContinuation(): GoalContinuationResult {
     const goal = getActiveGoal();
     if (!goal || goal.status !== 'active') {
         return { shouldContinue: false, reason: 'no_active_goal' };
+    }
+
+    const lastUpdate = new Date(goal.updatedAt).getTime();
+    if (Date.now() - lastUpdate > STALE_GOAL_MS) {
+        return { shouldContinue: false, reason: 'goal_stale' };
     }
 
     const orcState = getState();

@@ -129,3 +129,10 @@ test('dashboard proxy exposes websocket upgrade routing contract', () => {
     assert.ok(proxy.includes('parseDashboardProxyUrl'));
     assert.ok(proxy.includes('buildProxyUpgradeRequest'));
 });
+
+test('manager dashboard skips express.json for legacy /i proxy paths so POST bodies stream upstream', () => {
+    const server = read('src/manager/server.ts');
+
+    assert.ok(server.includes('/^\\/i\\/\\d+(?:\\/|$)/.test(req.path)'), 'manager must bypass JSON parser on legacy proxy paths');
+    assert.match(server, /Legacy \/i\/:port proxy streams the raw request body upstream/);
+});

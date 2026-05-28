@@ -97,11 +97,14 @@ test('manager frontend exposes one-instance preview controls', () => {
     const themeHook = read('public/manager/src/hooks/useTheme.ts');
     const preview = read('public/manager/src/InstancePreview.tsx');
     const helper = read('public/manager/src/preview.ts');
+    const api = read('public/manager/src/api.ts');
+    const chat = read('public/js/features/chat.ts');
     const childTheme = read('public/js/features/theme.ts');
     const childHtml = read('public/index.html');
     const components = read('public/manager/src/manager-components.css');
     const detail = read('public/manager/src/components/InstanceDetailPanel.tsx');
     const settingsShell = read('public/manager/src/settings/SettingsShell.tsx');
+    const server = read('src/manager/server.ts');
 
     assert.ok(hook.includes('selectedPort'), 'manager UI must track a selected preview instance');
     assert.ok(app.includes('handleSelectInstance'), 'manager UI must allow selecting any instance row');
@@ -137,6 +140,20 @@ test('manager frontend exposes one-instance preview controls', () => {
     assert.ok(preview.includes('postPreviewTheme(iframeRef.current, state.src, props.theme)'), 'InstancePreview must route theme sync through guarded postMessage helper');
     assert.ok(preview.includes("console.warn('[manager-preview] theme sync skipped'"), 'InstancePreview must not let origin mismatch postMessage errors break the dashboard');
     assert.equal(preview.includes("postMessage(\n            { type: 'jaw-preview-theme-sync', theme: props.theme },\n            '*',"), false, 'InstancePreview must not post preview theme with wildcard origin');
+    assert.ok(preview.includes("data.type !== 'jaw-preview-send-message'"), 'Manager preview must listen for child iframe send relay requests');
+    assert.ok(preview.includes('previewFrameOriginMatches(event.origin, state.src, iframeRef.current)'), 'Manager preview send relay must validate the actual iframe origin');
+    assert.ok(preview.includes('loopbackOriginsEquivalent'), 'Manager preview send relay must treat localhost and 127.0.0.1 as equivalent on loopback');
+    assert.ok(preview.includes('sendInstanceMessage(props.instance!.port, prompt)'), 'Manager preview send relay must forward to the selected instance port');
+    assert.ok(preview.includes("type: 'jaw-preview-send-result'"), 'Manager preview send relay must answer the child iframe request');
+    assert.ok(api.includes('/api/dashboard/instances/${port}/message'), 'manager API must expose a selected-instance message relay');
+    assert.ok(server.includes("app.post('/api/dashboard/instances/:port/message'"), 'manager server must implement the selected-instance message relay endpoint');
+    assert.ok(server.includes('prompt must be a non-empty string'), 'manager message relay must reject empty prompts');
+    assert.ok(server.includes('http://127.0.0.1:${portValue}/api/message'), 'manager message relay must only forward to the validated loopback instance port');
+    assert.ok(chat.includes('sendPreviewMessageViaParent'), 'classic preview UI must try the Manager parent send relay when embedded');
+    assert.ok(chat.includes("window.parent.postMessage({ type: 'jaw-preview-send-message'"), 'classic preview UI must request parent relay through postMessage');
+    assert.ok(chat.includes("data.type !== 'jaw-preview-send-result'"), 'classic preview UI must wait for the matching parent relay response');
+    assert.ok(chat.includes('PREVIEW_SEND_RELAY_TIMEOUT_MS'), 'classic preview UI must fall back if an older parent does not support the relay');
+    assert.ok(chat.includes('relayed?.ok'), 'classic preview UI must fall back to direct /api/message when parent relay fails');
     assert.ok(helper.includes('PreviewTheme'), 'preview helper must type dark/light preview themes');
     assert.ok(helper.includes('jawTheme'), 'preview helper must append jawTheme query');
     assert.ok(helper.includes("PreviewTransport = 'origin-port' | 'legacy-path' | 'none'"), 'preview helper must not expose direct transport');

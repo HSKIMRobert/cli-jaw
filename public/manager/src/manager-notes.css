@@ -1442,6 +1442,67 @@ mark.backlink-highlight {
     text-shadow: 0 0 4px var(--canvas-deep, #111);
 }
 
+/* ── PDF embed ── */
+
+.notes-pdf-embed {
+    display: block;
+    width: 100%;
+    height: 600px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    margin: 12px 0;
+}
+
+/* ── Theme & Snippet settings ── */
+
+.notes-theme-settings {
+    margin-top: 12px;
+}
+
+.notes-theme-fieldset {
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin: 8px 0;
+}
+
+.notes-theme-fieldset legend {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding: 0 4px;
+}
+
+.notes-theme-fieldset select {
+    width: 100%;
+    padding: 4px 8px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 4px;
+    background: var(--canvas-base);
+    color: var(--text-primary);
+    font: inherit;
+}
+
+.notes-theme-warning {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+}
+
+.notes-snippet-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 0;
+    font-size: 13px;
+}
+
+.notes-theme-loading {
+    color: var(--text-dim);
+    font-size: 13px;
+    padding: 8px 0;
+}
+
 /* ── Slash command menu ── */
 
 .notes-slash-menu {

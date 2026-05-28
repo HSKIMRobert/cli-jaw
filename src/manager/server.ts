@@ -6,10 +6,10 @@ import { basename, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
     DASHBOARD_DEFAULT_PORT,
-    DASHBOARD_PREVIEW_PORT_FROM,
     MANAGED_INSTANCE_PORT_COUNT,
     MANAGED_INSTANCE_PORT_FROM,
 } from './constants.js';
+import { defaultPreviewFromForManagerPort } from './preview-ports.js';
 import { scanDashboardInstances, scanSinglePort } from './scan.js';
 import { installDashboardProxy } from './proxy.js';
 import { createPreviewOriginProxyController } from './preview-origin-proxy.js';
@@ -27,6 +27,10 @@ import { fetchInstanceLogs } from './logs.js';
 import {
     createDashboardNotesRouter,
 } from './notes/routes.js';
+import { SETTINGS_PATH } from '../core/config.js';
+import { createNotesWatcher } from './notes/watcher.js';
+import { NoteWsServer } from './notes/ws.js';
+import { NotesStore } from './notes/store.js';
 import { createDesktopStatusRouter } from './routes/desktop-status.js';
 import { createElectronMetricsRouter } from './routes/electron-metrics.js';
 import { createDashboardBoardRouter } from './board/routes.js';
@@ -73,7 +77,11 @@ const scanCount = parsePositiveCount(
     MANAGED_INSTANCE_PORT_COUNT,
     MANAGED_INSTANCE_PORT_COUNT,
 );
-const previewFrom = parsePositivePort(process.env["DASHBOARD_PREVIEW_FROM"], DASHBOARD_PREVIEW_PORT_FROM);
+const previewFrom = parsePositivePort(
+    process.env["DASHBOARD_PREVIEW_FROM"],
+    defaultPreviewFromForManagerPort(port, scanCount),
+);
+const previewTimeoutMs = parsePositiveCount(process.env["DASHBOARD_PREVIEW_TIMEOUT_MS"], 30_000, 120_000);
 const lifecycle = new DashboardLifecycleManager({
     managerPort: port,
     from: scanFrom,
@@ -87,6 +95,7 @@ const previewProxy = createPreviewOriginProxyController({
     previewFrom,
     managerPort: port,
     bindHost: '127.0.0.1',
+    requestTimeoutMs: previewTimeoutMs,
 });
 const previousStatusByPort = new Map<number, { status: string; version: string | null }>();
 
@@ -164,11 +173,21 @@ app.use(helmet({
     contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: false,
 }));
+const notesStore = new NotesStore();
+const notesWatcher = createNotesWatcher(notesStore.rootPath());
+let noteWsServerRef: NoteWsServer | null = null;
+const wsTokenIssuer = { issueToken: () => { if (!noteWsServerRef) throw new Error('WS not ready'); return noteWsServerRef.issueToken(); } };
 app.use(
     '/api/dashboard/notes',
-    createDashboardNotesRouter({ managerPort: port }),
+    createDashboardNotesRouter({ managerPort: port, settingsPath: SETTINGS_PATH, store: notesStore, watcher: notesWatcher, wsTokenIssuer }),
 );
-app.use(express.json({ limit: '64kb' }));
+const dashboardJsonParser = express.json({ limit: '64kb' });
+app.use((req, res, next) => {
+    // Legacy /i/:port proxy streams the raw request body upstream. express.json()
+    // consumes the stream first and leaves POST /api/message hanging forever.
+    if (/^\/i\/\d+(?:\/|$)/.test(req.path)) return next();
+    return dashboardJsonParser(req, res, next);
+});
 app.use('/api/dashboard/desktop-status', createDesktopStatusRouter());
 app.use('/api/dashboard/electron-metrics', createElectronMetricsRouter());
 app.use('/api/dashboard/board', createDashboardBoardRouter());
@@ -411,6 +430,30 @@ app.get('/api/dashboard/instances/:port', async (req, res) => {
     }
 });
 
+app.post('/api/dashboard/instances/:port/message', async (req, res) => {
+    const portValue = Number(req.params.port);
+    const prompt = typeof req.body?.prompt === 'string' ? req.body.prompt.trim() : '';
+    if (!Number.isInteger(portValue) || portValue < scanFrom || portValue >= scanFrom + scanCount) {
+        res.status(400).json({ ok: false, error: 'port out of configured scan range' });
+        return;
+    }
+    if (!prompt) {
+        res.status(400).json({ ok: false, error: 'prompt must be a non-empty string' });
+        return;
+    }
+    try {
+        const response = await fetch(`http://127.0.0.1:${portValue}/api/message`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ prompt }),
+        });
+        const data = await response.json().catch(() => ({ error: `worker returned ${response.status}` })) as unknown;
+        res.status(response.status).json(data);
+    } catch (error) {
+        res.status(502).json({ ok: false, error: (error as Error).message });
+    }
+});
+
 app.get('/api/manager/events', (req, res) => {
     const since = typeof req.query["since"] === 'string' && req.query["since"] ? req.query["since"] : null;
     if (since && Number.isNaN(Date.parse(since))) {
@@ -601,6 +644,8 @@ app.get('/favicon.ico', (_req, res) => {
 });
 
 const server = http.createServer(app);
+const noteWsServer = new NoteWsServer({ server, watcher: notesWatcher });
+noteWsServerRef = noteWsServer;
 installDashboardProxy(app, server, { from: scanFrom, count: scanCount });
 
 app.get('/{*splat}', (_req, res) => {
@@ -631,6 +676,8 @@ const shutdown = createDashboardShutdown({
 
 async function shutdownDashboard(): Promise<void> {
     stopRemindersScheduler?.();
+    noteWsServer.close();
+    notesWatcher.close();
     await shutdown();
 }
 

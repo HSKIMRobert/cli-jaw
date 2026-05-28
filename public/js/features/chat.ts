@@ -32,10 +32,101 @@ interface CommandResult {
     recovery?: UnknownCommandRecovery;
 }
 interface MessageResult { queued?: boolean; pending?: number; continued?: boolean; noPendingContinue?: boolean; error?: string; queuedId?: string; }
+type MessagePostResult = { ok: boolean; status: number; data: MessageResult };
+type PreviewSendRelayResult = MessagePostResult & {
+    type?: unknown;
+    requestId?: unknown;
+    error?: string;
+};
+
+const PREVIEW_SEND_RELAY_TIMEOUT_MS = 8_000;
 
 function getCommandTimeoutMs(text: string): number {
     // Native compaction can take materially longer than the default command round-trip.
     return /^\/compact(?:\s|$)/i.test(String(text || '').trim()) ? 5 * 60 * 1000 : 10_000;
+}
+
+function isLocalPreviewRelayOrigin(origin: string): boolean {
+    if (origin === window.location.origin) return true;
+    try {
+        const hostname = new URL(origin).hostname;
+        return hostname === 'localhost'
+            || hostname === '127.0.0.1'
+            || hostname === '::1'
+            || hostname === '[::1]';
+    } catch {
+        return false;
+    }
+}
+
+function previewParentOrigin(): string | null {
+    if (window.parent === window) return null;
+    try {
+        const parentOrigin = window.parent.location.origin;
+        if (parentOrigin && parentOrigin !== 'null' && isLocalPreviewRelayOrigin(parentOrigin)) {
+            return parentOrigin;
+        }
+    } catch { /* cross-origin preview iframe */ }
+    try {
+        if (document.referrer) {
+            const origin = new URL(document.referrer).origin;
+            if (isLocalPreviewRelayOrigin(origin)) return origin;
+        }
+    } catch { /* ignore */ }
+    return null;
+}
+
+function sendPreviewMessageViaParent(prompt: string): Promise<MessagePostResult | null> {
+    const targetOrigin = previewParentOrigin();
+    if (!targetOrigin) return Promise.resolve(null);
+    return new Promise(resolve => {
+        const requestId = `preview-send-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        let settled = false;
+        const cleanup = () => {
+            window.removeEventListener('message', onMessage);
+            window.clearTimeout(timeout);
+        };
+        const settle = (result: MessagePostResult | null) => {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            resolve(result);
+        };
+        const onMessage = (event: MessageEvent) => {
+            if (event.source !== window.parent) return;
+            if (!isLocalPreviewRelayOrigin(event.origin)) return;
+            const data = event.data as PreviewSendRelayResult | null;
+            if (!data || data.type !== 'jaw-preview-send-result' || data.requestId !== requestId) return;
+            settle({
+                ok: !!data.ok,
+                status: Number.isInteger(data.status) ? data.status : (data.ok ? 200 : 502),
+                data: data.data || (data.error ? { error: data.error } : {}),
+            });
+        };
+        const timeout = window.setTimeout(() => settle(null), PREVIEW_SEND_RELAY_TIMEOUT_MS);
+        window.addEventListener('message', onMessage);
+        try {
+            window.parent.postMessage({ type: 'jaw-preview-send-message', requestId, prompt }, targetOrigin);
+        } catch {
+            settle(null);
+        }
+    });
+}
+
+async function postChatMessage(prompt: string): Promise<MessagePostResult> {
+    const relayed = await sendPreviewMessageViaParent(prompt);
+    if (relayed?.ok) return relayed;
+    try {
+        const res = await fetch(`${API_BASE}/api/message`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt }),
+        });
+        const data: MessageResult = await res.json().catch(() => ({}));
+        return { ok: res.ok, status: res.status, data };
+    } catch (error) {
+        return { ok: false, status: 0, data: { error: (error as Error).message } };
+    }
 }
 
 
@@ -211,18 +302,14 @@ export async function sendMessage(source: SendSource = 'enter'): Promise<void> {
             // because we only addMessage when we know for sure what happened.
             input.value = '';
             resetInputHeight();
-            const res = await fetch(`${API_BASE}/api/message`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt: text }),
-            });
-            const data: MessageResult = await res.json().catch(() => ({}));
+            const result = await postChatMessage(text);
+            const data = result.data;
             // Server-side 5s dedup returns 409 with reason='duplicate'.
-            if (res.status === 409 && data.error === 'duplicate') {
+            if (result.status === 409 && data.error === 'duplicate') {
                 return;
             }
-            if (!res.ok) {
-                addSystemMsg(`${ICONS.error} ${escapeHtml(data.error || t('chat.requestFail', { status: res.status }))}`, '', 'error');
+            if (!result.ok) {
+                addSystemMsg(`${ICONS.error} ${escapeHtml(data.error || t('chat.requestFail', { status: result.status }))}`, '', 'error');
                 return;
             }
             if (data.queued) {

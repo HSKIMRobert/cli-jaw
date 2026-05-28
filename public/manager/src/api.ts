@@ -1,5 +1,6 @@
 import type {
     DashboardInstance,
+    DashboardInstanceMessageResult,
     DashboardLifecycleAction,
     DashboardLifecycleResult,
     DashboardNoteAssetResponse,
@@ -102,6 +103,19 @@ export async function fetchInstanceStatus(port: number, options: { signal?: Abor
     return body.instance;
 }
 
+export async function sendInstanceMessage(
+    port: number,
+    prompt: string,
+): Promise<{ ok: boolean; status: number; data: DashboardInstanceMessageResult }> {
+    const response = await fetch(`/api/dashboard/instances/${port}/message`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+    });
+    const data = await response.json().catch(() => ({})) as DashboardInstanceMessageResult;
+    return { ok: response.ok, status: response.status, data };
+}
+
 export async function fetchManagerEvents(since: string | null = null): Promise<ManagerEvent[]> {
     const path = since ? `/api/manager/events?since=${encodeURIComponent(since)}` : '/api/manager/events';
     const response = await fetch(path);
@@ -174,6 +188,38 @@ export async function fetchNoteTemplates(): Promise<NoteTemplate[]> {
 export async function fetchNoteTemplate(name: string): Promise<NoteTemplateContent> {
     const response = await fetch(`/api/dashboard/notes/template?name=${encodeURIComponent(name)}`);
     return await parseNotesResponse<NoteTemplateContent>(response, `note template fetch failed: ${response.status}`);
+}
+
+export type NoteSnippetInfo = { name: string; file: string; enabled: boolean };
+export type NoteSnippetsResponse = { snippets: NoteSnippetInfo[]; activeTheme: string | null };
+
+export async function fetchNoteSnippets(): Promise<NoteSnippetsResponse> {
+    const response = await fetch('/api/dashboard/notes/snippets');
+    return await parseNotesResponse<NoteSnippetsResponse>(response, `note snippets fetch failed: ${response.status}`);
+}
+
+export async function fetchNoteSnippetCss(name: string): Promise<string> {
+    const response = await fetch(`/api/dashboard/notes/snippets/file?name=${encodeURIComponent(name)}`);
+    if (!response.ok) throw new DashboardApiError(`snippet fetch failed: ${response.status}`, response.status);
+    return await response.text();
+}
+
+export async function toggleNoteSnippet(name: string, enabled: boolean): Promise<void> {
+    const response = await fetch('/api/dashboard/notes/snippets/toggle', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, enabled }),
+    });
+    if (!response.ok) throw new DashboardApiError(`snippet toggle failed: ${response.status}`, response.status);
+}
+
+export async function setNoteTheme(theme: string | null): Promise<void> {
+    const response = await fetch('/api/dashboard/notes/theme', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ theme }),
+    });
+    if (!response.ok) throw new DashboardApiError(`theme set failed: ${response.status}`, response.status);
 }
 
 export async function fetchNotesIndex(): Promise<VaultIndexSnapshot> {

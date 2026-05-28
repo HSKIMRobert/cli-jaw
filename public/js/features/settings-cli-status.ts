@@ -9,15 +9,70 @@ import type { QuotaEntry } from './settings-types.js';
 
 const CLI_STATUS_INTERVAL_VALUES = new Set([0, 600, 1800]);
 const DEFAULT_CLI_STATUS_INTERVAL_SEC = 0;
+/** Defer heavy /api/quota so chat/history APIs win on initial page load. */
+const QUOTA_LOAD_DEFER_MS = 2000;
 
 const QUOTA_HIDDEN_CLIS = new Set(['ai-e', 'codex-app']);
 const QUOTA_CUSTOM_MSG: Record<string, string> = {
     claude: 'Currently subscribed, by June with credit',
 };
 
+type QuotaSetupHint = {
+    title: string;
+    commands: string[];
+    note?: string;
+};
+
+/** Actionable setup when plan quota is not wired yet (quotaCapable=false). */
+const QUOTA_SETUP_HINTS: Record<string, QuotaSetupHint> = {
+    cursor: {
+        title: 'Enable quota bars (dashboard session)',
+        commands: [
+            'cursor-agent login',
+            'export CURSOR_SESSION_TOKEN="<WorkosCursorSessionToken from cursor.com DevTools>"',
+            'echo "$CURSOR_SESSION_TOKEN" > ~/.cli-jaw/quota/cursor-session-token && chmod 600 ~/.cli-jaw/quota/cursor-session-token',
+        ],
+    },
+    agy: {
+        title: 'Enable Gem / Cla quota bars',
+        commands: [
+            'npx antigravity-usage login',
+            'npx antigravity-usage --json',
+        ],
+    },
+    grok: {
+        title: 'Grok Build auth (plan quota not in grok CLI)',
+        commands: [
+            'grok login --oauth',
+            'grok models   # verify auth',
+        ],
+        note: 'Subscription remaining quota: xAI console only. No official grok quota subcommand.',
+    },
+    opencode: {
+        title: 'OpenCode auth + optional plan quota plugin',
+        commands: [
+            'opencode auth login',
+            'opencode plugin add @slkiser/opencode-quota',
+            'npx @slkiser/opencode-quota show',
+        ],
+        note: 'Built-in opencode stats shows session tokens/cost, not subscription limits. opencode-go/* models use the same CLI.',
+    },
+};
+
 let cliStatusTimer: number | null = null;
+let cliStatusPreviewHooksRegistered = false;
+let cliStatusLoadSeq = 0;
+let cliStatusLoadInFlight: Promise<void> | null = null;
 
 const CLI_STATUS_COLLAPSED_KEY = 'cliStatusCollapsed';
+
+export function isEmbeddedPreviewFrame(): boolean {
+    try {
+        return window.parent !== window;
+    } catch {
+        return true;
+    }
+}
 
 function readCliStatusCollapsed(): boolean {
     try { return localStorage.getItem(CLI_STATUS_COLLAPSED_KEY) === 'true'; }
@@ -91,9 +146,22 @@ export function scheduleCliStatusRefresh(): void {
     if (interval <= 0) return;
 
     cliStatusTimer = window.setInterval(() => {
-        if (document.hidden || !document.hasFocus() || !cliStatusExpanded) return;
+        if (document.hidden || !cliStatusExpanded) return;
+        // Parent dashboard keeps focus while iframe preview is visible.
+        if (!isEmbeddedPreviewFrame() && !document.hasFocus()) return;
         void loadCliStatus(true);
     }, interval * 1000);
+}
+
+export function initCliStatusPreviewHooks(): void {
+    if (cliStatusPreviewHooksRegistered || !isEmbeddedPreviewFrame()) return;
+    cliStatusPreviewHooksRegistered = true;
+    window.addEventListener('message', (event: MessageEvent) => {
+        const data = event.data as { type?: unknown; visible?: unknown } | null;
+        if (data?.type !== 'jaw-preview-visibility' || data.visible !== true) return;
+        if (!cliStatusExpanded) return;
+        void loadCliStatus(false);
+    });
 }
 
 export function setCliStatusInterval(value: string): void {
@@ -131,26 +199,176 @@ function describeStatusOnlyQuota(cliName: string, q: QuotaEntry): string {
     return cliName === 'opencode' ? 'Auth/status only' : 'Usage data not exposed by this CLI';
 }
 
-export async function loadCliStatus(force = false): Promise<void> {
-    if (!cliStatusExpanded && !force) return;
+function normalizeAccountToken(value: string): string {
+    return value.toLowerCase().replace(/^cursor\s+/i, '').trim();
+}
 
-    const interval = readCliStatusInterval();
-    if (!force && state.cliStatusCache && interval > 0 && (Date.now() - state.cliStatusTs) < interval * 1000) {
-        renderCliStatus({ cliStatus: (state.cliStatusCache as Record<string, unknown>)?.['cliStatus'] as Record<string, { available: boolean }> | null, quota: (state.cliStatusCache as Record<string, unknown>)?.['quota'] as Record<string, QuotaEntry> | null });
-        return;
+const ACCOUNT_LABEL_SKIP = new Set([
+    'auth/status only',
+    'google cloud code',
+    'runtime-checked',
+]);
+
+const PROVIDER_ACCOUNT_TYPES = new Set([
+    'cursor',
+    'antigravity.google',
+    'antigravity',
+    'max',
+    'copilot',
+    'gemini',
+]);
+
+function buildAccountParts(_cliName: string, q: QuotaEntry): string[] {
+    const account = q.account;
+    if (!account) return [];
+
+    const parts: string[] = [];
+    if (account.email) parts.push(account.email);
+
+    const seen = new Set(parts.map(normalizeAccountToken));
+    for (const value of [account.plan, account.tier]) {
+        if (!value) continue;
+        const norm = normalizeAccountToken(value);
+        if (!norm || ACCOUNT_LABEL_SKIP.has(norm)) continue;
+        if (PROVIDER_ACCOUNT_TYPES.has(norm)) continue;
+        if (seen.has(norm)) continue;
+        seen.add(norm);
+        parts.push(value);
+        break;
     }
 
-    const el = document.getElementById('cliStatusList');
-    if (el) el.innerHTML = '<div style="color:var(--text-dim);font-size:11px">Loading...</div>';
+    return parts;
+}
 
-    const [cliStatus, quota] = await Promise.all([
-        api<Record<string, { available: boolean }>>('/api/cli-status'),
-        api<Record<string, QuotaEntry>>('/api/quota'),
-    ]);
+function renderSetupHelpMark(cliName: string, q: QuotaEntry, extraTooltip: string[] = []): string {
+    const hint = QUOTA_SETUP_HINTS[cliName];
+    const tooltipParts = [
+        ...extraTooltip,
+        ...(hint ? hint.commands : []),
+        ...(hint?.note ? [hint.note] : []),
+    ].filter(Boolean);
+    if (!tooltipParts.length) return '';
+    return `<span style="cursor:help;opacity:0.55;margin-left:4px;font-weight:400" title="${escapeHtml(tooltipParts.join('\n'))}">?</span>`;
+}
 
-    state.cliStatusCache = { cliStatus, quota } as Record<string, unknown>;
-    state.cliStatusTs = Date.now();
-    renderCliStatus({ cliStatus, quota });
+function renderQuotaSetupBox(cliName: string, q: QuotaEntry): string {
+    const hint = QUOTA_SETUP_HINTS[cliName];
+    const usage = q.sessionUsage;
+    const extraTooltip: string[] = [];
+    if (usage?.primaryModelId) extraTooltip.push(`Model: ${usage.primaryModelId}`);
+    if (usage?.contextTokensUsed && usage?.contextWindowTokens) {
+        extraTooltip.push(`Session context: ${Math.round(usage.contextTokensUsed).toLocaleString()} / ${Math.round(usage.contextWindowTokens).toLocaleString()} tokens`);
+    } else if (usage?.turnCount) {
+        extraTooltip.push(`Session turns: ${Math.round(usage.turnCount).toLocaleString()}`);
+    }
+    const helpMark = renderSetupHelpMark(cliName, q, extraTooltip);
+
+    if (hint) {
+        const commandLines = hint.commands.map(cmd => `
+            <div style="margin-top:3px"><code style="font-size:10px;background:var(--border);padding:1px 4px;border-radius:2px;word-break:break-all">${escapeHtml(cmd)}</code></div>
+        `).join('');
+        return `
+            <div style="font-size:10px;color:var(--text-dim);margin:4px 0 0 16px;padding:5px 7px;background:var(--bg-dim, #1e1e2e);border:1px solid var(--border);border-radius:5px">
+                <div style="color:var(--text);font-weight:600">${escapeHtml(hint.title)}${helpMark}</div>
+                ${commandLines}
+                ${hint.note ? `<div style="margin-top:4px;opacity:0.75">${escapeHtml(hint.note)}</div>` : ''}
+            </div>
+        `;
+    }
+
+    return `
+        <div style="font-size:10px;color:var(--text-dim);margin:4px 0 0 16px;padding:5px 7px;background:var(--bg-dim, #1e1e2e);border:1px solid var(--border);border-radius:5px">
+            <div style="color:var(--text);font-weight:600">${escapeHtml(q.displayTier || providerLabel(cliName))}${helpMark}</div>
+            <div style="margin-top:2px">${escapeHtml(describeStatusOnlyQuota(cliName, q))}</div>
+        </div>
+    `;
+}
+
+function scheduleEmbeddedQuotaRetry(
+    seq: number,
+    cliStatus: Record<string, { available: boolean }>,
+    cachedQuota: Record<string, QuotaEntry> | null | undefined,
+): void {
+    if (!isEmbeddedPreviewFrame()) return;
+    void (async () => {
+        await new Promise(resolve => window.setTimeout(resolve, 600));
+        if (seq !== cliStatusLoadSeq) return;
+        const retry = await api<Record<string, QuotaEntry>>('/api/quota');
+        if (seq !== cliStatusLoadSeq || !retry) return;
+        state.cliStatusCache = { cliStatus, quota: retry } as Record<string, unknown>;
+        state.cliStatusTs = Date.now();
+        renderCliStatus({ cliStatus, quota: retry });
+    })();
+}
+
+async function fetchAndRenderQuota(
+    seq: number,
+    cliStatus: Record<string, { available: boolean }>,
+    cachedQuota: Record<string, QuotaEntry> | null | undefined,
+): Promise<void> {
+    const quota = await api<Record<string, QuotaEntry>>('/api/quota');
+    if (seq !== cliStatusLoadSeq) return;
+
+    const resolvedQuota = quota ?? cachedQuota ?? null;
+    state.cliStatusCache = { cliStatus, quota: resolvedQuota } as Record<string, unknown>;
+    if (quota) state.cliStatusTs = Date.now();
+    renderCliStatus({ cliStatus, quota: resolvedQuota });
+
+    if (!quota) scheduleEmbeddedQuotaRetry(seq, cliStatus, cachedQuota);
+}
+
+function scheduleQuotaFetch(
+    force: boolean,
+    seq: number,
+    cliStatus: Record<string, { available: boolean }>,
+    cachedQuota: Record<string, QuotaEntry> | null | undefined,
+): void {
+    const run = () => { void fetchAndRenderQuota(seq, cliStatus, cachedQuota); };
+    if (force) {
+        void fetchAndRenderQuota(seq, cliStatus, cachedQuota);
+        return;
+    }
+    window.setTimeout(run, QUOTA_LOAD_DEFER_MS);
+}
+
+export async function loadCliStatus(force = false): Promise<void> {
+    if (!cliStatusExpanded) return;
+
+    if (cliStatusLoadInFlight) {
+        if (force) await cliStatusLoadInFlight.catch(() => {});
+        else return;
+    }
+
+    cliStatusLoadInFlight = (async () => {
+        const seq = ++cliStatusLoadSeq;
+        const interval = readCliStatusInterval();
+        if (!force && state.cliStatusCache && interval > 0 && (Date.now() - state.cliStatusTs) < interval * 1000) {
+            renderCliStatus({
+                cliStatus: (state.cliStatusCache as Record<string, unknown>)?.['cliStatus'] as Record<string, { available: boolean }> | null,
+                quota: (state.cliStatusCache as Record<string, unknown>)?.['quota'] as Record<string, QuotaEntry> | null,
+            });
+            return;
+        }
+
+        const el = document.getElementById('cliStatusList');
+        const cachedQuota = (state.cliStatusCache as Record<string, unknown> | null)?.['quota'] as Record<string, QuotaEntry> | null | undefined;
+        if (el && !cachedQuota) el.innerHTML = '<div style="color:var(--text-dim);font-size:11px">Loading...</div>';
+
+        const cliStatus = await api<Record<string, { available: boolean }>>('/api/cli-status');
+        if (seq !== cliStatusLoadSeq) return;
+        if (!cliStatus || typeof cliStatus !== 'object') {
+            if (el) el.innerHTML = '<div style="color:var(--text-dim);font-size:11px">Failed to load CLI status</div>';
+            return;
+        }
+
+        renderCliStatus({ cliStatus, quota: cachedQuota ?? null });
+
+        scheduleQuotaFetch(force, seq, cliStatus, cachedQuota);
+    })().finally(() => {
+        cliStatusLoadInFlight = null;
+    });
+
+    await cliStatusLoadInFlight;
 }
 
 function renderCliStatus(data: { cliStatus: Record<string, { available: boolean }> | null; quota: Record<string, QuotaEntry> | null }): void {
@@ -192,12 +410,13 @@ function renderCliStatus(data: { cliStatus: Record<string, { available: boolean 
         }
 
         let accountLine = '';
-        if (q?.account) {
-            const parts = [];
-            if (q.account.email) parts.push(q.account.email);
-            if (q.account.type) parts.push(q.account.type);
-            if (q.account.plan) parts.push(q.account.plan);
-            if (q.account.tier) parts.push(q.account.tier);
+        const showSetupBox = q?.quotaCapable === false
+            && q.authenticated !== false
+            && info.available
+            && !QUOTA_CUSTOM_MSG[name]
+            && !QUOTA_HIDDEN_CLIS.has(name);
+        if (q?.account && !showSetupBox) {
+            const parts = buildAccountParts(name, q);
             if (parts.length) accountLine = `<div style="font-size:10px;color:var(--text-dim);margin:2px 0 4px 16px">${escapeHtml(parts.join(' · '))}</div>`;
         }
 
@@ -228,23 +447,8 @@ function renderCliStatus(data: { cliStatus: Record<string, { available: boolean 
                     ${escapeHtml(customQuotaMsg)}
                 </div>
             `;
-        } else if (q?.quotaCapable === false && q.authenticated !== false && info.available) {
-            const usage = q.sessionUsage;
-            const contextLine = usage?.contextTokensUsed && usage?.contextWindowTokens
-                ? `Session context: ${Math.round(usage.contextTokensUsed).toLocaleString()} / ${Math.round(usage.contextWindowTokens).toLocaleString()} tokens`
-                : usage?.turnCount
-                    ? `Session turns: ${Math.round(usage.turnCount).toLocaleString()}`
-                    : '';
-            const modelLine = usage?.primaryModelId ? `Model: ${usage.primaryModelId}` : '';
-            const detail = [modelLine, contextLine, describeStatusOnlyQuota(name, q)]
-                .filter(Boolean)
-                .join(' · ');
-            windowsHtml = `
-                <div style="font-size:10px;color:var(--text-dim);margin:4px 0 0 16px;padding:5px 7px;background:var(--bg-dim, #1e1e2e);border:1px solid var(--border);border-radius:5px">
-                    <div style="color:var(--text);font-weight:600">${escapeHtml(q.displayTier || providerLabel(name))}</div>
-                    <div style="margin-top:2px">${escapeHtml(detail || 'Auth/status only')}</div>
-                </div>
-            `;
+        } else if (showSetupBox) {
+            windowsHtml = renderQuotaSetupBox(name, q);
         } else if (q?.windows?.length) {
             windowsHtml = q.windows.map(w => {
                 const pct = Math.round(w.percent);
@@ -276,12 +480,16 @@ function renderCliStatus(data: { cliStatus: Record<string, { available: boolean 
             windowsHtml = `<div style="font-size:10px;color:var(--text-dim);margin:2px 0 0 16px;opacity:0.7">${ICONS.warning} ${msg}</div>`;
         }
 
+        const quotaHelpMark = q?.quotaCapable && QUOTA_SETUP_HINTS[name]
+            ? renderSetupHelpMark(name, q)
+            : '';
+
         html += `
             <div class="settings-group" style="margin-bottom:6px;padding:8px 10px">
                 <div class="cli-status-row">
                     <span class="cli-dot ${dotClass}"></span>
                     <span class="cli-provider-icon" aria-hidden="true">${providerIcon(name) || ''}</span>
-                    <span class="cli-name" style="font-weight:600">${escapeHtml(providerLabel(name))}</span>${name === 'copilot' ? `<button id="copilotKeychainBtn" style="font-size:9px;margin-left:6px;padding:1px 5px;background:var(--border);color:var(--text-dim);border:1px solid var(--text-dim);border-radius:3px;cursor:pointer;vertical-align:middle;line-height:1" title="${t('copilot.keychainHint')}">${ICONS.key}</button>` : ''}
+                    <span class="cli-name" style="font-weight:600">${escapeHtml(providerLabel(name))}${quotaHelpMark}</span>${name === 'copilot' ? `<button id="copilotKeychainBtn" style="font-size:9px;margin-left:6px;padding:1px 5px;background:var(--border);color:var(--text-dim);border:1px solid var(--text-dim);border-radius:3px;cursor:pointer;vertical-align:middle;line-height:1" title="${t('copilot.keychainHint')}">${ICONS.key}</button>` : ''}
                 </div>
                 ${accountLine}
                 ${authHint}

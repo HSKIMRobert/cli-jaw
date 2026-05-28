@@ -100,14 +100,15 @@ test('LEGACY-FE-001: legacy settings sidebar exposes every canonical CLI row', (
     assert.match(main, /onPerCliAiEProviderChange/);
 });
 
-test('GROK-FE-003: quota renderer shows Grok Heavy auth-status instead of fake quota bars', () => {
+test('GROK-FE-003: quota renderer shows setup commands for status-only CLIs', () => {
     const status = src('public/js/features/settings-cli-status.ts');
     assert.match(status, /q\?\.quotaCapable === false/);
     assert.match(status, /describeStatusOnlyQuota/);
-    assert.match(status, /q\.displayTier \|\| providerLabel\(name\)/);
-    assert.ok(status.includes('Quota not exposed by'));
+    assert.match(status, /QUOTA_SETUP_HINTS/);
+    assert.match(status, /renderQuotaSetupBox/);
+    assert.match(status, /grok login --oauth/);
+    assert.match(status, /opencode plugin add @slkiser\/opencode-quota/);
     assert.match(status, /https:\/\/x\.ai\/cli\/install\.sh/, 'Grok install hint should point to xAI native installer');
-    assert.match(status, /grok login --oauth/, 'Grok auth hint should match the installed Grok Build CLI');
     const forbiddenClaims = [
         ['Grok ', 'unlimited'].join(''),
         ['Grok quota ', '0%'].join(''),

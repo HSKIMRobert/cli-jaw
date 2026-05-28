@@ -1,6 +1,6 @@
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
-const DEFAULT_PREVIEW_PORT_FROM = 24602;
-const DEFAULT_PREVIEW_PORT_COUNT = 50;
+export const DEFAULT_PREVIEW_PORT_FROM = 24602;
+export const DEFAULT_PREVIEW_PORT_COUNT = 50;
 const MAX_PREVIEW_PORT_COUNT = 200;
 
 export interface PreviewFramePolicy {

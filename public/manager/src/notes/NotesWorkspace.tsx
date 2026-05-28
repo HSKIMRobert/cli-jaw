@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { NotesThemeInjector, NotesThemeSettings } from './NotesThemeLoader';
 import { MarkdownEditor } from './MarkdownEditor';
 import { MarkdownPreview } from './MarkdownPreview';
 import { NotesBacklinksPanel } from './NotesBacklinksPanel';
@@ -281,6 +282,7 @@ export function NotesWorkspace(props: NotesWorkspaceProps) {
 
     return (
         <section className="notes-workspace" aria-label="Notes workspace">
+            <NotesThemeInjector />
             <main className={`notes-main notes-mode-${props.viewMode}`}>
                 <NotesToolbar
                     selectedPath={props.selectedPath}
@@ -333,6 +335,7 @@ export function NotesWorkspace(props: NotesWorkspaceProps) {
                                     onChange={event => props.onTreeWidthChange(Number(event.currentTarget.value))}
                                 />
                             </label>
+                            <NotesThemeSettings />
                         </section>
                     )}
                     {props.viewMode === 'graph' && (

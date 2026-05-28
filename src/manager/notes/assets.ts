@@ -23,13 +23,15 @@ import {
 
 export const NOTES_ASSET_ROOT = '.assets';
 export const MAX_NOTE_ASSET_BYTES = 5 * 1024 * 1024;
-export const NOTE_ASSET_JSON_LIMIT = '8mb';
+export const MAX_NOTE_PDF_BYTES = 10 * 1024 * 1024;
+export const NOTE_ASSET_JSON_LIMIT = '15mb';
 
 const ALLOWED_NOTE_ASSET_TYPES = {
     'image/png': '.png',
     'image/jpeg': '.jpg',
     'image/webp': '.webp',
     'image/gif': '.gif',
+    'application/pdf': '.pdf',
 } as const;
 
 type AllowedNoteAssetMime = keyof typeof ALLOWED_NOTE_ASSET_TYPES;
@@ -90,7 +92,8 @@ function decodeBase64(input: string): Buffer {
     if (decoded.length === 0) {
         throw notePathError(400, 'note_asset_invalid_base64', 'Asset data must not be empty.');
     }
-    if (decoded.length > MAX_NOTE_ASSET_BYTES) {
+    const maxBytes = detectMime(decoded) === 'application/pdf' ? MAX_NOTE_PDF_BYTES : MAX_NOTE_ASSET_BYTES;
+    if (decoded.length > maxBytes) {
         throw notePathError(413, 'note_asset_too_large', 'Asset exceeds the maximum supported size.');
     }
     return decoded;
@@ -111,6 +114,9 @@ function detectMime(buffer: Buffer): AllowedNoteAssetMime | null {
         && buffer.subarray(0, 4).toString('ascii') === 'RIFF'
         && buffer.subarray(8, 12).toString('ascii') === 'WEBP') {
         return 'image/webp';
+    }
+    if (buffer.length >= 5 && buffer.subarray(0, 5).toString('ascii') === '%PDF-') {
+        return 'application/pdf';
     }
     return null;
 }
@@ -236,10 +242,11 @@ export class NotesAssetStore {
         if (!fileStat.isFile()) {
             throw notePathError(400, 'note_asset_not_file', 'Asset path must be a file.');
         }
-        if (fileStat.size > MAX_NOTE_ASSET_BYTES) {
+        const expectedMime = mimeForExtension(relPath);
+        const sizeLimit = expectedMime === 'application/pdf' ? MAX_NOTE_PDF_BYTES : MAX_NOTE_ASSET_BYTES;
+        if (fileStat.size > sizeLimit) {
             throw notePathError(413, 'note_asset_too_large', 'Asset exceeds the maximum supported size.');
         }
-        const expectedMime = mimeForExtension(relPath);
         const detectedMime = detectMime(await this.fs.readFile(target));
         if (detectedMime !== expectedMime) {
             throw notePathError(415, 'note_asset_mime_mismatch', 'Asset MIME does not match its content.');

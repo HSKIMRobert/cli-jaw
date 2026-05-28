@@ -1,20 +1,26 @@
 // Reverse-engineered Cursor dashboard quota reader (unofficial API).
 
-import { execFileSync } from 'child_process';
+import fs from 'fs';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { join } from 'path';
+import { JAW_HOME, SETTINGS_PATH } from '../core/config.js';
 import { stripUndefined } from '../core/strip-undefined.js';
 
+const execFileAsync = promisify(execFile);
+
 const CURSOR_USAGE_SUMMARY_URL = 'https://cursor.com/api/usage-summary';
+const CURSOR_SESSION_TOKEN_FILE = join(JAW_HOME, 'quota', 'cursor-session-token');
 
 type QuotaRecord = Record<string, unknown>;
 
-function readCursorJsonCommand(binary: string, command: string, args: string[] = []): QuotaRecord | null {
+async function readCursorJsonCommand(binary: string, command: string, args: string[] = []): Promise<QuotaRecord | null> {
     try {
-        const out = execFileSync(binary, [command, ...args], {
+        const { stdout } = await execFileAsync(binary, [command, ...args], {
             encoding: 'utf8',
             timeout: 5000,
-            stdio: ['ignore', 'pipe', 'ignore'],
         });
-        const parsed = JSON.parse(out) as unknown;
+        const parsed = JSON.parse(stdout) as unknown;
         return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
             ? parsed as QuotaRecord
             : null;
@@ -28,10 +34,22 @@ export function readCursorDashboardSessionToken(): string | null {
         const value = process.env[key]?.trim();
         if (value) return value;
     }
+    try {
+        const fromFile = fs.readFileSync(CURSOR_SESSION_TOKEN_FILE, 'utf8').trim();
+        if (fromFile) return fromFile;
+    } catch { /* optional local token file */ }
+    try {
+        const settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf8')) as Record<string, unknown>;
+        const quota = settings['quota'];
+        if (quota && typeof quota === 'object' && !Array.isArray(quota)) {
+            const token = (quota as Record<string, unknown>)['cursorSessionToken'];
+            if (typeof token === 'string' && token.trim()) return token.trim();
+        }
+    } catch { /* settings may be absent during tests */ }
     return null;
 }
 
-export function readCursorStatus(binary = 'cursor-agent'): QuotaRecord {
+export async function readCursorStatus(binary = 'cursor-agent'): Promise<QuotaRecord> {
     let authenticated = false;
     let source = 'none';
     let subscriptionTier: string | undefined;
@@ -44,7 +62,10 @@ export function readCursorStatus(binary = 'cursor-agent'): QuotaRecord {
         source = 'CURSOR_API_KEY';
     }
 
-    const status = readCursorJsonCommand(binary, 'status', ['--format', 'json']);
+    const [status, about] = await Promise.all([
+        readCursorJsonCommand(binary, 'status', ['--format', 'json']),
+        readCursorJsonCommand(binary, 'about', ['--format', 'json']),
+    ]);
     if (status) {
         authenticated = status["isAuthenticated"] === true
             || status["status"] === 'authenticated'
@@ -57,7 +78,6 @@ export function readCursorStatus(binary = 'cursor-agent'): QuotaRecord {
         if (authenticated && source === 'none') source = 'cursor-agent status';
     }
 
-    const about = readCursorJsonCommand(binary, 'about', ['--format', 'json']);
     if (about) {
         if (typeof about["subscriptionTier"] === 'string') subscriptionTier = about["subscriptionTier"];
         if (typeof about["cliVersion"] === 'string') cliVersion = about["cliVersion"];
@@ -160,7 +180,7 @@ function mergeCursorQuota(base: QuotaRecord, overlay: QuotaRecord | null): Quota
         return stripUndefined({
             ...base,
             dashboardAuth: false,
-            dashboardHint: 'Set CURSOR_SESSION_TOKEN from cursor.com dashboard cookie WorkosCursorSessionToken',
+            dashboardHint: 'Set CURSOR_SESSION_TOKEN or ~/.cli-jaw/quota/cursor-session-token from cursor.com dashboard cookie WorkosCursorSessionToken',
         });
     }
     if (overlay["error"]) {
@@ -175,7 +195,7 @@ function mergeCursorQuota(base: QuotaRecord, overlay: QuotaRecord | null): Quota
 }
 
 export async function fetchCursorUsage(binary = 'cursor-agent'): Promise<QuotaRecord> {
-    const base = readCursorStatus(binary);
+    const base = await readCursorStatus(binary);
     const sessionToken = readCursorDashboardSessionToken();
     if (!sessionToken) return base;
     const dashboard = await fetchCursorDashboardUsage(sessionToken);
