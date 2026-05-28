@@ -57,6 +57,7 @@ const MODE_ICONS: Record<RightPanelMode, ReactNode> = {
 };
 
 const RIGHT_PANEL_TOOLBAR_MODES: RightPanelMode[] = ['folder', 'doc', 'diff', 'browser'];
+const CONTENT_OWNED_RIGHT_CHROME: RightPanelMode[] = ['browser'];
 const RIGHT_SPLIT_SLOT_MIN_HEIGHT = 180;
 
 export function RightSidebar(props: RightSidebarProps) {
@@ -101,33 +102,40 @@ export function RightSidebar(props: RightSidebarProps) {
 
     function renderPanelSlot(slot: 'top' | 'bottom', mode: RightPanelMode): ReactNode {
         const label = MODE_LABELS[mode];
+        const slotOwnsChrome = !isSplit && CONTENT_OWNED_RIGHT_CHROME.includes(mode);
         return (
-            <div key={`${slot}-${mode}`} className="right-sub-panel" aria-label={label}>
-                <div className="right-sub-header">
-                    <span className="right-sub-title">{label}</span>
-                    <div className="right-sub-actions">
-                        {isSplit ? (
+            <div
+                key={`${slot}-${mode}`}
+                className={`right-sub-panel${slotOwnsChrome ? ' has-content-owned-chrome' : ''}`}
+                aria-label={label}
+            >
+                {!slotOwnsChrome && (
+                    <div className="right-sub-header">
+                        <span className="right-sub-title">{label}</span>
+                        <div className="right-sub-actions">
+                            {isSplit ? (
+                                <button
+                                    type="button"
+                                    className="right-sub-action"
+                                    aria-label={`Show only ${label}`}
+                                    title={`Show only ${label}`}
+                                    onClick={() => handleSoloSlot(slot)}
+                                >
+                                    Only
+                                </button>
+                            ) : null}
                             <button
                                 type="button"
-                                className="right-sub-action"
-                                aria-label={`Show only ${label}`}
-                                title={`Show only ${label}`}
-                                onClick={() => handleSoloSlot(slot)}
+                                className="right-sub-action right-sub-close"
+                                aria-label={`Close ${label}`}
+                                title={`Close ${label}`}
+                                onClick={() => dispatch({ type: 'CLOSE_RIGHT_SUB', slot })}
                             >
-                                Only
+                                ×
                             </button>
-                        ) : null}
-                        <button
-                            type="button"
-                            className="right-sub-action right-sub-close"
-                            aria-label={`Close ${label}`}
-                            title={`Close ${label}`}
-                            onClick={() => dispatch({ type: 'CLOSE_RIGHT_SUB', slot })}
-                        >
-                            ×
-                        </button>
+                        </div>
                     </div>
-                </div>
+                )}
                 <div className="right-sub-content">
                     {props.renderPanel(mode)}
                 </div>
