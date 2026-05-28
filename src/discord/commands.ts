@@ -76,12 +76,12 @@ export async function handleDiscordSlashCommand(interaction: ChatInputCommandInt
         await interaction.reply({ content: 'Unknown command', ephemeral: true });
         return;
     }
+
+    await interaction.deferReply();
     const result = await executeCommand(parsed, makeDiscordCommandCtx());
 
-    // Steer: reply then actually perform orchestration
     if (result?.steerPrompt) {
-        await interaction.reply(result.text || 'Redirecting...');
-        // Fire orchestration in the channel (like Telegram's tgOrchestrate after steer)
+        await interaction.editReply(result.text || 'Redirecting...');
         const channel = interaction.channel;
         if (channel && 'send' in channel) {
             const { orchestrateAndCollect } = await import('../orchestrator/collect.js');
@@ -112,9 +112,5 @@ export async function handleDiscordSlashCommand(interaction: ChatInputCommandInt
     }
 
     const text = result?.text || '(no output)';
-    try {
-        await interaction.reply(text.slice(0, 2000));
-    } catch {
-        await interaction.reply({ content: text.slice(0, 2000), ephemeral: true }).catch(() => { });
-    }
+    await interaction.editReply(text.slice(0, 2000));
 }
