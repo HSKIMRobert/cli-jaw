@@ -330,7 +330,7 @@ cli-jaw/
 │   └── workflows/            ← workflow helper artifact/cache layer
 │       ├── artifacts.ts      ← JAW_HOME workflow artifact cache + project key/path safety + unknown command recovery artifact (169L)
 │       └── plan.ts           ← `/plan` compatibility artifact/text builder (PABCD P 안내, non-authoritative) (91L)
-├── public/                   ← Web UI (Vite 8 + ES Modules, 524 files [source + assets + public/public/dist mirror, public/dist 제외], public/dist build output 478 files, mirrored copies under `public/public/dist/` and `public/dist/dist/`, ~74614L)
+├── public/                   ← Web UI (Vite 8 + ES Modules, 525 files [source + assets + public/public/dist mirror, public/dist 제외], public/dist build output 478 files, mirrored copies under `public/public/dist/` and `public/dist/dist/`, ~74905L)
 │   ├── index.html            ← 뼈대 (1038L, CLI-JAW 대문자 로고, pill theme switch, data-i18n, 로컬 avatar 입력)
 │   ├── manifest.json         ← PWA 매니페스트 (20L) ✨
 │   ├── sw.js                 ← Service Worker 오프라인 캐시 (104L) ✨

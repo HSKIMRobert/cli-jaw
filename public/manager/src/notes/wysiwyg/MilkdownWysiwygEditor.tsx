@@ -26,6 +26,7 @@ import {
     refreshMilkdownAssetImages,
 } from './milkdown-editor-utils';
 import { notesMilkdownBlockKeymap } from './milkdown-block-keymap';
+import { notesMilkdownSlashMenu } from './milkdown-slash-menu';
 import { notesMilkdownTableMenu } from './milkdown-table-menu';
 import { CODE_SOURCE_UPDATED_EVENT, notesMilkdownCodeBlockView } from './milkdown-code-block-view';
 import { notesMilkdownGfm } from './milkdown-gfm-safe';
@@ -142,6 +143,7 @@ export function MilkdownWysiwygEditor(props: MilkdownWysiwygEditorProps) {
             .use(notesMilkdownMath)
             .use(notesMilkdownCodeBlockView)
             .use(notesMilkdownBlockKeymap)
+            .use(notesMilkdownSlashMenu)
             .use(notesMilkdownTableMenu)
             .use(notesMilkdownWikiLinkPlugin(wikiRuntimeRef.current))
             .use(notesMilkdownWikiLinkCompletionPlugin(wikiCompletionRuntimeRef.current))
