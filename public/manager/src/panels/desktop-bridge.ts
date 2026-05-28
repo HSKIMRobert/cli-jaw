@@ -55,7 +55,23 @@ export type BrowserBridgeApi = {
     onOpenUrl: (cb: (payload: { url: string; disposition: 'current-tab' | 'new-tab' }) => void) => () => void;
 };
 
-export type DesktopShellCapability = 'terminal' | 'diff' | 'folder' | 'shortcuts' | 'browser';
+export type ClipboardBridgeApi = {
+    writeText: (text: string) => Promise<{ ok: boolean; error?: string }>;
+};
+
+export type PermissionDenial = {
+    at: string;
+    surface: 'manager-window' | 'preview-frame' | 'embedded-browser-webview';
+    permission: string;
+    requestingUrl: string;
+    reason: string;
+};
+
+export type PermissionDiagnosticsBridgeApi = {
+    getLastDenials: () => Promise<{ ok: boolean; denials?: PermissionDenial[]; error?: string }>;
+};
+
+export type DesktopShellCapability = 'terminal' | 'diff' | 'folder' | 'shortcuts' | 'browser' | 'clipboard' | 'permissions';
 
 /**
  * Electron shell-only bridge.
@@ -71,6 +87,8 @@ export type CliJawDesktopApi = {
     terminal?: TerminalBridgeApi | undefined;
     diff?: DiffBridgeApi | undefined;
     folder?: FolderBridgeApi | undefined;
+    clipboard?: ClipboardBridgeApi | undefined;
+    permissions?: PermissionDiagnosticsBridgeApi | undefined;
     shortcuts?: ShortcutBridgeApi | undefined;
     browser?: BrowserBridgeApi | undefined;
 };

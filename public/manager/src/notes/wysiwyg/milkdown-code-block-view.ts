@@ -4,6 +4,7 @@ import type { Node as ProseMirrorNode } from '@milkdown/kit/prose/model';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView, NodeView, NodeViewConstructor } from '@milkdown/kit/prose/view';
 import { $view } from '@milkdown/kit/utils';
+import { copyText } from '../../clipboard/copy-text';
 import { highlightCode } from '../rendering/highlight-languages';
 
 export const CODE_SOURCE_UPDATED_EVENT = 'notes-code-source-updated';
@@ -340,9 +341,12 @@ function createCodeBlockView(): NodeViewConstructor {
             event.preventDefault();
             event.stopPropagation();
             const text = codeText(currentNode);
-            navigator.clipboard.writeText(text).then(() => {
+            copyText(text).then(result => {
+                if (!result.ok) throw new Error(result.error ?? 'Copy failed');
                 copyBtn.textContent = 'Copied!';
                 setTimeout(() => { copyBtn.textContent = copyButtonLabel(); }, 1500);
+            }).catch(error => {
+                console.error('[notes:wysiwyg-code-copy]', error);
             });
         });
         copyBtn.addEventListener('mousedown', event => event.stopPropagation());

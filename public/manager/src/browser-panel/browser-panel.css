@@ -195,3 +195,47 @@
     border: 0;
     background: white;
 }
+
+.browser-external-surface {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 8px;
+    padding: 18px;
+    color: var(--text-dim);
+    background: var(--canvas-deep);
+}
+
+.browser-external-title {
+    color: var(--text-base);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.browser-external-body {
+    max-width: 42ch;
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+.browser-external-open {
+    all: unset;
+    box-sizing: border-box;
+    cursor: pointer;
+    margin-top: 2px;
+    padding: 5px 9px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 4px;
+    color: var(--text-base);
+    background: var(--bg-raised);
+    font-size: 11px;
+}
+
+.browser-external-open:hover,
+.browser-external-open:focus-visible {
+    background: var(--bg-hover);
+    border-color: var(--border-strong);
+}

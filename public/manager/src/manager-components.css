@@ -791,6 +791,15 @@ h2 { font-size: 13px; }
     padding: 18px;
     text-align: center;
 }
+.preview-permission-notice {
+    border: 1px solid color-mix(in srgb, var(--status-error) 35%, var(--border-subtle));
+    border-radius: 6px;
+    padding: 7px 9px;
+    color: var(--status-error);
+    background: color-mix(in srgb, var(--status-error) 9%, transparent);
+    font-size: 11px;
+    line-height: 1.4;
+}
 .activity-dock { position: relative; height: 100%; padding: 14px 12px 10px; }
 .activity-resize-handle {
     position: absolute; top: 0; left: 0; width: 100%; min-height: 10px;

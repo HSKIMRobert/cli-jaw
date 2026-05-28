@@ -1,6 +1,7 @@
 // ── SVG block rendering and diagram action controls ──
 import { ICONS } from '../icons.js';
 import type { SvgBlock } from '../diagram/types.js';
+import { copyText } from '../features/copy-text.js';
 import { sanitizeHtml } from './sanitize.js';
 
 export function appendMermaidActionBtns(el: HTMLElement): void {
@@ -109,7 +110,9 @@ function btnFeedback(btn: HTMLElement, text: string, action: 'copy' | 'save'): v
         setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('copied'); }, 1500);
     };
     if (action === 'copy') {
-        navigator.clipboard.writeText(text).then(doFeedback).catch(() => {});
+        copyText(text).then(result => {
+            if (result.ok) doFeedback();
+        });
     } else {
         doFeedback();
     }

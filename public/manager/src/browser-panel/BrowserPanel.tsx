@@ -37,6 +37,7 @@ type BrowserTabState = {
     title: string;
     blocked: boolean;
     loading: boolean;
+    status: string | null;
     error: string | null;
     canGoBack: boolean;
     canGoForward: boolean;
@@ -95,6 +96,7 @@ function createBrowserTab(id: string, target = DEFAULT_BROWSER_URL): BrowserTabS
         title: titleFromUrl(target),
         blocked: false,
         loading: false,
+        status: null,
         error: null,
         canGoBack: false,
         canGoForward: false,
@@ -267,10 +269,15 @@ export function BrowserPanel(props: BrowserPanelProps = {}) {
         updateTab(tabId, {
             blocked: false,
             error: null,
+            status: desktop ? null : 'Opened in a new browser tab. Web UI does not embed external pages.',
             inputUrl: target,
             url: target,
             title: titleFromUrl(target),
         });
+        if (!desktop) {
+            const opened = window.open(target, '_blank', 'noopener,noreferrer');
+            if (!opened) updateTab(tabId, { error: 'Popup blocked. Allow popups or copy the URL from the address field.' });
+        }
     }, [blockedUrlMessage, desktop, updateTab]);
 
     const addTab = useCallback((rawTarget = DEFAULT_BROWSER_URL) => {
@@ -340,14 +347,6 @@ export function BrowserPanel(props: BrowserPanelProps = {}) {
         });
     }, [activeTabId, addTab, openUrlInTab]);
 
-    if (!desktop) {
-        return (
-            <div className="browser-panel browser-unavailable">
-                Browser preview requires the Electron desktop app.
-            </div>
-        );
-    }
-
     return (
         <div className="browser-panel">
             <div className="browser-tab-strip" aria-label="Browser tabs">
@@ -388,9 +387,9 @@ export function BrowserPanel(props: BrowserPanelProps = {}) {
                 )}
             </div>
             <div className="browser-toolbar">
-                <button type="button" className="browser-nav-btn" aria-label="Back" disabled={!activeTab.canGoBack} onClick={() => webviewRefs.current.get(activeTab.id)?.goBack()}>‹</button>
-                <button type="button" className="browser-nav-btn" aria-label="Forward" disabled={!activeTab.canGoForward} onClick={() => webviewRefs.current.get(activeTab.id)?.goForward()}>›</button>
-                <button type="button" className="browser-nav-btn" aria-label="Reload" onClick={() => webviewRefs.current.get(activeTab.id)?.reload()}>↻</button>
+                <button type="button" className="browser-nav-btn" aria-label="Back" disabled={!desktop || !activeTab.canGoBack} onClick={() => webviewRefs.current.get(activeTab.id)?.goBack()}>‹</button>
+                <button type="button" className="browser-nav-btn" aria-label="Forward" disabled={!desktop || !activeTab.canGoForward} onClick={() => webviewRefs.current.get(activeTab.id)?.goForward()}>›</button>
+                <button type="button" className="browser-nav-btn" aria-label="Reload" disabled={!desktop} onClick={() => webviewRefs.current.get(activeTab.id)?.reload()}>↻</button>
                 <input
                     ref={inputRef}
                     className="browser-url-input"
@@ -409,26 +408,38 @@ export function BrowserPanel(props: BrowserPanelProps = {}) {
                     onKeyDown={event => { if (event.key === 'Enter') navigate(); }}
                     aria-label="URL"
                 />
-                <button type="button" className="browser-go-btn" onMouseDown={event => event.preventDefault()} onClick={navigate}>Go</button>
+                <button type="button" className="browser-go-btn" onMouseDown={event => event.preventDefault()} onClick={navigate}>{desktop ? 'Go' : 'Open'}</button>
             </div>
-            {(activeTab.blocked || activeTab.error || activeTab.loading) && (
+            {(activeTab.blocked || activeTab.error || activeTab.loading || activeTab.status) && (
                 <div className={`browser-status${activeTab.error ? ' is-error' : ''}`}>
-                    {activeTab.error ?? (activeTab.loading ? 'Loading...' : 'Blocked')}
+                    {activeTab.error ?? (activeTab.loading ? 'Loading...' : activeTab.status ?? 'Blocked')}
                 </div>
             )}
-            <div className="browser-webview-stack">
-                <div key={activeTab.id} className="browser-webview-host is-active">
-                    {createElement('webview', {
-                        ref: (node: Element | null) => setWebviewRef(activeTab.id, node),
-                        className: 'browser-webview',
-                        src: activeTab.url,
-                        partition: 'persist:cli-jaw-browser',
-                        useragent: webviewUserAgent.current,
-                        allowpopups: 'true',
-                        webpreferences: 'contextIsolation=yes,sandbox=yes,nodeIntegration=no',
-                    })}
+            {desktop ? (
+                <div className="browser-webview-stack">
+                    <div key={activeTab.id} className="browser-webview-host is-active">
+                        {createElement('webview', {
+                            ref: (node: Element | null) => setWebviewRef(activeTab.id, node),
+                            className: 'browser-webview',
+                            src: activeTab.url,
+                            partition: 'persist:cli-jaw-browser',
+                            useragent: webviewUserAgent.current,
+                            allowpopups: 'true',
+                            webpreferences: 'contextIsolation=yes,sandbox=yes,nodeIntegration=no',
+                        })}
+                    </div>
                 </div>
-            </div>
+            ) : (
+                <div className="browser-external-surface">
+                    <div className="browser-external-title">Web browser launcher</div>
+                    <div className="browser-external-body">
+                        External URLs open in your browser tab. Local/private targets stay blocked from the Web UI.
+                    </div>
+                    <button type="button" className="browser-external-open" onClick={navigate}>
+                        Open current URL
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

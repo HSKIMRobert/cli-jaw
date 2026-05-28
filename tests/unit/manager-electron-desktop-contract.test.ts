@@ -93,6 +93,29 @@ test('Electron app primes macOS Automation permission for Computer Use', () => {
     assert.ok(helper.includes('CLI_JAW_SKIP_AUTOMATION_PRIME'), 'Automation priming must remain disableable for tests or support cases');
 });
 
+test('Electron permission and clipboard bridges are scoped instead of blanket-denied', () => {
+    const main = read('electron/src/main/index.ts');
+    const permissions = read('electron/src/main/lib/electron-permissions.ts');
+    const preload = read('electron/src/preload/index.ts');
+    const desktopBridge = read('public/manager/src/panels/desktop-bridge.ts');
+    const managerCopy = read('public/manager/src/clipboard/copy-text.ts');
+    const webCopy = read('public/js/features/copy-text.ts');
+    const preview = read('public/manager/src/InstancePreview.tsx');
+
+    assert.ok(main.includes('installDefaultSessionPermissionHandlers()'), 'Electron main must install a central permission matrix');
+    assert.ok(main.includes("isElectronPermissionAllowed('embedded-browser-webview'"), 'embedded webviews must stay permission-denied by default');
+    assert.ok(permissions.includes("args.permission === 'media'"), 'permission matrix must explicitly handle microphone/media requests');
+    assert.ok(permissions.includes("args.permission === 'clipboard-sanitized-write'"), 'permission matrix must allow sanitized manager-owned clipboard writes');
+    assert.ok(permissions.includes("surface === 'embedded-browser-webview'"), 'remote webview permission handling must remain isolated from manager/preview handling');
+    assert.ok(preload.includes("ipcRenderer.invoke('clipboard:writeText', text)"), 'preload must expose clipboard writes through IPC');
+    assert.ok(preload.includes("ipcRenderer.invoke('permissions:getLastDenials')"), 'preload must expose permission denial diagnostics');
+    assert.ok(desktopBridge.includes('clipboard?: ClipboardBridgeApi'), 'renderer desktop bridge must type clipboard IPC');
+    assert.ok(desktopBridge.includes('permissions?: PermissionDiagnosticsBridgeApi'), 'renderer desktop bridge must type permission diagnostics IPC');
+    assert.ok(managerCopy.includes('getDesktop()?.clipboard'), 'React manager copy helper must prefer Electron clipboard bridge');
+    assert.ok(webCopy.includes('cliJawDesktop?.clipboard'), 'classic web copy helper must prefer Electron clipboard bridge');
+    assert.ok(preview.includes('getLastDenials()'), 'preview iframe surface must show permission denial diagnostics');
+});
+
 test('Electron quit path shows progress and exits after manager cleanup', () => {
     const main = read('electron/src/main/index.ts');
     const quitProgress = read('electron/src/main/lib/quit-progress.ts');
@@ -170,8 +193,9 @@ test('manager desktop panel toggles live in the command bar to keep the sidebar 
     const compact = read('public/manager/src/manager-p0-1-1.css');
 
     assert.ok(commandBar.includes('<DesktopPanelControls />'), 'CommandBar must host desktop panel toggles near the other titlebar actions');
-    assert.ok(controls.includes("import { isElectron } from '../panels/desktop-bridge'"), 'DesktopPanelControls must gate desktop-only controls through Electron detection');
-    assert.ok(controls.includes('if (!isElectron()) return null'), 'web UI must not render desktop-only panel toggles');
+    assert.ok(controls.includes('resolvePanelCapabilities(currentManagerSurface())'), 'DesktopPanelControls must use capability-based surface detection');
+    assert.ok(!controls.includes('if (!isElectron()) return null'), 'web UI must keep panel controls visible for web-capable surfaces');
+    assert.ok(controls.includes('disabled={!terminalEnabled}'), 'terminal toggle must be disabled on web instead of disappearing');
     assert.ok(controls.includes('aria-label="Toggle terminal panel"'), 'DesktopPanelControls must expose the bottom terminal panel toggle');
     assert.ok(controls.includes("panelActions.openBottomTab('terminal')"), 'bottom panel toggle must open the terminal tab when closed');
     assert.ok(controls.includes('aria-label="Toggle right panel"'), 'DesktopPanelControls must expose the right panel toggle');
@@ -227,6 +251,7 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     const sidebar = read('public/manager/src/panels/RightSidebar.tsx');
     const router = read('public/manager/src/SidebarRailRouter.tsx');
     const folder = read('public/manager/src/folder-panel/FolderPanel.tsx');
+    const folderSources = read('public/manager/src/folder-panel/folder-sources.ts');
     const doc = read('public/manager/src/doc-panel/DocPanel.tsx');
     const browserPanel = read('public/manager/src/browser-panel/BrowserPanel.tsx');
     const browserUrl = read('public/manager/src/browser-panel/browser-url.ts');
@@ -292,7 +317,8 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(router.includes("panelLayout.dispatch({ type: 'OPEN_RIGHT_PANEL', mode: 'doc', slot: 'bottom' })"), 'selecting a file must open document preview in a folder/file split view');
     assert.ok(folder.includes('onPreviewFile'), 'folder panel must expose file selection to the preview panel');
     assert.ok(folder.includes("props.onPreviewFile?.(entry.path)"), 'clicking a file in Folders must open it in preview');
-    assert.ok(folder.includes('bridge.getDefaultRoot()'), 'folder panel must open a default root instead of starting as an empty dead panel');
+    assert.ok(folderSources.includes('bridge.getDefaultRoot()'), 'folder panel must open a default root instead of starting as an empty dead panel');
+    assert.ok(folderSources.includes('createNotesVaultFolderSource'), 'folder panel must expose a web notes-vault fallback source');
     assert.ok(doc.includes('Open Folders and select a file'), 'empty document preview must explain how to view a file');
     assert.ok(css.includes('.right-panel-toolbar'), 'right sidebar icon toolbar must be styled');
     assert.ok(css.includes('.right-panel-mode-button.is-active'), 'active right sidebar icon must have visible state');
@@ -305,7 +331,7 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(css.includes('height: 100%;'), 'right sub content must pass a stable height to nested panels');
     assert.ok(workspace.includes('clampRightPanelRenderWidth'), 'right panel width must be clamped at render time so persisted large widths cannot clip the UI');
     assert.ok(workspace.includes('WORKSPACE_CENTER_MIN_WIDTH'), 'right panel clamp must reserve usable center workspace width');
-    assert.ok(css.includes('max-width: min(520px, 48vw)'), 'right panel must have a responsive CSS max-width');
+    assert.ok(css.includes('max-width: min(1200px, 70vw)'), 'right panel must have a responsive CSS max-width');
     assert.ok(browserCss.includes('overflow: hidden'), 'browser panel must clip inside its own panel instead of escaping the sidebar');
     assert.ok(browserCss.includes('min-width: 0'), 'browser panel flex children must be allowed to shrink inside the right sidebar');
     assert.ok(browserCss.includes('.browser-webview-host'), 'browser webview must be hosted in a flex child that owns the remaining vertical height');
@@ -325,6 +351,7 @@ test('Electron diff panel resolves selected instance roots and exposes configura
     const desktopBridge = read('public/manager/src/panels/desktop-bridge.ts');
     const preload = read('electron/src/preload/index.ts');
     const diffIpc = read('electron/src/main/lib/git/ipc.ts');
+    const diffService = read('src/manager/git/diff-service.ts');
     const diffCss = read('public/manager/src/diff-panel/diff-panel.css');
 
     assert.ok(router.includes('<DiffPanel selectedInstance={selectedInstance} settings={dashboardSettingsUi} onSettingsPatch={onDashboardSettingsPatch} />'), 'router must pass selected instance roots and saved diff settings into DiffPanel');
@@ -338,11 +365,12 @@ test('Electron diff panel resolves selected instance roots and exposes configura
     assert.ok(desktopBridge.includes('getRepoCandidates'), 'desktop bridge must expose repo candidate resolution');
     assert.ok(preload.includes("ipcRenderer.invoke('diff:getRepoCandidates'"), 'preload must expose repo candidate resolution');
     assert.ok(diffIpc.includes("ipcMain.handle('diff:getRepoCandidates'"), 'Electron main must implement repo candidate resolution');
-    assert.ok(diffIpc.includes("'-c', 'core.quotepath=false'"), 'Electron git diff commands must preserve unicode/Korean paths');
-    assert.ok(diffIpc.includes("DIFF_MODES = new Set(['unstaged', 'staged', 'head', 'base'])"), 'Electron diff IPC must validate diff mode options');
-    assert.ok(diffIpc.includes('isValidRef(rawRef)'), 'Electron diff IPC must validate base refs before invoking git');
-    assert.ok(diffIpc.includes("ls-files', '--others', '--exclude-standard"), 'Electron diff IPC must support untracked file summaries');
-    assert.ok(diffIpc.includes("diff', '--no-color', '--no-index'"), 'Electron diff IPC must provide content for untracked file diffs');
+    assert.ok(diffIpc.includes("from '../../../../../src/manager/git/diff-service.js'"), 'Electron diff IPC must delegate to the shared manager git diff service');
+    assert.ok(diffService.includes("'-c', 'core.quotepath=false'"), 'git diff commands must preserve unicode/Korean paths');
+    assert.ok(diffService.includes("DIFF_MODES = new Set(['unstaged', 'staged', 'head', 'base'])"), 'git diff service must validate diff mode options');
+    assert.ok(diffService.includes('isValidRef(rawRef)'), 'git diff service must validate base refs before invoking git');
+    assert.ok(diffService.includes("ls-files', '--others', '--exclude-standard"), 'git diff service must support untracked file summaries');
+    assert.ok(diffService.includes("diff', '--no-color', '--no-index'"), 'git diff service must provide content for untracked file diffs');
     assert.ok(diffCss.includes('.diff-root-select'), 'DiffPanel root selector must be styled');
     assert.ok(diffCss.includes('.diff-mode-button.is-active'), 'DiffPanel active mode must be visibly styled');
 });
@@ -440,13 +468,17 @@ test('Electron browser panel uses a hardened webview instead of a CSP-blocked if
     assert.ok(browser.includes("createElement('webview'"), 'BrowserPanel must render Electron webview, not an iframe');
     assert.ok(browser.includes("allowpopups: 'true'"), 'BrowserPanel must render the Electron allowpopups attribute so main can convert target=_blank clicks into in-app tabs');
     assert.ok(browser.includes("partition: 'persist:cli-jaw-browser'"), 'BrowserPanel must keep a persistent Electron browser session partition');
-    assert.ok(browser.includes('Browser preview requires the Electron desktop app'), 'web UI must not present a broken iframe browser');
+    assert.ok(browser.includes('browser-external-surface'), 'web UI must present a limited external browser launcher instead of a broken iframe browser');
+    assert.ok(browser.includes("window.open(target, '_blank', 'noopener,noreferrer')"), 'web UI browser mode must open external URLs in a browser tab');
     assert.ok(css.includes('.browser-go-btn'), 'browser toolbar must expose an explicit go action');
 
     const preload = read('electron/src/preload/index.ts');
     const desktopBridge = read('public/manager/src/panels/desktop-bridge.ts');
     assert.ok(preload.includes("ipcRenderer.on('browser:open-url', handler)"), 'preload must expose Browser panel popup routing events');
     assert.ok(desktopBridge.includes('browser?: BrowserBridgeApi'), 'desktop bridge type must include Browser panel popup routing events');
+    assert.ok(preload.includes("ipcRenderer.invoke('clipboard:writeText', text)"), 'preload must expose the Electron clipboard bridge');
+    assert.ok(desktopBridge.includes('clipboard?: ClipboardBridgeApi'), 'desktop bridge type must include the clipboard bridge');
+    assert.ok(desktopBridge.includes('permissions?: PermissionDiagnosticsBridgeApi'), 'desktop bridge type must include permission diagnostics');
 });
 
 test('Electron bottom terminal and browser panels avoid duplicate generic chrome', () => {

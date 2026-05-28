@@ -5,6 +5,7 @@
 import { ICONS } from '../icons.js';
 import { validateWidgetHtml } from './widget-validator.js';
 import { isChatNearBottom, reconcileChatBottomAfterLayout } from '../features/chat-scroll.js';
+import { copyText } from '../features/copy-text.js';
 
 // ── Action Button Helpers ──
 function createDiagramCopyBtn(): HTMLButtonElement {
@@ -659,7 +660,7 @@ window.addEventListener('message', (e: MessageEvent) => {
     case 'jaw-copy-text': {
       const text = String(e.data.text || '').trim().slice(0, 512);
       if (!text) return;
-      navigator.clipboard.writeText(text).catch(() => {});
+      void copyText(text);
       break;
     }
 

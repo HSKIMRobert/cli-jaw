@@ -83,6 +83,12 @@ contextBridge.exposeInMainWorld('cliJawDesktop', {
       return () => { ipcRenderer.removeListener('folder:changed', handler); };
     },
   },
+  clipboard: {
+    writeText: (text: string) => ipcRenderer.invoke('clipboard:writeText', text),
+  },
+  permissions: {
+    getLastDenials: () => ipcRenderer.invoke('permissions:getLastDenials'),
+  },
   shortcuts: {
     onAction: (cb: (action: string) => void) => {
       const handler = (_e: unknown, action: string) => cb(action);
