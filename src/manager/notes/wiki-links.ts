@@ -2,8 +2,10 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkFrontmatter from 'remark-frontmatter';
 import { visit } from 'unist-util-visit';
-import type { Root, Text } from 'mdast';
+import { posix } from 'node:path';
+import type { Link, Root, Text } from 'mdast';
 import type { NoteLinkRef } from '../types.js';
+import { NOTE_FILE_EXT } from './path-guards.js';
 
 const markdownProcessor = unified()
     .use(remarkParse)
@@ -13,6 +15,13 @@ type LineColumn = {
     line: number;
     column: number;
 };
+
+type ParsedMarkdownLinkTarget = {
+    target: string;
+    heading?: string;
+};
+
+const URL_SCHEME_RE = /^[a-z][a-z0-9+.-]*:/i;
 
 function lineStarts(source: string): number[] {
     const starts = [0];
@@ -68,6 +77,53 @@ function parseInner(inner: string): { target: string; displayText?: string; head
     };
 }
 
+function safeDecodePath(value: string): string {
+    try {
+        return decodeURIComponent(value);
+    } catch {
+        return value;
+    }
+}
+
+function noteLikeMarkdownPath(path: string): boolean {
+    const ext = posix.extname(path).toLowerCase();
+    return ext === '' || ext === NOTE_FILE_EXT;
+}
+
+function parseMarkdownLinkTarget(sourcePath: string, url: string): ParsedMarkdownLinkTarget | null {
+    const trimmed = url.trim();
+    if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('//') || trimmed.startsWith('/')) {
+        return null;
+    }
+    if (URL_SCHEME_RE.test(trimmed)) return null;
+
+    const withoutQuery = trimmed.split('?')[0] || '';
+    const hashIndex = firstUnescaped(withoutQuery, '#');
+    const rawPath = (hashIndex === -1 ? withoutQuery : withoutQuery.slice(0, hashIndex)).trim();
+    const heading = hashIndex === -1 ? '' : withoutQuery.slice(hashIndex + 1).trim();
+    if (!rawPath) return null;
+
+    const decodedPath = safeDecodePath(rawPath);
+    if (!noteLikeMarkdownPath(decodedPath)) return null;
+
+    const sourceDir = posix.dirname(sourcePath);
+    const normalized = posix.normalize(posix.join(sourceDir === '.' ? '' : sourceDir, decodedPath));
+    if (normalized === '.' || normalized === '..' || normalized.startsWith('../')) return null;
+
+    return {
+        target: normalized,
+        ...(heading ? { heading: safeDecodePath(heading) } : {}),
+    };
+}
+
+function textFromLink(node: Link): string {
+    const parts: string[] = [];
+    visit(node, 'text', (child: Text) => {
+        parts.push(child.value);
+    });
+    return parts.join('').trim();
+}
+
 function scanTextNode(
     sourcePath: string,
     text: string,
@@ -116,6 +172,28 @@ export function extractWikiLinks(sourcePath: string, markdown: string): NoteLink
         const end = node.position?.end.offset;
         if (start === undefined || end === undefined) return;
         refs.push(...scanTextNode(sourcePath, markdown.slice(start, end), start, starts));
+    });
+    visit(tree, 'link', (node: Link) => {
+        const start = node.position?.start.offset;
+        const end = node.position?.end.offset;
+        if (start === undefined || end === undefined) return;
+        const parsed = parseMarkdownLinkTarget(sourcePath, node.url);
+        if (!parsed) return;
+        const displayText = textFromLink(node);
+        const position = offsetToLineColumn(starts, start);
+        refs.push({
+            sourcePath,
+            raw: markdown.slice(start, end),
+            target: parsed.target,
+            ...(displayText ? { displayText } : {}),
+            ...(parsed.heading ? { heading: parsed.heading } : {}),
+            line: position.line,
+            column: position.column,
+            startOffset: start,
+            endOffset: end,
+            status: 'missing',
+            reason: 'not_found',
+        });
     });
     return refs;
 }
