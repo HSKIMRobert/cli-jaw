@@ -155,13 +155,13 @@ aliases: [CLI-JAW Infra, infrastructure modules, core runtime]
 
 ---
 
-## src/cli/registry.ts — CLI/모델 단일 소스 (159L)
+## src/cli/registry.ts — CLI/모델 단일 소스 (160L)
 
 **의존 없음** — `core/config.ts`, `cli/commands.ts`, `server.ts`, 프론트엔드가 모두 이 레지스트리를 참조.
 
 | Export | 역할 |
 | --- | --- |
-| `CLI_REGISTRY` | 10개 CLI 정의 (`agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `gemini`, `grok`, `opencode`, `copilot`; `label`, `binary`, `defaultModel`, `defaultEffort`, `efforts`, `models`, optional `effortNote`/provider metadata) |
+| `CLI_REGISTRY` | 11개 CLI 정의 (`agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `cursor`, `gemini`, `grok`, `opencode`, `copilot`; `label`, `binary`, `defaultModel`, `defaultEffort`, `efforts`, `models`, optional `effortNote`/provider metadata) |
 | `CLI_KEYS` | `Object.keys(CLI_REGISTRY)` — 순서 보장 배열 |
 | `DEFAULT_CLI` | 기본 CLI (`claude` 우선, 없으면 첫 항목) |
 | `buildDefaultPerCli()` | registry에서 기본 `perCli` 객체 빌드 |
@@ -211,6 +211,7 @@ CLI → 서버 API 호출 시 인증 토큰을 관리하는 경량 헬퍼. 포�
 | `claude` | `sonnet` | canonical choices: `opus`, `sonnet`, `sonnet[1m]`, `haiku`; legacy `opus[1m]` normalizes to `opus` |
 | `codex` | `gpt-5.4` | includes `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.3-codex*`, `gpt-5.2-codex`, `gpt-5.1-codex*` |
 | `codex-app` | `gpt-5.4` | Codex app-server runtime using Codex model choices |
+| `cursor` | `composer-2.5` | uses `cursor-agent --model <resolvedModelId>`; effort resolves into model ids such as `composer-2.5-fast`, `gpt-5.5-medium-fast`, or `claude-opus-4-7-thinking-high-fast` |
 | `gemini` | `gemini-3-flash-preview` | includes `gemini-3.0-pro-preview`, `gemini-3.1-pro-preview`, `gemini-2.5-pro`, `gemini-2.5-flash` |
 | `grok` | `grok-build` | effort disabled because `grok-build` rejects `reasoningEffort`; auth/readiness via `grok models` |
 | `opencode` | `opencode-go/kimi-k2.6` | includes current opencode-go provider aliases such as `glm-5.1`, `kimi-k2.6`, `mimo-v2.5`, `minimax-m2.7`, `qwen3.6-plus`, `deepseek-v4-*` |
@@ -516,7 +517,7 @@ Copilot 할당량 조회 + 인증 토큰 관리. env → file cache → `gh auth
 | `settings.ts` | settings/prompt/heartbeat-md/MCP/registry/status/quota/copilot |
 | `messaging.ts` | upload/file-open/voice/telegram/channel/discord send |
 | `browser.ts` | browser runtime endpoints |
-| `quota.ts` | `/api/quota` helper readers imported by `settings.ts` (direct provider usage where supported, wrapper runtime delegation for `ai-e`/`claude-e`/`codex-app`, and status-only metadata for AGY/Grok/OpenCode when quota windows are not exposed by the CLI) |
+| `quota.ts` | `/api/quota` helper readers imported by `settings.ts` (direct provider usage where supported, wrapper runtime delegation for `ai-e`/`claude-e`/`codex-app`, and status-only metadata for AGY/Cursor/Grok/OpenCode when quota windows are not exposed by the CLI) |
 
 핵심 포인트:
 - `server.ts`는 `register*Routes(app, requireAuth, ...)` 호출만 남기고 629L 글루 레이어로 유지된다. 현재 mutation endpoint 53개는 모두 `requireAuth` 미들웨어를 거쳐 인증 없는 상태 변경을 차단한다.

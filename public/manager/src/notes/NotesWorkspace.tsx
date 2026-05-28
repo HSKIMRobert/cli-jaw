@@ -29,6 +29,7 @@ type NotesWorkspaceProps = {
     viewMode: NotesViewMode;
     authoringMode: NotesAuthoringMode;
     wordWrap: boolean;
+    vimMode: boolean;
     treeWidth: number;
     tagFilter: string | null;
     onOpenSidebarSearch: () => void;
@@ -37,6 +38,7 @@ type NotesWorkspaceProps = {
     onViewModeChange: (mode: NotesViewMode) => void;
     onAuthoringModeChange: (mode: NotesAuthoringMode) => void;
     onWordWrapChange: (value: boolean) => void;
+    onVimModeChange: (value: boolean) => void;
     onTreeWidthChange: (value: number) => void;
     onTagSelect: (tag: string | null) => void;
     onWikiLinkNavigate: (path: string) => void;
@@ -205,6 +207,13 @@ export function NotesWorkspace(props: NotesWorkspaceProps) {
             run: () => props.onWordWrapChange(!props.wordWrap),
         },
         {
+            id: 'workspace:toggle-vim-mode',
+            section: 'Editor',
+            label: props.vimMode ? 'Disable Vim mode' : 'Enable Vim mode',
+            keywords: ['vim', 'keybindings', 'editor'],
+            run: () => props.onVimModeChange(!props.vimMode),
+        },
+        {
             id: 'workspace:open-search',
             section: 'Navigate',
             label: 'Search notes',
@@ -226,8 +235,10 @@ export function NotesWorkspace(props: NotesWorkspaceProps) {
         props.onAuthoringModeChange,
         props.onOpenSidebarSearch,
         props.onViewModeChange,
+        props.onVimModeChange,
         props.onWordWrapChange,
         props.selectedPath,
+        props.vimMode,
         props.wordWrap,
         saveDisabledReason,
     ]);
@@ -305,6 +316,14 @@ export function NotesWorkspace(props: NotesWorkspaceProps) {
                                 Word wrap
                             </label>
                             <label>
+                                <input
+                                    type="checkbox"
+                                    checked={props.vimMode}
+                                    onChange={event => props.onVimModeChange(event.currentTarget.checked)}
+                                />
+                                Vim mode
+                            </label>
+                            <label>
                                 Tree width
                                 <input
                                     type="range"
@@ -358,6 +377,7 @@ export function NotesWorkspace(props: NotesWorkspaceProps) {
                                     notes={indexedNotes}
                                     activeTag={props.tagFilter}
                                     wordWrap={props.wordWrap}
+                                    vimMode={props.vimMode}
                                     onChange={document.setContent}
                                     onTagSelect={props.onTagSelect}
                                     onWikiLinkNavigate={props.onWikiLinkNavigate}

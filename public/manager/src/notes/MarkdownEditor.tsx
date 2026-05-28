@@ -1,9 +1,9 @@
 import CodeMirror from '@uiw/react-codemirror';
 import { markdown } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
-import { Prec } from '@codemirror/state';
+import { Prec, type Extension } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
-import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { notesEditorTheme, notesSyntaxHighlighting } from './editor-theme';
 import { markdownShortcutsKeymap } from './markdown-shortcuts';
 import { MarkdownPreview } from './MarkdownPreview';
@@ -13,6 +13,14 @@ import { richMarkdownPastePolicy } from './rich-markdown/paste-policy';
 import { wikiLinkCodeMirrorCompletion } from './wiki-link-codemirror-completion';
 import type { NotesAuthoringMode, NotesNoteLinkRef, NotesNoteMetadata } from './notes-types';
 import type { RichMarkdownWidgetRegistration } from './rich-markdown/rich-markdown-types';
+
+let vimExtensionCache: Extension | null = null;
+async function loadVimExtension(): Promise<Extension> {
+    if (vimExtensionCache) return vimExtensionCache;
+    const { vim } = await import('@replit/codemirror-vim');
+    vimExtensionCache = vim();
+    return vimExtensionCache;
+}
 
 const MilkdownWysiwygEditor = lazy(async () => {
     const module = await import('./wysiwyg/MilkdownWysiwygEditor');
@@ -28,6 +36,7 @@ type MarkdownEditorProps = {
     notes: readonly NotesNoteMetadata[];
     activeTag: string | null;
     wordWrap: boolean;
+    vimMode: boolean;
     onChange: (value: string) => void;
     onTagSelect: (tag: string | null) => void;
     onWikiLinkNavigate: (path: string) => void;
@@ -35,7 +44,20 @@ type MarkdownEditorProps = {
 
 export function MarkdownEditor(props: MarkdownEditorProps) {
     const [widgets, setWidgets] = useState<Map<string, RichMarkdownWidgetRegistration>>(() => new Map());
+    const [vimExt, setVimExt] = useState<Extension | null>(null);
     const isWysiwyg = props.authoringMode === 'wysiwyg';
+
+    useEffect(() => {
+        if (!props.vimMode) {
+            setVimExt(null);
+            return;
+        }
+        let cancelled = false;
+        void loadVimExtension().then(ext => {
+            if (!cancelled) setVimExt(ext);
+        });
+        return () => { cancelled = true; };
+    }, [props.vimMode]);
     const registerWidget = useCallback((registration: RichMarkdownWidgetRegistration): void => {
         setWidgets(current => {
             const next = new Map(current);
@@ -74,8 +96,9 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
             }),
         ];
         if (props.wordWrap) base.push(EditorView.lineWrapping);
+        if (vimExt) base.unshift(vimExt);
         return base;
-    }, [props.active, props.authoringMode, props.notePath, props.notes, props.wordWrap, registerWidget, requestMeasure, unregisterWidget]);
+    }, [props.active, props.authoringMode, props.notePath, props.notes, props.wordWrap, vimExt, registerWidget, requestMeasure, unregisterWidget]);
 
     if (isWysiwyg) {
         return (

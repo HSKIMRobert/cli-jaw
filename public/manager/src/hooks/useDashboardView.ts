@@ -14,6 +14,7 @@ export function useDashboardView() {
     const [notesViewMode, setNotesViewMode] = useState<DashboardNotesViewMode>('raw');
     const [notesAuthoringMode, setNotesAuthoringMode] = useState<DashboardNotesAuthoringMode>('plain');
     const [notesWordWrap, setNotesWordWrap] = useState(true);
+    const [notesVimMode, setNotesVimMode] = useState(false);
     const [notesTreeWidth, setNotesTreeWidth] = useState(280);
     const [showLatestActivityTitles, setShowLatestActivityTitles] = useState(true);
     const [showInlineLabelEditor, setShowInlineLabelEditor] = useState(true);
@@ -50,6 +51,8 @@ export function useDashboardView() {
         setNotesAuthoringMode,
         notesWordWrap,
         setNotesWordWrap,
+        notesVimMode,
+        setNotesVimMode,
         notesTreeWidth,
         setNotesTreeWidth,
         showLatestActivityTitles,

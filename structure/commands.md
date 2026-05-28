@@ -9,7 +9,7 @@ aliases: [CLI-JAW Commands, slash commands registry, commands.md]
 # src/cli/ — Slash Command Registry & Dispatcher
 
 > `commands.ts`(400L) + `handlers.ts`(397L) + `handlers-runtime.ts`(499L) + `handlers-completions.ts`(97L) + `handlers-workflows.ts`(95L) + `api-auth.ts`(45L) + `command-context.ts`(140L) + `registry.ts`(160L) + `acp-client.ts`(382L) + `claude-models.ts`(78L) + `compact.ts`(139L) + `src/workflows/{artifacts,plan}.ts`(260L)
-> slash registry는 30개 커맨드, 4개 실행 인터페이스. root CLI는 `bin/cli-jaw.ts` + `bin/commands/*.ts` 기준 19개 user-facing command이며, helper까지 포함한 `bin/commands/*.ts` top-level 파일은 22개다. `browser web-ai`는 `browser-web-ai.ts`, `dashboard memory`는 `dashboard-memory.ts`, dispatch unwrap 보조는 `dispatch-helpers.ts`로 분리되어 있다. visible 기준 CLI 28 / Web 26 / Telegram 26 / Discord 26. `cmdline` capability는 contract 전용이며 11개가 보인다.
+> slash registry는 31개 커맨드, 4개 실행 인터페이스. root CLI는 `bin/cli-jaw.ts` + `bin/commands/*.ts` 기준 19개 user-facing command이며, helper까지 포함한 `bin/commands/*.ts` top-level 파일은 22개다. `browser web-ai`는 `browser-web-ai.ts`, `dashboard memory`는 `dashboard-memory.ts`, dispatch unwrap 보조는 `dispatch-helpers.ts`로 분리되어 있다. visible 기준 CLI 29 / Web 27 / Telegram 27 / Discord 27. `cmdline` capability는 contract 전용이며 11개가 보인다.
 > 모델/CLI 선택은 `registry.ts` 단일 소스를 따른다. 현재 registry 런타임은 `agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `cursor`, `gemini`, `grok`, `opencode`, `copilot` 11개이며, `claude-e`는 experimental native interactive wrapper(`jaw-claude-i`)를 통해 Claude CLI를 PTY로 구동하고 legacy session/event bucket은 `claude-i`를 유지한다. Web/CLI/Telegram/Discord는 모두 `makeCommandCtx()`로 통합된 command context를 사용한다.
 > 최근 구조 변화 핵심은 네 가지다: `handlers.ts` 분해(`handlers-runtime.ts`, `handlers-completions.ts`), workflow command handler 분리(`handlers-workflows.ts`), CLI→server 인증 bootstrap 공통화(`api-auth.ts`), 그리고 Claude Interactive native helper build/test/doctor surface 추가다.
 
@@ -32,29 +32,29 @@ aliases: [CLI-JAW Commands, slash commands registry, commands.md]
 
 ## Registry Snapshot
 
-### Command 목록 (30)
+### Command 목록 (31)
 
 ```text
-help, commands, status, clear, compact, reset, plan, model, cli, fallback,
-forward, thought, flush, version, skill, employee, mcp, memory, browser,
-prompt, quit, file, steer, ide, orchestrate, project,
-interview, deliberate, planaudit, goal
+help, commands, status, clear, compact, reset, plan, interview, deliberate,
+planaudit, goal, team, model, cli, fallback, forward, thought, flush,
+version, skill, employee, mcp, memory, browser, prompt, quit, file, steer,
+ide, orchestrate, project
 ```
 
 ### 인터페이스 가시성
 
 | Interface | Visible | 비고 |
 | --- | ---: | --- |
-| `cli` | 28 | `file` hidden, `steer` 미지원 |
-| `web` | 26 | `commands`, `quit`, `file`, `ide` 미지원 |
-| `telegram` | 26 | remote-safe command set |
-| `discord` | 26 | remote-safe command set |
+| `cli` | 29 | `file` hidden, `steer` 미지원 |
+| `web` | 27 | `commands`, `quit`, `file`, `ide` 미지원 |
+| `telegram` | 27 | remote-safe command set |
+| `discord` | 27 | remote-safe command set |
 | `cmdline` | 11 | 루트 CLI 서브커맨드용 contract-only capability 필터; workflow commands는 hidden |
 
 ### 카테고리
 
 - `session`: `help`, `commands`, `status`, `clear`, `compact`, `reset`, `steer`
-- `workflow`: `plan`, `interview`, `deliberate`, `planaudit`, `goal`
+- `workflow`: `plan`, `interview`, `deliberate`, `planaudit`, `goal`, `team`
 - `model`: `model`, `cli`, `fallback`, `forward`, `thought`, `flush`
 - `tools`: `skill`, `employee`, `mcp`, `memory`, `browser`, `prompt`, `ide`, `orchestrate`, `project`
 - `cli`: `version`, `quit`, `file`
@@ -129,6 +129,7 @@ interview, deliberate, planaudit, goal
 - `/deliberate <request-or-plan>`: Planner/Architect/Critic 관점으로 계획을 점검하는 prompt-only workflow.
 - `/planaudit [plan]`: PABCD A에서 직원에게 보낼 수 있는 읽기 전용 감사 task text를 만든다. Phase 1 canonical name은 원격 메뉴 안전성을 위해 `/planaudit`이며 `/plan-audit` alias는 없다.
 - `/goal [set|status|run|pause|resume|clear|reset] [args...]`: Phase 1에서는 visible gated stub이다. durable goal state는 Phase 3에서 붙고, 권한/checkpoint/stop control이 있는 bounded run은 `/goal run ...` 하위 동작으로 Phase 5에서 붙는다.
+- `/team [plan|audit|status|collect|stop] [args...]`: 여러 worker를 병렬로 쓰는 team orchestration helper다. workflow category라 root cmdline contract에서는 숨긴다.
 - `/autopilot`: 등록하지 않는다. 자동 실행은 별도 top-level command가 아니라 `/goal run ...` 하위 동작이다.
 - workflow commands는 CLI/Web/Telegram/Discord에 보이지만 root `cmdline` capability에서는 hidden이다. Telegram/Discord가 `c.name`을 직접 등록하므로 remote command name은 lowercase/digit/underscore-safe 이름만 사용한다.
 - 등록되지 않은 slash command는 원문 프롬프트를 `originalText`/`recovery.originalText`로 되돌려 주고, Web UI는 입력창에 다시 넣기/복사 액션을 표시한다. 이 복구 결과도 non-authoritative local-cache workflow artifact로 저장된다.
@@ -323,14 +324,14 @@ fallbackOrder, cli, perCli, showReasoning, memory, telegram, discord
 
 ### `cmdline` hidden 세트
 
-다음 14개는 명시 hidden set으로, workflow category 5개는 category rule로 루트 CLI 서브커맨드 관점에서 숨긴다.
+다음 14개는 명시 hidden set으로, workflow category 6개는 category rule로 루트 CLI 서브커맨드 관점에서 숨긴다.
 
 ```text
 help, clear, model, cli, fallback, status, reset,
 skill, employee, mcp, memory, browser, prompt, version
 ```
 
-그 결과 `cmdline` visible command는 11개다. `file`은 slash registry에서는 hidden이지만 `cmdline` capability hidden set에는 없어서 contract visible 쪽에 남고, `plan`/`interview`/`deliberate`/`planaudit`/`goal`은 workflow category라 hidden 처리된다.
+그 결과 `cmdline` visible command는 11개다. `file`은 slash registry에서는 hidden이지만 `cmdline` capability hidden set에는 없어서 contract visible 쪽에 남고, `plan`/`interview`/`deliberate`/`planaudit`/`goal`/`team`은 workflow category라 hidden 처리된다.
 
 ### `getTelegramMenuCommands()`
 

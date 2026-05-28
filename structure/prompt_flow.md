@@ -34,6 +34,7 @@ graph TD
     SPAWN --> CLAUDEI["Claude E<br/>claude-e"]
     SPAWN --> CODEX["Codex"]
     SPAWN --> CODEXAPP["Codex App<br/>app-server"]
+    SPAWN --> CURSOR["Cursor<br/>cursor-agent"]
     SPAWN --> GEMINI["Gemini"]
     SPAWN --> GROK["Grok"]
     SPAWN --> OPENCODE["OpenCode"]
@@ -241,6 +242,7 @@ delegation rules 블록은 prompt 끝에 항상 붙는다.
 | Claude E (`claude-e`) | helper 뒤의 Claude CLI에 args로 `--model`/`--effort`/permission 전달 | fresh run은 stdin에 `withHistoryPrompt(prompt, historyBlock)`, resume run은 `claude-e --resume <sessionId>` + 현재 prompt. legacy bucket/event namespace는 `claude-i` |
 | Codex | `{workDir}/AGENTS.md` 자동 로드 | 새 세션일 때만 stdin에 `[User Message]` 블록 |
 | Codex App | app-server thread config | JSON-RPC `turn/start`로 prompt 전달 |
+| Cursor | project-root `AGENTS.md` / `CLAUDE.md` 자동 로드 | fresh run은 args 레벨 prompt (`withHistoryPrompt`)를 `cursor-agent -p --trust --output-format stream-json`으로 전달하고, resume은 `--resume <chatId>` + 현재 prompt |
 | Gemini | `GEMINI_SYSTEM_MD` tmpfile | args 레벨 prompt (`withHistoryPrompt`) |
 | Grok | cwd instruction files auto-discovery (`grok inspect` 기준) | args 레벨 prompt (`withHistoryPrompt`) via `-p`, no effort/system-prompt flags for `grok-build` |
 | OpenCode | args 빌드 시 sysPrompt 포함 | args 레벨 prompt (`withHistoryPrompt`) |

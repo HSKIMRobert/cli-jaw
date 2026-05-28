@@ -22,6 +22,7 @@ export function dashboardSettingsUiFromView(
         notesViewMode: view.notesViewMode,
         notesAuthoringMode: view.notesAuthoringMode,
         notesWordWrap: view.notesWordWrap,
+        notesVimMode: view.notesVimMode,
         notesTreeWidth: view.notesTreeWidth,
         showLatestActivityTitles: view.showLatestActivityTitles,
         showInlineLabelEditor: view.showInlineLabelEditor,
