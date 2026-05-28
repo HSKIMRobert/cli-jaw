@@ -118,6 +118,7 @@ test('Model defaults imports canonical CLI metadata from agent-meta', () => {
     assert.equal(metaFor('agy').models.includes('gemini-3.5-flash'), true);
     assert.match(metaFor('agy').effortNote || '', /current AGY-selected model/);
     assert.equal(metaFor('cursor').models.includes('gpt-5.5'), true);
+    assert.equal(metaFor('cursor').models.includes('gpt-5.1-codex-mini'), true);
     assert.equal(metaFor('cursor').efforts.includes('medium-fast'), true);
     assert.equal(PRIMARY_CLIS.includes('agy'), true);
     assert.equal(PRIMARY_CLIS.includes('cursor'), true);

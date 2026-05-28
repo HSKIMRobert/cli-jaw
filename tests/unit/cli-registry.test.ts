@@ -66,9 +66,10 @@ test('Antigravity registry exposes AGY as a top-level runtime, not an ai-e provi
 test('Cursor registry exposes Cursor as a top-level runtime, not an ai-e provider', () => {
     assert.equal(CLI_REGISTRY.cursor.label, 'Cursor');
     assert.equal(CLI_REGISTRY.cursor.binary, 'cursor-agent');
-    assert.equal(CLI_REGISTRY.cursor.defaultModel, 'gpt-5.5');
+    assert.equal(CLI_REGISTRY.cursor.defaultModel, 'composer-2.5');
     assert.equal(CLI_REGISTRY.cursor.defaultEffort, 'medium-fast');
     assert.ok(CLI_REGISTRY.cursor.models.includes('auto'));
+    assert.ok(CLI_REGISTRY.cursor.models.includes('gpt-5.1-codex-mini'));
     assert.ok(CLI_REGISTRY.cursor.efforts.includes('high-fast'));
     assert.match(CLI_REGISTRY.cursor.effortNote || '', /model IDs/);
     assert.equal(CLI_REGISTRY['ai-e'].providers.includes('cursor'), false);

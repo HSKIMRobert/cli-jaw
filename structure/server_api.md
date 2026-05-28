@@ -241,9 +241,9 @@ ensureDirs()
 
 ### `/api/quota`
 
-- 응답 키: `agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `gemini`, `grok`, `opencode`, `copilot` (`CLI_KEYS` 순서).
+- 응답 키: `agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `cursor`, `gemini`, `grok`, `opencode`, `copilot` (`CLI_KEYS` 순서).
 - `claude-e`는 underlying Claude quota/auth를, `codex-app`은 underlying Codex quota/auth를, `ai-e`는 현재 선택 provider의 quota/auth를 delegated metadata와 함께 반환한다.
-- `agy`와 `opencode`는 현재 `{ authenticated:true, quotaCapable:false }` status-only 응답이다.
+- `agy`, `cursor`, `opencode`는 현재 `{ authenticated:true, quotaCapable:false }` status-only 응답이다. Cursor는 `CURSOR_API_KEY` 또는 `cursor-agent status` 인증 상태를 쓰고 `quotaSource:'not-exposed-by-cursor-cli'`를 반환한다.
 - `grok`는 `grok models` 기반 auth/status-only 응답이다. Grok CLI는 남은 할당량을 노출하지 않으므로 `quotaCapable:false`, `quotaSource:'not-exposed-by-grok-cli'`, `displayTier:'Grok Heavy'`를 반환하고, 있으면 최신 `~/.grok/sessions/**/signals.json`의 세션 context 사용량만 best-effort로 붙인다.
 - AGY는 현 runtime에서 quota/auth API가 분리되어 있지 않아 real quota window를 만들지 않는다. 상태 표시는 `/api/cli-status` 설치 상태와 `/api/quota`의 `not-exposed-by-agy-cli` metadata가 함께 담당한다.
 

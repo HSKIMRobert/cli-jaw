@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { resolveCursorModelVariant, isCursorFullModelId } from '../../src/agent/cursor-runtime.ts';
+import { CURSOR_MODEL_IDS, resolveCursorModelVariant, isCursorFullModelId } from '../../src/agent/cursor-runtime.ts';
 import { buildArgs, buildResumeArgs } from '../../src/agent/args.ts';
 import { shouldResumeBucketSession } from '../../src/agent/spawn/resume.ts';
 
@@ -10,13 +10,25 @@ test('Cursor effort resolves to model IDs instead of CLI flags', () => {
     assert.equal(resolveCursorModelVariant('composer-2.5', 'medium-fast'), 'composer-2.5-fast');
     assert.equal(resolveCursorModelVariant('gpt-5.5', 'medium-fast'), 'gpt-5.5-medium-fast');
     assert.equal(resolveCursorModelVariant('gpt-5.5', 'xhigh'), 'gpt-5.5-extra-high');
+    assert.equal(resolveCursorModelVariant('gpt-5.3-codex', 'medium-fast'), 'gpt-5.3-codex-fast');
     assert.equal(resolveCursorModelVariant('gpt-5.3-codex', 'xhigh-fast'), 'gpt-5.3-codex-xhigh-fast');
+    assert.equal(resolveCursorModelVariant('gpt-5.2', 'medium-fast'), 'gpt-5.2-fast');
+    assert.equal(resolveCursorModelVariant('gpt-5.4-mini', 'high-fast'), 'gpt-5.4-mini-high');
     assert.equal(resolveCursorModelVariant('claude-opus-4-7-thinking', 'high'), 'claude-opus-4-7-thinking-high');
 });
 
 test('Cursor full model IDs stay unchanged', () => {
     assert.equal(isCursorFullModelId('gpt-5.5-medium'), true);
     assert.equal(resolveCursorModelVariant('gpt-5.5-medium', 'high-fast'), 'gpt-5.5-medium');
+});
+
+test('Cursor model inventory mirrors observed cursor-agent list-models support', () => {
+    assert.equal(CURSOR_MODEL_IDS.length, 111);
+    assert.ok(CURSOR_MODEL_IDS.includes('composer-2.5-fast'));
+    assert.ok(CURSOR_MODEL_IDS.includes('gpt-5.5-extra-high-fast'));
+    assert.ok(CURSOR_MODEL_IDS.includes('claude-opus-4-7-thinking-max-fast'));
+    assert.ok(CURSOR_MODEL_IDS.includes('gemini-3.1-pro'));
+    assert.ok(CURSOR_MODEL_IDS.includes('grok-4.3'));
 });
 
 test('Cursor args use print mode, trust, stream-json, force only for auto permissions', () => {

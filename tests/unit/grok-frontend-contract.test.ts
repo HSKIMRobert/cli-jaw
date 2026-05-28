@@ -20,6 +20,21 @@ test('GROK-FE-001: provider icons include local Grok SVG assets and aliases', ()
     }
 });
 
+test('CURSOR-FE-001: provider icons use official local Cursor SVG assets', () => {
+    const icons = src('public/js/provider-icons.ts');
+    const colorSvg = src('public/assets/providers/cursor-color.svg');
+    const monoSvg = src('public/assets/providers/cursor.svg');
+    assert.match(icons, /cursor-color\.svg\?raw/);
+    assert.match(icons, /cursor\.svg\?raw/);
+    assert.match(icons, /normalized === 'cursor'/);
+    assert.match(icons, /label:\s*'Cursor'/);
+    for (const svg of [colorSvg, monoSvg]) {
+        assert.match(svg, /<svg[^>]+viewBox=/);
+        assert.match(svg, /https:\/\/cursor\.com\/en-US\/brand/);
+        assert.doesNotMatch(svg, /<script|<style|(?:href|src)=["']https?:\/\//);
+    }
+});
+
 test('CODEX-FE-001: provider icons keep codex original and color only codex-app', () => {
     const icons = src('public/js/provider-icons.ts');
     assert.match(icons, /'codex-app'/);
@@ -68,6 +83,7 @@ test('LEGACY-FE-001: legacy settings sidebar exposes every canonical CLI row', (
         ['claude-e', 'ClaudeE'],
         ['codex', 'Codex'],
         ['codex-app', 'CodexApp'],
+        ['cursor', 'Cursor'],
         ['gemini', 'Gemini'],
         ['grok', 'Grok'],
         ['opencode', 'Opencode'],
@@ -117,7 +133,7 @@ test('LEGACY-FE-002: fallback CLI surfaces include every canonical CLI', () => {
     const heartbeat = src('public/manager/src/settings/pages/components/heartbeat-helpers.ts');
     const status = src('public/js/features/settings-cli-status.ts');
     const freshInstallSmoke = src('scripts/fresh-install-smoke.ts');
-    for (const cli of ['ai-e', 'claude', 'claude-e', 'codex', 'codex-app', 'copilot', 'gemini', 'grok', 'opencode']) {
+    for (const cli of ['ai-e', 'claude', 'claude-e', 'codex', 'codex-app', 'copilot', 'cursor', 'gemini', 'grok', 'opencode']) {
         assert.match(employees, new RegExp(`'${cli}'`), `manager employee fallback must include ${cli}`);
         assert.match(heartbeat, new RegExp(`'${cli}'`), `manager heartbeat fallback must include ${cli}`);
         assert.match(status, new RegExp(`'${cli}'|${cli}:`), `legacy CLI status hints must include ${cli}`);

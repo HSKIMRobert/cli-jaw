@@ -1,6 +1,7 @@
 // ─── CLI Registry (single source of truth) ──────────
 
 import { getDefaultClaudeChoices, getDefaultClaudeModel } from './claude-models.js';
+import { CURSOR_EFFORT_CHOICES, CURSOR_REGISTRY_MODELS } from '../agent/cursor-runtime.js';
 import type { CliEngine } from '../types/cli-engine.js';
 
 export const CLI_REGISTRY = {
@@ -83,30 +84,11 @@ export const CLI_REGISTRY = {
         label: 'Cursor',
         binary: 'cursor-agent',
         experimental: true,
-        defaultModel: 'gpt-5.5',
+        defaultModel: 'composer-2.5',
         defaultEffort: 'medium-fast',
-        efforts: ['none', 'none-fast', 'low', 'low-fast', 'medium', 'medium-fast', 'high', 'high-fast', 'xhigh', 'xhigh-fast', 'max', 'max-fast'],
+        efforts: [...CURSOR_EFFORT_CHOICES],
         effortNote: 'Cursor effort resolves to model IDs; cli-jaw never passes --effort',
-        models: [
-            'auto',
-            'composer-2.5',
-            'composer-2',
-            'gpt-5.5',
-            'gpt-5.4',
-            'gpt-5.4-mini',
-            'gpt-5.4-nano',
-            'gpt-5.3-codex',
-            'gpt-5.2',
-            'gpt-5.2-codex',
-            'gpt-5.1-codex-max',
-            'claude-opus-4-7',
-            'claude-opus-4-7-thinking',
-            'claude-4.6-opus',
-            'claude-4.6-opus-thinking',
-            'claude-4.6-sonnet',
-            'gemini-3.1-pro',
-            'grok-4.3',
-        ],
+        models: [...CURSOR_REGISTRY_MODELS],
     },
     gemini: {
         label: 'Gemini',

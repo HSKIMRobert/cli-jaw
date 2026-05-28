@@ -17,6 +17,8 @@ test('frontend cursor meta exposes model-ID effort choices', () => {
     const meta = getCliMeta('cursor');
     assert.ok(meta, 'cursor metadata missing');
     assert.ok(meta.models.includes('gpt-5.5'));
+    assert.ok(meta.models.includes('gpt-5.1-codex-mini'));
     assert.ok(meta.efforts.includes('medium-fast'));
     assert.match(meta.effortNote || '', /model IDs/);
+    assert.equal(meta.modelNote, undefined);
 });

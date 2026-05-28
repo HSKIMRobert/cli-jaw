@@ -10,7 +10,7 @@ aliases: [CLI-JAW Commands, slash commands registry, commands.md]
 
 > `commands.ts`(400L) + `handlers.ts`(397L) + `handlers-runtime.ts`(499L) + `handlers-completions.ts`(97L) + `handlers-workflows.ts`(95L) + `api-auth.ts`(45L) + `command-context.ts`(140L) + `registry.ts`(160L) + `acp-client.ts`(382L) + `claude-models.ts`(78L) + `compact.ts`(139L) + `src/workflows/{artifacts,plan}.ts`(260L)
 > slash registry는 30개 커맨드, 4개 실행 인터페이스. root CLI는 `bin/cli-jaw.ts` + `bin/commands/*.ts` 기준 19개 user-facing command이며, helper까지 포함한 `bin/commands/*.ts` top-level 파일은 22개다. `browser web-ai`는 `browser-web-ai.ts`, `dashboard memory`는 `dashboard-memory.ts`, dispatch unwrap 보조는 `dispatch-helpers.ts`로 분리되어 있다. visible 기준 CLI 28 / Web 26 / Telegram 26 / Discord 26. `cmdline` capability는 contract 전용이며 11개가 보인다.
-> 모델/CLI 선택은 `registry.ts` 단일 소스를 따른다. 현재 registry 런타임은 `agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `gemini`, `grok`, `opencode`, `copilot` 10개이며, `claude-e`는 experimental native interactive wrapper(`jaw-claude-i`)를 통해 Claude CLI를 PTY로 구동하고 legacy session/event bucket은 `claude-i`를 유지한다. Web/CLI/Telegram/Discord는 모두 `makeCommandCtx()`로 통합된 command context를 사용한다.
+> 모델/CLI 선택은 `registry.ts` 단일 소스를 따른다. 현재 registry 런타임은 `agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `cursor`, `gemini`, `grok`, `opencode`, `copilot` 11개이며, `claude-e`는 experimental native interactive wrapper(`jaw-claude-i`)를 통해 Claude CLI를 PTY로 구동하고 legacy session/event bucket은 `claude-i`를 유지한다. Web/CLI/Telegram/Discord는 모두 `makeCommandCtx()`로 통합된 command context를 사용한다.
 > 최근 구조 변화 핵심은 네 가지다: `handlers.ts` 분해(`handlers-runtime.ts`, `handlers-completions.ts`), workflow command handler 분리(`handlers-workflows.ts`), CLI→server 인증 bootstrap 공통화(`api-auth.ts`), 그리고 Claude Interactive native helper build/test/doctor surface 추가다.
 
 ---
@@ -343,7 +343,7 @@ skill, employee, mcp, memory, browser, prompt, version
 
 `src/cli/registry.ts`
 
-현재 CLI registry는 10개 top-level runtime을 갖는다. `agy`는 `ai-e` provider가 아니라 별도 runtime이며, `ai-e`/`claude-e`/`codex-app` 같은 wrapper runtime은 provider quota/status를 위임한다.
+현재 CLI registry는 11개 top-level runtime을 갖는다. `agy`와 `cursor`는 `ai-e` provider가 아니라 별도 runtime이며, `ai-e`/`claude-e`/`codex-app` 같은 wrapper runtime은 provider quota/status를 위임한다.
 
 | CLI | Default Model | Default Effort |
 | --- | --- | --- |
@@ -353,6 +353,7 @@ skill, employee, mcp, memory, browser, prompt, version
 | `claude-e` | `sonnet` | `medium` |
 | `codex` | `gpt-5.4` | `medium` |
 | `codex-app` | `gpt-5.4` | `medium` |
+| `cursor` | `composer-2.5` | `medium-fast` |
 | `gemini` | `gemini-3-flash-preview` | `''` |
 | `grok` | `grok-build` | `''` |
 | `opencode` | `opencode-go/kimi-k2.6` | `''` |
