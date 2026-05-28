@@ -185,21 +185,27 @@ test('Electron preload bridge avoids unsupported sandbox Node builtins', () => {
     assert.ok(diffRoots.includes('projectDirs'), 'diff panel root resolution must prefer selected instance projectDirs before home fallback');
 });
 
-test('manager desktop panel toggles live in the command bar to keep the sidebar rail single-line', () => {
+test('manager desktop panel toggles are Electron-only and do not open sidebars on web', () => {
     const rail = read('public/manager/src/components/SidebarRail.tsx');
+    const router = read('public/manager/src/SidebarRailRouter.tsx');
     const commandBar = read('public/manager/src/components/CommandBar.tsx');
     const controls = read('public/manager/src/components/DesktopPanelControls.tsx');
+    const capabilities = read('public/manager/src/panels/panel-capabilities.ts');
     const layout = read('public/manager/src/manager-layout.css');
     const compact = read('public/manager/src/manager-p0-1-1.css');
 
     assert.ok(commandBar.includes('<DesktopPanelControls />'), 'CommandBar must host desktop panel toggles near the other titlebar actions');
-    assert.ok(controls.includes('resolvePanelCapabilities(currentManagerSurface())'), 'DesktopPanelControls must use capability-based surface detection');
-    assert.ok(!controls.includes('if (!isElectron()) return null'), 'web UI must keep panel controls visible for web-capable surfaces');
-    assert.ok(controls.includes('disabled={!terminalEnabled}'), 'terminal toggle must be disabled on web instead of disappearing');
+    assert.ok(controls.includes('const surface = currentManagerSurface();'), 'DesktopPanelControls must use capability-based surface detection');
+    assert.ok(controls.includes("if (surface !== 'electron') return null"), 'web UI must not render desktop side/bottom panel controls');
     assert.ok(controls.includes('aria-label="Toggle terminal panel"'), 'DesktopPanelControls must expose the bottom terminal panel toggle');
     assert.ok(controls.includes("panelActions.openBottomTab('terminal')"), 'bottom panel toggle must open the terminal tab when closed');
     assert.ok(controls.includes('aria-label="Toggle right panel"'), 'DesktopPanelControls must expose the right panel toggle');
     assert.ok(controls.includes("panelActions.openRightPanel('folder')"), 'right panel toggle must open the folder panel when closed');
+    assert.ok(router.includes("const desktopPanelsAvailable = currentManagerSurface() === 'electron';"), 'SidebarRailRouter must suppress persisted desktop panel state on web');
+    assert.ok(router.includes('rightPanelOpen={rightPanelOpen}'), 'WorkspaceLayout must receive the surface-gated right panel state');
+    assert.ok(router.includes('bottomPanelOpen={bottomPanelOpen}'), 'WorkspaceLayout must receive the surface-gated bottom panel state');
+    assert.ok(capabilities.includes("folder: capability('folder', 'disabled'"), 'web folder side panel capability must be disabled');
+    assert.ok(capabilities.includes("doc: capability('doc', 'disabled'"), 'web document side panel capability must be disabled');
     assert.equal(rail.includes('aria-label="Toggle terminal panel"'), false, 'SidebarRail must not render desktop panel toggles that force a second icon row');
     assert.equal(rail.includes('aria-label="Toggle right panel"'), false, 'SidebarRail must keep right-panel controls out of the left rail');
     assert.ok(layout.includes('display: flex'), 'manager sidebar must allow rail height to grow without clipping its list');

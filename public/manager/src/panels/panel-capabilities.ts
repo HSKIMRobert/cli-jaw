@@ -32,10 +32,10 @@ export function resolvePanelCapabilities(surface: ManagerSurface): PanelCapabili
     }
     return {
         terminal: capability('terminal', 'disabled', 'Terminal requires the desktop PTY bridge.'),
-        browser: capability('browser', 'limited', 'Web dashboard opens external URLs outside the app shell.'),
-        folder: capability('folder', 'limited', 'Web dashboard can browse the Jawsidian notes vault only.'),
-        doc: capability('doc', 'limited', 'Web dashboard can preview notes-vault files only.'),
-        diff: capability('diff', 'limited', 'Web dashboard can use the manager git API for selected instance roots.'),
+        browser: capability('browser', 'disabled', 'Browser side panel is available in the desktop app.'),
+        folder: capability('folder', 'disabled', 'Folder side panel is available in the desktop app; use the Jawsidian Notes tab on web.'),
+        doc: capability('doc', 'disabled', 'Document side panel is available in the desktop app; use the Jawsidian document tab on web.'),
+        diff: capability('diff', 'disabled', 'Diff side panel is available in the desktop app.'),
     };
 }
 
