@@ -127,7 +127,9 @@
 }
 
 :root[data-cli-jaw-desktop="true"] .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .sidebar-rail {
-    min-height: 76px;
+    min-height: 54px;
+    flex-wrap: nowrap;
+    column-gap: 4px;
 }
 
 .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .rail-button {
@@ -142,9 +144,29 @@
     height: 0;
 }
 
+:root[data-cli-jaw-desktop="true"] .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .rail-button {
+    width: 26px;
+    min-width: 26px;
+    min-height: 28px;
+}
+
+:root[data-cli-jaw-desktop="true"] .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .rail-collapse-button {
+    margin-right: 2px;
+}
+
+:root[data-cli-jaw-desktop="true"] .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .rail-spacer {
+    flex: 1 1 auto;
+    min-width: 4px;
+    height: 0;
+}
+
 .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .rail-status-dot {
     flex: 0 0 auto;
     margin-inline: 4px;
+}
+
+:root[data-cli-jaw-desktop="true"] .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .rail-status-dot {
+    margin-inline: 2px;
 }
 
 .rail-panel-toggle {
