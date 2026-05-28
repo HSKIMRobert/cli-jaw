@@ -144,9 +144,23 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
         const origin = peek.source || 'web';
         const steerWaitMs = getSteerWaitMsForActiveAgent();
         setQueueHold(id, Math.max(10_000, steerWaitMs + 5_000));
+        setSteerInProgress(true);
+        try {
+            if (isAgentBusy()) {
+                killActiveAgent('steer');
+                await waitForProcessEnd(steerWaitMs);
+            }
+        } catch (err) {
+            setSteerInProgress(false);
+            clearQueueHold(id);
+            return fail(res, 500, `steer stop failed: ${(err as Error).message}`);
+        }
         const result = removeQueuedMessage(id);
         clearQueueHold(id, { resume: false });
-        if (!result.removed) return fail(res, 404, 'queued item disappeared during steer');
+        if (!result.removed) {
+            setSteerInProgress(false);
+            return fail(res, 404, 'queued item disappeared during steer');
+        }
         try {
             insertMessage.run('user', prompt, origin, '', settings["workingDir"] || null);
         } catch (err) {
@@ -155,14 +169,9 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
         broadcast('new_message', { role: 'user', content: prompt, source: origin, fromQueue: true });
         broadcast('steer_started', { prompt, origin });
         res.json({ ok: true, pending: result.pending });
-        // Kill + orchestrate async — response already sent
-        setSteerInProgress(true);
+        // Orchestrate async — response already sent after queue removal is committed.
         (async () => {
             try {
-                if (isAgentBusy()) {
-                    killActiveAgent('steer');
-                    await waitForProcessEnd(steerWaitMs);
-                }
                 const task = isResetIntent(prompt)
                     ? orchestrateReset({ origin, _skipInsert: true })
                     : isContinueIntent(prompt)

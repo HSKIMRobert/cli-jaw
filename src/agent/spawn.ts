@@ -209,7 +209,7 @@ export function isAgentBusy(): boolean {
 const killReasons = new Map<number, string>();
 const DEFAULT_STEER_WAIT_MS = 3_000;
 const DEFAULT_KILL_ESCALATION_MS = 2_000;
-const CLAUDE_E_STEER_WAIT_MS = 12_000;
+const CLAUDE_E_STEER_WAIT_MS = 30_000;
 const CLAUDE_E_STEER_KILL_ESCALATION_MS = 8_000;
 
 function getActiveMainCli(): string | null {
@@ -350,12 +350,12 @@ export function waitForProcessEnd(timeoutMs = 3000) {
 }
 
 export async function steerAgent(newPrompt: string, source: string) {
-    insertMessage.run('user', newPrompt, source, '', settings["workingDir"] || null);
-    broadcast('new_message', { role: 'user', content: newPrompt, source });
-    broadcast('steer_started', { prompt: newPrompt, origin: source || 'web' });
     const steerWaitMs = getSteerWaitMsForActiveAgent();
     const wasRunning = killActiveAgent('steer');
     if (wasRunning) await waitForProcessEnd(steerWaitMs);
+    insertMessage.run('user', newPrompt, source, '', settings["workingDir"] || null);
+    broadcast('new_message', { role: 'user', content: newPrompt, source });
+    broadcast('steer_started', { prompt: newPrompt, origin: source || 'web' });
     const { orchestrate, orchestrateContinue, orchestrateReset, isContinueIntent, isResetIntent } = await import('../orchestrator/pipeline.js');
     const origin = source || 'web';
     const task = isResetIntent(newPrompt)

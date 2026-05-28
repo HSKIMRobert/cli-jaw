@@ -19,7 +19,6 @@ const GROK_THINKING_STEP_REF = 'grok:thinking';
 const GROK_THINKING_UPDATE_MIN_MS = 750;
 const GROK_THINKING_UPDATE_MIN_CHARS = 240;
 const GROK_THOUGHT_BUFFER_MAX = 102_400;
-const GROK_SESSION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function findGrokThinkingTool(ctx: SpawnContext): ToolEntry | undefined {
     const currentRef = ctx.grokCurrentThoughtRef;
@@ -316,7 +315,7 @@ export function handleGrokEvent(
         return;
     }
     if (evt.type === 'end') {
-        if (typeof evt.sessionId === 'string' && GROK_SESSION_ID_RE.test(evt.sessionId)) {
+        if (typeof evt.sessionId === 'string' && evt.sessionId.trim()) {
             ctx.sessionId = evt.sessionId;
         }
         if (!ctx.metadata) ctx.metadata = {};
