@@ -425,18 +425,16 @@ export function BrowserPanel() {
                 </div>
             )}
             <div className="browser-webview-stack">
-                {tabs.map(tab => (
-                    <div key={tab.id} className={`browser-webview-host${tab.id === activeTab.id ? ' is-active' : ''}`} aria-hidden={tab.id !== activeTab.id}>
-                        {createElement('webview', {
-                            ref: (node: Element | null) => setWebviewRef(tab.id, node),
-                            className: 'browser-webview',
-                            src: tab.url,
-                            partition: 'persist:cli-jaw-browser',
-                            allowpopups: 'true',
-                            webpreferences: 'contextIsolation=yes,sandbox=yes,nodeIntegration=no',
-                        })}
-                    </div>
-                ))}
+                <div key={activeTab.id} className="browser-webview-host is-active">
+                    {createElement('webview', {
+                        ref: (node: Element | null) => setWebviewRef(activeTab.id, node),
+                        className: 'browser-webview',
+                        src: activeTab.url,
+                        partition: 'persist:cli-jaw-browser',
+                        allowpopups: 'true',
+                        webpreferences: 'contextIsolation=yes,sandbox=yes,nodeIntegration=no',
+                    })}
+                </div>
             </div>
         </div>
     );
