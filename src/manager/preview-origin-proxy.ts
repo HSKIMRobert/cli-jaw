@@ -12,6 +12,12 @@ import {
     buildProxyUpgradeRequest,
 } from './proxy.js';
 import {
+    injectPreviewLinkPolicy,
+    preferIdentityEncoding,
+    prepareInjectedPreviewHeaders,
+    shouldInjectPreviewLinkPolicy,
+} from './preview-link-policy.js';
+import {
     assertRangeDoesNotContainPort,
     assertRangesDoNotOverlap,
     assertValidPortRange,
@@ -178,7 +184,7 @@ export function createPreviewOriginProxyController(
             port: state.targetPort,
             method: req.method,
             path: req.url || '/',
-            headers: rewriteUpstreamRequestHeaders(req.headers, state.targetPort),
+            headers: preferIdentityEncoding(rewriteUpstreamRequestHeaders(req.headers, state.targetPort)),
         }, (upstreamRes) => {
             const headers = sanitizeProxyResponseHeaders(upstreamRes.headers, {
                 targetOrigin: targetOriginForPort(state.targetPort),
@@ -187,6 +193,22 @@ export function createPreviewOriginProxyController(
             headers['x-jaw-preview-proxy'] = 'origin-port';
             headers['x-jaw-preview-port'] = String(state.previewPort);
             headers['x-jaw-target-port'] = String(state.targetPort);
+            if (shouldInjectPreviewLinkPolicy(req.method, upstreamRes.statusCode, upstreamRes.headers)) {
+                const chunks: string[] = [];
+                upstreamRes.setEncoding('utf8');
+                upstreamRes.on('data', chunk => chunks.push(String(chunk)));
+                upstreamRes.on('end', () => {
+                    clearDeadline();
+                    res.writeHead(
+                        upstreamRes.statusCode || 502,
+                        upstreamRes.statusMessage,
+                        prepareInjectedPreviewHeaders(headers),
+                    );
+                    res.end(injectPreviewLinkPolicy(chunks.join('')));
+                });
+                upstreamRes.on('close', clearDeadline);
+                return;
+            }
             res.writeHead(upstreamRes.statusCode || 502, upstreamRes.statusMessage, headers);
             upstreamRes.on('end', clearDeadline);
             upstreamRes.on('close', clearDeadline);

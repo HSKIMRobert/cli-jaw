@@ -8,6 +8,12 @@ import {
     MANAGED_INSTANCE_PORT_COUNT,
     MANAGED_INSTANCE_PORT_FROM,
 } from './constants.js';
+import {
+    injectPreviewLinkPolicy,
+    preferIdentityEncoding,
+    prepareInjectedPreviewHeaders,
+    shouldInjectPreviewLinkPolicy,
+} from './preview-link-policy.js';
 
 export type DashboardProxyOptions = {
     from?: number;
@@ -160,16 +166,27 @@ function proxyHttpRequest(req: Request, res: Response, range: ProxyPortRange): v
         port: parsed.port,
         method: req.method,
         path: parsed.targetPath,
-        headers: rewriteUpstreamRequestHeaders(req.headers, parsed.port),
+        headers: preferIdentityEncoding(rewriteUpstreamRequestHeaders(req.headers, parsed.port)),
     }, (upstreamRes) => {
-        res.writeHead(
-            upstreamRes.statusCode || 502,
-            upstreamRes.statusMessage,
-            sanitizeProxyResponseHeaders(upstreamRes.headers, {
-                targetOrigin: targetOriginForPort(parsed.port),
-                publicBase: `/i/${parsed.port}`,
-            })
-        );
+        const headers = sanitizeProxyResponseHeaders(upstreamRes.headers, {
+            targetOrigin: targetOriginForPort(parsed.port),
+            publicBase: `/i/${parsed.port}`,
+        });
+        if (shouldInjectPreviewLinkPolicy(req.method, upstreamRes.statusCode, upstreamRes.headers)) {
+            const chunks: string[] = [];
+            upstreamRes.setEncoding('utf8');
+            upstreamRes.on('data', chunk => chunks.push(String(chunk)));
+            upstreamRes.on('end', () => {
+                res.writeHead(
+                    upstreamRes.statusCode || 502,
+                    upstreamRes.statusMessage,
+                    prepareInjectedPreviewHeaders(headers),
+                );
+                res.end(injectPreviewLinkPolicy(chunks.join('')));
+            });
+            return;
+        }
+        res.writeHead(upstreamRes.statusCode || 502, upstreamRes.statusMessage, headers);
         upstreamRes.pipe(res);
     });
 

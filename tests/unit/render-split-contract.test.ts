@@ -32,9 +32,17 @@ test('render modules keep markdown, mermaid, sanitizer, SVG, and post-render res
     assert.match(read('public/js/render/highlight.ts'), /export function rehighlightAll/);
 });
 
+test('render local-file delegation also marks external web links for new tabs', () => {
+    const fileLinks = read('public/js/render/file-links.ts');
+
+    assert.ok(fileLinks.includes('function isExternalHttpHref'), 'render delegation must recognize external http(s) links');
+    assert.ok(fileLinks.includes("anchor.target = '_blank'"), 'external links must open in a browser tab instead of replacing the web UI');
+    assert.ok(fileLinks.includes("rel.add('noopener')"), 'external links must keep opener isolation');
+    assert.ok(fileLinks.includes("rel.add('noreferrer')"), 'external links must avoid leaking referrer from app UI links');
+});
+
 test('post-render scheduler depends on highlight module, not markdown, to avoid a cycle', () => {
     const postRender = read('public/js/render/post-render.ts');
     assert.ok(postRender.includes("import { rehighlightAll } from './highlight.js';"));
     assert.ok(!postRender.includes("from './markdown.js'"));
 });
-
