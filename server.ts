@@ -553,16 +553,36 @@ app.get('/api/commands', (req, res) => {
     );
 });
 
-app.post('/api/message', requireAuth, (req, res) => {
-    const { prompt } = req.body;
-    if (!prompt?.trim()) {
+app.post('/api/message', requireAuth, async (req, res) => {
+    const prompt = req.body?.prompt;
+    if (typeof prompt !== 'string' || !prompt.trim()) {
         res.status(400).json({ error: 'prompt required' });
         return;
     }
 
-    const result = submitMessage(prompt.trim(), { origin: 'web' });
+    const trimmed = prompt.trim();
+
+    // Slash command pre-processing: Telegram/Discord already do this,
+    // but /api/message callers (REST, goal-continuation) bypass /api/command.
+    if (trimmed.startsWith('/')) {
+        const parsed = parseCommand(trimmed);
+        if (parsed && (parsed.type === 'known' || parsed.type === 'unknown')) {
+            try {
+                const locale = resolveRequestLocale(req);
+                const cmdResult = await executeCommand(parsed, makeWebCommandCtx(req, locale));
+                if (cmdResult?.steerPrompt) {
+                    submitMessage(cmdResult.steerPrompt, { origin: 'web' });
+                }
+                res.json({ ok: true, command: true, ...cmdResult });
+                return;
+            } catch (err: unknown) {
+                console.error('[api/message:cmd]', (err as Error).message);
+            }
+        }
+    }
+
+    const result = submitMessage(trimmed, { origin: 'web' });
     if (result.action === 'rejected') {
-        // 'busy' / 'duplicate' both return 409 so the client absorbs them silently.
         const status = (result.reason === 'busy' || result.reason === 'duplicate') ? 409 : 400;
         res.status(status).json({ ok: false, error: result.reason, ...result });
         return;
