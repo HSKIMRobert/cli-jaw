@@ -20,8 +20,8 @@
     padding: 0 4px;
     min-height: 30px;
     align-items: center;
-    background: #f8fafc;
-    border-bottom: 1px solid #d8dee9;
+    background: var(--surface-raised);
+    border-bottom: 1px solid var(--border-subtle);
     flex-shrink: 0;
 }
 .terminal-tab-item {
@@ -38,10 +38,10 @@
     cursor: pointer;
     padding: 2px 8px;
     font-size: 11px;
-    color: #64748b;
+    color: var(--text-secondary);
 }
-.terminal-tab:hover { color: #0f172a; }
-.terminal-tab-item.is-active .terminal-tab { color: #0f172a; }
+.terminal-tab:hover { color: var(--text-primary); }
+.terminal-tab-item.is-active .terminal-tab { color: var(--text-primary); }
 .terminal-new-tab { font-size: 14px; font-weight: 600; }
 .terminal-tab-close {
     all: unset;
@@ -53,14 +53,14 @@
     width: 22px;
     height: 22px;
     border-radius: 4px;
-    color: #64748b;
+    color: var(--text-secondary);
     font-size: 14px;
     line-height: 1;
 }
 .terminal-tab-close:hover,
 .terminal-tab-close:focus-visible {
-    color: #0f172a;
-    background: #e2e8f0;
+    color: var(--text-primary);
+    background: var(--row-bg-hover);
 }
 .terminal-output {
     flex: 1;
@@ -120,7 +120,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: #64748b;
+    color: var(--text-secondary);
     font-size: 11px;
 }
 .terminal-collapse-button {
@@ -133,15 +133,15 @@
     width: 24px;
     height: 24px;
     border-radius: 4px;
-    color: #64748b;
+    color: var(--text-secondary);
     font-size: 11px;
     line-height: 1;
     flex: 0 0 auto;
 }
 .terminal-collapse-button:hover,
 .terminal-collapse-button:focus-visible {
-    color: #0f172a;
-    background: #e2e8f0;
+    color: var(--text-primary);
+    background: var(--row-bg-hover);
 }
 .terminal-empty {
     position: absolute;
@@ -149,7 +149,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #94a3b8;
+    color: var(--text-dim);
     font-size: 12px;
 }
 .terminal-empty button {

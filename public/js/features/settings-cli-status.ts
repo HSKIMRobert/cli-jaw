@@ -268,7 +268,7 @@ function renderQuotaSetupBox(cliName: string, q: QuotaEntry): string {
             <div style="margin-top:3px"><code style="font-size:10px;background:var(--border);padding:1px 4px;border-radius:2px;word-break:break-all">${escapeHtml(cmd)}</code></div>
         `).join('');
         return `
-            <div style="font-size:10px;color:var(--text-dim);margin:4px 0 0 16px;padding:5px 7px;background:var(--bg-dim, #1e1e2e);border:1px solid var(--border);border-radius:5px">
+            <div style="font-size:10px;color:var(--text-dim);margin:4px 0 0 16px;padding:5px 7px;background:var(--surface);border:1px solid var(--border);border-radius:5px">
                 <div style="color:var(--text);font-weight:600">${escapeHtml(hint.title)}${helpMark}</div>
                 ${commandLines}
                 ${hint.note ? `<div style="margin-top:4px;opacity:0.75">${escapeHtml(hint.note)}</div>` : ''}
@@ -277,7 +277,7 @@ function renderQuotaSetupBox(cliName: string, q: QuotaEntry): string {
     }
 
     return `
-        <div style="font-size:10px;color:var(--text-dim);margin:4px 0 0 16px;padding:5px 7px;background:var(--bg-dim, #1e1e2e);border:1px solid var(--border);border-radius:5px">
+        <div style="font-size:10px;color:var(--text-dim);margin:4px 0 0 16px;padding:5px 7px;background:var(--surface);border:1px solid var(--border);border-radius:5px">
             <div style="color:var(--text);font-weight:600">${escapeHtml(q.displayTier || providerLabel(cliName))}${helpMark}</div>
             <div style="margin-top:2px">${escapeHtml(describeStatusOnlyQuota(cliName, q))}</div>
         </div>
@@ -426,9 +426,9 @@ function renderCliStatus(data: { cliStatus: Record<string, { available: boolean 
             if (hint) {
                 const isNotInstalled = !info.available;
                 const title = isNotInstalled ? t('cli.authRequired') : t('cli.notAuthenticated');
-                const borderColor = isNotInstalled ? '#ef4444' : '#fbbf24';
+                const borderColor = isNotInstalled ? 'var(--error)' : 'var(--warning)';
                 authHint = `
-                    <div style="font-size:10px;margin:4px 0 2px 16px;padding:6px 8px;background:var(--bg-dim, #1e1e2e);border-radius:4px;border-left:2px solid ${borderColor}">
+                    <div style="font-size:10px;margin:4px 0 2px 16px;padding:6px 8px;background:var(--surface);border-radius:4px;border-left:2px solid ${borderColor}">
                         <div style="color:${borderColor};margin-bottom:3px">${title}</div>
                         ${isNotInstalled ? `<div style="color:var(--text-dim)"><code style="font-size:10px;background:var(--border);padding:1px 4px;border-radius:2px">${escapeHtml(hint.install)}</code></div>` : ''}
                         <div style="color:var(--text-dim)${isNotInstalled ? ';margin-top:2px' : ''}"><code style="font-size:10px;background:var(--border);padding:1px 4px;border-radius:2px">${escapeHtml(hint.auth)}</code></div>
@@ -443,7 +443,7 @@ function renderCliStatus(data: { cliStatus: Record<string, { available: boolean 
             // no quota display for this CLI
         } else if (customQuotaMsg && info.available) {
             windowsHtml = `
-                <div style="font-size:10px;color:var(--text-dim);margin:4px 0 0 16px;padding:5px 7px;background:var(--bg-dim, #1e1e2e);border:1px solid var(--border);border-radius:5px">
+                <div style="font-size:10px;color:var(--text-dim);margin:4px 0 0 16px;padding:5px 7px;background:var(--surface);border:1px solid var(--border);border-radius:5px">
                     ${escapeHtml(customQuotaMsg)}
                 </div>
             `;
@@ -452,7 +452,7 @@ function renderCliStatus(data: { cliStatus: Record<string, { available: boolean 
         } else if (q?.windows?.length) {
             windowsHtml = q.windows.map(w => {
                 const pct = Math.round(w.percent);
-                const barColor = pct > 80 ? '#ef4444' : pct > 50 ? '#fbbf24' : '#38bdf8';
+                const barColor = pct > 80 ? 'var(--error)' : pct > 50 ? 'var(--warning)' : 'var(--info)';
                 const shortLabel = normalizeQuotaWindowLabel(name, w.label);
                 let resetStr = '';
                 if (w.resetsAt) {
@@ -508,7 +508,7 @@ function renderCliStatus(data: { cliStatus: Record<string, { available: boolean 
     });
     if (!hasReadyCli && allEntries.length > 0 && el) {
         el.insertAdjacentHTML('afterbegin',
-            `<div style="padding:8px 10px;margin-bottom:8px;background:#fbbf2422;border:1px solid #fbbf24;border-radius:6px;font-size:11px;color:#fbbf24">
+            `<div style="padding:8px 10px;margin-bottom:8px;background:var(--warning-dim);border:1px solid var(--warning);border-radius:6px;font-size:11px;color:var(--warning)">
                 ${ICONS.warning} ${t('cli.noReadyCli')}
             </div>`
         );

@@ -7,12 +7,20 @@ import githubLight from 'highlight.js/styles/github.css?inline';
 import { broadcastThemeToIframes } from '../diagram/iframe-renderer.js';
 import { rerenderMermaidDiagrams } from '../render.js';
 
-const STORAGE_KEY = 'theme';
+const STORAGE_KEY = 'jaw.uiTheme';
 let hljsStyleEl: HTMLStyleElement | null = null;
-type ThemeValue = 'dark' | 'light';
+type ThemeValue = 'dark' | 'light' | 'auto';
 
 function isThemeValue(value: unknown): value is ThemeValue {
-    return value === 'dark' || value === 'light';
+    return value === 'dark' || value === 'light' || value === 'auto';
+}
+
+function resolveTheme(theme: string): 'dark' | 'light' {
+    if (theme === 'light') return 'light';
+    if (theme === 'auto' && typeof window !== 'undefined' && window.matchMedia) {
+        return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    }
+    return 'dark';
 }
 
 function applyHljsTheme(theme: string): void {
@@ -26,6 +34,11 @@ function applyHljsTheme(theme: string): void {
 }
 
 export function initTheme(): void {
+    if (!localStorage.getItem(STORAGE_KEY) && localStorage.getItem('theme')) {
+        localStorage.setItem(STORAGE_KEY, localStorage.getItem('theme')!);
+        localStorage.removeItem('theme');
+    }
+
     const previewTheme = readPreviewThemeParam();
     const saved = localStorage.getItem(STORAGE_KEY);
     const prefer = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
@@ -34,6 +47,20 @@ export function initTheme(): void {
 
     document.getElementById('toggleTheme')?.addEventListener('click', toggleTheme);
     window.addEventListener('message', handlePreviewThemeMessage);
+
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    mq.addEventListener('change', () => {
+        const current = localStorage.getItem(STORAGE_KEY);
+        if (!current || current === 'auto') {
+            applyTheme(current || 'auto');
+        }
+    });
+
+    window.addEventListener('storage', (e) => {
+        if (e.key === STORAGE_KEY && e.newValue) {
+            applyTheme(e.newValue);
+        }
+    });
 }
 
 function toggleTheme(): void {
@@ -44,14 +71,15 @@ function toggleTheme(): void {
 }
 
 function applyTheme(theme: string): void {
-    document.documentElement.setAttribute('data-theme', theme);
+    const resolved = resolveTheme(theme);
+    document.documentElement.setAttribute('data-theme', resolved);
 
     const btn = document.getElementById('toggleTheme');
     if (btn) {
-        btn.classList.toggle('is-light', theme === 'light');
+        btn.classList.toggle('is-light', resolved === 'light');
     }
 
-    applyHljsTheme(theme);
+    applyHljsTheme(resolved);
     broadcastThemeToIframes();
     rerenderMermaidDiagrams();
 }

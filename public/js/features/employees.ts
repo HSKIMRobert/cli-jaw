@@ -41,7 +41,7 @@ const LEGACY_MAP: Record<string, string> = {
 };
 
 const PHASE_COLORS: Record<string, string> = {
-    '1': '#60a5fa', '2': '#a78bfa', '3': '#34d399', '4': '#fbbf24', '5': '#f472b6'
+    '1': 'var(--phase-1)', '2': 'var(--phase-2)', '3': 'var(--phase-3)', '4': 'var(--phase-4)', '5': 'var(--phase-5)'
 };
 
 function normalizeEmployeeModel(_cli: string, model?: string): string {
@@ -90,12 +90,12 @@ export function renderEmployees(): void {
         const p = ps?.phase || a.phase;
         const pl = ps?.phaseLabel || a.phaseLabel;
         const phaseBadge = p
-            ? `<span style="background:${PHASE_COLORS[p] || '#888'};color:#000;padding:1px 6px;border-radius:9px;font-size:9px">${escapeHtml(pl || 'P' + p)}</span>`
+            ? `<span style="background:${PHASE_COLORS[p] || '#888'};color:var(--text-on-accent);padding:1px 6px;border-radius:9px;font-size:9px">${escapeHtml(pl || 'P' + p)}</span>`
             : '';
         const staticBadge = isStatic
-            ? `<span style="background:#3b3b4f;color:#a78bfa;padding:1px 6px;border-radius:9px;font-size:9px;letter-spacing:0.3px">BUILT-IN</span>`
+            ? `<span style="background:var(--surface);color:var(--accent);padding:1px 6px;border-radius:9px;font-size:9px;letter-spacing:0.3px">BUILT-IN</span>`
             : '';
-        const borderStyle = isStatic ? 'border-left:2px solid #a78bfa;' : '';
+        const borderStyle = isStatic ? 'border-left:2px solid var(--accent);' : '';
 
         // Static employees: name/CLI/role locked. Only model editable.
         // DB employees: everything editable as before.
@@ -146,7 +146,7 @@ export function renderEmployees(): void {
                 ${roleField}
             </div>
             <div style="margin-top:4px;font-size:10px;display:flex;align-items:center;gap:6px">
-                <span style="color:${a.status === 'running' ? '#fbbf24' : 'var(--green)'}"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:currentColor;vertical-align:middle;margin-right:4px"></span>${escapeHtml(a.status || 'idle')}</span>
+                <span style="color:${a.status === 'running' ? 'var(--warning)' : 'var(--green)'}"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:currentColor;vertical-align:middle;margin-right:4px"></span>${escapeHtml(a.status || 'idle')}</span>
                 ${phaseBadge}
             </div>
         </div>`;
