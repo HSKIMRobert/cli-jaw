@@ -151,11 +151,13 @@ let shutdownComplete = false;
 let bootstrapPromise: Promise<void> | null = null;
 let managerReadyPromise: Promise<void> | null = null;
 let metricsCollector: MetricsCollectorHandle | null = null;
+let webContentsHardeningRegistered = false;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const PRELOAD_PATH = join(__dirname, '..', 'preload', 'index.js');
 const DESKTOP_USER_AGENT_TOKEN = 'cli-jaw-desktop';
+const EMBEDDED_BROWSER_PARTITION = 'persist:cli-jaw-browser';
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
@@ -319,23 +321,39 @@ function isAllowedFrameNavigation(raw: string): boolean {
     || isPreviewFrameNavigation(raw, PREVIEW_FRAME_POLICY);
 }
 
-function isAllowedEmbeddedBrowserUrl(raw: string): boolean {
+function normalizeAllowedEmbeddedBrowserUrl(raw: string): string | null {
   try {
     const parsed = new URL(raw);
-    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
-    return true;
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null;
+    if (parsed.username || parsed.password) return null;
+    return parsed.toString();
   } catch {
-    return false;
+    return null;
   }
+}
+
+function isAllowedEmbeddedBrowserUrl(raw: string): boolean {
+  return normalizeAllowedEmbeddedBrowserUrl(raw) !== null;
+}
+
+function embeddedBrowserDisposition(disposition: string): 'current-tab' | 'new-tab' {
+  return disposition === 'default' ? 'current-tab' : 'new-tab';
+}
+
+function sendEmbeddedBrowserOpenUrl(raw: string, disposition: string): void {
+  const url = normalizeAllowedEmbeddedBrowserUrl(raw);
+  if (!url || !mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.webContents.send('browser:open-url', {
+    url,
+    disposition: embeddedBrowserDisposition(disposition),
+  });
 }
 
 function hardenEmbeddedBrowserWebContents(contents: Electron.WebContents): void {
   if (contents.getType() !== 'webview') return;
   installDesktopShortcutForwarder(contents);
-  contents.setWindowOpenHandler(({ url }) => {
-    if (isAllowedEmbeddedBrowserUrl(url)) {
-      void shell.openExternal(url).catch(() => {});
-    }
+  contents.setWindowOpenHandler(({ url, disposition }) => {
+    sendEmbeddedBrowserOpenUrl(url, disposition);
     return { action: 'deny' };
   });
   contents.on('will-navigate', (event, url) => {
@@ -346,6 +364,14 @@ function hardenEmbeddedBrowserWebContents(contents: Electron.WebContents): void 
   });
   contents.session.setPermissionRequestHandler((_wc, _permission, cb) => cb(false));
   contents.session.setPermissionCheckHandler(() => false);
+}
+
+function registerGlobalWebContentsHardening(): void {
+  if (webContentsHardeningRegistered) return;
+  webContentsHardeningRegistered = true;
+  app.on('web-contents-created', (_event, contents) => {
+    hardenEmbeddedBrowserWebContents(contents);
+  });
 }
 
 function isCode(input: DesktopKeyboardInput, code: string, fallbackKey: string): boolean {
@@ -659,11 +685,9 @@ async function createWindow(): Promise<void> {
     webPreferences.webSecurity = true;
     webPreferences.allowRunningInsecureContent = false;
     webPreferences.plugins = false;
-    webPreferences.partition = 'persist:cli-jaw-browser';
+    webPreferences.partition = EMBEDDED_BROWSER_PARTITION;
   });
-  app.on('web-contents-created', (_event, contents) => {
-    hardenEmbeddedBrowserWebContents(contents);
-  });
+  registerGlobalWebContentsHardening();
   installDesktopShortcutForwarder(mainWindow.webContents);
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
