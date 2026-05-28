@@ -19,6 +19,11 @@ type RuntimeTerminal = {
     opened: boolean;
 };
 
+type TerminalPanelProps = {
+    onCollapse?: () => void;
+    onEmptySessions?: () => void;
+};
+
 const ACCESSIBILITY_INPUT_FLUSH_MS = 120;
 
 function normalizeTerminalInputValue(value: string): string {
@@ -100,7 +105,7 @@ function readTheme(): ITheme {
     };
 }
 
-export function TerminalPanel() {
+export function TerminalPanel(props: TerminalPanelProps = {}) {
     const bridge = getTerminalBridge();
     const [tabs, setTabs] = useState<TermTab[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
@@ -112,9 +117,15 @@ export function TerminalPanel() {
     const tabsRef = useRef<TermTab[]>(tabs);
     const activeIdRef = useRef<string | null>(activeId);
     const autoCreatedRef = useRef(false);
+    const onEmptySessionsRef = useRef(props.onEmptySessions);
 
     tabsRef.current = tabs;
     activeIdRef.current = activeId;
+    onEmptySessionsRef.current = props.onEmptySessions;
+
+    const notifyEmptySessionsSoon = useCallback(() => {
+        window.setTimeout(() => onEmptySessionsRef.current?.(), 0);
+    }, []);
 
     const fitTerminal = useCallback((id: string) => {
         const runtime = runtimesRef.current.get(id);
@@ -196,9 +207,10 @@ export function TerminalPanel() {
         setTabs(prev => {
             const next = prev.filter(tab => tab.id !== id);
             setActiveId(current => current === id ? (next[0]?.id ?? null) : current);
+            if (prev.length > 0 && next.length === 0) notifyEmptySessionsSoon();
             return next;
         });
-    }, [bridge, disposeRuntime]);
+    }, [bridge, disposeRuntime, notifyEmptySessionsSoon]);
 
     const attachHost = useCallback((id: string, node: HTMLDivElement | null) => {
         if (!node || !bridge) return;
@@ -235,7 +247,11 @@ export function TerminalPanel() {
             const runtime = runtimesRef.current.get(id);
             runtime?.term.writeln(`\r\n[process exited with code ${code ?? 'unknown'}]`);
             disposeRuntime(id);
-            setTabs(prev => prev.filter(tab => tab.id !== id));
+            setTabs(prev => {
+                const next = prev.filter(tab => tab.id !== id);
+                if (prev.length > 0 && next.length === 0) notifyEmptySessionsSoon();
+                return next;
+            });
             setActiveId(prev => prev === id ? (tabsRef.current.find(tab => tab.id !== id)?.id ?? null) : prev);
         });
         return () => {
@@ -248,7 +264,7 @@ export function TerminalPanel() {
                 disposeRuntime(id);
             }
         };
-    }, [bridge, disposeRuntime]);
+    }, [bridge, disposeRuntime, notifyEmptySessionsSoon]);
 
     useEffect(() => {
         if (!activeId) return;
@@ -303,6 +319,17 @@ export function TerminalPanel() {
                 ))}
                 <button type="button" className="terminal-tab terminal-new-tab" aria-label="New terminal" disabled={isCreating} onClick={() => void createSession()}>+</button>
                 <span className="terminal-status">{statusText}</span>
+                {props.onCollapse && (
+                    <button
+                        type="button"
+                        className="terminal-collapse-button"
+                        aria-label="Collapse terminal panel"
+                        title="Collapse terminal panel"
+                        onClick={props.onCollapse}
+                    >
+                        ▼
+                    </button>
+                )}
             </div>
             <div className="terminal-xterm-host" aria-label="Terminal output">
                 {tabs.map(tab => (

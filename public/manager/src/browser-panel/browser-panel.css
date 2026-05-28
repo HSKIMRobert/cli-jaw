@@ -62,7 +62,8 @@
     white-space: nowrap;
 }
 .browser-tab-close,
-.browser-tab-add {
+.browser-tab-add,
+.browser-collapse-button {
     all: unset;
     box-sizing: border-box;
     cursor: pointer;
@@ -80,7 +81,9 @@
 .browser-tab-close:hover,
 .browser-tab-close:focus-visible,
 .browser-tab-add:hover,
-.browser-tab-add:focus-visible {
+.browser-tab-add:focus-visible,
+.browser-collapse-button:hover,
+.browser-collapse-button:focus-visible {
     color: var(--text-base);
     background: var(--bg-hover);
 }
@@ -88,6 +91,12 @@
     margin-left: 1px;
     border: 1px solid var(--border-subtle);
     background: var(--bg-raised);
+}
+.browser-collapse-button {
+    margin-left: auto;
+    position: sticky;
+    right: 0;
+    background: var(--bg-panel);
 }
 .browser-toolbar {
     display: flex;

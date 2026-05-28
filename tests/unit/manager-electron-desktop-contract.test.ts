@@ -391,6 +391,33 @@ test('Electron browser panel uses a hardened webview instead of a CSP-blocked if
     assert.ok(desktopBridge.includes('browser?: BrowserBridgeApi'), 'desktop bridge type must include Browser panel popup routing events');
 });
 
+test('Electron bottom terminal and browser panels avoid duplicate generic chrome', () => {
+    const bottomPanel = read('public/manager/src/panels/BottomPanel.tsx');
+    const router = read('public/manager/src/SidebarRailRouter.tsx');
+    const terminal = read('public/manager/src/terminal/TerminalPanel.tsx');
+    const terminalCss = read('public/manager/src/terminal/terminal.css');
+    const browser = read('public/manager/src/browser-panel/BrowserPanel.tsx');
+    const browserCss = read('public/manager/src/browser-panel/browser-panel.css');
+    const panelCss = read('public/manager/src/panels/panels.css');
+
+    assert.ok(bottomPanel.includes("const CONTENT_OWNED_CHROME_TABS: BottomPanelTab[] = ['terminal', 'browser']"), 'terminal and browser bottom tabs must own their own chrome instead of showing a duplicate generic row');
+    assert.ok(bottomPanel.includes('if (bp.tabs.length === 0) return null'), 'collapsed bottom panels with live tabs must remain mounted for state preservation');
+    assert.equal(bottomPanel.includes('if (!bp.open || bp.tabs.length === 0) return null'), false, 'collapse must not unmount terminal/browser panels and kill state');
+    assert.ok(bottomPanel.includes('{!ownsChrome && ('), 'generic BottomPanelTabBar must be hidden for content-owned terminal/browser panels');
+    assert.ok(router.includes('panelLayout.state.bottomPanel.tabs.length > 0 ? <BottomPanel'), 'SidebarRailRouter must keep BottomPanel mounted while collapsed if tabs still exist');
+    assert.ok(router.includes('<TerminalPanel onCollapse={controls.onCollapse} onEmptySessions={controls.onCloseTab} />'), 'TerminalPanel must receive collapse and empty-session callbacks from BottomPanel');
+    assert.ok(router.includes('<BrowserPanel onCollapse={controls.onCollapse} />'), 'BrowserPanel must receive collapse callback only in bottom-panel context');
+    assert.ok(terminal.includes('onEmptySessions?: () => void'), 'TerminalPanel must expose an empty-session callback for closing the bottom tab after the last PTY exits');
+    assert.ok(terminal.includes('notifyEmptySessionsSoon'), 'TerminalPanel must notify after both user-close and process-exit remove the last session');
+    assert.ok(terminal.includes('terminal-collapse-button'), 'Terminal collapse control must live in the terminal session tab row');
+    assert.ok(terminalCss.includes('.terminal-collapse-button'), 'Terminal collapse control must be visibly styled');
+    assert.ok(browser.includes('onCollapse?: () => void'), 'BrowserPanel collapse prop must remain optional because the right sidebar also reuses BrowserPanel');
+    assert.ok(browser.includes('browser-collapse-button'), 'Browser collapse control must live in the browser tab strip');
+    assert.ok(browser.includes('if (current.length <= 1)'), 'last browser tab close must keep the existing replacement-tab behavior instead of closing the panel');
+    assert.ok(browserCss.includes('.browser-collapse-button'), 'Browser collapse control must be visibly styled');
+    assert.ok(panelCss.includes('.bottom-panel.has-content-owned-chrome .bottom-panel-content'), 'content-owned bottom panels must let their local chrome own the panel height');
+});
+
 test('Electron folder IPC exposes a usable default root for folder/file split view', () => {
     const preload = read('electron/src/preload/index.ts');
     const desktopBridge = read('public/manager/src/panels/desktop-bridge.ts');
