@@ -262,7 +262,7 @@ export function buildResumeArgs(cli: string, model: string, effort: string, sess
     const autoPerm = permissions === 'auto';
     switch (cli) {
         case 'agy':
-            return ['--conversation', sessionId,
+            return [...(sessionId ? ['--conversation', sessionId] : []),
                 '-p', prompt || '',
                 '--print-timeout', options.agyPrintTimeout || AGY_PRINT_TIMEOUT,
                 ...(options.agyLogFile ? ['--log-file', options.agyLogFile] : []),
@@ -347,7 +347,7 @@ export function buildResumeArgs(cli: string, model: string, effort: string, sess
                 '-o', 'stream-json'];
         case 'grok':
             return ['-p', prompt || '',
-                '--resume', sessionId,
+                ...(sessionId ? ['--resume', sessionId] : []),
                 ...(model && model !== 'default' ? ['-m', model] : []),
                 '--output-format', 'streaming-json',
                 '--no-alt-screen',

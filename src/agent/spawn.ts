@@ -53,7 +53,7 @@ import type { SpawnContext, ToolEntry } from '../types/agent.js';
 import { asCliEventRecord, discriminate, fieldString, type CliEventRecord } from '../types/cli-events.js';
 import { isJawRuntimeEvent, handleJawRuntimeEvent } from './claude-e-runtime.js';
 import { appendTraceEvent, stampTraceTool, startTraceRun } from '../trace/store.js';
-import { extractAgyConversationId, formatAgyTimeoutMessage, isAgyTimeoutOutput } from './agy-runtime.js';
+import { extractAgyConversationId, formatAgyTimeoutMessage, isAgyStaleSessionOutput, isAgyTimeoutOutput } from './agy-runtime.js';
 import { resolveCursorModelVariant } from './cursor-runtime.js';
 
 // ─── State ───────────────────────────────────────────
@@ -1664,7 +1664,8 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         if (cli === 'agy') {
             const text = agyUtf8!.write(chunk);
             if (!text) return;
-            ctx.fullText += text;
+            if (ctx.fullText.length < 102_400) ctx.fullText += text;
+            else if (ctx.fullText.length < 102_500) ctx.fullText += text.slice(0, 102_400 - ctx.fullText.length);
             if (!ctx.sessionId) ctx.sessionId = extractAgyConversationId(ctx.fullText);
             appendTraceEvent({ runId: ctx.traceRunId, source: 'cli_raw', eventType: 'plain_text', raw: text });
             if (ctx.agyResumeOffset && ctx.agyResumeOffset > 0) {
@@ -1750,6 +1751,14 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         if (cli === 'agy' && agyLogFile) {
             try { fs.rmSync(agyLogFile, { force: true }); }
             catch (e) { console.warn('[jaw:agy] log cleanup failed:', (e as Error).message); }
+        }
+        if (cli === 'agy' && isResume && isAgyStaleSessionOutput(ctx.fullText)) {
+            console.log(`[jaw:agy] stale session detected (Warning: conversation not found) — clearing bucket`);
+            try {
+                const bucket = resolveSessionBucket(cli, runtimeModel, effectiveProvider);
+                clearSessionBucket.run(bucket);
+            } catch (e) { console.warn('[jaw:agy] stale bucket clear failed:', (e as Error).message); }
+            ctx.sessionId = null;
         }
         const agyTimedOut = cli === 'agy' && isAgyTimeoutOutput(ctx.fullText);
         const effectiveExitCode = agyTimedOut ? 124 : code;
