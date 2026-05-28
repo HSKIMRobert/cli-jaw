@@ -38,12 +38,7 @@ export function getGoalHistory(): GoalHistory {
     return readJson<GoalHistory>(HISTORY_PATH) ?? { goals: [] };
 }
 
-const MAX_OBJECTIVE_LENGTH = 2000;
-
 export function setGoal(objective: string, opts?: { repoRoot?: string | undefined; budget?: GoalBudget | undefined; replace?: boolean }): GoalState {
-    if (objective.length > MAX_OBJECTIVE_LENGTH) {
-        objective = objective.slice(0, MAX_OBJECTIVE_LENGTH);
-    }
     const existing = getActiveGoal();
     if (existing && (existing.status === 'active' || existing.status === 'paused')) {
         if (!opts?.replace) {
