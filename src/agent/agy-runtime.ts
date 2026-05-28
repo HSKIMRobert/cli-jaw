@@ -18,3 +18,9 @@ export function extractAgyConversationId(text: string): string | null {
     const match = AGY_CONVERSATION_ID_RE.exec(text);
     return match?.[1] ?? match?.[2] ?? null;
 }
+
+const AGY_STALE_WARNING_RE = /^Warning:\s*conversation\s+"[^"]*"\s+not found\b/im;
+
+export function isAgyStaleSessionOutput(text: string): boolean {
+    return AGY_STALE_WARNING_RE.test(text);
+}

@@ -45,11 +45,16 @@ export function shouldResumeBucketSession(
     if (cli === 'opencode' && requestedResumeKey) {
         return requestedResumeKey === (bucketResumeKey ?? null);
     }
-    if (cli === 'agy') return !!bucketModel;
+    if (cli === 'agy') {
+        if (!bucketModel) return false;
+        if (isExpiredBucket(bucketUpdatedAt, AGY_RESUME_TTL_MS, nowMs)) return false;
+        return true;
+    }
     return true;
 }
 
 export const GEMINI_RESUME_TTL_MS = 72 * 60 * 60 * 1000;
+export const AGY_RESUME_TTL_MS = 72 * 60 * 60 * 1000;
 
 function normalizeGeminiResumeModel(model: string | null | undefined): string {
     const normalized = String(model || '').trim().toLowerCase();

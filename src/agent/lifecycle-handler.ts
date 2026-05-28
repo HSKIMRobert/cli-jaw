@@ -333,7 +333,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
     // Force a fresh session on next spawn to avoid stale resume.
     if (mainManaged && !opts.internal && code === 0 && !ctx.cliNativeCompactDetected) {
         const turns = ctx.turns ?? memoryFlushCounter;
-        if ((runtimeCli === 'codex' || runtimeCli === 'opencode' || runtimeCli === 'gemini') && turns > 15) {
+        if ((runtimeCli === 'codex' || runtimeCli === 'opencode' || runtimeCli === 'gemini' || runtimeCli === 'grok' || runtimeCli === 'agy') && turns > 15) {
             console.log(`[jaw:compact] ${cli} exited after ${turns} turns — clearing session bucket for fresh start`);
             try {
                 const bucket = resolveSessionBucket(cli, model, effectiveProvider);
