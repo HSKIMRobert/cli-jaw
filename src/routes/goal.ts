@@ -34,6 +34,7 @@ export function registerGoalRoutes(app: Router, requireAuth: RequestHandler): vo
                         res.status(409).json({ ok: false, error: `Active goal already exists: "${existing.objective}". Cancel or complete it first.` });
                         return;
                     }
+                    clearGoalTimers();
                     const repoRoot = body?.['repoRoot'] as string | undefined;
                     const budget = body?.['budget'] as Record<string, number> | undefined;
                     const goal = setGoal(objective, {
@@ -87,11 +88,13 @@ export function registerGoalRoutes(app: Router, requireAuth: RequestHandler): vo
                     return;
                 }
                 case 'clear': {
+                    clearGoalTimers();
                     const ok = clearGoal();
                     res.json({ ok, cleared: ok });
                     return;
                 }
                 case 'reset': {
+                    clearGoalTimers();
                     resetGoalStore();
                     res.json({ ok: true, reset: true });
                     return;

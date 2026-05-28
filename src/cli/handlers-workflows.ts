@@ -4,6 +4,7 @@ import { buildDeliberateArtifact, formatDeliberateText } from '../workflows/deli
 import { buildPlanAuditArtifact, formatPlanAuditText } from '../workflows/planaudit.js';
 import type { CliCommandContext } from './command-context.js';
 import type { SlashResult } from './types.js';
+import { clearGoalTimers } from '../agent/lifecycle-handler.js';
 
 function joinArgs(args: string[]): string {
     return args.join(' ').trim();
@@ -168,6 +169,7 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
         if (existing && (existing.status === 'active' || existing.status === 'paused')) {
             return blocked(`Active goal already exists: "${existing.objective}"\nUse /goal done, /goal cancel, or /goal clear first.`);
         }
+        clearGoalTimers();
         const settings = await resolveSettings(ctx);
         const wd = (settings as Record<string, unknown>)['workingDir'] as string | undefined;
         const goal = setGoal(objective, wd ? { repoRoot: wd } : {});
@@ -200,6 +202,7 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
 
     if (sub === 'done') {
         const note = args.slice(1).join(' ').trim() || undefined;
+        clearGoalTimers();
         const goal = completeGoal(note);
         if (!goal) return blocked('No active goal to complete.');
         return { ok: true, type: 'info', text: `Goal completed: ${goal.objective}${note ? ` — ${note}` : ''}`, steerPrompt: `[System] Goal completed: "${goal.objective}". No active goal remains.` };
@@ -207,12 +210,14 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
 
     if (sub === 'cancel') {
         const reason = args.slice(1).join(' ').trim() || undefined;
+        clearGoalTimers();
         const goal = cancelGoal(reason);
         if (!goal) return blocked('No active goal to cancel.');
         return { ok: true, type: 'info', text: `Goal cancelled: ${goal.objective}`, steerPrompt: `[System] Goal cancelled: "${goal.objective}". No active goal remains.` };
     }
 
     if (sub === 'pause') {
+        clearGoalTimers();
         const goal = pauseGoal();
         if (!goal) return blocked('No active goal to pause.');
         return { ok: true, type: 'info', text: `Goal paused: ${goal.objective}`, steerPrompt: `[System] Goal paused: "${goal.objective}". Do not continue working on this goal until the user resumes it.` };
@@ -229,11 +234,13 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
     }
 
     if (sub === 'clear') {
+        clearGoalTimers();
         const ok = clearGoal();
         return ok ? info('Active goal cleared.') : blocked('No active goal to clear.');
     }
 
     if (sub === 'reset') {
+        clearGoalTimers();
         resetGoalStore();
         return info('Goal store and history reset.');
     }
@@ -256,6 +263,7 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
         if (existing && (existing.status === 'active' || existing.status === 'paused')) {
             return blocked(`Active goal already exists: "${existing.objective}"\nUse /goal done, /goal cancel, or /goal clear first.`);
         }
+        clearGoalTimers();
         const settings = await resolveSettings(ctx);
         const wd = (settings as Record<string, unknown>)['workingDir'] as string | undefined;
         const goal = setGoal(objective, wd ? { repoRoot: wd } : {});
