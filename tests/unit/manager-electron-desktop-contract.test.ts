@@ -119,18 +119,17 @@ test('manager sidebar rail keeps IDE panel toggles visible', () => {
     assert.ok(rail.includes("panelActions.openRightPanel('folder')"), 'right panel toggle must open the folder panel when closed');
     assert.ok(layout.includes('display: flex'), 'manager sidebar must allow rail height to grow without clipping its list');
     assert.ok(layout.includes('.manager-sidebar-list { flex: 1 1 auto;'), 'sidebar list must size from remaining space, not a fixed rail height');
-    assert.ok(compact.includes('flex-wrap: wrap'), 'expanded rail must wrap utility buttons instead of clipping them');
-    assert.ok(compact.includes('flex: 0 0 100%'), 'expanded rail spacer must force panel toggles onto a second row instead of pushing them past the sidebar edge');
     assert.ok(
         compact.includes('.dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .sidebar-rail {\n    min-height: 54px;'),
         'web manager rail must keep the normal single-line height',
     );
     assert.ok(
         compact.includes(':root[data-cli-jaw-desktop="true"] .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .sidebar-rail'),
-        'only Electron should reserve two-line rail height for desktop panel toggles',
+        'Electron should get a desktop-only rail override for panel toggles',
     );
-    assert.ok(compact.includes('min-height: 76px'), 'Electron expanded rail must reserve enough height for its wrapped controls');
-    assert.ok(compact.includes('overflow: visible'), 'expanded rail must not crop wrapped controls');
+    assert.ok(compact.includes('flex-wrap: nowrap'), 'Electron expanded rail must keep desktop panel toggles on one row');
+    assert.ok(compact.includes('flex: 1 1 auto'), 'Electron expanded rail spacer must shrink so utility toggles stay in the same row');
+    assert.ok(compact.includes('min-width: 4px'), 'Electron expanded rail spacer must keep a small visual gap without forcing a second row');
     assert.ok(compact.includes('.rail-panel-toggle'), 'panel toggles must have distinct visible styling');
 });
 
@@ -189,7 +188,11 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(browserPanel.includes('isRestrictedBrowserHost(parsed.hostname)'), 'web UI browser policy must continue blocking local/private hosts');
     assert.ok(browserPanel.includes('Local, private, and same-origin URLs are blocked.'), 'web UI must keep the explicit local/private URL rejection message');
     assert.ok(browserPanel.includes('const inputRef = useRef<HTMLInputElement | null>(null);'), 'browser Go action must read the visible URL input value for native accessibility value injection');
-    assert.ok(browserPanel.includes('normalizeUrl(inputRef.current?.value ?? inputUrl)'), 'browser Go action must not depend only on React change events');
+    assert.ok(browserPanel.includes('normalizeUrl(inputRef.current?.value ?? activeTab.inputUrl)'), 'browser Go action must not depend only on React change events');
+    assert.ok(browserPanel.includes('type BrowserTabState'), 'browser panel must track tab-specific URL/loading/error state');
+    assert.ok(browserPanel.includes('browser-tab-strip'), 'browser panel must expose a tab strip for multiple browser tabs');
+    assert.ok(browserPanel.includes('aria-label="New browser tab"'), 'browser panel must expose an explicit new-tab control');
+    assert.ok(browserPanel.includes("webview.addEventListener('render-process-gone'"), 'browser panel must detect crashed/killed webview renderers using Electron current API');
     assert.ok(router.includes('rightPreviewFilePath'), 'router must keep the selected file path for document preview');
     assert.ok(router.includes("panelLayout.dispatch({ type: 'OPEN_RIGHT_PANEL', mode: 'doc', slot: 'bottom' })"), 'selecting a file must open document preview in a folder/file split view');
     assert.ok(folder.includes('onPreviewFile'), 'folder panel must expose file selection to the preview panel');
@@ -210,7 +213,11 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(browserCss.includes('overflow: hidden'), 'browser panel must clip inside its own panel instead of escaping the sidebar');
     assert.ok(browserCss.includes('min-width: 0'), 'browser panel flex children must be allowed to shrink inside the right sidebar');
     assert.ok(browserCss.includes('.browser-webview-host'), 'browser webview must be hosted in a flex child that owns the remaining vertical height');
-    assert.ok(browserCss.includes('.browser-webview-host {\n    display: flex;'), 'browser webview host must own remaining height with flex layout');
+    assert.ok(browserCss.includes('.browser-tab-strip'), 'browser tab strip must be styled as a stable toolbar row');
+    assert.ok(browserCss.includes('.browser-tab-close'), 'browser tabs must expose visible close controls');
+    assert.ok(browserCss.includes('.browser-webview-stack'), 'browser webview stack must preserve tab surfaces inside the remaining height');
+    assert.ok(browserCss.includes('.browser-webview-host.is-active'), 'only the active browser tab host should be visible');
+    assert.ok(browserCss.includes('.browser-webview-host.is-active {\n    display: flex;'), 'active browser webview host must own remaining height with flex layout');
     assert.ok(!browserCss.includes('position: absolute'), 'Electron webview must not be taken out of flex layout because its guest iframe sizing depends on the webview container');
     assert.ok(browserCss.includes('display: flex'), 'Electron webview must keep its default flex display so the internal guest iframe fills the container');
 });
