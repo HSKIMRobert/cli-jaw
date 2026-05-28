@@ -231,9 +231,13 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(sidebar.includes("aria-label={MODE_LABELS[mode]}"), 'icon buttons must keep accessible names');
     assert.ok(sidebar.includes("dispatch({ type: 'SET_RIGHT_BOTTOM_MODE', mode: null })"), 'toolbar buttons must collapse split state into a single visible panel');
     assert.ok(sidebar.includes("dispatch({ type: 'OPEN_RIGHT_PANEL', mode, slot: 'top' })"), 'toolbar buttons must switch the visible top panel');
+    assert.ok(sidebar.includes("const CONTENT_OWNED_RIGHT_CHROME: RightPanelMode[] = ['browser']"), 'single right-side Browser panels must be able to own their own chrome');
+    assert.ok(sidebar.includes('const slotOwnsChrome = !isSplit && CONTENT_OWNED_RIGHT_CHROME.includes(mode);'), 'right-side Browser chrome ownership must only apply outside split mode');
+    assert.ok(sidebar.includes("right-sub-panel${slotOwnsChrome ? ' has-content-owned-chrome' : ''}"), 'right-side Browser panels must expose a chrome-owned styling hook');
+    assert.ok(sidebar.includes('{!slotOwnsChrome && ('), 'right-side Browser panels must hide the duplicate Browser sub-header in single-panel mode');
     assert.ok(sidebar.includes('right-sub-title'), 'split panels must show visible slot labels instead of screen-reader-only labels');
     assert.ok(sidebar.includes('right-sub-actions'), 'split panels must expose visible slot actions');
-    assert.ok(sidebar.includes('<div className="right-sub-header">'), 'single panels must keep a visible header so close controls remain reachable after tree/document only actions');
+    assert.ok(sidebar.includes('<div className="right-sub-header">'), 'non-browser and split panels must keep visible headers so close controls remain reachable');
     assert.ok(sidebar.includes("aria-label={`Show only ${label}`}"), 'split panels must expose explicit tree/document only controls');
     assert.ok(sidebar.includes("dispatch({ type: 'SOLO_RIGHT_SUB', slot })"), 'split-only controls must promote a slot to a single panel');
     assert.ok(sidebar.includes("aria-label={`Close ${label}`}"), 'each right sidebar slot must keep an explicit close control in split and single modes');
@@ -276,6 +280,7 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(css.includes('.right-sub-title'), 'split header labels must be visible and styled');
     assert.ok(css.includes('.right-sub-action'), 'split slot only/close actions must be styled as usable controls');
     assert.ok(css.includes('.right-panel-body.is-single-panel > .right-sub-panel'), 'single right panels must consume the full sidebar height');
+    assert.ok(css.includes('.right-sub-panel.has-content-owned-chrome > .right-sub-content'), 'right-side chrome-owned panels must give all vertical space to their own content chrome');
     assert.ok(css.includes('flex: 1 1 0;'), 'single right panel content must not collapse to header height');
     assert.ok(css.includes('.right-sub-content {\n    display: flex;'), 'right sidebar content must pass flex height to nested panels');
     assert.ok(css.includes('height: 100%;'), 'right sub content must pass a stable height to nested panels');

@@ -184,6 +184,9 @@ body.is-resizing-vertical .panel-resizer { pointer-events: auto !important; }
     height: 100%;
     overflow: hidden;
 }
+.right-sub-panel.has-content-owned-chrome > .right-sub-content {
+    flex: 1 1 0;
+}
 
 .bottom-panel {
     grid-area: bottom;
