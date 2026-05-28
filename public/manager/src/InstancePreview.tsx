@@ -11,6 +11,12 @@ type InstancePreviewProps = {
     active: boolean;
     refreshKey: number;
     theme: PreviewTheme;
+    onOpenNotesFromPreview?: (path: string) => void;
+};
+
+type PreviewOpenNotesMessage = {
+    type?: unknown;
+    path?: unknown;
 };
 
 type PreviewSendMessage = {
@@ -182,8 +188,21 @@ export function InstancePreview(props: InstancePreviewProps) {
                 });
         }
         window.addEventListener('message', onPreviewSend);
-        return () => window.removeEventListener('message', onPreviewSend);
-    }, [props.enabled, props.instance, state.canPreview, state.src]);
+        function onPreviewOpenNotes(event: MessageEvent): void {
+            if (event.source !== iframeRef.current?.contentWindow) return;
+            if (!state.src || !previewFrameOriginMatches(event.origin, state.src, iframeRef.current)) return;
+            const data = event.data as PreviewOpenNotesMessage | null;
+            if (!data || data.type !== 'jaw-preview-open-notes') return;
+            const path = typeof data.path === 'string' ? data.path.trim() : '';
+            if (!path) return;
+            props.onOpenNotesFromPreview?.(path);
+        }
+        window.addEventListener('message', onPreviewOpenNotes);
+        return () => {
+            window.removeEventListener('message', onPreviewSend);
+            window.removeEventListener('message', onPreviewOpenNotes);
+        };
+    }, [props.enabled, props.instance, props.onOpenNotesFromPreview, state.canPreview, state.src]);
 
     useEffect(() => {
         if (!props.active || !props.enabled || !state.canPreview || !state.src) return undefined;

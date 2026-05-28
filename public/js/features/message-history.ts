@@ -1,5 +1,5 @@
 import { api } from '../api.js';
-import { renderMarkdown, linkifyFilePaths } from '../render.js';
+import { renderMarkdown, linkifyFilePathsWithNotesRoot } from '../render.js';
 import { renderMermaidBlocks } from '../render.js';
 import { getVirtualScroll, VS_THRESHOLD, type VirtualItem } from '../virtual-scroll.js';
 import { bootstrapVirtualHistory, type VirtualHistoryBootstrapDeps } from '../virtual-scroll-bootstrap.js';
@@ -43,7 +43,7 @@ export function registerVirtualScrollCallbacks(vs: ReturnType<typeof getVirtualS
     };
     vs.onPostRender = (viewport: HTMLElement) => {
         activateWidgets(viewport);
-        linkifyFilePaths(viewport);
+        void linkifyFilePathsWithNotesRoot(viewport);
         void renderMermaidBlocks(viewport, { immediate: true });
     };
 }

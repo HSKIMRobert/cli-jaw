@@ -15,6 +15,8 @@ type NotesSidebarProps = {
     notesRoot: string | null;
     selectedPath: string | null;
     dirtyPath: string | null;
+    highlightedPath?: string | null;
+    externalFocusPath?: string | null;
     treeWidth: number;
     mode: NotesSidebarMode;
     searchFocusToken: number;
@@ -478,6 +480,8 @@ export function NotesSidebar(props: NotesSidebarProps) {
                         selectedPath={props.selectedPath}
                         selectedFolderPath={selectedFolderPath}
                         dirtyPath={props.dirtyPath}
+                        highlightedPath={props.highlightedPath ?? null}
+                        externalFocusPath={props.externalFocusPath ?? null}
                         loading={props.loading}
                         notesRoot={props.notesRoot}
                         onSelectPath={props.onSelectedPathChange}

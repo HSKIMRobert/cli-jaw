@@ -17,6 +17,7 @@ import type { ChannelSendRequest } from '../messaging/send.js';
 import { handleDiscordSlashCommand, registerDiscordSlashCommands } from './commands.js';
 import { createDiscordForwarder, chunkDiscordMessage } from './forwarder.js';
 import { sendDiscordFile } from './discord-file.js';
+import { getDiscordSendClient, sendDiscordFileRest, sendDiscordTextRest } from './send-only-client.js';
 import type { Attachment, Message } from 'discord.js';
 import type { DiscordSendableChannel, DiscordTypingChannel, DiscordThreadLikeChannel } from './channel-types.js';
 
@@ -342,42 +343,59 @@ export async function shutdownDiscord() {
 // ─── Send Handler ───────────────────────────────────
 
 async function discordSendHandler(req: ChannelSendRequest): Promise<{ ok: boolean; error?: string; [k: string]: unknown }> {
-    if (!discordClient) return { ok: false, error: 'Discord not connected' };
-
-    // Thread-aware: prefer threadId over targetId when present
     const channelId = req.chatId || req.target?.threadId || req.target?.targetId
         || (Array.from(discordActiveChannelIds).at(-1))
         || settings["discord"]?.channelIds?.[0];
-    if (!channelId) return { ok: false, error: 'No discord channelId available — send a message first or set channelIds' };
+    if (!channelId) {
+        return { ok: false, error: 'No discord channelId available — send a message first or set channelIds', status: 400 };
+    }
+
+    if (discordClient) {
+        if (req.type === 'text') {
+            const text = req.text?.trim();
+            if (!text) return { ok: false, error: 'text required' };
+            try {
+                const channel = await discordClient.channels.fetch(String(channelId));
+                if (!channel || !('send' in channel)) return { ok: false, error: 'Channel not text-based' };
+                const chunks = chunkDiscordMessage(text);
+                for (const chunk of chunks) {
+                    await (channel as unknown as DiscordSendableChannel).send(chunk);
+                }
+                return { ok: true, channel_id: channelId, type: 'text' };
+            } catch (e) {
+                return { ok: false, error: (e as Error).message };
+            }
+        }
+
+        const filePath = req.filePath;
+        if (!filePath) return { ok: false, error: 'file_path required for non-text types' };
+        const target: RemoteTarget = req.target || {
+            channel: 'discord',
+            targetKind: 'channel',
+            peerKind: 'channel',
+            targetId: String(channelId),
+        };
+        const fileResult = await sendDiscordFile(discordClient, target, filePath, stripUndefined({ caption: req.caption }));
+        if (!fileResult.ok) return fileResult;
+        return { ok: true, channel_id: channelId, type: req.type };
+    }
+
+    const sendClient = getDiscordSendClient();
+    if (!sendClient.token) {
+        return { ok: false, error: sendClient.reason ?? 'Discord not configured', status: sendClient.status ?? 503 };
+    }
 
     if (req.type === 'text') {
         const text = req.text?.trim();
         if (!text) return { ok: false, error: 'text required' };
-        try {
-            const channel = await discordClient.channels.fetch(String(channelId));
-            if (!channel || !('send' in channel)) return { ok: false, error: 'Channel not text-based' };
-            const chunks = chunkDiscordMessage(text);
-            for (const chunk of chunks) {
-                await (channel as unknown as DiscordSendableChannel).send(chunk);
-            }
-            return { ok: true, channel_id: channelId, type: 'text' };
-        } catch (e) {
-            return { ok: false, error: (e as Error).message };
-        }
+        const result = await sendDiscordTextRest(sendClient.token, String(channelId), text);
+        if (!result.ok) return result;
+        return { ok: true, channel_id: channelId, type: 'text' };
     }
 
-    // File types
     const filePath = req.filePath;
     if (!filePath) return { ok: false, error: 'file_path required for non-text types' };
-
-    const target: RemoteTarget = req.target || {
-        channel: 'discord',
-        targetKind: 'channel',
-        peerKind: 'channel',
-        targetId: String(channelId),
-    };
-
-    const fileResult = await sendDiscordFile(discordClient, target, filePath, stripUndefined({ caption: req.caption }));
+    const fileResult = await sendDiscordFileRest(sendClient.token, String(channelId), filePath, req.caption);
     if (!fileResult.ok) return fileResult;
     return { ok: true, channel_id: channelId, type: req.type };
 }

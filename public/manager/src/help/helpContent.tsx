@@ -17,6 +17,7 @@ const InstancesHelp = (
             <li>좌측 네비게이터에서 인스턴스를 골라 우측 Workbench(Overview / Preview / Logs / Settings)에서 작업하실 수 있어요.</li>
             <li>우측 상단 상태 점이 초록이면 온라인, 회색이면 오프라인이에요.</li>
             <li>인스턴스에 직접 메시지를 보내실 땐 Preview 탭의 채팅 입력을 쓰세요.</li>
+            <li>Preview 채팅에 나온 Notes vault 경로를 클릭하면 Notes workspace로 이동해 해당 파일을 열 수 있어요.</li>
         </ul>
         <div className="help-deep">
             <h4>빠른 판단 기준</h4>
@@ -85,6 +86,8 @@ const NotesHelp = (
         <p className="help-lead"><code>~/.cli-jaw-dashboard/notes/</code>의 마크다운 파일을 직접 편집하는 노트장이에요.</p>
         <ul className="help-bullets">
             <li>좌측 트리에서 파일 선택, 우측에서 <strong>Raw / Preview / WYSIWYG</strong> 모드로 편집하실 수 있어요.</li>
+            <li>Instances Preview 채팅에서 vault 경로(예: <code>~/.cli-jaw-dashboard/notes/foo.md</code> 또는 <code>daily/foo.md</code>)를 <strong>클릭</strong>하면 Notes 탭으로 이동하고 해당 파일이 열려요. 자동 전환은 없고 클릭할 때만 이동합니다.</li>
+            <li>vault 밖 경로(예: 프로젝트 <code>.ts</code> 파일)는 기존처럼 Finder로 열려요.</li>
             <li><kbd>⌘/Ctrl + S</kbd>로 저장, <kbd>⌘/Ctrl + E</kbd>로 모드 순환 전환이에요.</li>
             <li>파일이 외부에서 바뀌면 충돌 알림이 떠요 — Reload / Overwrite / Keep local 중 선택하세요.</li>
         </ul>

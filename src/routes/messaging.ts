@@ -9,18 +9,22 @@ import express from 'express';
 import { ok, fail } from '../http/response.js';
 import { saveUpload } from '../agent/spawn.js';
 import { submitMessage } from '../orchestrator/gateway.js';
-import { telegramBot, telegramActiveChatIds } from '../telegram/bot.js';
+import { telegramActiveChatIds, getTelegramSendClient, getLatestTelegramChatId } from '../telegram/bot.js';
 import { validateFileSize, sendTelegramFile } from '../telegram/telegram-file.js';
 import { assertSendFilePath } from '../security/path-guards.js';
 import { decodeFilenameSafe } from '../security/decode.js';
 import { sendChannelOutput, normalizeChannelSendRequest } from '../messaging/send.js';
+import { sendResultHttpStatus } from '../messaging/send-result.js';
 import { settings } from '../core/config.js';
 import { expandHomePath } from '../core/path-expand.js';
 import { stripUndefined } from '../core/strip-undefined.js';
 
-function getLatestTelegramChatId() {
-    const ids = Array.from(telegramActiveChatIds);
-    return ids.at(-1) || null;
+function resolveTelegramChatId(body: Record<string, unknown>): string | number | null {
+    const raw = body?.['chat_id'] ?? body?.['chatId'];
+    if (raw != null && String(raw).trim()) return raw as string | number;
+    return getLatestTelegramChatId()
+        ?? settings["telegram"]?.allowedChatIds?.[0]
+        ?? null;
 }
 
 // ─── File open helpers ──────────────────────────────
@@ -157,8 +161,9 @@ export function registerMessagingRoutes(app: Express, requireAuth: AuthMiddlewar
     // Telegram direct send
     app.post('/api/telegram/send', requireAuth, async (req, res) => {
         try {
-            if (!telegramBot) {
-                res.status(503).json({ error: 'Telegram not connected' });
+            const sendClient = getTelegramSendClient();
+            if (!sendClient.client) {
+                res.status(sendClient.status ?? 503).json({ ok: false, error: sendClient.reason ?? 'Telegram not configured' });
                 return;
             }
 
@@ -169,7 +174,7 @@ export function registerMessagingRoutes(app: Express, requireAuth: AuthMiddlewar
                 return;
             }
 
-            const chatId = req.body?.chat_id || getLatestTelegramChatId();
+            const chatId = resolveTelegramChatId(req.body || {});
             if (!chatId) {
                 res.status(400).json({ error: 'chat_id required (or send a Telegram message first)' });
                 return;
@@ -181,7 +186,7 @@ export function registerMessagingRoutes(app: Express, requireAuth: AuthMiddlewar
                     res.status(400).json({ error: 'text required for type=text' });
                     return;
                 }
-                await telegramBot.api.sendMessage(chatId, text);
+                await sendClient.client.api.sendMessage(chatId, text);
                 res.json({ ok: true, chat_id: chatId, type });
                 return;
             }
@@ -200,7 +205,7 @@ export function registerMessagingRoutes(app: Express, requireAuth: AuthMiddlewar
             validateFileSize(safePath, type);
 
             const caption = req.body?.caption ? String(req.body.caption) : undefined;
-            const result = await sendTelegramFile(telegramBot, chatId, safePath, type, stripUndefined({ caption }));
+            const result = await sendTelegramFile(sendClient.client, chatId, safePath, type, stripUndefined({ caption }));
 
             if (!result.ok) {
                 const sc = result.statusCode || 502;
@@ -223,7 +228,7 @@ export function registerMessagingRoutes(app: Express, requireAuth: AuthMiddlewar
         try {
             const result = await sendChannelOutput(normalizeChannelSendRequest(req.body));
             if (!result.ok) {
-                res.status(502).json(result);
+                res.status(sendResultHttpStatus(result)).json(result);
                 return;
             }
             res.json(result);
@@ -237,7 +242,7 @@ export function registerMessagingRoutes(app: Express, requireAuth: AuthMiddlewar
         try {
             const result = await sendChannelOutput({ ...normalizeChannelSendRequest(req.body), channel: 'discord' });
             if (!result.ok) {
-                res.status(502).json(result);
+                res.status(sendResultHttpStatus(result)).json(result);
                 return;
             }
             res.json(result);

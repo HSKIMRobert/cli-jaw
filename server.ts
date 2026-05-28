@@ -23,6 +23,7 @@ import { registerGoalRunRoutes } from './src/routes/goal-run.js';
 import { registerMemoryRoutes } from './src/routes/memory.js';
 import { registerSettingsRoutes } from './src/routes/settings.js';
 import { registerMessagingRoutes } from './src/routes/messaging.js';
+import { buildChannelHealthSnapshot } from './src/messaging/channel-health.js';
 import { registerAvatarRoutes } from './src/routes/avatar.js';
 import { registerTraceRoutes } from './src/routes/traces.js';
 import { registerJawCeoRoutes } from './src/routes/jaw-ceo.js';
@@ -426,7 +427,12 @@ function makeWebCommandCtx(req: Request, localeOverride: string | null = null) {
     });
 }
 
-app.get('/api/health', (_req, res) => res.json({ ok: true, version: APP_VERSION, uptime: process.uptime() }));
+app.get('/api/health', (_req, res) => res.json({
+    ok: true,
+    version: APP_VERSION,
+    uptime: process.uptime(),
+    channels: buildChannelHealthSnapshot(),
+}));
 app.get('/api/session', (_, res) => ok(res, getSession(), getSession() as Record<string, unknown> | undefined));
 app.get('/api/messages', (req, res) => {
     const includeTrace = ['1', 'true', 'yes'].includes(String(req.query["includeTrace"] || '').toLowerCase());

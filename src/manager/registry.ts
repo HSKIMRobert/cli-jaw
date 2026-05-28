@@ -10,6 +10,8 @@ import {
 import { dashboardPath, resolveDashboardHome } from './dashboard-home.js';
 import { deriveProfiles, mergeProfiles } from './profiles.js';
 import type {
+    DashboardDiffMode,
+    DashboardDiffRootPolicy,
     DashboardDetailTab,
     DashboardInstance,
     DashboardProfile,
@@ -42,6 +44,8 @@ const LOCALES: DashboardLocale[] = ['ko', 'en', 'zh', 'ja'];
 const SIDEBAR_MODES: DashboardSidebarMode[] = ['instances', 'board', 'schedule', 'notes', 'reminders', 'settings'];
 const NOTES_VIEW_MODES: DashboardNotesViewMode[] = ['raw', 'split', 'preview', 'settings', 'graph'];
 const NOTES_AUTHORING_MODES: DashboardNotesAuthoringMode[] = ['plain', 'rich', 'wysiwyg'];
+const DIFF_ROOT_POLICIES: DashboardDiffRootPolicy[] = ['project-first', 'working-dir-first', 'manual'];
+const DIFF_MODES: DashboardDiffMode[] = ['unstaged', 'staged', 'head', 'base'];
 const SHORTCUT_ACTIONS: DashboardShortcutAction[] = [
     'focusInstances',
     'focusActiveSession',
@@ -127,6 +131,18 @@ function normalizeActivitySeenByPort(value: unknown): Record<string, string> {
     return seenByPort;
 }
 
+function normalizeDiffPinnedRootByPort(value: unknown): Record<string, string> {
+    const input = isRecord(value) ? value : {};
+    const roots: Record<string, string> = {};
+    for (const [key, root] of Object.entries(input)) {
+        const port = Number(key);
+        if (!Number.isInteger(port) || port < 1 || port > 65535) continue;
+        if (typeof root !== 'string' || !root.trim()) continue;
+        roots[String(port)] = root.trim().slice(0, 2048);
+    }
+    return roots;
+}
+
 function normalizeShortcutChord(value: unknown, fallback: string): string {
     if (typeof value !== 'string') return fallback;
     const trimmed = value.trim().replace(/\s+/g, '');
@@ -181,6 +197,11 @@ function defaultUi(): DashboardRegistryUi {
         showSelectedRowActions: true,
         dashboardShortcutsEnabled: true,
         dashboardShortcutKeymap: { ...DEFAULT_DASHBOARD_SHORTCUT_KEYMAP },
+        diffRootPolicy: 'project-first',
+        diffPinnedRootByPort: {},
+        diffDefaultMode: 'unstaged',
+        diffBaseRef: 'HEAD',
+        diffIncludeUntracked: true,
     };
 }
 
@@ -215,6 +236,12 @@ function normalizeUi(value: unknown): DashboardRegistryUi {
     const notesAuthoringMode = NOTES_AUTHORING_MODES.includes(input["notesAuthoringMode"] as DashboardNotesAuthoringMode)
         ? input["notesAuthoringMode"] as DashboardNotesAuthoringMode
         : fallback.notesAuthoringMode;
+    const diffRootPolicy = DIFF_ROOT_POLICIES.includes(input["diffRootPolicy"] as DashboardDiffRootPolicy)
+        ? input["diffRootPolicy"] as DashboardDiffRootPolicy
+        : fallback.diffRootPolicy;
+    const diffDefaultMode = DIFF_MODES.includes(input["diffDefaultMode"] as DashboardDiffMode)
+        ? input["diffDefaultMode"] as DashboardDiffMode
+        : fallback.diffDefaultMode;
     return {
         selectedPort,
         selectedTab,
@@ -242,6 +269,11 @@ function normalizeUi(value: unknown): DashboardRegistryUi {
         showSelectedRowActions: typeof input["showSelectedRowActions"] === 'boolean' ? input["showSelectedRowActions"] : fallback.showSelectedRowActions,
         dashboardShortcutsEnabled: typeof input["dashboardShortcutsEnabled"] === 'boolean' ? input["dashboardShortcutsEnabled"] : fallback.dashboardShortcutsEnabled,
         dashboardShortcutKeymap: normalizeShortcutKeymap(input["dashboardShortcutKeymap"]),
+        diffRootPolicy,
+        diffPinnedRootByPort: normalizeDiffPinnedRootByPort(input["diffPinnedRootByPort"]),
+        diffDefaultMode,
+        diffBaseRef: readString(input["diffBaseRef"]) ?? fallback.diffBaseRef,
+        diffIncludeUntracked: typeof input["diffIncludeUntracked"] === 'boolean' ? input["diffIncludeUntracked"] : fallback.diffIncludeUntracked,
     };
 }
 

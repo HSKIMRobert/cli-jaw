@@ -36,6 +36,7 @@ type AppChromeProps = {
     notesModel: NotesModelState;
     notesSelectedNote: NoteMetadata | null;
     notesDirtyPath: string | null;
+    notesHighlightedPath: string | null;
     notesSidebarMode: NotesSidebarMode;
     notesSearchFocusToken: number;
     settingsSection: Parameters<typeof SidebarRailRouter>[0]['settingsSection'];
@@ -77,6 +78,7 @@ type AppChromeProps = {
     handleSidebarModeChange: Parameters<typeof SidebarRailRouter>[0]['onSidebarModeChange'];
     handleSidebarToggle: () => void;
     handleNotesSelectedPathChange: (path: string | null) => void;
+    openNotesFromPreview: (path: string) => void;
     handleNotesViewModeChange: (mode: DashboardNotesViewMode) => void;
     handleNotesAuthoringModeChange: (mode: DashboardNotesAuthoringMode) => void;
     handleNotesWordWrapChange: (value: boolean) => void;
@@ -112,7 +114,7 @@ export function AppChrome(props: AppChromeProps) {
                         onOpenHelpTopic={props.onOpenHelpTopic}
                         settingsSection={props.settingsSection} locale={props.view.locale} onSettingsSectionChange={props.setDashboardSettingsSection}
                         notesModel={props.notesModel} notesSelectedPath={props.view.notesSelectedPath} notesSelectedNote={props.notesSelectedNote}
-                        notesDirtyPath={props.notesDirtyPath} notesTreeWidth={props.view.notesTreeWidth} notesSidebarMode={props.notesSidebarMode}
+                        notesDirtyPath={props.notesDirtyPath} notesHighlightedPath={props.notesHighlightedPath} notesTreeWidth={props.view.notesTreeWidth} notesSidebarMode={props.notesSidebarMode}
                         notesSearchFocusToken={props.notesSearchFocusToken} notesViewMode={props.view.notesViewMode} notesAuthoringMode={props.view.notesAuthoringMode}
                         notesWordWrap={props.view.notesWordWrap} notesVimMode={props.view.notesVimMode} onNotesSidebarModeChange={props.setNotesSidebarMode} onOpenNotesSearch={props.openNotesSidebarSearch}
                         onNotesSelectedPathChange={props.handleNotesSelectedPathChange} onNotesDirtyPathChange={props.setNotesDirtyPath}
@@ -122,7 +124,7 @@ export function AppChrome(props: AppChromeProps) {
                         instances={props.instances} selectedInstance={props.selectedInstance} data={props.data} titlesByPort={props.titlesByPort}
                         busyPorts={props.busyPorts} activeDetailTab={props.view.activeDetailTab} onDetailTabChange={props.handleTabChange}
                         workbenchHeader={props.workbenchHeader} detailContent={props.detailContent} previewEnabled={props.previewEnabled}
-                        previewRefreshKey={props.previewRefreshKey} previewTheme={props.theme.resolved} lifecycleMessage={props.lifecycleMessage}
+                        previewRefreshKey={props.previewRefreshKey} previewTheme={props.theme.resolved} onOpenNotesFromPreview={props.openNotesFromPreview} lifecycleMessage={props.lifecycleMessage}
                         onDismissLifecycleMessage={props.onDismissLifecycleMessage} instanceListContent={props.instanceListContent} loading={props.loading}
                         jawCeoWorkbenchButton={props.jawCeoWorkbenchButton} jawCeoVoiceOverlay={props.jawCeoVoiceOverlay} jawCeoConsoleContent={props.jawCeoConsoleContent}
                         error={props.error} registryMessage={props.registryMessage} managerEvents={props.activityEvents}

@@ -1,4 +1,4 @@
-import { renderMarkdown, escapeHtml, sanitizeHtml, stripOrchestration, linkifyFilePaths } from '../render.js';
+import { renderMarkdown, escapeHtml, sanitizeHtml, stripOrchestration, linkifyFilePathsWithNotesRoot } from '../render.js';
 import { renderMermaidBlocks } from '../render.js';
 import { generateId } from '../uuid.js';
 import { state } from '../state.js';
@@ -121,7 +121,7 @@ export function addMessage(role: string, text: string, cli?: string | null): HTM
                 });
                 vs.onPostRender = (viewport: HTMLElement) => {
                     activateWidgets(viewport);
-                    linkifyFilePaths(viewport);
+                    void linkifyFilePathsWithNotesRoot(viewport);
                     void renderMermaidBlocks(viewport, { immediate: true });
                 };
             }

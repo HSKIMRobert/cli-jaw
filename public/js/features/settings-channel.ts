@@ -4,6 +4,7 @@ import { escapeHtml } from '../render.js';
 import { getCliMeta } from '../constants.js';
 import { providerLabel } from '../provider-icons.js';
 import { t } from './i18n.js';
+import { refreshTransportStatusRow } from './transport-status-row.js';
 import type { SettingsData } from './settings-types.js';
 
 export async function setActiveChannel(ch: 'telegram' | 'discord'): Promise<void> {
@@ -12,6 +13,7 @@ export async function setActiveChannel(ch: 'telegram' | 'discord'): Promise<void
     document.getElementById('channelTelegramSettings')?.style.setProperty('display', ch === 'telegram' ? '' : 'none');
     document.getElementById('channelDiscordSettings')?.style.setProperty('display', ch === 'discord' ? '' : 'none');
     await apiJson('/api/settings', 'PUT', { channel: ch });
+    await refreshTransportStatusRow();
 }
 
 export function loadActiveChannel(s: SettingsData): void {
@@ -20,6 +22,7 @@ export function loadActiveChannel(s: SettingsData): void {
     document.getElementById('chDiscord')?.classList.toggle('active', ch === 'discord');
     document.getElementById('channelTelegramSettings')?.style.setProperty('display', ch === 'telegram' ? '' : 'none');
     document.getElementById('channelDiscordSettings')?.style.setProperty('display', ch === 'discord' ? '' : 'none');
+    void refreshTransportStatusRow();
 }
 
 export function loadFallbackOrder(s: SettingsData): void {

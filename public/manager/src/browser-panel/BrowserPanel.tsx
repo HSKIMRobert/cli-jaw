@@ -1,9 +1,7 @@
 import { createElement, useCallback, useEffect, useRef, useState } from 'react';
 import { getDesktop, isElectron } from '../panels/desktop-bridge';
+import { DEFAULT_BROWSER_URL, isRestrictedBrowserHost, normalizeBrowserTarget } from './browser-url';
 import './browser-panel.css';
-
-const BLOCKED_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '0.0.0.0']);
-const DEFAULT_BROWSER_URL = 'https://example.com';
 
 type ElectronWebviewElement = HTMLElement & {
     src: string;
@@ -47,39 +45,6 @@ type BrowserTabState = {
 type BrowserPanelProps = {
     onCollapse?: () => void;
 };
-
-function isPrivateHost(hostname: string): boolean {
-    return /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(hostname);
-}
-
-function bareHostname(target: string): string {
-    const authority = target.split(/[/?#]/, 1)[0] ?? '';
-    if (authority.startsWith('[')) {
-        const end = authority.indexOf(']');
-        return end > 0 ? authority.slice(1, end).toLowerCase() : authority.toLowerCase();
-    }
-    return authority.split(':', 1)[0]?.toLowerCase() ?? '';
-}
-
-function shouldDefaultToHttp(target: string): boolean {
-    const authority = target.split(/[/?#]/, 1)[0] ?? '';
-    const host = bareHostname(target);
-    if (!host) return false;
-    if (host === 'localhost' || host === '0.0.0.0' || host === '127.0.0.1' || host === '::1') return true;
-    if (host.endsWith('.local') || isPrivateHost(host)) return true;
-    return /:\d+$/.test(authority);
-}
-
-function normalizeUrl(target: string): string | null {
-    const trimmed = target.trim();
-    if (!trimmed) return null;
-    if (/^https?:\/\//i.test(trimmed)) return trimmed;
-    return `${shouldDefaultToHttp(trimmed) ? 'http' : 'https'}://${trimmed}`;
-}
-
-function isRestrictedBrowserHost(hostname: string): boolean {
-    return BLOCKED_HOSTS.has(hostname) || hostname.endsWith('.local') || isPrivateHost(hostname);
-}
 
 function isUrlAllowed(target: string, desktop: boolean): boolean {
     try {
@@ -287,7 +252,7 @@ export function BrowserPanel(props: BrowserPanelProps = {}) {
     ), [desktop]);
 
     const openUrlInTab = useCallback((tabId: string, rawTarget: string) => {
-        const target = normalizeUrl(rawTarget);
+        const target = normalizeBrowserTarget(rawTarget);
         if (!target) return;
         if (!isUrlAllowed(target, desktop)) {
             pendingNavigationRefs.current.delete(tabId);
@@ -309,7 +274,7 @@ export function BrowserPanel(props: BrowserPanelProps = {}) {
     }, [blockedUrlMessage, desktop, updateTab]);
 
     const addTab = useCallback((rawTarget = DEFAULT_BROWSER_URL) => {
-        const target = normalizeUrl(rawTarget) ?? DEFAULT_BROWSER_URL;
+        const target = normalizeBrowserTarget(rawTarget) ?? DEFAULT_BROWSER_URL;
         const allowed = isUrlAllowed(target, desktop);
         const tab = createBrowserTab(`browser-tab-${nextTabIndex.current++}`, allowed ? target : DEFAULT_BROWSER_URL);
         if (!allowed) {

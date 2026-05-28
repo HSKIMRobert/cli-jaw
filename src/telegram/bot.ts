@@ -130,8 +130,43 @@ export function getTelegramTargetIds(): Array<string | number> {
 }
 
 export async function sendTelegramText(chatId: string, text: string) {
-    if (!telegramBot) throw new Error('Telegram not connected');
-    return telegramBot.api.sendMessage(chatId, text);
+    const bot = resolveTelegramSendBot();
+    if (!bot) throw new Error('Telegram not configured');
+    return bot.api.sendMessage(chatId, text);
+}
+
+export type TelegramSendClientResult =
+    | { client: Bot; reason?: never; status?: never }
+    | { client: null; reason: string; status: 400 | 503 };
+
+let telegramSendOnlyBot: Bot | null = null;
+let telegramSendOnlyToken: string | null = null;
+
+export function invalidateTelegramSendClient(): void {
+    telegramSendOnlyBot = null;
+    telegramSendOnlyToken = null;
+}
+
+export function getTelegramSendClient(): TelegramSendClientResult {
+    const tg = settings["telegram"];
+    if (!tg?.enabled) {
+        return { client: null, reason: 'telegram_disabled', status: 503 };
+    }
+    const token = typeof tg.token === 'string' ? tg.token.trim() : '';
+    if (!token) {
+        return { client: null, reason: 'telegram_token_missing', status: 503 };
+    }
+    if (telegramSendOnlyBot && telegramSendOnlyToken === token) {
+        return { client: telegramSendOnlyBot };
+    }
+    telegramSendOnlyBot = new Bot(token);
+    telegramSendOnlyToken = token;
+    return { client: telegramSendOnlyBot };
+}
+
+function resolveTelegramSendBot(): Bot | null {
+    if (telegramBot) return telegramBot;
+    return getTelegramSendClient().client;
 }
 
 function buildTelegramTarget(ctx: Context): RemoteTarget {
@@ -147,10 +182,14 @@ function buildTelegramTarget(ctx: Context): RemoteTarget {
 }
 
 async function telegramSendHandler(req: ChannelSendRequest): Promise<{ ok: boolean; error?: string; [k: string]: unknown }> {
-    if (!telegramBot) return { ok: false, error: 'Telegram not connected' };
+    const bot = resolveTelegramSendBot();
+    if (!bot) {
+        const send = getTelegramSendClient();
+        return { ok: false, error: send.reason ?? 'Telegram not configured', status: send.status ?? 503 };
+    }
 
     const chatId = req.chatId || req.target?.targetId || getLatestTelegramChatId();
-    if (!chatId) return { ok: false, error: 'No telegram chatId available' };
+    if (!chatId) return { ok: false, error: 'No telegram chatId available', status: 400 };
 
     if (req.type === 'text') {
         const text = req.text?.trim();
@@ -160,9 +199,9 @@ async function telegramSendHandler(req: ChannelSendRequest): Promise<{ ok: boole
         const chunks = chunkTelegramMessage(html);
         for (const chunk of chunks) {
             try {
-                await telegramBot.api.sendMessage(chatId, chunk, { parse_mode: 'HTML' });
+                await bot.api.sendMessage(chatId, chunk, { parse_mode: 'HTML' });
             } catch {
-                await telegramBot.api.sendMessage(chatId, chunk.replace(/<[^>]+>/g, ''));
+                await bot.api.sendMessage(chatId, chunk.replace(/<[^>]+>/g, ''));
             }
         }
         return { ok: true, chat_id: chatId, type: 'text' };
@@ -173,7 +212,7 @@ async function telegramSendHandler(req: ChannelSendRequest): Promise<{ ok: boole
     if (!filePath) return { ok: false, error: 'file_path required for non-text types' };
     const { validateFileSize, sendTelegramFile } = await import('./telegram-file.js');
     validateFileSize(filePath, req.type);
-    const result = await sendTelegramFile(telegramBot, chatId, filePath, req.type, stripUndefined({ caption: req.caption }));
+    const result = await sendTelegramFile(bot, chatId, filePath, req.type, stripUndefined({ caption: req.caption }));
     return result;
 }
 

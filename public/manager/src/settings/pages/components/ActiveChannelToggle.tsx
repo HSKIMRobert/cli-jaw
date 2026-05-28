@@ -43,9 +43,9 @@ export function ActiveChannelToggle({ original, dirty, idPrefix = 'channel' }: P
     return (
         <fieldset
             className="settings-field settings-field-active-channel"
-            aria-label="Active channel"
+            aria-label="Active inbound channel"
         >
-            <legend className="settings-field-label">Active channel</legend>
+            <legend className="settings-field-label">Active inbound channel (chat replies)</legend>
             <div className="settings-active-channel-options" role="radiogroup">
                 {CHANNELS.map((opt) => {
                     const id = `${idPrefix}-${opt.value}`;

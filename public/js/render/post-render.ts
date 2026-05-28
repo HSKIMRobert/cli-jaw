@@ -2,7 +2,7 @@
 import { renderMermaidBlocks } from './mermaid.js';
 import { rehighlightAll } from './highlight.js';
 import { bindDiagramZoom } from './svg-actions.js';
-import { linkifyFilePaths } from './file-links.js';
+import { linkifyFilePathsWithNotesRoot } from './file-links.js';
 
 let postRenderRAF: number | null = null;
 let postRenderTimer: ReturnType<typeof setTimeout> | null = null;
@@ -18,7 +18,7 @@ export function schedulePostRender(): void {
             rehighlightAll();
             bindDiagramZoom();
             const msgContainer = document.getElementById('chatMessages');
-            if (msgContainer) linkifyFilePaths(msgContainer);
+            if (msgContainer) void linkifyFilePathsWithNotesRoot(msgContainer);
         });
     }, 100);
 }

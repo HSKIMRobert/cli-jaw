@@ -1,5 +1,6 @@
 import { Suspense, lazy, useEffect, type ReactNode } from 'react';
 import { formatShortcut, MANAGER_SHORTCUT_ACTIONS } from '../manager-shortcuts';
+import { DashboardDeveloperSettingsSection } from './DashboardDeveloperSettingsSection';
 
 const LazyEmbedding = lazy(() => import('./DashboardEmbeddingSection').then(m => ({ default: m.DashboardEmbeddingSection })));
 import { HelpTopicButton } from '../help/HelpTopicButton';
@@ -8,7 +9,7 @@ import type { DashboardLocale, DashboardRegistryUi, DashboardShortcutAction } fr
 import type { DashboardActivityTitleSupport } from './activity-title-support';
 
 type DashboardSettingsWorkspaceProps = {
-    activeSection: 'display' | 'activity' | 'embedding';
+    activeSection: 'display' | 'activity' | 'developer' | 'embedding';
     ui: DashboardRegistryUi;
     titleSupport: DashboardActivityTitleSupport;
     onUiPatch: (patch: Partial<DashboardRegistryUi>) => void;
@@ -570,6 +571,8 @@ export function DashboardSettingsWorkspace(props: DashboardSettingsWorkspaceProp
                     </header>
                     <TitleSupportSummary support={props.titleSupport} locale={locale} />
                 </section>
+            ) : props.activeSection === 'developer' ? (
+                <DashboardDeveloperSettingsSection locale={locale} ui={props.ui} onUiPatch={props.onUiPatch} />
             ) : (
                 <section className="dashboard-settings-section">
                     <header>

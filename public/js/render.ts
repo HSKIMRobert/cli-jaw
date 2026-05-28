@@ -7,6 +7,7 @@ export { sanitizeHtml } from './render/sanitize.js';
 export { shieldMath, unshieldMath } from './render/math.js';
 export { rehighlightAll } from './render/highlight.js';
 export { linkifyFilePaths } from './render/file-links.js';
+export { linkifyFilePathsWithNotesRoot } from './render/file-links.js';
 export { bindDiagramZoom, openDiagramOverlay } from './render/svg-actions.js';
 export {
     renderMermaidBlocks,

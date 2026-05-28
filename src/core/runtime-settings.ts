@@ -41,6 +41,41 @@ function selectedAiEProvider(currentSettings: Record<string, unknown>): string {
     return resolveAiEProvider(explicitProvider, selectedModelForCli('ai-e', currentSettings));
 }
 
+function transportConfigFingerprint(channel: 'telegram' | 'discord', snapshot: Record<string, unknown>): string {
+    const block = asRecord(snapshot[channel]);
+    if (channel === 'telegram') {
+        return JSON.stringify({
+            enabled: block["enabled"],
+            token: stringField(block, 'token'),
+            allowedChatIds: block["allowedChatIds"],
+        });
+    }
+    return JSON.stringify({
+        enabled: block["enabled"],
+        token: stringField(block, 'token'),
+        guildId: stringField(block, 'guildId'),
+        channelIds: block["channelIds"],
+    });
+}
+
+async function invalidateSendOnlyClientsIfNeeded(
+    prev: Record<string, unknown>,
+    next: Record<string, unknown>,
+): Promise<void> {
+    const tasks: Promise<void>[] = [];
+    if (transportConfigFingerprint('telegram', prev) !== transportConfigFingerprint('telegram', next)) {
+        tasks.push(import('../telegram/bot.js').then(({ invalidateTelegramSendClient }) => {
+            invalidateTelegramSendClient();
+        }));
+    }
+    if (transportConfigFingerprint('discord', prev) !== transportConfigFingerprint('discord', next)) {
+        tasks.push(import('../discord/send-only-client.js').then(({ invalidateDiscordSendClient }) => {
+            invalidateDiscordSendClient();
+        }));
+    }
+    await Promise.all(tasks);
+}
+
 export async function applyRuntimeSettingsPatch(
     rawPatch: Record<string, any> = {},
     opts: ApplyRuntimeSettingsOptions = {},
@@ -114,6 +149,8 @@ export async function applyRuntimeSettingsPatch(
                 console.error('[jaw:workingDir]', (e as Error).message);
             }
         }
+
+        await invalidateSendOnlyClientsIfNeeded(prevSnapshot, settings);
 
         // Unified messaging runtime restart (handles both Telegram and Discord)
         try {

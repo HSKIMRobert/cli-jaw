@@ -125,6 +125,9 @@ export async function shutdownMessagingRuntime() {
     }
 }
 
+export { getTransportCapability, buildChannelHealthSnapshot } from './channel-health.js';
+export type { TransportCapability, ChannelHealthSnapshot } from './channel-health.js';
+
 export async function restartMessagingRuntime(
     prev: Record<string, any>,
     next: Record<string, any>,

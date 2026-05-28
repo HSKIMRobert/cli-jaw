@@ -22,6 +22,7 @@ import { expandPatch } from './path-utils';
 import { ActiveChannelToggle } from './components/ActiveChannelToggle';
 import type { ActiveChannel } from './components/ActiveChannelToggle';
 import { HealthBadge, interpretTelegramProbe } from './components/HealthBadge';
+import { TransportStatusChips } from './components/TransportStatusChips';
 
 type TelegramBlock = {
     enabled?: boolean;
@@ -173,13 +174,14 @@ export default function ChannelsTelegram({ port, client, dirty, registerSave }: 
         >
             <SettingsSection
                 title="Channels"
-                hint="Choose which channel forwards bot replies to you."
+                hint="Choose which channel receives inbound chat. Outbound send can still work on the other channel when configured."
             >
                 <ActiveChannelToggle
                     original={originalChannel}
                     dirty={dirty}
                     idPrefix="tg-channel"
                 />
+                <TransportStatusChips client={client} channel="telegram" />
             </SettingsSection>
 
             <SettingsSection title="Telegram" hint="Bot token, allow-list, and forwarding rules.">

@@ -27,6 +27,16 @@ lidge-jun/cli-jaw              ← public parent repo
 - 현재 `.gitmodules`와 `git submodule status` 기준으로 세 submodule 모두 live tree에 존재한다
 - `AGENTS.md`/`CONTRIBUTING.md` 일부 문단은 아직 `officecli/`를 생략하고 있어도, 구조 문서의 기준은 live tree다
 
+### Dashboard Diff Root Policy
+
+Manager/Electron Diff panel에서 이 repo를 볼 때 source repo root와 runtime home을 혼동하면 안 된다.
+
+- 실제 source repo root: `/Users/jun/Developer/new/700_projects/cli-jaw`
+- runtime/JAW_HOME 예시: `/Users/jun/.cli-jaw-3459`
+- `jaw dashboard serve`가 스캔한 instance metadata의 `projectDirs[]`와 `workingDir`가 diff root 후보의 source of truth다.
+- Diff panel은 `projectDirs[]`를 우선 사용하고, 설정에 따라 `workingDir` 또는 port별 pinned root를 먼저 사용한다. `$HOME`은 마지막 fallback이다.
+- parent repo와 `skills_ref/`, `devlog/`, `officecli/` submodule은 각각 독립 git repo일 수 있으므로 root selector에서 명시적으로 선택해야 한다.
+
 ## 2) Clone Strategy
 
 ```bash

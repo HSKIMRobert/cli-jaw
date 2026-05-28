@@ -12,6 +12,19 @@ function read(path: string): string {
     return normalizeStrictPropertyAccess(readFileSync(join(projectRoot, path), 'utf8'));
 }
 
+test('browser URL normalization keeps preview host shorthands and Google search distinct', async () => {
+    const { DEFAULT_BROWSER_URL, normalizeBrowserTarget } = await import('../../public/manager/src/browser-panel/browser-url.ts');
+
+    assert.equal(DEFAULT_BROWSER_URL, 'https://www.google.com/');
+    assert.equal(normalizeBrowserTarget('localhost:3000'), 'http://localhost:3000');
+    assert.equal(normalizeBrowserTarget('myapp.local:5173'), 'http://myapp.local:5173');
+    assert.equal(normalizeBrowserTarget('example.com'), 'https://example.com');
+    assert.equal(
+        normalizeBrowserTarget('한글 검색 test'),
+        'https://www.google.com/search?q=%ED%95%9C%EA%B8%80%20%EA%B2%80%EC%83%89%20test',
+    );
+});
+
 test('Electron desktop build refreshes manager frontend assets before packaging', () => {
     const pkg = read('package.json');
 
@@ -140,11 +153,13 @@ test('Electron titlebar spacing survives React timing and CSS cascade', () => {
 test('Electron preload bridge avoids unsupported sandbox Node builtins', () => {
     const preload = read('electron/src/preload/index.ts');
     const diffPanel = read('public/manager/src/diff-panel/DiffPanel.tsx');
+    const diffRoots = read('public/manager/src/diff-panel/diff-root-candidates.ts');
 
     assert.ok(!preload.includes('node:os'), 'sandboxed preload must not import node:os because it prevents cliJawDesktop from being exposed');
     assert.ok(preload.includes('contextBridge.exposeInMainWorld'), 'preload must expose cliJawDesktop through contextBridge');
     assert.ok(preload.includes('getHomePath'), 'preload must still provide a home-path bridge helper');
     assert.ok(diffPanel.includes("desktop?.getHomePath?.() || '/tmp'"), 'diff panel must tolerate an empty home path from the sandbox preload');
+    assert.ok(diffRoots.includes('projectDirs'), 'diff panel root resolution must prefer selected instance projectDirs before home fallback');
 });
 
 test('manager desktop panel toggles live in the command bar to keep the sidebar rail single-line', () => {
@@ -214,6 +229,7 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     const folder = read('public/manager/src/folder-panel/FolderPanel.tsx');
     const doc = read('public/manager/src/doc-panel/DocPanel.tsx');
     const browserPanel = read('public/manager/src/browser-panel/BrowserPanel.tsx');
+    const browserUrl = read('public/manager/src/browser-panel/browser-url.ts');
     const css = read('public/manager/src/panels/panels.css');
     const workspace = read('public/manager/src/components/WorkspaceLayout.tsx');
     const browserCss = read('public/manager/src/browser-panel/browser-panel.css');
@@ -259,7 +275,10 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(browserPanel.includes('openUrlInTab(activeTab.id, rawTarget)'), 'browser Go action must not depend only on React change events');
     assert.ok(browserPanel.includes('if (editingTabIdRef.current !== tabId)'), 'webview navigation events must not overwrite an address currently being edited');
     assert.ok(browserPanel.includes('onMouseDown={event => event.preventDefault()}'), 'Go button must avoid blurring the URL input before click navigation reads it');
-    assert.ok(browserPanel.includes('function shouldDefaultToHttp'), 'browser panel must treat localhost/private bare targets as http previews instead of defaulting them to https');
+    assert.ok(browserUrl.includes("DEFAULT_BROWSER_URL = 'https://www.google.com/'"), 'browser tabs must default to Google instead of example.com');
+    assert.ok(browserUrl.includes('GOOGLE_SEARCH_URL'), 'browser URL helper must route search-like input through Google');
+    assert.ok(browserUrl.includes('function shouldDefaultToHttp'), 'browser panel must treat localhost/private bare targets as http previews instead of defaulting them to https');
+    assert.ok(browserUrl.includes('encodeURIComponent(trimmed)'), 'browser search query URLs must encode Korean and space-containing input safely');
     assert.ok(browserPanel.includes('type BrowserTabState'), 'browser panel must track tab-specific URL/loading/error state');
     assert.ok(browserPanel.includes('browser-tab-strip'), 'browser panel must expose a tab strip for multiple browser tabs');
     assert.ok(browserPanel.includes('aria-label="New browser tab"'), 'browser panel must expose an explicit new-tab control');
@@ -297,6 +316,35 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(browserCss.includes('.browser-webview-host.is-active {\n    display: flex;'), 'active browser webview host must own remaining height with flex layout');
     assert.ok(!browserCss.includes('position: absolute'), 'Electron webview must not be taken out of flex layout because its guest iframe sizing depends on the webview container');
     assert.ok(browserCss.includes('display: flex'), 'Electron webview must keep its default flex display so the internal guest iframe fills the container');
+});
+
+test('Electron diff panel resolves selected instance roots and exposes configurable modes', () => {
+    const router = read('public/manager/src/SidebarRailRouter.tsx');
+    const diffPanel = read('public/manager/src/diff-panel/DiffPanel.tsx');
+    const diffRoots = read('public/manager/src/diff-panel/diff-root-candidates.ts');
+    const desktopBridge = read('public/manager/src/panels/desktop-bridge.ts');
+    const preload = read('electron/src/preload/index.ts');
+    const diffIpc = read('electron/src/main/lib/git/ipc.ts');
+    const diffCss = read('public/manager/src/diff-panel/diff-panel.css');
+
+    assert.ok(router.includes('<DiffPanel selectedInstance={selectedInstance} settings={dashboardSettingsUi} onSettingsPatch={onDashboardSettingsPatch} />'), 'router must pass selected instance roots and saved diff settings into DiffPanel');
+    assert.ok(diffRoots.includes('settings.diffRootPolicy'), 'diff root helper must honor saved root policy');
+    assert.ok(diffRoots.includes('settings.diffPinnedRootByPort'), 'diff root helper must include pinned per-instance repo roots');
+    assert.ok(diffRoots.includes('projectDirs'), 'diff root helper must use selected instance projectDirs');
+    assert.ok(diffPanel.includes('bridge.getRepoCandidates(candidates)'), 'DiffPanel must resolve repo candidates instead of probing only Electron home');
+    assert.ok(diffPanel.includes('diffPinnedRootByPort'), 'DiffPanel must persist the selected repo root by instance port');
+    assert.ok(diffPanel.includes("const DIFF_MODES: DashboardDiffMode[] = ['unstaged', 'staged', 'head', 'base']"), 'DiffPanel must expose the expected diff modes');
+    assert.ok(diffPanel.includes('diffIncludeUntracked'), 'DiffPanel must expose an untracked-file toggle');
+    assert.ok(desktopBridge.includes('getRepoCandidates'), 'desktop bridge must expose repo candidate resolution');
+    assert.ok(preload.includes("ipcRenderer.invoke('diff:getRepoCandidates'"), 'preload must expose repo candidate resolution');
+    assert.ok(diffIpc.includes("ipcMain.handle('diff:getRepoCandidates'"), 'Electron main must implement repo candidate resolution');
+    assert.ok(diffIpc.includes("'-c', 'core.quotepath=false'"), 'Electron git diff commands must preserve unicode/Korean paths');
+    assert.ok(diffIpc.includes("DIFF_MODES = new Set(['unstaged', 'staged', 'head', 'base'])"), 'Electron diff IPC must validate diff mode options');
+    assert.ok(diffIpc.includes('isValidRef(rawRef)'), 'Electron diff IPC must validate base refs before invoking git');
+    assert.ok(diffIpc.includes("ls-files', '--others', '--exclude-standard"), 'Electron diff IPC must support untracked file summaries');
+    assert.ok(diffIpc.includes("diff', '--no-color', '--no-index'"), 'Electron diff IPC must provide content for untracked file diffs');
+    assert.ok(diffCss.includes('.diff-root-select'), 'DiffPanel root selector must be styled');
+    assert.ok(diffCss.includes('.diff-mode-button.is-active'), 'DiffPanel active mode must be visibly styled');
 });
 
 test('Electron terminal uses xterm plus a PTY backend and representative shortcut', () => {
