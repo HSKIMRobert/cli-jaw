@@ -30,6 +30,7 @@ import { registerTerminalIpc, cleanupTerminals } from './lib/terminal/index.js';
 import { registerDiffIpc } from './lib/git/ipc.js';
 import { registerFolderIpc, cleanupFolderWatchers } from './lib/folder/ipc.js';
 import { setAllowedOrigin } from './lib/ipc-origin-guard.js';
+import { primeMacAutomationPermission } from './lib/mac-automation-permission.js';
 
 interface CliFlags {
   port: number;
@@ -158,6 +159,7 @@ const __dirname = dirname(__filename);
 const PRELOAD_PATH = join(__dirname, '..', 'preload', 'index.js');
 const DESKTOP_USER_AGENT_TOKEN = 'cli-jaw-desktop';
 const EMBEDDED_BROWSER_PARTITION = 'persist:cli-jaw-browser';
+const AUTOMATION_SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Automation';
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
@@ -265,6 +267,33 @@ async function bootstrap(): Promise<void> {
 
   await ensureManagerRunning();
   await createWindow();
+  primeMacAutomationPermission({
+    log: ringBuffer,
+    onBlocked: showAutomationPermissionDialog,
+  });
+}
+
+function showAutomationPermissionDialog(reason: string): void {
+  void dialog.showMessageBox({
+    type: 'warning',
+    title: 'cli-jaw Automation permission',
+    message: 'macOS Automation permission is not ready.',
+    detail: [
+      'cli-jaw tried to request Automation access for Computer Use, but macOS did not complete the prompt.',
+      '',
+      `Reason: ${reason}`,
+      '',
+      'Open System Settings > Privacy & Security > Automation and enable cli-jaw for System Events and Google Chrome when it appears.',
+    ].join('\n'),
+    buttons: ['Open Automation Settings', 'OK'],
+    defaultId: 0,
+    cancelId: 1,
+  }).then((result) => {
+    if (result.response !== 0) return;
+    void shell.openExternal(AUTOMATION_SETTINGS_URL);
+  }).catch((err) => {
+    ringBuffer.append(`[automation permission dialog error] ${(err as Error).message}\n`);
+  });
 }
 
 function bootstrapOnce(): Promise<void> {

@@ -6,6 +6,7 @@ directories:
 files:
   - out/**/*
   - package.json
+afterSign: build/after-sign.mjs
 asar: true
 asarUnpack:
   - node_modules/node-pty/**/*
@@ -16,6 +17,10 @@ icon: build/icon.png
 mac:
   icon: build/icon.icns
   category: public.app-category.developer-tools
+  extendInfo:
+    NSAppleEventsUsageDescription: cli-jaw uses Automation only when you ask Computer Use to inspect or operate another desktop app.
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
   target:
     - target: dmg
       arch:
