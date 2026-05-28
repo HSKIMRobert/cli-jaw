@@ -36,7 +36,7 @@ function renderDiffLines(text: string): ReactNode {
     if (!text) return null;
     return text.split('\n').map((line, i) => {
         const cls = getDiffLineClass(line);
-        return <div key={i} className={`diff-line${cls ? ` ${cls}` : ''}`}>{line}</div>;
+        return <span key={i} className={`diff-line${cls ? ` ${cls}` : ''}`}>{line}{'\n'}</span>;
     });
 }
 
