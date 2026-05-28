@@ -195,6 +195,7 @@ export type DashboardRegistryUi = {
     notesViewMode: DashboardNotesViewMode;
     notesAuthoringMode: DashboardNotesAuthoringMode;
     notesWordWrap: boolean;
+    notesVimMode: boolean;
     notesTreeWidth: number;
     showLatestActivityTitles: boolean;
     showInlineLabelEditor: boolean;

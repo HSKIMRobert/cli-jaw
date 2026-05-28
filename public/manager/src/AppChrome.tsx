@@ -80,6 +80,7 @@ type AppChromeProps = {
     handleNotesViewModeChange: (mode: DashboardNotesViewMode) => void;
     handleNotesAuthoringModeChange: (mode: DashboardNotesAuthoringMode) => void;
     handleNotesWordWrapChange: (value: boolean) => void;
+    handleNotesVimModeChange: (value: boolean) => void;
     handleNotesTreeWidthChange: (value: number) => void;
     openNotesSidebarSearch: () => void;
     setNotesDirtyPath: Dispatch<SetStateAction<string | null>>;
@@ -113,10 +114,10 @@ export function AppChrome(props: AppChromeProps) {
                         notesModel={props.notesModel} notesSelectedPath={props.view.notesSelectedPath} notesSelectedNote={props.notesSelectedNote}
                         notesDirtyPath={props.notesDirtyPath} notesTreeWidth={props.view.notesTreeWidth} notesSidebarMode={props.notesSidebarMode}
                         notesSearchFocusToken={props.notesSearchFocusToken} notesViewMode={props.view.notesViewMode} notesAuthoringMode={props.view.notesAuthoringMode}
-                        notesWordWrap={props.view.notesWordWrap} onNotesSidebarModeChange={props.setNotesSidebarMode} onOpenNotesSearch={props.openNotesSidebarSearch}
+                        notesWordWrap={props.view.notesWordWrap} notesVimMode={props.view.notesVimMode} onNotesSidebarModeChange={props.setNotesSidebarMode} onOpenNotesSearch={props.openNotesSidebarSearch}
                         onNotesSelectedPathChange={props.handleNotesSelectedPathChange} onNotesDirtyPathChange={props.setNotesDirtyPath}
                         onNotesViewModeChange={props.handleNotesViewModeChange} onNotesAuthoringModeChange={props.handleNotesAuthoringModeChange}
-                        onNotesWordWrapChange={props.handleNotesWordWrapChange} onNotesTreeWidthChange={props.handleNotesTreeWidthChange}
+                        onNotesWordWrapChange={props.handleNotesWordWrapChange} onNotesVimModeChange={props.handleNotesVimModeChange} onNotesTreeWidthChange={props.handleNotesTreeWidthChange}
                         boardView={props.boardView} onBoardViewChange={props.setBoardView} scheduleGroup={props.scheduleGroup} onScheduleGroupChange={props.setScheduleGroup}
                         instances={props.instances} selectedInstance={props.selectedInstance} data={props.data} titlesByPort={props.titlesByPort}
                         busyPorts={props.busyPorts} activeDetailTab={props.view.activeDetailTab} onDetailTabChange={props.handleTabChange}

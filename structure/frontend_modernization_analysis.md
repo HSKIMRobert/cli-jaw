@@ -42,7 +42,7 @@ aliases: [Frontend Modernization Audit, cli-jaw frontend analysis, modernization
 - 기존 문서 관례대로 `public/dist/*`만 제외하면 `public/public/dist/*`가 남아서 총 236개로 잡힌다.
 - `public/js/`는 root가 15개, `js/diagram/`이 3개, `js/features/`가 31개다.
 - `public/manager/`는 28개 파일의 React Manager 대시보드 source다.
-- `public/css/`는 9개, `public/locales/`는 2개, `public/assets/providers/`는 10개, `public/assets/fonts/`는 2개, `public/icons/`는 3개다.
+- `public/css/`는 9개, `public/locales/`는 2개, `public/assets/providers/`는 14개, `public/assets/fonts/`는 2개, `public/icons/`는 3개다.
 - 핵심 runtime만 봐도 `main.ts 508L`, `ui.ts 808L`, `render.ts 1099L`, `ws.ts 458L`, `virtual-scroll.ts 500L`, `state.ts 87L`, `process-block.ts 232L`, `tool-ui.ts 116L`, `manager/src/App.tsx 373L`다.
 
 ### 이미 현대화된 영역

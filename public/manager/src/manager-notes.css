@@ -1441,3 +1441,21 @@ mark.backlink-highlight {
 .graph-node text {
     text-shadow: 0 0 4px var(--canvas-deep, #111);
 }
+
+/* ── Vim mode status bar ── */
+
+.notes-editor .cm-vim-panel {
+    padding: 3px 10px;
+    border-top: 1px solid var(--border-subtle);
+    background: color-mix(in srgb, var(--canvas-panel) 86%, var(--canvas-base));
+    color: var(--text-secondary);
+    font: 500 12px/1.4 var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+}
+
+.notes-editor .cm-vim-panel input {
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    outline: none;
+}

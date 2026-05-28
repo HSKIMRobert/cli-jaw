@@ -6,10 +6,10 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 
 > 📚 [INDEX](INDEX.md) · [체크리스트 ↗](AGENTS.md) · [커맨드 ↗](commands.md) · **서버 API**
 
-# server.ts — Glue + Route Registration (853L)
+# server.ts — Glue + Route Registration (876L)
 
-> Express/WS bootstrap + localhost/LAN opt-in 보안 가드 + base route 14개 + `src/routes/*` 12개 registrar 등록.
-> 현재 라이브 surface는 총 135개 route handler이며, 이 중 `/`를 제외한 API 엔드포인트는 134개다.
+> Express/WS bootstrap + localhost/LAN opt-in 보안 가드 + base route 14개 + `src/routes/*` 15개 registrar 등록.
+> 현재 라이브 surface는 총 141개 route handler이며, 이 중 `/`를 제외한 API 엔드포인트는 140개다.
 > mutation route(`POST`/`PUT`/`DELETE`)는 총 71개고 모두 `requireAuth`를 거친다. 단, `requireAuth()`는 loopback 요청을 토큰 없이 통과시키고, `lanAllowed()`가 true일 때 private IP도 LAN bypass로 통과시킨다.
 > `GET /api/auth/token`은 Bearer bootstrap 전용이며 `Sec-Fetch-Site`가 `same-origin` 또는 `none`이 아닐 때 `403`을 반환한다.
 
@@ -25,6 +25,8 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 | `src/routes/browser.ts` | 475L | 41 | browser primitive/tab/debug/doctor/cleanup routes + adaptive fetch + web-ai render/send/poll/watch/sessions/capabilities/context routes |
 | `src/routes/jaw-memory.ts` | 239L | 11 | jaw memory search/read/save/list/init/reflect/flush/soul/soul-activate/bootstrap |
 | `src/routes/orchestrate.ts` | 394L | 11 | reset/state/workers/snapshot/queue cancel/hold/queue steer/dispatch/worker result/state PUT |
+| `src/routes/goal.ts` | 89L | 3 | durable goal state get/history/set-update-complete-cancel-pause-resume |
+| `src/routes/goal-run.ts` | 81L | 3 | bounded goal-run state/preflight/start-pause-resume-stop |
 | `src/routes/messaging.ts` | 222L | 6 | upload/file-open/voice/telegram/channel/discord send |
 | `src/routes/employees.ts` | 96L | 5 | employee CRUD + reset |
 | `src/routes/skills.ts` | 74L | 5 | skills list/read/enable/disable/reset |
@@ -39,8 +41,8 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 
 ```text
 employees → heartbeat → skills → jaw-memory → orchestrate
-→ memory → settings → messaging → avatar → traces
-→ dashboard board/schedule → browser → i18n
+→ goal → goal-run → memory → settings → messaging → avatar → traces
+→ jaw-ceo → dashboard board/schedule → browser → i18n
 ```
 
 라우트 모듈은 `server.ts:543-561` 부근에서 등록된다.
@@ -169,6 +171,8 @@ ensureDirs()
 | Heartbeat | `GET/PUT /api/heartbeat` |
 | Browser | `POST /api/browser/start` `POST /api/browser/stop` `GET /api/browser/status` `GET /api/browser/doctor` `POST /api/browser/cleanup-runtimes` `GET /api/browser/snapshot` `POST /api/browser/screenshot` `POST /api/browser/act` `POST /api/browser/vision-click` `POST /api/browser/navigate` `POST /api/browser/reload` `POST /api/browser/resize` `GET /api/browser/tabs` `GET /api/browser/active-tab` `POST /api/browser/tab-switch` `POST /api/browser/tab-new` `POST /api/browser/tab-close` `POST /api/browser/tab-cleanup` `POST /api/browser/evaluate` `GET /api/browser/text` `GET /api/browser/dom` `GET /api/browser/console` `GET /api/browser/network` `POST /api/browser/fetch` `POST /api/browser/wait-for-selector` `POST /api/browser/wait-for-text` `POST /api/browser/web-ai/render` `POST /api/browser/web-ai/context-dry-run` `POST /api/browser/web-ai/context-render` `GET /api/browser/web-ai/status` `POST /api/browser/web-ai/send` `GET /api/browser/web-ai/poll` `GET /api/browser/web-ai/watch` `GET /api/browser/web-ai/watchers` `GET /api/browser/web-ai/sessions` `POST /api/browser/web-ai/sessions/prune` `GET /api/browser/web-ai/notifications` `GET /api/browser/web-ai/capabilities` `POST /api/browser/web-ai/query` `POST /api/browser/web-ai/stop` `GET /api/browser/web-ai/diagnose` |
 | Orchestrate | `POST /api/orchestrate/reset` `GET /api/orchestrate/state` `GET /api/orchestrate/workers` `GET /api/orchestrate/snapshot` `DELETE /api/orchestrate/queue/:id` `POST /api/orchestrate/queue/:id/hold` `DELETE /api/orchestrate/queue/:id/hold` `POST /api/orchestrate/queue/:id/steer` `POST /api/orchestrate/dispatch` `GET /api/orchestrate/worker/:agentId/result` `PUT /api/orchestrate/state` |
+| Goal | `GET /api/goal` `GET /api/goal/history` `POST /api/goal` |
+| Goal Run | `GET /api/goal-run` `GET /api/goal-run/preflight` `POST /api/goal-run` |
 | Employees | `GET /api/employees` `POST /api/employees` `PUT /api/employees/:id` `DELETE /api/employees/:id` `POST /api/employees/reset` |
 | Skills | `GET /api/skills` `GET /api/skills/:id` `POST /api/skills/enable` `POST /api/skills/disable` `POST /api/skills/reset` |
 | Memory Runtime / KV / Files | `GET /api/memory/status` `POST /api/memory/reindex` `POST /api/memory/bootstrap` `GET /api/memory/files` `GET /api/memory` `POST /api/memory` `DELETE /api/memory/:key` `GET /api/memory-files` `GET /api/memory-file` `GET /api/memory-files/:filename` `DELETE /api/memory-file` `DELETE /api/memory-files/:filename` `PUT /api/memory-files/settings` |
@@ -178,7 +182,7 @@ ensureDirs()
 | Traces | `GET /api/traces/:runId` `GET /api/traces/:runId/events` `GET /api/traces/:runId/events/:seq` |
 | i18n | `GET /api/i18n/languages` `GET /api/i18n/:lang` |
 
-> 실제 코드(`server.ts` + `src/routes/*.ts`)에서 추출한 총 135개 route handler 기준이다. 이 중 API 엔드포인트는 134개이고, 나머지 1개는 `/` 엔트리이다. Browser API 41개는 `src/routes/browser.ts`에서 등록된다. 이 중 POST/PUT/DELETE mutation endpoint 74개는 모두 `requireAuth` 보호를 받고, `GET /api/auth/token`은 `Sec-Fetch-Site`가 `same-origin|none`이 아닐 때 `403`을 반환한다.
+> 실제 코드(`server.ts` + `src/routes/*.ts`)에서 추출한 총 141개 route handler 기준이다. 이 중 API 엔드포인트는 140개이고, 나머지 1개는 `/` 엔트리이다. Browser API 41개는 `src/routes/browser.ts`에서 등록된다. 이 중 POST/PUT/DELETE mutation endpoint 74개는 모두 `requireAuth` 보호를 받고, `GET /api/auth/token`은 `Sec-Fetch-Site`가 `same-origin|none`이 아닐 때 `403`을 반환한다.
 
 ### 최근 surface drift
 
@@ -186,6 +190,7 @@ ensureDirs()
 - avatar API가 `registerAvatarRoutes()`로 연결되어 agent/user custom image를 관리한다.
 - `/api/session/reset`이 base route로 추가되어 `/clear`와 의미가 분리됐다.
 - orchestrate API는 queue cancel / queue hold / queue steer / worker result 조회까지 포함한 11개 route이며, 이전 `continue` route는 현재 코드 표면에 없다.
+- goal API는 durable goal state와 bounded goal-run state/preflight/start control 6개 route를 노출한다.
 - browser API는 primitive/tab/debug/doctor/runtime-cleanup, adaptive URL fetch, web-ai provider automation 라우트를 합쳐 41개 route로 확장됐다.
 - trace API는 public trace summary와 bounded event page/read를 `GET /api/traces/:runId*` 3개 route로 노출한다.
 - `/api/cli-registry`, `/api/cli-status`, `/api/quota`는 registry/detectAllCli/CLI_KEYS 기준으로 AGY(`agy`) top-level runtime을 포함한다. `/api/quota`에서 quota API가 없는 runtime은 `quotaCapable:false` status-only metadata로 반환한다.
@@ -258,7 +263,7 @@ ensureDirs()
 
 ## WebSocket Events
 
-연결 시 서버는 현재 상태 스냅샷을 먼저 보낸다: `agent_status`, `queue_update`, 비-IDLE `orc_state`. 현재 브로드캐스트되는 WebSocket 이벤트는 33종이다.
+연결 시 서버는 현재 상태 스냅샷을 먼저 보낸다: `agent_status`, `queue_update`, 비-IDLE `orc_state`. 현재 브로드캐스트되는 WebSocket 이벤트는 40종이다.
 
 | Type | 설명 |
 | --- | --- |
@@ -281,6 +286,8 @@ ensureDirs()
 | `system_notice` | compact refresh 같은 시스템 공지 |
 | `heartbeat_pending` | pending heartbeat job 수 |
 | `worker_stalled` / `worker_disconnected` / `worker_timeout` | distributed worker 상태 변화 |
+| `goal_done` / `goal_cancel` / `goal_continuation` / `goal_continuation_failed` / `goal_continuation_limit` | durable goal / bounded continuation lifecycle |
+| `schedule_wakeup` / `schedule_wakeup_failed` | ScheduleWakeup continuation scheduling lifecycle |
 
 - 새 연결 시 서버는 필요하면 `agent_status`, `queue_update`, non-IDLE `orc_state`를 먼저 push 한다.
 - 실제 broadcast 함수는 `src/core/bus.ts`의 `broadcast(type, data)` 하나다. WebSocket 전송과 내부 listener fan-out을 동시에 처리한다.

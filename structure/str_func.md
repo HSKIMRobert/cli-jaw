@@ -175,7 +175,7 @@ cli-jaw/
 │   │   ├── api-auth.ts       ← CLI→server Bearer token bootstrap (`getCliAuthToken`, `authHeaders`, `cliFetch`) (45L)
 │   │   ├── claude-models.ts  ← Claude 정규 모델셋 (CLAUDE_CANONICAL_MODELS, CLAUDE_LEGACY_VALUE_MAP) + migration/validation helpers (78L)
 │   │   ├── compact.ts        ← /compact 슬래시 커맨드 핸들러 (Claude native + managed 경로 분기) + working_dir scoped (139L)
-│   │   ├── registry.ts       ← 10개 CLI/모델 단일 소스 + canonical defaults + top-level `agy`/`ai-e`/`claude-e` (171L)
+│   │   ├── registry.ts       ← 11개 CLI/모델 단일 소스 + canonical defaults + top-level `agy`/`cursor`/`ai-e`/`claude-e` (171L)
 │   │   ├── readiness.ts      ← CLI별 인증/설치 상태 점검 + AGY runtime auth hint + `claude-e` underlying Claude auth/readiness bridge (CliReadiness[]) (128L)
 │   │   ├── acp-client.ts     ← Copilot ACP JSON-RPC 클라이언트 (382L)
 │   │   ├── command-context.ts ← 공유 커맨드 컨텍스트 팩토리 + runSkillReset 위임 + regenerateB 유지 (140L)

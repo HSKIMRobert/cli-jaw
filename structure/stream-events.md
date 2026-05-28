@@ -247,7 +247,27 @@ agy --conversation <sessionId> -p <prompt> --print-timeout 10m --log-file <tmp> 
 
 Timeout handling is stdout-based. If AGY prints `Error: timed out waiting for response`, `agy-runtime.ts` classifies the run as effective exit code `124`, records a trace `runtime_error`, clears final text, and lets lifecycle/fallback/smoke handling see the timeout as a runtime failure.
 
-## 6. Gemini CLI (`-o stream-json`)
+## 6. Cursor CLI (`--output-format stream-json`)
+
+호출 플래그:
+
+```text
+cursor-agent -p --trust --output-format stream-json --model <resolvedModelId> [--force]
+cursor-agent --resume <chatId> -p --trust --output-format stream-json --model <resolvedModelId> [...]
+```
+
+Cursor CLI는 separate effort flag가 없으므로 `src/agent/cursor-runtime.ts`가 model+effort를 full model id로 먼저 해석한다. `system` 이벤트에서 `session_id`와 model metadata를 저장하고, `assistant` message/content text는 snapshot/delta 중복을 줄여 `pendingOutputChunk`로 flush한다.
+
+| event.type | jaw 처리 |
+| --- | --- |
+| `system` | session id, model, raw cursor metadata 저장 |
+| `assistant` | text delta/snapshot을 `fullText`와 `agent_output` chunk로 누적 |
+| `tool_call` | `🔧 {name}` running/done/error step, `stepRef=cursor:tool:{call_id}` |
+| `result` | session id, token usage, duration, cost, finish reason 저장; rejected/error result는 tool error로 기록 |
+
+---
+
+## 7. Gemini CLI (`-o stream-json`)
 
 | event.type | jaw 처리 |
 | --- | --- |
@@ -261,7 +281,7 @@ Gemini는 `tool_id`가 있으면 `gemini:toolid:{tool_id}`, 없으면 `gemini:to
 
 ---
 
-## 7. Grok CLI (`--output-format streaming-json`)
+## 8. Grok CLI (`--output-format streaming-json`)
 
 호출 플래그:
 
@@ -282,7 +302,7 @@ Grok `streaming-json`은 실제 tool을 실행해도 일부 버전에서 live st
 
 Grok CLI 런타임과 `browser web-ai --vendor grok`는 별도 표면이다. 전자는 local CLI process/streaming-json, 후자는 `grok.com` 브라우저 자동화다.
 
-## 8. Copilot ACP
+## 9. Copilot ACP
 
 ACP 자체는 NDJSON이 아니라 `session/update` 이벤트를 사용한다. 현재 Copilot ACP task/subagent 관측 wire shape은 `tool_call`의 `rawInput.agent_type === 'task'`이며, 완료는 같은 `toolCallId`의 `tool_call_update`로 온다.
 
@@ -303,7 +323,7 @@ ACP 자체는 NDJSON이 아니라 `session/update` 이벤트를 사용한다. �
 
 ---
 
-## 9. OpenCode CLI (`--format json`)
+## 10. OpenCode CLI (`--format json`)
 
 | event.type | jaw 처리 |
 | --- | --- |
@@ -318,7 +338,7 @@ OpenCode는 여러 step에 걸친 token/cost를 누적합으로 저장한다. `s
 
 ---
 
-## 10. `agent_output`와 최종 응답
+## 11. `agent_output`와 최종 응답
 
 ### 라이브 출력
 
@@ -336,7 +356,7 @@ OpenCode는 여러 step에 걸친 token/cost를 누적합으로 저장한다. `s
 
 ---
 
-## 11. ProcessBlock 연동
+## 12. ProcessBlock 연동
 
 `public/js/ws.ts`가 `agent_tool`을 받으면 `showProcessStep()`을 호출한다.
 
@@ -363,7 +383,7 @@ OpenCode는 여러 step에 걸친 token/cost를 누적합으로 저장한다. `s
 
 ---
 
-## 12. `stepRef`
+## 13. `stepRef`
 
 동일 tool step의 상태 전이를 안정적으로 연결하는 키.
 
@@ -373,6 +393,7 @@ OpenCode는 여러 step에 걸친 token/cost를 누적합으로 저장한다. `s
 | Claude task lifecycle | `claude:task:{task_id}` | `claude:task:task-1` |
 | Codex | `codex:item:{item.id}` | `codex:item:abc123` |
 | Codex collab subagent | `codex:collab:{item.id}` | `codex:collab:collab-1` |
+| Cursor | `cursor:tool:{call_id}` | `cursor:tool:call-1` |
 | Gemini | `gemini:toolid:{tool_id}` 또는 `gemini:tool:{name}` | `gemini:toolid:42` |
 | OpenCode | `opencode:tool:{tool}` / `opencode:call:{callID}` | `opencode:call:task:0` |
 | ACP tool/task | `acp:callid:{toolCallId}` | `acp:callid:toolu_1` |
@@ -382,7 +403,7 @@ running step과 done/error step이 같은 `stepRef`를 쓰면, parser/runtime이
 
 ---
 
-## 11. `summarizeToolInput()`
+## 14. `summarizeToolInput()`
 
 도구 입력을 한 줄 detail로 축약하는 함수.
 
