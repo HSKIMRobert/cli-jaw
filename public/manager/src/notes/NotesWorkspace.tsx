@@ -13,11 +13,12 @@ import { isQuickSwitcherShortcut } from './notes-shortcuts';
 import { renameNotePath } from './notes-api';
 import { useNoteDocument } from './useNoteDocument';
 import { publishInvalidation } from '../sync/invalidation-bus';
+import type { DashboardNotesGraphSettings } from '../types';
 import type { NotesAuthoringMode, NotesNoteMetadata, NotesVaultIndexSnapshot, NotesViewMode } from './notes-types';
 
-const NotesGraphView = lazy(async () => {
-    const module = await import('./NotesGraphView');
-    return { default: module.NotesGraphView };
+const NotesGraphWorkspace = lazy(async () => {
+    const module = await import('./graph/NotesGraphWorkspace');
+    return { default: module.NotesGraphWorkspace };
 });
 
 type NotesPrimaryMode = 'raw' | 'preview' | 'wysiwyg';
@@ -32,6 +33,7 @@ type NotesWorkspaceProps = {
     wordWrap: boolean;
     vimMode: boolean;
     treeWidth: number;
+    notesGraphSettings?: DashboardNotesGraphSettings | undefined;
     tagFilter: string | null;
     onOpenSidebarSearch: () => void;
     onSelectedPathChange: (path: string | null) => void;
@@ -41,6 +43,7 @@ type NotesWorkspaceProps = {
     onWordWrapChange: (value: boolean) => void;
     onVimModeChange: (value: boolean) => void;
     onTreeWidthChange: (value: number) => void;
+    onNotesGraphSettingsChange: (settings: DashboardNotesGraphSettings) => void;
     onTagSelect: (tag: string | null) => void;
     onWikiLinkNavigate: (path: string) => void;
 };
@@ -340,9 +343,11 @@ export function NotesWorkspace(props: NotesWorkspaceProps) {
                     )}
                     {props.viewMode === 'graph' && (
                         <Suspense fallback={<div className="notes-graph-loading">Loading graph...</div>}>
-                            <NotesGraphView
-                                graph={props.vaultIndex?.graph ?? { nodes: [], edges: [] }}
+                            <NotesGraphWorkspace
+                                vaultIndex={props.vaultIndex}
                                 selectedPath={props.selectedPath}
+                                settings={props.notesGraphSettings}
+                                onSettingsChange={props.onNotesGraphSettingsChange}
                                 onNavigate={(path) => {
                                     props.onSelectedPathChange(path);
                                     props.onViewModeChange('raw');

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { DEFAULT_MANAGER_SHORTCUT_KEYMAP, normalizeManagerShortcutKeymap } from '../manager-shortcuts';
-import type { DashboardDetailTab, DashboardDiffMode, DashboardDiffRootPolicy, DashboardLocale, DashboardNotesAuthoringMode, DashboardNotesViewMode, DashboardShortcutKeymap, DashboardSidebarMode } from '../types';
+import type { DashboardDetailTab, DashboardDiffMode, DashboardDiffRootPolicy, DashboardLocale, DashboardNotesAuthoringMode, DashboardNotesGraphSettings, DashboardNotesViewMode, DashboardShortcutKeymap, DashboardSidebarMode } from '../types';
 
 export function useDashboardView() {
     const [selectedPort, setSelectedPort] = useState<number | null>(null);
@@ -16,6 +16,7 @@ export function useDashboardView() {
     const [notesWordWrap, setNotesWordWrap] = useState(true);
     const [notesVimMode, setNotesVimMode] = useState(false);
     const [notesTreeWidth, setNotesTreeWidth] = useState(280);
+    const [notesGraphSettings, setNotesGraphSettings] = useState<DashboardNotesGraphSettings | undefined>(undefined);
     const [showLatestActivityTitles, setShowLatestActivityTitles] = useState(true);
     const [showInlineLabelEditor, setShowInlineLabelEditor] = useState(true);
     const [showSidebarRuntimeLine, setShowSidebarRuntimeLine] = useState(true);
@@ -60,6 +61,8 @@ export function useDashboardView() {
         setNotesVimMode,
         notesTreeWidth,
         setNotesTreeWidth,
+        notesGraphSettings,
+        setNotesGraphSettings,
         showLatestActivityTitles,
         setShowLatestActivityTitles,
         showInlineLabelEditor,

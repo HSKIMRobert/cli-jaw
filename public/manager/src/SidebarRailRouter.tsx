@@ -38,6 +38,7 @@ import type {
     DashboardDetailTab,
     DashboardInstance,
     DashboardNotesAuthoringMode,
+    DashboardNotesGraphSettings,
     DashboardNotesViewMode,
     DashboardScanResult,
     DashboardSidebarMode,
@@ -87,6 +88,7 @@ type Props = {
     notesWordWrap: boolean;
     notesVimMode: boolean;
     onNotesSidebarModeChange: (mode: NotesSidebarMode) => void;
+    notesGraphSettings?: DashboardNotesGraphSettings | undefined;
     onOpenNotesSearch: () => void;
     onNotesSelectedPathChange: (path: string | null) => void;
     onNotesDirtyPathChange: (path: string | null) => void;
@@ -95,6 +97,7 @@ type Props = {
     onNotesWordWrapChange: (value: boolean) => void;
     onNotesVimModeChange: (value: boolean) => void;
     onNotesTreeWidthChange: (value: number) => void;
+    onNotesGraphSettingsChange: (settings: DashboardNotesGraphSettings) => void;
     onOpenNotesFromPreview?: (path: string) => void;
     boardView: BoardView;
     onBoardViewChange: (view: BoardView) => void;
@@ -239,7 +242,7 @@ export function SidebarRailRouter(props: Props) {
                             )} logs={props.detailContent('logs')} settings={props.detailContent('settings')} />
                         </WorkspaceSurface>
                         <WorkspaceSurface active={props.sidebarMode === 'notes'}>
-                            <NotesWorkspace active={props.sidebarMode === 'notes'} selectedPath={props.notesSelectedPath} selectedNote={props.notesSelectedNote} vaultIndex={props.notesModel.index} viewMode={props.notesViewMode} authoringMode={props.notesAuthoringMode} wordWrap={props.notesWordWrap} vimMode={props.notesVimMode} treeWidth={props.notesTreeWidth} tagFilter={props.notesModel.tagFilter} onOpenSidebarSearch={props.onOpenNotesSearch} onSelectedPathChange={props.onNotesSelectedPathChange} onDirtyPathChange={props.onNotesDirtyPathChange} onViewModeChange={props.onNotesViewModeChange} onAuthoringModeChange={props.onNotesAuthoringModeChange} onWordWrapChange={props.onNotesWordWrapChange} onVimModeChange={props.onNotesVimModeChange} onTreeWidthChange={props.onNotesTreeWidthChange} onTagSelect={props.notesModel.setTagFilter} onWikiLinkNavigate={props.onNotesSelectedPathChange} />
+                            <NotesWorkspace active={props.sidebarMode === 'notes'} selectedPath={props.notesSelectedPath} selectedNote={props.notesSelectedNote} vaultIndex={props.notesModel.index} viewMode={props.notesViewMode} authoringMode={props.notesAuthoringMode} wordWrap={props.notesWordWrap} vimMode={props.notesVimMode} treeWidth={props.notesTreeWidth} notesGraphSettings={props.notesGraphSettings} tagFilter={props.notesModel.tagFilter} onOpenSidebarSearch={props.onOpenNotesSearch} onSelectedPathChange={props.onNotesSelectedPathChange} onDirtyPathChange={props.onNotesDirtyPathChange} onViewModeChange={props.onNotesViewModeChange} onAuthoringModeChange={props.onNotesAuthoringModeChange} onWordWrapChange={props.onNotesWordWrapChange} onVimModeChange={props.onNotesVimModeChange} onTreeWidthChange={props.onNotesTreeWidthChange} onNotesGraphSettingsChange={props.onNotesGraphSettingsChange} onTagSelect={props.notesModel.setTagFilter} onWikiLinkNavigate={props.onNotesSelectedPathChange} />
                         </WorkspaceSurface>
                         <WorkspaceSurface active={props.sidebarMode === 'settings'}>
                             <DashboardSettingsWorkspace activeSection={props.settingsSection} ui={props.dashboardSettingsUi} titleSupport={props.titleSupport} onUiPatch={props.onDashboardSettingsPatch} onOpenHelpTopic={props.onOpenHelpTopic} />

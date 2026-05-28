@@ -18,7 +18,7 @@ import type { NotesSidebarMode } from './notes/NotesSidebar';
 import type { CommandPaletteApi } from './hooks/useCommandPalette';
 import type { ThemeApi } from './hooks/useTheme';
 import type { useDashboardView } from './hooks/useDashboardView';
-import type { DashboardDetailTab, DashboardInstance, DashboardNotesAuthoringMode, DashboardNotesViewMode, DashboardScanResult, ManagerEvent, NoteMetadata } from './types';
+import type { DashboardDetailTab, DashboardInstance, DashboardNotesAuthoringMode, DashboardNotesGraphSettings, DashboardNotesViewMode, DashboardScanResult, ManagerEvent, NoteMetadata } from './types';
 
 type AppChromeProps = {
     view: ReturnType<typeof useDashboardView>;
@@ -84,6 +84,7 @@ type AppChromeProps = {
     handleNotesWordWrapChange: (value: boolean) => void;
     handleNotesVimModeChange: (value: boolean) => void;
     handleNotesTreeWidthChange: (value: number) => void;
+    handleNotesGraphSettingsChange: (settings: DashboardNotesGraphSettings) => void;
     openNotesSidebarSearch: () => void;
     setNotesDirtyPath: Dispatch<SetStateAction<string | null>>;
     handleTabChange: (tab: DashboardDetailTab) => void;
@@ -114,12 +115,12 @@ export function AppChrome(props: AppChromeProps) {
                         onOpenHelpTopic={props.onOpenHelpTopic}
                         settingsSection={props.settingsSection} locale={props.view.locale} onSettingsSectionChange={props.setDashboardSettingsSection}
                         notesModel={props.notesModel} notesSelectedPath={props.view.notesSelectedPath} notesSelectedNote={props.notesSelectedNote}
-                        notesDirtyPath={props.notesDirtyPath} notesHighlightedPath={props.notesHighlightedPath} notesTreeWidth={props.view.notesTreeWidth} notesSidebarMode={props.notesSidebarMode}
+                        notesDirtyPath={props.notesDirtyPath} notesHighlightedPath={props.notesHighlightedPath} notesTreeWidth={props.view.notesTreeWidth} notesGraphSettings={props.view.notesGraphSettings} notesSidebarMode={props.notesSidebarMode}
                         notesSearchFocusToken={props.notesSearchFocusToken} notesViewMode={props.view.notesViewMode} notesAuthoringMode={props.view.notesAuthoringMode}
                         notesWordWrap={props.view.notesWordWrap} notesVimMode={props.view.notesVimMode} onNotesSidebarModeChange={props.setNotesSidebarMode} onOpenNotesSearch={props.openNotesSidebarSearch}
                         onNotesSelectedPathChange={props.handleNotesSelectedPathChange} onNotesDirtyPathChange={props.setNotesDirtyPath}
                         onNotesViewModeChange={props.handleNotesViewModeChange} onNotesAuthoringModeChange={props.handleNotesAuthoringModeChange}
-                        onNotesWordWrapChange={props.handleNotesWordWrapChange} onNotesVimModeChange={props.handleNotesVimModeChange} onNotesTreeWidthChange={props.handleNotesTreeWidthChange}
+                        onNotesWordWrapChange={props.handleNotesWordWrapChange} onNotesVimModeChange={props.handleNotesVimModeChange} onNotesTreeWidthChange={props.handleNotesTreeWidthChange} onNotesGraphSettingsChange={props.handleNotesGraphSettingsChange}
                         boardView={props.boardView} onBoardViewChange={props.setBoardView} scheduleGroup={props.scheduleGroup} onScheduleGroupChange={props.setScheduleGroup}
                         instances={props.instances} selectedInstance={props.selectedInstance} data={props.data} titlesByPort={props.titlesByPort}
                         busyPorts={props.busyPorts} activeDetailTab={props.view.activeDetailTab} onDetailTabChange={props.handleTabChange}

@@ -1,4 +1,5 @@
 import type { useDashboardView } from '../hooks/useDashboardView';
+import { cloneNotesGraphSettings, DEFAULT_NOTES_GRAPH_SETTINGS } from '../notes/graph/notes-graph-settings';
 import type { DashboardRegistryUi, DashboardUiTheme } from '../types';
 
 type DashboardViewState = ReturnType<typeof useDashboardView>;
@@ -24,6 +25,7 @@ export function dashboardSettingsUiFromView(
         notesWordWrap: view.notesWordWrap,
         notesVimMode: view.notesVimMode,
         notesTreeWidth: view.notesTreeWidth,
+        notesGraphSettings: view.notesGraphSettings ?? cloneNotesGraphSettings(DEFAULT_NOTES_GRAPH_SETTINGS),
         showLatestActivityTitles: view.showLatestActivityTitles,
         showInlineLabelEditor: view.showInlineLabelEditor,
         showSidebarRuntimeLine: view.showSidebarRuntimeLine,
