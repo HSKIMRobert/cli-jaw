@@ -58,19 +58,70 @@ function cursorToolRef(event: CliEventRecord): string {
     return fieldString(event["call_id"] || event.callID || event.tool_id || event.id || event.name, 'tool');
 }
 
+function cursorToolKindLabel(kindKey: string): string {
+    const base = kindKey.replace(/ToolCall$/i, '');
+    if (!base) return 'tool';
+    const aliases: Record<string, string> = {
+        shell: 'Bash',
+        read: 'Read',
+        write: 'Write',
+        edit: 'Edit',
+        grep: 'Grep',
+        glob: 'Glob',
+        list: 'List',
+        search: 'Search',
+        web: 'WebSearch',
+        mcp: 'MCP',
+    };
+    if (aliases[base]) return aliases[base];
+    return base.charAt(0).toUpperCase() + base.slice(1);
+}
+
+function parseCursorToolPayload(event: CliEventRecord): { name: string; input: unknown } {
+    const nested = asCliEventRecord(event['tool_call']);
+    if (nested) {
+        for (const [kindKey, rawPayload] of Object.entries(nested)) {
+            const payload = asCliEventRecord(rawPayload);
+            if (!payload) continue;
+            const name = cursorToolKindLabel(kindKey);
+            const input = payload['args'] ?? payload.input ?? payload.parameters ?? payload;
+            return { name, input };
+        }
+    }
+    return {
+        name: fieldString(event.name || event.tool || event.tool_name, 'tool'),
+        input: event.input || event.rawInput || event.parameters || {},
+    };
+}
+
+function cursorToolStatus(event: CliEventRecord): 'running' | 'done' | 'error' {
+    const phase = fieldString(event.status || event.subtype);
+    if (['started', 'running', 'in_progress', 'pending'].includes(phase)) return 'running';
+
+    const nested = asCliEventRecord(event['tool_call']);
+    if (nested) {
+        for (const rawPayload of Object.values(nested)) {
+            const payload = asCliEventRecord(rawPayload);
+            const result = asCliEventRecord(payload?.['result']);
+            if (result?.['rejected'] || result?.error || result?.['failed']) return 'error';
+        }
+    }
+
+    if (['error', 'failed', 'rejected', 'denied'].includes(phase)) return 'error';
+    if (['completed', 'success', 'done'].includes(phase)) return 'done';
+    return 'running';
+}
+
 function cursorToolLabel(event: CliEventRecord): ToolEntry {
-    const name = fieldString(event.name || event.tool || event.tool_name, 'tool');
-    const status = fieldString(event.status || event.subtype);
-    const done = ['completed', 'success', 'done'].includes(status);
-    const failed = ['error', 'failed', 'rejected', 'denied'].includes(status);
-    const input = event.input || event.rawInput || event.parameters || {};
+    const { name, input } = parseCursorToolPayload(event);
+    const status = cursorToolStatus(event);
     return stripUndefined({
-        icon: failed ? '❌' : (done ? '✅' : '🔧'),
+        icon: status === 'error' ? '❌' : (status === 'done' ? '✅' : '🔧'),
         label: buildPreview(name, 60) || 'tool',
         toolType: 'tool' as const,
         stepRef: `cursor:tool:${cursorToolRef(event)}`,
         detail: summarizeToolInput(name, input, 0),
-        status: failed ? 'error' as const : (done ? 'done' as const : 'running' as const),
+        status,
     });
 }
 
