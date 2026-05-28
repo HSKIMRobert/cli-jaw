@@ -5,7 +5,7 @@ import fs from 'fs';
 import type { ChildProcess } from 'child_process';
 import { broadcast } from '../core/bus.js';
 import { settings, detectCli } from '../core/config.js';
-import { clearEmployeeSession, insertMessageWithTraceRun, updateSession, clearSessionBucket, markAnchorConsumed } from '../core/db.js';
+import { clearEmployeeSession, insertMessage, insertMessageWithTraceRun, updateSession, clearSessionBucket, markAnchorConsumed } from '../core/db.js';
 import { persistMainSession } from './session-persistence.js';
 import { resolveSessionBucket } from './args.js';
 import { buildContinuationPrompt, type SmokeDetectionResult } from './smoke-detector.js';
@@ -28,13 +28,18 @@ import { completeGoal, cancelGoal, getActiveGoal } from '../goal/store.js';
 
 const GOAL_CONT_MAX_ATTEMPTS = 20;
 let _goalContAttempts = 0;
-export function resetGoalContAttempts(): void { _goalContAttempts = 0; }
+let _goalContGoalId: string | null = null;
+export function resetGoalContAttempts(): void { _goalContAttempts = 0; _goalContGoalId = null; }
 
 const _goalTimers = new Map<string, ReturnType<typeof setTimeout>>();
 export function clearGoalTimers(): void {
     for (const t of _goalTimers.values()) clearTimeout(t);
     _goalTimers.clear();
     _goalContAttempts = 0;
+    _goalContGoalId = null;
+    try {
+        insertMessage.run('system', '[goal_boundary]', 'goal_boundary', '', settings['workingDir'] || null);
+    } catch { /* DB may not be ready during early init */ }
 }
 
 // Only match /goal done|cancel at line start or after whitespace — avoids false positives from quoted text
@@ -257,10 +262,10 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
     activeProcesses.delete(agentLabel);
     if (mainManaged) {
         setActiveProcess(null);
-        // Clear Boss channel context — subsequent dispatches (if any) should
-        // not inherit this session's meta.
         _setCurrentMainMeta?.(null);
-        broadcast('agent_status', { running: false, agentId: agentLabel, ...empTag });
+        if (!wasSteer) {
+            broadcast('agent_status', { running: false, agentId: agentLabel, ...empTag });
+        }
     }
 
     // ─── Post-flush reindex (3-C) ───
@@ -662,6 +667,10 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
         }
         const goalAtWakeup = getActiveGoal();
         const goalIdAtWakeup = goalAtWakeup?.id ?? '__none__';
+        if (_goalContGoalId !== goalIdAtWakeup) {
+            _goalContAttempts = 0;
+            _goalContGoalId = goalIdAtWakeup;
+        }
         _goalContAttempts++;
         console.log(`[jaw:wakeup] ScheduleWakeup intercepted — resuming in ${clampedDelay / 1000}s (${wakeupReason}) [goal=${goalIdAtWakeup}, attempt=${_goalContAttempts}/${GOAL_CONT_MAX_ATTEMPTS}]`);
         if (_goalContAttempts > GOAL_CONT_MAX_ATTEMPTS) {
@@ -670,6 +679,8 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
             _goalContAttempts = 0;
         } else {
             broadcast('schedule_wakeup', { delaySeconds: clampedDelay / 1000, reason: wakeupReason });
+            const existingWakeup = _goalTimers.get(goalIdAtWakeup);
+            if (existingWakeup) clearTimeout(existingWakeup);
             const tid = setTimeout(() => {
                 _goalTimers.delete(goalIdAtWakeup);
                 const currentGoal = getActiveGoal();
@@ -700,6 +711,10 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
         if (goalCont.shouldContinue && goalCont.prompt) {
             const contGoal = getActiveGoal();
             const contGoalId = contGoal?.id ?? '__none__';
+            if (_goalContGoalId !== contGoalId) {
+                _goalContAttempts = 0;
+                _goalContGoalId = contGoalId;
+            }
             _goalContAttempts++;
             if (_goalContAttempts > GOAL_CONT_MAX_ATTEMPTS) {
                 console.warn(`[jaw:goal] max continuation attempts (${GOAL_CONT_MAX_ATTEMPTS}) reached — stopping`);
@@ -709,6 +724,8 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
                 const delay = opts._isGoalContinuation ? 10000 : 2000;
                 console.log(`[jaw:goal] active goal — continuation ${_goalContAttempts}/${GOAL_CONT_MAX_ATTEMPTS} in ${delay}ms`);
                 broadcast('goal_continuation', { reason: goalCont.reason, attempt: _goalContAttempts });
+                const existingCont = _goalTimers.get(contGoalId);
+                if (existingCont) clearTimeout(existingCont);
                 const tid = setTimeout(() => {
                     _goalTimers.delete(contGoalId);
                     const currentGoal = getActiveGoal();
