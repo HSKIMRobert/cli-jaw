@@ -593,3 +593,47 @@ test('AG-023: opencode resume empty effort still includes thinking without varia
     assert.ok(args.includes('--thinking'));
     assert.ok(!args.includes('--variant'));
 });
+
+// ─── buildArgs: claude fast mode (perCli.<cli>.fastMode → --settings) ──
+
+test('AG-024: claude omits --settings when fastMode is off (opt-in only)', () => {
+    const args = buildArgs('claude', 'default', '', 'hi', '', 'auto');
+    assert.ok(!args.includes('--settings'), 'fast mode must not be emitted unless requested');
+});
+
+test('AG-025: claude with fastMode injects --settings {"fastMode":true}', () => {
+    const args = buildArgs('claude', 'default', '', 'hi', '', 'auto', { fastMode: true });
+    const idx = args.indexOf('--settings');
+    assert.notEqual(idx, -1, '--settings flag should be present');
+    assert.equal(args[idx + 1], '{"fastMode":true}');
+});
+
+test('AG-026: claude resume with fastMode injects --settings {"fastMode":true}', () => {
+    const args = buildResumeArgs('claude', 'default', '', 'sess-fast-1', 'go', 'auto', { fastMode: true });
+    const idx = args.indexOf('--settings');
+    assert.notEqual(idx, -1);
+    assert.equal(args[idx + 1], '{"fastMode":true}');
+});
+
+test('AG-027: claude-e with fastMode forwards --settings after the -- separator', () => {
+    const args = buildArgs('claude-e', 'sonnet', 'medium', 'hi', '', 'auto', { fastMode: true });
+    const separatorIdx = args.indexOf('--');
+    const settingsIdx = args.indexOf('--settings');
+    assert.ok(separatorIdx >= 0, 'claude-e must use -- before forwarded Claude args');
+    assert.ok(settingsIdx > separatorIdx, '--settings must be forwarded to the underlying claude binary');
+    assert.equal(args[settingsIdx + 1], '{"fastMode":true}');
+});
+
+test('AG-028: ai-e claude with fastMode forwards --settings to claude', () => {
+    const args = buildArgs('ai-e', 'sonnet', 'medium', 'hi', '', 'auto', { aiEProvider: 'claude', fastMode: true });
+    const idx = args.indexOf('--settings');
+    assert.notEqual(idx, -1);
+    assert.equal(args[idx + 1], '{"fastMode":true}');
+});
+
+test('AG-029: codex fastMode still maps to service_tier="fast" and never gets --settings', () => {
+    const args = buildArgs('codex', 'gpt-5.4', 'high', 'x', '', 'auto', { fastMode: true });
+    const cVals = args.reduce<string[]>((acc, v, i) => (v === '-c' ? [...acc, args[i + 1]] : acc), []);
+    assert.ok(cVals.includes('service_tier="fast"'));
+    assert.ok(!args.includes('--settings'), 'codex must not receive the claude --settings flag');
+});

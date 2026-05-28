@@ -9,6 +9,10 @@ const isCodexSparkModel = (model: string) => !!model && /spark/i.test(model);
 const GEMINI_MAX_INCLUDE_DIRECTORIES = 5;
 export const AGY_MAX_ADD_DIRECTORIES = 8;
 export const AGY_PRINT_TIMEOUT = '10m';
+// Claude Code fast mode is enabled by merging { fastMode: true } into the spawned
+// CLI's settings via --settings (the claude analogue of codex's service_tier="fast").
+// Gated on options.fastMode, which is sourced from perCli.<cli>.fastMode in spawn.ts.
+const CLAUDE_FAST_MODE_SETTINGS = '{"fastMode":true}';
 const AI_E_PROVIDERS = ['claude', 'codex', 'gemini', 'grok', 'copilot'] as const;
 export type AiEProvider = typeof AI_E_PROVIDERS[number];
 
@@ -122,6 +126,10 @@ function agyAddDirArgs(options: BuildArgOptions): string[] {
         .flatMap((dir) => ['--add-dir', dir]);
 }
 
+function claudeFastModeArgs(options: BuildArgOptions): string[] {
+    return options.fastMode ? ['--settings', CLAUDE_FAST_MODE_SETTINGS] : [];
+}
+
 /**
  * Session storage bucket — codex Spark lives in its own bucket so cross-model
  * resumes don't send a spark session_id to a gpt-5.4 run (or vice versa), which
@@ -152,12 +160,14 @@ export function buildArgs(cli: string, model: string, effort: string, prompt: st
                 '--max-turns', '50',
                 ...(model && model !== 'default' ? ['--model', model] : []),
                 ...(effort && effort !== 'medium' ? ['--effort', effort] : []),
+                ...claudeFastModeArgs(options),
                 ...(sysPrompt ? ['--append-system-prompt', sysPrompt] : [])];
         case 'claude-e': {
             const claudeExtraArgs: string[] = [];
             if (model && model !== 'default') claudeExtraArgs.push('--model', model);
             if (effort && effort !== 'medium') claudeExtraArgs.push('--effort', effort);
             if (sysPrompt) claudeExtraArgs.push('--append-system-prompt', sysPrompt);
+            claudeExtraArgs.push(...claudeFastModeArgs(options));
             // claude-e can't interact with permission dialogs — always bypass
             if (autoPerm) claudeExtraArgs.push('--dangerously-skip-permissions');
             else claudeExtraArgs.push('--permission-mode', 'auto');
@@ -177,6 +187,7 @@ export function buildArgs(cli: string, model: string, effort: string, prompt: st
                 if (model && model !== 'default') claudeExtraArgs.push('--model', model);
                 if (effort && effort !== 'medium') claudeExtraArgs.push('--effort', effort);
                 if (sysPrompt) claudeExtraArgs.push('--append-system-prompt', sysPrompt);
+                claudeExtraArgs.push(...claudeFastModeArgs(options));
                 if (autoPerm) claudeExtraArgs.push('--dangerously-skip-permissions');
                 else claudeExtraArgs.push('--permission-mode', 'auto');
                 return ['claude', 'run', '--jsonl',
@@ -276,12 +287,14 @@ export function buildResumeArgs(cli: string, model: string, effort: string, sess
                 '--max-turns', '50',
                 ...(model && model !== 'default' ? ['--model', model] : []),
                 ...(effort && effort !== 'medium' ? ['--effort', effort] : []),
+                ...claudeFastModeArgs(options),
                 ...(options.sysPrompt ? ['--append-system-prompt', options.sysPrompt] : [])];
         case 'claude-e': {
             const claudeExtraArgs: string[] = [];
             if (model && model !== 'default') claudeExtraArgs.push('--model', model);
             if (effort && effort !== 'medium') claudeExtraArgs.push('--effort', effort);
             if (options.sysPrompt) claudeExtraArgs.push('--append-system-prompt', options.sysPrompt);
+            claudeExtraArgs.push(...claudeFastModeArgs(options));
             if (autoPerm) claudeExtraArgs.push('--dangerously-skip-permissions');
             else claudeExtraArgs.push('--permission-mode', 'auto');
             return ['run', '--jsonl',
@@ -302,6 +315,7 @@ export function buildResumeArgs(cli: string, model: string, effort: string, sess
             if (model && model !== 'default') claudeExtraArgs.push('--model', model);
             if (effort && effort !== 'medium') claudeExtraArgs.push('--effort', effort);
             if (options.sysPrompt) claudeExtraArgs.push('--append-system-prompt', options.sysPrompt);
+            claudeExtraArgs.push(...claudeFastModeArgs(options));
             if (autoPerm) claudeExtraArgs.push('--dangerously-skip-permissions');
             else claudeExtraArgs.push('--permission-mode', 'auto');
             return ['claude', 'run', '--jsonl',
