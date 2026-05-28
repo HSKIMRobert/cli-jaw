@@ -70,6 +70,8 @@ export const CLI_META: Record<string, CliMeta> = {
             'sonnet',
             'sonnet[1m]',
             'haiku',
+            'claude-opus-4-8',
+            'claude-opus-4-8[1m]',
             'claude-opus-4-7',
             'claude-opus-4-7[1m]',
             'claude-opus-4-6',
@@ -84,7 +86,7 @@ export const CLI_META: Record<string, CliMeta> = {
         label: 'Claude E',
         models: [
             'opus', 'sonnet', 'haiku',
-            'claude-opus-4-7', 'claude-sonnet-4-6', 'claude-haiku-4-5',
+            'claude-opus-4-8', 'claude-opus-4-7', 'claude-sonnet-4-6', 'claude-haiku-4-5',
         ],
         efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
     },
@@ -105,6 +107,7 @@ export const CLI_META: Record<string, CliMeta> = {
             'gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-nano',
             'gpt-5.3-codex', 'gpt-5.2', 'gpt-5.2-codex',
             'gpt-5.1-codex-max', 'gpt-5.1-codex-mini', 'gpt-5.1',
+            'claude-opus-4-8', 'claude-opus-4-8-thinking',
             'claude-opus-4-7', 'claude-opus-4-7-thinking',
             'claude-4.6-opus', 'claude-4.6-sonnet',
             'claude-4.5-opus-high', 'claude-4.5-sonnet', 'claude-4-sonnet',
@@ -132,7 +135,7 @@ export const CLI_META: Record<string, CliMeta> = {
     },
     copilot: {
         label: 'Copilot',
-        models: ['gpt-5.5', 'claude-opus-4.7', 'claude-sonnet-4.6', 'gpt-5.4'],
+        models: ['gpt-5.5', 'claude-opus-4.8', 'claude-opus-4.7', 'claude-sonnet-4.6', 'gpt-5.4'],
         efforts: ['low', 'medium', 'high'],
     },
 };

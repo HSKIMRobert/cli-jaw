@@ -6,7 +6,7 @@ import {
     isCliEventRecord,
 } from '../../types/cli-events.js';
 import type { AcpUpdateParams, AcpSubagentEvent, ExtractedEventResult, SpawnContext } from './types.js';
-import { buildPreview, extractText } from './helpers.js';
+import { buildPreview, extractText, summarizeToolInput } from './helpers.js';
 
 function toolKindIcon(kind: string | undefined): string {
     if (!kind) return '';
@@ -53,11 +53,17 @@ export function extractFromAcpUpdate(params: AcpUpdateParams | unknown, ctx: Spa
                 ctx.acpSubagentToolCallIds.add(update.toolCallId);
                 ctx.acpSubagentLabels.set(update.toolCallId, fieldString(displayLabel));
             }
-            const fullInput = update.input != null
-                ? (typeof update.input === 'object' ? JSON.stringify(update.input, null, 2) : String(update.input))
-                : update.rawInput != null
-                    ? (typeof update.rawInput === 'object' ? JSON.stringify(update.rawInput, null, 2) : String(update.rawInput))
+            const rawInputObj = update.input ?? update.rawInput;
+            const summarized = rawInputObj && typeof rawInputObj === 'object'
+                ? summarizeToolInput(fieldString(update.name || update.title, 'tool'), rawInputObj as Record<string, unknown>)
                 : '';
+            const fullInput = summarized || (
+                update.input != null
+                    ? (typeof update.input === 'object' ? JSON.stringify(update.input, null, 2) : String(update.input))
+                    : update.rawInput != null
+                        ? (typeof update.rawInput === 'object' ? JSON.stringify(update.rawInput, null, 2) : String(update.rawInput))
+                        : ''
+            );
             const kindIcon = toolKindIcon(fieldString(update["kind"]) || undefined);
             return {
                 tool: {

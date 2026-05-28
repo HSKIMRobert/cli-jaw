@@ -1,9 +1,9 @@
 import type { Express } from 'express';
 import type { AuthMiddleware } from './types.js';
 import { ok, fail } from '../http/response.js';
-import { isAgentBusy, messageQueue, getQueuedMessageSnapshotForScope, removeQueuedMessage, killActiveAgent, waitForProcessEnd, getCurrentMainMeta, getSteerWaitMsForActiveAgent, setQueueHold, clearQueueHold } from '../agent/spawn.js';
+import { isAgentBusy, messageQueue, getQueuedMessageSnapshotForScope, removeQueuedMessage, killActiveAgent, waitForProcessEnd, getCurrentMainMeta, getSteerWaitMsForActiveAgent, setQueueHold, clearQueueHold, setSteerInProgress } from '../agent/spawn.js';
 import { getLiveRun } from '../agent/live-run-state.js';
-import { orchestrate, orchestrateReset, isResetIntent, drainPendingReplays } from '../orchestrator/pipeline.js';
+import { orchestrate, orchestrateContinue, orchestrateReset, isResetIntent, isContinueIntent, drainPendingReplays } from '../orchestrator/pipeline.js';
 import { insertMessage } from '../core/db.js';
 import { getState, getCtx, setState, resetState, canTransition, resetAllStaleStates, parseWorkerVerdict } from '../orchestrator/state-machine.js';
 import type { OrcStateName } from '../orchestrator/state-machine.js';
@@ -144,10 +144,6 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
         const origin = peek.source || 'web';
         const steerWaitMs = getSteerWaitMsForActiveAgent();
         setQueueHold(id, Math.max(10_000, steerWaitMs + 5_000));
-        if (isAgentBusy()) {
-            killActiveAgent('steer');
-            await waitForProcessEnd(steerWaitMs);
-        }
         const result = removeQueuedMessage(id);
         clearQueueHold(id, { resume: false });
         if (!result.removed) return fail(res, 404, 'queued item disappeared during steer');
@@ -156,13 +152,29 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
         } catch (err) {
             console.warn('[steer:insert]', (err as Error).message);
         }
-        const { broadcast } = await import('../core/bus.js');
         broadcast('new_message', { role: 'user', content: prompt, source: origin, fromQueue: true });
-        const task = isResetIntent(prompt)
-            ? orchestrateReset({ origin, _skipInsert: true })
-            : orchestrate(prompt, { origin, _skipInsert: true, _skipReplayDrain: true });
-        task.catch((err: Error) => console.error('[steer:orchestrate]', err.message));
+        broadcast('steer_started', { prompt, origin });
         res.json({ ok: true, pending: result.pending });
+        // Kill + orchestrate async — response already sent
+        setSteerInProgress(true);
+        (async () => {
+            try {
+                if (isAgentBusy()) {
+                    killActiveAgent('steer');
+                    await waitForProcessEnd(steerWaitMs);
+                }
+                const task = isResetIntent(prompt)
+                    ? orchestrateReset({ origin, _skipInsert: true })
+                    : isContinueIntent(prompt)
+                        ? orchestrateContinue({ origin, _skipInsert: true })
+                        : orchestrate(prompt, { origin, _skipInsert: true, _skipReplayDrain: true });
+                await task;
+            } catch (err) {
+                console.error('[steer:orchestrate]', (err as Error).message);
+            } finally {
+                setSteerInProgress(false);
+            }
+        })();
     });
 
     app.post('/api/orchestrate/dispatch', requireAuth, async (req, res) => {

@@ -46,20 +46,27 @@ export function handleCodexEvent(
             }
         }
         if (evt.item?.type === 'command_execution') {
-            const cmd = (evt.item.command || '').slice(0, 120);
             const exitCode = evt.item.exit_code ?? '?';
             const itemId = evt.item.id || '';
-            const doneRef = itemId ? `codex:cmd:${itemId}` : `codex:cmd:done:${ctx.toolLog.length}`;
-            const doneTool = {
-                icon: '✅',
-                label: 'done',
-                toolType: 'tool' as const,
-                stepRef: doneRef,
-                status: (exitCode === 0 ? 'done' : 'error') as 'done' | 'error',
-            };
-            const doneKey = `${doneTool.icon}:${doneTool.label}:${doneRef}:${doneTool.status}`;
-            if (!ctx.seenToolKeys?.has(doneKey)) {
-                ctx.seenToolKeys?.add(doneKey);
+            const ref = itemId ? `codex:item:${itemId}` : undefined;
+            const existing = ref
+                ? [...ctx.toolLog].reverse().find((t) => t.stepRef === ref)
+                : null;
+            if (existing) {
+                existing.icon = exitCode === 0 ? '✅' : '❌';
+                existing.status = exitCode === 0 ? 'done' : 'error';
+                syncLiveTools(ctx);
+                emitAgentTool(ctx, agentLabel, existing, empTag);
+            } else {
+                const cmd = (evt.item.command || '').slice(0, 120);
+                const fallbackRef = ref || `codex:item:done:${ctx.toolLog.length}`;
+                const doneTool = {
+                    icon: exitCode === 0 ? '✅' : '❌',
+                    label: buildPreview(cmd, 80) || 'done',
+                    toolType: 'tool' as const,
+                    stepRef: fallbackRef,
+                    status: (exitCode === 0 ? 'done' : 'error') as 'done' | 'error',
+                };
                 ctx.toolLog.push(doneTool);
                 syncLiveTools(ctx);
                 emitAgentTool(ctx, agentLabel, doneTool, empTag);
@@ -90,7 +97,7 @@ export function handleCodexEvent(
                 label: buildPreview(cmd, 80) || 'command',
                 toolType: 'tool' as const,
                 detail: cmd,
-                stepRef: itemId ? `codex:cmd:${itemId}` : undefined,
+                stepRef: itemId ? `codex:item:${itemId}` : undefined,
             });
             const key = `${tool.icon}:${tool.label}:${tool.stepRef || ''}:`;
             if (!ctx.seenToolKeys?.has(key)) {
