@@ -330,7 +330,7 @@ cli-jaw/
 │   └── workflows/            ← workflow helper artifact/cache layer
 │       ├── artifacts.ts      ← JAW_HOME workflow artifact cache + project key/path safety + unknown command recovery artifact (169L)
 │       └── plan.ts           ← `/plan` compatibility artifact/text builder (PABCD P 안내, non-authoritative) (91L)
-├── public/                   ← Web UI (Vite 8 + ES Modules, 523 files [source + assets + public/public/dist mirror, public/dist 제외], public/dist build output 475 files, mirrored copies under `public/public/dist/` and `public/dist/dist/`, ~74410L)
+├── public/                   ← Web UI (Vite 8 + ES Modules, 524 files [source + assets + public/public/dist mirror, public/dist 제외], public/dist build output 478 files, mirrored copies under `public/public/dist/` and `public/dist/dist/`, ~74614L)
 │   ├── index.html            ← 뼈대 (1038L, CLI-JAW 대문자 로고, pill theme switch, data-i18n, 로컬 avatar 입력)
 │   ├── manifest.json         ← PWA 매니페스트 (20L) ✨
 │   ├── sw.js                 ← Service Worker 오프라인 캐시 (104L) ✨
@@ -792,7 +792,7 @@ graph LR
 | [🤖 agent_spawn.md](agent_spawn.md)                 | agent/ (spawn·args·events) + orchestrator/ (pipeline·parser) + cli/acp-client | spawn + ACP + 오케스트레이션           |
 | [📱 telegram.md](telegram.md)                       | telegram/ (bot·forwarder·telegram-file) + memory/heartbeat                    | 외부 인터페이스 + lifecycle + 파일전송 |
 | *(미작성)* discord.md                                | discord/ (bot·commands·forwarder·discord-file) + messaging/                   | Discord 인터페이스 + 메시징 런타임     |
-| [🎨 frontend.md](frontend.md)                       | public/ 전체 (소스/자산 499개, `public/dist` build 464파일 + mirrored copies) | ES Modules + CSS + Vite + PWA           |
+| [🎨 frontend.md](frontend.md)                       | public/ 전체 (소스/자산 499개, `public/dist` build 478파일 + mirrored copies) | ES Modules + CSS + Vite + PWA           |
 | [🧠 prompt_flow.md](prompt_flow.md)                 | prompt/builder.ts · 직원 프롬프트 · promptCache                               | **핵심** — 정적/동적 + Copilot ACP     |
 | [📄 prompt_basic_A1.md](prompt_basic_A1.md)         | A-1 기본 프롬프트 원문                                                        | EN 기본 프롬프트 레퍼런스              |
 | [📄 prompt_basic_A2.md](prompt_basic_A2.md)         | A-2 프롬프트 템플릿                                                           | 사용자 편집 가능                       |
