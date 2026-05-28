@@ -188,17 +188,21 @@ test('QS-005b: /api/quota returns every top-level CLI runtime key', () => {
     }
 });
 
-test('QS-005c: AGY quota is explicit auth/status-only metadata', () => {
+test('QS-005c3: AGY quota uses reverse-engineered adapters', () => {
     const settingsRouteSrc = readSource(
         path.join(import.meta.dirname, '../../src/routes/settings.ts'), 'utf8'
     );
+    const agyQuotaSrc = readSource(
+        path.join(import.meta.dirname, '../../src/routes/quota-agy-reverse.ts'), 'utf8'
+    );
+    assert.ok(settingsRouteSrc.includes('fetchAgyUsage()'), 'AGY quota should use fetchAgyUsage');
     assert.ok(
-        settingsRouteSrc.includes("quotaSource: 'not-exposed-by-agy-cli'"),
-        'AGY should not fake quota windows',
+        agyQuotaSrc.includes('agy:antigravity-usage'),
+        'AGY reverse quota should support antigravity-usage JSON adapter',
     );
     assert.ok(
-        settingsRouteSrc.includes("displayTier: 'Antigravity'"),
-        'AGY should have display metadata for the status UI',
+        agyQuotaSrc.includes('agy:google-cloud-code-api'),
+        'AGY reverse quota should fall back to Google Cloud Code API',
     );
 });
 

@@ -14,6 +14,7 @@ import {
 import { CLI_REGISTRY, CLI_KEYS } from '../cli/registry.js';
 import { readClaudeCreds, readCodexTokens, fetchClaudeUsage, fetchCodexUsage, readGeminiAccount, fetchGeminiUsage, readGrokStatus } from './quota.js';
 import { fetchCursorUsage } from './quota-cursor-dashboard.js';
+import { fetchAgyUsage } from './quota-agy-reverse.js';
 import { fetchCopilotQuota, refreshCopilotFromKeychain } from '../../lib/quota-copilot.js';
 import { migrateLegacyClaudeValue } from '../cli/claude-models.js';
 import { extractOpenAiApiKey, hasInvalidOpenAiApiKeyInput } from '../jaw-ceo/openai-key.js';
@@ -242,12 +243,13 @@ export function registerSettingsRoutes(
         const claudeCreds = readClaudeCreds();
         const codexTokens = readCodexTokens();
         const geminiAccount = readGeminiAccount();
-        const [claudeResult, codexResult, geminiResult, copilotResult, cursorQuota] = await Promise.all([
+        const [claudeResult, codexResult, geminiResult, copilotResult, cursorQuota, agyQuota] = await Promise.all([
             fetchClaudeUsage(claudeCreds),
             fetchCodexUsage(codexTokens),
             fetchGeminiUsage(geminiAccount),
             fetchCopilotQuota(),
             fetchCursorUsage(),
+            fetchAgyUsage(),
         ]);
 
         const classify = (result: unknown, hasCreds: boolean) =>
@@ -262,11 +264,6 @@ export function registerSettingsRoutes(
             quotaSource: 'not-exposed-by-opencode-cli',
             displayTier: 'OpenCode',
             account: { type: 'opencode', tier: 'auth/status only' },
-        });
-        const agyQuota = buildStatusOnlyQuota({
-            quotaSource: 'not-exposed-by-agy-cli',
-            displayTier: 'Antigravity',
-            account: { type: 'antigravity.google', tier: 'runtime-checked' },
         });
         const providerQuota: Record<string, unknown> = {
             claude: claudeQuota,
