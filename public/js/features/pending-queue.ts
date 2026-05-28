@@ -10,6 +10,7 @@ import { escapeHtml } from '../render.js';
 import { ICONS } from '../icons.js';
 import { apiJson } from '../api.js';
 import { t } from './i18n.js';
+import { setStatus } from './ui-status.js';
 
 export interface PendingItem {
     id: string;
@@ -140,13 +141,13 @@ async function fire(id: string, action: Action): Promise<void> {
         ? `/api/orchestrate/queue/${encodeURIComponent(id)}/steer`
         : `/api/orchestrate/queue/${encodeURIComponent(id)}`;
     const method = action === 'steer' ? 'POST' : 'DELETE';
+    if (action === 'steer') setStatus('running');
     const result = await apiJson<{ pending: number }>(path, method, {});
     if (result == null) {
-        // Server already removed the item or call failed — let snapshot resync.
         unpaintArmed(id, action);
+        if (action === 'steer') setStatus('idle');
         return;
     }
-    // Optimistic local removal — queue_update broadcast will resync.
     lastItems = lastItems.filter(it => it.id !== id);
     renderPendingQueue(lastItems);
 }

@@ -249,7 +249,11 @@ export function handleClaudeEvent(
                     existing.status = block["is_error"] ? 'error' : 'done';
                     existing.icon = block["is_error"] ? '❌' : '✅';
                     const resultText = extractText(block.content);
-                    if (resultText) existing.detail = (existing.detail || '') + '\n' + resultText;
+                    if (resultText && !existing.detail) {
+                        existing.detail = resultText.length > 500
+                            ? resultText.slice(0, 497) + '...'
+                            : resultText;
+                    }
                     syncLiveTools(ctx);
                     emitAgentTool(ctx, agentLabel, existing, empTag);
                 }

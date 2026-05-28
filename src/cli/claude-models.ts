@@ -18,6 +18,8 @@ export type ClaudeCanonicalModel = (typeof CLAUDE_CANONICAL_MODELS)[number];
 // Verified 2026-05-01 via Grok web research (4 rounds, sources cited in
 // devlog/_plan/260501_claude_model_passthrough/02_grok_research_response.md).
 export const CLAUDE_PINNED_FULL_IDS = [
+  'claude-opus-4-8',
+  'claude-opus-4-8[1m]',
   'claude-opus-4-7',
   'claude-opus-4-7[1m]',
   'claude-opus-4-6',
@@ -33,6 +35,7 @@ export const CLAUDE_PINNED_FULL_IDS = [
 // rewrites are intentionally absent: passthrough policy preserves the
 // user's pinned literal for prompt-cache stability.
 export const CLAUDE_LEGACY_VALUE_MAP: Record<string, string> = {
+  'claude-opus-4.8': 'claude-opus-4-8',
   'claude-opus-4.7': 'claude-opus-4-7',
   'claude-opus-4.6': 'claude-opus-4-6',
   'claude-sonnet-4.6': 'claude-sonnet-4-6',

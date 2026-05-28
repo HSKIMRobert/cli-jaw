@@ -35,7 +35,7 @@ function makeClaudeToolKey(event: CliEventRecord, label: ToolEntry) {
 }
 
 function pushToolLabel(labels: ToolEntry[], label: ToolEntry, cli: string, event: CliEventRecord, ctx: SpawnContext | null) {
-    if (cli !== 'claude' || !ctx?.seenToolKeys) {
+    if (!isClaudeLikeCli(cli) || !ctx?.seenToolKeys) {
         labels.push(label);
         return;
     }
@@ -195,12 +195,15 @@ export function extractToolLabels(cli: string, event: CliEventRecord, ctx: Spawn
                 if (block.type === 'tool_use') {
                     const isAgent = block.name === 'Agent';
                     const description = block.input?.description || block.input?.["subagent_type"] || 'subagent';
+                    const toolDetail = isAgent
+                        ? (block.input?.prompt ? `prompt: ${clipText(String(block.input.prompt), 300)}` : undefined)
+                        : summarizeToolInput(block.name || 'tool', block.input || {});
                     pushToolLabel(labels, stripUndefined({
                         icon: isAgent ? '🤖' : '🔧',
                         label: isAgent ? `subagent: ${buildPreview(description, 60)}` : (block.name || 'tool'),
                         toolType: isAgent ? 'subagent' : 'tool',
                         stepRef: block.id ? `claude:tooluse:${block.id}` : undefined,
-                        ...(isAgent && block.input?.prompt ? { detail: `prompt: ${clipText(String(block.input.prompt), 300)}` } : {}),
+                        ...(toolDetail ? { detail: toolDetail } : {}),
                     }), cli, event, ctx);
                 }
                 if (block.type === 'thinking') {
@@ -223,15 +226,18 @@ export function extractToolLabels(cli: string, event: CliEventRecord, ctx: Spawn
             const ref = event.tool_id
                 ? `gemini:toolid:${event.tool_id}`
                 : `gemini:tool:${event.tool_name || 'tool'}`;
-            // [P1-2.5] Include tool result output in detail
-            const output = event.output ? buildPreview(event.output, 200) : '';
+            const matchingUse = ctx?.toolLog
+                ? [...ctx.toolLog].reverse().find((t: ToolEntry) => t.stepRef === ref)
+                : null;
+            const resultLabel = matchingUse?.label || event.tool_name || event.status || 'done';
+            const resultDetail = matchingUse?.detail || (event.output ? buildPreview(event.output, 200) : '');
             labels.push({
                 icon: event.status === 'success' ? '✅' : '❌',
-                label: `${event.status || 'done'}`,
+                label: resultLabel,
                 toolType: 'tool',
                 stepRef: ref,
                 status: event.status === 'success' ? 'done' : 'error',
-                ...(output ? { detail: output } : {}),
+                ...(resultDetail ? { detail: resultDetail } : {}),
             });
         }
     }

@@ -12,6 +12,7 @@ import {
     emitAgentTool,
     pushTrace,
     buildPreview,
+    summarizeToolInput,
 } from './helpers.js';
 
 const GROK_THINKING_STEP_REF = 'grok:thinking';
@@ -153,6 +154,12 @@ function grokToolName(event: CliEventRecord): string {
 }
 
 function grokToolDetail(event: CliEventRecord): string {
+    const name = grokToolName(event);
+    const rawInput = event["arguments"] ?? event["args"] ?? event.input ?? event.parameters;
+    if (rawInput && typeof rawInput === 'object') {
+        const summary = summarizeToolInput(name, rawInput as Record<string, unknown>);
+        if (summary && summary !== '{}') return summary;
+    }
     const part = asCliEventRecord(event.part);
     const state = asCliEventRecord(event.state);
     const partState = asCliEventRecord(part.state);

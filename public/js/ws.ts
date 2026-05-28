@@ -532,9 +532,9 @@ export function connect(): void {
             });
         } else if (msg.type === 'memory_status') {
             import('./features/memory.js').then(m => m.refreshMemorySidebar());
+        } else if (msg.type === 'steer_started') {
+            setStatus('running');
         } else if (msg.type === 'new_message' && (msg.source === 'telegram' || msg.source === 'discord' || msg.fromQueue === true)) {
-            // fromQueue=true: backend just drained a queued message (processQueue or steer route)
-            // → render user bubble now (chat.ts dropped the optimistic one at enqueue time).
             addMessage(msg.role === 'assistant' ? 'agent' : (msg.role || 'user'), msg.content || '', msg.cli);
         } else if (msg.type === 'system_notice') {
             addSystemMsg(`ℹ️ ${escapeHtml(msg.text || '')}`, 'tool-activity');
