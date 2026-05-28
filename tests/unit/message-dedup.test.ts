@@ -58,7 +58,7 @@ test('MD-007: chat.ts disables send button during in-flight', () => {
 
 test('MD-008: chat.ts absorbs 409 duplicate silently (no error toast)', () => {
     const sendBlock = chatSrc.slice(chatSrc.indexOf('export async function sendMessage'));
-    assert.match(sendBlock, /res\.status\s*===\s*409[\s\S]{0,120}['"]duplicate['"]/);
+    assert.match(sendBlock, /result\.status\s*===\s*409[\s\S]{0,120}['"]duplicate['"]/);
 });
 
 // ─── L3-b: Boss prompts direct Bash timeout=600000 ────

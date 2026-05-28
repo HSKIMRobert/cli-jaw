@@ -38,7 +38,7 @@ test('SSR-004: chat waits for pending settings save before sending message', () 
         ['${API_BASE}/api/command', 'slash command POST'],
         ["apiJson('/api/message', 'POST', { prompt: text })", 'slash not_command fallback message POST'],
         ["apiJson('/api/message', 'POST', { prompt })", 'file attachment message POST'],
-        ['${API_BASE}/api/message', 'normal message POST'],
+        ['postChatMessage(text)', 'normal message POST'],
     ] as const;
 
     for (const [needle, label] of sendPoints) {

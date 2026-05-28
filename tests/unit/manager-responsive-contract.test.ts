@@ -20,6 +20,7 @@ function readManagerCss(): string {
         'public/manager/src/manager-profiles.css',
         'public/manager/src/manager-notes.css',
         'public/manager/src/manager-dashboard-settings.css',
+        'public/manager/src/panels/panels.css',
     ].map(read).join('\n');
 }
 
@@ -84,7 +85,7 @@ test('manager responsive CSS defines shell regions and breakpoints', () => {
     assert.ok(css.includes('grid-template-rows: max-content minmax(0, 1fr)'), 'command row must grow to fit persistence controls');
     assert.ok(css.includes('overflow: hidden'), 'page-level scroll must be disabled');
     assert.ok(css.includes('grid-template-areas: "command" "workspace"'), 'global frame must separate command center from workspace');
-    assert.ok(css.includes('grid-template-areas: "sidebar detail" "sidebar activity"'), 'workspace must include a unified sidebar region');
+    assert.ok(css.includes('grid-template-areas: "sidebar center right" "sidebar bottom right"'), 'workspace must include unified sidebar plus desktop panel regions');
     assert.ok(css.includes('@media (min-width: 1440px)'), 'wide desktop breakpoint must exist');
     assert.ok(css.includes('@media (max-width: 1279px) and (min-width: 1024px)'), 'desktop-sidebar breakpoint must be bounded above tablet');
     assert.ok(css.includes('@media (max-width: 1023px)'), 'tablet breakpoint must exist');
@@ -164,7 +165,7 @@ test('manager desktop layout uses one unified sidebar', () => {
     assert.equal(shell.includes('manager-rail'), false, 'ManagerShell must not render a separate rail column');
     assert.equal(shell.includes('manager-list'), false, 'ManagerShell must not render a separate list column');
     assert.ok(workspace.includes('manager-sidebar'), 'WorkspaceLayout must render a single sidebar container');
-    assert.ok(css.includes('grid-template-areas: "sidebar detail" "sidebar activity"'), 'desktop workspace grid must have one sidebar column');
+    assert.ok(css.includes('grid-template-areas: "sidebar center right" "sidebar bottom right"'), 'desktop workspace grid must have one sidebar column and desktop panel regions');
     assert.ok(css.includes('is-sidebar-collapsed'), 'desktop sidebar must have a collapsed grid state');
     assert.equal(css.includes('grid-area: list'), false, 'CSS must not keep a separate list grid area');
     assert.equal(css.includes('grid-area: rail'), false, 'CSS must not keep a separate rail grid area');
