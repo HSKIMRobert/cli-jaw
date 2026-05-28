@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { sendInstanceMessage } from './api';
-import { getDesktop, type PermissionDenial } from './panels/desktop-bridge';
 import { buildPreviewState } from './preview';
 import type { PreviewTheme } from './preview';
 import type { DashboardInstance, DashboardScanResult } from './types';
@@ -129,16 +128,9 @@ function isPreviewSttShortcut(event: KeyboardEvent): boolean {
     return primarySpace || fallbackMic;
 }
 
-function latestPreviewPermissionNotice(denials: PermissionDenial[] | undefined): string | null {
-    const denial = [...(denials ?? [])].reverse().find(item => item.surface === 'preview-frame');
-    if (!denial) return null;
-    return `Preview permission blocked: ${denial.permission} (${denial.reason})`;
-}
-
 export function InstancePreview(props: InstancePreviewProps) {
     const iframeRef = useRef<HTMLIFrameElement | null>(null);
     const loadedSrcRef = useRef<string | null>(null);
-    const [permissionNotice, setPermissionNotice] = useState<string | null>(null);
     const state = buildPreviewState(
         props.instance,
         props.data,
@@ -159,23 +151,6 @@ export function InstancePreview(props: InstancePreviewProps) {
     useEffect(() => {
         syncTheme();
     }, [syncTheme]);
-
-    const refreshPermissionDiagnostics = useCallback((): void => {
-        void getDesktop()?.permissions?.getLastDenials()
-            .then(result => {
-                if (result?.ok) setPermissionNotice(latestPreviewPermissionNotice(result.denials));
-            })
-            .catch(error => {
-                console.warn('[manager-preview] permission diagnostics skipped', error);
-            });
-    }, []);
-
-    useEffect(() => {
-        if (!props.active || !props.enabled || !state.canPreview) return undefined;
-        refreshPermissionDiagnostics();
-        const timer = window.setInterval(refreshPermissionDiagnostics, 3000);
-        return () => window.clearInterval(timer);
-    }, [props.active, props.enabled, refreshPermissionDiagnostics, state.canPreview]);
 
     useEffect(() => {
         if (!props.enabled || !state.canPreview || !state.src || !props.instance?.ok) return undefined;
@@ -275,12 +250,9 @@ export function InstancePreview(props: InstancePreviewProps) {
                     onLoad={() => {
                         loadedSrcRef.current = state.src;
                         syncTheme();
-                        refreshPermissionDiagnostics();
                     }}
                 />
             )}
-
-            {permissionNotice && <div className="preview-permission-notice" role="status">{permissionNotice}</div>}
         </aside>
     );
 }

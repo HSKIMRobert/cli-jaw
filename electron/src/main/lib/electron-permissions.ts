@@ -18,6 +18,14 @@ export type ElectronPermissionDenial = {
 const DENIAL_LIMIT = 50;
 const denials: ElectronPermissionDenial[] = [];
 
+// Permissions that stay denied even on loopback-trusted manager/preview
+// surfaces. Empty by default: the manager window and preview frames are the
+// app's own loopback origins, so web-platform permission requests
+// (media, clipboard, background-sync, notifications, geolocation, …) are
+// auto-granted. Add an entry here only if a permission proves genuinely
+// unsafe to grant automatically.
+const PREVIEW_DENYLIST = new Set<string>([]);
+
 export function getLastElectronPermissionDenials(): ElectronPermissionDenial[] {
   return [...denials];
 }
@@ -63,18 +71,14 @@ export function resolveElectronPermissionDecision(args: {
   if (!allowedOrigin.manager && !allowedOrigin.preview) {
     return { decision: 'deny', reason: 'requesting origin is outside manager/preview allowlist' };
   }
-  if (args.permission === 'media') {
-    if (args.mediaType === 'video') return { decision: 'deny', reason: 'camera capture is not allowed' };
-    return { decision: 'allow', reason: 'manager/preview microphone capture allowed' };
+  // Manager and preview frames are the app's own loopback origins. Allow the
+  // broad set of web-platform permissions they request by default instead of
+  // denying-by-default; the only blocks are entries in PREVIEW_DENYLIST.
+  if (PREVIEW_DENYLIST.has(args.permission)) {
+    return { decision: 'deny', reason: `permission ${args.permission} is explicitly denied` };
   }
-  if (args.permission === 'clipboard-sanitized-write') {
-    return { decision: 'allow', reason: 'manager-owned sanitized clipboard write allowed' };
-  }
-  if (args.permission === 'clipboard-read' || args.permission === 'deprecated-sync-clipboard-read') {
-    return { decision: 'deny', reason: 'clipboard read requires a future explicit user flow' };
-  }
-  if (args.permission === 'fullscreen') {
-    return { decision: 'allow', reason: 'manager/preview fullscreen allowed' };
-  }
-  return { decision: 'deny', reason: `permission ${args.permission} is not in the allowlist` };
+  return {
+    decision: 'allow',
+    reason: `permission ${args.permission} allowed for trusted manager/preview surface`,
+  };
 }

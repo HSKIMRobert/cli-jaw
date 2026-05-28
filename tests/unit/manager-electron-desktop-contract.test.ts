@@ -104,8 +104,8 @@ test('Electron permission and clipboard bridges are scoped instead of blanket-de
 
     assert.ok(main.includes('installDefaultSessionPermissionHandlers()'), 'Electron main must install a central permission matrix');
     assert.ok(main.includes("isElectronPermissionAllowed('embedded-browser-webview'"), 'embedded webviews must stay permission-denied by default');
-    assert.ok(permissions.includes("args.permission === 'media'"), 'permission matrix must explicitly handle microphone/media requests');
-    assert.ok(permissions.includes("args.permission === 'clipboard-sanitized-write'"), 'permission matrix must allow sanitized manager-owned clipboard writes');
+    assert.ok(permissions.includes('PREVIEW_DENYLIST'), 'permission matrix must define an explicit denylist for trusted manager/preview surfaces');
+    assert.ok(permissions.includes('allowed for trusted manager/preview surface'), 'manager/preview surfaces must default to allowing web-platform permission requests');
     assert.ok(permissions.includes("surface === 'embedded-browser-webview'"), 'remote webview permission handling must remain isolated from manager/preview handling');
     assert.ok(preload.includes("ipcRenderer.invoke('clipboard:writeText', text)"), 'preload must expose clipboard writes through IPC');
     assert.ok(preload.includes("ipcRenderer.invoke('permissions:getLastDenials')"), 'preload must expose permission denial diagnostics');
@@ -113,7 +113,7 @@ test('Electron permission and clipboard bridges are scoped instead of blanket-de
     assert.ok(desktopBridge.includes('permissions?: PermissionDiagnosticsBridgeApi'), 'renderer desktop bridge must type permission diagnostics IPC');
     assert.ok(managerCopy.includes('getDesktop()?.clipboard'), 'React manager copy helper must prefer Electron clipboard bridge');
     assert.ok(webCopy.includes('cliJawDesktop?.clipboard'), 'classic web copy helper must prefer Electron clipboard bridge');
-    assert.ok(preview.includes('getLastDenials()'), 'preview iframe surface must show permission denial diagnostics');
+    assert.ok(!preview.includes('getLastDenials()'), 'preview iframe must not surface noisy permission denial notices to the user');
 });
 
 test('Electron quit path shows progress and exits after manager cleanup', () => {
