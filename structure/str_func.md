@@ -8,8 +8,8 @@ aliases: [CLI-JAW Source Structure, str_func, source structure reference]
 
 # CLI-JAW — Source Structure & Function Reference
 
-> 마지막 검증: 2026-05-27 (실제 코드베이스 재측정)
-> `server.ts` 853L / `src/routes/` 18 files (registrars + helper modules, 135 route handlers) / `src/cli/handlers*.ts` 397L + 499L + 97L + workflow 95L / `src/cli/api-auth.ts` 45L / `src/workflows/` 2 files (260L, workflow artifact/cache helpers) / `src/agent/` 35 TS files (`spawn.ts` 1790L + `events.ts` 15L + `agy-runtime.ts` 20L + `claude-e-runtime.ts` 44L 포함) / `src/manager/` 69 TS/TSX files (10823L, dashboard manager + board/notes/search/schedule/reminders/connector/routes + notes assets/watcher 서브모듈) / `src/browser/web-ai/` 68 TS files (12616L, ChatGPT/Gemini/Grok 멀티벤더 자동화 + resolver/source-audit/observation helpers + context-pack/tab-pool) / `src/types/` 3 files (296L) / `bin/commands/` 22 top-level ts files + `tui/` 7 helper files / `native/jaw-claude-i/` 15 Rust source files (1956L)
+> 마지막 검증: 2026-05-28 (실제 코드베이스 재측정)
+> `server.ts` 853L / `src/routes/` 18 files (registrars + helper modules, 135 route handlers) / `src/cli/handlers*.ts` 397L + 499L + 97L + workflow 95L / `src/cli/api-auth.ts` 45L / `src/workflows/` 2 files (260L, workflow artifact/cache helpers) / `src/agent/` 35 TS files (`spawn.ts` 1790L + `events.ts` 15L + `agy-runtime.ts` 20L + `claude-e-runtime.ts` 44L 포함) / `src/manager/` 75 TS/TSX files (11747L, dashboard manager + board/notes/search/schedule/reminders/connector/routes + notes assets/watcher 서브모듈) / `src/browser/web-ai/` 68 TS files (12616L, ChatGPT/Gemini/Grok 멀티벤더 자동화 + resolver/source-audit/observation helpers + context-pack/tab-pool) / `src/types/` 3 files (296L) / `bin/commands/` 22 top-level ts files + `tui/` 7 helper files / `native/jaw-claude-i/` 15 Rust source files (1956L)
 > issue #91: OfficeCLI 10-phase integration (dual-audited, 94/94 tests) — closed
 > issue #92: Phase 20 overlay consolidation + GitHub Release v1.0.28-lidge.1 (3 audits passed: A-/A/A) — closed
 > issue #95: Avatar image upload — emoji+image dual support, 4 API endpoints, secure path serving — closed
@@ -103,17 +103,18 @@ cli-jaw/
 │   │   ├── builder.ts        ← A-1/A-2 + 스킬 + 직원 프롬프트 v2 + promptCache (4-segment key: emp:role:phase:workingDir) + dev skill rules + **advanced memory mode branch + task snapshot injection** + dashboard-connector anchor preserve (724L)
 │   │   ├── soul-bootstrap-prompt.ts ← LLM 기반 soul.md 개인화 부트스트랩 프롬프트 빌더 (52L)
 │   │   └── template-loader.ts ← 프롬프트 템플릿 로더 (50L)
-│   ├── manager/              ← Multi-instance 대시보드 매니저 (69 TS/TSX files, 10682L; `jaw dashboard serve` + board/notes/search/schedule/reminders/connector/routes/notes assets/watcher 서브모듈)
-│   │   ├── server.ts         ← Express 대시보드 서버 + helmet + 헬스/스캔/액션 라우트 + board/notes/schedule/reminders/connector/routes 라우터 마운트 (572L)
-│   │   ├── scan.ts           ← 포트 범위 스캔 + 인스턴스 감지 (148L)
-│   │   ├── proxy.ts          ← 인스턴스 reverse proxy 미들웨어 (231L)
+│   ├── manager/              ← Multi-instance 대시보드 매니저 (75 TS/TSX files, 11747L; `jaw dashboard serve` + board/notes/search/schedule/reminders/connector/routes/notes assets/watcher 서브모듈)
+│   │   ├── server.ts         ← Express 대시보드 서버 + helmet + 헬스/스캔/액션 라우트 + board/notes/schedule/reminders/connector/routes 라우터 마운트 (725L)
+│   │   ├── scan.ts           ← 포트 범위 스캔 + 인스턴스 감지 (150L)
+│   │   ├── proxy.ts          ← 인스턴스 reverse proxy 미들웨어 + preview HTML external-link escape 주입 (248L)
+│   │   ├── preview-link-policy.ts ← preview HTML link/form escape script 주입 helper (56L)
 │   │   ├── lifecycle.ts      ← 인스턴스 lifecycle (start/stop/spawn) 매니저 (531L)
 │   │   ├── lifecycle-helpers.ts ← lifecycle 공용 헬퍼 (grace timer, port wait, capability builder, error result) (188L)
 │   │   ├── lifecycle-store.ts ← PersistedRegistry/HomeMarker 영속화 + LifecycleStore 클래스 (194L)
-│   │   ├── registry.ts       ← `manager-instances.json` 영속화 + UI status 패치 (407L)
-│   │   ├── metadata.ts       ← 인스턴스 메타데이터 헬퍼 (52L)
+│   │   ├── registry.ts       ← `manager-instances.json` 영속화 + UI status 패치 (460L)
+│   │   ├── metadata.ts       ← 인스턴스 메타데이터 헬퍼 (59L)
 │   │   ├── constants.ts      ← DASHBOARD_DEFAULT_PORT / MANAGED_INSTANCE_PORT_FROM/COUNT (13L)
-│   │   ├── types.ts          ← Dashboard 타입 (DashboardInstance/Registry/ScanResult/NoteSearchResult 등, 364L)
+│   │   ├── types.ts          ← Dashboard 타입 (DashboardInstance/Registry/ScanResult/NoteSearchResult 등, 381L)
 │   │   ├── dashboard-home.ts ← DASHBOARD_HOME_ENV + resolveDashboardHome + dashboardPath 헬퍼 (19L)
 │   │   ├── dashboard-service.ts ← permDashboard/unpermDashboard/dashboardServiceStatus 서비스 관리 (214L)
 │   │   ├── health-history.ts ← HealthEvent/HealthHistory 건강 이력 추적 + createHealthHistory (139L)
@@ -122,8 +123,8 @@ cli-jaw/
 │   │   ├── platform-service.ts ← 크로스플랫폼 서비스 추상화 (detectBackend launchd/systemd/none 자동감지) (113L)
 │   │   ├── logs.ts           ← 인스턴스 로그 조회 (fetchInstanceLogs, InstanceLogSnapshot) (125L)
 │   │   ├── observability.ts  ← ManagerEvent 옵저버빌리티 + createObservability (59L)
-│   │   ├── preview-origin-proxy.ts ← 프리뷰 origin 프록시 (포트 매핑, PreviewOriginProxyController) (298L)
-│   │   ├── process-verify.ts ← 프로세스 검증 (isPidAlive, resolveListeningPid, isPortOccupied, waitForPortFree) (121L)
+│   │   ├── preview-origin-proxy.ts ← 프리뷰 origin 프록시 (포트 매핑, PreviewOriginProxyController, preview HTML external-link escape 주입) (332L)
+│   │   ├── process-verify.ts ← 프로세스 검증 (isPidAlive, resolveListeningPid, isPortOccupied, waitForPortFree) (124L)
 │   │   ├── profiles.ts       ← 프로파일 관리 (deriveProfile, mergeProfiles, sortProfiles, filterByProfile) (103L)
 │   │   ├── security.ts       ← 포트/호스트/Origin 보안 검증 (parsePositivePort, isLoopbackHost, isExpectedHostHeader, isAllowedOriginHeader 등 18종) (129L)
 │   │   ├── shutdown.ts       ← 대시보드 graceful shutdown (createDashboardShutdown) (71L)
@@ -330,7 +331,7 @@ cli-jaw/
 │   └── workflows/            ← workflow helper artifact/cache layer
 │       ├── artifacts.ts      ← JAW_HOME workflow artifact cache + project key/path safety + unknown command recovery artifact (169L)
 │       └── plan.ts           ← `/plan` compatibility artifact/text builder (PABCD P 안내, non-authoritative) (91L)
-├── public/                   ← Web UI (Vite 8 + ES Modules, 525 files [source + assets + public/public/dist mirror, public/dist 제외], public/dist build output 478 files, mirrored copies under `public/public/dist/` and `public/dist/dist/`, ~74905L)
+├── public/                   ← Web UI (Vite 8 + ES Modules, 529 files [source + assets + public/public/dist mirror, public/dist 제외], public/dist build output 478 files, mirrored copies under `public/public/dist/` and `public/dist/dist/`, ~75843L)
 │   ├── index.html            ← 뼈대 (1038L, CLI-JAW 대문자 로고, pill theme switch, data-i18n, 로컬 avatar 입력)
 │   ├── manifest.json         ← PWA 매니페스트 (20L) ✨
 │   ├── sw.js                 ← Service Worker 오프라인 캐시 (104L) ✨
@@ -372,10 +373,10 @@ cli-jaw/
 │       │   ├── iframe-renderer.ts  ← Mermaid/HTML 다이어그램을 sandbox iframe에 격리 렌더 (678L) ✨
 │       │   ├── types.ts            ← 위젯 페이로드 타입 (129L) ✨
 │       │   └── widget-validator.ts ← 위젯 입력 검증 (82L) ✨
-│       ├── render/           ← markdown/diagram rendering helpers (12 files, 1203L)
+│       ├── render/           ← markdown/diagram rendering helpers (12 files, 1226L)
 │       │   ├── code-copy.ts  ← 코드 블록 copy button helper (47L)
 │       │   ├── delegations.ts ← render delegation once-guard helper (10L)
-│       │   ├── file-links.ts ← local file path linkification + `/api/file/open` delegation (150L)
+│       │   ├── file-links.ts ← local file path linkification + `/api/file/open` delegation + external web-link new-tab targeting (173L)
 │       │   ├── highlight.ts  ← highlight.js language registration + mounted block rehighlight (83L)
 │       │   ├── html.ts       ← escape/strip helper (26L)
 │       │   ├── markdown.ts   ← marked pipeline + math/SVG shielding + post-render scheduling (90L)
@@ -448,7 +449,7 @@ cli-jaw/
 │   ├── postinstall.ts        ← npm install 후 CLI 런타임 + OfficeCLI 자동설치 + MCP + 스킬 + safe 가드 (1103L, Node guard + inline JAW_HOME)
 │   └── commands/             ← 22 top-level ts files (`browser-web-ai.ts`, `dashboard-memory.ts`, `dispatch-helpers.ts` helper 포함) + `tui/` 7 helper 모듈 (총 5450L + tui 1045L)
 │       ├── serve.ts          ← 서버 시작 (--port/--host/--open) + SIGINT child.kill('SIGINT') orphan fix (121L)
-│       ├── dispatch.ts       ← 직원 호출 (pipe mode 호환) + route contract bridge + worker result polling + ECONNREFUSED retry with escalating delays (197L)
+│       ├── dispatch.ts       ← 직원 호출 (pipe mode 호환) + route contract bridge + worker result polling + ECONNREFUSED retry with escalating delays (223L)
 │       ├── chat.ts           ← 터미널 채팅 TUI (3모드, locale bootstrap, refreshInfo, active model 표시, no-arg `/model`·`/cli` selector intercept, transcript 축적, overlay wiring, 251L)
 │       ├── init.ts           ← 초기화 마법사 + --safe/--dry-run + --help (256L)
 │       ├── doctor.ts         ← 진단 (다중 체크 + claude-i helper/underlying claude + headless 감지, --json) (641L)

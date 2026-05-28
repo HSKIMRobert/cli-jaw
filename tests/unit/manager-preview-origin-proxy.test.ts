@@ -93,6 +93,16 @@ async function startTarget(port: number): Promise<{ close(): Promise<void>; hits
             res.writeHead(302, { location: `http://127.0.0.1:${port}/next` }).end();
             return;
         }
+        if (req.url === '/links') {
+            const body = '<!doctype html><html><head><title>links</title></head><body><a href="https://example.com">External</a><a href="/local">Local</a></body></html>';
+            res.writeHead(200, {
+                'content-type': 'text/html; charset=utf-8',
+                'content-length': String(Buffer.byteLength(body)),
+                'content-security-policy': "frame-ancestors 'none'",
+            });
+            res.end(body);
+            return;
+        }
         res.writeHead(200, {
             'content-type': 'text/plain',
             'x-frame-options': 'DENY',
@@ -184,6 +194,26 @@ test('preview proxy rewrites redirects and rejects unexpected Host', async () =>
         const denied = await requestText(previewFrom, '/', { host: `evil.test:${previewFrom}` });
         assert.equal(denied.status, 403);
         assert.match(denied.body, /Preview unavailable/);
+    } finally {
+        await controller.close();
+        await target.close();
+    }
+});
+
+test('preview proxy injects external-link escape policy into HTML responses', async () => {
+    const { targetPort, previewFrom } = await freePortPair();
+    const target = await startTarget(targetPort);
+    const controller = createPreviewOriginProxyController({ scanFrom: targetPort, scanCount: 1, previewFrom, managerPort: 24576 });
+    try {
+        await controller.ensureTarget(targetPort);
+        const response = await requestText(previewFrom, '/links');
+        assert.equal(response.status, 200);
+        assert.match(response.body, /data-jaw-preview-link-policy/);
+        assert.match(response.body, /window\.open/);
+        assert.match(response.body, /href="\/local"/);
+        assert.equal(response.headers['content-security-policy'], undefined);
+        assert.equal(response.headers['content-length'], undefined);
+        assert.equal(target.headers.at(-1)?.['accept-encoding'], 'identity');
     } finally {
         await controller.close();
         await target.close();

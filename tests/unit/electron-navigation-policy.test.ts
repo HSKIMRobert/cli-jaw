@@ -3,8 +3,11 @@ import assert from 'node:assert/strict';
 import {
     buildManagerCsp,
     buildPreviewFrameOrigins,
+    externalOpenUrlForNavigation,
+    isAppInternalNavigation,
     isManagerNavigation,
     isPreviewFrameNavigation,
+    normalizeExternalOpenUrl,
     resolvePreviewFramePolicy,
 } from '../../electron/src/main/lib/navigation-policy.ts';
 
@@ -40,4 +43,23 @@ test('electron preview frame policy follows dashboard preview env with capped co
     });
 
     assert.deepEqual(policy, { previewFrom: 25000, previewCount: 200 });
+});
+
+test('electron external open policy keeps app origins internal and opens safe web URLs', () => {
+    const options = {
+        managerOrigin: 'http://127.0.0.1:24576',
+        previewFrom: 24602,
+        previewCount: 50,
+    };
+
+    assert.equal(normalizeExternalOpenUrl('https://example.com/docs'), 'https://example.com/docs');
+    assert.equal(normalizeExternalOpenUrl('http://127.0.0.1:3000/'), 'http://127.0.0.1:3000/');
+    assert.equal(normalizeExternalOpenUrl('javascript:alert(1)'), null);
+    assert.equal(normalizeExternalOpenUrl('https://user:pass@example.com/'), null);
+    assert.equal(isAppInternalNavigation('http://127.0.0.1:24576/manager', options), true);
+    assert.equal(isAppInternalNavigation('http://127.0.0.1:24602/', options), true);
+    assert.equal(externalOpenUrlForNavigation('http://127.0.0.1:24576/manager', options), null);
+    assert.equal(externalOpenUrlForNavigation('http://127.0.0.1:24602/', options), null);
+    assert.equal(externalOpenUrlForNavigation('https://github.com/lidge-jun/cli-jaw', options), 'https://github.com/lidge-jun/cli-jaw');
+    assert.equal(externalOpenUrlForNavigation('http://127.0.0.1:3000/', options), 'http://127.0.0.1:3000/');
 });

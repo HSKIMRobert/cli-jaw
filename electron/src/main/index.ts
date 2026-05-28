@@ -9,8 +9,10 @@ import { waitForManagerReady, isManagerHealthy, probeOnce } from './lib/health-c
 import {
   buildManagerCsp,
   buildPreviewFrameOrigins,
+  externalOpenUrlForNavigation,
   isManagerNavigation,
   isPreviewFrameNavigation,
+  normalizeExternalOpenUrl,
 } from './lib/navigation-policy.js';
 import {
   previewSpawnEnvForManager,
@@ -108,15 +110,6 @@ let MANAGER_URL = FLAGS.managerUrl;
 let MANAGER_ORIGIN = new URL(MANAGER_URL).origin;
 setAllowedOrigin(MANAGER_ORIGIN);
 let PREVIEW_FRAME_POLICY = resolvePreviewFramePolicyForManager(getManagerUrlPort(MANAGER_URL));
-
-const EXTERNAL_ALLOWLIST = [
-  'github.com',
-  'docs.lidge.ai',
-  'chatgpt.com',
-  'claude.ai',
-  'openai.com',
-  'anthropic.com',
-];
 
 const DEV_TOOLS_ENABLED =
   process.env.NODE_ENV === 'development' || process.env.JAW_ELECTRON_DEVTOOLS === '1';
@@ -367,14 +360,7 @@ function isAllowedFrameNavigation(raw: string): boolean {
 }
 
 function normalizeAllowedEmbeddedBrowserUrl(raw: string): string | null {
-  try {
-    const parsed = new URL(raw);
-    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null;
-    if (parsed.username || parsed.password) return null;
-    return parsed.toString();
-  } catch {
-    return null;
-  }
+  return normalizeExternalOpenUrl(raw);
 }
 
 function isAllowedEmbeddedBrowserUrl(raw: string): boolean {
@@ -392,6 +378,18 @@ function sendEmbeddedBrowserOpenUrl(raw: string, disposition: string): void {
     url,
     disposition: embeddedBrowserDisposition(disposition),
   });
+}
+
+function openExternalNavigation(raw: string): boolean {
+  const url = externalOpenUrlForNavigation(raw, {
+    managerOrigin: MANAGER_ORIGIN,
+    ...PREVIEW_FRAME_POLICY,
+  });
+  if (!url) return false;
+  void shell.openExternal(url).catch((err) => {
+    ringBuffer.append(`[external open error] ${url}: ${(err as Error)?.message ?? err}\n`);
+  });
+  return true;
 }
 
 function hardenEmbeddedBrowserWebContents(contents: Electron.WebContents): void {
@@ -709,6 +707,7 @@ async function createWindow(): Promise<void> {
 
   const guardNavigation = (event: Electron.Event, url: string): void => {
     if (!isManagerNavigation(url, MANAGER_ORIGIN)) {
+      openExternalNavigation(url);
       event.preventDefault();
     }
   };
@@ -716,7 +715,9 @@ async function createWindow(): Promise<void> {
   mainWindow.webContents.on('will-navigate', guardNavigation);
   mainWindow.webContents.on('will-redirect', guardNavigation);
   mainWindow.webContents.on('will-frame-navigate', (event) => {
+    if (event.isMainFrame) return;
     if (!isAllowedFrameNavigation(event.url)) {
+      openExternalNavigation(event.url);
       event.preventDefault();
     }
   });
@@ -739,19 +740,7 @@ async function createWindow(): Promise<void> {
   installDesktopShortcutForwarder(mainWindow.webContents);
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    try {
-      const parsed = new URL(url);
-      if (parsed.protocol !== 'https:') return { action: 'deny' };
-      if (parsed.username || parsed.password) return { action: 'deny' };
-      const host = parsed.hostname.toLowerCase();
-      const allow = EXTERNAL_ALLOWLIST.some(
-        (h) => host === h || host.endsWith(`.${h}`),
-      );
-      if (!allow) return { action: 'deny' };
-      void shell.openExternal(parsed.toString()).catch(() => {});
-    } catch {
-      return { action: 'deny' };
-    }
+    openExternalNavigation(url);
     return { action: 'deny' };
   });
 

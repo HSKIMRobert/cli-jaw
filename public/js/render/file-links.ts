@@ -11,6 +11,25 @@ function isLocalFileHref(href: string): boolean {
     return LOCAL_FILE_HREF_RE.test(href);
 }
 
+function isExternalHttpHref(href: string): boolean {
+    try {
+        const parsed = new URL(href, window.location.href);
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+        if (parsed.username || parsed.password) return false;
+        return parsed.origin !== window.location.origin;
+    } catch {
+        return false;
+    }
+}
+
+function ensureExternalAnchorTarget(anchor: HTMLAnchorElement): void {
+    anchor.target = '_blank';
+    const rel = new Set(anchor.rel.split(/\s+/).filter(Boolean));
+    rel.add('noopener');
+    rel.add('noreferrer');
+    anchor.rel = [...rel].join(' ');
+}
+
 function openLocalPath(path: string, el?: HTMLElement | null): void {
     if (el) el.classList.add('opening');
 
@@ -124,6 +143,10 @@ export function ensureFilePathDelegation(): void {
         const target = e.target as HTMLElement;
         const anchor = target?.closest('a') as HTMLAnchorElement | null;
         const href = anchor?.getAttribute('href') || '';
+        if (anchor && isExternalHttpHref(href)) {
+            ensureExternalAnchorTarget(anchor);
+            return;
+        }
         if (anchor && isLocalFileHref(href)) {
             e.preventDefault();
             anchor.classList.add('file-path-link');

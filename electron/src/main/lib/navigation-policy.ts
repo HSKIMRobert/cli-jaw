@@ -85,3 +85,28 @@ export function isPreviewFrameNavigation(raw: string, policy: PreviewFramePolicy
     return false;
   }
 }
+
+export function normalizeExternalOpenUrl(raw: string): string | null {
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+    if (parsed.username || parsed.password) return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
+export function isAppInternalNavigation(raw: string, options: NavigationPolicyOptions): boolean {
+  return isManagerNavigation(raw, options.managerOrigin)
+    || isPreviewFrameNavigation(raw, options);
+}
+
+export function externalOpenUrlForNavigation(
+  raw: string,
+  options: NavigationPolicyOptions,
+): string | null {
+  const normalized = normalizeExternalOpenUrl(raw);
+  if (!normalized) return null;
+  return isAppInternalNavigation(normalized, options) ? null : normalized;
+}

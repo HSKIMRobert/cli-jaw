@@ -3,21 +3,63 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import express from 'express';
+import http, { type IncomingMessage, type Server } from 'node:http';
 import {
     buildProxyUpgradeRequest,
     dashboardProxyRange,
+    installDashboardProxy,
     isDashboardProxyPortAllowed,
     parseDashboardProxyUrl,
     rewriteUpstreamRequestHeaders,
     sanitizeProxyResponseHeaders,
 } from '../../src/manager/proxy.js';
-import type { IncomingMessage } from 'node:http';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(__dirname, '..', '..');
 
 function read(path: string): string {
     return readFileSync(join(projectRoot, path), 'utf8');
+}
+
+function listen(server: Server, port = 0): Promise<number> {
+    return new Promise((resolve, reject) => {
+        server.once('error', reject);
+        server.listen(port, '127.0.0.1', () => {
+            server.off('error', reject);
+            const address = server.address();
+            if (!address || typeof address === 'string') {
+                reject(new Error('server did not expose a TCP address'));
+                return;
+            }
+            resolve(address.port);
+        });
+    });
+}
+
+function closeServer(server: Server): Promise<void> {
+    return new Promise((resolve) => {
+        server.close(() => resolve());
+    });
+}
+
+function requestText(
+    port: number,
+    path: string,
+): Promise<{ status: number; body: string; headers: http.IncomingHttpHeaders }> {
+    return new Promise((resolve, reject) => {
+        const req = http.get({ host: '127.0.0.1', port, path }, (res) => {
+            const chunks: string[] = [];
+            res.setEncoding('utf8');
+            res.on('data', chunk => chunks.push(String(chunk)));
+            res.on('end', () => resolve({
+                status: res.statusCode || 0,
+                body: chunks.join(''),
+                headers: res.headers,
+            }));
+        });
+        req.on('error', reject);
+    });
 }
 
 test('dashboard proxy allows only configured scan range', () => {
@@ -135,4 +177,34 @@ test('manager dashboard skips express.json for legacy /i proxy paths so POST bod
 
     assert.ok(server.includes('/^\\/i\\/\\d+(?:\\/|$)/.test(req.path)'), 'manager must bypass JSON parser on legacy proxy paths');
     assert.match(server, /Legacy \/i\/:port proxy streams the raw request body upstream/);
+});
+
+test('legacy dashboard proxy injects external-link escape policy into HTML responses', async () => {
+    const target = http.createServer((_req, res) => {
+        const body = '<!doctype html><html><head><title>x</title></head><body><a href="https://example.com">External</a></body></html>';
+        res.writeHead(200, {
+            'content-type': 'text/html; charset=utf-8',
+            'content-length': String(Buffer.byteLength(body)),
+            'content-security-policy': "frame-ancestors 'none'",
+        });
+        res.end(body);
+    });
+    const targetPort = await listen(target);
+    const app = express();
+    const manager = http.createServer(app);
+    installDashboardProxy(app, manager, { from: targetPort, count: 1 });
+    const managerPort = await listen(manager);
+
+    try {
+        const response = await requestText(managerPort, `/i/${targetPort}/links`);
+
+        assert.equal(response.status, 200);
+        assert.match(response.body, /data-jaw-preview-link-policy/);
+        assert.match(response.body, /window\.open/);
+        assert.equal(response.headers['content-security-policy'], undefined);
+        assert.equal(response.headers['content-length'], undefined);
+    } finally {
+        await closeServer(manager);
+        await closeServer(target);
+    }
 });

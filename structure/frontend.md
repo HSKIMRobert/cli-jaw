@@ -34,7 +34,7 @@ public/
 ├── js/                   ← 75 TypeScript modules
 │   ├── diagram/          ← 3 diagram pipeline modules
 │   ├── features/         ← 43 feature modules
-│   └── render/           ← 11 markdown/diagram rendering modules
+│   └── render/           ← 12 markdown/diagram rendering modules
 ├── locales/              ← ko/en/ja/zh JSON bundles
 ├── manager/              ← React manager dashboard + notes/search/settings workspaces (257 files)
 │   ├── index.html        ← Manager HTML entry
@@ -50,7 +50,7 @@ public/
 | `public/` source/assets (generated 제외) | 372 | `public/dist/*`, `public/public/dist/*` 모두 제외 |
 | `public/js/` root | 17 | 전부 TypeScript ES modules, `mermaid-loader.ts`, `uuid.ts`, `virtual-scroll-bootstrap.ts` 포함 |
 | `public/js/diagram/` | 3 | SVG/iframe diagram pipeline |
-| `public/js/render/` | 11 | markdown/KaTeX/Mermaid/SVG/file-link/post-render 책임 분리 |
+| `public/js/render/` | 12 | markdown/KaTeX/Mermaid/SVG/file-link/post-render 책임 분리 |
 | `public/js/features/` | 43 | settings 분해 + help/attention/orchestrate scope + process-step-match + preview shortcut bridge 포함 |
 | `public/manager/` | 257 | React 19 manager dashboard, notes/search, schedule, settings, sync, WYSIWYG source |
 | `public/css/` | 11 | theme/layout/chat/markdown/tool UI/diagram/trace drawer |
@@ -91,7 +91,7 @@ public/
 | `js/render/mermaid.ts` | lazy Mermaid load, queued render, observer, rerender, prewarm, unmount release |
 | `js/render/svg-actions.ts` | inline SVG block render, diagram copy/save/zoom actions, SVG overlay kind 분리(`inline-svg` vs `mermaid`) |
 | `js/render/highlight.ts` | highlight.js language registration, code block highlight, mounted block rehighlight |
-| `js/render/file-links.ts` | local absolute path linkification and `/api/file/open` click delegation |
+| `js/render/file-links.ts` | local absolute path linkification, `/api/file/open` click delegation, external web-link new-tab targeting |
 | `js/render/post-render.ts` | Mermaid render, rehighlight, zoom binding, file-path linkify를 100ms debounce로 coalesce |
 | `js/ui.ts` | 메시지 렌더링, skeleton/empty state, virtual scroll 연동, ProcessBlock 오케스트레이션, subagent/tool step merge + dedup, copy button, markdown/file-path post-render linkification, avatar markup 주입, message finalization, `scrollIntent` 기반 bottom-follow/restore policy |
 | `js/ws.ts` | WebSocket 메시지 라우팅. agent status, queue update, `agent_tool`→typed ProcessStep, agent output/done, orchestration state, Telegram/Discord new message, reconnect snapshot, 10초 reload dedup, reconnect 후 bottom anchor reconciliation |
@@ -224,7 +224,7 @@ settings.ts
 | `manager/index.html` | `#manager-root`와 `/manager/src/main.tsx`를 가진 Manager HTML entry |
 | `manager/src/main.tsx` | `react-dom/client` `createRoot()`로 `App` 렌더 |
 | `manager/src/App.tsx` | instance scan/filter/select/lifecycle + dashboard section 상태 orchestration |
-| `manager/src/InstancePreview.tsx` | preview iframe mount/theme sync + parent-focus STT shortcut bridge |
+| `manager/src/InstancePreview.tsx` | preview iframe mount/theme sync + parent-focus STT shortcut bridge + sandbox popup escape for external links |
 | `manager/src/api.ts` | `/api/dashboard/instances`, `/api/dashboard/registry`, `/api/dashboard/lifecycle/:action`, `/api/dashboard/notes/search` fetch wrapper |
 | `manager/src/components/` | `ManagerShell`, `WorkspaceLayout`, `Instance*`, `Command*`, `ActivityDock`, `MobileNav` 등 dashboard UI |
 | `manager/src/dashboard-board/` | standard workflow lanes (`backlog`, `ready`, `active`, `review`, `done`) 기반 board UI |
@@ -310,7 +310,7 @@ subagent 렌더링 변경 이후 tool history의 canonical UI는 `features/proce
 | `public/js/ui.ts` | 390L | Message rendering orchestration shell. ProcessBlock DOM/history/action details are split into feature helpers |
 | `public/js/main.ts` | 563L | bootstrap + event binding, preview STT toggle message, STT shortcut fallback 포함 |
 | `public/js/render.ts` | 17L | render public API façade. 기존 import surface를 유지하고 실제 구현은 `public/js/render/` 하위 모듈로 분리 |
-| `public/js/render/*.ts` | 11 files / max 291L | markdown/KaTeX/sanitize/Mermaid/SVG actions/highlight/file-links/post-render/delegation 책임 분리. `post-render.ts`는 `highlight.ts`를 import해 markdown cycle을 피함 |
+| `public/js/render/*.ts` | 12 files / max 291L | markdown/KaTeX/sanitize/Mermaid/SVG actions/highlight/file-links/post-render/delegation 책임 분리. `post-render.ts`는 `highlight.ts`를 import해 markdown cycle을 피함 |
 | `public/js/virtual-scroll.ts` | 577L | TanStack virtualizer activation, mounted row remeasure, Mermaid observer release before unmount/deactivate, restore/reconnect scroll anchor preservation, `pageshow`/`visibilitychange`/`focus` 복귀 후 near-bottom일 때 bottom reconciliation |
 | `public/js/features/process-block.ts` | 528L | `subagent` type, type별 summary, trusted SVG row icon, expandable row detail |
 | `public/js/features/process-block-dom.ts` | 175L | ProcessBlock DOM ownership, normalization, row replacement, layout mutation helpers |
@@ -377,7 +377,7 @@ subagent 렌더링 변경 이후 tool history의 canonical UI는 `features/proce
 | 전송 | 일반 메시지는 `/api/message`, slash command는 `/api/command`, stop 버튼은 `/api/stop` |
 | 복구 | 등록되지 않은 slash command는 입력 원문을 recovery card로 표시하고, 사용자가 복사하거나 입력창에 다시 넣을 수 있다 |
 | 업로드 | 첨부 파일은 병렬 업로드 후 prompt에 합성 |
-| 렌더링 | `render.ts`는 stable façade이고, markdown/KaTeX/Mermaid/code copy/diagram widget/local file-path click-to-open/post-render 작업은 `public/js/render/*` 모듈이 담당한다 |
+| 렌더링 | `render.ts`는 stable facade이고, markdown/KaTeX/Mermaid/code copy/diagram widget/local file-path click-to-open/external web-link new-tab targeting/post-render 작업은 `public/js/render/*` 모듈이 담당한다 |
 | 오프라인 | `idb-cache.ts`가 메시지 히스토리를 IndexedDB에 보관 — scope별 캐시(workingDir), 실시간 upsert, 서버 다운 시 캐시 복원 + tool_log process block 렌더 |
 | 아바타 | `initAvatar()`가 localStorage emoji와 `/api/avatar` 서버 상태를 합쳐 agent/user 아이콘을 hydrate하고, 업로드는 `/api/avatar/:target/upload`, reset은 `/api/avatar/:target/image` `DELETE`로 처리한다 |
 | WS | `agent_tool`은 typed ProcessBlock step으로, `agent_output`은 streaming renderer로, `agent_done`은 finalization으로 흘러가며, reconnect 직후 10초 이내에는 중복 `loadMessages()`를 건너뛴다 |
@@ -398,9 +398,10 @@ subagent 렌더링 변경 이후 tool history의 canonical UI는 `features/proce
 - `a42de89` 이후 virtual scroll live append id 안정성과 runtime path hardening이 같이 들어가, 서비스 재기동 직후에도 avatar/image path와 UI append 흐름이 덜 깨지도록 보강됐다.
 - 2026-04-24 subagent rendering 반영: `toolType: 'subagent'` 보존, summary Tool/Subagent split, stepRef 기반 running->done merge, done-only fallback 제한, repeated done-only dedup, ProcessBlock row icon column, rawIcon/trusted SVG 정책을 문서화했다.
 - 2026-05-08 notes search 반영: `NotesSearchSidebar.tsx` + `notes-search.css` + `searchNotes()` wrapper가 추가되어 Manager Notes에서 markdown 본문 검색을 sidebar mode로 지원한다.
-- 2026-05-09 render split 반영: `public/js/render.ts`는 17L facade가 되었고, sanitizer/markdown/math/Mermaid/SVG actions/highlight/file-links/post-render/code-copy/delegations는 `public/js/render/` 하위 11개 모듈이 소유한다.
+- 2026-05-09 render split 반영: `public/js/render.ts`는 17L facade가 되었고, sanitizer/markdown/math/Mermaid/SVG actions/highlight/file-links/post-render/code-copy/delegations는 `public/js/render/` 하위 12개 모듈이 소유한다.
 - 2026-05-09 SVG overlay fix 반영: inline SVG diagram zoom overlay는 `.diagram-svg-overlay` kind를 붙여 `.label`/`.connector` 스타일을 보존하고, Mermaid overlay에는 inline SVG primitive CSS를 섞지 않는다.
 - 2026-05-09/10 scroll restore 반영: reconnect/initial load 이후 bottom-follow는 사용자의 pinned-away intent와 row anchor를 보존하고, initial load settle은 `chat-scroll.ts`/message-history path가 담당한다.
 - 2026-05-09 WYSIWYG Knowledge Navigation 반영: Milkdown WYSIWYG에서 wikilink live preview/navigation과 YAML frontmatter structured editing을 지원한다. Invalid YAML은 raw 보존, unknown frontmatter key는 clone/update 방식으로 보존한다. 새로 typed 된 wikilink는 WYSIWYG에서 vault notes fallback으로 preview 가능하지만 Markdown Preview resolver parity는 후속 계획으로 추적한다.
 - 2026-05-09 Manager reminders parity 반영: dashboard reminders는 matrix buckets, Top Priority 3, detail popover, drag/drop bucket 이동, sidebar scroll polish를 지원한다.
 - 2026-05-16 STT hardening 반영: Web STT 버튼은 `getUserMedia` pending/MediaRecorder 실패를 UI와 system message로 표면화하고, Manager preview는 부모 포커스 상태에서도 iframe STT 토글을 전달한다. Preview STT 시작 요청은 Jaw CEO realtime voice 세션을 release해서 마이크 점유 충돌을 줄인다.
+- 2026-05-28 preview link escape 반영: Manager preview iframe은 `allow-popups-to-escape-sandbox`를 포함하고, preview proxy HTML에는 외부 http(s) link/form submit을 iframe 내부 navigation 대신 새 탭/기본 브라우저로 보내는 link policy가 주입된다. Web UI markdown/render delegation도 외부 web 링크에 `_blank`/`noopener noreferrer`를 보강한다.

@@ -302,6 +302,7 @@ ensureDirs()
 | Surface | Endpoints |
 | --- | --- |
 | Manager health/scan | `GET /api/dashboard/health` `GET /api/dashboard/instances` `GET /api/dashboard/instances/:port` |
+| Instance preview proxy | legacy `/i/:port/*` reverse proxy plus origin-port preview servers. HTML preview responses inject an external-link policy so off-instance http(s) links/forms open in a new tab/default browser instead of replacing the embedded iframe. |
 | Notes | `GET /api/dashboard/notes/info` `GET /api/dashboard/notes/version` `GET /api/dashboard/notes/tree` `GET /api/dashboard/notes/index` `GET /api/dashboard/notes/capabilities` `GET /api/dashboard/notes/search` `GET/POST/PUT /api/dashboard/notes/file` `POST /api/dashboard/notes/asset` |
 | Board | `GET/POST/PATCH/DELETE /api/dashboard/board/tasks` and lane/task ordering routes under `/api/dashboard/board` |
 | Schedule | `GET/POST/PATCH/DELETE /api/dashboard/schedule` plus schedule runner-backed dispatch |

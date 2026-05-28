@@ -226,7 +226,7 @@ export function InstancePreview(props: InstancePreviewProps) {
                     ref={iframeRef}
                     className="preview-frame"
                     src={state.src}
-                    sandbox="allow-forms allow-modals allow-popups allow-same-origin allow-scripts allow-downloads"
+                    sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts allow-downloads"
                     allow="clipboard-read; clipboard-write; microphone"
                     onLoad={() => {
                         loadedSrcRef.current = state.src;

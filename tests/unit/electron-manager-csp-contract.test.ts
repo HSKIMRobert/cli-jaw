@@ -24,5 +24,6 @@ test('manager preview avoids Electron-only iframe console errors', () => {
 
     assert.ok(preview.includes('loadedSrcRef'), 'theme sync must wait until the iframe loaded the current src');
     assert.ok(preview.includes('loadedSrcRef.current !== state.src'), 'theme sync must not post to initial about:blank');
+    assert.ok(preview.includes('allow-popups-to-escape-sandbox'), 'preview iframe target=_blank links must open outside the sandboxed iframe');
     assert.equal(preview.includes('web-share'), false, 'Electron does not recognize web-share in iframe allow policy');
 });

@@ -370,19 +370,24 @@ test('Electron terminal uses xterm plus a PTY backend and representative shortcu
 
 test('Electron browser panel uses a hardened webview instead of a CSP-blocked iframe', () => {
     const main = read('electron/src/main/index.ts');
+    const navigationPolicy = read('electron/src/main/lib/navigation-policy.ts');
     const browser = read('public/manager/src/browser-panel/BrowserPanel.tsx');
     const css = read('public/manager/src/browser-panel/browser-panel.css');
-
     assert.ok(main.includes('webviewTag: true'), 'BrowserWindow must enable webview only for the desktop browser panel');
     assert.ok(main.includes("mainWindow.webContents.on('will-attach-webview'"), 'Electron main must validate every attached webview');
     assert.ok(main.includes('function isAllowedEmbeddedBrowserUrl'), 'webview navigation must use a dedicated URL policy');
     assert.ok(main.includes('function normalizeAllowedEmbeddedBrowserUrl'), 'webview navigation must normalize allowed http/https URLs before forwarding them');
-    assert.ok(main.includes("if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null;"), 'Electron webview policy must reject non-http protocols before allowing navigation');
-    assert.ok(main.includes('if (parsed.username || parsed.password) return null;'), 'Electron webview policy must reject credential-bearing URLs');
+    assert.ok(main.includes('return normalizeExternalOpenUrl(raw);'), 'Electron webview policy must reuse shared external URL normalization');
+    assert.ok(navigationPolicy.includes("if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;"), 'Electron URL policy must reject non-http protocols before allowing navigation');
+    assert.ok(navigationPolicy.includes('if (parsed.username || parsed.password) return null;'), 'Electron URL policy must reject credential-bearing URLs');
     assert.ok(main.includes('return normalizeAllowedEmbeddedBrowserUrl(raw) !== null;'), 'Electron webview policy must allow local/private http preview URLs after protocol validation');
     assert.ok(!main.includes('BLOCKED_EMBED_HOSTS'), 'Electron webview policy must not block localhost/private preview URLs in the desktop Browser panel');
     assert.ok(main.includes('hardenEmbeddedBrowserWebContents'), 'webview contents must deny permissions and popups');
     assert.ok(main.includes("mainWindow.webContents.send('browser:open-url'"), 'webview popup/new-window requests must be routed back into the Browser panel');
+    assert.ok(main.includes('function openExternalNavigation'), 'Electron shell must centralize external app/browser opens for manager and preview frames');
+    assert.ok(main.includes("mainWindow.webContents.on('will-frame-navigate'") && main.includes('if (event.isMainFrame) return;'), 'Electron shell must inspect only subframe navigations before they replace the frame');
+    assert.ok(main.includes('openExternalNavigation(event.url);'), 'disallowed preview iframe navigations must be opened in the default browser');
+    assert.equal(main.includes('EXTERNAL_ALLOWLIST'), false, 'external web links must not be restricted to a stale host allowlist');
     assert.ok(main.includes('registerGlobalWebContentsHardening'), 'global webContents hardening must be registered once instead of per window recreation');
     assert.ok(browser.includes("createElement('webview'"), 'BrowserPanel must render Electron webview, not an iframe');
     assert.ok(browser.includes("allowpopups: 'true'"), 'BrowserPanel must render the Electron allowpopups attribute so main can convert target=_blank clicks into in-app tabs');
