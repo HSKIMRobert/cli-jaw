@@ -158,15 +158,15 @@ Limits are intentionally bounded (`MAX_TOOL_LOG_ENTRIES`, per-detail cap, total-
 | File | Line count | Role |
 | --- | ---: | --- |
 | `src/orchestrator/collect.ts` | 65L | orchestrate 결과 수집 |
-| `src/orchestrator/distribute.ts` | 554L | employee dispatch + parallel safety |
+| `src/orchestrator/distribute.ts` | 576L | employee dispatch + parallel safety |
 | `src/orchestrator/gateway.ts` | 155L | queue / intent gateway |
 | `src/orchestrator/parser.ts` | 176L | legacy subtask JSON 파서 + intent matcher + numeric reference + verdict 파서 |
-| `src/orchestrator/pipeline.ts` | 455L | PABCD sole entry point |
+| `src/orchestrator/pipeline.ts` | 523L | PABCD sole entry point + interview first-turn init + `<interview_tracker>` 추출 |
 | `src/orchestrator/scope.ts` | 17L | scope stub — 항상 `'default'` 반환 |
-| `src/orchestrator/state-machine.ts` | 380L | IPABCD state (I=Interview pre-plan) + prompts + OrcContext.interview + audit/verification verdict |
+| `src/orchestrator/state-machine.ts` | 427L | IPABCD state (I=Interview pre-plan) + prompts (1–3 questions/round) + `<interview_tracker>` known/unknown → OrcContext.interview + audit/verification verdict |
 | `src/orchestrator/worker-monitor.ts` | 58L | stall/disconnect/timeout monitor |
 | `src/orchestrator/worker-registry.ts` | 171L | worker ownership + replay registry |
-| `src/orchestrator/workspace-context.ts` | 65L | task에서 repo path hint 추출, project root resolve |
+| `src/orchestrator/workspace-context.ts` | 95L | task에서 repo path hint 추출, project root resolve |
 
 ### `pipeline.ts` 실제 흐름
 
@@ -201,10 +201,11 @@ orchestrate(prompt, meta)
 
 ### State machine
 
-- `OrcStateName`은 `IDLE | P | A | B | C | D` 6개. `OrcContext`는 `auditStatus`(pending/pass/fail), `verificationStatus`(pending/done/needs_fix), `userApproved`, `worklogPath`, `planHash`, `planUpdatedAt`, `taskAnchor`, `resolvedSelection`까지 포함한다.
+- `OrcStateName`은 `IDLE | P | A | B | C | D` 6개. `OrcContext`는 `auditStatus`(pending/pass/fail), `verificationStatus`(pending/done/needs_fix), `userApproved`, `worklogPath`, `planHash`, `planUpdatedAt`, `taskAnchor`, `resolvedSelection`, `interview`(request/round/known/unknown)까지 포함한다.
 - `getCtx()`는 `workingDir`가 빠진 구형 ctx를 읽어도 `workingDir: null`로 보정한다.
 - `setState()`는 worklog title을 최대 두 단어 + ellipsis로 자르고, fallback title은 `PABCD`다.
 - 상태 프롬프트는 이제 승인 시 `cli-jaw orchestrate A/B/C/D`를 명시적으로 실행하라고 말한다.
+- Interview(I) 상태는 라운드당 1~3개 질문 프롬프트를 쓰고, LLM 응답의 `<interview_tracker>known: [...]\nunknown: [...]</interview_tracker>` 블록을 `pipeline.ts`가 정규식으로 파싱해 `ctx.interview`(known/unknown/round)를 갱신한 뒤 본문에서 블록을 strip한다. 갱신된 트래커는 `orc_state` WS payload로 Web UI interview 패널에 실시간 전달된다.
 
 ### Parser (`orchestrator/parser.ts`)
 
