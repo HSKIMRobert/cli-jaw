@@ -202,17 +202,24 @@ test('QS-005c: AGY quota is explicit auth/status-only metadata', () => {
     );
 });
 
-test('QS-005c2: Cursor quota is explicit auth/status-only metadata', () => {
+test('QS-005c2: Cursor quota uses reverse dashboard hook when configured', () => {
     const settingsRouteSrc = readSource(
         path.join(import.meta.dirname, '../../src/routes/settings.ts'), 'utf8'
     );
-    assert.ok(
-        settingsRouteSrc.includes("quotaSource: 'not-exposed-by-cursor-cli'"),
-        'Cursor should not fake quota windows',
+    const cursorQuotaSrc = readSource(
+        path.join(import.meta.dirname, '../../src/routes/quota-cursor-dashboard.ts'), 'utf8'
     );
     assert.ok(
-        settingsRouteSrc.includes("displayTier: 'Cursor'"),
-        'Cursor should have display metadata for the status UI',
+        settingsRouteSrc.includes('fetchCursorUsage()'),
+        'Cursor quota should come from fetchCursorUsage helper',
+    );
+    assert.ok(
+        cursorQuotaSrc.includes("quotaSource: 'cursor-dashboard-unofficial-api'"),
+        'Cursor reverse quota should expose unofficial dashboard source tag',
+    );
+    assert.ok(
+        cursorQuotaSrc.includes('CURSOR_SESSION_TOKEN'),
+        'Cursor reverse quota should read dashboard session token env',
     );
 });
 
