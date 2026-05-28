@@ -156,7 +156,7 @@
     white-space: pre-wrap;
     word-break: break-all;
 }
-.diff-line { padding: 0 4px; }
+.diff-line { display: block; padding: 0 4px; }
 .diff-line-add { color: var(--status-success); background: color-mix(in srgb, var(--status-success) 10%, transparent); }
 .diff-line-del { color: var(--status-error); background: color-mix(in srgb, var(--status-error) 10%, transparent); }
 .diff-line-hunk { color: var(--accent); font-weight: 500; background: color-mix(in srgb, var(--accent) 6%, transparent); }
