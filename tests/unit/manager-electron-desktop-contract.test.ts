@@ -194,6 +194,7 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(browserPanel.includes('function sameBrowserUrl'), 'browser panel must compare pending URLs after URL normalization');
     assert.ok(browserPanel.includes('pendingNavigationRefs.current.set(tabId, target);'), 'opening a URL must mark the requested target as pending before React re-renders the webview');
     assert.ok(browserPanel.includes('if (pendingTarget && !sameBrowserUrl(current, pendingTarget))'), 'stale webview refreshes must not overwrite a pending requested URL');
+    assert.ok(browserPanel.includes('const failedUrl = failure.validatedURL ?? failure.url;'), 'old webview load aborts must not clear a different pending target');
     assert.ok(browserPanel.includes('const rawTarget = inputDraftRef.current?.tabId === activeTab.id'), 'browser Go action must prefer the preserved user draft when click blur races with React state updates');
     assert.ok(browserPanel.includes('openUrlInTab(activeTab.id, rawTarget)'), 'browser Go action must not depend only on React change events');
     assert.ok(browserPanel.includes('if (editingTabIdRef.current !== tabId)'), 'webview navigation events must not overwrite an address currently being edited');
