@@ -189,9 +189,11 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(browserPanel.includes('Local, private, and same-origin URLs are blocked.'), 'web UI must keep the explicit local/private URL rejection message');
     assert.ok(browserPanel.includes('const inputRef = useRef<HTMLInputElement | null>(null);'), 'browser Go action must read the visible URL input value for native accessibility value injection');
     assert.ok(browserPanel.includes('const editingTabIdRef = useRef<string | null>(null);'), 'browser address bar must track when a user is editing the visible URL');
-    assert.ok(browserPanel.includes('const rawTarget = inputRef.current?.value ?? activeTab.inputUrl'), 'browser Go action must snapshot the visible URL input before navigation');
+    assert.ok(browserPanel.includes('const inputDraftRef = useRef<{ tabId: string; value: string } | null>(null);'), 'browser address bar must preserve the latest typed draft across pointer blur/click ordering');
+    assert.ok(browserPanel.includes('const rawTarget = inputDraftRef.current?.tabId === activeTab.id'), 'browser Go action must prefer the preserved user draft when click blur races with React state updates');
     assert.ok(browserPanel.includes('openUrlInTab(activeTab.id, rawTarget)'), 'browser Go action must not depend only on React change events');
     assert.ok(browserPanel.includes('if (editingTabIdRef.current !== tabId)'), 'webview navigation events must not overwrite an address currently being edited');
+    assert.ok(browserPanel.includes('onMouseDown={event => event.preventDefault()}'), 'Go button must avoid blurring the URL input before click navigation reads it');
     assert.ok(browserPanel.includes('function shouldDefaultToHttp'), 'browser panel must treat localhost/private bare targets as http previews instead of defaulting them to https');
     assert.ok(browserPanel.includes('type BrowserTabState'), 'browser panel must track tab-specific URL/loading/error state');
     assert.ok(browserPanel.includes('browser-tab-strip'), 'browser panel must expose a tab strip for multiple browser tabs');
