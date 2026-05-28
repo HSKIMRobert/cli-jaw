@@ -12,6 +12,7 @@ export interface CodexAppClientOptions {
     env?: NodeJS.ProcessEnv;
     model?: string;
     effort?: string;
+    fastMode?: boolean;
 }
 
 export class CodexAppClient extends EventEmitter {
@@ -23,6 +24,7 @@ export class CodexAppClient extends EventEmitter {
     private spawnEnv: NodeJS.ProcessEnv;
     private model: string;
     private effort: string;
+    private fastMode: boolean;
     private nextId = 1;
     private pending = new Map<number, {
         resolve: (result: unknown) => void;
@@ -38,6 +40,7 @@ export class CodexAppClient extends EventEmitter {
         this.spawnEnv = options.env || process.env;
         this.model = options.model || 'gpt-5.4';
         this.effort = options.effort || 'medium';
+        this.fastMode = options.fastMode ?? false;
     }
 
     spawn(): void {
@@ -210,6 +213,7 @@ export class CodexAppClient extends EventEmitter {
             model_reasoning_summary: 'detailed',
             hide_agent_reasoning: false,
             show_raw_agent_reasoning: true,
+            ...(this.fastMode ? { service_tier: 'fast' } : {}),
         };
     }
 

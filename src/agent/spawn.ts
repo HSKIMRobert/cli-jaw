@@ -1158,6 +1158,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             env: spawnEnv,
             model,
             effort,
+            fastMode: cfg.fastMode ?? settings["perCli"]?.["codex"]?.fastMode,
         });
         appClient.spawn();
         const child = appClient.proc;
