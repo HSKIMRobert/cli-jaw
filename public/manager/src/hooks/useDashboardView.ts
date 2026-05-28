@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { DEFAULT_MANAGER_SHORTCUT_KEYMAP, normalizeManagerShortcutKeymap } from '../manager-shortcuts';
-import type { DashboardDetailTab, DashboardLocale, DashboardNotesAuthoringMode, DashboardNotesViewMode, DashboardShortcutKeymap, DashboardSidebarMode } from '../types';
+import type { DashboardDetailTab, DashboardDiffMode, DashboardDiffRootPolicy, DashboardLocale, DashboardNotesAuthoringMode, DashboardNotesViewMode, DashboardShortcutKeymap, DashboardSidebarMode } from '../types';
 
 export function useDashboardView() {
     const [selectedPort, setSelectedPort] = useState<number | null>(null);
@@ -22,6 +22,11 @@ export function useDashboardView() {
     const [showSelectedRowActions, setShowSelectedRowActions] = useState(true);
     const [dashboardShortcutsEnabled, setDashboardShortcutsEnabled] = useState(true);
     const [dashboardShortcutKeymap, setDashboardShortcutKeymapState] = useState<DashboardShortcutKeymap>({ ...DEFAULT_MANAGER_SHORTCUT_KEYMAP });
+    const [diffRootPolicy, setDiffRootPolicy] = useState<DashboardDiffRootPolicy>('project-first');
+    const [diffPinnedRootByPort, setDiffPinnedRootByPort] = useState<Record<string, string>>({});
+    const [diffDefaultMode, setDiffDefaultMode] = useState<DashboardDiffMode>('unstaged');
+    const [diffBaseRef, setDiffBaseRef] = useState('HEAD');
+    const [diffIncludeUntracked, setDiffIncludeUntracked] = useState(true);
     const [locale, setLocale] = useState<DashboardLocale>('ko');
 
     function setDashboardShortcutKeymap(value: unknown): void {
@@ -67,6 +72,16 @@ export function useDashboardView() {
         setDashboardShortcutsEnabled,
         dashboardShortcutKeymap,
         setDashboardShortcutKeymap,
+        diffRootPolicy,
+        setDiffRootPolicy,
+        diffPinnedRootByPort,
+        setDiffPinnedRootByPort,
+        diffDefaultMode,
+        setDiffDefaultMode,
+        diffBaseRef,
+        setDiffBaseRef,
+        diffIncludeUntracked,
+        setDiffIncludeUntracked,
         locale,
         setLocale,
     };

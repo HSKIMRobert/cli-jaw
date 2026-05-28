@@ -24,6 +24,7 @@ import { expandPatch } from './path-utils';
 import { ActiveChannelToggle } from './components/ActiveChannelToggle';
 import type { ActiveChannel } from './components/ActiveChannelToggle';
 import { HealthBadge, interpretDiscordHealth } from './components/HealthBadge';
+import { TransportStatusChips } from './components/TransportStatusChips';
 
 type DiscordBlock = {
     enabled?: boolean;
@@ -150,13 +151,14 @@ export default function ChannelsDiscord({ port, client, dirty, registerSave }: S
         >
             <SettingsSection
                 title="Channels"
-                hint="Choose which channel forwards bot replies to you."
+                hint="Choose which channel receives inbound chat. Outbound send can still work on the other channel when configured."
             >
                 <ActiveChannelToggle
                     original={originalChannel}
                     dirty={dirty}
                     idPrefix="dc-channel"
                 />
+                <TransportStatusChips client={client} channel="discord" />
             </SettingsSection>
 
             <SettingsSection title="Discord" hint="Bot token, guild + channels, forwarding rules.">

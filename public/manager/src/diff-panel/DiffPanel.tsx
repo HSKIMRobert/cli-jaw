@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
-import { getDesktop, type DiffBridgeApi } from '../panels/desktop-bridge';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { getDesktop, type DiffBridgeApi, type DiffOptions, type DiffResolvedRoot } from '../panels/desktop-bridge';
+import type { DashboardDiffMode, DashboardInstance, DashboardRegistryUi } from '../types';
+import { buildDiffRootCandidates } from './diff-root-candidates';
 import './diff-panel.css';
 
 type DiffFileSummary = {
@@ -9,43 +11,117 @@ type DiffFileSummary = {
     deletions: number;
 };
 
+type DiffSettings = Pick<DashboardRegistryUi,
+    'diffRootPolicy' | 'diffPinnedRootByPort' | 'diffDefaultMode' | 'diffBaseRef' | 'diffIncludeUntracked'
+>;
+
+type DiffPanelProps = {
+    selectedInstance: DashboardInstance | null;
+    settings: DiffSettings;
+    onSettingsPatch?: (patch: Partial<DashboardRegistryUi>) => void;
+};
+
+const DIFF_MODES: DashboardDiffMode[] = ['unstaged', 'staged', 'head', 'base'];
+
 function getDiffBridge(): DiffBridgeApi | null {
     return getDesktop()?.diff ?? null;
 }
 
-export function DiffPanel() {
+function diffOptions(settings: DiffSettings): DiffOptions {
+    const options: DiffOptions = {
+        mode: settings.diffDefaultMode,
+        includeUntracked: settings.diffIncludeUntracked,
+    };
+    if (settings.diffDefaultMode === 'base') options.ref = settings.diffBaseRef.trim() || 'HEAD';
+    return options;
+}
+
+function rootTitle(root: DiffResolvedRoot): string {
+    const suffix = root.branch ?? root.head ?? 'detached';
+    return `${root.label}: ${root.root} (${suffix}${root.dirty ? ', dirty' : ''})`;
+}
+
+export function DiffPanel(props: DiffPanelProps) {
     const bridge = getDiffBridge();
+    const [repoCandidates, setRepoCandidates] = useState<DiffResolvedRoot[]>([]);
     const [repoRoot, setRepoRoot] = useState<string | null>(null);
     const [files, setFiles] = useState<DiffFileSummary[]>([]);
     const [selectedFile, setSelectedFile] = useState<string | null>(null);
     const [diffContent, setDiffContent] = useState<string>('');
     const [error, setError] = useState<string | null>(null);
+    const selectedInstanceKey = `${props.selectedInstance?.port ?? 'none'}:${props.selectedInstance?.workingDir ?? ''}:${props.selectedInstance?.projectDirs?.join('\0') ?? ''}`;
+    const options = useMemo(() => diffOptions(props.settings), [
+        props.settings.diffDefaultMode,
+        props.settings.diffBaseRef,
+        props.settings.diffIncludeUntracked,
+    ]);
+    const selectedRoot = repoCandidates.find(candidate => candidate.root === repoRoot) ?? null;
 
-    const loadRepo = useCallback(async () => {
+    const loadRepoCandidates = useCallback(async () => {
         if (!bridge) return;
         const desktop = getDesktop();
         const home = desktop?.getHomePath?.() || '/tmp';
-        const result = await bridge.getRepoRoot(home);
-        if (result.ok && result.root) {
-            setRepoRoot(result.root);
-            const summary = await bridge.getDiffSummary(result.root);
-            if (summary.ok && summary.files) setFiles(summary.files);
-            else setError(summary.error ?? 'Failed to get diff summary');
-        } else {
-            setError(result.error ?? 'No git repository found');
+        const candidates = buildDiffRootCandidates(props.selectedInstance, home, {
+            diffRootPolicy: props.settings.diffRootPolicy,
+            diffPinnedRootByPort: props.settings.diffPinnedRootByPort,
+        });
+        const result = await bridge.getRepoCandidates(candidates);
+        if (!result.ok) {
+            setError(result.error ?? 'Failed to resolve git repositories');
+            return;
         }
-    }, [bridge]);
+        const roots = result.candidates ?? [];
+        setRepoCandidates(roots);
+        setRepoRoot(current => current && roots.some(root => root.root === current) ? current : roots[0]?.root ?? null);
+        if (roots.length === 0) setError('No git repository found from the selected instance roots.');
+        else setError(null);
+    }, [bridge, selectedInstanceKey, props.settings.diffRootPolicy, props.settings.diffPinnedRootByPort]);
 
-    useEffect(() => { void loadRepo(); }, [loadRepo]);
+    const loadSummary = useCallback(async () => {
+        if (!bridge || !repoRoot) return;
+        const result = await bridge.getDiffSummary(repoRoot, options);
+        if (result.ok && result.files) {
+            setFiles(result.files);
+            setSelectedFile(current => current && result.files?.some(file => file.path === current) ? current : result.files?.[0]?.path ?? null);
+            setError(null);
+        } else {
+            setFiles([]);
+            setSelectedFile(null);
+            setError(result.error ?? 'Failed to get diff summary');
+        }
+    }, [bridge, options, repoRoot]);
+
+    useEffect(() => { void loadRepoCandidates(); }, [loadRepoCandidates]);
+    useEffect(() => { void loadSummary(); }, [loadSummary]);
 
     useEffect(() => {
-        if (!bridge || !repoRoot || !selectedFile) return;
+        if (!bridge || !repoRoot || !selectedFile) {
+            setDiffContent('');
+            return;
+        }
         void (async () => {
-            const result = await bridge.getFileDiff(repoRoot, selectedFile);
-            if (result.ok && result.diff) setDiffContent(result.diff);
+            const result = await bridge.getFileDiff(repoRoot, selectedFile, options);
+            if (result.ok && result.diff !== undefined) setDiffContent(result.diff || 'No textual diff for this file.');
             else setDiffContent(`Error: ${result.error ?? 'unknown'}`);
         })();
-    }, [bridge, repoRoot, selectedFile]);
+    }, [bridge, options, repoRoot, selectedFile]);
+
+    function handleRootChange(root: string): void {
+        setRepoRoot(root);
+        setSelectedFile(null);
+        const port = props.selectedInstance?.port;
+        if (port == null) return;
+        props.onSettingsPatch?.({
+            diffPinnedRootByPort: {
+                ...props.settings.diffPinnedRootByPort,
+                [String(port)]: root,
+            },
+        });
+    }
+
+    function handleModeChange(mode: DashboardDiffMode): void {
+        props.onSettingsPatch?.({ diffDefaultMode: mode });
+    }
 
     if (!bridge) {
         return <div className="diff-panel diff-unavailable">Diff viewer requires Electron desktop app</div>;
@@ -54,8 +130,50 @@ export function DiffPanel() {
     return (
         <div className="diff-panel">
             <div className="diff-toolbar">
-                <span className="diff-repo-label">{repoRoot ?? 'No repo'}</span>
-                <button type="button" className="diff-refresh" onClick={() => void loadRepo()}>↻</button>
+                <select
+                    className="diff-root-select"
+                    value={repoRoot ?? ''}
+                    aria-label="Git repository root"
+                    onChange={(event) => handleRootChange(event.currentTarget.value)}
+                >
+                    {repoCandidates.map(candidate => (
+                        <option key={candidate.root} value={candidate.root}>{rootTitle(candidate)}</option>
+                    ))}
+                    {repoCandidates.length === 0 && <option value="">No repo</option>}
+                </select>
+                <span className="diff-head-chip">{selectedRoot?.branch ?? selectedRoot?.head ?? 'no repo'}</span>
+                <button type="button" className="diff-refresh" onClick={() => void loadRepoCandidates()}>Refresh</button>
+            </div>
+            <div className="diff-toolbar diff-options">
+                <div className="diff-mode-group" aria-label="Diff mode">
+                    {DIFF_MODES.map(mode => (
+                        <button
+                            key={mode}
+                            type="button"
+                            className={`diff-mode-button${props.settings.diffDefaultMode === mode ? ' is-active' : ''}`}
+                            aria-pressed={props.settings.diffDefaultMode === mode}
+                            onClick={() => handleModeChange(mode)}
+                        >
+                            {mode === 'head' ? 'HEAD' : mode === 'base' ? 'Base' : mode}
+                        </button>
+                    ))}
+                </div>
+                <input
+                    className="diff-ref-input"
+                    type="text"
+                    value={props.settings.diffBaseRef}
+                    aria-label="Base ref"
+                    disabled={props.settings.diffDefaultMode !== 'base'}
+                    onChange={(event) => props.onSettingsPatch?.({ diffBaseRef: event.currentTarget.value })}
+                />
+                <label className="diff-untracked-toggle">
+                    <input
+                        type="checkbox"
+                        checked={props.settings.diffIncludeUntracked}
+                        onChange={(event) => props.onSettingsPatch?.({ diffIncludeUntracked: event.currentTarget.checked })}
+                    />
+                    <span>untracked</span>
+                </label>
             </div>
             {error && <div className="diff-error">{error}</div>}
             <div className="diff-body">
@@ -68,6 +186,7 @@ export function DiffPanel() {
                             <span className="diff-file-stats">
                                 {f.insertions > 0 && <span className="diff-ins">+{f.insertions}</span>}
                                 {f.deletions > 0 && <span className="diff-del">-{f.deletions}</span>}
+                                {f.status === 'untracked' && <span className="diff-ins">new</span>}
                             </span>
                         </button>
                     ))}

@@ -391,6 +391,7 @@ test('manager dashboard settings workspace controls sidebar display preferences'
     const view = read('public/manager/src/hooks/useDashboardView.ts');
     const registry = read('src/manager/registry.ts');
     const workspace = read('public/manager/src/dashboard-settings/DashboardSettingsWorkspace.tsx');
+    const developer = read('public/manager/src/dashboard-settings/DashboardDeveloperSettingsSection.tsx');
     const sidebar = read('public/manager/src/dashboard-settings/DashboardSettingsSidebar.tsx');
     const helper = read('public/manager/src/dashboard-settings/activity-title-support.ts');
     const css = read('public/manager/src/manager-dashboard-settings.css');
@@ -408,9 +409,15 @@ test('manager dashboard settings workspace controls sidebar display preferences'
     assert.ok(view.includes('showSelectedRowActions'), 'view hook must own selected row action visibility');
     assert.ok(view.includes('dashboardShortcutsEnabled'), 'view hook must own global shortcut enabled state');
     assert.ok(view.includes('dashboardShortcutKeymap'), 'view hook must own the configurable shortcut keymap');
+    assert.ok(view.includes('diffRootPolicy'), 'view hook must own git diff root policy');
+    assert.ok(view.includes('diffDefaultMode'), 'view hook must own default git diff mode');
+    assert.ok(view.includes('diffIncludeUntracked'), 'view hook must own untracked diff preference');
     assert.ok(registry.includes("'settings'"), 'registry sidebar mode must support Dashboard settings mode');
     assert.ok(registry.includes('showLatestActivityTitles: true'), 'registry defaults must enable latest activity titles');
     assert.ok(registry.includes('dashboardShortcutsEnabled: true'), 'registry defaults must enable dashboard shortcuts');
+    assert.ok(registry.includes("diffRootPolicy: 'project-first'"), 'registry defaults must prefer selected instance project roots for diff');
+    assert.ok(registry.includes("diffDefaultMode: 'unstaged'"), 'registry defaults must open unstaged diff');
+    assert.ok(registry.includes('diffIncludeUntracked: true'), 'registry defaults must include untracked files');
     assert.ok(registry.includes('DEFAULT_DASHBOARD_SHORTCUT_KEYMAP'), 'registry must normalize a configurable shortcut keymap');
     assert.ok(shortcuts.includes('DEFAULT_MANAGER_SHORTCUT_KEYMAP'), 'frontend must define a default Manager shortcut map');
     assert.ok(shortcuts.includes('shortcutMatches'), 'frontend must parse shortcut chords through a testable helper');
@@ -424,6 +431,12 @@ test('manager dashboard settings workspace controls sidebar display preferences'
     assert.ok(workspace.includes('Expanded row actions'), 'settings workspace must expose selected actions toggle with clear copy');
     assert.ok(workspace.includes('Global shortcuts'), 'settings workspace must expose shortcut enable/config controls');
     assert.ok(workspace.includes('DashboardShortcutInput'), 'settings workspace must render shortcut keymap inputs');
+    assert.ok(workspace.includes('DashboardDeveloperSettingsSection'), 'settings workspace must render developer tool settings');
+    assert.ok(developer.includes('Repo root priority'), 'developer settings must expose diff root priority');
+    assert.ok(developer.includes('Default diff mode'), 'developer settings must expose default diff mode');
+    assert.ok(developer.includes('Default base ref'), 'developer settings must expose base ref');
+    assert.ok(developer.includes('Include untracked'), 'developer settings must expose untracked toggle');
+    assert.ok(types.includes('diffPinnedRootByPort'), 'frontend types must preserve per-instance pinned diff roots through the shared UI object');
     assert.ok(workspace.includes('Left instance list'), 'settings workspace must show setting scope labels');
     assert.ok(workspace.includes('Language'), 'settings workspace must expose a saved language menu');
     assert.ok(workspace.includes('인스턴스 목록 표시'), 'settings workspace must render Korean copy when locale=ko');
@@ -431,6 +444,7 @@ test('manager dashboard settings workspace controls sidebar display preferences'
     assert.ok(workspace.includes('언어'), 'settings workspace must localize the language row');
     assert.ok(workspace.includes('LOCALE_OPTIONS'), 'settings workspace must define supported locale options');
     assert.ok(sidebar.includes('사이드바 행'), 'settings sidebar must render Korean section copy when locale=ko');
+    assert.ok(sidebar.includes('개발 도구'), 'settings sidebar must include Developer tools section');
     assert.ok(appChrome.includes('locale={props.view.locale}'), 'settings sidebar must receive the saved dashboard locale');
     assert.ok(workspace.includes("props.onUiPatch({ locale: next })"), 'settings workspace must save dashboard locale through manager registry UI');
     assert.equal(workspace.includes('fetchDashboardRuntimeSettings'), false, 'manager dashboard must not call missing root /api/settings for locale');

@@ -9,10 +9,32 @@ export type TerminalBridgeApi = {
     onExit: (cb: (id: string, code: number | null) => void) => () => void;
 };
 
+export type DiffMode = 'unstaged' | 'staged' | 'head' | 'base';
+
+export type DiffOptions = {
+    mode: DiffMode;
+    ref?: string;
+    includeUntracked?: boolean;
+};
+
+export type DiffRootCandidate = {
+    path: string;
+    label: string;
+    source: 'project' | 'working-dir' | 'pinned' | 'home';
+};
+
+export type DiffResolvedRoot = DiffRootCandidate & {
+    root: string;
+    branch: string | null;
+    head: string | null;
+    dirty: boolean;
+};
+
 export type DiffBridgeApi = {
     getRepoRoot: (cwd: string) => Promise<{ ok: boolean; root?: string; error?: string }>;
-    getDiffSummary: (repoRoot: string, ref?: string) => Promise<{ ok: boolean; files?: Array<{ path: string; status: string; insertions: number; deletions: number }>; error?: string }>;
-    getFileDiff: (repoRoot: string, filePath: string, ref?: string) => Promise<{ ok: boolean; diff?: string; error?: string }>;
+    getRepoCandidates: (candidates: DiffRootCandidate[]) => Promise<{ ok: boolean; candidates?: DiffResolvedRoot[]; error?: string }>;
+    getDiffSummary: (repoRoot: string, options: DiffOptions) => Promise<{ ok: boolean; files?: Array<{ path: string; status: string; insertions: number; deletions: number }>; error?: string }>;
+    getFileDiff: (repoRoot: string, filePath: string, options: DiffOptions) => Promise<{ ok: boolean; diff?: string; error?: string }>;
 };
 
 export type FolderBridgeApi = {

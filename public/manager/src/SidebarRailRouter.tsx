@@ -44,6 +44,7 @@ import type {
     NoteMetadata,
     DashboardLocale,
     ManagerEvent,
+    DashboardRegistryUi,
 } from './types';
 
 type WorkspaceSurfaceProps = {
@@ -77,6 +78,7 @@ type Props = {
     notesSelectedPath: string | null;
     notesSelectedNote: NoteMetadata | null;
     notesDirtyPath: string | null;
+    notesHighlightedPath: string | null;
     notesTreeWidth: number;
     notesSidebarMode: NotesSidebarMode;
     notesSearchFocusToken: number;
@@ -93,6 +95,7 @@ type Props = {
     onNotesWordWrapChange: (value: boolean) => void;
     onNotesVimModeChange: (value: boolean) => void;
     onNotesTreeWidthChange: (value: number) => void;
+    onOpenNotesFromPreview?: (path: string) => void;
     boardView: BoardView;
     onBoardViewChange: (view: BoardView) => void;
     scheduleGroup: ScheduleGroup;
@@ -134,10 +137,13 @@ function renderRightPanelContent(
     mode: RightPanelMode,
     previewFilePath: string | null,
     onPreviewFile: (path: string) => void,
+    selectedInstance: DashboardInstance | null,
+    dashboardSettingsUi: DashboardRegistryUi,
+    onDashboardSettingsPatch: (patch: Partial<DashboardRegistryUi>) => void,
 ): ReactNode {
     const fallback = <div style={{ padding: '12px', color: 'var(--text-dim)', fontSize: '12px' }}>Loading...</div>;
     switch (mode) {
-        case 'diff': return <Suspense fallback={fallback}><DiffPanel /></Suspense>;
+        case 'diff': return <Suspense fallback={fallback}><DiffPanel selectedInstance={selectedInstance} settings={dashboardSettingsUi} onSettingsPatch={onDashboardSettingsPatch} /></Suspense>;
         case 'folder': return <Suspense fallback={fallback}><FolderPanel selectedFilePath={previewFilePath} onPreviewFile={onPreviewFile} /></Suspense>;
         case 'doc': return <Suspense fallback={fallback}><DocPanel filePath={previewFilePath ?? undefined} /></Suspense>;
         case 'browser': return <Suspense fallback={fallback}><BrowserPanel /></Suspense>;
@@ -181,7 +187,7 @@ export function SidebarRailRouter(props: Props) {
             onCloseDrawer={props.onCloseDrawer}
             rightPanelOpen={panelLayout.effectiveRightOpen}
             rightPanelWidth={panelLayout.state.rightPanel.width}
-            rightPanelContent={panelLayout.effectiveRightOpen ? <RightSidebar renderPanel={mode => renderRightPanelContent(mode, rightPreviewFilePath, handleRightPreviewFile)} /> : undefined}
+            rightPanelContent={panelLayout.effectiveRightOpen ? <RightSidebar renderPanel={mode => renderRightPanelContent(mode, rightPreviewFilePath, handleRightPreviewFile, props.selectedInstance, props.dashboardSettingsUi, props.onDashboardSettingsPatch)} /> : undefined}
             bottomPanelOpen={panelLayout.state.bottomPanel.open}
             bottomPanelHeight={panelLayout.state.bottomPanel.height}
             bottomPanelContent={panelLayout.state.bottomPanel.tabs.length > 0 ? <BottomPanel renderTab={renderBottomTabContent} /> : undefined}
@@ -202,7 +208,7 @@ export function SidebarRailRouter(props: Props) {
                         {props.sidebarMode === 'settings' ? (
                             <DashboardSettingsSidebar activeSection={props.settingsSection} locale={props.locale} onSectionChange={props.onSettingsSectionChange} />
                         ) : props.sidebarMode === 'notes' ? (
-                            <NotesSidebar tree={props.notesModel.filteredTree} loading={props.notesModel.loading} error={props.notesModel.error} notesRoot={props.notesModel.notesRoot} selectedPath={props.notesSelectedPath} dirtyPath={props.notesDirtyPath} treeWidth={props.notesTreeWidth} mode={props.notesSidebarMode} searchFocusToken={props.notesSearchFocusToken} tagFilter={props.notesModel.tagFilter} selectedHiddenByFilter={notesSelectedHiddenByFilter} onModeChange={props.onNotesSidebarModeChange} onOpenSearch={props.onOpenNotesSearch} onSelectedPathChange={props.onNotesSelectedPathChange} onRefreshTree={props.notesModel.refresh} onClearTagFilter={() => props.notesModel.setTagFilter(null)} />
+                            <NotesSidebar tree={props.notesModel.filteredTree} loading={props.notesModel.loading} error={props.notesModel.error} notesRoot={props.notesModel.notesRoot} selectedPath={props.notesSelectedPath} dirtyPath={props.notesDirtyPath} highlightedPath={props.notesHighlightedPath} externalFocusPath={props.notesSelectedPath} treeWidth={props.notesTreeWidth} mode={props.notesSidebarMode} searchFocusToken={props.notesSearchFocusToken} tagFilter={props.notesModel.tagFilter} selectedHiddenByFilter={notesSelectedHiddenByFilter} onModeChange={props.onNotesSidebarModeChange} onOpenSearch={props.onOpenNotesSearch} onSelectedPathChange={props.onNotesSelectedPathChange} onRefreshTree={props.notesModel.refresh} onClearTagFilter={() => props.notesModel.setTagFilter(null)} />
                         ) : props.sidebarMode === 'board' ? (
                             <DashboardBoardSidebar view={props.boardView} onViewChange={props.onBoardViewChange} instances={props.instances} titlesByPort={props.titlesByPort} busyPorts={props.busyPorts} />
                         ) : props.scheduleWorkspaceEnabled && props.sidebarMode === 'schedule' ? (
@@ -229,7 +235,7 @@ export function SidebarRailRouter(props: Props) {
                     <div className="workspace-surface-layer">
                         <WorkspaceSurface active={props.sidebarMode === 'instances'}>
                             <Workbench mode={props.activeDetailTab} onModeChange={props.onDetailTabChange} header={props.workbenchHeader} modeActions={props.jawCeoWorkbenchButton} overview={props.detailContent('overview')} preview={(
-                                <InstancePreview instance={props.selectedInstance} data={props.data} enabled={props.previewEnabled} active={props.sidebarMode === 'instances' && props.activeDetailTab === 'preview'} refreshKey={props.previewRefreshKey} theme={props.previewTheme} />
+                                <InstancePreview instance={props.selectedInstance} data={props.data} enabled={props.previewEnabled} active={props.sidebarMode === 'instances' && props.activeDetailTab === 'preview'} refreshKey={props.previewRefreshKey} theme={props.previewTheme} {...(props.onOpenNotesFromPreview ? { onOpenNotesFromPreview: props.onOpenNotesFromPreview } : {})} />
                             )} logs={props.detailContent('logs')} settings={props.detailContent('settings')} />
                         </WorkspaceSurface>
                         <WorkspaceSurface active={props.sidebarMode === 'notes'}>

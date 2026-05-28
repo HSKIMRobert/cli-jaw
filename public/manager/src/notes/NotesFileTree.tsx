@@ -8,6 +8,8 @@ type NotesFileTreeProps = {
     selectedPath: string | null;
     selectedFolderPath: string | null;
     dirtyPath: string | null;
+    highlightedPath?: string | null;
+    externalFocusPath?: string | null;
     loading: boolean;
     notesRoot: string | null;
     onSelectPath: (path: string) => void;
@@ -275,9 +277,10 @@ function renderEntry(
         );
     }
     const dirty = entry.path === props.dirtyPath;
+    const highlighted = entry.path === props.highlightedPath;
     return (
         <li key={entry.path}>
-            <div className={`notes-tree-file-row ${selected ? 'is-selected' : ''} ${dirty ? 'is-dirty' : ''} ${isMultiSelected ? 'is-multi-selected' : ''}`}>
+            <div className={`notes-tree-file-row ${selected ? 'is-selected' : ''} ${dirty ? 'is-dirty' : ''} ${isMultiSelected ? 'is-multi-selected' : ''} ${highlighted ? 'is-highlighted' : ''}`}>
                 <button
                     type="button"
                     className="notes-tree-file-button"
@@ -332,6 +335,22 @@ export function NotesFileTree(props: NotesFileTreeProps) {
     const [multiSelected, setMultiSelected] = useState<Set<string>>(() => new Set());
     const [anchorPath, setAnchorPath] = useState<string | null>(null);
     const [activeTreePath, setActiveTreePath] = useState<string | null>(null);
+
+    useEffect(() => {
+        const focus = props.externalFocusPath ?? props.highlightedPath;
+        if (!focus) return;
+        const parts = focus.split('/').filter(Boolean);
+        if (parts.length <= 1) return;
+        const ancestors: string[] = [];
+        for (let i = 1; i < parts.length; i++) {
+            ancestors.push(parts.slice(0, i).join('/'));
+        }
+        setExpandedFolders(current => {
+            const next = new Set(current);
+            for (const folder of ancestors) next.add(folder);
+            return next;
+        });
+    }, [props.externalFocusPath, props.highlightedPath]);
 
     function toggleFolder(path: string): void {
         setExpandedFolders(current => {

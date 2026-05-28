@@ -72,9 +72,15 @@ export function initAlertDelivery(): void {
 
         for (const ch of channels) {
             if (ch !== 'telegram' && ch !== 'discord') continue;
-            sendChannelOutput({ type: 'text', text, channel: ch as MessengerChannel }).catch((err) => {
-                console.warn(`[jaw:alert] delivery to ${ch} failed:`, (err as Error).message);
-            });
+            void sendChannelOutput({ type: 'text', text, channel: ch as MessengerChannel })
+                .then((result) => {
+                    if (!result.ok) {
+                        console.warn(`[jaw:alert] delivery to ${ch} failed:`, result.error);
+                    }
+                })
+                .catch((err) => {
+                    console.warn(`[jaw:alert] delivery to ${ch} threw:`, (err as Error).message);
+                });
         }
     });
 }

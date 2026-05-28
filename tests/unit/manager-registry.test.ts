@@ -26,6 +26,7 @@ function makeInstance(port: number): DashboardInstance {
         instanceId: `instance-${port}`,
         homeDisplay: null,
         workingDir: null,
+        projectDirs: null,
         currentCli: null,
         currentModel: null,
         serviceMode: 'unknown',
@@ -69,6 +70,11 @@ test('manager registry defaults when file is missing', () => {
     assert.equal(loaded.registry.ui.dashboardShortcutKeymap.focusNotes, 'Alt+N');
     assert.equal(loaded.registry.ui.dashboardShortcutKeymap.previousInstance, 'Alt+K');
     assert.equal(loaded.registry.ui.dashboardShortcutKeymap.nextInstance, 'Alt+J');
+    assert.equal(loaded.registry.ui.diffRootPolicy, 'project-first');
+    assert.deepEqual(loaded.registry.ui.diffPinnedRootByPort, {});
+    assert.equal(loaded.registry.ui.diffDefaultMode, 'unstaged');
+    assert.equal(loaded.registry.ui.diffBaseRef, 'HEAD');
+    assert.equal(loaded.registry.ui.diffIncludeUntracked, true);
     assert.deepEqual(loaded.registry.profiles, {});
     assert.deepEqual(loaded.registry.activeProfileFilter, []);
     assert.equal(loaded.status.loaded, true);
@@ -120,6 +126,14 @@ test('manager registry clamps scan and UI values', () => {
                 previousInstance: 'Option+ArrowUp',
                 nextInstance: 42,
             },
+            diffRootPolicy: 'working-dir-first',
+            diffPinnedRootByPort: {
+                3462: '/Users/jun/Developer/new/700_projects/cli-jaw',
+                bad: '/tmp/ignored',
+            },
+            diffDefaultMode: 'base',
+            diffBaseRef: ' origin/master ',
+            diffIncludeUntracked: false,
         },
         instances: {
             3457: { label: ' main ', favorite: true, group: 'daily', hidden: false },
@@ -154,6 +168,11 @@ test('manager registry clamps scan and UI values', () => {
     assert.equal(loaded.registry.ui.dashboardShortcutKeymap.focusNotes, 'Ctrl+Shift+N');
     assert.equal(loaded.registry.ui.dashboardShortcutKeymap.previousInstance, 'Alt+ArrowUp');
     assert.equal(loaded.registry.ui.dashboardShortcutKeymap.nextInstance, 'Alt+J');
+    assert.equal(loaded.registry.ui.diffRootPolicy, 'working-dir-first');
+    assert.deepEqual(loaded.registry.ui.diffPinnedRootByPort, { 3462: '/Users/jun/Developer/new/700_projects/cli-jaw' });
+    assert.equal(loaded.registry.ui.diffDefaultMode, 'base');
+    assert.equal(loaded.registry.ui.diffBaseRef, 'origin/master');
+    assert.equal(loaded.registry.ui.diffIncludeUntracked, false);
     assert.equal(loaded.registry.instances['3457']?.label, 'main');
     assert.equal(loaded.registry.instances.bad, undefined);
     assert.equal(loaded.registry.profiles.default?.label, 'Default');
@@ -183,6 +202,11 @@ test('manager registry patch persists instance preferences', () => {
                 previousInstance: 'Alt+ArrowUp',
                 nextInstance: 'Alt+ArrowDown',
             },
+            diffRootPolicy: 'manual',
+            diffPinnedRootByPort: { 3461: '/Users/jun/Developer/new/700_projects/cli-jaw' },
+            diffDefaultMode: 'staged',
+            diffBaseRef: 'main',
+            diffIncludeUntracked: false,
         },
         instances: { 3461: { label: 'worker', favorite: true, hidden: true } },
         profiles: { default: { label: 'Default', homePath: '/Users/jun/.cli-jaw', pinned: true } },
@@ -203,6 +227,11 @@ test('manager registry patch persists instance preferences', () => {
     assert.equal(saved.registry.ui.dashboardShortcutsEnabled, false);
     assert.equal(saved.registry.ui.dashboardShortcutKeymap.focusInstances, 'Alt+1');
     assert.equal(saved.registry.ui.dashboardShortcutKeymap.nextInstance, 'Alt+ArrowDown');
+    assert.equal(saved.registry.ui.diffRootPolicy, 'manual');
+    assert.deepEqual(saved.registry.ui.diffPinnedRootByPort, { 3461: '/Users/jun/Developer/new/700_projects/cli-jaw' });
+    assert.equal(saved.registry.ui.diffDefaultMode, 'staged');
+    assert.equal(saved.registry.ui.diffBaseRef, 'main');
+    assert.equal(saved.registry.ui.diffIncludeUntracked, false);
     assert.equal(saved.registry.instances['3461']?.label, 'worker');
     assert.equal(saved.registry.instances['3461']?.favorite, true);
     assert.equal(saved.registry.instances['3461']?.hidden, true);

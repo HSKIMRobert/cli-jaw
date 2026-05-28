@@ -66,8 +66,9 @@ contextBridge.exposeInMainWorld('cliJawDesktop', {
   },
   diff: {
     getRepoRoot: (cwd: string) => ipcRenderer.invoke('diff:getRepoRoot', cwd),
-    getDiffSummary: (repoRoot: string, ref?: string) => ipcRenderer.invoke('diff:getDiffSummary', repoRoot, ref),
-    getFileDiff: (repoRoot: string, filePath: string, ref?: string) => ipcRenderer.invoke('diff:getFileDiff', repoRoot, filePath, ref),
+    getRepoCandidates: (candidates: Array<{ path: string; label: string; source: string }>) => ipcRenderer.invoke('diff:getRepoCandidates', candidates),
+    getDiffSummary: (repoRoot: string, options: { mode: string; ref?: string; includeUntracked?: boolean }) => ipcRenderer.invoke('diff:getDiffSummary', repoRoot, options),
+    getFileDiff: (repoRoot: string, filePath: string, options: { mode: string; ref?: string; includeUntracked?: boolean }) => ipcRenderer.invoke('diff:getFileDiff', repoRoot, filePath, options),
   },
   folder: {
     getDefaultRoot: () => ipcRenderer.invoke('folder:getDefaultRoot'),

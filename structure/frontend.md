@@ -10,7 +10,7 @@ aliases: [CLI-JAW Frontend, public architecture, frontend.md]
 
 > Web UI 본체는 Vanilla HTML + CSS + TypeScript ES Modules로 구성된다. Manager 대시보드는 `public/manager/`의 React 19 + TSX 앱이다.
 > 빌드는 Vite 8 기준이며, `vite.config.ts`는 `public/index.html`과 `public/manager/index.html`을 multi-entry로 빌드한다.
-> 현재 `public/`에서 `public/dist/*`를 제외한 소스/자산/legacy duplicate는 499개다. `public/public/dist/*`까지 generated로 보면 실제 편집 대상 소스/자산은 372개다. 생성 산출물은 `public/dist/` 478개와 별도 중복 트리 `public/public/dist/` 127개가 남아 있고, `public/dist/dist/`는 전자에 재귀 포함된 nested 복제본이다.
+> 현재 `public/`에서 `public/dist/*`를 제외한 소스/자산/legacy duplicate는 537개다. `public/public/dist/*`까지 generated로 보면 실제 편집 대상 소스/자산은 410개다. 생성 산출물은 `public/dist/` 478개와 별도 중복 트리 `public/public/dist/` 127개가 남아 있고, `public/dist/dist/`는 전자에 재귀 포함된 nested 복제본이다.
 > 메인 UI는 `index.html`에서 Google Fonts `Chakra Petch` + `Outfit`을 불러오고, 로컬 `public/assets/fonts/GeistVF.woff2`와 `JetBrainsMono-Variable.woff2`는 자산으로 보관 중이다.
 > PWA는 `manifest.json` + `sw.js` + `icons/`로 구성된다. 오프라인 메시지 캐시, virtual scroll, markdown/KaTeX/Mermaid 렌더링, sandboxed diagram widget, avatar emoji/image 커스터마이즈, voice recording, PABCD roadmap, subagent-aware ProcessBlock 렌더링, slash command 복구 액션, 반응형 사이드바, theme toggle이 현재 런타임의 핵심이다.
 
@@ -36,7 +36,7 @@ public/
 │   ├── features/         ← 43 feature modules
 │   └── render/           ← 12 markdown/diagram rendering modules
 ├── locales/              ← ko/en/ja/zh JSON bundles
-├── manager/              ← React manager dashboard + notes/search/settings workspaces (257 files)
+├── manager/              ← React manager dashboard + notes/search/settings workspaces (286 files)
 │   ├── index.html        ← Manager HTML entry
 │   └── src/              ← React components/hooks/styles
 └── dist/                 ← Vite build output (generated, nested dist copies remain)
@@ -46,13 +46,13 @@ public/
 
 | 영역 | 파일 수 | 비고 |
 | --- | ---: | --- |
-| `public/` source/assets | 499 | 문서 관례상 `public/dist/*`만 제외, `public/public/dist/*`는 포함 |
-| `public/` source/assets (generated 제외) | 372 | `public/dist/*`, `public/public/dist/*` 모두 제외 |
+| `public/` source/assets | 537 | 문서 관례상 `public/dist/*`만 제외, `public/public/dist/*`는 포함 |
+| `public/` source/assets (generated 제외) | 410 | `public/dist/*`, `public/public/dist/*` 모두 제외 |
 | `public/js/` root | 17 | 전부 TypeScript ES modules, `mermaid-loader.ts`, `uuid.ts`, `virtual-scroll-bootstrap.ts` 포함 |
 | `public/js/diagram/` | 3 | SVG/iframe diagram pipeline |
 | `public/js/render/` | 12 | markdown/KaTeX/Mermaid/SVG/file-link/post-render 책임 분리 |
 | `public/js/features/` | 43 | settings 분해 + help/attention/orchestrate scope + process-step-match + preview shortcut bridge 포함 |
-| `public/manager/` | 257 | React 19 manager dashboard, notes/search, schedule, settings, sync, WYSIWYG source |
+| `public/manager/` | 286 | React 19 manager dashboard, notes/search, schedule, settings, sync, desktop panels, WYSIWYG source |
 | `public/css/` | 11 | theme/layout/chat/markdown/tool UI/diagram/trace drawer |
 | `public/locales/` | 4 | `ko.json`, `en.json`, `ja.json`, `zh.json` |
 | `public/assets/providers/` | 14 | provider SVG 세트. Cursor는 공식 brand asset에서 crop한 `cursor*.svg`를 쓰고, `codex`는 원본 `openai.svg` 색을 유지하며 `codex-app` color variant만 ChatGPT/OpenAI green(`#10A37F`)으로 렌더 |
@@ -230,6 +230,8 @@ settings.ts
 | `manager/src/dashboard-board/` | standard workflow lanes (`backlog`, `ready`, `active`, `review`, `done`) 기반 board UI |
 | `manager/src/dashboard-schedule/` | schedule/heartbeat dashboard UI |
 | `manager/src/dashboard-reminders/` | reminders matrix/sidebar/workspace UI, API wrapper, drag/drop, detail popover |
+| `manager/src/browser-panel/` | Electron desktop Browser panel. 새 탭 기본값은 Google이며 URL-like 입력은 URL로, 검색어 입력은 Google Search로 normalize한다. Local/private host는 Electron desktop에서만 허용한다. |
+| `manager/src/diff-panel/` | Electron desktop Git Diff panel. 선택된 instance의 `projectDirs`/`workingDir`를 repo 후보로 만들고, registry UI 설정의 root policy/diff mode/base ref/untracked 옵션을 적용한다. |
 | `manager/src/hooks/` | dashboard registry/view persistence hooks |
 | `manager/src/usePreviewSttLifecycle.ts` | preview child STT lifecycle message를 받아 Jaw CEO realtime mic을 release |
 | `manager/src/usePreviewShortcutMessages.ts` | preview iframe shortcut message를 Manager navigation action으로 변환 |
@@ -239,6 +241,14 @@ settings.ts
 | `manager/src/*.css` | manager 전용 layout/components/persistence/polish/styles |
 
 Manager 서버는 `jaw dashboard serve`가 실행하는 `src/manager/server.ts`이며 기본 port는 `24576`, 기본 scan 범위는 `3457`부터 50개다.
+
+### Manager Desktop Browser / Diff
+
+Desktop-only Browser panel은 `webview` 기반이다. `browser-url.ts`가 주소창 입력을 분류한다. `https?://`와 domain/local/IP/port 형태는 URL로 이동하고, 공백이 있거나 hostname으로 보기 어려운 입력은 `https://www.google.com/search?q=...`로 변환한다. 기본 새 탭은 `https://www.google.com/`이다. Web UI에서는 같은 Browser panel을 노출하지 않아 local/private/same-origin iframe 혼동을 만들지 않는다.
+
+Desktop-only Diff panel은 `$HOME`에서 `git rev-parse`를 시작하지 않는다. `SidebarRailRouter`가 선택된 `DashboardInstance`와 registry UI diff 설정을 `DiffPanel`로 넘기고, `diff-root-candidates.ts`가 `projectDirs[]` → `workingDir` → pinned root → home fallback 순서로 후보를 만든다. root policy가 `working-dir-first` 또는 `manual`이면 순서를 바꾼다. 실제 git repo 검증과 diff 읽기는 Electron main IPC(`diff:getRepoCandidates`, `diff:getDiffSummary`, `diff:getFileDiff`)가 맡고, `core.quotepath=false`, ref validation, home/path traversal guard를 유지한다.
+
+Dashboard Settings의 Developer tools 섹션은 Diff 기본값(`diffRootPolicy`, `diffDefaultMode`, `diffBaseRef`, `diffIncludeUntracked`)을 registry UI state에 저장한다. 사용자가 Diff panel에서 repo root를 고르면 `diffPinnedRootByPort`에 instance port별 root가 저장되어 다음 open에서 우선 후보로 쓰인다.
 
 ### Manager Notes Search
 
@@ -323,10 +333,14 @@ subagent 렌더링 변경 이후 tool history의 canonical UI는 `features/proce
 | `public/css/tool-ui.css` | 550L | legacy tool group뿐 아니라 ProcessBlock layout/style 대부분 포함 |
 | `public/css/trace-drawer.css` | 48L | Trace drawer layout/style |
 | `public/js/state.ts` | 89L | `currentProcessBlock` + `currentAgentDiv` shared runtime state |
-| `public/manager/src/App.tsx` | 488L | Manager dashboard state orchestration |
+| `public/manager/src/App.tsx` | 487L | Manager dashboard state orchestration |
 | `public/manager/src/InstancePreview.tsx` | 144L | Preview iframe theme/visibility sync + STT shortcut bridge |
 | `public/manager/src/usePreviewSttLifecycle.ts` | 31L | Preview STT lifecycle -> Jaw CEO voice release hook |
 | `public/manager/src/api.ts` | 276L | Dashboard API wrapper, including typed notes search fetch |
+| `public/manager/src/browser-panel/browser-url.ts` | 55L | Browser panel Google default/search normalization + local/private URL classification |
+| `public/manager/src/diff-panel/DiffPanel.tsx` | 201L | Electron Git Diff panel root selector, diff mode controls, file list, content preview |
+| `public/manager/src/diff-panel/diff-root-candidates.ts` | 54L | Selected-instance `projectDirs`/`workingDir`/pinned/home candidate builder |
+| `public/manager/src/dashboard-settings/DashboardDeveloperSettingsSection.tsx` | 123L | Developer tools settings section for Git Diff defaults |
 | `public/manager/src/dashboard-reminders/DashboardRemindersWorkspace.tsx` | 329L | Reminders matrix, top-priority strip, quick-create rows, done toggle, drag/drop, detail popover entry |
 | `public/manager/src/dashboard-reminders/ReminderDetailPopover.tsx` | 118L | Reminder detail editing popover |
 | `public/manager/src/dashboard-reminders/reminders-view-model.ts` | 86L | Matrix bucket/default patch/top-priority ranking helpers |

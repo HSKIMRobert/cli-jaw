@@ -1,11 +1,15 @@
 // ── File path linkification and click-to-open delegation ──
 import { apiJson } from '../api.js';
-
-// ── File path linkification (click-to-open in Finder) ──
+import { postPreviewOpenNotes, previewParentOrigin } from '../preview-parent-origin.js';
+import { normalizeNotesVaultPath } from './notes-vault-path.js';
 
 const FILE_PATH_RE_G = /(?:~\/[^\s)`\]"'<>]+|\/(?:Users|home|tmp|var|opt|private)\/[^\s)`\]"'<>]+)/g;
+const REL_NOTE_PATH_RE_G = /(?:^|[\s([{"'`])([A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*\.md)\b/g;
 const TRAILING_PUNCT_RE = /[.,!?:;]+$/;
 const LOCAL_FILE_HREF_RE = /^(?:~\/|\/(?:Users|home|tmp|var|opt|private)\/)/;
+
+let notesRootCache: string | null | undefined;
+let notesRootFetch: Promise<string | null> | null = null;
 
 function isLocalFileHref(href: string): boolean {
     return LOCAL_FILE_HREF_RE.test(href);
@@ -28,6 +32,24 @@ function ensureExternalAnchorTarget(anchor: HTMLAnchorElement): void {
     rel.add('noopener');
     rel.add('noreferrer');
     anchor.rel = [...rel].join(' ');
+}
+
+async function resolveNotesRoot(): Promise<string | null> {
+    if (notesRootCache !== undefined) return notesRootCache;
+    if (!previewParentOrigin()) {
+        notesRootCache = null;
+        return null;
+    }
+    if (!notesRootFetch) {
+        notesRootFetch = apiJson<{ root?: string }>('/api/dashboard/notes/info', 'GET', null)
+            .then(data => (typeof data?.root === 'string' ? data.root : null))
+            .catch(() => null)
+            .then(root => {
+                notesRootCache = root;
+                return root;
+            });
+    }
+    return notesRootFetch;
 }
 
 function openLocalPath(path: string, el?: HTMLElement | null): void {
@@ -55,12 +77,66 @@ function openLocalPath(path: string, el?: HTMLElement | null): void {
         });
 }
 
+function appendFileLink(
+    frag: DocumentFragment,
+    clean: string,
+    vaultRel: string | null,
+): void {
+    const span = document.createElement('span');
+    span.className = 'file-path-link';
+    span.setAttribute('data-file-path', clean);
+    if (vaultRel) span.setAttribute('data-vault-rel', vaultRel);
+    span.setAttribute('role', 'button');
+    span.setAttribute('tabindex', '0');
+    span.textContent = clean;
+    frag.appendChild(span);
+}
+
+function collectAbsoluteHits(text: string): { index: number; raw: string; clean: string }[] {
+    FILE_PATH_RE_G.lastIndex = 0;
+    const hits: { index: number; raw: string; clean: string }[] = [];
+    let match: RegExpExecArray | null;
+    while ((match = FILE_PATH_RE_G.exec(text))) {
+        const raw = match[0];
+        const clean = raw.replace(TRAILING_PUNCT_RE, '');
+        if (clean.length < 4) continue;
+        hits.push({ index: match.index, raw, clean });
+    }
+    return hits;
+}
+
+function collectRelativeNoteHits(text: string): { index: number; raw: string; clean: string }[] {
+    REL_NOTE_PATH_RE_G.lastIndex = 0;
+    const hits: { index: number; raw: string; clean: string }[] = [];
+    let match: RegExpExecArray | null;
+    while ((match = REL_NOTE_PATH_RE_G.exec(text))) {
+        const prefix = match[0].slice(0, match[0].length - match[1].length);
+        const clean = match[1];
+        const index = match.index + prefix.length;
+        hits.push({ index, raw: clean, clean });
+    }
+    return hits;
+}
+
+function mergeHits(
+    absoluteHits: { index: number; raw: string; clean: string }[],
+    relativeHits: { index: number; raw: string; clean: string }[],
+): { index: number; raw: string; clean: string }[] {
+    const merged = [...absoluteHits, ...relativeHits].sort((a, b) => a.index - b.index);
+    const filtered: { index: number; raw: string; clean: string }[] = [];
+    let cursor = -1;
+    for (const hit of merged) {
+        if (hit.index < cursor) continue;
+        filtered.push(hit);
+        cursor = hit.index + hit.raw.length;
+    }
+    return filtered;
+}
+
 /**
  * Walk text nodes inside container, wrap file paths in clickable spans.
- * Idempotent — skips already-linkified paths.
- * Skips: <pre>, <a>, <button>, .file-path-link
  */
-export function linkifyFilePaths(container: HTMLElement): void {
+export function linkifyFilePaths(container: HTMLElement, notesRoot: string | null = null): void {
     const SKIP_TAGS = new Set(['PRE', 'A', 'BUTTON', 'TEXTAREA', 'INPUT', 'SCRIPT', 'STYLE']);
 
     const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
@@ -78,24 +154,14 @@ export function linkifyFilePaths(container: HTMLElement): void {
         },
     });
 
-    // Collect text nodes with matches, grouped by node
     const nodeMatches = new Map<Text, { index: number; raw: string; clean: string }[]>();
     let textNode: Text | null;
     while ((textNode = walker.nextNode() as Text | null)) {
         const text = textNode.textContent || '';
-        FILE_PATH_RE_G.lastIndex = 0;
-        let m: RegExpExecArray | null;
-        const hits: { index: number; raw: string; clean: string }[] = [];
-        while ((m = FILE_PATH_RE_G.exec(text))) {
-            const raw = m[0];
-            const clean = raw.replace(TRAILING_PUNCT_RE, '');
-            if (clean.length < 4) continue;
-            hits.push({ index: m.index, raw, clean });
-        }
+        const hits = mergeHits(collectAbsoluteHits(text), collectRelativeNoteHits(text));
         if (hits.length) nodeMatches.set(textNode, hits);
     }
 
-    // Replace each text node once — build full fragment with all matches
     for (const [node, hits] of nodeMatches) {
         const text = node.textContent || '';
         const parent = node.parentNode;
@@ -105,25 +171,16 @@ export function linkifyFilePaths(container: HTMLElement): void {
         let cursor = 0;
 
         for (const { index, raw, clean } of hits) {
-            // Text before this match
             if (index > cursor) {
                 frag.appendChild(document.createTextNode(text.slice(cursor, index)));
             }
-            // The clickable span
-            const span = document.createElement('span');
-            span.className = 'file-path-link';
-            span.setAttribute('data-file-path', clean);
-            span.setAttribute('role', 'button');
-            span.setAttribute('tabindex', '0');
-            span.textContent = clean;
-            frag.appendChild(span);
-            // Trailing punctuation that was trimmed
+            const vaultRel = normalizeNotesVaultPath(clean, notesRoot);
+            appendFileLink(frag, clean, vaultRel);
             const trailingPunct = raw.slice(clean.length);
             if (trailingPunct) frag.appendChild(document.createTextNode(trailingPunct));
             cursor = index + raw.length;
         }
 
-        // Remaining text after last match
         if (cursor < text.length) {
             frag.appendChild(document.createTextNode(text.slice(cursor)));
         }
@@ -132,7 +189,23 @@ export function linkifyFilePaths(container: HTMLElement): void {
     }
 }
 
-// ── File path click event delegation (one-time setup) ──
+export async function linkifyFilePathsWithNotesRoot(container: HTMLElement): Promise<void> {
+    const notesRoot = await resolveNotesRoot();
+    linkifyFilePaths(container, notesRoot);
+}
+
+async function handleFilePathClick(path: string, link: HTMLElement): Promise<void> {
+    const notesRoot = await resolveNotesRoot();
+    const vaultRel = link.getAttribute('data-vault-rel')
+        || normalizeNotesVaultPath(path, notesRoot);
+    if (vaultRel && previewParentOrigin() && postPreviewOpenNotes(vaultRel)) {
+        link.classList.add('opened');
+        setTimeout(() => link.classList.remove('opened'), 1500);
+        return;
+    }
+    openLocalPath(path, link);
+}
+
 let filePathDelegationReady = false;
 
 export function ensureFilePathDelegation(): void {
@@ -150,7 +223,7 @@ export function ensureFilePathDelegation(): void {
         if (anchor && isLocalFileHref(href)) {
             e.preventDefault();
             anchor.classList.add('file-path-link');
-            openLocalPath(href, anchor);
+            void handleFilePathClick(href, anchor);
             return;
         }
 
@@ -159,7 +232,8 @@ export function ensureFilePathDelegation(): void {
 
         const filePath = link.getAttribute('data-file-path');
         if (!filePath) return;
-        openLocalPath(filePath, link);
+        e.preventDefault();
+        void handleFilePathClick(filePath, link);
     });
 
     document.addEventListener('keydown', (e: KeyboardEvent) => {

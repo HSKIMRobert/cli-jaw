@@ -30,5 +30,10 @@ export function dashboardSettingsUiFromView(
         showSelectedRowActions: view.showSelectedRowActions,
         dashboardShortcutsEnabled: view.dashboardShortcutsEnabled,
         dashboardShortcutKeymap: view.dashboardShortcutKeymap,
+        diffRootPolicy: view.diffRootPolicy,
+        diffPinnedRootByPort: view.diffPinnedRootByPort,
+        diffDefaultMode: view.diffDefaultMode,
+        diffBaseRef: view.diffBaseRef,
+        diffIncludeUntracked: view.diffIncludeUntracked,
     };
 }

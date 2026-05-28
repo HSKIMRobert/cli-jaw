@@ -26,6 +26,8 @@ export type DashboardShortcutAction =
     | 'previousInstance'
     | 'nextInstance';
 export type DashboardShortcutKeymap = Record<DashboardShortcutAction, string>;
+export type DashboardDiffMode = 'unstaged' | 'staged' | 'head' | 'base';
+export type DashboardDiffRootPolicy = 'project-first' | 'working-dir-first' | 'manual';
 export type DashboardNotesViewMode = 'raw' | 'split' | 'preview' | 'settings' | 'graph';
 export type DashboardNotesAuthoringMode = 'plain' | 'rich' | 'wysiwyg';
 export type DashboardProfileId = string;
@@ -203,6 +205,11 @@ export type DashboardRegistryUi = {
     showSelectedRowActions: boolean;
     dashboardShortcutsEnabled: boolean;
     dashboardShortcutKeymap: DashboardShortcutKeymap;
+    diffRootPolicy: DashboardDiffRootPolicy;
+    diffPinnedRootByPort: Record<string, string>;
+    diffDefaultMode: DashboardDiffMode;
+    diffBaseRef: string;
+    diffIncludeUntracked: boolean;
 };
 
 export type DashboardRegistryInstance = {
