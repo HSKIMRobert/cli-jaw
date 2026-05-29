@@ -36,7 +36,15 @@ export function buildGoalContinuation(): GoalContinuationResult {
         return { shouldContinue: false, reason: 'workers_busy' };
     }
 
-    if (hasPendingWorkerReplays()) {
+    // During an active PABCD cycle the Boss dispatches employees synchronously and
+    // consumes their results inline (`cli-jaw dispatch` returns via stdout); the
+    // pendingReplay flag is async bookkeeping that routes/orchestrate.ts clears on
+    // the dispatch response's `finish` event. At turn-end it can still be set due
+    // to that async race — and the heartbeat safety net is deferred during PABCD —
+    // so blocking here would strand the goal. Only block on pending replays OUTSIDE
+    // orchestration, where a lingering replay means a genuinely undelivered result
+    // awaiting drain. `workers_busy` (a genuinely running worker) still blocks above.
+    if (!pabcdActive && hasPendingWorkerReplays()) {
         return { shouldContinue: false, reason: 'pending_replay' };
     }
 
