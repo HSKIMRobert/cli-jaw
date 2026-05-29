@@ -17,7 +17,7 @@ const serverSrc = readSource(
 // After Phase 4 decomposition, read all settings modules for structural checks
 const settingsDir = path.join(import.meta.dirname, '../../public/js/features');
 const settingsSrc = [
-    'settings.ts', 'settings-types.ts', 'settings-core.ts', 'settings-cli-status.ts',
+    'settings.ts', 'settings-types.ts', 'settings-core.ts', 'settings-cli-status.ts', 'settings-cli-status-render.ts',
     'settings-telegram.ts', 'settings-discord.ts', 'settings-channel.ts',
     'settings-stt.ts', 'settings-mcp.ts', 'settings-templates.ts',
 ].map(f => readSource(path.join(settingsDir, f), 'utf8')).join('\n');

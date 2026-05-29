@@ -6,9 +6,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 // ── Source files ──
-const statusSrc = fs.readFileSync(
-    path.join(import.meta.dirname, '../../public/js/features/settings-cli-status.ts'), 'utf8',
-);
+const statusSrc = [
+    'settings-cli-status.ts',
+    'settings-cli-status-render.ts',
+].map(file => fs.readFileSync(
+    path.join(import.meta.dirname, '../../public/js/features', file), 'utf8',
+)).join('\n');
 const layoutCss = fs.readFileSync(
     path.join(import.meta.dirname, '../../public/css/layout.css'), 'utf8',
 );

@@ -101,7 +101,7 @@ test('LEGACY-FE-001: legacy settings sidebar exposes every canonical CLI row', (
 });
 
 test('GROK-FE-003: quota renderer shows setup commands for status-only CLIs', () => {
-    const status = src('public/js/features/settings-cli-status.ts');
+    const status = `${src('public/js/features/settings-cli-status.ts')}\n${src('public/js/features/settings-cli-status-render.ts')}`;
     assert.match(status, /q\?\.quotaCapable === false/);
     assert.match(status, /describeStatusOnlyQuota/);
     assert.match(status, /QUOTA_SETUP_HINTS/);

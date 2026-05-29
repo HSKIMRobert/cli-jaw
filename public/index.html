@@ -82,13 +82,15 @@
 
         <!-- CLI Status (moved from Settings tab) -->
         <div>
-            <div class="section-title cli-status-header" id="cliStatusHeader" data-i18n="sidebar.cliStatus">CLI 상태</div>
-            <div id="cliStatusList" class="mt-1" style="display:none">
-                <div class="text-status">Expand to load CLI status</div>
+            <div class="cli-status-toolbar">
+                <div class="section-title cli-status-header" id="cliStatusHeader" data-i18n="sidebar.cliStatus">CLI 상태</div>
+                <div id="cliStatusRefreshState" class="cli-refresh-state" role="status" aria-live="polite" aria-atomic="true"></div>
             </div>
-            <div class="flex gap-2 mt-2 items-center">
-                <button class="btn-clear btn-refresh"
-                    data-action="refreshCli">
+            <div class="cli-status-controls flex gap-2 mt-2 items-center">
+                <button id="cliStatusRefreshBtn" class="btn-clear btn-refresh"
+                    data-action="refreshCli"
+                    aria-controls="cliStatusList"
+                    aria-describedby="cliStatusRefreshState">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 2v6h-6" />
@@ -96,13 +98,16 @@
                         <path d="M3 22v-6h6" />
                         <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
                     </svg>
-                    Refresh</button>
+                    <span class="cli-refresh-label">Refresh</span></button>
                 <select id="cliStatusInterval"
                     class="select-sm select-status-interval">
                     <option value="600" data-i18n="time.10m">10분</option>
                     <option value="1800" data-i18n="time.30m">30분</option>
                     <option value="0" selected data-i18n="time.manual">수동</option>
                 </select>
+            </div>
+            <div id="cliStatusList" class="mt-1" style="display:none">
+                <div class="text-status">Expand to load CLI status</div>
             </div>
         </div>
 
