@@ -6,7 +6,7 @@ export const BOTTOM_PANEL_TABS: BottomPanelTab[] = ['terminal', 'browser', 'logs
 
 export const RIGHT_PANEL_MIN_WIDTH = 260;
 export const RIGHT_PANEL_MAX_WIDTH = 1200;
-export const RIGHT_PANEL_DEFAULT_WIDTH = 360;
+export const RIGHT_PANEL_DEFAULT_WIDTH = 480;
 
 export const BOTTOM_PANEL_MIN_HEIGHT = 180;
 export const BOTTOM_PANEL_MAX_HEIGHT = 520;
