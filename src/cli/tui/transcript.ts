@@ -1,6 +1,7 @@
 export type TranscriptItem =
     | { type: 'user'; displayText: string; submitText: string; timestamp: number }
     | { type: 'assistant'; text: string; streaming: boolean; timestamp: number }
+    | { type: 'tool'; text: string; timestamp: number }
     | { type: 'status'; text: string; ephemeral: true; timestamp: number };
 
 export interface TranscriptState {
@@ -37,6 +38,11 @@ export function finalizeAssistant(state: TranscriptState, fallbackText?: string)
         last.streaming = false;
     }
     return true;
+}
+
+export function appendToolItem(state: TranscriptState, text: string): void {
+    // Persistent (unlike status): tool activity accumulates and is never replaced.
+    state.items.push({ type: 'tool', text, timestamp: Date.now() });
 }
 
 export function appendStatusItem(state: TranscriptState, text: string): void {
