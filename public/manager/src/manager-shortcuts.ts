@@ -11,6 +11,13 @@ export const MANAGER_SHORTCUT_ACTIONS: DashboardShortcutAction[] = [
     'focusTerminal',
     'openDiff',
     'openFolderTree',
+    'closeFocusedTab',
+    'switchTab1',
+    'switchTab2',
+    'switchTab3',
+    'switchTab4',
+    'previousTab',
+    'nextTab',
 ];
 
 export const DEFAULT_MANAGER_SHORTCUT_KEYMAP: DashboardShortcutKeymap = {
@@ -24,6 +31,13 @@ export const DEFAULT_MANAGER_SHORTCUT_KEYMAP: DashboardShortcutKeymap = {
     focusTerminal: 'Ctrl+Shift+`',
     openDiff: 'Meta+Shift+D',
     openFolderTree: 'Meta+Shift+E',
+    closeFocusedTab: 'Meta+W',
+    switchTab1: 'Meta+1',
+    switchTab2: 'Meta+2',
+    switchTab3: 'Meta+3',
+    switchTab4: 'Meta+4',
+    previousTab: 'Meta+Shift+[',
+    nextTab: 'Meta+Shift+]',
 };
 
 const MANAGER_SHORTCUT_ALIASES: Partial<Record<DashboardShortcutAction, string[]>> = {
