@@ -11,7 +11,7 @@ import { createStreamSink } from '../../../src/cli/tui/stream.js';
 import { renderMarkdown } from '../../../src/cli/tui/markdown.js';
 import { colorizeDiff } from '../../../src/cli/tui/diffview.js';
 import { c, type TuiContext } from './types.js';
-import { openPromptBlock } from './renderer.js';
+import { openPromptBlock, rebuildFooter } from './renderer.js';
 import { dismissOverlay } from './overlays.js';
 
 export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
@@ -30,6 +30,9 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                 clearEphemeralStatus(transcript);
                 if (!ctx.streaming) {
                     ctx.streaming = true;
+                    ctx.streamState = 'responding';
+                    ctx.turnStartedAt = Date.now();
+                    rebuildFooter(ctx); // safe point: before the first chunk is written
                     startAssistantItem(transcript);
                     process.stdout.write('\n');
                     ctx.streamSink = createStreamSink({
@@ -81,6 +84,8 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                     }
                 }
                 ctx.streaming = false;
+                ctx.streamState = 'idle';
+                rebuildFooter(ctx); // safe point: turn finished, before reopening the prompt
                 ctx.inputActive = true;
                 openPromptBlock(ctx);
                 break;

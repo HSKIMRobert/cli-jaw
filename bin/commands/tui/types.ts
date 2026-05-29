@@ -51,6 +51,19 @@ export function renderCommandText(text: string) {
     return String(text || '').replace(/\n/g, '\n  ');
 }
 
+/** Footer string with a live state segment. Pure — used by rebuildFooter. */
+export function formatFooter(
+    label: string,
+    accent: string,
+    state: 'idle' | 'responding' | 'tool',
+    elapsedMs?: number,
+): string {
+    const stateLabel = state === 'responding' ? 'responding…' : state === 'tool' ? 'working…' : 'idle';
+    const stateColored = state === 'idle' ? `${c.dim}${stateLabel}${c.reset}` : `${accent}${stateLabel}${c.reset}`;
+    const elapsed = elapsedMs && elapsedMs > 0 ? `  ${c.dim}${(elapsedMs / 1000).toFixed(1)}s${c.reset}` : '';
+    return `  ${accent}${label}${c.reset}  ${c.dim}·${c.reset}  ${stateColored}${elapsed}  ${c.dim}|  /quit  /clear${c.reset}`;
+}
+
 // ─── Shared state interface ──────────────────
 export interface TuiContext {
     ws: WebSocket;
@@ -70,6 +83,8 @@ export interface TuiContext {
     overlayBoxHeight: number;
     inputActive: boolean;
     streaming: boolean;
+    streamState: 'idle' | 'responding' | 'tool';
+    turnStartedAt: number;
     streamSink: StreamSink | null;
     commandRunning: boolean;
     escPending: boolean;
