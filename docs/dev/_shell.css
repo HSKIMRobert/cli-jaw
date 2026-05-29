@@ -36,6 +36,10 @@ a:hover { text-decoration: underline; }
 .docs-sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 .docs-logo { padding: 0 20px 20px; font-size: 18px; font-weight: 700; color: var(--accent); letter-spacing: 1px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
 .docs-logo a { color: inherit; }
+.docs-search { padding: 8px 20px 12px; }
+.docs-search-input { width: 100%; padding: 6px 10px; font-size: 13px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); outline: none; }
+.docs-search-input:focus { border-color: var(--accent); }
+.docs-search-input::placeholder { color: var(--text-muted); }
 .docs-nav { flex: 1; }
 .docs-nav-section { padding: 8px 0; }
 .docs-nav-title { padding: 4px 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-muted); }
