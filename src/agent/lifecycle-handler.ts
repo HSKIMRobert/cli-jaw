@@ -42,9 +42,9 @@ export function clearGoalTimers(): void {
     } catch { /* DB may not be ready during early init */ }
 }
 
-// Only match /goal done|cancel at line start or after whitespace — avoids false positives from quoted text
-const GOAL_DONE_RE = /(?:^|\n)\s*\/goal\s+done\b/im;
-const GOAL_CANCEL_RE = /(?:^|\n)\s*\/goal\s+cancel\b/im;
+// Match /goal done|cancel or cli-jaw goal done|cancel at line start or after whitespace
+const GOAL_DONE_RE = /(?:^|\n)\s*(?:\/goal|cli-jaw\s+goal)\s+done\b/im;
+const GOAL_CANCEL_RE = /(?:^|\n)\s*(?:\/goal|cli-jaw\s+goal)\s+cancel\b/im;
 
 type LifecycleSpawnOptions = {
     internal?: boolean;

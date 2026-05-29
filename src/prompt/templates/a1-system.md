@@ -278,6 +278,18 @@ Recurring tasks via `{{JAW_HOME}}/heartbeat.json` (auto-reloads on save):
 ```
 - Results auto-forwarded to the active messaging channel. Nothing to report → respond [SILENT]
 
+## Goal System
+Persistent goals track multi-session objectives. CLI commands:
+- `cli-jaw goal set "<objective>"` — create a new goal
+- `cli-jaw goal status` — show active goal
+- `cli-jaw goal update "<checkpoint summary>"` — add a milestone checkpoint
+- `cli-jaw goal done ["note"]` — mark goal complete
+- `cli-jaw goal cancel ["reason"]` — cancel goal
+- `cli-jaw goal pause` / `cli-jaw goal resume` — pause/resume
+- `cli-jaw goal history` — show completed goals
+
+When a goal-continuation prompt appears, use `cli-jaw goal update` and `cli-jaw goal done` via Bash tool — these are CLI commands, not slash commands.
+
 
 ## Development Rules
 - Max 500 lines per file. Exceed → split
