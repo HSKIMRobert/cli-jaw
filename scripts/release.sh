@@ -161,11 +161,14 @@ git tag "v$VERSION"
 git push origin master
 git push origin "v$VERSION"
 
-# ─── npm publish ───────────────────────────────────────
-echo "🚀 Publishing to npm..."
-npm publish --access public
-
 # ─── GitHub Release with changelog ─────────────────────
+# IMPORTANT: create the GitHub Release BEFORE npm publish.
+# npm publish is the most failure-prone step (OTP, registry, prepublishOnly);
+# with `set -e`, a publish failure used to abort the script before the release
+# was ever created, leaving orphan tags with no GitHub Release (and no desktop
+# build, since desktop-release.yml triggers on `release: published`).
+# Creating the release first guarantees the release record + desktop trigger
+# survive a later publish hiccup, which is then independently retryable.
 echo "📋 Creating GitHub Release..."
 RELEASE_BODY="## Release v$VERSION
 
@@ -177,18 +180,36 @@ $CHANGELOG
 
 $ELECTRON_RELEASE_NOTES"
 
-if [ -n "$PREV_TAG" ] && command -v gh &>/dev/null; then
-    gh release create "v$VERSION" \
-        --title "v$VERSION" \
-        --notes "$RELEASE_BODY" \
-        --latest
-    echo "✅ GitHub Release v$VERSION created!"
-    echo "🖥️  Desktop assets will be built by the Desktop Release GitHub Actions workflow."
+RELEASE_CREATED=false
+if command -v gh &>/dev/null; then
+    if gh release view "v$VERSION" &>/dev/null; then
+        echo "ℹ️  GitHub Release v$VERSION already exists — updating notes."
+        gh release edit "v$VERSION" --title "v$VERSION" --notes "$RELEASE_BODY" --latest \
+            && RELEASE_CREATED=true \
+            || echo "⚠️  Failed to update existing GitHub Release v$VERSION (continuing)."
+    elif gh release create "v$VERSION" --title "v$VERSION" --notes "$RELEASE_BODY" --latest; then
+        RELEASE_CREATED=true
+        echo "✅ GitHub Release v$VERSION created!"
+        echo "🖥️  Desktop assets will be built by the Desktop Release GitHub Actions workflow."
+    else
+        # Do NOT abort: the tag is already pushed and we still want to publish.
+        # Surface loudly so the release can be backfilled manually.
+        echo "❌ GitHub Release v$VERSION FAILED to create. Tag is pushed; backfill with:"
+        echo "   gh release create v$VERSION --title v$VERSION --notes-file <(...) --latest"
+    fi
 else
-    echo "⚠️  Skipped GitHub Release (gh CLI not found or no previous tag)"
+    echo "⚠️  Skipped GitHub Release (gh CLI not found)"
 fi
+
+# ─── npm publish ───────────────────────────────────────
+echo "🚀 Publishing to npm..."
+npm publish --access public
 
 echo ""
 echo "✅ cli-jaw@$VERSION published!"
 echo "   Install: npm install -g cli-jaw"
-echo "   Release: https://github.com/lidge-jun/cli-jaw/releases/tag/v$VERSION"
+if [ "$RELEASE_CREATED" = true ]; then
+    echo "   Release: https://github.com/lidge-jun/cli-jaw/releases/tag/v$VERSION"
+else
+    echo "   ⚠️  GitHub Release for v$VERSION was NOT created — backfill it manually."
+fi
