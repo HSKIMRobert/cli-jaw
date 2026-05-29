@@ -164,6 +164,8 @@ const DESKTOP_CONTROL_ANCHOR_OPEN = '<!-- anchor:desktop-control -->';
 const DESKTOP_CONTROL_ANCHOR_CLOSE = '<!-- /anchor:desktop-control -->';
 const DASHBOARD_CONNECTOR_ANCHOR_OPEN = '<!-- anchor:dashboard-connector-intent -->';
 const DASHBOARD_CONNECTOR_ANCHOR_CLOSE = '<!-- /anchor:dashboard-connector-intent -->';
+const SESSION_POLL_ANCHOR_OPEN = '<!-- anchor:session-poll -->';
+const SESSION_POLL_ANCHOR_CLOSE = '<!-- /anchor:session-poll -->';
 
 function extractAnchorBlock(rendered: string, open: string, close: string): string | null {
     const start = rendered.indexOf(open);
@@ -216,6 +218,15 @@ function ensureDashboardConnectorAnchor(fileContent: string, rendered: string): 
     );
 }
 
+function ensureSessionPollAnchor(fileContent: string, rendered: string): string | null {
+    return appendAnchorIfMissing(
+        fileContent,
+        rendered,
+        SESSION_POLL_ANCHOR_OPEN,
+        SESSION_POLL_ANCHOR_CLOSE,
+    );
+}
+
 // ─── Initialize prompt files ─────────────────────────
 
 export function initPromptFiles() {
@@ -251,7 +262,12 @@ export function initPromptFiles() {
                     userText = appendedConnector;
                     console.log('[prompt] A-1.md: appended dashboard-connector-intent anchor (user edits preserved)');
                 }
-                if (appendedDesktop || appendedConnector) {
+                const appendedSessionPoll = ensureSessionPollAnchor(userText, a1Content);
+                if (appendedSessionPoll) {
+                    userText = appendedSessionPoll;
+                    console.log('[prompt] A-1.md: appended session-poll anchor (user edits preserved)');
+                }
+                if (appendedDesktop || appendedConnector || appendedSessionPoll) {
                     fs.writeFileSync(A1_PATH, userText);
                 } else {
                     console.log('[prompt] A-1.md has user edits — preserved');

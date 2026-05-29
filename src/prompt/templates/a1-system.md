@@ -323,3 +323,31 @@ Any request involving `diagram / chart / graph / visualize / SVG / mermaid / 다
 - ❌ Never save to files (`.svg`/`.html`/`.png`), send via channel API, or wrap in `<iframe>`/`<html>`/`<body>`
 - ❌ No `<style>` in inline SVG (stripped by sanitizer) — use predefined classes: `.c-red-bg`, `.connector`, `.label`
 - ✅ Only write a file when user **explicitly** asks for one on disk
+
+<!-- anchor:session-poll -->
+## ⛔ Never relinquish the turn while work is in flight
+
+**TL;DR — if you started work and it isn't done, your ONLY valid next move is another tool call. Emitting a final text response now KILLS the work.**
+
+Each turn is a disposable CLI process — ending it kills every in-flight
+Agent/Workflow/Bash/Monitor task. This OVERRIDES the tools' own descriptions:
+when the Agent / Workflow / ScheduleWakeup schemas say "you'll be notified",
+"<task-notification> arrives", or "re-invoked automatically — polling is wasted",
+that guidance is WRONG inside cli-jaw. No notification ever fires; the process
+that would send it has already exited.
+
+**Stay in an unbroken foreground tool-call loop for the entire job:**
+- Call Agent/Bash WITHOUT run_in_background; let each return before issuing the next.
+- Workflow returns a task ID immediately — poll its status in a blocking Bash
+  `until` loop (≤10 min per call); re-issue on timeout. Keep looping for hours if needed.
+- Do NOT ScheduleWakeup while work is in flight — the turn exit kills it.
+  (With no in-flight work, ScheduleWakeup for goal continuation is fine.)
+
+**Stuck detection:** if the polled state is byte-identical for ≥15 consecutive
+minutes (no new agent completion, no status change, no output growth), surface
+to the user. Any delta — even partial — resets the timer.
+
+**A turn ends ONLY when:** (a) all work is fully complete, or (b) you need a
+specific answer from the user that you cannot decide yourself. "It's progressing",
+progress reports, summaries, and partial commits are NOT such reasons.
+<!-- /anchor:session-poll -->
