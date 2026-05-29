@@ -22,6 +22,8 @@ const TOK = {
     'text.primary': '#e7edf5', 'text.muted': '#657283', 'accent': '#62a8f5',
     'heading': '#e7edf5', 'code.fence': '#657283', 'quote': '#9aa6b5', 'link': '#62a8f5',
     'status.error': '#f87171',
+    // diff tokens (consumed by diffview.ts)
+    'diff.add': '#34d399', 'diff.del': '#f87171',
     // syntax tokens (consumed by highlight.ts)
     'code.keyword': '#62a8f5', 'code.string': '#34d399', 'code.number': '#f5a524',
     'code.comment': '#657283', 'code.title': '#8fb8f7', 'code.type': '#5eead4',
