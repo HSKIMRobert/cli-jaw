@@ -6,9 +6,10 @@ import {
     startAssistantItem, appendToActiveAssistant,
     finalizeAssistant, appendStatusItem, appendToolItem, clearEphemeralStatus,
 } from '../../../src/cli/tui/transcript.js';
-import { captureFileSet, diffFileSets, getDiffStat, getIdeCli, openDiffInIde } from '../../../src/ide/diff.js';
+import { captureFileSet, diffFileSets, getDiffStat, getUnifiedDiff, getIdeCli, openDiffInIde } from '../../../src/ide/diff.js';
 import { createStreamSink } from '../../../src/cli/tui/stream.js';
 import { renderMarkdown } from '../../../src/cli/tui/markdown.js';
+import { colorizeDiff } from '../../../src/cli/tui/diffview.js';
 import { c, type TuiContext } from './types.js';
 import { openPromptBlock } from './renderer.js';
 import { dismissOverlay } from './overlays.js';
@@ -70,6 +71,8 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                             if (stat) console.log(`  ${stat}`);
                             else for (const f of changed.slice(0, 10)) console.log(`  ${c.dim}  \u25E6 ${f}${c.reset}`);
                             if (changed.length > 10) console.log(`  ${c.dim}  ... +${changed.length - 10}\uAC1C${c.reset}`);
+                            const colored = colorizeDiff(getUnifiedDiff(ctx.chatCwd, changed), { maxLines: 40, gutter: '  ' });
+                            if (colored) console.log(colored);
                             if (ctx.idePopEnabled && ctx.detectedIde) {
                                 console.log(`  ${c.dim}\u2192 ${getIdeCli(ctx.detectedIde)}\uC5D0\uC11C diff \uC5F4\uAE30${c.reset}`);
                                 openDiffInIde(ctx.chatCwd, changed, ctx.detectedIde);

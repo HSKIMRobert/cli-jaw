@@ -97,6 +97,41 @@ export function getDiffStat(cwd: string, files: string[]): string {
     return lines.join('\n');
 }
 
+/** 파일 하나의 unified git diff (no color, HEAD 기준) — 해당 파일이 속한 repo 기준 */
+function fileUnifiedDiff(cwd: string, filePath: string): string {
+    const absFile = join(cwd, filePath);
+    try {
+        if (!statSync(absFile).isFile()) return '';
+    } catch { return ''; }
+    const fileDir = dirname(absFile);
+    try {
+        const repoRoot = realpathSync(execFileSync(
+            'git', ['rev-parse', '--show-toplevel'],
+            { cwd: fileDir, encoding: 'utf8', timeout: 3000, stdio: 'pipe' },
+        ).trim());
+        const relToRepo = relative(repoRoot, realpathSync(absFile));
+        return execFileSync(
+            'git', ['diff', '--no-color', 'HEAD', '--', relToRepo],
+            { cwd: repoRoot, encoding: 'utf8', timeout: 5000, maxBuffer: 4 * 1024 * 1024, stdio: 'pipe' },
+        );
+    } catch { return ''; }
+}
+
+/** 변경된 파일들의 unified diff 텍스트 (HEAD 기준). 대략 maxLines 라인까지만 누적. */
+export function getUnifiedDiff(cwd: string, files: string[], maxLines = 60): string {
+    if (!files.length) return '';
+    const parts: string[] = [];
+    let lineCount = 0;
+    for (const file of files) {
+        const d = fileUnifiedDiff(cwd, file).replace(/\n+$/, '');
+        if (!d) continue;
+        parts.push(d);
+        lineCount += d.split('\n').length + 1;
+        if (lineCount >= maxLines) break;
+    }
+    return parts.join('\n');
+}
+
 // ─── IDE 감지 ────────────────────────────────
 
 export type IdeType = 'antigravity' | 'code' | null;
