@@ -977,8 +977,18 @@
 
 <body>
 
+    <!-- ═══════════════ TOP NAV ═══════════════ -->
+    <nav style="position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:10px 24px;background:rgba(6,6,11,0.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);">
+        <a href="./" style="color:var(--accent);font-family:var(--font-display);font-weight:700;font-size:16px;text-decoration:none;letter-spacing:1px;">CLI-JAW</a>
+        <div style="display:flex;gap:16px;align-items:center;">
+            <a href="dev/" style="color:var(--text);font-size:13px;text-decoration:none;font-weight:500;">📖 Docs</a>
+            <a href="https://github.com/lidge-jun/cli-jaw" target="_blank" style="color:var(--text-dim);font-size:13px;text-decoration:none;">GitHub</a>
+            <a href="#quickstart" style="color:var(--accent);font-size:13px;text-decoration:none;font-weight:600;">Get Started</a>
+        </div>
+    </nav>
+
     <!-- ═══════════════ HERO ═══════════════ -->
-    <section class="hero">
+    <section class="hero" style="padding-top:60px;">
         <div class="block-art" id="blockArt"></div>
         <h1 class="hero-tagline">All Your AI Subscriptions. One Assistant.</h1>
         <p class="hero-sub">Claude Max · ChatGPT Pro · Copilot · Gemini — routed through OAuth. No per-token billing.</p>
