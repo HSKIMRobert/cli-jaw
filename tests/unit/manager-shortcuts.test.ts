@@ -5,6 +5,7 @@ import {
     DEFAULT_MANAGER_SHORTCUT_KEYMAP,
     formatShortcut,
     normalizeManagerShortcutKeymap,
+    RENDERER_DISABLED_SHORTCUT_ACTIONS,
     shortcutMatches,
 } from '../../public/manager/src/manager-shortcuts.js';
 
@@ -78,4 +79,19 @@ test('manager shortcut keymap normalizes legacy registry values', () => {
     assert.equal(normalized.previousInstance, DEFAULT_MANAGER_SHORTCUT_KEYMAP.previousInstance);
     assert.equal(normalized.nextInstance, DEFAULT_MANAGER_SHORTCUT_KEYMAP.nextInstance);
     assert.equal(actionForShortcutEvent(keyEvent('i', { altKey: true }), undefined), 'focusInstances');
+});
+
+test('reload shortcuts are owned by the Electron menu and ignored by the renderer matcher', () => {
+    // Default keymap binds Meta+R / Meta+Shift+R, but the renderer must not match
+    // them (the Electron menu accelerator is the single source → no double reload).
+    assert.equal(actionForShortcutEvent(keyEvent('r', { metaKey: true }), DEFAULT_MANAGER_SHORTCUT_KEYMAP), null);
+    assert.equal(actionForShortcutEvent(keyEvent('r', { metaKey: true, shiftKey: true }), DEFAULT_MANAGER_SHORTCUT_KEYMAP), null);
+
+    // Even a persisted keymap explicitly carrying these bindings stays inert.
+    const persisted = { ...DEFAULT_MANAGER_SHORTCUT_KEYMAP, browserReload: 'Meta+R', browserHardReload: 'Meta+Shift+R' };
+    assert.equal(actionForShortcutEvent(keyEvent('r', { metaKey: true }), persisted), null);
+    assert.equal(actionForShortcutEvent(keyEvent('r', { metaKey: true, shiftKey: true }), persisted), null);
+
+    assert.ok(RENDERER_DISABLED_SHORTCUT_ACTIONS.has('browserReload'));
+    assert.ok(RENDERER_DISABLED_SHORTCUT_ACTIONS.has('browserHardReload'));
 });

@@ -410,7 +410,21 @@ export function App() {
             const el = document.activeElement;
             if (el?.closest('.browser-webview-stack, .browser-tab-strip, .browser-panel')) {
                 document.dispatchEvent(new CustomEvent('jaw:shortcut-action', { detail: action }));
+                return;
             }
+            // Focus is NOT in the browser panel → reload acts on the preview or app.
+            // Preview focus refreshes the preview for both soft and hard (the iframe
+            // has no separate hard-reload concept).
+            if (action === 'browserReload' || action === 'browserHardReload') {
+                if (el?.closest('.preview-panel')) {
+                    setPreviewRefreshKey(key => key + 1);
+                } else if (action === 'browserReload') {
+                    getDesktop()?.reloadWindow?.();
+                } else {
+                    getDesktop()?.hardReloadWindow?.();
+                }
+            }
+            // browserFocusUrl / Back / Forward are browser-only → no-op outside the panel.
             return;
         }
         if (action === 'terminalClear' || action === 'terminalNewTab') {

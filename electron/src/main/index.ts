@@ -36,6 +36,7 @@ import { registerDiffIpc } from './lib/git/ipc.js';
 import { registerFolderIpc, cleanupFolderWatchers } from './lib/folder/ipc.js';
 import { registerClipboardIpc } from './lib/clipboard/ipc.js';
 import { registerPermissionDiagnosticsIpc } from './lib/permission-diagnostics/ipc.js';
+import { registerWindowIpc } from './lib/window/ipc.js';
 import { setAllowedOrigin } from './lib/ipc-origin-guard.js';
 import { primeMacAutomationPermission } from './lib/mac-automation-permission.js';
 import { showQuitProgress } from './lib/quit-progress.js';
@@ -296,6 +297,7 @@ async function bootstrap(): Promise<void> {
   registerFolderIpc(() => mainWindow);
   registerClipboardIpc();
   registerPermissionDiagnosticsIpc();
+  registerWindowIpc();
 
   await ensureManagerRunning();
   await createWindow();
@@ -568,21 +570,19 @@ function installManagerApplicationMenu(): void {
       label: 'View',
       submenu: [
         {
-          // Reload the main manager window itself (not the in-app browser
-          // panel — that has its own ↻ button). Previously this routed to
-          // sendManagerShortcut('browserReload'), so app-level ⌘R never
-          // reloaded the document and stale frontend builds got stuck.
+          // Single source of truth for ⌘R: delegate to the renderer's
+          // focus-aware handler (browser tab / preview / app window). The
+          // renderer keydown matcher excludes these actions so only this
+          // accelerator fires — no double reload. App-window reload goes
+          // through the guarded window:reload IPC.
           label: 'Reload',
           accelerator: 'CommandOrControl+R',
-          click: () => { (BrowserWindow.getFocusedWindow() ?? mainWindow)?.webContents.reload(); },
+          click: () => sendManagerShortcut('browserReload'),
         },
         {
-          // Hard reload bypasses the HTTP cache so a fresh frontend build is
-          // always picked up (index.html is served no-store, assets are
-          // content-hashed).
           label: 'Hard Reload',
           accelerator: 'CommandOrControl+Shift+R',
-          click: () => { (BrowserWindow.getFocusedWindow() ?? mainWindow)?.webContents.reloadIgnoringCache(); },
+          click: () => sendManagerShortcut('browserHardReload'),
         },
         ...(DEV_TOOLS_ENABLED ? [{ role: 'toggleDevTools' } as MenuItemConstructorOptions] : []),
         { type: 'separator' },

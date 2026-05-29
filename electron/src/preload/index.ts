@@ -103,6 +103,8 @@ contextBridge.exposeInMainWorld('cliJawDesktop', {
       return () => { ipcRenderer.removeListener('browser:open-url', handler); };
     },
   },
+  reloadWindow: () => ipcRenderer.invoke('window:reload'),
+  hardReloadWindow: () => ipcRenderer.invoke('window:hardReload'),
 });
 
 markDesktopDocument();

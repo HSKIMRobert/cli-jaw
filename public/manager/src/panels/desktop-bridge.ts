@@ -91,6 +91,8 @@ export type CliJawDesktopApi = {
     permissions?: PermissionDiagnosticsBridgeApi | undefined;
     shortcuts?: ShortcutBridgeApi | undefined;
     browser?: BrowserBridgeApi | undefined;
+    reloadWindow?: (() => void) | undefined;
+    hardReloadWindow?: (() => void) | undefined;
 };
 
 export function getDesktop(): CliJawDesktopApi | null {
