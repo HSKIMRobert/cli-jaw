@@ -568,14 +568,21 @@ function installManagerApplicationMenu(): void {
       label: 'View',
       submenu: [
         {
+          // Reload the main manager window itself (not the in-app browser
+          // panel — that has its own ↻ button). Previously this routed to
+          // sendManagerShortcut('browserReload'), so app-level ⌘R never
+          // reloaded the document and stale frontend builds got stuck.
           label: 'Reload',
           accelerator: 'CommandOrControl+R',
-          click: () => sendManagerShortcut('browserReload'),
+          click: () => { (BrowserWindow.getFocusedWindow() ?? mainWindow)?.webContents.reload(); },
         },
         {
+          // Hard reload bypasses the HTTP cache so a fresh frontend build is
+          // always picked up (index.html is served no-store, assets are
+          // content-hashed).
           label: 'Hard Reload',
           accelerator: 'CommandOrControl+Shift+R',
-          click: () => sendManagerShortcut('browserHardReload'),
+          click: () => { (BrowserWindow.getFocusedWindow() ?? mainWindow)?.webContents.reloadIgnoringCache(); },
         },
         ...(DEV_TOOLS_ENABLED ? [{ role: 'toggleDevTools' } as MenuItemConstructorOptions] : []),
         { type: 'separator' },
