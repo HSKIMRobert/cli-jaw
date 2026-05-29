@@ -468,3 +468,102 @@ test('model capacity alert does not tell the user to re-login', () => {
 
     clearAllBroadcastListeners();
 });
+
+// ─── #219: employee transient / pre-SessionStart retry ───
+
+test('#219 classifier flags pre-SessionStart exit as a transient startup', () => {
+    const transient = classifyExitError('claude-e', 5, '[jaw:claude-e:error] Claude exited before SessionStart (exit 1)');
+    assert.equal(transient.isTransientStartup, true);
+    assert.equal(transient.isStall, false);
+    assert.equal(transient.isAuth, false);
+
+    const generic = classifyExitError('claude-e', 1, 'some unrelated failure');
+    assert.equal(generic.isTransientStartup, false);
+});
+
+test('#219 employee pre-SessionStart exit triggers one bounded retry (delay 5, no fallback)', async () => {
+    const events: Array<{ type: string; data: Record<string, unknown> }> = [];
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    clearErrors('claude-e');
+    clearAllBroadcastListeners();
+    addBroadcastListener((type, data) => events.push({ type, data }));
+    const { params } = baseExitParams({
+        ctx: { fullText: '', sessionId: null, toolLog: [], traceLog: [], stderrBuf: '[jaw:claude-e:error] Claude exited before SessionStart (exit 1)' },
+        code: 5,
+        cli: 'claude-e',
+        model: 'claude-opus-4-6',
+        agentLabel: 'Frontend',
+        mainManaged: false,
+        empSid: 'emp-sess-1',
+        opts: {},
+    });
+    params.retryState.setTimer = (t: any) => { retryTimer = t; };
+    try {
+        await handleAgentExit(params as any);
+        const retry = events.find(event => event.type === 'agent_retry');
+        assert.ok(retry, 'employee transient exit should broadcast agent_retry');
+        assert.equal(retry?.data["delay"], 5);
+        assert.equal(retry?.data["isEmployee"], true);
+        assert.equal(events.some(event => event.type === 'agent_fallback'), false, 'employee transient retry must not switch CLI');
+    } finally {
+        if (retryTimer) clearTimeout(retryTimer);
+        clearErrors('claude-e');
+        clearAllBroadcastListeners();
+    }
+});
+
+test('#219 employee transient retry does not loop on the retry attempt', async () => {
+    let resolved: any = null;
+    const events: Array<{ type: string; data: Record<string, unknown> }> = [];
+    clearErrors('claude-e');
+    clearAllBroadcastListeners();
+    addBroadcastListener((type, data) => events.push({ type, data }));
+    const { params } = baseExitParams({
+        ctx: { fullText: '', sessionId: null, toolLog: [], traceLog: [], stderrBuf: '[jaw:claude-e:error] Claude exited before SessionStart (exit 1)' },
+        code: 5,
+        cli: 'claude-e',
+        model: 'claude-opus-4-6',
+        agentLabel: 'Frontend',
+        mainManaged: false,
+        empSid: 'emp-sess-1',
+        opts: { _isRetry: true },
+        resolve: (value: any) => { resolved = value; },
+    });
+    try {
+        await handleAgentExit(params as any);
+        assert.equal(events.some(event => event.type === 'agent_retry'), false, 'must not retry again on the _isRetry attempt');
+        assert.ok(resolved, 'should resolve to a failure result');
+        assert.equal(resolved.code, 5);
+    } finally {
+        clearErrors('claude-e');
+        clearAllBroadcastListeners();
+    }
+});
+
+test('#219 main pre-SessionStart exit is retried via effectiveIs429 (delay 10)', async () => {
+    const events: Array<{ type: string; data: Record<string, unknown> }> = [];
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    clearErrors('claude');
+    clearAllBroadcastListeners();
+    addBroadcastListener((type, data) => events.push({ type, data }));
+    const { params } = baseExitParams({
+        ctx: { fullText: '', sessionId: null, toolLog: [], traceLog: [], stderrBuf: 'Claude exited before SessionStart (exit 1)' },
+        code: 1,
+        cli: 'claude',
+        model: 'claude-sonnet',
+        agentLabel: 'main',
+        mainManaged: true,
+        opts: {},
+    });
+    params.retryState.setTimer = (t: any) => { retryTimer = t; };
+    try {
+        await handleAgentExit(params as any);
+        const retry = events.find(event => event.type === 'agent_retry');
+        assert.ok(retry, 'main transient exit should trigger a retry');
+        assert.equal(retry?.data["delay"], 10);
+    } finally {
+        if (retryTimer) clearTimeout(retryTimer);
+        clearErrors('claude');
+        clearAllBroadcastListeners();
+    }
+});

@@ -411,7 +411,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
     } else if (mainManaged && code !== 0 && !wasKilled) {
         // ─── Error handling ───
         const diagnosticText = `${ctx.fullText}\n${ctx.traceLog.join('\n')}`;
-        const { is429, isStall, isModelCapacity, isClaudeRateLimit, message: errMsg } = classifyExitError(
+        const { is429, isStall, isModelCapacity, isClaudeRateLimit, isTransientStartup, message: errMsg } = classifyExitError(
             runtimeCli,
             code,
             ctx.stderrBuf,
@@ -419,7 +419,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
             diagnosticText,
         );
         const suppressClaudeRateLimitFallback = isClaudeRateLimit;
-        const effectiveIs429 = is429 || isClaudeRateLimit;
+        const effectiveIs429 = is429 || isClaudeRateLimit || isTransientStartup;
         recordError(cli, isStall ? 'stall' : isModelCapacity ? 'model_capacity' : effectiveIs429 ? '429' : 'error');
 
         const invalidatedResume = isResume
@@ -598,6 +598,40 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
             }
         }
         broadcast('agent_done', { text: `❌ ${errMsg}`, error: true, origin, ...empTag }, isEmployee ? 'internal' : 'public');
+    } else if (isEmployee && code !== 0 && !wasKilled && !opts._isRetry && !opts._isFallback) {
+        // ─── Employee transient retry (#219) ───
+        // The mainManaged-gated recovery block above never runs for employees, so a
+        // flaky claude-opus startup blip surfaces as a hard dispatch failure. Give
+        // employees ONE bounded delay-retry for transient/quota/pre-session exits,
+        // reusing the same retryState machinery as the main 429 path. Pre-session
+        // exits fail in seconds, well inside the worker monitor budget (600s) and
+        // the boss-side dispatch timeout.
+        const diagnosticText = `${ctx.fullText}\n${ctx.traceLog.join('\n')}`;
+        const cls = classifyExitError(runtimeCli, code, ctx.stderrBuf, ctx.stallReason, diagnosticText);
+        if ((cls.is429 || cls.isClaudeRateLimit || cls.isTransientStartup) && !cls.isStall && !cls.isAuth) {
+            recordError(cli, '429');
+            console.log(`[jaw:retry] employee ${cli} transient exit — retry once in 5s (${cls.message})`);
+            broadcast('agent_retry', { cli, delay: 5, reason: cls.message, isEmployee: true }, 'internal');
+            finalizeTraceRun(ctx.traceRunId, 'error', cls.message);
+            retryState.setIsEmployee(true);
+            retryState.setResolve(resolve);
+            retryState.setOrigin(origin);
+            retryState.setTimer(setTimeout(() => {
+                retryState.setTimer(null);
+                retryState.setResolve(null);
+                retryState.setOrigin(null);
+                // _skipResume: first attempt died before session_started → session is stale.
+                const { promise: retryP } = _spawnAgent(prompt, {
+                    ...opts, _isRetry: true, _skipInsert: true, _skipResume: true,
+                });
+                retryP.then((r) => resolve(r)).catch(() => {
+                    broadcast('agent_done', { text: `❌ ${cls.message} (재시도 실패)`, error: true, origin, isEmployee: true }, 'internal');
+                    resolve({ text: '', code: 1, diagnostic: cls.message });
+                });
+            }, 5_000));
+            return;
+        }
+        // non-retryable employee error → fall through to Final resolve below
     }
 
     // ─── Final resolve ───
