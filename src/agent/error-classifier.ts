@@ -8,6 +8,7 @@ export interface ErrorClassification {
     isStall: boolean;
     isModelCapacity: boolean;
     isClaudeRateLimit: boolean;
+    isTransientStartup: boolean;
     message: string;
 }
 
@@ -32,6 +33,11 @@ export function classifyExitError(
     // fallback away from a request that Claude may still complete.
     const isClaudeRateLimit = rawIs429 && isClaudeLikeCli(cli);
     const is429 = rawIs429 && !isClaudeRateLimit;
+    // Wrapper CLIs (e.g. claude-e) exit BEFORE the session starts on transient
+    // upstream blips (rate-limit / 5xx) and mask the real reason as a generic
+    // "exited before SessionStart" — cli-jaw never sees the child 429. Treat that
+    // pre-session signature as a retryable transient. (#219)
+    const isTransientStartup = /exited before SessionStart/i.test(combined);
     const isAuth = combined.includes('auth') || combined.includes('credentials');
     const isStall = !!stallReason;
 
@@ -42,5 +48,5 @@ export function classifyExitError(
     else if (isAuth) message = '🔐 인증 오류 — CLI 로그인 상태를 확인해주세요';
     else if (combined.trim()) message = combined.trim().slice(0, 200);
 
-    return { is429, isAuth, isStall, isModelCapacity, isClaudeRateLimit, message };
+    return { is429, isAuth, isStall, isModelCapacity, isClaudeRateLimit, isTransientStartup, message };
 }
