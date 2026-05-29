@@ -71,7 +71,7 @@
 <ul>
 <li><strong>Node.js 20+</strong> — <a href="https://nodejs.org">nodejs.org</a></li>
 <li><strong>npm</strong> (Node.js에 포함)</li>
-<li>최소 하나의 제공자(Anthropic, OpenAI, Google)의 API 키</li>
+<li>최소 하나의 AI CLI 구독 (예: Claude Code는 Claude Max/Pro, Codex는 ChatGPT Pro, Gemini CLI는 Google AI)</li>
 </ul>
 
 <h2>설치</h2>
@@ -93,13 +93,19 @@ npm install -g cli-jaw</code></pre>
 <li>서버 포트 설정 (기본값: 3457)</li>
 </ol>
 
-<h2>API 키 설정</h2>
-<p>API 키는 <code>~/.cli-jaw/settings.json</code>에 입력합니다:</p>
-<pre><code>{
-  "anthropic": { "apiKey": "sk-ant-..." },
-  "openai": { "apiKey": "sk-..." },
-  "google": { "apiKey": "AIza..." }
-}</code></pre>
+<h2>CLI 인증</h2>
+<p>각 CLI는 자체 구독으로 인증합니다. 별도 터미널에서 로그인하세요:</p>
+<pre><code># Claude Code (Claude Max/Pro 구독 필요)
+claude
+
+# Codex (ChatGPT Pro 구독 필요)
+codex
+
+# Gemini CLI (Google AI 구독 필요)
+gemini</code></pre>
+<p>그 다음 jaw에서 사용할 CLI를 설정하세요:</p>
+<pre><code>jaw init   # 또는 채팅에서 /cli claude</code></pre>
+<div class="callout callout-info"><code>settings.json</code>의 API 키는 음성인식(Gemini API)이나 이미지 생성(OpenAI API) 같은 선택 기능에만 필요합니다. 메인 CLI 인증은 각 도구의 로그인으로 처리됩니다.</div>
 
 <h2>설치 확인</h2>
 <pre><code>jaw doctor</code></pre>

@@ -95,7 +95,7 @@
 <ul>
 <li><strong>Node.js 20+</strong> — <a href="https://nodejs.org">nodejs.org</a></li>
 <li><strong>npm</strong> (comes with Node.js)</li>
-<li>An API key from at least one provider (Anthropic, OpenAI, or Google)</li>
+<li>An active subscription to at least one AI CLI (e.g., Claude Max/Pro for Claude Code, ChatGPT Pro for Codex, Google AI for Gemini CLI)</li>
 </ul>
 
 <h2>Installation</h2>
@@ -117,9 +117,19 @@ npm install -g cli-jaw</code></pre>
 <li>Configuring the server port (default: 3457)</li>
 </ol>
 
-<h2>API Key Configuration</h2>
-<p>API keys go in <code>~/.cli-jaw/settings.json</code>:</p>
-<pre><code>{
+<h2>CLI Authentication</h2>
+<p>Each CLI authenticates through its own subscription. Run the CLI login command in a separate terminal:</p>
+<pre><code># Claude Code (requires Claude Max/Pro subscription)
+claude
+
+# Codex (requires ChatGPT Pro subscription)
+codex
+
+# Gemini CLI (requires Google AI subscription)
+gemini</code></pre>
+<p>Then set your preferred CLI in jaw:</p>
+<pre><code>jaw init   # or /cli claude in chat</code></pre>
+<div class="callout callout-info">API keys in <code>settings.json</code> are only needed for advanced features like voice (Gemini API) or image generation (OpenAI API). The main CLI auth is handled by each tool's own login.</div>REMOVEME
   "anthropic": { "apiKey": "sk-ant-..." },
   "openai": { "apiKey": "sk-..." },
   "google": { "apiKey": "AIza..." }
