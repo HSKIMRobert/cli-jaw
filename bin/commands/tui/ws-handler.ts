@@ -4,7 +4,7 @@
 import type WebSocket from 'ws';
 import {
     startAssistantItem, appendToActiveAssistant,
-    finalizeAssistant, appendStatusItem, clearEphemeralStatus,
+    finalizeAssistant, appendStatusItem, appendToolItem, clearEphemeralStatus,
 } from '../../../src/cli/tui/transcript.js';
 import { captureFileSet, diffFileSets, getDiffStat, getIdeCli, openDiffInIde } from '../../../src/ide/diff.js';
 import { createStreamSink } from '../../../src/cli/tui/stream.js';
@@ -97,8 +97,12 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                 if (ctx.isRaw) {
                     console.log(`  ${c.dim}${raw}${c.reset}`);
                 } else if (msg.icon && msg.label) {
-                    appendStatusItem(transcript, `${msg.icon} ${msg.label}`);
-                    process.stdout.write(`\r  ${c.dim}${msg.icon} ${msg.label}${c.reset}          \r`);
+                    // Persistent tool cell: drop a trailing transient status FIRST
+                    // (else the status leaks once a tool item is the trailing one),
+                    // then commit the tool line so it stays in scrollback.
+                    clearEphemeralStatus(transcript);
+                    appendToolItem(transcript, `${msg.icon} ${msg.label}`);
+                    process.stdout.write(`\r\x1b[2K  ${c.dim}${msg.icon} ${msg.label}${c.reset}\n`);
                 }
                 break;
 
@@ -106,8 +110,9 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                 if (ctx.isRaw) {
                     console.log(`  ${c.dim}${raw}${c.reset}`);
                 } else {
-                    appendStatusItem(transcript, `${msg.from} \u2192 ${msg.to}`);
-                    process.stdout.write(`\r  ${c.yellow}\u26A1${c.reset} ${c.dim}${msg.from} \u2192 ${msg.to}${c.reset}          \r`);
+                    clearEphemeralStatus(transcript);
+                    appendToolItem(transcript, `\u26A1 ${msg.from} \u2192 ${msg.to}`);
+                    process.stdout.write(`\r\x1b[2K  ${c.yellow}\u26A1${c.reset} ${c.dim}${msg.from} \u2192 ${msg.to}${c.reset}\n`);
                 }
                 break;
 
