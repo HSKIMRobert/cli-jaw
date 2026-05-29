@@ -1,9 +1,11 @@
 // ─── Slash Command Handlers ─────────────────────────
 // Extracted from commands.js for 500-line compliance.
 
+import path from 'path';
+import fs from 'fs/promises';
 import { CLI_KEYS, buildModelChoicesByCli } from './registry.js';
 import { t } from '../core/i18n.js';
-import { detectCli, settings } from '../core/config.js';
+import { detectCli, settings, JAW_HOME } from '../core/config.js';
 import type { CliCommandContext } from './command-context.js';
 import type { SlashCommand, SlashResult, UnknownCommandRecovery } from './types.js';
 export { compactHandler } from './compact.js';
@@ -308,9 +310,33 @@ export async function employeeHandler(args: string[], ctx: CliCommandContext): P
     return { ok: true, text: t('cmd.employee.resetDone', { count: seeded }, L) };
 }
 
-export async function clearHandler(_args: string[], ctx: CliCommandContext): Promise<SlashResult> {
+export async function clearHandler(args: string[], ctx: CliCommandContext): Promise<SlashResult> {
     const L = ctx.locale || 'ko';
     const iface = ctx.interface || 'cli';
+
+    if ((args[0] || '').toLowerCase() === 'all') {
+        const results = [];
+        if (typeof ctx.resetSkills === 'function') {
+            await ctx.resetSkills();
+            results.push(t('cmd.reset.skills', {}, L));
+        }
+        if (typeof ctx.resetEmployees === 'function') {
+            await ctx.resetEmployees();
+            results.push(t('cmd.reset.employees', {}, L));
+        }
+        if (typeof ctx.syncMcp === 'function') {
+            await ctx.syncMcp();
+            results.push('MCP');
+        }
+        if (typeof ctx.resetSession === 'function') {
+            await ctx.resetSession();
+            results.push(t('cmd.reset.sessions', {}, L));
+        }
+        if (!results.length) {
+            return { ok: false, text: t('cmd.reset.unavailable', {}, L) };
+        }
+        return { ok: true, text: t('cmd.clearAll.done', { items: results.join(', ') }, L) };
+    }
 
     if (typeof ctx.clearSession === 'function') {
         await ctx.clearSession();
@@ -326,6 +352,20 @@ export async function clearHandler(_args: string[], ctx: CliCommandContext): Pro
     };
 }
 
+export async function purgeHandler(_args: string[], ctx: CliCommandContext): Promise<SlashResult> {
+    const L = ctx.locale || 'ko';
+
+    if (typeof ctx.clearSession === 'function') {
+        await ctx.clearSession();
+    }
+
+    const memoryDir = path.join(JAW_HOME, 'memory', 'structured');
+    await fs.rm(memoryDir, { recursive: true, force: true });
+    await fs.mkdir(memoryDir, { recursive: true });
+
+    return { ok: true, code: 'clear_screen', text: t('cmd.purge.done', {}, L) };
+}
+
 export async function resetHandler(args: string[], ctx: CliCommandContext): Promise<SlashResult> {
     const L = ctx.locale || 'ko';
     if ((args[0] || '').toLowerCase() !== 'confirm') {
@@ -334,9 +374,21 @@ export async function resetHandler(args: string[], ctx: CliCommandContext): Prom
             text: t('cmd.reset.confirm', {}, L),
         };
     }
+
     const results = [];
+
+    if (typeof ctx.clearSession === 'function') {
+        await ctx.clearSession();
+        results.push(t('cmd.reset.sessions', {}, L));
+    }
+
+    const memoryDir = path.join(JAW_HOME, 'memory', 'structured');
+    await fs.rm(memoryDir, { recursive: true, force: true });
+    await fs.mkdir(memoryDir, { recursive: true });
+    results.push(t('cmd.reset.memory', {}, L));
+
     if (typeof ctx.resetSkills === 'function') {
-        await ctx.resetSkills();
+        await ctx.resetSkills('hard');
         results.push(t('cmd.reset.skills', {}, L));
     }
     if (typeof ctx.resetEmployees === 'function') {
@@ -347,14 +399,11 @@ export async function resetHandler(args: string[], ctx: CliCommandContext): Prom
         await ctx.syncMcp();
         results.push('MCP');
     }
-    if (typeof ctx.resetSession === 'function') {
-        await ctx.resetSession();
-        results.push(t('cmd.reset.sessions', {}, L));
-    }
+
     if (!results.length) {
         return { ok: false, text: t('cmd.reset.unavailable', {}, L) };
     }
-    return { ok: true, text: t('cmd.reset.done', { items: results.join(', ') }, L) };
+    return { ok: true, text: t('cmd.reset.bootstrapDone', { items: results.join(', ') }, L) };
 }
 
 export async function versionHandler(_args: string[], ctx: CliCommandContext): Promise<SlashResult> {

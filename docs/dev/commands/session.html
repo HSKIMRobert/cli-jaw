@@ -117,9 +117,10 @@
 <tr><td><code>/help [command]</code></td><td>Show help for all commands or a specific command</td></tr>
 <tr><td><code>/commands</code></td><td>Open the command palette with fuzzy search</td></tr>
 <tr><td><code>/status</code></td><td>Display current session status and diagnostics</td></tr>
-<tr><td><code>/clear</code></td><td>Clear conversation history</td></tr>
+<tr><td><code>/clear [all]</code></td><td>Clear conversation history / <code>all</code>: reset skills+employees+MCP</td></tr>
+<tr><td><code>/purge</code></td><td>Clear conversation + delete memory</td></tr>
 <tr><td><code>/compact [instructions]</code></td><td>Compress context while preserving key information</td></tr>
-<tr><td><code>/reset [confirm]</code></td><td>Full session reset &mdash; clears history, state, and loaded skills</td></tr>
+<tr><td><code>/reset [confirm]</code></td><td>Bootstrap reset &mdash; conversation, memory, skills, employees, MCP</td></tr>
 <tr><td><code>/steer &lt;prompt&gt;</code></td><td>Redirect the agent to a new direction mid-conversation</td></tr>
 </table>
 </div>
@@ -205,29 +206,44 @@
 <!-- /clear -->
 <div class="cmd-block" id="clear">
 <h3><code>/clear</code></h3>
-<div class="cmd-sig">/clear</div>
-<p>Clears the conversation history from the current session. This removes all previous messages from the context window, giving you a fresh start while keeping your loaded skills, active goals, and session configuration intact. The agent retains its memory (persisted knowledge) but loses the thread of the current conversation.</p>
+<div class="cmd-sig">/clear <span class="arg">[all]</span></div>
+<p>Clears the conversation history from the current session. This removes all previous messages from the context window, giving you a fresh start while keeping your loaded skills, memory, and session configuration intact.</p>
 
-<p>This is lighter than <code>/reset</code> &mdash; think of it as closing a chat tab and opening a new one in the same workspace. Skills stay loaded, goals stay active, and configuration is preserved.</p>
+<p>With the <code>all</code> argument, it performs a deeper reset: skills are re-synced to defaults, employees are reset, MCP is re-synced, and the session state is cleared. Memory is still preserved.</p>
 
-<p><strong>What is preserved vs. cleared:</strong></p>
+<p><strong>Cleanup tiers (lightest to heaviest):</strong></p>
 <table>
-<tr><th>Preserved</th><th>Cleared</th></tr>
-<tr><td>Loaded skills</td><td>Conversation messages</td></tr>
-<tr><td>Active goals</td><td>In-context tool results</td></tr>
-<tr><td>Memory (MEMORY.md, SQLite index)</td><td>Temporary reasoning state</td></tr>
-<tr><td>Session configuration</td><td>Conversation-scoped variables</td></tr>
+<tr><th>Command</th><th>Conversation</th><th>Skills/Employees/MCP</th><th>Memory</th></tr>
+<tr><td><code>/clear</code></td><td>✅ Deleted</td><td>Preserved</td><td>Preserved</td></tr>
+<tr><td><code>/clear all</code></td><td>✅ Deleted</td><td>✅ Reset</td><td>Preserved</td></tr>
+<tr><td><code>/purge</code></td><td>✅ Deleted</td><td>Preserved</td><td>✅ Deleted</td></tr>
+<tr><td><code>/reset confirm</code></td><td>✅ Deleted</td><td>✅ Hard reset</td><td>✅ Deleted</td></tr>
 </table>
 
 <div class="cmd-example">
-<span class="comment"># Clear conversation history</span><br>
+<span class="comment"># Clear conversation only</span><br>
 /clear<br><br>
-<span class="comment"># Typical flow: long conversation gets noisy, clear and continue</span><br>
-/clear<br>
-"이전 맥락 필요없어, 새로운 작업 시작하자"
+<span class="comment"># Reset skills, employees, MCP, and session (memory kept)</span><br>
+/clear all
 </div>
 
-<div class="cmd-tip"><strong>"~해줘" tip:</strong> "대화 초기화해줘", "히스토리 지워줘", "대화 내역 클리어해줘" all trigger <code>/clear</code>. This is the go-to command when the conversation gets long and you want a fresh thread.</div>
+<div class="cmd-tip"><strong>"~해줘" tip:</strong> "대화 초기화해줘", "히스토리 지워줘" → <code>/clear</code>. "스킬까지 초기화해줘" → <code>/clear all</code>.</div>
+</div>
+
+<!-- /purge -->
+<div class="cmd-block" id="purge">
+<h3><code>/purge</code></h3>
+<div class="cmd-sig">/purge</div>
+<p>Deletes conversation history <strong>and</strong> all structured memory (<code>memory/structured/</code>). Skills, employees, and configuration are preserved. Use this when you want the agent to forget everything it learned about you and your project in this instance, but keep the tools and integrations intact.</p>
+
+<p>This is stronger than <code>/clear</code> (which keeps memory) but lighter than <code>/reset confirm</code> (which also wipes skills and employees).</p>
+
+<div class="cmd-example">
+<span class="comment"># Wipe conversation + memory, keep skills</span><br>
+/purge
+</div>
+
+<div class="cmd-tip"><strong>"~해줘" tip:</strong> "메모리까지 지워줘", "기억 다 삭제해줘", "대화랑 메모리 초기화" → <code>/purge</code>.</div>
 </div>
 
 <!-- /compact -->
@@ -262,38 +278,37 @@
 <div class="cmd-block" id="reset">
 <h3><code>/reset</code></h3>
 <div class="cmd-sig">/reset <span class="arg">[confirm]</span></div>
-<p>Performs a full session reset. This is the nuclear option &mdash; it clears conversation history, unloads all dynamically loaded skills, resets active goals, and returns the session to its initial boot state. Only persisted memory (MEMORY.md and the SQLite index) survives a reset.</p>
+<p>Performs a full bootstrap reset &mdash; the most destructive cleanup option. Clears conversation history, deletes all structured memory, hard-resets skills to factory defaults, resets employees, and re-syncs MCP. Only <code>settings.json</code> (server config, auth tokens, CLI subscriptions) survives.</p>
 
-<p>Because this is destructive, the command asks for confirmation before proceeding. Pass <code>confirm</code> to skip the confirmation prompt and execute immediately.</p>
+<p>Because this is destructive, the command requires <code>confirm</code> as an argument. Without it, the agent shows what will be deleted and asks you to confirm.</p>
 
 <p><strong>Arguments:</strong></p>
 <table>
 <tr><th>Argument</th><th>Required</th><th>Description</th></tr>
-<tr><td><code>confirm</code></td><td>No</td><td>Pass the literal word <code>confirm</code> to skip the confirmation prompt</td></tr>
+<tr><td><code>confirm</code></td><td>Yes</td><td>Required to execute. Without it, shows a confirmation prompt.</td></tr>
 </table>
 
-<p><strong>What is reset:</strong></p>
+<p><strong>What is deleted vs. preserved:</strong></p>
 <table>
-<tr><th>Reset</th><th>Preserved</th></tr>
-<tr><td>Conversation history</td><td>Persisted memory (MEMORY.md)</td></tr>
-<tr><td>Loaded skills (reverts to defaults)</td><td>SQLite memory index</td></tr>
-<tr><td>Active goals</td><td>Server configuration</td></tr>
-<tr><td>Temporary state and variables</td><td>CLI backend selection</td></tr>
-<tr><td>In-progress tool calls</td><td>Integration connections</td></tr>
+<tr><th>Deleted (bootstrap reset)</th><th>Preserved</th></tr>
+<tr><td>Conversation history</td><td>settings.json (ports, tokens, subscriptions)</td></tr>
+<tr><td>Structured memory (memory/structured/)</td><td>&mdash;</td></tr>
+<tr><td>All installed skills (hard reset to defaults)</td><td>&mdash;</td></tr>
+<tr><td>Employee configurations</td><td>&mdash;</td></tr>
+<tr><td>MCP state</td><td>&mdash;</td></tr>
 </table>
 
 <div class="cmd-example">
-<span class="comment"># Reset with confirmation prompt</span><br>
-/reset<br>
-<span class="comment"># Agent asks: "This will clear all session state. Confirm? (y/n)"</span><br><br>
-<span class="comment"># Skip confirmation</span><br>
+<span class="comment"># Show confirmation prompt</span><br>
+/reset<br><br>
+<span class="comment"># Execute bootstrap reset immediately</span><br>
 /reset confirm<br><br>
-<span class="comment"># Typical flow: session is confused, start completely fresh</span><br>
+<span class="comment"># Typical flow: instance is deeply broken, start from scratch</span><br>
 /reset confirm<br>
-"처음부터 다시 시작하자. Next.js 프로젝트 만들어줘."
+"처음부터 다시 설정하자"
 </div>
 
-<div class="cmd-tip"><strong>"~해줘" tip:</strong> "완전히 초기화해줘", "세션 리셋해줘", "처음부터 다시 시작", "전부 지우고 새로 시작" all trigger <code>/reset</code>. The agent will always confirm before proceeding unless you include "confirm" or express strong intent.</div>
+<div class="cmd-tip"><strong>"~해줘" tip:</strong> "완전히 초기화해줘", "공장 초기화해줘", "부트스트랩 리셋해줘" → <code>/reset confirm</code>. For lighter cleanup, use <code>/clear</code>, <code>/clear all</code>, or <code>/purge</code> instead.</div>
 </div>
 
 <!-- /steer -->
@@ -332,8 +347,10 @@
 <tr><th>Scenario</th><th>Command</th><th>Why</th></tr>
 <tr><td>Conversation is too long, approaching token limit</td><td><code>/compact</code></td><td>Preserves key decisions while freeing tokens</td></tr>
 <tr><td>Done with current topic, starting a new task</td><td><code>/clear</code></td><td>Fresh conversation, same workspace state</td></tr>
+<tr><td>Want to reset skills/employees too, but keep memory</td><td><code>/clear all</code></td><td>Deeper cleanup without losing memory</td></tr>
 <tr><td>Agent is going the wrong way</td><td><code>/steer</code></td><td>Course-correct without losing context</td></tr>
-<tr><td>Session is deeply confused or corrupted</td><td><code>/reset</code></td><td>Nuclear option &mdash; full restart</td></tr>
+<tr><td>Want the agent to forget everything learned</td><td><code>/purge</code></td><td>Conversation + memory gone, tools stay</td></tr>
+<tr><td>Instance is deeply broken, start from scratch</td><td><code>/reset confirm</code></td><td>Bootstrap reset &mdash; only settings.json survives</td></tr>
 <tr><td>Cannot remember a command name</td><td><code>/commands</code></td><td>Searchable palette of everything available</td></tr>
 <tr><td>Need to check token usage or loaded skills</td><td><code>/status</code></td><td>Session diagnostics at a glance</td></tr>
 <tr><td>New to CLI-JAW, exploring features</td><td><code>/help</code></td><td>Documentation built into the chat</td></tr>
@@ -344,10 +361,11 @@
 <ul>
 <li><strong><code>/help</code></strong> and <strong><code>/commands</code></strong> are read-only &mdash; they display information without modifying state.</li>
 <li><strong><code>/status</code></strong> reads from multiple subsystems (model, skills, memory, goals) and aggregates a snapshot.</li>
-<li><strong><code>/clear</code></strong> wipes the message buffer but leaves the session shell (skills, config, goals) intact.</li>
+<li><strong><code>/clear</code></strong> wipes the message buffer but leaves the session shell (skills, config, memory) intact. <code>/clear all</code> also resets skills, employees, and MCP.</li>
+<li><strong><code>/purge</code></strong> wipes messages <em>and</em> structured memory, but keeps skills and employees.</li>
 <li><strong><code>/compact</code></strong> rewrites the message buffer &mdash; it reads all messages, generates a summary, then replaces the history with the compressed version.</li>
 <li><strong><code>/steer</code></strong> injects a priority instruction into the system context without touching the message history.</li>
-<li><strong><code>/reset</code></strong> tears down the entire session (messages + skills + goals + state) and re-initializes from boot defaults.</li>
+<li><strong><code>/reset confirm</code></strong> performs a full bootstrap reset &mdash; messages, memory, skills (hard), employees, and MCP are all cleared. Only settings.json survives.</li>
 </ul>
 
 <div class="callout callout-info"><strong>Natural language always works.</strong> You never <em>have</em> to remember slash commands. Saying "대화 지워줘" is the same as typing <code>/clear</code>. The slash commands exist for precision and speed, but CLI-JAW's intent detection handles the rest.</div>

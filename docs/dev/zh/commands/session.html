@@ -115,9 +115,10 @@
 <tr><td><code>/help [command]</code></td><td>显示所有命令或特定命令的帮助信息</td></tr>
 <tr><td><code>/commands</code></td><td>打开支持模糊搜索的命令面板</td></tr>
 <tr><td><code>/status</code></td><td>显示当前会话状态和诊断信息</td></tr>
-<tr><td><code>/clear</code></td><td>清除对话历史记录</td></tr>
+<tr><td><code>/clear [all]</code></td><td>删除对话 / <code>all</code>：重置技能+员工+MCP</td></tr>
+<tr><td><code>/purge</code></td><td>删除对话 + 记忆</td></tr>
 <tr><td><code>/compact [instructions]</code></td><td>压缩上下文并保留关键信息</td></tr>
-<tr><td><code>/reset [confirm]</code></td><td>完全重置会话 &mdash; 清除历史记录、状态和已加载的技能</td></tr>
+<tr><td><code>/reset [confirm]</code></td><td>引导重置 &mdash; 对话、记忆、技能、员工、MCP全部删除</td></tr>
 <tr><td><code>/steer &lt;prompt&gt;</code></td><td>在对话中途将智能体重定向到新方向</td></tr>
 </table>
 </div>
@@ -203,29 +204,42 @@
 <!-- /clear -->
 <div class="cmd-block" id="clear">
 <h3><code>/clear</code></h3>
-<div class="cmd-sig">/clear</div>
-<p>清除当前会话的对话历史记录。这会从上下文窗口中移除所有先前的消息，让你可以重新开始，同时保留已加载的技能、活动目标和会话配置。智能体会保留其记忆（持久化知识），但会丢失当前对话的线索。</p>
+<div class="cmd-sig">/clear <span class="arg">[all]</span></div>
+<p>删除当前会话的对话历史记录。技能、记忆和会话配置保持不变。</p>
 
-<p>这比 <code>/reset</code> 更轻量 &mdash; 可以理解为在同一工作空间中关闭一个聊天标签页并打开一个新的。技能保持加载状态，目标保持活动状态，配置也会保留。</p>
+<p>添加 <code>all</code> 参数后，还会重置技能、重置员工、重新同步 MCP 并清除会话状态。记忆仍然保留。</p>
 
-<p><strong>保留与清除的内容：</strong></p>
+<p><strong>清理层级（由轻到重）：</strong></p>
 <table>
-<tr><th>保留</th><th>清除</th></tr>
-<tr><td>已加载的技能</td><td>对话消息</td></tr>
-<tr><td>活动目标</td><td>上下文中的工具结果</td></tr>
-<tr><td>记忆（MEMORY.md、SQLite 索引）</td><td>临时推理状态</td></tr>
-<tr><td>会话配置</td><td>对话范围内的变量</td></tr>
+<tr><th>命令</th><th>对话</th><th>技能/员工/MCP</th><th>记忆</th></tr>
+<tr><td><code>/clear</code></td><td>✅ 删除</td><td>保留</td><td>保留</td></tr>
+<tr><td><code>/clear all</code></td><td>✅ 删除</td><td>✅ 重置</td><td>保留</td></tr>
+<tr><td><code>/purge</code></td><td>✅ 删除</td><td>保留</td><td>✅ 删除</td></tr>
+<tr><td><code>/reset confirm</code></td><td>✅ 删除</td><td>✅ 硬重置</td><td>✅ 删除</td></tr>
 </table>
 
 <div class="cmd-example">
-<span class="comment"># Clear conversation history</span><br>
+<span class="comment"># 仅删除对话</span><br>
 /clear<br><br>
-<span class="comment"># Typical flow: long conversation gets noisy, clear and continue</span><br>
-/clear<br>
-"이전 맥락 필요없어, 새로운 작업 시작하자"
+<span class="comment"># 重置技能、员工、MCP、会话（保留记忆）</span><br>
+/clear all
 </div>
 
-<div class="cmd-tip"><strong>"~해줘" 提示：</strong> "대화 초기화해줘"、"히스토리 지워줘"、"대화 내역 클리어해줘" 都会触发 <code>/clear</code>。当对话变长时，这是你想要一个全新线程的首选命令。</div>
+<div class="cmd-tip"><strong>"~해줘" 提示：</strong> "대화 초기화해줘"、"히스토리 지워줘" → <code>/clear</code>。"스킬까지 초기화해줘" → <code>/clear all</code>。</div>
+</div>
+
+<!-- /purge -->
+<div class="cmd-block" id="purge">
+<h3><code>/purge</code></h3>
+<div class="cmd-sig">/purge</div>
+<p>删除对话历史记录和所有结构化记忆（<code>memory/structured/</code>）。技能、员工和配置保持不变。当你想让智能体忘记在此实例中学到的一切，但保留工具和集成时使用。</p>
+
+<div class="cmd-example">
+<span class="comment"># 删除对话 + 记忆，保留技能</span><br>
+/purge
+</div>
+
+<div class="cmd-tip"><strong>"~해줘" 提示：</strong> "메모리까지 지워줘"、"기억 다 삭제해줘" → <code>/purge</code>。</div>
 </div>
 
 <!-- /compact -->
@@ -260,38 +274,37 @@
 <div class="cmd-block" id="reset">
 <h3><code>/reset</code></h3>
 <div class="cmd-sig">/reset <span class="arg">[confirm]</span></div>
-<p>执行完整的会话重置。这是终极选项 &mdash; 它会清除对话历史记录、卸载所有动态加载的技能、重置活动目标，并将会话恢复到初始启动状态。只有持久化记忆（MEMORY.md 和 SQLite 索引）能在重置后保留。</p>
+<p>执行完整的引导重置 &mdash; 最具破坏性的清理选项。删除对话历史记录、所有结构化记忆、硬重置技能、重置员工并重新同步 MCP。只有 <code>settings.json</code>（服务器配置、认证令牌、CLI 订阅）得以保留。</p>
 
-<p>由于此操作具有破坏性，命令会在执行前要求确认。传入 <code>confirm</code> 可跳过确认提示并立即执行。</p>
+<p>由于此操作具有破坏性，需要 <code>confirm</code> 参数。</p>
 
 <p><strong>参数：</strong></p>
 <table>
 <tr><th>参数</th><th>必填</th><th>描述</th></tr>
-<tr><td><code>confirm</code></td><td>否</td><td>传入字面量 <code>confirm</code> 以跳过确认提示</td></tr>
+<tr><td><code>confirm</code></td><td>是</td><td>必填。不传入则显示确认提示。</td></tr>
 </table>
 
-<p><strong>重置的内容：</strong></p>
+<p><strong>删除与保留：</strong></p>
 <table>
-<tr><th>重置</th><th>保留</th></tr>
-<tr><td>对话历史记录</td><td>持久化记忆（MEMORY.md）</td></tr>
-<tr><td>已加载的技能（恢复为默认值）</td><td>SQLite 记忆索引</td></tr>
-<tr><td>活动目标</td><td>服务器配置</td></tr>
-<tr><td>临时状态和变量</td><td>CLI 后端选择</td></tr>
-<tr><td>进行中的工具调用</td><td>集成连接</td></tr>
+<tr><th>删除（引导重置）</th><th>保留</th></tr>
+<tr><td>对话历史记录</td><td>settings.json（端口、令牌、订阅）</td></tr>
+<tr><td>结构化记忆（memory/structured/）</td><td>&mdash;</td></tr>
+<tr><td>所有已安装技能（硬重置）</td><td>&mdash;</td></tr>
+<tr><td>员工配置</td><td>&mdash;</td></tr>
+<tr><td>MCP 状态</td><td>&mdash;</td></tr>
 </table>
 
 <div class="cmd-example">
-<span class="comment"># Reset with confirmation prompt</span><br>
-/reset<br>
-<span class="comment"># Agent asks: "This will clear all session state. Confirm? (y/n)"</span><br><br>
-<span class="comment"># Skip confirmation</span><br>
+<span class="comment"># 显示确认提示</span><br>
+/reset<br><br>
+<span class="comment"># 立即执行引导重置</span><br>
 /reset confirm<br><br>
-<span class="comment"># Typical flow: session is confused, start completely fresh</span><br>
+<span class="comment"># 实例严重损坏时从头开始</span><br>
 /reset confirm<br>
-"처음부터 다시 시작하자. Next.js 프로젝트 만들어줘."
+"처음부터 다시 설정하자"
 </div>
 
-<div class="cmd-tip"><strong>"~해줘" 提示：</strong> "완전히 초기화해줘"、"세션 리셋해줘"、"처음부터 다시 시작"、"전부 지우고 새로 시작" 都会触发 <code>/reset</code>。除非你包含 "confirm" 或表达了强烈意图，否则智能体会在执行前始终进行确认。</div>
+<div class="cmd-tip"><strong>"~해줘" 提示：</strong> "완전히 초기화해줘"、"공장 초기화해줘"、"부트스트랩 리셋해줘" → <code>/reset confirm</code>。如需更轻量的清理，请使用 <code>/clear</code>、<code>/clear all</code> 或 <code>/purge</code>。</div>
 </div>
 
 <!-- /steer -->
