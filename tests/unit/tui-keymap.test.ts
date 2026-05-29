@@ -28,3 +28,24 @@ test('classifyKeyAction detects printable input and unknown keys', () => {
     assert.equal(classifyKeyAction('가'), 'printable');
     assert.equal(classifyKeyAction('\x00'), 'other');
 });
+
+test('classifyKeyAction detects cursor left/right (Phase 3b)', () => {
+    assert.equal(classifyKeyAction('\x1b[D'), 'arrow-left');
+    assert.equal(classifyKeyAction('\x1bOD'), 'arrow-left');
+    assert.equal(classifyKeyAction('\x1b[C'), 'arrow-right');
+    assert.equal(classifyKeyAction('\x1bOC'), 'arrow-right');
+});
+
+test('classifyKeyAction detects word motions (ctrl/alt arrow, Alt+b/f)', () => {
+    assert.equal(classifyKeyAction('\x1b[1;5D'), 'word-left');
+    assert.equal(classifyKeyAction('\x1b[1;3D'), 'word-left');
+    assert.equal(classifyKeyAction('\x1bb'), 'word-left');
+    assert.equal(classifyKeyAction('\x1b[1;5C'), 'word-right');
+    assert.equal(classifyKeyAction('\x1b[1;3C'), 'word-right');
+    assert.equal(classifyKeyAction('\x1bf'), 'word-right');
+});
+
+test('plain b/f stay printable (only ESC-prefixed are word motions)', () => {
+    assert.equal(classifyKeyAction('b'), 'printable');
+    assert.equal(classifyKeyAction('f'), 'printable');
+});
