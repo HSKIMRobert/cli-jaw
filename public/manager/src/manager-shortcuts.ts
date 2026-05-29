@@ -134,12 +134,27 @@ export function shortcutMatches(event: KeyboardEvent, raw: string): boolean {
         && resolveEventKey(event) === parsed.key;
 }
 
+/**
+ * Actions whose keyboard shortcut is owned by the Electron application menu
+ * accelerator (single source of truth), so the renderer keydown matcher must
+ * NOT also match them — otherwise ⌘R fires twice (menu + keydown). The actions
+ * stay in MANAGER_SHORTCUT_ACTIONS so the menu can still dispatch them by name;
+ * only the renderer-side keyboard binding is suppressed. This also makes a
+ * persisted user keymap carrying Meta+R harmless, and preserves the browser's
+ * native ⌘R in a pure web build (no menu, no match → no preventDefault).
+ */
+export const RENDERER_DISABLED_SHORTCUT_ACTIONS = new Set<DashboardShortcutAction>([
+    'browserReload',
+    'browserHardReload',
+]);
+
 export function actionForShortcutEvent(
     event: KeyboardEvent,
     keymap: unknown,
 ): DashboardShortcutAction | null {
     const shortcuts = normalizeManagerShortcutKeymap(keymap);
     for (const action of MANAGER_SHORTCUT_ACTIONS) {
+        if (RENDERER_DISABLED_SHORTCUT_ACTIONS.has(action)) continue;
         if (shortcutMatches(event, shortcuts[action])) return action;
         if (MANAGER_SHORTCUT_ALIASES[action]?.some(shortcut => shortcutMatches(event, shortcut))) return action;
     }
