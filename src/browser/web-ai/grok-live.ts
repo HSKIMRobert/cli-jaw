@@ -301,7 +301,9 @@ async function insertGrokPrompt(page: Page, composerSel: string, text: string): 
         const InputEventCtor = browserGlobal.InputEvent;
         const el = doc.querySelector(selector);
         if (!el) throw new Error(`selector not found: ${selector}`);
-        el.focus();
+        // Runtime el is an HTMLElement (page.evaluate browser context) which has focus();
+        // the custom GrokBrowserGlobal document types it as the base Element, so widen via unknown.
+        (el as unknown as { focus: () => void }).focus();
         doc.execCommand('selectAll', false);
         doc.execCommand('insertText', false, value);
         el.dispatchEvent(new InputEventCtor('input', { data: value, inputType: 'insertText', bubbles: true }));
