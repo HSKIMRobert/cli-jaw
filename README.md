@@ -1,11 +1,11 @@
-<div align=”center”>
+<div align="center">
 
 # CLI-JAW
 
 ### Your personal AI agent. 2 lines to install. 11 AI runtime surfaces in one dashboard.
 
 [![npm](https://img.shields.io/npm/v/cli-jaw)](https://npmjs.com/package/cli-jaw)
-[![Version](https://img.shields.io/badge/v2.0.13-GA-brightgreen)](https://github.com/lidge-jun/cli-jaw/releases)
+[![Version](https://img.shields.io/badge/v2.0.16-GA-brightgreen)](https://github.com/lidge-jun/cli-jaw/releases)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)](https://typescriptlang.org)
 [![Node](https://img.shields.io/badge/node-%3E%3D22-blue)](https://nodejs.org)
 [![License](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
@@ -169,7 +169,7 @@ Your main CLI (the “Boss”) calls the others as “employees.” You stop cop
 - **No per-token billing** — flat monthly cost, same as what you already have
 - **Runs locally** — your code never leaves your machine
 
-<div align=”center”>
+<div align="center">
 
 ![CLI-JAW Manager Dashboard](docs/screenshots/manager-dashboard-light.png)
 
@@ -228,7 +228,7 @@ The dashboard is your command center. It's a local web app at `http://localhost:
 
 See every running AI instance — start, stop, restart with one click. Preview live Web UIs directly in the dashboard.
 
-<div align=”center”>
+<div align="center">
 
 ![Dashboard Navigator](docs/screenshots/dashboard-navigator.png)
 
@@ -238,7 +238,7 @@ See every running AI instance — start, stop, restart with one click. Preview l
 
 Drag instance cards into lanes (Backlog → Ready → In Progress → Review → Done). Track what each AI session is working on.
 
-<div align=”center”>
+<div align="center">
 
 ![Kanban Board](docs/screenshots/dashboard-kanban.png)
 
@@ -248,7 +248,7 @@ Drag instance cards into lanes (Backlog → Ready → In Progress → Review →
 
 Eisenhower matrix for your tasks and reminders. Prioritize what matters.
 
-<div align=”center”>
+<div align="center">
 
 ![Priority Matrix](docs/screenshots/priority-matrix.png)
 
@@ -258,7 +258,7 @@ Eisenhower matrix for your tasks and reminders. Prioritize what matters.
 
 A mini-Obsidian inside the dashboard. Folders, visual (WYSIWYG) + raw + split editing, KaTeX (math rendering), Mermaid (diagram-as-code), syntax-highlighted code blocks.
 
-<div align=”center”>
+<div align="center">
 
 ![Notes Editor](docs/screenshots/notes-wysiwyg.png)
 
@@ -268,7 +268,7 @@ A mini-Obsidian inside the dashboard. Folders, visual (WYSIWYG) + raw + split ed
 
 Monitor each AI engine's health and usage at a glance.
 
-<div align=”center”>
+<div align="center">
 
 ![Claude Status](docs/screenshots/claude-status-widget.png)
 
