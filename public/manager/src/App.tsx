@@ -406,6 +406,18 @@ export function App() {
             handleTabChange(tabs[(idx + dir + tabs.length) % tabs.length]);
             return;
         }
+        if (action === 'browserReload' || action === 'browserHardReload' || action === 'browserFocusUrl' || action === 'browserBack' || action === 'browserForward') {
+            document.dispatchEvent(new CustomEvent('jaw:shortcut-action', { detail: action }));
+            return;
+        }
+        if (action === 'terminalClear' || action === 'terminalNewTab') {
+            document.dispatchEvent(new CustomEvent('jaw:shortcut-action', { detail: action }));
+            return;
+        }
+        if (action === 'toggleLeftSidebar') {
+            handleSidebarToggle();
+            return;
+        }
     }
     useEffect(() => {
         if (!view.dashboardShortcutsEnabled) return undefined;

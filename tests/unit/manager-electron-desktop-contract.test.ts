@@ -398,7 +398,7 @@ test('Electron terminal uses xterm plus a PTY backend and representative shortcu
     assert.ok(shortcuts.includes("focusTerminal: 'Ctrl+Shift+`'"), 'terminal focus must default to Ctrl+Shift+`');
     assert.ok(shortcuts.includes("focusTerminal: ['Ctrl+Shift+`', 'Meta+`']"), 'terminal shortcut must keep common aliases for existing users');
     assert.ok(shortcuts.includes("toggleRightPanel: 'Meta+B'"), 'right side panel must use the expected Cmd+B shortcut');
-    assert.ok(shortcuts.includes("toggleRightPanel: ['Meta+B', 'Meta+Shift+B']"), 'right side panel must keep the previous Cmd+Shift+B shortcut as an alias');
+    assert.ok(shortcuts.includes("toggleRightPanel: ['Meta+B']"), 'right side panel alias list must not conflict with toggleLeftSidebar on Cmd+Shift+B');
     assert.ok(shortcuts.includes("event.code === 'Backquote'"), 'shortcut matching must handle shifted backquote key events');
     assert.ok(main.includes("contents.on('before-input-event'"), 'Electron main must catch shortcuts before iframe/webview focus traps them');
     assert.ok(main.includes("import { app, BrowserWindow, dialog, Menu, screen, session, shell } from 'electron'"), 'Electron main must import Menu for native accelerators');
