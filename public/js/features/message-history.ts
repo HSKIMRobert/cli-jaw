@@ -6,7 +6,7 @@ import { bootstrapVirtualHistory, type VirtualHistoryBootstrapDeps } from '../vi
 import { activateWidgets } from '../diagram/iframe-renderer.js';
 import { ICONS } from '../icons.js';
 import { t } from './i18n.js';
-import { cacheMessages, getScopedMessages, setMessageScope } from './idb-cache.js';
+import { cacheMessages, getMessageScope, getScopedMessages, setMessageScope } from './idb-cache.js';
 import { addMessage, addSystemMsg, showEmptyState } from './chat-messages.js';
 import { buildLazyVirtualMessageItem } from './message-item-html.js';
 import { addStep, buildProcessBlockHtml, collapseBlock, createProcessBlock } from './process-block.js';
@@ -17,6 +17,34 @@ import { updateStatMsgs } from './ui-status.js';
 
 export function buildVirtualHistoryItems(msgs: MessageItem[]): VirtualItem[] {
     return msgs.map((m, index) => buildLazyVirtualMessageItem(normalizeMessageToolLog(m), index));
+}
+
+function normalizeMessageScopePart(value: string | null | undefined): string {
+    return String(value || '').trim() || 'unknown';
+}
+
+export function buildMessageLocationKey(input: { origin?: string; pathname?: string | null }): string {
+    const origin = normalizeMessageScopePart(input.origin);
+    const pathname = normalizeMessageScopePart(input.pathname || '/');
+    return `${origin}${pathname.startsWith('/') ? pathname : `/${pathname}`}`;
+}
+
+export function buildMessageScopeIdentity(input: { locationKey?: string; workingDir?: string | null }): string {
+    return `${normalizeMessageScopePart(input.locationKey)}::${normalizeMessageScopePart(input.workingDir)}`;
+}
+
+function readCurrentMessageLocationKey(): string {
+    if (typeof window === 'undefined') return buildMessageLocationKey({});
+    return buildMessageLocationKey({
+        origin: window.location.origin,
+        pathname: window.location.pathname,
+    });
+}
+
+function readWorkingDirFromScope(scope: string): string | null {
+    if (!scope || scope === 'default') return null;
+    const markerIndex = scope.indexOf('::');
+    return markerIndex >= 0 ? scope.slice(markerIndex + 2) : scope;
 }
 
 export function registerVirtualScrollCallbacks(vs: ReturnType<typeof getVirtualScroll>): void {
@@ -89,25 +117,32 @@ function hydrateSmallHistory(messages: MessageItem[]): void {
 export async function loadMessages(): Promise<void> {
     const vs = getVirtualScroll();
     const chatEl = document.getElementById('chatMessages');
+    const previousScope = getMessageScope();
+    const locationKey = readCurrentMessageLocationKey();
+    let workingDir = readWorkingDirFromScope(previousScope);
     try {
         const settings = await api<{ workingDir?: string }>('/api/settings');
-        if (settings?.workingDir) setMessageScope(settings.workingDir);
+        if (settings?.workingDir) workingDir = settings.workingDir;
     } catch { /* localStorage fallback already initialized currentScope */ }
+    const nextScope = buildMessageScopeIdentity({ locationKey, workingDir });
+    setMessageScope(nextScope);
+    const scopeChanged = nextScope !== previousScope;
     const msgs = await api<MessageItem[]>('/api/messages');
     if (msgs !== null) {
         const safeMsgs = msgs.map(normalizeMessageToolLog);
         const hadRenderedHistory = Boolean(chatEl?.querySelector('.msg')) || vs.active;
-        const savedIndex = vs.active ? vs.firstVisibleIndex() : null;
+        const shouldForceBottom = scopeChanged || !hadRenderedHistory;
+        const savedIndex = !shouldForceBottom && vs.active ? vs.firstVisibleIndex() : null;
         vs.clear();
         if (chatEl) chatEl.innerHTML = '';
         if (safeMsgs.length >= VS_THRESHOLD) {
             bootstrapVirtualHistory(buildVirtualHistoryItems(safeMsgs), makeBootstrapDeps(vs, {
-                forceInitialBottom: !hadRenderedHistory,
-                restoreIndex: hadRenderedHistory ? savedIndex : null,
+                forceInitialBottom: shouldForceBottom,
+                restoreIndex: shouldForceBottom ? null : savedIndex,
             }));
         } else {
             hydrateSmallHistory(safeMsgs);
-            if (!hadRenderedHistory) settleChatBottomAfterInitialLoad();
+            if (shouldForceBottom) settleChatBottomAfterInitialLoad();
         }
         cacheMessages(safeMsgs.map(m => ({
             role: m.role, content: m.content, cli: m.cli ?? null, tool_log: m.tool_log ?? null, timestamp: Date.now(),

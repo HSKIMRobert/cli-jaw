@@ -14,6 +14,10 @@ export function setMessageScope(scope: string): void {
     localStorage.setItem(SCOPE_KEY, currentScope);
 }
 
+export function getMessageScope(): string {
+    return currentScope;
+}
+
 export interface CachedMessage {
     id?: number;
     role: string;
