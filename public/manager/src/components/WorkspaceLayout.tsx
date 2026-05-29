@@ -28,8 +28,7 @@ type WorkspaceLayoutStyle = CSSProperties & {
 };
 
 const RIGHT_PANEL_RENDER_MIN_WIDTH = 260;
-const RIGHT_PANEL_RENDER_MAX_WIDTH = 1200;
-const WORKSPACE_CENTER_MIN_WIDTH = 360;
+const WORKSPACE_CENTER_MIN_WIDTH = 200;
 
 function readViewportWidth(): number {
     if (typeof window === 'undefined') return 1440;
@@ -51,7 +50,7 @@ function useViewportWidth(): number {
 function clampRightPanelRenderWidth(width: number | undefined, sidebarCollapsed: boolean, viewportWidth: number): number {
     const desired = typeof width === 'number' && Number.isFinite(width)
         ? Math.round(width)
-        : RIGHT_PANEL_RENDER_MAX_WIDTH;
+        : 480;
     const sidebarWidth = sidebarCollapsed
         ? 56
         : viewportWidth >= 1440 ? 360 : 300;
@@ -59,14 +58,9 @@ function clampRightPanelRenderWidth(width: number | undefined, sidebarCollapsed:
         RIGHT_PANEL_RENDER_MIN_WIDTH,
         viewportWidth - sidebarWidth - WORKSPACE_CENTER_MIN_WIDTH,
     );
-    const responsiveMax = Math.min(
-        RIGHT_PANEL_RENDER_MAX_WIDTH,
-        Math.floor(viewportWidth * 0.70),
-        maxByViewport,
-    );
     return Math.max(
         RIGHT_PANEL_RENDER_MIN_WIDTH,
-        Math.min(desired, responsiveMax),
+        Math.min(desired, maxByViewport),
     );
 }
 

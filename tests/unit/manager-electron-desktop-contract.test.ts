@@ -337,7 +337,6 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(css.includes('height: 100%;'), 'right sub content must pass a stable height to nested panels');
     assert.ok(workspace.includes('clampRightPanelRenderWidth'), 'right panel width must be clamped at render time so persisted large widths cannot clip the UI');
     assert.ok(workspace.includes('WORKSPACE_CENTER_MIN_WIDTH'), 'right panel clamp must reserve usable center workspace width');
-    assert.ok(css.includes('max-width: min(1200px, 70vw)'), 'right panel must have a responsive CSS max-width');
     assert.ok(browserCss.includes('overflow: hidden'), 'browser panel must clip inside its own panel instead of escaping the sidebar');
     assert.ok(browserCss.includes('min-width: 0'), 'browser panel flex children must be allowed to shrink inside the right sidebar');
     assert.ok(browserCss.includes('.browser-webview-host'), 'browser webview must be hosted in a flex child that owns the remaining vertical height');

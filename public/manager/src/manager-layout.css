@@ -17,7 +17,7 @@
     overflow: hidden;
 }
 .manager-workspace.is-side-panel-open {
-    --right-panel-width: 420px;
+    --right-panel-width: 50vw;
 }
 .manager-shell.is-sidebar-collapsed .manager-workspace,
 .manager-workspace.is-sidebar-collapsed { --sidebar-width: 56px; }
@@ -88,7 +88,7 @@
         --sidebar-width: 360px;
     }
     .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .manager-workspace.is-side-panel-open {
-        --right-panel-width: 720px;
+        --right-panel-width: 50vw;
     }
 }
 @media (max-width: 1279px) and (min-width: 1024px) {
@@ -96,7 +96,7 @@
         --sidebar-width: 300px;
     }
     .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .manager-workspace.is-side-panel-open {
-        --right-panel-width: 360px;
+        --right-panel-width: 50vw;
     }
     .command-primary { grid-template-columns: minmax(120px, 180px) max-content minmax(max-content, 1fr); }
     .command-search { width: clamp(260px, 38vw, 620px); }
