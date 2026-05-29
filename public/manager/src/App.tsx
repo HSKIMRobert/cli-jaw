@@ -407,11 +407,17 @@ export function App() {
             return;
         }
         if (action === 'browserReload' || action === 'browserHardReload' || action === 'browserFocusUrl' || action === 'browserBack' || action === 'browserForward') {
-            document.dispatchEvent(new CustomEvent('jaw:shortcut-action', { detail: action }));
+            const el = document.activeElement;
+            if (el?.closest('.browser-webview-stack, .browser-tab-strip, .browser-panel')) {
+                document.dispatchEvent(new CustomEvent('jaw:shortcut-action', { detail: action }));
+            }
             return;
         }
         if (action === 'terminalClear' || action === 'terminalNewTab') {
-            document.dispatchEvent(new CustomEvent('jaw:shortcut-action', { detail: action }));
+            const el = document.activeElement;
+            if (el?.closest('.terminal-panel, .xterm')) {
+                document.dispatchEvent(new CustomEvent('jaw:shortcut-action', { detail: action }));
+            }
             return;
         }
         if (action === 'toggleLeftSidebar') {
