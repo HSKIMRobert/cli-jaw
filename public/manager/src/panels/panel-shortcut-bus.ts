@@ -1,6 +1,8 @@
 import type { DashboardShortcutAction } from '../types';
 
-type PanelShortcutHandler = (action: DashboardShortcutAction) => boolean;
+export type PanelBusAction = DashboardShortcutAction | 'closeActiveBottomTab';
+
+type PanelShortcutHandler = (action: PanelBusAction) => boolean;
 
 let handler: PanelShortcutHandler | null = null;
 
@@ -9,7 +11,7 @@ export const panelShortcutBus = {
         handler = fn;
         return () => { if (handler === fn) handler = null; };
     },
-    dispatch(action: DashboardShortcutAction): boolean {
+    dispatch(action: PanelBusAction): boolean {
         return handler?.(action) ?? false;
     },
 };

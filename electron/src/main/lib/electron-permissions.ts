@@ -18,13 +18,20 @@ export type ElectronPermissionDenial = {
 const DENIAL_LIMIT = 50;
 const denials: ElectronPermissionDenial[] = [];
 
-// Permissions that stay denied even on loopback-trusted manager/preview
-// surfaces. Empty by default: the manager window and preview frames are the
-// app's own loopback origins, so web-platform permission requests
-// (media, clipboard, background-sync, notifications, geolocation, …) are
-// auto-granted. Add an entry here only if a permission proves genuinely
-// unsafe to grant automatically.
-const PREVIEW_DENYLIST = new Set<string>([]);
+// Permissions denied on loopback-trusted manager/preview surfaces.
+// Clipboard, media (mic), fullscreen, background-sync are auto-granted.
+// Deny anything that could leak location, spam notifications, or access
+// hardware without user intent.
+const PREVIEW_DENYLIST = new Set<string>([
+    'geolocation',
+    'notifications',
+    'midi',
+    'midiSysex',
+    'hid',
+    'serial',
+    'usb',
+    'idle-detection',
+]);
 
 export function getLastElectronPermissionDenials(): ElectronPermissionDenial[] {
   return [...denials];

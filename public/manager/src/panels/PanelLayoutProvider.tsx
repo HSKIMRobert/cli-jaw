@@ -238,7 +238,7 @@ export function PanelLayoutProvider(props: {
                     return false;
             }
         });
-    }, [state.bottomPanel.open, state.rightPanel.open]);
+    }, [state.bottomPanel.open, state.bottomPanel.activeTab, state.rightPanel.open, state.rightPanel.topMode, state.rightPanel.bottomMode]);
 
     const value = useMemo(() => ({
         state, dispatch, effectiveRightOpen, rightPanelSplit,

@@ -655,7 +655,6 @@ function installManagerApplicationMenu(): void {
       submenu: [
         {
           label: 'Clear Terminal',
-          accelerator: 'CommandOrControl+K',
           click: () => sendManagerShortcut('terminalClear'),
         },
         {
