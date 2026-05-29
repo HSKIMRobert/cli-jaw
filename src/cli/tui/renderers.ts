@@ -1,3 +1,5 @@
+import { toGraphemes } from './text-buffer.js';
+
 export function visualWidth(str: string): number {
     // Strip ANSI escape codes first so width matches visible cells.
     const stripped = str.replace(/\x1b\[[0-9;]*m/g, '');
@@ -34,4 +36,36 @@ export function clipTextToCols(str: string, maxCols: number): string {
         width += charWidth;
     }
     return out;
+}
+
+/**
+ * On-screen position of a cursor within rendered composer text. The display text
+ * splits into logical lines by '\n' (first line uses firstPrefixWidth, the rest
+ * contPrefixWidth); lines soft-wrap at `cols`. Returns the cursor screen {row,col}
+ * and total rows rendered. Pure — used to place the terminal cursor after a redraw.
+ */
+export function cursorScreenPos(
+    displayText: string,
+    cursorOffset: number,
+    firstPrefixWidth: number,
+    contPrefixWidth: number,
+    cols: number,
+): { row: number; col: number; totalRows: number } {
+    const safeCols = Math.max(1, cols);
+    const g = toGraphemes(displayText);
+    const cur = Math.max(0, Math.min(cursorOffset, g.length));
+    let row = 0;
+    let scol = firstPrefixWidth;
+    let curRow = 0;
+    let curCol = firstPrefixWidth;
+    for (let i = 0; i <= g.length; i += 1) {
+        if (i === cur) { curRow = row; curCol = scol; }
+        if (i === g.length) break;
+        const ch = g[i] ?? '';
+        if (ch === '\n') { row += 1; scol = contPrefixWidth; continue; }
+        const w = Math.max(1, visualWidth(ch));
+        if (scol + w > safeCols) { row += 1; scol = 0; }
+        scol += w;
+    }
+    return { row: curRow, col: curCol, totalRows: row + 1 };
 }
