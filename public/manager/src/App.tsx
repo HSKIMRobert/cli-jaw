@@ -36,7 +36,7 @@ import { useJawCeoDashboardBridge } from './jaw-ceo/useJawCeoDashboardBridge';
 import { actionForShortcutEvent, isManagerShortcutEditableTarget } from './manager-shortcuts';
 import { reconcileActiveProfileFilter } from './profile-filter';
 import type { DashboardDetailTab, DashboardInstance, DashboardInstanceStatus, DashboardLifecycleAction, DashboardNotesAuthoringMode, DashboardNotesGraphSettings, DashboardNotesViewMode, DashboardProfile, DashboardScanResult, DashboardShortcutAction, DashboardSidebarMode } from './types';
-import { panelShortcutBus } from './panels/panel-shortcut-bus';
+import { runManagerShortcut as runManagerShortcutAction } from './manager-shortcut-runner';
 import { getDesktop } from './panels/desktop-bridge';
 import type { PanelLayoutState } from './panels/PanelLayoutProvider';
 import { panelLayoutInitialStateFromUi, panelLayoutUiFromState } from './panels/panel-layout-registry-state';
@@ -355,89 +355,18 @@ export function App() {
     }
 
     function runManagerShortcut(action: DashboardShortcutAction): void {
-        if (panelShortcutBus.dispatch(action)) return;
-        if (action === 'focusInstances') {
-            handleSidebarModeChange('instances');
-            view.setDrawerOpen(false);
-            return;
-        }
-        if (action === 'focusActiveSession') {
-            const target = selectedInstance?.ok
-                ? selectedInstance
-                : filtered.find(instance => instance.ok) || null;
-            if (target) handlePreview(target);
-            else handleSidebarModeChange('instances');
-            return;
-        }
-        if (action === 'focusNotes') {
-            handleSidebarModeChange('notes');
-            view.setDrawerOpen(false);
-            return;
-        }
-        if (action === 'previousInstance') {
-            selectRelativeInstance(-1);
-            return;
-        }
-        if (action === 'nextInstance') {
-            selectRelativeInstance(1);
-            return;
-        }
-        if (action === 'closeFocusedTab') {
-            const active = document.activeElement;
-            if (active?.closest('.browser-webview-stack, .browser-tab-strip')) {
-                document.dispatchEvent(new CustomEvent('jaw:shortcut-action', { detail: 'closeBrowserTab' }));
-            } else if (active?.closest('.terminal-panel, .xterm')) {
-                document.dispatchEvent(new CustomEvent('jaw:shortcut-action', { detail: 'closeTerminalTab' }));
-            } else if (active?.closest('.bottom-panel')) {
-                panelShortcutBus.dispatch('closeActiveBottomTab');
-            } else if (active?.closest('.right-panel')) {
-                panelShortcutBus.dispatch('toggleRightPanel');
-            }
-            return;
-        }
-        if (action === 'switchTab1') { handleTabChange('overview'); return; }
-        if (action === 'switchTab2') { handleTabChange('preview'); return; }
-        if (action === 'switchTab3') { handleTabChange('logs'); return; }
-        if (action === 'switchTab4') { handleTabChange('settings'); return; }
-        if (action === 'previousTab' || action === 'nextTab') {
-            const tabs: DashboardDetailTab[] = ['overview', 'preview', 'logs', 'settings'];
-            const idx = tabs.indexOf(view.activeDetailTab);
-            const dir = action === 'nextTab' ? 1 : -1;
-            handleTabChange(tabs[(idx + dir + tabs.length) % tabs.length]);
-            return;
-        }
-        if (action === 'browserReload' || action === 'browserHardReload' || action === 'browserFocusUrl' || action === 'browserBack' || action === 'browserForward') {
-            const el = document.activeElement;
-            if (el?.closest('.browser-webview-stack, .browser-tab-strip, .browser-panel')) {
-                document.dispatchEvent(new CustomEvent('jaw:shortcut-action', { detail: action }));
-                return;
-            }
-            // Focus is NOT in the browser panel → reload acts on the preview or app.
-            // Preview focus refreshes the preview for both soft and hard (the iframe
-            // has no separate hard-reload concept).
-            if (action === 'browserReload' || action === 'browserHardReload') {
-                if (el?.closest('.preview-panel')) {
-                    setPreviewRefreshKey(key => key + 1);
-                } else if (action === 'browserReload') {
-                    getDesktop()?.reloadWindow?.();
-                } else {
-                    getDesktop()?.hardReloadWindow?.();
-                }
-            }
-            // browserFocusUrl / Back / Forward are browser-only → no-op outside the panel.
-            return;
-        }
-        if (action === 'terminalClear' || action === 'terminalNewTab') {
-            const el = document.activeElement;
-            if (el?.closest('.terminal-panel, .xterm')) {
-                document.dispatchEvent(new CustomEvent('jaw:shortcut-action', { detail: action }));
-            }
-            return;
-        }
-        if (action === 'toggleLeftSidebar') {
-            handleSidebarToggle();
-            return;
-        }
+        runManagerShortcutAction(action, {
+            selectedInstance,
+            filtered,
+            activeDetailTab: view.activeDetailTab,
+            setDrawerOpen: view.setDrawerOpen,
+            handleSidebarModeChange,
+            handlePreview,
+            selectRelativeInstance,
+            handleTabChange,
+            setPreviewRefreshKey,
+            handleSidebarToggle,
+        });
     }
     useEffect(() => {
         if (!view.dashboardShortcutsEnabled) return undefined;
