@@ -275,6 +275,17 @@ export function TerminalPanel(props: TerminalPanelProps = {}) {
     }, [activeId, fitTerminal]);
 
     useEffect(() => {
+        function handleShortcutAction(e: Event) {
+            const detail = (e as CustomEvent).detail;
+            if (detail === 'closeTerminalTab' && activeIdRef.current) {
+                closeSession(activeIdRef.current);
+            }
+        }
+        document.addEventListener('jaw:shortcut-action', handleShortcutAction);
+        return () => document.removeEventListener('jaw:shortcut-action', handleShortcutAction);
+    }, [closeSession]);
+
+    useEffect(() => {
         if (!panelRef.current || typeof ResizeObserver === 'undefined') return;
         const observer = new ResizeObserver(() => {
             const id = activeIdRef.current;

@@ -132,7 +132,14 @@ type ManagerShortcutAction =
   | 'toggleRightPanel'
   | 'focusTerminal'
   | 'openDiff'
-  | 'openFolderTree';
+  | 'openFolderTree'
+  | 'closeFocusedTab'
+  | 'switchTab1'
+  | 'switchTab2'
+  | 'switchTab3'
+  | 'switchTab4'
+  | 'previousTab'
+  | 'nextTab';
 
 type DesktopKeyboardInput = {
   type?: string;
@@ -538,7 +545,16 @@ function sendManagerShortcut(action: ManagerShortcutAction): void {
 function installManagerApplicationMenu(): void {
   const template: MenuItemConstructorOptions[] = [
     ...(process.platform === 'darwin' ? [{ role: 'appMenu' } as MenuItemConstructorOptions] : []),
-    { role: 'fileMenu' },
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'Close Tab',
+          accelerator: 'CommandOrControl+W',
+          click: () => sendManagerShortcut('closeFocusedTab'),
+        },
+      ],
+    },
     { role: 'editMenu' },
     {
       label: 'View',
@@ -571,6 +587,38 @@ function installManagerApplicationMenu(): void {
           label: 'Open Diff Panel',
           accelerator: 'CommandOrControl+Shift+D',
           click: () => sendManagerShortcut('openDiff'),
+        },
+        { type: 'separator' },
+        {
+          label: 'Overview',
+          accelerator: 'CommandOrControl+1',
+          click: () => sendManagerShortcut('switchTab1'),
+        },
+        {
+          label: 'Preview',
+          accelerator: 'CommandOrControl+2',
+          click: () => sendManagerShortcut('switchTab2'),
+        },
+        {
+          label: 'Logs',
+          accelerator: 'CommandOrControl+3',
+          click: () => sendManagerShortcut('switchTab3'),
+        },
+        {
+          label: 'Settings',
+          accelerator: 'CommandOrControl+4',
+          click: () => sendManagerShortcut('switchTab4'),
+        },
+        { type: 'separator' },
+        {
+          label: 'Previous Tab',
+          accelerator: 'CommandOrControl+Shift+[',
+          click: () => sendManagerShortcut('previousTab'),
+        },
+        {
+          label: 'Next Tab',
+          accelerator: 'CommandOrControl+Shift+]',
+          click: () => sendManagerShortcut('nextTab'),
         },
         { type: 'separator' },
         { role: 'resetZoom' },

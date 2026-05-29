@@ -380,6 +380,31 @@ export function App() {
         }
         if (action === 'nextInstance') {
             selectRelativeInstance(1);
+            return;
+        }
+        if (action === 'closeFocusedTab') {
+            const active = document.activeElement;
+            if (active?.closest('.browser-webview-stack, .browser-tab-strip')) {
+                document.dispatchEvent(new CustomEvent('jaw:shortcut-action', { detail: 'closeBrowserTab' }));
+            } else if (active?.closest('.terminal-panel, .xterm')) {
+                document.dispatchEvent(new CustomEvent('jaw:shortcut-action', { detail: 'closeTerminalTab' }));
+            } else if (active?.closest('.bottom-panel')) {
+                panelShortcutBus.dispatch('closeActiveBottomTab');
+            } else if (active?.closest('.right-panel')) {
+                panelShortcutBus.dispatch('toggleRightPanel');
+            }
+            return;
+        }
+        if (action === 'switchTab1') { handleTabChange('overview'); return; }
+        if (action === 'switchTab2') { handleTabChange('preview'); return; }
+        if (action === 'switchTab3') { handleTabChange('logs'); return; }
+        if (action === 'switchTab4') { handleTabChange('settings'); return; }
+        if (action === 'previousTab' || action === 'nextTab') {
+            const tabs: DashboardDetailTab[] = ['overview', 'preview', 'logs', 'settings'];
+            const idx = tabs.indexOf(view.activeDetailTab);
+            const dir = action === 'nextTab' ? 1 : -1;
+            handleTabChange(tabs[(idx + dir + tabs.length) % tabs.length]);
+            return;
         }
     }
     useEffect(() => {

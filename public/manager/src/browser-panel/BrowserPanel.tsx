@@ -338,6 +338,15 @@ export function BrowserPanel(props: BrowserPanelProps = {}) {
     }, [activeTab.id, refreshNavState]);
 
     useEffect(() => {
+        function handleShortcutAction(e: Event) {
+            const detail = (e as CustomEvent).detail;
+            if (detail === 'closeBrowserTab' && activeTabId) closeTab(activeTabId);
+        }
+        document.addEventListener('jaw:shortcut-action', handleShortcutAction);
+        return () => document.removeEventListener('jaw:shortcut-action', handleShortcutAction);
+    }, [activeTabId, closeTab]);
+
+    useEffect(() => {
         return getDesktop()?.browser?.onOpenUrl?.((payload: BrowserOpenPayload) => {
             if (payload.disposition === 'current-tab') {
                 openUrlInTab(activeTabId, payload.url);

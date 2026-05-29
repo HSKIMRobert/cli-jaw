@@ -229,6 +229,11 @@ export function PanelLayoutProvider(props: {
                 case 'openFolderTree':
                     dispatch({ type: 'OPEN_RIGHT_PANEL', mode: 'folder' });
                     return true;
+                case 'closeActiveBottomTab':
+                    if (state.bottomPanel.activeTab) {
+                        dispatch({ type: 'CLOSE_BOTTOM_TAB', tab: state.bottomPanel.activeTab });
+                    }
+                    return true;
                 default:
                     return false;
             }

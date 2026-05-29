@@ -22,7 +22,14 @@ export type DashboardShortcutAction =
     | 'toggleRightPanel'
     | 'focusTerminal'
     | 'openDiff'
-    | 'openFolderTree';
+    | 'openFolderTree'
+    | 'closeFocusedTab'
+    | 'switchTab1'
+    | 'switchTab2'
+    | 'switchTab3'
+    | 'switchTab4'
+    | 'previousTab'
+    | 'nextTab';
 export type DashboardShortcutKeymap = Record<DashboardShortcutAction, string>;
 export type DashboardDiffMode = 'unstaged' | 'staged' | 'head' | 'base';
 export type DashboardDiffRootPolicy = 'project-first' | 'working-dir-first' | 'manual';
