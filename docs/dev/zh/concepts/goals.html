@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Goal System — CLI-JAW Docs</title>
+<title>目标系统 — CLI-JAW 文档</title>
 <link rel="stylesheet" href="../../_shell.css">
 </head>
 <body>
@@ -64,13 +64,13 @@
 </nav>
 <main class="docs-main">
 
-<h1>Goal System</h1>
-<p class="lead">Goals are persistent objectives that survive across sessions. They give your agent long-term direction and can trigger automatic continuation runs with budget tracking.</p>
+<h1>目标系统</h1>
+<p class="lead">目标是跨会话持久存在的任务目标。它们为代理提供长期方向，并可以触发带有预算跟踪的自动续行运行。</p>
 
-<h2>Goal Lifecycle</h2>
-<p>A goal moves through these states: <strong>set</strong> (active objective), <strong>paused</strong>, <strong>resumed</strong>, <strong>done</strong> (completed), or <strong>cancelled</strong>. Goal state is durable -- restarting the server preserves it.</p>
+<h2>目标生命周期</h2>
+<p>目标在以下状态之间流转：<strong>set</strong>（活跃目标）、<strong>paused</strong>（已暂停）、<strong>resumed</strong>（已恢复）、<strong>done</strong>（已完成）或 <strong>cancelled</strong>（已取消）。目标状态是持久化的——重启服务器不会丢失状态。</p>
 
-<h2>CLI Commands</h2>
+<h2>CLI 命令</h2>
 <pre><code># Set a new goal
 jaw goal set "Migrate the auth module to JWT tokens"
 
@@ -92,48 +92,48 @@ jaw goal cancel
 # Reset goal state
 jaw goal reset</code></pre>
 
-<h2>Slash Commands</h2>
+<h2>斜杠命令</h2>
 <table>
-<tr><th>Command</th><th>Description</th></tr>
-<tr><td><code>/goal set &lt;objective&gt;</code></td><td>Set a new goal objective</td></tr>
-<tr><td><code>/goal status</code></td><td>Show current goal state</td></tr>
-<tr><td><code>/goal run start</code></td><td>Start a bounded auto-continuation run with budget tracking</td></tr>
-<tr><td><code>/goal run stop</code></td><td>Stop the current goal run</td></tr>
-<tr><td><code>/goal pause</code></td><td>Pause the goal</td></tr>
-<tr><td><code>/goal resume</code></td><td>Resume a paused goal</td></tr>
-<tr><td><code>/goal done</code></td><td>Mark the goal as completed</td></tr>
-<tr><td><code>/goal cancel</code></td><td>Cancel the goal</td></tr>
-<tr><td><code>/goal clear</code></td><td>Clear goal state</td></tr>
-<tr><td><code>/goal reset</code></td><td>Full reset</td></tr>
+<tr><th>命令</th><th>说明</th></tr>
+<tr><td><code>/goal set &lt;objective&gt;</code></td><td>设置新的目标</td></tr>
+<tr><td><code>/goal status</code></td><td>显示当前目标状态</td></tr>
+<tr><td><code>/goal run start</code></td><td>启动带预算跟踪的有界自动续行运行</td></tr>
+<tr><td><code>/goal run stop</code></td><td>停止当前目标运行</td></tr>
+<tr><td><code>/goal pause</code></td><td>暂停目标</td></tr>
+<tr><td><code>/goal resume</code></td><td>恢复已暂停的目标</td></tr>
+<tr><td><code>/goal done</code></td><td>将目标标记为已完成</td></tr>
+<tr><td><code>/goal cancel</code></td><td>取消目标</td></tr>
+<tr><td><code>/goal clear</code></td><td>清除目标状态</td></tr>
+<tr><td><code>/goal reset</code></td><td>完全重置</td></tr>
 </table>
 
-<h2>Goal Run (Auto-Continuation)</h2>
-<p>The <code>/goal run start</code> command begins a bounded auto-continuation session. The agent works toward the goal objective, automatically continuing after each response until the goal is marked done or the run is stopped.</p>
-<div class="callout callout-info">Budget enforcement is currently tracking-only. The system tracks run duration and continuation count but does not yet enforce hard budget limits.</div>
+<h2>目标运行（自动续行）</h2>
+<p><code>/goal run start</code> 命令启动一个有界的自动续行会话。代理朝着目标方向工作，每次响应后自动继续，直到目标被标记为完成或运行被停止。</p>
+<div class="callout callout-info">预算限制目前仅用于跟踪。系统会跟踪运行时长和续行次数，但尚未强制执行硬性预算限制。</div>
 
-<h2>API Endpoints</h2>
+<h2>API 端点</h2>
 <table>
-<tr><th>Method</th><th>Path</th><th>Description</th></tr>
-<tr><td>GET</td><td><code>/api/goal</code></td><td>Get current goal state</td></tr>
-<tr><td>GET</td><td><code>/api/goal/history</code></td><td>Get goal history</td></tr>
-<tr><td>POST</td><td><code>/api/goal</code></td><td>Set, update, complete, cancel, pause, or resume a goal</td></tr>
-<tr><td>GET</td><td><code>/api/goal-run</code></td><td>Get current goal-run state</td></tr>
-<tr><td>GET</td><td><code>/api/goal-run/preflight</code></td><td>Preflight check before starting a run</td></tr>
-<tr><td>POST</td><td><code>/api/goal-run</code></td><td>Start, pause, resume, or stop a goal run</td></tr>
+<tr><th>方法</th><th>路径</th><th>说明</th></tr>
+<tr><td>GET</td><td><code>/api/goal</code></td><td>获取当前目标状态</td></tr>
+<tr><td>GET</td><td><code>/api/goal/history</code></td><td>获取目标历史记录</td></tr>
+<tr><td>POST</td><td><code>/api/goal</code></td><td>设置、更新、完成、取消、暂停或恢复目标</td></tr>
+<tr><td>GET</td><td><code>/api/goal-run</code></td><td>获取当前目标运行状态</td></tr>
+<tr><td>GET</td><td><code>/api/goal-run/preflight</code></td><td>启动运行前的预检查</td></tr>
+<tr><td>POST</td><td><code>/api/goal-run</code></td><td>启动、暂停、恢复或停止目标运行</td></tr>
 </table>
 
-<h2>WebSocket Events</h2>
-<p>Goal lifecycle changes emit WebSocket events that the Web UI consumes:</p>
+<h2>WebSocket 事件</h2>
+<p>目标生命周期变更会发出 WebSocket 事件，供 Web UI 消费：</p>
 <ul>
-<li><code>goal_done</code> -- goal completed</li>
-<li><code>goal_cancel</code> -- goal cancelled</li>
-<li><code>goal_continuation</code> -- auto-continuation triggered</li>
-<li><code>goal_continuation_failed</code> -- continuation attempt failed</li>
-<li><code>goal_continuation_limit</code> -- continuation budget reached</li>
+<li><code>goal_done</code> -- 目标已完成</li>
+<li><code>goal_cancel</code> -- 目标已取消</li>
+<li><code>goal_continuation</code> -- 触发了自动续行</li>
+<li><code>goal_continuation_failed</code> -- 续行尝试失败</li>
+<li><code>goal_continuation_limit</code> -- 达到续行预算上限</li>
 </ul>
 
-<h2>Goal + PABCD Integration</h2>
-<p>Goals work alongside PABCD orchestration. You can set a goal and then use PABCD phases to break it down. Goal continuation is allowed during active PABCD phases, so the agent can keep working on goal-driven tasks within the orchestration framework.</p>
+<h2>目标与 PABCD 集成</h2>
+<p>目标与 PABCD 编排协同工作。您可以设置一个目标，然后使用 PABCD 阶段将其分解。在活跃的 PABCD 阶段中允许目标续行，因此代理可以在编排框架内继续处理目标驱动的任务。</p>
 
 <div class="page-nav">
 <a class="prev" href="pabcd.html">PABCD</a>

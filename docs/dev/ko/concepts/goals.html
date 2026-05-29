@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Goal System — CLI-JAW Docs</title>
+<title>Goal 시스템 — CLI-JAW 문서</title>
 <link rel="stylesheet" href="../../_shell.css">
 </head>
 <body>
@@ -64,13 +64,13 @@
 </nav>
 <main class="docs-main">
 
-<h1>Goal System</h1>
-<p class="lead">Goals are persistent objectives that survive across sessions. They give your agent long-term direction and can trigger automatic continuation runs with budget tracking.</p>
+<h1>Goal 시스템</h1>
+<p class="lead">Goal은 세션 간에 유지되는 영속적인 목표입니다. 에이전트에게 장기적인 방향을 제시하며, 예산 추적과 함께 자동 연속 실행을 트리거할 수 있습니다.</p>
 
-<h2>Goal Lifecycle</h2>
-<p>A goal moves through these states: <strong>set</strong> (active objective), <strong>paused</strong>, <strong>resumed</strong>, <strong>done</strong> (completed), or <strong>cancelled</strong>. Goal state is durable -- restarting the server preserves it.</p>
+<h2>Goal 생명주기</h2>
+<p>Goal은 다음 상태를 거칩니다: <strong>set</strong>(활성 목표), <strong>paused</strong>, <strong>resumed</strong>, <strong>done</strong>(완료), 또는 <strong>cancelled</strong>. Goal 상태는 영구적으로 저장되며, 서버를 재시작해도 유지됩니다.</p>
 
-<h2>CLI Commands</h2>
+<h2>CLI 명령어</h2>
 <pre><code># Set a new goal
 jaw goal set "Migrate the auth module to JWT tokens"
 
@@ -92,48 +92,48 @@ jaw goal cancel
 # Reset goal state
 jaw goal reset</code></pre>
 
-<h2>Slash Commands</h2>
+<h2>슬래시 명령어</h2>
 <table>
-<tr><th>Command</th><th>Description</th></tr>
-<tr><td><code>/goal set &lt;objective&gt;</code></td><td>Set a new goal objective</td></tr>
-<tr><td><code>/goal status</code></td><td>Show current goal state</td></tr>
-<tr><td><code>/goal run start</code></td><td>Start a bounded auto-continuation run with budget tracking</td></tr>
-<tr><td><code>/goal run stop</code></td><td>Stop the current goal run</td></tr>
-<tr><td><code>/goal pause</code></td><td>Pause the goal</td></tr>
-<tr><td><code>/goal resume</code></td><td>Resume a paused goal</td></tr>
-<tr><td><code>/goal done</code></td><td>Mark the goal as completed</td></tr>
-<tr><td><code>/goal cancel</code></td><td>Cancel the goal</td></tr>
-<tr><td><code>/goal clear</code></td><td>Clear goal state</td></tr>
-<tr><td><code>/goal reset</code></td><td>Full reset</td></tr>
+<tr><th>명령어</th><th>설명</th></tr>
+<tr><td><code>/goal set &lt;objective&gt;</code></td><td>새로운 목표를 설정합니다</td></tr>
+<tr><td><code>/goal status</code></td><td>현재 Goal 상태를 표시합니다</td></tr>
+<tr><td><code>/goal run start</code></td><td>예산 추적이 포함된 제한적 자동 연속 실행을 시작합니다</td></tr>
+<tr><td><code>/goal run stop</code></td><td>현재 Goal 실행을 중지합니다</td></tr>
+<tr><td><code>/goal pause</code></td><td>Goal을 일시 중지합니다</td></tr>
+<tr><td><code>/goal resume</code></td><td>일시 중지된 Goal을 재개합니다</td></tr>
+<tr><td><code>/goal done</code></td><td>Goal을 완료로 표시합니다</td></tr>
+<tr><td><code>/goal cancel</code></td><td>Goal을 취소합니다</td></tr>
+<tr><td><code>/goal clear</code></td><td>Goal 상태를 초기화합니다</td></tr>
+<tr><td><code>/goal reset</code></td><td>전체 초기화</td></tr>
 </table>
 
-<h2>Goal Run (Auto-Continuation)</h2>
-<p>The <code>/goal run start</code> command begins a bounded auto-continuation session. The agent works toward the goal objective, automatically continuing after each response until the goal is marked done or the run is stopped.</p>
-<div class="callout callout-info">Budget enforcement is currently tracking-only. The system tracks run duration and continuation count but does not yet enforce hard budget limits.</div>
+<h2>Goal 실행 (자동 연속)</h2>
+<p><code>/goal run start</code> 명령어는 제한적 자동 연속 세션을 시작합니다. 에이전트는 Goal 목표를 향해 작업하며, Goal이 완료로 표시되거나 실행이 중지될 때까지 각 응답 후 자동으로 계속합니다.</p>
+<div class="callout callout-info">예산 적용은 현재 추적 전용입니다. 시스템은 실행 시간과 연속 횟수를 추적하지만, 아직 엄격한 예산 제한을 강제하지는 않습니다.</div>
 
-<h2>API Endpoints</h2>
+<h2>API 엔드포인트</h2>
 <table>
-<tr><th>Method</th><th>Path</th><th>Description</th></tr>
-<tr><td>GET</td><td><code>/api/goal</code></td><td>Get current goal state</td></tr>
-<tr><td>GET</td><td><code>/api/goal/history</code></td><td>Get goal history</td></tr>
-<tr><td>POST</td><td><code>/api/goal</code></td><td>Set, update, complete, cancel, pause, or resume a goal</td></tr>
-<tr><td>GET</td><td><code>/api/goal-run</code></td><td>Get current goal-run state</td></tr>
-<tr><td>GET</td><td><code>/api/goal-run/preflight</code></td><td>Preflight check before starting a run</td></tr>
-<tr><td>POST</td><td><code>/api/goal-run</code></td><td>Start, pause, resume, or stop a goal run</td></tr>
+<tr><th>메서드</th><th>경로</th><th>설명</th></tr>
+<tr><td>GET</td><td><code>/api/goal</code></td><td>현재 Goal 상태를 가져옵니다</td></tr>
+<tr><td>GET</td><td><code>/api/goal/history</code></td><td>Goal 히스토리를 가져옵니다</td></tr>
+<tr><td>POST</td><td><code>/api/goal</code></td><td>Goal을 설정, 업데이트, 완료, 취소, 일시 중지 또는 재개합니다</td></tr>
+<tr><td>GET</td><td><code>/api/goal-run</code></td><td>현재 Goal 실행 상태를 가져옵니다</td></tr>
+<tr><td>GET</td><td><code>/api/goal-run/preflight</code></td><td>실행 시작 전 사전 검사를 수행합니다</td></tr>
+<tr><td>POST</td><td><code>/api/goal-run</code></td><td>Goal 실행을 시작, 일시 중지, 재개 또는 중지합니다</td></tr>
 </table>
 
-<h2>WebSocket Events</h2>
-<p>Goal lifecycle changes emit WebSocket events that the Web UI consumes:</p>
+<h2>WebSocket 이벤트</h2>
+<p>Goal 생명주기 변경 시 Web UI가 소비하는 WebSocket 이벤트가 발생합니다:</p>
 <ul>
-<li><code>goal_done</code> -- goal completed</li>
-<li><code>goal_cancel</code> -- goal cancelled</li>
-<li><code>goal_continuation</code> -- auto-continuation triggered</li>
-<li><code>goal_continuation_failed</code> -- continuation attempt failed</li>
-<li><code>goal_continuation_limit</code> -- continuation budget reached</li>
+<li><code>goal_done</code> -- Goal 완료</li>
+<li><code>goal_cancel</code> -- Goal 취소</li>
+<li><code>goal_continuation</code> -- 자동 연속 트리거</li>
+<li><code>goal_continuation_failed</code> -- 연속 시도 실패</li>
+<li><code>goal_continuation_limit</code> -- 연속 예산 도달</li>
 </ul>
 
-<h2>Goal + PABCD Integration</h2>
-<p>Goals work alongside PABCD orchestration. You can set a goal and then use PABCD phases to break it down. Goal continuation is allowed during active PABCD phases, so the agent can keep working on goal-driven tasks within the orchestration framework.</p>
+<h2>Goal + PABCD 통합</h2>
+<p>Goal은 PABCD 오케스트레이션과 함께 작동합니다. Goal을 설정한 후 PABCD 단계를 사용하여 세분화할 수 있습니다. 활성 PABCD 단계 중에도 Goal 연속이 허용되므로, 에이전트는 오케스트레이션 프레임워크 내에서 Goal 기반 작업을 계속 수행할 수 있습니다.</p>
 
 <div class="page-nav">
 <a class="prev" href="pabcd.html">PABCD</a>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Prompt Pipeline — CLI-JAW Docs</title>
+<title>提示词管线 — CLI-JAW 文档</title>
 <link rel="stylesheet" href="../../_shell.css">
 </head>
 <body>
@@ -64,76 +64,76 @@
 </nav>
 <main class="docs-main">
 
-<h1>Prompt Pipeline</h1>
-<p class="lead">CLI-JAW assembles system prompts through a multi-layer pipeline: static templates (A1/A2), dynamic injection (memory, orchestration, skills), disk caching (B.md/AGENTS.md), and per-CLI spawn adapters.</p>
+<h1>提示词管线</h1>
+<p class="lead">CLI-JAW 通过多层管线组装系统提示词：静态模板（A1/A2）、动态注入（记忆、编排、技能）、磁盘缓存（B.md/AGENTS.md），以及各 CLI 的生成适配器。</p>
 
-<h2>Assembly Order</h2>
-<p>The <code>getSystemPrompt()</code> function in <code>src/prompt/builder.ts</code> assembles the prompt in this order:</p>
+<h2>组装顺序</h2>
+<p><code>src/prompt/builder.ts</code> 中的 <code>getSystemPrompt()</code> 函数按以下顺序组装提示词：</p>
 <ol>
-<li><strong>A-1.md</strong> -- System rules (browser control, memory, heartbeat, delegation)</li>
-<li><strong>A-2.md</strong> -- User settings (identity, vibe, working directory)</li>
-<li><strong>Memory injection</strong> -- Advanced (profile + soul + task snapshot) or legacy fallback</li>
-<li><strong>Orchestration section</strong> -- Employee dispatch rules + PABCD guide</li>
-<li><strong>Heartbeat jobs</strong> -- Scheduled task descriptions from <code>heartbeat.json</code></li>
-<li><strong>Skills section</strong> -- Active skills inline + available skill list</li>
-<li><strong>Vision-click hint</strong> -- Codex-only legacy fallback for desktop automation</li>
-<li><strong>Delegation rules</strong> -- CLI sub-agents vs jaw employees distinction</li>
+<li><strong>A-1.md</strong> -- 系统规则（浏览器控制、记忆、心跳、委派）</li>
+<li><strong>A-2.md</strong> -- 用户设置（身份、风格、工作目录）</li>
+<li><strong>记忆注入</strong> -- 高级模式（档案 + 灵魂 + 任务快照）或旧版回退</li>
+<li><strong>编排部分</strong> -- 员工调度规则 + PABCD 指南</li>
+<li><strong>心跳任务</strong> -- 来自 <code>heartbeat.json</code> 的计划任务描述</li>
+<li><strong>技能部分</strong> -- 已激活技能内联 + 可用技能列表</li>
+<li><strong>Vision-click 提示</strong> -- 仅限 Codex 的桌面自动化旧版回退</li>
+<li><strong>委派规则</strong> -- CLI 子代理与 jaw 员工的区分</li>
 </ol>
 
-<h2>Static Templates</h2>
-<h3>A-1.md (System Rules)</h3>
-<p>Path: <code>~/.cli-jaw/prompts/A-1.md</code>. Falls back to <code>src/prompt/templates/a1-system.md</code> (305 lines). Contains core system behavior: browser control rules, memory/heartbeat instructions, jaw employee vs CLI sub-agent distinctions, and channel send rules.</p>
-<div class="callout callout-info">A-1.md uses hash-based migration. If you have not customized it, template updates apply automatically. Custom A-1 files are preserved.</div>
+<h2>静态模板</h2>
+<h3>A-1.md（系统规则）</h3>
+<p>路径：<code>~/.cli-jaw/prompts/A-1.md</code>。回退至 <code>src/prompt/templates/a1-system.md</code>（305 行）。包含核心系统行为：浏览器控制规则、记忆/心跳指令、jaw 员工与 CLI 子代理的区分，以及频道发送规则。</p>
+<div class="callout callout-info">A-1.md 使用基于哈希的迁移机制。如果您未自定义过该文件，模板更新会自动应用。自定义的 A-1 文件会被保留。</div>
 
-<h3>A-2.md (User Settings)</h3>
-<p>Path: <code>~/.cli-jaw/prompts/A-2.md</code>. Template: <code>a2-default.md</code> (25 lines). Contains identity, user preferences, vibe, and working directory hints. Created only if missing -- never overwritten.</p>
+<h3>A-2.md（用户设置）</h3>
+<p>路径：<code>~/.cli-jaw/prompts/A-2.md</code>。模板：<code>a2-default.md</code>（25 行）。包含身份、用户偏好、风格和工作目录提示。仅在缺失时创建，不会被覆盖。</p>
 
-<h2>Dynamic Injection</h2>
-<h3>Memory Injection</h3>
-<p>Two paths depending on index readiness:</p>
+<h2>动态注入</h2>
+<h3>记忆注入</h3>
+<p>根据索引就绪状态分为两条路径：</p>
 <ul>
-<li><strong>Advanced path</strong> (<code>src/memory/injection.ts</code>): Profile context (800 chars) + Soul &amp; Identity (1000 chars) + Task Snapshot (2800 chars, up to 4 hits)</li>
-<li><strong>Legacy fallback</strong>: Session memory (10000 chars budget) + Core Memory from <code>MEMORY.md</code> (1500 chars)</li>
+<li><strong>高级路径</strong>（<code>src/memory/injection.ts</code>）：档案上下文（800 字符）+ 灵魂与身份（1000 字符）+ 任务快照（2800 字符，最多 4 条命中）</li>
+<li><strong>旧版回退</strong>：会话记忆（10000 字符预算）+ 来自 <code>MEMORY.md</code> 的核心记忆（1500 字符）</li>
 </ul>
-<p>Injection is role-aware: <code>boss</code> gets the full snapshot, <code>employee</code>/<code>subagent</code> gets a reduced profile, and <code>flush</code> role gets no memory injection.</p>
+<p>注入具有角色感知能力：<code>boss</code> 获取完整快照，<code>employee</code>/<code>subagent</code> 获取精简档案，<code>flush</code> 角色不进行记忆注入。</p>
 
-<h3>Orchestration</h3>
-<p>If at least one employee is registered, the <code>orchestration.md</code> template is injected with <code>cli-jaw dispatch</code> usage examples. If <code>skills/dev-pabcd/SKILL.md</code> exists, a PABCD Orchestration Guide follows.</p>
+<h3>编排</h3>
+<p>如果至少注册了一个员工，<code>orchestration.md</code> 模板会被注入，并附带 <code>cli-jaw dispatch</code> 使用示例。如果 <code>skills/dev-pabcd/SKILL.md</code> 存在，还会追加 PABCD 编排指南。</p>
 
-<h3>Heartbeat</h3>
-<p>Active heartbeat jobs from <code>~/.cli-jaw/heartbeat.json</code> are rendered with their enabled state, human-readable schedule, and prompt preview.</p>
+<h3>心跳</h3>
+<p>来自 <code>~/.cli-jaw/heartbeat.json</code> 的活跃心跳任务会以其启用状态、人类可读的调度计划和提示词预览进行渲染。</p>
 
-<h3>Skills</h3>
-<p>Active skills (<code>~/.cli-jaw/skills/*/SKILL.md</code>) are rendered inline. Reference skills (<code>~/.cli-jaw/skills_ref/registry.json</code>) are listed as available for discovery.</p>
+<h3>技能</h3>
+<p>已激活的技能（<code>~/.cli-jaw/skills/*/SKILL.md</code>）会内联渲染。参考技能（<code>~/.cli-jaw/skills_ref/registry.json</code>）作为可发现的列表展示。</p>
 
-<h2>Disk Cache (B.md)</h2>
-<p><code>regenerateB()</code> creates a cached version of the system prompt for disk:</p>
+<h2>磁盘缓存（B.md）</h2>
+<p><code>regenerateB()</code> 创建系统提示词的磁盘缓存版本：</p>
 <table>
-<tr><th>Output</th><th>Purpose</th></tr>
-<tr><td><code>~/.cli-jaw/prompts/B.md</code></td><td>Debug and cache file</td></tr>
-<tr><td><code>{workDir}/AGENTS.md</code></td><td>Auto-read by Codex, Copilot, OpenCode</td></tr>
+<tr><th>输出</th><th>用途</th></tr>
+<tr><td><code>~/.cli-jaw/prompts/B.md</code></td><td>调试和缓存文件</td></tr>
+<tr><td><code>{workDir}/AGENTS.md</code></td><td>由 Codex、Copilot、OpenCode 自动读取</td></tr>
 </table>
-<p>Content hash is checked -- files are only rewritten when the prompt actually changes, preserving resume continuity.</p>
+<p>系统会检查内容哈希值——仅在提示词实际发生变化时才重写文件，以保持恢复连续性。</p>
 
-<h2>Per-CLI Spawn Input</h2>
-<p>Each CLI runtime receives the prompt differently:</p>
+<h2>各 CLI 的生成输入</h2>
+<p>每个 CLI 运行时接收提示词的方式不同：</p>
 <table>
-<tr><th>CLI</th><th>System Prompt</th><th>User Input</th></tr>
-<tr><td>Claude</td><td><code>buildArgs(..., sysPrompt)</code></td><td>stdin: <code>withHistoryPrompt(prompt, historyBlock)</code></td></tr>
-<tr><td>Codex</td><td><code>AGENTS.md</code> auto-loaded</td><td>stdin: <code>[User Message]</code> block</td></tr>
-<tr><td>Gemini</td><td><code>GEMINI_SYSTEM_MD</code> tmpfile</td><td>Args-level prompt</td></tr>
-<tr><td>AGY</td><td>No system prompt flag</td><td><code>agy -p &lt;prompt&gt;</code></td></tr>
-<tr><td>Cursor</td><td><code>AGENTS.md</code> / <code>CLAUDE.md</code> auto-loaded</td><td>Args-level prompt</td></tr>
-<tr><td>Grok</td><td>CWD instruction files</td><td><code>-p &lt;prompt&gt;</code></td></tr>
-<tr><td>Copilot</td><td>ACP + cwd instruction files</td><td><code>session/prompt()</code></td></tr>
+<tr><th>CLI</th><th>系统提示词</th><th>用户输入</th></tr>
+<tr><td>Claude</td><td><code>buildArgs(..., sysPrompt)</code></td><td>stdin：<code>withHistoryPrompt(prompt, historyBlock)</code></td></tr>
+<tr><td>Codex</td><td><code>AGENTS.md</code> 自动加载</td><td>stdin：<code>[User Message]</code> 块</td></tr>
+<tr><td>Gemini</td><td><code>GEMINI_SYSTEM_MD</code> 临时文件</td><td>参数级提示词</td></tr>
+<tr><td>AGY</td><td>无系统提示词标志</td><td><code>agy -p &lt;prompt&gt;</code></td></tr>
+<tr><td>Cursor</td><td><code>AGENTS.md</code> / <code>CLAUDE.md</code> 自动加载</td><td>参数级提示词</td></tr>
+<tr><td>Grok</td><td>CWD 指令文件</td><td><code>-p &lt;prompt&gt;</code></td></tr>
+<tr><td>Copilot</td><td>ACP + CWD 指令文件</td><td><code>session/prompt()</code></td></tr>
 </table>
 
-<h2>History Block</h2>
-<p>On new sessions (not resume), <code>buildHistoryBlock()</code> prepends recent conversation context:</p>
+<h2>历史块</h2>
+<p>在新会话（非恢复）时，<code>buildHistoryBlock()</code> 会在前面插入最近的对话上下文：</p>
 <ul>
-<li>Source: <code>messages</code> DB, scoped to <code>workingDir</code></li>
-<li>Limit: 8000 characters, up to 10 sessions</li>
-<li>Compact markers stop history scanning and insert trace summaries</li>
+<li>来源：<code>messages</code> 数据库，限定为 <code>workingDir</code> 范围</li>
+<li>限制：8000 字符，最多 10 个会话</li>
+<li>压缩标记会停止历史扫描并插入追踪摘要</li>
 </ul>
 <pre><code>[Recent Context]
 assistant: Previous response summary...
@@ -143,8 +143,8 @@ user: Previous question...
 [Current Message]
 Your new prompt here</code></pre>
 
-<h2>Customizing Prompts</h2>
-<p>Edit <code>~/.cli-jaw/prompts/A-2.md</code> to customize identity, preferences, and working directory. Use <code>/prompt</code> to preview the current A2 content. The Web UI settings panel also provides a prompt template editor.</p>
+<h2>自定义提示词</h2>
+<p>编辑 <code>~/.cli-jaw/prompts/A-2.md</code> 可自定义身份、偏好和工作目录。使用 <code>/prompt</code> 预览当前 A2 内容。Web UI 设置面板也提供了提示词模板编辑器。</p>
 
 <div class="page-nav">
 <a class="prev" href="memory.html">Memory</a>

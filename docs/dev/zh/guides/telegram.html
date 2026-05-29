@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Telegram — CLI-JAW Docs</title>
+<title>Telegram — CLI-JAW 文档</title>
 <link rel="stylesheet" href="../../_shell.css">
 </head>
 <body>
@@ -65,17 +65,17 @@
 <main class="docs-main">
 
 <h1>Telegram</h1>
-<p class="lead">Control your CLI-JAW agent remotely through Telegram. Send messages, receive responses, forward agent output, handle voice messages with STT, and use slash commands -- all from your phone.</p>
+<p class="lead">通过 Telegram 远程控制你的 CLI-JAW 代理。发送消息、接收回复、转发代理输出、使用 STT 处理语音消息，以及使用斜杠命令——一切尽在手机上完成。</p>
 
-<h2>Setup</h2>
-<h3>1. Create a Bot with BotFather</h3>
+<h2>设置</h2>
+<h3>1. 使用 BotFather 创建机器人</h3>
 <ol>
-<li>Open <a href="https://t.me/BotFather">@BotFather</a> in Telegram</li>
-<li>Send <code>/newbot</code> and follow the prompts</li>
-<li>Copy the bot token (looks like <code>123456:ABC-DEF...</code>)</li>
+<li>在 Telegram 中打开 <a href="https://t.me/BotFather">@BotFather</a></li>
+<li>发送 <code>/newbot</code> 并按照提示操作</li>
+<li>复制机器人令牌（格式类似 <code>123456:ABC-DEF...</code>）</li>
 </ol>
 
-<h3>2. Configure settings.json</h3>
+<h3>2. 配置 settings.json</h3>
 <pre><code>{
   "telegram": {
     "token": "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
@@ -83,44 +83,44 @@
     "forwardAll": true
   }
 }</code></pre>
-<div class="callout callout-info">Leave <code>allowedChatIds</code> empty initially. Send <code>/id</code> to your bot to get your chat ID, then add it to the array for security.</div>
+<div class="callout callout-info">初始时将 <code>allowedChatIds</code> 留空。向你的机器人发送 <code>/id</code> 获取你的聊天 ID，然后将其添加到数组中以确保安全。</div>
 
-<h3>3. Alternative: Use jaw init</h3>
+<h3>3. 替代方式：使用 jaw init</h3>
 <pre><code>jaw init --channel telegram --telegram-token "YOUR_TOKEN"</code></pre>
 
-<h2>Sending and Receiving</h2>
+<h2>发送与接收</h2>
 <ul>
-<li><strong>Text messages</strong> -- Send any text to your bot; it goes to the agent as a prompt</li>
-<li><strong>Slash commands</strong> -- Use <code>/model</code>, <code>/cli</code>, <code>/status</code>, etc. directly in Telegram</li>
-<li><strong>Photos and documents</strong> -- Attachments are downloaded, saved, and described to the agent</li>
-<li><strong>Voice messages</strong> -- Transcribed via Gemini STT (or Whisper fallback) and sent as text</li>
+<li><strong>文本消息</strong>——向你的机器人发送任何文本，它将作为提示词发送给代理</li>
+<li><strong>斜杠命令</strong>——直接在 Telegram 中使用 <code>/model</code>、<code>/cli</code>、<code>/status</code> 等命令</li>
+<li><strong>图片和文档</strong>——附件会被下载、保存，并向代理描述其内容</li>
+<li><strong>语音消息</strong>——通过 Gemini STT（或 Whisper 备用方案）转录后以文本形式发送</li>
 </ul>
 
-<h2>Forwarding</h2>
-<p>When <code>forwardAll</code> is <code>true</code>, the agent's <code>agent_done</code> results are automatically forwarded to your Telegram chat. Telegram-origin results are excluded to avoid echo.</p>
+<h2>转发</h2>
+<p>当 <code>forwardAll</code> 设为 <code>true</code> 时，代理的 <code>agent_done</code> 结果会自动转发到你的 Telegram 聊天。来自 Telegram 的结果会被排除，以避免回声重复。</p>
 <pre><code>/forward on   # Enable forwarding
 /forward off  # Disable forwarding</code></pre>
 
-<h2>File Delivery</h2>
-<p>The agent can send files to Telegram using the channel send API:</p>
+<h2>文件传输</h2>
+<p>代理可以通过 channel send API 向 Telegram 发送文件：</p>
 <pre><code>POST /api/telegram/send
 POST /api/channel/send  # Unified endpoint (preferred)</code></pre>
-<p>Files are validated against a 20MB size limit. Telegram messages are chunked at 4096 characters and converted to Telegram HTML format.</p>
+<p>文件会按照 20MB 的大小限制进行验证。Telegram 消息会按 4096 个字符进行分块，并转换为 Telegram HTML 格式。</p>
 
-<h2>Group Chat</h2>
-<p>In group/supergroup chats, the bot only responds when mentioned with <code>@botUsername</code>. The mention is automatically stripped from the message before processing.</p>
+<h2>群组聊天</h2>
+<p>在群组/超级群组聊天中，机器人仅在被 <code>@botUsername</code> 提及时才会回复。提及标记会在处理消息前自动去除。</p>
 
-<h2>Available Commands</h2>
-<p>27 slash commands are visible in Telegram (same set as Discord). Bot-specific commands:</p>
+<h2>可用命令</h2>
+<p>Telegram 中可见 27 个斜杠命令（与 Discord 相同）。机器人专属命令：</p>
 <table>
-<tr><th>Command</th><th>Description</th></tr>
-<tr><td><code>/start</code></td><td>Welcome message</td></tr>
-<tr><td><code>/id</code></td><td>Show your chat ID</td></tr>
-<tr><td><code>/settings</code></td><td>Bot settings (handled by bot, not the server)</td></tr>
+<tr><th>命令</th><th>描述</th></tr>
+<tr><td><code>/start</code></td><td>欢迎消息</td></tr>
+<tr><td><code>/id</code></td><td>显示你的聊天 ID</td></tr>
+<tr><td><code>/settings</code></td><td>机器人设置（由机器人处理，非服务器）</td></tr>
 </table>
 
-<h2>Environment Variables</h2>
-<p>Settings can be overridden via environment variables:</p>
+<h2>环境变量</h2>
+<p>可通过环境变量覆盖设置：</p>
 <pre><code>TELEGRAM_TOKEN=123456:ABC-DEF...
 TELEGRAM_ALLOWED_CHAT_IDS=12345,67890</code></pre>
 

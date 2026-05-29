@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Prompt Pipeline — CLI-JAW Docs</title>
+<title>프롬프트 파이프라인 — CLI-JAW 문서</title>
 <link rel="stylesheet" href="../../_shell.css">
 </head>
 <body>
@@ -64,76 +64,76 @@
 </nav>
 <main class="docs-main">
 
-<h1>Prompt Pipeline</h1>
-<p class="lead">CLI-JAW assembles system prompts through a multi-layer pipeline: static templates (A1/A2), dynamic injection (memory, orchestration, skills), disk caching (B.md/AGENTS.md), and per-CLI spawn adapters.</p>
+<h1>프롬프트 파이프라인</h1>
+<p class="lead">CLI-JAW는 다층 파이프라인을 통해 시스템 프롬프트를 조립합니다: 정적 템플릿(A1/A2), 동적 주입(메모리, 오케스트레이션, 스킬), 디스크 캐싱(B.md/AGENTS.md), 그리고 CLI별 스폰 어댑터.</p>
 
-<h2>Assembly Order</h2>
-<p>The <code>getSystemPrompt()</code> function in <code>src/prompt/builder.ts</code> assembles the prompt in this order:</p>
+<h2>조립 순서</h2>
+<p><code>src/prompt/builder.ts</code>의 <code>getSystemPrompt()</code> 함수는 다음 순서로 프롬프트를 조립합니다:</p>
 <ol>
-<li><strong>A-1.md</strong> -- System rules (browser control, memory, heartbeat, delegation)</li>
-<li><strong>A-2.md</strong> -- User settings (identity, vibe, working directory)</li>
-<li><strong>Memory injection</strong> -- Advanced (profile + soul + task snapshot) or legacy fallback</li>
-<li><strong>Orchestration section</strong> -- Employee dispatch rules + PABCD guide</li>
-<li><strong>Heartbeat jobs</strong> -- Scheduled task descriptions from <code>heartbeat.json</code></li>
-<li><strong>Skills section</strong> -- Active skills inline + available skill list</li>
-<li><strong>Vision-click hint</strong> -- Codex-only legacy fallback for desktop automation</li>
-<li><strong>Delegation rules</strong> -- CLI sub-agents vs jaw employees distinction</li>
+<li><strong>A-1.md</strong> -- 시스템 규칙 (브라우저 제어, 메모리, 하트비트, 위임)</li>
+<li><strong>A-2.md</strong> -- 사용자 설정 (아이덴티티, 바이브, 작업 디렉토리)</li>
+<li><strong>메모리 주입</strong> -- 고급(프로필 + 소울 + 태스크 스냅샷) 또는 레거시 폴백</li>
+<li><strong>오케스트레이션 섹션</strong> -- Employee 디스패치 규칙 + PABCD 가이드</li>
+<li><strong>하트비트 작업</strong> -- <code>heartbeat.json</code>의 예약 작업 설명</li>
+<li><strong>스킬 섹션</strong> -- 활성 스킬 인라인 + 사용 가능한 스킬 목록</li>
+<li><strong>Vision-click 힌트</strong> -- 데스크톱 자동화를 위한 Codex 전용 레거시 폴백</li>
+<li><strong>위임 규칙</strong> -- CLI 서브에이전트 vs jaw employee 구분</li>
 </ol>
 
-<h2>Static Templates</h2>
-<h3>A-1.md (System Rules)</h3>
-<p>Path: <code>~/.cli-jaw/prompts/A-1.md</code>. Falls back to <code>src/prompt/templates/a1-system.md</code> (305 lines). Contains core system behavior: browser control rules, memory/heartbeat instructions, jaw employee vs CLI sub-agent distinctions, and channel send rules.</p>
-<div class="callout callout-info">A-1.md uses hash-based migration. If you have not customized it, template updates apply automatically. Custom A-1 files are preserved.</div>
+<h2>정적 템플릿</h2>
+<h3>A-1.md (시스템 규칙)</h3>
+<p>경로: <code>~/.cli-jaw/prompts/A-1.md</code>. <code>src/prompt/templates/a1-system.md</code>(305줄)로 폴백합니다. 핵심 시스템 동작을 포함합니다: 브라우저 제어 규칙, 메모리/하트비트 지침, jaw employee vs CLI 서브에이전트 구분, 그리고 채널 전송 규칙.</p>
+<div class="callout callout-info">A-1.md는 해시 기반 마이그레이션을 사용합니다. 커스터마이징하지 않았다면 템플릿 업데이트가 자동 적용됩니다. 커스텀 A-1 파일은 보존됩니다.</div>
 
-<h3>A-2.md (User Settings)</h3>
-<p>Path: <code>~/.cli-jaw/prompts/A-2.md</code>. Template: <code>a2-default.md</code> (25 lines). Contains identity, user preferences, vibe, and working directory hints. Created only if missing -- never overwritten.</p>
+<h3>A-2.md (사용자 설정)</h3>
+<p>경로: <code>~/.cli-jaw/prompts/A-2.md</code>. 템플릿: <code>a2-default.md</code>(25줄). 아이덴티티, 사용자 환경설정, 바이브, 작업 디렉토리 힌트를 포함합니다. 파일이 없을 때만 생성되며 절대 덮어쓰지 않습니다.</p>
 
-<h2>Dynamic Injection</h2>
-<h3>Memory Injection</h3>
-<p>Two paths depending on index readiness:</p>
+<h2>동적 주입</h2>
+<h3>메모리 주입</h3>
+<p>인덱스 준비 상태에 따라 두 가지 경로가 있습니다:</p>
 <ul>
-<li><strong>Advanced path</strong> (<code>src/memory/injection.ts</code>): Profile context (800 chars) + Soul &amp; Identity (1000 chars) + Task Snapshot (2800 chars, up to 4 hits)</li>
-<li><strong>Legacy fallback</strong>: Session memory (10000 chars budget) + Core Memory from <code>MEMORY.md</code> (1500 chars)</li>
+<li><strong>고급 경로</strong> (<code>src/memory/injection.ts</code>): 프로필 컨텍스트(800자) + Soul &amp; Identity(1000자) + 태스크 스냅샷(2800자, 최대 4건)</li>
+<li><strong>레거시 폴백</strong>: 세션 메모리(10000자 예산) + <code>MEMORY.md</code>의 Core Memory(1500자)</li>
 </ul>
-<p>Injection is role-aware: <code>boss</code> gets the full snapshot, <code>employee</code>/<code>subagent</code> gets a reduced profile, and <code>flush</code> role gets no memory injection.</p>
+<p>주입은 역할에 따라 다릅니다: <code>boss</code>는 전체 스냅샷을 받고, <code>employee</code>/<code>subagent</code>는 축소된 프로필을 받으며, <code>flush</code> 역할은 메모리 주입이 없습니다.</p>
 
-<h3>Orchestration</h3>
-<p>If at least one employee is registered, the <code>orchestration.md</code> template is injected with <code>cli-jaw dispatch</code> usage examples. If <code>skills/dev-pabcd/SKILL.md</code> exists, a PABCD Orchestration Guide follows.</p>
+<h3>오케스트레이션</h3>
+<p>하나 이상의 employee가 등록되어 있으면, <code>orchestration.md</code> 템플릿이 <code>cli-jaw dispatch</code> 사용 예시와 함께 주입됩니다. <code>skills/dev-pabcd/SKILL.md</code>가 존재하면 PABCD Orchestration Guide가 뒤따릅니다.</p>
 
-<h3>Heartbeat</h3>
-<p>Active heartbeat jobs from <code>~/.cli-jaw/heartbeat.json</code> are rendered with their enabled state, human-readable schedule, and prompt preview.</p>
+<h3>하트비트</h3>
+<p><code>~/.cli-jaw/heartbeat.json</code>의 활성 하트비트 작업은 활성화 상태, 사람이 읽을 수 있는 스케줄, 프롬프트 미리보기와 함께 렌더링됩니다.</p>
 
-<h3>Skills</h3>
-<p>Active skills (<code>~/.cli-jaw/skills/*/SKILL.md</code>) are rendered inline. Reference skills (<code>~/.cli-jaw/skills_ref/registry.json</code>) are listed as available for discovery.</p>
+<h3>스킬</h3>
+<p>활성 스킬(<code>~/.cli-jaw/skills/*/SKILL.md</code>)은 인라인으로 렌더링됩니다. 레퍼런스 스킬(<code>~/.cli-jaw/skills_ref/registry.json</code>)은 탐색 가능한 목록으로 표시됩니다.</p>
 
-<h2>Disk Cache (B.md)</h2>
-<p><code>regenerateB()</code> creates a cached version of the system prompt for disk:</p>
+<h2>디스크 캐시 (B.md)</h2>
+<p><code>regenerateB()</code>는 디스크용으로 시스템 프롬프트의 캐시 버전을 생성합니다:</p>
 <table>
-<tr><th>Output</th><th>Purpose</th></tr>
-<tr><td><code>~/.cli-jaw/prompts/B.md</code></td><td>Debug and cache file</td></tr>
-<tr><td><code>{workDir}/AGENTS.md</code></td><td>Auto-read by Codex, Copilot, OpenCode</td></tr>
+<tr><th>출력</th><th>용도</th></tr>
+<tr><td><code>~/.cli-jaw/prompts/B.md</code></td><td>디버그 및 캐시 파일</td></tr>
+<tr><td><code>{workDir}/AGENTS.md</code></td><td>Codex, Copilot, OpenCode가 자동 읽기</td></tr>
 </table>
-<p>Content hash is checked -- files are only rewritten when the prompt actually changes, preserving resume continuity.</p>
+<p>콘텐츠 해시를 확인하여 프롬프트가 실제로 변경되었을 때만 파일을 다시 씁니다. 이를 통해 재개 연속성을 유지합니다.</p>
 
-<h2>Per-CLI Spawn Input</h2>
-<p>Each CLI runtime receives the prompt differently:</p>
+<h2>CLI별 스폰 입력</h2>
+<p>각 CLI 런타임은 프롬프트를 다른 방식으로 전달받습니다:</p>
 <table>
-<tr><th>CLI</th><th>System Prompt</th><th>User Input</th></tr>
+<tr><th>CLI</th><th>시스템 프롬프트</th><th>사용자 입력</th></tr>
 <tr><td>Claude</td><td><code>buildArgs(..., sysPrompt)</code></td><td>stdin: <code>withHistoryPrompt(prompt, historyBlock)</code></td></tr>
-<tr><td>Codex</td><td><code>AGENTS.md</code> auto-loaded</td><td>stdin: <code>[User Message]</code> block</td></tr>
-<tr><td>Gemini</td><td><code>GEMINI_SYSTEM_MD</code> tmpfile</td><td>Args-level prompt</td></tr>
-<tr><td>AGY</td><td>No system prompt flag</td><td><code>agy -p &lt;prompt&gt;</code></td></tr>
-<tr><td>Cursor</td><td><code>AGENTS.md</code> / <code>CLAUDE.md</code> auto-loaded</td><td>Args-level prompt</td></tr>
-<tr><td>Grok</td><td>CWD instruction files</td><td><code>-p &lt;prompt&gt;</code></td></tr>
-<tr><td>Copilot</td><td>ACP + cwd instruction files</td><td><code>session/prompt()</code></td></tr>
+<tr><td>Codex</td><td><code>AGENTS.md</code> 자동 로드</td><td>stdin: <code>[User Message]</code> 블록</td></tr>
+<tr><td>Gemini</td><td><code>GEMINI_SYSTEM_MD</code> 임시파일</td><td>인자 수준 프롬프트</td></tr>
+<tr><td>AGY</td><td>시스템 프롬프트 플래그 없음</td><td><code>agy -p &lt;prompt&gt;</code></td></tr>
+<tr><td>Cursor</td><td><code>AGENTS.md</code> / <code>CLAUDE.md</code> 자동 로드</td><td>인자 수준 프롬프트</td></tr>
+<tr><td>Grok</td><td>CWD 인스트럭션 파일</td><td><code>-p &lt;prompt&gt;</code></td></tr>
+<tr><td>Copilot</td><td>ACP + cwd 인스트럭션 파일</td><td><code>session/prompt()</code></td></tr>
 </table>
 
-<h2>History Block</h2>
-<p>On new sessions (not resume), <code>buildHistoryBlock()</code> prepends recent conversation context:</p>
+<h2>히스토리 블록</h2>
+<p>새 세션(재개가 아닌 경우)에서 <code>buildHistoryBlock()</code>은 최근 대화 컨텍스트를 앞에 추가합니다:</p>
 <ul>
-<li>Source: <code>messages</code> DB, scoped to <code>workingDir</code></li>
-<li>Limit: 8000 characters, up to 10 sessions</li>
-<li>Compact markers stop history scanning and insert trace summaries</li>
+<li>소스: <code>messages</code> DB, <code>workingDir</code> 기준 스코프</li>
+<li>제한: 8000자, 최대 10개 세션</li>
+<li>Compact 마커는 히스토리 스캔을 중지하고 트레이스 요약을 삽입합니다</li>
 </ul>
 <pre><code>[Recent Context]
 assistant: Previous response summary...
@@ -143,8 +143,8 @@ user: Previous question...
 [Current Message]
 Your new prompt here</code></pre>
 
-<h2>Customizing Prompts</h2>
-<p>Edit <code>~/.cli-jaw/prompts/A-2.md</code> to customize identity, preferences, and working directory. Use <code>/prompt</code> to preview the current A2 content. The Web UI settings panel also provides a prompt template editor.</p>
+<h2>프롬프트 커스터마이징</h2>
+<p><code>~/.cli-jaw/prompts/A-2.md</code>를 편집하여 아이덴티티, 환경설정, 작업 디렉토리를 커스터마이징할 수 있습니다. <code>/prompt</code>를 사용하여 현재 A2 내용을 미리 볼 수 있습니다. Web UI 설정 패널에서도 프롬프트 템플릿 편집기를 제공합니다.</p>
 
 <div class="page-nav">
 <a class="prev" href="memory.html">Memory</a>

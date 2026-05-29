@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Discord — CLI-JAW Docs</title>
+<title>Discord — CLI-JAW 文档</title>
 <link rel="stylesheet" href="../../_shell.css">
 </head>
 <body>
@@ -65,19 +65,19 @@
 <main class="docs-main">
 
 <h1>Discord</h1>
-<p class="lead">Run your CLI-JAW agent through a Discord bot. Send prompts, use slash commands, receive forwarded results, and handle file attachments -- all within your Discord server.</p>
+<p class="lead">通过 Discord 机器人运行你的 CLI-JAW 代理。在 Discord 服务器中发送提示词、使用斜杠命令、接收转发结果并处理文件附件。</p>
 
-<h2>Setup</h2>
-<h3>1. Create a Discord Bot</h3>
+<h2>设置</h2>
+<h3>1. 创建 Discord 机器人</h3>
 <ol>
-<li>Go to the <a href="https://discord.com/developers/applications">Discord Developer Portal</a></li>
-<li>Create a new application and add a bot</li>
-<li>Enable the <strong>MESSAGE_CONTENT</strong> intent under Privileged Gateway Intents</li>
-<li>Copy the bot token</li>
-<li>Invite the bot to your server with appropriate permissions</li>
+<li>前往 <a href="https://discord.com/developers/applications">Discord Developer Portal</a></li>
+<li>创建一个新应用程序并添加机器人</li>
+<li>在 Privileged Gateway Intents 下启用 <strong>MESSAGE_CONTENT</strong> 意图</li>
+<li>复制机器人令牌</li>
+<li>使用适当的权限将机器人邀请到你的服务器</li>
 </ol>
 
-<h3>2. Configure settings.json</h3>
+<h3>2. 配置 settings.json</h3>
 <pre><code>{
   "discord": {
     "token": "YOUR_DISCORD_BOT_TOKEN",
@@ -86,40 +86,40 @@
     "forwardAll": true
   }
 }</code></pre>
-<div class="callout callout-warn">The <strong>MESSAGE_CONTENT</strong> privileged intent is required. Without it, the bot cannot read message content in guild channels.</div>
+<div class="callout callout-warn">需要启用 <strong>MESSAGE_CONTENT</strong> 特权意图。如果未启用，机器人将无法读取公会频道中的消息内容。</div>
 
-<h3>3. Alternative: Use jaw init</h3>
+<h3>3. 替代方式：使用 jaw init</h3>
 <pre><code>jaw init --channel discord \
   --discord-token "YOUR_TOKEN" \
   --discord-guild-id "GUILD_ID" \
   --discord-channel-ids "CHANNEL_ID_1,CHANNEL_ID_2"</code></pre>
 
-<h2>Slash Commands</h2>
-<p>Discord slash commands are registered as guild-scoped commands. All 27 visible commands are available through Discord's native <code>/command</code> interface. The command execution uses <code>getVisibleCommands('discord')</code> and <code>makeCommandCtx('discord', ...)</code>.</p>
-<div class="callout callout-info">Slash command replies are deferred to avoid Discord's 3-second timeout on interaction responses.</div>
+<h2>斜杠命令</h2>
+<p>Discord 斜杠命令注册为公会范围的命令。全部 27 个可见命令均可通过 Discord 原生的 <code>/command</code> 界面使用。命令执行使用 <code>getVisibleCommands('discord')</code> 和 <code>makeCommandCtx('discord', ...)</code>。</p>
+<div class="callout callout-info">斜杠命令的回复采用延迟处理，以避免 Discord 对交互响应的 3 秒超时限制。</div>
 
-<h2>Message Handling</h2>
+<h2>消息处理</h2>
 <ul>
-<li><strong>Text messages</strong> -- Messages in allowed channels are sent to the agent</li>
-<li><strong>Attachments</strong> -- Files are downloaded and processed</li>
-<li><strong>DMs</strong> -- Direct messages to the bot are supported</li>
-<li><strong>AllowedMentions</strong> -- Default AllowedMentions prevents the bot from pinging everyone</li>
+<li><strong>文本消息</strong> -- 允许频道中的消息将发送给代理</li>
+<li><strong>附件</strong> -- 文件将被下载并处理</li>
+<li><strong>私信</strong> -- 支持向机器人发送私信</li>
+<li><strong>AllowedMentions</strong> -- 默认的 AllowedMentions 设置可防止机器人 @everyone</li>
 </ul>
 
-<h2>Forwarding</h2>
-<p>When <code>forwardAll</code> is <code>true</code>, agent results are forwarded to the active Discord channel as chunked messages.</p>
+<h2>转发</h2>
+<p>当 <code>forwardAll</code> 设置为 <code>true</code> 时，代理结果将以分块消息的形式转发到活跃的 Discord 频道。</p>
 <pre><code>/forward on   # Enable forwarding
 /forward off  # Disable forwarding</code></pre>
 
-<h2>Channel Allow List</h2>
-<p>The <code>channelIds</code> array restricts which channels the bot listens in. Thread parents are checked against this list, so threads within allowed channels also work.</p>
+<h2>频道白名单</h2>
+<p><code>channelIds</code> 数组限制机器人监听的频道。线程的父频道会与此列表进行比对，因此允许频道内的线程也可以正常使用。</p>
 
-<h2>Environment Variables</h2>
+<h2>环境变量</h2>
 <pre><code>DISCORD_TOKEN=your_token_here
 DISCORD_GUILD_ID=123456789
 DISCORD_CHANNEL_IDS=111222333,444555666</code></pre>
 
-<h2>Send API</h2>
+<h2>发送 API</h2>
 <pre><code>POST /api/discord/send    # Direct Discord send
 POST /api/channel/send    # Unified channel send (preferred)</code></pre>
 

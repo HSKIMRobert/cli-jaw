@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Notes (Jawsidian) — CLI-JAW Docs</title>
+<title>노트 (Jawsidian) — CLI-JAW 문서</title>
 <link rel="stylesheet" href="../../_shell.css">
 </head>
 <body>
@@ -64,60 +64,60 @@
 </nav>
 <main class="docs-main">
 
-<h1>Notes (Jawsidian)</h1>
-<p class="lead">Jawsidian is a built-in markdown notes workspace with WYSIWYG editing, graph view, wikilinks, image paste, file tree navigation, and ripgrep-backed search.</p>
+<h1>노트 (Jawsidian)</h1>
+<p class="lead">Jawsidian은 위지위그(WYSIWYG) 편집, 그래프 뷰, 위키링크, 이미지 붙여넣기, 파일 트리 탐색, ripgrep 기반 검색을 지원하는 내장 마크다운 노트 작업 공간입니다.</p>
 
-<h2>Accessing Notes</h2>
-<p>Notes are available in the Dashboard under the Notes tab. They are stored as markdown files in the dashboard's notes directory.</p>
+<h2>노트 접근</h2>
+<p>노트는 대시보드의 Notes 탭에서 사용할 수 있습니다. 노트는 대시보드의 노트 디렉터리에 마크다운 파일로 저장됩니다.</p>
 
-<h2>WYSIWYG Editor</h2>
-<p>The primary editing experience is a Milkdown-based WYSIWYG editor that preserves the underlying markdown format. Features include:</p>
+<h2>위지위그(WYSIWYG) 편집기</h2>
+<p>주요 편집 환경은 기본 마크다운 형식을 유지하는 Milkdown 기반 위지위그 편집기입니다. 주요 기능은 다음과 같습니다:</p>
 <ul>
-<li><strong>Rich text editing</strong> -- Headers, bold, italic, lists, code blocks, tables</li>
-<li><strong>Slash menu</strong> -- Type <code>/</code> for quick formatting commands</li>
-<li><strong>Table context menu</strong> -- Right-click tables for row/column operations</li>
-<li><strong>Frontmatter panel</strong> -- Edit YAML frontmatter (aliases, tags, created) in a structured UI</li>
-<li><strong>Vim mode</strong> -- Optional vim keybindings for keyboard-driven editing</li>
+<li><strong>서식 있는 텍스트 편집</strong> -- 제목, 굵게, 기울임, 목록, 코드 블록, 표</li>
+<li><strong>슬래시 메뉴</strong> -- <code>/</code>를 입력하여 빠른 서식 명령 사용</li>
+<li><strong>표 컨텍스트 메뉴</strong> -- 표를 우클릭하여 행/열 작업 수행</li>
+<li><strong>프론트매터 패널</strong> -- 구조화된 UI에서 YAML 프론트매터(별칭, 태그, 생성일) 편집</li>
+<li><strong>Vim 모드</strong> -- 키보드 중심 편집을 위한 선택적 vim 키바인딩</li>
 </ul>
 
-<h2>Wikilinks</h2>
-<p>Link between notes using the <code>[[target|label]]</code> syntax. The WYSIWYG editor renders wikilinks as live widgets:</p>
+<h2>위키링크</h2>
+<p><code>[[target|label]]</code> 구문을 사용하여 노트 간에 링크할 수 있습니다. 위지위그 편집기는 위키링크를 라이브 위젯으로 렌더링합니다:</p>
 <ul>
-<li><strong>Resolved links</strong> appear styled and clickable, navigating to the target note</li>
-<li><strong>Unresolved links</strong> appear with a different style indicating the target does not exist yet</li>
-<li>New links use the vault index as a client-side fallback before the backend refreshes the outgoing links index</li>
+<li><strong>연결된 링크</strong>는 스타일이 적용되어 클릭 가능하며, 대상 노트로 이동합니다</li>
+<li><strong>미연결 링크</strong>는 대상이 아직 존재하지 않음을 나타내는 다른 스타일로 표시됩니다</li>
+<li>새 링크는 백엔드가 발신 링크 인덱스를 갱신하기 전에 볼트 인덱스를 클라이언트 측 폴백으로 사용합니다</li>
 </ul>
 
-<h2>Graph View</h2>
-<p>The graph view visualizes connections between notes based on wikilinks. Notes appear as nodes and links appear as edges. Graph controls let you adjust layout, zoom, and filtering.</p>
+<h2>그래프 뷰</h2>
+<p>그래프 뷰는 위키링크를 기반으로 노트 간의 연결을 시각화합니다. 노트는 노드로, 링크는 엣지로 표시됩니다. 그래프 컨트롤을 통해 레이아웃, 줌, 필터링을 조정할 수 있습니다.</p>
 
-<h2>Image Paste</h2>
-<p>Paste images directly from the clipboard into notes. Images are uploaded as assets via <code>POST /api/dashboard/notes/asset</code> and embedded in the markdown.</p>
+<h2>이미지 붙여넣기</h2>
+<p>클립보드에서 직접 노트에 이미지를 붙여넣을 수 있습니다. 이미지는 <code>POST /api/dashboard/notes/asset</code>를 통해 에셋으로 업로드되고 마크다운에 삽입됩니다.</p>
 
-<h2>File Tree</h2>
-<p>The sidebar shows a hierarchical file tree of all notes. You can create, rename, and delete notes from the tree. The file tree API is backed by <code>GET /api/dashboard/notes/tree</code>.</p>
+<h2>파일 트리</h2>
+<p>사이드바에 모든 노트의 계층적 파일 트리가 표시됩니다. 트리에서 노트를 생성, 이름 변경, 삭제할 수 있습니다. 파일 트리 API는 <code>GET /api/dashboard/notes/tree</code>로 지원됩니다.</p>
 
-<h2>Search</h2>
-<p>Notes search uses ripgrep on the backend (<code>src/manager/notes/search.ts</code>). The search sidebar supports:</p>
+<h2>검색</h2>
+<p>노트 검색은 백엔드에서 ripgrep을 사용합니다(<code>src/manager/notes/search.ts</code>). 검색 사이드바는 다음을 지원합니다:</p>
 <ul>
-<li>Debounced query input</li>
-<li>Stale request abort (via AbortController)</li>
-<li>Click-to-open results</li>
-<li>Typed error rendering</li>
+<li>디바운스된 쿼리 입력</li>
+<li>오래된 요청 중단 (AbortController 사용)</li>
+<li>클릭하여 결과 열기</li>
+<li>타입별 오류 렌더링</li>
 </ul>
 
-<h2>Notes API</h2>
+<h2>노트 API</h2>
 <table>
-<tr><th>Method</th><th>Path</th><th>Description</th></tr>
-<tr><td>GET</td><td><code>/api/dashboard/notes/info</code></td><td>Notes vault info</td></tr>
-<tr><td>GET</td><td><code>/api/dashboard/notes/tree</code></td><td>File tree</td></tr>
-<tr><td>GET</td><td><code>/api/dashboard/notes/index</code></td><td>Vault index (wikilinks, outgoing links)</td></tr>
-<tr><td>GET</td><td><code>/api/dashboard/notes/search</code></td><td>Ripgrep search</td></tr>
-<tr><td>GET/POST/PUT</td><td><code>/api/dashboard/notes/file</code></td><td>Read, create, update note files</td></tr>
-<tr><td>POST</td><td><code>/api/dashboard/notes/asset</code></td><td>Upload image assets</td></tr>
+<tr><th>메서드</th><th>경로</th><th>설명</th></tr>
+<tr><td>GET</td><td><code>/api/dashboard/notes/info</code></td><td>노트 볼트 정보</td></tr>
+<tr><td>GET</td><td><code>/api/dashboard/notes/tree</code></td><td>파일 트리</td></tr>
+<tr><td>GET</td><td><code>/api/dashboard/notes/index</code></td><td>볼트 인덱스 (위키링크, 발신 링크)</td></tr>
+<tr><td>GET</td><td><code>/api/dashboard/notes/search</code></td><td>Ripgrep 검색</td></tr>
+<tr><td>GET/POST/PUT</td><td><code>/api/dashboard/notes/file</code></td><td>노트 파일 읽기, 생성, 업데이트</td></tr>
+<tr><td>POST</td><td><code>/api/dashboard/notes/asset</code></td><td>이미지 에셋 업로드</td></tr>
 </table>
 
-<h2>CLI Access</h2>
+<h2>CLI 접근</h2>
 <pre><code># Write a note
 jaw connector notes write "My Note" "# Content here"
 

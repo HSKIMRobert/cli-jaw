@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Skills — CLI-JAW Docs</title>
+<title>스킬 — CLI-JAW 문서</title>
 <link rel="stylesheet" href="../../_shell.css">
 </head>
 <body>
@@ -64,11 +64,11 @@
 </nav>
 <main class="docs-main">
 
-<h1>Skills</h1>
-<p class="lead">Skills are domain knowledge plugins that get injected into the agent's system prompt. CLI-JAW ships with 32 active skills and 195 reference skills covering development, cloud platforms, documentation, and more.</p>
+<h1>스킬</h1>
+<p class="lead">스킬은 에이전트의 시스템 프롬프트에 주입되는 도메인 지식 플러그인입니다. CLI-JAW에는 개발, 클라우드 플랫폼, 문서 작성 등을 다루는 32개의 활성 스킬과 195개의 참조 스킬이 포함되어 있습니다.</p>
 
-<h2>How Skills Work</h2>
-<p>Each skill is a directory containing a <code>SKILL.md</code> file. Active skills are loaded into the system prompt automatically. Reference skills are listed as available but not injected unless activated.</p>
+<h2>스킬의 작동 방식</h2>
+<p>각 스킬은 <code>SKILL.md</code> 파일을 포함하는 디렉토리입니다. 활성 스킬은 시스템 프롬프트에 자동으로 로드됩니다. 참조 스킬은 사용 가능한 목록에 표시되지만, 활성화하기 전까지는 주입되지 않습니다.</p>
 <pre><code>~/.cli-jaw/skills/
 ├── dev/SKILL.md           # Active: common development rules
 ├── dev-frontend/SKILL.md  # Active: frontend-specific guidance
@@ -81,18 +81,18 @@
 ├── docker/SKILL.md
 └── ...</code></pre>
 
-<h2>Skill Categories</h2>
+<h2>스킬 카테고리</h2>
 <table>
-<tr><th>Category</th><th>Examples</th></tr>
-<tr><td><strong>Development</strong></td><td>dev, dev-frontend, dev-backend, dev-data, dev-testing, dev-code-reviewer, dev-scaffolding, dev-security, dev-debugging, dev-pabcd</td></tr>
-<tr><td><strong>Cloud / Infra</strong></td><td>cloudflare, agents-sdk, durable-objects, sandbox-sdk, workers-best-practices, wrangler</td></tr>
-<tr><td><strong>Browser</strong></td><td>browser, web-ai, vision-click, desktop-control</td></tr>
-<tr><td><strong>Documents</strong></td><td>pdf, pdf-vision, pptx, xlsx, docx, hwp</td></tr>
-<tr><td><strong>Communication</strong></td><td>telegram-send, notion, github, x-post</td></tr>
-<tr><td><strong>System</strong></td><td>memory, init, review, security-review, verify, simplify, code-review</td></tr>
+<tr><th>카테고리</th><th>예시</th></tr>
+<tr><td><strong>개발</strong></td><td>dev, dev-frontend, dev-backend, dev-data, dev-testing, dev-code-reviewer, dev-scaffolding, dev-security, dev-debugging, dev-pabcd</td></tr>
+<tr><td><strong>클라우드 / 인프라</strong></td><td>cloudflare, agents-sdk, durable-objects, sandbox-sdk, workers-best-practices, wrangler</td></tr>
+<tr><td><strong>브라우저</strong></td><td>browser, web-ai, vision-click, desktop-control</td></tr>
+<tr><td><strong>문서</strong></td><td>pdf, pdf-vision, pptx, xlsx, docx, hwp</td></tr>
+<tr><td><strong>커뮤니케이션</strong></td><td>telegram-send, notion, github, x-post</td></tr>
+<tr><td><strong>시스템</strong></td><td>memory, init, review, security-review, verify, simplify, code-review</td></tr>
 </table>
 
-<h2>CLI Commands</h2>
+<h2>CLI 명령어</h2>
 <pre><code># List all skills
 jaw skill list
 
@@ -108,15 +108,15 @@ jaw skill info dev-frontend
 # Reset skills to defaults
 jaw skill reset</code></pre>
 
-<h2>Slash Commands</h2>
+<h2>슬래시 명령어</h2>
 <table>
-<tr><th>Command</th><th>Description</th></tr>
-<tr><td><code>/skill list</code></td><td>Show active and reference skill counts</td></tr>
-<tr><td><code>/skill reset</code></td><td>Soft reset skills to defaults</td></tr>
+<tr><th>명령어</th><th>설명</th></tr>
+<tr><td><code>/skill list</code></td><td>활성 및 참조 스킬 수를 표시합니다</td></tr>
+<tr><td><code>/skill reset</code></td><td>스킬을 기본값으로 소프트 리셋합니다</td></tr>
 </table>
 
-<h2>SKILL.md Format</h2>
-<p>A skill file is a markdown document that follows a specific structure:</p>
+<h2>SKILL.md 형식</h2>
+<p>스킬 파일은 특정 구조를 따르는 마크다운 문서입니다:</p>
 <pre><code># Skill Name
 
 Brief description of what this skill provides.
@@ -136,8 +136,8 @@ Trigger conditions for when the agent should activate this skill.
 # Example command or code
 ```</code></pre>
 
-<h2>Custom Skill Authoring</h2>
-<p>You can create custom skills by adding a directory to <code>~/.cli-jaw/skills/</code>:</p>
+<h2>커스텀 스킬 작성</h2>
+<p><code>~/.cli-jaw/skills/</code>에 디렉토리를 추가하여 커스텀 스킬을 만들 수 있습니다:</p>
 <pre><code>mkdir -p ~/.cli-jaw/skills/my-custom-skill
 cat > ~/.cli-jaw/skills/my-custom-skill/SKILL.md << 'EOF'
 # My Custom Skill
@@ -149,18 +149,18 @@ Custom domain knowledge for my specific workflow.
 1. Always prefer TypeScript over JavaScript.
 2. Use pnpm instead of npm.
 EOF</code></pre>
-<p>The skill will be automatically loaded into the system prompt on the next agent run.</p>
+<p>다음 에이전트 실행 시 해당 스킬이 시스템 프롬프트에 자동으로 로드됩니다.</p>
 
-<h2>Prompt Injection</h2>
-<p>Skills are injected into the system prompt by <code>getSystemPrompt()</code> in <code>src/prompt/builder.ts</code>. The rendering logic:</p>
+<h2>프롬프트 주입</h2>
+<p>스킬은 <code>src/prompt/builder.ts</code>의 <code>getSystemPrompt()</code>에 의해 시스템 프롬프트에 주입됩니다. 렌더링 로직은 다음과 같습니다:</p>
 <ul>
-<li>If both active and reference skills exist: renders active skills inline + available skill list + discovery hint</li>
-<li>If only active skills exist: renders them without the available list</li>
-<li>If only reference skills exist: renders the available list + discovery hint</li>
+<li>활성 스킬과 참조 스킬이 모두 존재하는 경우: 활성 스킬을 인라인으로 렌더링 + 사용 가능한 스킬 목록 + 디스커버리 힌트</li>
+<li>활성 스킬만 존재하는 경우: 사용 가능한 목록 없이 활성 스킬만 렌더링</li>
+<li>참조 스킬만 존재하는 경우: 사용 가능한 목록 + 디스커버리 힌트 렌더링</li>
 </ul>
 
-<h2>Employee Skills</h2>
-<p>Employee prompts (<code>getEmployeePromptV2()</code>) include role-specific and phase-specific skills automatically. For example, a "Frontend" employee gets <code>dev-frontend</code>, and during the Check phase, employees get <code>dev-testing</code>.</p>
+<h2>Employee 스킬</h2>
+<p>Employee 프롬프트(<code>getEmployeePromptV2()</code>)에는 역할별 및 단계별 스킬이 자동으로 포함됩니다. 예를 들어 "Frontend" employee는 <code>dev-frontend</code>를 받고, Check 단계에서는 employee들이 <code>dev-testing</code>을 받습니다.</p>
 
 <div class="page-nav">
 <a class="prev" href="goals.html">Goals</a>

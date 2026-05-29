@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Notes (Jawsidian) — CLI-JAW Docs</title>
+<title>笔记 (Jawsidian) — CLI-JAW 文档</title>
 <link rel="stylesheet" href="../../_shell.css">
 </head>
 <body>
@@ -64,60 +64,60 @@
 </nav>
 <main class="docs-main">
 
-<h1>Notes (Jawsidian)</h1>
-<p class="lead">Jawsidian is a built-in markdown notes workspace with WYSIWYG editing, graph view, wikilinks, image paste, file tree navigation, and ripgrep-backed search.</p>
+<h1>笔记 (Jawsidian)</h1>
+<p class="lead">Jawsidian 是一个内置的 Markdown 笔记工作区，具备所见即所得编辑、图谱视图、Wiki 链接、图片粘贴、文件树导航和基于 ripgrep 的搜索功能。</p>
 
-<h2>Accessing Notes</h2>
-<p>Notes are available in the Dashboard under the Notes tab. They are stored as markdown files in the dashboard's notes directory.</p>
+<h2>访问笔记</h2>
+<p>笔记位于 Dashboard 的 Notes 标签页中，以 Markdown 文件的形式存储在 Dashboard 的笔记目录中。</p>
 
-<h2>WYSIWYG Editor</h2>
-<p>The primary editing experience is a Milkdown-based WYSIWYG editor that preserves the underlying markdown format. Features include:</p>
+<h2>所见即所得编辑器</h2>
+<p>主要的编辑体验基于 Milkdown 的所见即所得编辑器，在保留底层 Markdown 格式的同时提供富文本编辑。功能包括：</p>
 <ul>
-<li><strong>Rich text editing</strong> -- Headers, bold, italic, lists, code blocks, tables</li>
-<li><strong>Slash menu</strong> -- Type <code>/</code> for quick formatting commands</li>
-<li><strong>Table context menu</strong> -- Right-click tables for row/column operations</li>
-<li><strong>Frontmatter panel</strong> -- Edit YAML frontmatter (aliases, tags, created) in a structured UI</li>
-<li><strong>Vim mode</strong> -- Optional vim keybindings for keyboard-driven editing</li>
+<li><strong>富文本编辑</strong> -- 标题、粗体、斜体、列表、代码块、表格</li>
+<li><strong>斜杠菜单</strong> -- 输入 <code>/</code> 快速执行格式化命令</li>
+<li><strong>表格右键菜单</strong> -- 右键点击表格进行行/列操作</li>
+<li><strong>Frontmatter 面板</strong> -- 在结构化界面中编辑 YAML frontmatter（别名、标签、创建时间）</li>
+<li><strong>Vim 模式</strong> -- 可选的 Vim 键绑定，支持键盘驱动编辑</li>
 </ul>
 
-<h2>Wikilinks</h2>
-<p>Link between notes using the <code>[[target|label]]</code> syntax. The WYSIWYG editor renders wikilinks as live widgets:</p>
+<h2>Wiki 链接</h2>
+<p>使用 <code>[[target|label]]</code> 语法在笔记之间创建链接。所见即所得编辑器将 Wiki 链接渲染为可交互的组件：</p>
 <ul>
-<li><strong>Resolved links</strong> appear styled and clickable, navigating to the target note</li>
-<li><strong>Unresolved links</strong> appear with a different style indicating the target does not exist yet</li>
-<li>New links use the vault index as a client-side fallback before the backend refreshes the outgoing links index</li>
+<li><strong>已解析的链接</strong>具有样式且可点击，点击后导航到目标笔记</li>
+<li><strong>未解析的链接</strong>以不同样式显示，表示目标笔记尚不存在</li>
+<li>新链接使用 vault 索引作为客户端回退，直到后端刷新外链索引</li>
 </ul>
 
-<h2>Graph View</h2>
-<p>The graph view visualizes connections between notes based on wikilinks. Notes appear as nodes and links appear as edges. Graph controls let you adjust layout, zoom, and filtering.</p>
+<h2>图谱视图</h2>
+<p>图谱视图基于 Wiki 链接可视化笔记之间的连接关系。笔记显示为节点，链接显示为边。图谱控件可用于调整布局、缩放和筛选。</p>
 
-<h2>Image Paste</h2>
-<p>Paste images directly from the clipboard into notes. Images are uploaded as assets via <code>POST /api/dashboard/notes/asset</code> and embedded in the markdown.</p>
+<h2>图片粘贴</h2>
+<p>可以直接从剪贴板将图片粘贴到笔记中。图片通过 <code>POST /api/dashboard/notes/asset</code> 上传为资源文件，并嵌入到 Markdown 中。</p>
 
-<h2>File Tree</h2>
-<p>The sidebar shows a hierarchical file tree of all notes. You can create, rename, and delete notes from the tree. The file tree API is backed by <code>GET /api/dashboard/notes/tree</code>.</p>
+<h2>文件树</h2>
+<p>侧边栏显示所有笔记的层级文件树。你可以在文件树中创建、重命名和删除笔记。文件树 API 由 <code>GET /api/dashboard/notes/tree</code> 提供支持。</p>
 
-<h2>Search</h2>
-<p>Notes search uses ripgrep on the backend (<code>src/manager/notes/search.ts</code>). The search sidebar supports:</p>
+<h2>搜索</h2>
+<p>笔记搜索在后端使用 ripgrep（<code>src/manager/notes/search.ts</code>）。搜索侧边栏支持：</p>
 <ul>
-<li>Debounced query input</li>
-<li>Stale request abort (via AbortController)</li>
-<li>Click-to-open results</li>
-<li>Typed error rendering</li>
+<li>防抖查询输入</li>
+<li>过期请求中止（通过 AbortController）</li>
+<li>点击打开搜索结果</li>
+<li>类型化错误渲染</li>
 </ul>
 
-<h2>Notes API</h2>
+<h2>笔记 API</h2>
 <table>
-<tr><th>Method</th><th>Path</th><th>Description</th></tr>
-<tr><td>GET</td><td><code>/api/dashboard/notes/info</code></td><td>Notes vault info</td></tr>
-<tr><td>GET</td><td><code>/api/dashboard/notes/tree</code></td><td>File tree</td></tr>
-<tr><td>GET</td><td><code>/api/dashboard/notes/index</code></td><td>Vault index (wikilinks, outgoing links)</td></tr>
-<tr><td>GET</td><td><code>/api/dashboard/notes/search</code></td><td>Ripgrep search</td></tr>
-<tr><td>GET/POST/PUT</td><td><code>/api/dashboard/notes/file</code></td><td>Read, create, update note files</td></tr>
-<tr><td>POST</td><td><code>/api/dashboard/notes/asset</code></td><td>Upload image assets</td></tr>
+<tr><th>方法</th><th>路径</th><th>描述</th></tr>
+<tr><td>GET</td><td><code>/api/dashboard/notes/info</code></td><td>笔记 vault 信息</td></tr>
+<tr><td>GET</td><td><code>/api/dashboard/notes/tree</code></td><td>文件树</td></tr>
+<tr><td>GET</td><td><code>/api/dashboard/notes/index</code></td><td>Vault 索引（Wiki 链接、外链）</td></tr>
+<tr><td>GET</td><td><code>/api/dashboard/notes/search</code></td><td>Ripgrep 搜索</td></tr>
+<tr><td>GET/POST/PUT</td><td><code>/api/dashboard/notes/file</code></td><td>读取、创建、更新笔记文件</td></tr>
+<tr><td>POST</td><td><code>/api/dashboard/notes/asset</code></td><td>上传图片资源</td></tr>
 </table>
 
-<h2>CLI Access</h2>
+<h2>CLI 访问</h2>
 <pre><code># Write a note
 jaw connector notes write "My Note" "# Content here"
 

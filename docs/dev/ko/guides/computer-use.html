@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Computer Use — CLI-JAW Docs</title>
+<title>컴퓨터 사용 — CLI-JAW 문서</title>
 <link rel="stylesheet" href="../../_shell.css">
 </head>
 <body>
@@ -64,18 +64,18 @@
 </nav>
 <main class="docs-main">
 
-<h1>Computer Use</h1>
-<p class="lead">CLI-JAW supports desktop automation through its browser CDP integration and the Codex-based vision click pipeline. The agent can take screenshots, click elements, type text, and navigate -- both in browsers and on the desktop.</p>
+<h1>컴퓨터 사용</h1>
+<p class="lead">CLI-JAW는 브라우저 CDP 통합과 Codex 기반 비전 클릭 파이프라인을 통해 데스크톱 자동화를 지원합니다. 에이전트는 스크린샷 촬영, 요소 클릭, 텍스트 입력, 탐색을 브라우저와 데스크톱 모두에서 수행할 수 있습니다.</p>
 
-<h2>Two Approaches</h2>
+<h2>두 가지 접근 방식</h2>
 <table>
-<tr><th>Approach</th><th>Method</th><th>Best For</th></tr>
-<tr><td><strong>CDP (Chrome DevTools Protocol)</strong></td><td>Browser automation via <code>src/browser/</code></td><td>Web pages, precise DOM interaction</td></tr>
-<tr><td><strong>Computer Use (CU)</strong></td><td>Desktop automation via Codex employee</td><td>Native apps, desktop UI interaction</td></tr>
+<tr><th>접근 방식</th><th>방법</th><th>적합한 용도</th></tr>
+<tr><td><strong>CDP (Chrome DevTools Protocol)</strong></td><td><code>src/browser/</code>를 통한 브라우저 자동화</td><td>웹 페이지, 정밀한 DOM 상호작용</td></tr>
+<tr><td><strong>Computer Use (CU)</strong></td><td>Codex employee를 통한 데스크톱 자동화</td><td>네이티브 앱, 데스크톱 UI 상호작용</td></tr>
 </table>
 
-<h2>CDP Browser Automation</h2>
-<p>CLI-JAW launches and controls Chrome through CDP:</p>
+<h2>CDP 브라우저 자동화</h2>
+<p>CLI-JAW는 CDP를 통해 Chrome을 실행하고 제어합니다:</p>
 <pre><code># Start browser
 jaw browser start
 
@@ -97,35 +97,35 @@ jaw browser navigate https://example.com
 # Get page text
 jaw browser text</code></pre>
 
-<h2>Vision Click Pipeline</h2>
-<p>When neither DOM ref attributes nor direct coordinates are suitable, the vision click pipeline uses AI vision to locate and click UI elements:</p>
+<h2>비전 클릭 파이프라인</h2>
+<p>DOM ref 속성이나 직접 좌표 지정이 적합하지 않은 경우, 비전 클릭 파이프라인은 AI 비전을 사용하여 UI 요소를 찾고 클릭합니다:</p>
 <pre><code>jaw browser vision-click "Submit button" --provider codex</code></pre>
-<p>The pipeline: screenshot → AI vision extracts coordinates → DPR correction → click → verify.</p>
-<div class="callout callout-info">The <code>$computer-use</code> token in prompts triggers the Codex employee for desktop-level automation tasks.</div>
+<p>파이프라인 흐름: 스크린샷 촬영 → AI 비전으로 좌표 추출 → DPR 보정 → 클릭 → 검증.</p>
+<div class="callout callout-info">프롬프트에서 <code>$computer-use</code> 토큰을 사용하면 데스크톱 수준의 자동화 작업을 위해 Codex employee가 트리거됩니다.</div>
 
-<h2>macOS TCC Permissions</h2>
-<p>On macOS, screen recording and accessibility permissions are required for desktop automation. CLI-JAW includes a TCC permission checker:</p>
+<h2>macOS TCC 권한</h2>
+<p>macOS에서는 데스크톱 자동화를 위해 화면 녹화 및 손쉬운 사용 권한이 필요합니다. CLI-JAW에는 TCC 권한 확인 도구가 포함되어 있습니다:</p>
 <pre><code># Check TCC permissions
 jaw doctor --tcc</code></pre>
-<p>You may need to grant permissions in System Preferences > Privacy & Security > Screen Recording and Accessibility.</p>
+<p>시스템 환경설정 > 개인정보 보호 및 보안 > 화면 녹화 및 손쉬운 사용에서 권한을 부여해야 할 수 있습니다.</p>
 
-<h2>Safari Tip</h2>
-<p>For Safari automation, enable "Allow Remote Automation" in Safari's Develop menu. However, Chrome via CDP is the recommended and best-supported path.</p>
+<h2>Safari 팁</h2>
+<p>Safari 자동화를 사용하려면 Safari의 개발자 메뉴에서 "원격 자동화 허용"을 활성화하세요. 다만, CDP를 통한 Chrome이 권장되는 최적의 경로입니다.</p>
 
-<h2>Browser API Endpoints</h2>
+<h2>브라우저 API 엔드포인트</h2>
 <table>
-<tr><th>Method</th><th>Path</th><th>Description</th></tr>
-<tr><td>POST</td><td><code>/api/browser/start</code></td><td>Start browser</td></tr>
-<tr><td>POST</td><td><code>/api/browser/stop</code></td><td>Stop browser</td></tr>
-<tr><td>GET</td><td><code>/api/browser/status</code></td><td>Browser status</td></tr>
-<tr><td>GET</td><td><code>/api/browser/snapshot</code></td><td>DOM snapshot with refs</td></tr>
-<tr><td>POST</td><td><code>/api/browser/screenshot</code></td><td>Take screenshot</td></tr>
-<tr><td>POST</td><td><code>/api/browser/act</code></td><td>Click, type, press, hover</td></tr>
-<tr><td>POST</td><td><code>/api/browser/vision-click</code></td><td>Vision-based click</td></tr>
-<tr><td>POST</td><td><code>/api/browser/navigate</code></td><td>Navigate to URL</td></tr>
+<tr><th>메서드</th><th>경로</th><th>설명</th></tr>
+<tr><td>POST</td><td><code>/api/browser/start</code></td><td>브라우저 시작</td></tr>
+<tr><td>POST</td><td><code>/api/browser/stop</code></td><td>브라우저 중지</td></tr>
+<tr><td>GET</td><td><code>/api/browser/status</code></td><td>브라우저 상태 확인</td></tr>
+<tr><td>GET</td><td><code>/api/browser/snapshot</code></td><td>ref가 포함된 DOM 스냅샷</td></tr>
+<tr><td>POST</td><td><code>/api/browser/screenshot</code></td><td>스크린샷 촬영</td></tr>
+<tr><td>POST</td><td><code>/api/browser/act</code></td><td>클릭, 입력, 키 누르기, 호버</td></tr>
+<tr><td>POST</td><td><code>/api/browser/vision-click</code></td><td>비전 기반 클릭</td></tr>
+<tr><td>POST</td><td><code>/api/browser/navigate</code></td><td>URL로 이동</td></tr>
 </table>
 
-<h2>Runtime Diagnostics</h2>
+<h2>런타임 진단</h2>
 <pre><code># Check browser runtime health
 jaw browser status
 
