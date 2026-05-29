@@ -188,6 +188,9 @@ switch (command) {
     case 'project':
         await import('./commands/project.js');
         break;
+    case 'goal':
+        await import('./commands/goal.js');
+        break;
     case '--version':
     case '-v':
         console.log(`cli-jaw v${pkg.version}`);
