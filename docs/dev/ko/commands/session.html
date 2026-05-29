@@ -115,9 +115,10 @@
 <tr><td><code>/help [command]</code></td><td>전체 명령어 또는 특정 명령어의 도움말 표시</td></tr>
 <tr><td><code>/commands</code></td><td>퍼지 검색이 가능한 명령어 팔레트 열기</td></tr>
 <tr><td><code>/status</code></td><td>현재 세션 상태 및 진단 정보 표시</td></tr>
-<tr><td><code>/clear</code></td><td>대화 히스토리 삭제</td></tr>
+<tr><td><code>/clear [all]</code></td><td>대화 삭제 / <code>all</code>: 스킬+직원+MCP 리셋</td></tr>
+<tr><td><code>/purge</code></td><td>대화 + 메모리 삭제</td></tr>
 <tr><td><code>/compact [instructions]</code></td><td>핵심 정보를 유지하면서 컨텍스트 압축</td></tr>
-<tr><td><code>/reset [confirm]</code></td><td>전체 세션 초기화 &mdash; 히스토리, 상태, 로드된 스킬 모두 삭제</td></tr>
+<tr><td><code>/reset [confirm]</code></td><td>부트스트랩 초기화 &mdash; 대화, 메모리, 스킬, 직원, MCP 모두 삭제</td></tr>
 <tr><td><code>/steer &lt;prompt&gt;</code></td><td>대화 중 에이전트를 새로운 방향으로 전환</td></tr>
 </table>
 </div>
@@ -203,29 +204,42 @@
 <!-- /clear -->
 <div class="cmd-block" id="clear">
 <h3><code>/clear</code></h3>
-<div class="cmd-sig">/clear</div>
-<p>현재 세션의 대화 히스토리를 삭제합니다. 컨텍스트 윈도우에서 이전 메시지를 모두 제거하여 새로운 시작을 제공하면서, 로드된 스킬, 활성 목표, 세션 설정은 그대로 유지합니다. 에이전트는 메모리(영구 저장된 지식)는 유지하지만 현재 대화의 흐름은 잃게 됩니다.</p>
+<div class="cmd-sig">/clear <span class="arg">[all]</span></div>
+<p>현재 세션의 대화 히스토리를 삭제합니다. 스킬, 메모리, 세션 설정은 그대로 유지됩니다.</p>
 
-<p><code>/reset</code>보다 가벼운 명령어입니다 &mdash; 같은 작업 공간에서 채팅 탭을 닫고 새 탭을 여는 것과 같습니다. 스킬은 로드된 상태를 유지하고, 목표는 활성 상태를 유지하며, 설정도 보존됩니다.</p>
+<p><code>all</code> 인자를 추가하면 스킬 초기화, 직원 리셋, MCP 동기화, 세션 상태 초기화까지 수행합니다. 메모리는 보존됩니다.</p>
 
-<p><strong>보존되는 항목 vs. 삭제되는 항목:</strong></p>
+<p><strong>초기화 단계 (가벼움 → 무거움):</strong></p>
 <table>
-<tr><th>보존됨</th><th>삭제됨</th></tr>
-<tr><td>로드된 스킬</td><td>대화 메시지</td></tr>
-<tr><td>활성 목표</td><td>컨텍스트 내 도구 결과</td></tr>
-<tr><td>메모리 (MEMORY.md, SQLite 인덱스)</td><td>임시 추론 상태</td></tr>
-<tr><td>세션 설정</td><td>대화 범위 변수</td></tr>
+<tr><th>명령어</th><th>대화</th><th>스킬/직원/MCP</th><th>메모리</th></tr>
+<tr><td><code>/clear</code></td><td>✅ 삭제</td><td>보존</td><td>보존</td></tr>
+<tr><td><code>/clear all</code></td><td>✅ 삭제</td><td>✅ 리셋</td><td>보존</td></tr>
+<tr><td><code>/purge</code></td><td>✅ 삭제</td><td>보존</td><td>✅ 삭제</td></tr>
+<tr><td><code>/reset confirm</code></td><td>✅ 삭제</td><td>✅ 하드 리셋</td><td>✅ 삭제</td></tr>
 </table>
 
 <div class="cmd-example">
-<span class="comment"># 대화 히스토리 삭제</span><br>
+<span class="comment"># 대화만 삭제</span><br>
 /clear<br><br>
-<span class="comment"># 일반적인 흐름: 긴 대화가 지저분해지면 삭제하고 계속 진행</span><br>
-/clear<br>
-"이전 맥락 필요없어, 새로운 작업 시작하자"
+<span class="comment"># 스킬, 직원, MCP, 세션까지 리셋 (메모리는 유지)</span><br>
+/clear all
 </div>
 
-<div class="cmd-tip"><strong>"~해줘" tip:</strong> "대화 초기화해줘", "히스토리 지워줘", "대화 내역 클리어해줘" 모두 <code>/clear</code>를 실행합니다. 대화가 길어져서 새로운 스레드를 원할 때 가장 먼저 사용하는 명령어입니다.</div>
+<div class="cmd-tip"><strong>"~해줘" tip:</strong> "대화 초기화해줘", "히스토리 지워줘" → <code>/clear</code>. "스킬까지 초기화해줘" → <code>/clear all</code>.</div>
+</div>
+
+<!-- /purge -->
+<div class="cmd-block" id="purge">
+<h3><code>/purge</code></h3>
+<div class="cmd-sig">/purge</div>
+<p>대화 히스토리와 구조화된 메모리(<code>memory/structured/</code>)를 모두 삭제합니다. 스킬, 직원, 설정은 보존됩니다. 에이전트가 이 인스턴스에서 학습한 모든 것을 잊게 하되, 도구와 연동은 유지하고 싶을 때 사용합니다.</p>
+
+<div class="cmd-example">
+<span class="comment"># 대화 + 메모리 삭제, 스킬은 유지</span><br>
+/purge
+</div>
+
+<div class="cmd-tip"><strong>"~해줘" tip:</strong> "메모리까지 지워줘", "기억 다 삭제해줘", "대화랑 메모리 초기화" → <code>/purge</code>.</div>
 </div>
 
 <!-- /compact -->
@@ -260,38 +274,37 @@
 <div class="cmd-block" id="reset">
 <h3><code>/reset</code></h3>
 <div class="cmd-sig">/reset <span class="arg">[confirm]</span></div>
-<p>전체 세션 초기화를 수행합니다. 이것은 최후의 수단입니다 &mdash; 대화 히스토리를 삭제하고, 동적으로 로드된 모든 스킬을 언로드하고, 활성 목표를 초기화하며, 세션을 초기 부팅 상태로 되돌립니다. 영구 저장된 메모리(MEMORY.md 및 SQLite 인덱스)만 초기화 후에도 유지됩니다.</p>
+<p>전체 부트스트랩 초기화를 수행합니다 &mdash; 가장 과격한 초기화 옵션입니다. 대화 히스토리, 구조화된 메모리, 스킬(하드 리셋), 직원, MCP를 모두 삭제합니다. <code>settings.json</code>(서버 설정, 인증 토큰, CLI 구독 정보)만 보존됩니다.</p>
 
-<p>파괴적인 작업이므로 실행 전에 확인을 요청합니다. <code>confirm</code>을 전달하면 확인 프롬프트를 건너뛰고 즉시 실행합니다.</p>
+<p>파괴적인 작업이므로 <code>confirm</code> 인자가 필수입니다.</p>
 
 <p><strong>인수:</strong></p>
 <table>
 <tr><th>인수</th><th>필수</th><th>설명</th></tr>
-<tr><td><code>confirm</code></td><td>아니오</td><td>확인 프롬프트를 건너뛰려면 <code>confirm</code>이라는 문자를 그대로 전달</td></tr>
+<tr><td><code>confirm</code></td><td>예</td><td>필수. 없으면 확인 안내를 표시합니다.</td></tr>
 </table>
 
-<p><strong>초기화되는 항목:</strong></p>
+<p><strong>삭제 vs. 보존:</strong></p>
 <table>
-<tr><th>초기화됨</th><th>보존됨</th></tr>
-<tr><td>대화 히스토리</td><td>영구 메모리 (MEMORY.md)</td></tr>
-<tr><td>로드된 스킬 (기본값으로 복원)</td><td>SQLite 메모리 인덱스</td></tr>
-<tr><td>활성 목표</td><td>서버 설정</td></tr>
-<tr><td>임시 상태 및 변수</td><td>CLI 백엔드 선택</td></tr>
-<tr><td>진행 중인 도구 호출</td><td>통합 서비스 연결</td></tr>
+<tr><th>삭제됨 (부트스트랩 리셋)</th><th>보존됨</th></tr>
+<tr><td>대화 히스토리</td><td>settings.json (포트, 토큰, 구독)</td></tr>
+<tr><td>구조화된 메모리 (memory/structured/)</td><td>&mdash;</td></tr>
+<tr><td>모든 설치된 스킬 (하드 리셋)</td><td>&mdash;</td></tr>
+<tr><td>직원 설정</td><td>&mdash;</td></tr>
+<tr><td>MCP 상태</td><td>&mdash;</td></tr>
 </table>
 
 <div class="cmd-example">
-<span class="comment"># 확인 프롬프트와 함께 초기화</span><br>
-/reset<br>
-<span class="comment"># 에이전트가 묻습니다: "모든 세션 상태가 삭제됩니다. 확인하시겠습니까? (y/n)"</span><br><br>
-<span class="comment"># 확인 건너뛰기</span><br>
+<span class="comment"># 확인 안내 표시</span><br>
+/reset<br><br>
+<span class="comment"># 부트스트랩 초기화 즉시 실행</span><br>
 /reset confirm<br><br>
-<span class="comment"># 일반적인 흐름: 세션이 혼란스러우면 완전히 새로 시작</span><br>
+<span class="comment"># 인스턴스가 심하게 꼬였을 때 처음부터 시작</span><br>
 /reset confirm<br>
-"처음부터 다시 시작하자. Next.js 프로젝트 만들어줘."
+"처음부터 다시 설정하자"
 </div>
 
-<div class="cmd-tip"><strong>"~해줘" tip:</strong> "완전히 초기화해줘", "세션 리셋해줘", "처음부터 다시 시작", "전부 지우고 새로 시작" 모두 <code>/reset</code>을 실행합니다. "confirm"을 포함하거나 강한 의도를 표현하지 않는 한 에이전트는 항상 실행 전에 확인을 요청합니다.</div>
+<div class="cmd-tip"><strong>"~해줘" tip:</strong> "완전히 초기화해줘", "공장 초기화해줘", "부트스트랩 리셋해줘" → <code>/reset confirm</code>. 더 가벼운 초기화는 <code>/clear</code>, <code>/clear all</code>, <code>/purge</code>를 사용하세요.</div>
 </div>
 
 <!-- /steer -->
