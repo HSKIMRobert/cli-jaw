@@ -26,9 +26,10 @@ export function buildGoalContinuation(): GoalContinuationResult {
     }
 
     const orcState = getState();
-    if (orcState !== 'IDLE') {
-        return { shouldContinue: false, reason: `pabcd_active:${orcState}` };
-    }
+    // Goal continuation still fires during PABCD — the goal wraps the
+    // orchestration cycle. The continuation prompt includes the current
+    // PABCD state so the AI knows where it is.
+    const pabcdActive = orcState !== 'IDLE';
 
     const workers = getActiveWorkers();
     if (workers.length > 0) {
@@ -48,6 +49,7 @@ export function buildGoalContinuation(): GoalContinuationResult {
         `Last checkpoint: ${summary}`,
         `Next action: ${nextAction}`,
         `Goal ID: ${goal.id}`,
+        ...(pabcdActive ? [`PABCD state: ${orcState}`] : []),
         '',
         'Continue the goal. Update progress with `cli-jaw goal update "<summary>"` when you reach a milestone.',
         'If the goal is complete, run `cli-jaw goal done`.',
