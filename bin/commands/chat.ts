@@ -35,6 +35,7 @@ if (shouldShowHelp(process.argv)) printAndExit(`
 import { APP_VERSION, getServerUrl, getWsUrl } from '../../src/core/config.js';
 import { c, cliColor, cliLabel, hrLine, getRows, ESC_WAIT_MS, type TuiContext } from './tui/types.js';
 import { runSimpleMode } from './tui/simple-mode.js';
+import { initHighlight } from '../../src/cli/tui/highlight.js';
 import { openPromptBlock } from './tui/renderer.js';
 import { redrawInputWithAutocomplete, handleResize } from './tui/overlays.js';
 import { handleKeyInput, flushPendingEscape } from './tui/input-handler.js';
@@ -128,6 +129,7 @@ const ctx: TuiContext = {
     overlayBoxHeight: 0,
     inputActive: true,
     streaming: false,
+    streamSink: null,
     commandRunning: false,
     escPending: false,
     escTimer: null,
@@ -149,6 +151,7 @@ ctx.promptPrefix = `  ${ctx.accent}\u276F${c.reset} `;
 if (values.simple) {
     await runSimpleMode(ctx);
 } else {
+    if (!ctx.isRaw) await initHighlight();   // interactive rich TUI only; --simple & --raw untouched
     // Banner
     const modelStr = info.model ? `${c.dim}model:${c.reset}     ${c.bold}${info.model}${c.reset}` : '';
     const art = [
