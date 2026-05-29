@@ -18,6 +18,14 @@ export const MANAGER_SHORTCUT_ACTIONS: DashboardShortcutAction[] = [
     'switchTab4',
     'previousTab',
     'nextTab',
+    'browserReload',
+    'browserHardReload',
+    'browserFocusUrl',
+    'browserBack',
+    'browserForward',
+    'terminalClear',
+    'terminalNewTab',
+    'toggleLeftSidebar',
 ];
 
 export const DEFAULT_MANAGER_SHORTCUT_KEYMAP: DashboardShortcutKeymap = {
@@ -38,10 +46,18 @@ export const DEFAULT_MANAGER_SHORTCUT_KEYMAP: DashboardShortcutKeymap = {
     switchTab4: 'Meta+4',
     previousTab: 'Meta+Shift+[',
     nextTab: 'Meta+Shift+]',
+    browserReload: 'Meta+R',
+    browserHardReload: 'Meta+Shift+R',
+    browserFocusUrl: 'Meta+L',
+    browserBack: 'Meta+Left',
+    browserForward: 'Meta+Right',
+    terminalClear: 'Meta+K',
+    terminalNewTab: 'Meta+T',
+    toggleLeftSidebar: 'Meta+Shift+B',
 };
 
 const MANAGER_SHORTCUT_ALIASES: Partial<Record<DashboardShortcutAction, string[]>> = {
-    toggleRightPanel: ['Meta+B', 'Meta+Shift+B'],
+    toggleRightPanel: ['Meta+B'],
     focusTerminal: ['Ctrl+Shift+`', 'Meta+`'],
 };
 

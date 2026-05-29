@@ -29,7 +29,15 @@ export type DashboardShortcutAction =
     | 'switchTab3'
     | 'switchTab4'
     | 'previousTab'
-    | 'nextTab';
+    | 'nextTab'
+    | 'browserReload'
+    | 'browserHardReload'
+    | 'browserFocusUrl'
+    | 'browserBack'
+    | 'browserForward'
+    | 'terminalClear'
+    | 'terminalNewTab'
+    | 'toggleLeftSidebar';
 export type DashboardShortcutKeymap = Record<DashboardShortcutAction, string>;
 export type DashboardDiffMode = 'unstaged' | 'staged' | 'head' | 'base';
 export type DashboardDiffRootPolicy = 'project-first' | 'working-dir-first' | 'manual';

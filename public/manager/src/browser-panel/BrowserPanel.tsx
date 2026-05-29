@@ -6,6 +6,7 @@ import './browser-panel.css';
 type ElectronWebviewElement = HTMLElement & {
     src: string;
     reload: () => void;
+    reloadIgnoringCache?: () => void;
     canGoBack: () => boolean;
     canGoForward: () => boolean;
     goBack: () => void;
@@ -340,7 +341,25 @@ export function BrowserPanel(props: BrowserPanelProps = {}) {
     useEffect(() => {
         function handleShortcutAction(e: Event) {
             const detail = (e as CustomEvent).detail;
-            if (detail === 'closeBrowserTab' && activeTabId) closeTab(activeTabId);
+            if (detail === 'closeBrowserTab' && activeTabId) {
+                closeTab(activeTabId);
+            } else if (detail === 'browserFocusUrl') {
+                inputRef.current?.focus();
+                inputRef.current?.select();
+            } else if (detail === 'browserReload') {
+                const wv = webviewRefs.current.get(activeTabId);
+                wv?.reload();
+            } else if (detail === 'browserHardReload') {
+                const wv = webviewRefs.current.get(activeTabId);
+                if (wv?.reloadIgnoringCache) wv.reloadIgnoringCache();
+                else wv?.reload();
+            } else if (detail === 'browserBack') {
+                const wv = webviewRefs.current.get(activeTabId);
+                if (wv?.canGoBack()) wv.goBack();
+            } else if (detail === 'browserForward') {
+                const wv = webviewRefs.current.get(activeTabId);
+                if (wv?.canGoForward()) wv.goForward();
+            }
         }
         document.addEventListener('jaw:shortcut-action', handleShortcutAction);
         return () => document.removeEventListener('jaw:shortcut-action', handleShortcutAction);

@@ -279,11 +279,16 @@ export function TerminalPanel(props: TerminalPanelProps = {}) {
             const detail = (e as CustomEvent).detail;
             if (detail === 'closeTerminalTab' && activeIdRef.current) {
                 closeSession(activeIdRef.current);
+            } else if (detail === 'terminalClear' && activeIdRef.current) {
+                const runtime = runtimesRef.current.get(activeIdRef.current);
+                if (runtime) runtime.term.clear();
+            } else if (detail === 'terminalNewTab') {
+                void createSession();
             }
         }
         document.addEventListener('jaw:shortcut-action', handleShortcutAction);
         return () => document.removeEventListener('jaw:shortcut-action', handleShortcutAction);
-    }, [closeSession]);
+    }, [closeSession, createSession]);
 
     useEffect(() => {
         if (!panelRef.current || typeof ResizeObserver === 'undefined') return;

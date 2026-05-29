@@ -139,7 +139,15 @@ type ManagerShortcutAction =
   | 'switchTab3'
   | 'switchTab4'
   | 'previousTab'
-  | 'nextTab';
+  | 'nextTab'
+  | 'browserReload'
+  | 'browserHardReload'
+  | 'browserFocusUrl'
+  | 'browserBack'
+  | 'browserForward'
+  | 'terminalClear'
+  | 'terminalNewTab'
+  | 'toggleLeftSidebar';
 
 type DesktopKeyboardInput = {
   type?: string;
@@ -522,7 +530,7 @@ function managerShortcutActionFromInput(input: DesktopKeyboardInput): ManagerSho
   if (ctrl && shift && !meta && !alt && isCode(input, 'Backquote', '`')) return 'focusTerminal';
   if (meta && !ctrl && !shift && !alt && isCode(input, 'Backquote', '`')) return 'focusTerminal';
   if (meta && !ctrl && !shift && !alt && isCode(input, 'KeyB', 'b')) return 'toggleRightPanel';
-  if (meta && !ctrl && shift && !alt && isCode(input, 'KeyB', 'b')) return 'toggleRightPanel';
+  if (meta && !ctrl && shift && !alt && isCode(input, 'KeyB', 'b')) return 'toggleLeftSidebar';
   if (meta && !ctrl && !shift && !alt && isCode(input, 'KeyJ', 'j')) return 'toggleBottomPanel';
   if (meta && !ctrl && shift && !alt && isCode(input, 'KeyD', 'd')) return 'openDiff';
   if (meta && !ctrl && shift && !alt && isCode(input, 'KeyE', 'e')) return 'openFolderTree';
@@ -559,8 +567,16 @@ function installManagerApplicationMenu(): void {
     {
       label: 'View',
       submenu: [
-        { role: 'reload' },
-        { role: 'forceReload' },
+        {
+          label: 'Reload',
+          accelerator: 'CommandOrControl+R',
+          click: () => sendManagerShortcut('browserReload'),
+        },
+        {
+          label: 'Hard Reload',
+          accelerator: 'CommandOrControl+Shift+R',
+          click: () => sendManagerShortcut('browserHardReload'),
+        },
         ...(DEV_TOOLS_ENABLED ? [{ role: 'toggleDevTools' } as MenuItemConstructorOptions] : []),
         { type: 'separator' },
         {
@@ -625,7 +641,28 @@ function installManagerApplicationMenu(): void {
         { role: 'zoomIn' },
         { role: 'zoomOut' },
         { type: 'separator' },
+        {
+          label: 'Toggle Left Sidebar',
+          accelerator: 'CommandOrControl+Shift+B',
+          click: () => sendManagerShortcut('toggleLeftSidebar'),
+        },
+        { type: 'separator' },
         { role: 'togglefullscreen' },
+      ],
+    },
+    {
+      label: 'Terminal',
+      submenu: [
+        {
+          label: 'Clear Terminal',
+          accelerator: 'CommandOrControl+K',
+          click: () => sendManagerShortcut('terminalClear'),
+        },
+        {
+          label: 'New Terminal Tab',
+          accelerator: 'CommandOrControl+T',
+          click: () => sendManagerShortcut('terminalNewTab'),
+        },
       ],
     },
     { role: 'windowMenu' },
