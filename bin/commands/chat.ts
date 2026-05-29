@@ -33,7 +33,7 @@ if (shouldShowHelp(process.argv)) printAndExit(`
     --port <N>   Server port (default: 3457)
 `);
 import { APP_VERSION, getServerUrl, getWsUrl } from '../../src/core/config.js';
-import { c, cliColor, cliLabel, hrLine, getRows, ESC_WAIT_MS, type TuiContext } from './tui/types.js';
+import { c, cliColor, cliLabel, hrLine, getRows, ESC_WAIT_MS, formatFooter, type TuiContext } from './tui/types.js';
 import { runSimpleMode } from './tui/simple-mode.js';
 import { initHighlight } from '../../src/cli/tui/highlight.js';
 import { openPromptBlock } from './tui/renderer.js';
@@ -129,6 +129,8 @@ const ctx: TuiContext = {
     overlayBoxHeight: 0,
     inputActive: true,
     streaming: false,
+    streamState: 'idle',
+    turnStartedAt: 0,
     streamSink: null,
     commandRunning: false,
     escPending: false,
@@ -145,7 +147,7 @@ const ctx: TuiContext = {
     promptPrefix: '',
     footer: '',
 };
-ctx.footer = `  ${c.dim}${ctx.accent}${ctx.label}${c.reset}${c.dim}  |  /quit  |  /clear${c.reset}`;
+ctx.footer = formatFooter(ctx.label, ctx.accent, 'idle');
 ctx.promptPrefix = `  ${ctx.accent}\u276F${c.reset} `;
 
 // ─── Mode branch ─────────────────────────────

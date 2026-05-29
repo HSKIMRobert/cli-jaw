@@ -5,10 +5,10 @@ import { getComposerDisplayText, getDisplayCursorOffset } from '../../../src/cli
 import { closeAutocomplete } from '../../../src/cli/tui/overlay.js';
 import { visualWidth, cursorScreenPos } from '../../../src/cli/tui/renderers.js';
 import { resolveShellLayout, setupScrollRegion } from '../../../src/cli/tui/shell.js';
-import { c, hrLine, getRows, type TuiContext } from './types.js';
+import { c, hrLine, getRows, formatFooter, type TuiContext } from './types.js';
 
 export function rebuildFooter(ctx: TuiContext): void {
-    ctx.footer = `  ${c.dim}${ctx.accent}${ctx.label}${c.reset}${c.dim}  |  /quit  |  /clear${c.reset}`;
+    ctx.footer = formatFooter(ctx.label, ctx.accent, ctx.streamState);
     ctx.promptPrefix = `  ${ctx.accent}\u276F${c.reset} `;
     setupScrollRegion(
         ctx.footer,
