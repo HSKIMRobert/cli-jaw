@@ -17,7 +17,7 @@
     <div class="docs-nav-section">
       <div class="docs-nav-title">Getting Started</div>
       <a class="docs-nav-link" href="./">Overview</a>
-      <a class="docs-nav-link active" href="./quickstart.html"Quickstart</a>
+      <a class="docs-nav-link active" href="./quickstart.html">Quickstart</a>
       <a class="docs-nav-link" href="./quickstart-first-run.html">First Run</a>
     </div>
     <div class="docs-nav-section">
@@ -113,7 +113,7 @@ npm install -g cli-jaw</code></pre>
 <p>The setup wizard will guide you through:</p>
 <ol>
 <li>Choosing your primary CLI (Claude Code, Codex, Gemini CLI, etc.)</li>
-<li>Setting API keys</li>
+<li>Authenticating your CLI subscription</li>
 <li>Configuring the server port (default: 3457)</li>
 </ol>
 
@@ -129,11 +129,7 @@ codex
 gemini</code></pre>
 <p>Then set your preferred CLI in jaw:</p>
 <pre><code>jaw init   # or /cli claude in chat</code></pre>
-<div class="callout callout-info">API keys in <code>settings.json</code> are only needed for advanced features like voice (Gemini API) or image generation (OpenAI API). The main CLI auth is handled by each tool's own login.</div>REMOVEME
-  "anthropic": { "apiKey": "sk-ant-..." },
-  "openai": { "apiKey": "sk-..." },
-  "google": { "apiKey": "AIza..." }
-}</code></pre>
+<div class="callout callout-info">API keys in <code>settings.json</code> are only needed for advanced features like voice (Gemini API) or image generation (OpenAI API). The main CLI auth is handled by each tool's own login.</div>
 
 <h2>Verify Installation</h2>
 <pre><code>jaw doctor</code></pre>
@@ -150,7 +146,7 @@ gemini</code></pre>
 <div class="callout callout-info">
 <strong>Try it:</strong>
 <ul>
-<li>jaw init 하고 API 키 넣으면 끝</li>
+<li>jaw init 하고 CLI 인증하면 끝</li>
 <li>jaw doctor로 설치 확인해줘</li>
 </ul>
 </div>
