@@ -65,34 +65,34 @@
 </nav>
 <main class="docs-main">
 
-<h1>CLI-JAW Documentation</h1>
-<p class="lead">All your AI subscriptions. One assistant. CLI-JAW routes Claude, ChatGPT, Codex, Gemini, and Grok through a unified multi-agent orchestration platform.</p>
+<h1>CLI-JAW 文档</h1>
+<p class="lead">所有 AI 订阅，一个助手。CLI-JAW 将 Claude、ChatGPT、Codex、Gemini 和 Grok 通过统一的多智能体编排平台连接起来。</p>
 
 <div class="install-box">
 <code>npm install -g cli-jaw</code>
 <code>jaw dashboard</code>
 </div>
 
-<h2>What is CLI-JAW?</h2>
-<p>CLI-JAW is an open-source platform that lets you run multiple AI coding agents (Claude Code, Codex, Gemini CLI, OpenCode, Copilot CLI) from a single dashboard. It adds an <strong>employee system</strong> where your main agent can dispatch tasks to other CLI agents, a <strong>PABCD orchestration</strong> workflow for structured development, persistent <strong>memory and goals</strong>, a built-in <strong>notes workspace</strong>, <strong>Kanban board</strong>, and integration with <strong>Telegram and Discord</strong>.</p>
+<h2>什么是 CLI-JAW？</h2>
+<p>CLI-JAW 是一个开源平台，让你从一个仪表板运行多个 AI 编码代理（Claude Code、Codex、Gemini CLI、OpenCode、Copilot CLI）。它提供了<strong>员工系统</strong>——主代理可以将任务分派给其他 CLI 代理、用于结构化开发的 <strong>PABCD 编排</strong>工作流、持久化的<strong>记忆和目标</strong>、内置<strong>笔记工作区</strong>、<strong>看板</strong>，以及 <strong>Telegram 和 Discord</strong> 集成。</p>
 
-<h2>Key Features</h2>
+<h2>核心功能</h2>
 <table>
-<tr><th>Feature</th><th>Description</th></tr>
-<tr><td><strong>Multi-Instance Dashboard</strong></td><td>Run 7+ agent instances simultaneously. Start, stop, and manage from one UI.</td></tr>
-<tr><td><strong>Employee System</strong></td><td>Your main agent dispatches tasks to other CLI tools as "employees."</td></tr>
-<tr><td><strong>PABCD Orchestration</strong></td><td>Plan → Audit → Build → Check → Done. Structured development workflow.</td></tr>
-<tr><td><strong>Jawsidian Notes</strong></td><td>Built-in markdown editor with graph view, wikilinks, and image paste.</td></tr>
-<tr><td><strong>Kanban Board</strong></td><td>Task management with Backlog → Active → Review → Done lanes.</td></tr>
-<tr><td><strong>195 Skills</strong></td><td>Domain knowledge plugins. AI finds and activates them automatically.</td></tr>
-<tr><td><strong>Goal System</strong></td><td>Persistent objectives that survive across sessions.</td></tr>
-<tr><td><strong>Computer Use</strong></td><td>Desktop automation via Codex employee integration.</td></tr>
-<tr><td><strong>Telegram / Discord</strong></td><td>Control your agents remotely from messaging apps.</td></tr>
-<tr><td><strong>Electron Desktop</strong></td><td>Native app with terminal, diff viewer, folder panel, browser tabs.</td></tr>
+<tr><th>功能</th><th>说明</th></tr>
+<tr><td><strong>多实例仪表板</strong></td><td>同时运行 7+ 个代理实例。在一个界面中启动、停止和管理。</td></tr>
+<tr><td><strong>员工系统</strong></td><td>主代理将任务分派给其他 CLI 工具作为"员工"。</td></tr>
+<tr><td><strong>PABCD 编排</strong></td><td>Plan → Audit → Build → Check → Done。结构化开发工作流。</td></tr>
+<tr><td><strong>Jawsidian 笔记</strong></td><td>内置 Markdown 编辑器，支持图谱视图、Wiki 链接和图片粘贴。</td></tr>
+<tr><td><strong>看板</strong></td><td>通过 Backlog → Active → Review → Done 泳道管理任务。</td></tr>
+<tr><td><strong>195 个技能</strong></td><td>领域知识插件。AI 自动发现并激活。</td></tr>
+<tr><td><strong>目标系统</strong></td><td>跨会话持久化的目标追踪。</td></tr>
+<tr><td><strong>Computer Use</strong></td><td>通过 Codex 员工集成实现桌面自动化。</td></tr>
+<tr><td><strong>Telegram / Discord</strong></td><td>从消息应用远程控制 AI 代理。</td></tr>
+<tr><td><strong>Electron 桌面应用</strong></td><td>原生应用，集成终端、差异查看器、文件夹面板、浏览器标签。</td></tr>
 </table>
 
-<h2>Architecture Overview</h2>
-<p>CLI-JAW consists of a Node.js server that exposes 141 API endpoints across 15 route modules. Four interfaces (CLI, Web, Telegram, Discord) connect through the server. The <a href="concepts/architecture.html">Architecture</a> page covers the full system design.</p>
+<h2>架构概览</h2>
+<p>CLI-JAW 由一个 Node.js 服务器组成，提供跨 15 个路由模块的 141 个 API 端点。四个接口（CLI、Web、Telegram、Discord）通过服务器连接。完整系统设计请参阅<a href="concepts/architecture.html">架构</a>页面。</p>
 
 <pre><code>CLI (bin/commands/*) ──→ server.ts ──→ routes/*
 Web (public/)        ──→     ↓       ──→ core/
@@ -100,8 +100,8 @@ Telegram Bot         ──→     ↓       ──→ agent/
 Discord Bot          ──→     ↓       ──→ orchestrator/
 Dashboard (port 24576) ─→ manager/   ──→ memory/</code></pre>
 
-<h2>Getting Started</h2>
-<p>Head to the <a href="quickstart.html">Quickstart</a> guide to install CLI-JAW and run your first agent session in under 5 minutes.</p>
+<h2>开始使用</h2>
+<p>前往<a href="quickstart.html">快速开始</a>指南，安装 CLI-JAW 并在 5 分钟内启动你的第一个代理会话。</p>
 
 <div class="page-nav">
   <span></span>
