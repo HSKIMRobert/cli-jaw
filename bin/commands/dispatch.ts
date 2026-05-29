@@ -16,6 +16,8 @@ if (shouldShowHelp(process.argv)) printAndExit(`
   Options:
     --agent <name>    Employee name (must match settings.json employees)
     --task <text>     Task instruction to send
+    --mutable         Allow employee to write/modify files (default: read-only)
+    --scope <path>    Restrict writes to a subdirectory (optional, requires --mutable)
     --json            JSON output
 
   Result is returned via stdout. Employee names are case-sensitive.
@@ -52,6 +54,8 @@ function getFlag(name: string): string | undefined {
 
 const agent = getFlag('--agent');
 const task = getFlag('--task');
+const mutable = process.argv.includes('--mutable');
+const scope = getFlag('--scope');
 
 if (!agent || !task) {
     console.error('Usage: jaw dispatch --agent <name> --task <task>');
@@ -168,7 +172,7 @@ try {
                     'Content-Type': 'application/json',
                     'X-Jaw-Boss-Token': bossToken,
                 },
-                body: JSON.stringify({ agent, task }),
+                body: JSON.stringify({ agent, task, mutable, scope }),
             });
             break;
         } catch (e: unknown) {

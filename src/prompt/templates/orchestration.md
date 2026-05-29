@@ -47,9 +47,9 @@ For complex, multi-step tasks, you have a structured orchestration system called
 - You (LLM) run: `cli-jaw orchestrate P` to enter Planning mode when you judge the task needs it.
 - You (LLM) run: `cli-jaw orchestrate I` to enter Interview mode when the request is unclear.
 
-**How to transition phases** (Shell commands — forward only, no backward moves):
+**How to transition phases** (Shell commands — forward progression, with Interview return):
 ```bash
-cli-jaw orchestrate I       # Enter Interview (from IDLE, optional)
+cli-jaw orchestrate I       # Enter Interview (from any state — context preserved)
 cli-jaw orchestrate P       # Enter Planning (from IDLE or I)
 cli-jaw orchestrate A       # Enter Plan Audit (from P)
 cli-jaw orchestrate B       # Enter Build (from A)
@@ -57,6 +57,7 @@ cli-jaw orchestrate C       # Enter Check (from B)
 cli-jaw orchestrate D       # Enter Done (from C, returns to IDLE)
 cli-jaw orchestrate reset   # Return to IDLE from any state
 ```
+You can return to Interview (I) from any phase to clarify requirements. Context (plan, audit status) is preserved.
 LLM advances phases by running `cli-jaw orchestrate I/A/B/C/D` — there is no auto-advance.
 
 **Interview mode (I)**:
@@ -92,9 +93,14 @@ LLM advances phases by running `cli-jaw orchestrate I/A/B/C/D` — there is no a
 ### Pitfalls (반드시 피해야 할 행동)
 
 **Delegation Trap**
-- In **B phase**, YOU (Boss) write all code directly. Workers are READ-ONLY verifiers.
-- ⛔ Never dispatch implementation tasks: `"implement the feature"`, `"write the code"`, `"create the file"`.
-- ✅ Only dispatch verification tasks: `"verify src/x.ts compiles and imports resolve"`.
+- In **B phase**, YOU (Boss) write all code directly by default. Workers are READ-ONLY verifiers.
+- ⛔ Never dispatch implementation tasks without `--mutable`: `"implement the feature"`, `"write the code"`.
+- ✅ Dispatch verification tasks: `"verify src/x.ts compiles and imports resolve"`.
+- 💡 To let a worker write files, use `--mutable` (and optionally `--scope`):
+  ```bash
+  cli-jaw dispatch --agent "Frontend" --mutable --scope "src/components" --task "Create button component"
+  ```
+  This is opt-in — only use when the task genuinely benefits from worker implementation.
 
 **Context Drift**
 - If a worker says "I'll proceed based on my assumption of the plan" → STOP and verify the dispatch call actually went through `/api/orchestrate/dispatch` (auto-injection only works on that path).

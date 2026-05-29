@@ -13,7 +13,8 @@ export type SecurityEventType =
     | 'auth_success'
     | 'auth_fail'
     | 'file_access'
-    | 'network_acl_block';
+    | 'network_acl_block'
+    | 'scope_violation';
 
 export type SecurityAuditEntry = {
     id: string;

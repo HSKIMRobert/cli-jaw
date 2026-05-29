@@ -15,17 +15,28 @@ export function buildHandoff(opts: {
     phase: OrcStateName;
     mode: WorkflowHandoffMode;
     taskDescription: string;
+    mutable?: boolean;
+    scope?: string;
 }): WorkflowHandoff {
     const verdictKey = opts.mode === 'advisory'
         ? 'advisory'
         : (opts.phase === 'A' || opts.phase === 'B') ? opts.phase : 'advisory';
 
     const verdictTokens = VERDICT_TOKENS[verdictKey] ?? ['PASS', 'FAIL'];
-    const modeHeader = opts.mode === 'read-only'
-        ? 'READ-ONLY verification. Do not modify files.'
-        : opts.mode === 'verification'
-            ? 'VERIFICATION only. Do not implement new code.'
-            : 'Advisory review. Results are non-binding.';
+
+    let modeHeader: string;
+    if (opts.mutable) {
+        const scopeNote = opts.scope
+            ? `Files inside \`${opts.scope}\` may be created or modified.`
+            : 'Files in the project may be created or modified.';
+        modeHeader = `WRITE-ENABLED session. ${scopeNote} Protected files (.git, .env, settings.json) are still blocked.`;
+    } else {
+        modeHeader = opts.mode === 'read-only'
+            ? 'READ-ONLY verification. Do not modify files.'
+            : opts.mode === 'verification'
+                ? 'VERIFICATION only. Do not implement new code.'
+                : 'Advisory review. Results are non-binding.';
+    }
 
     const taskBody = [
         `Project root: ${opts.projectRoot}`,
@@ -46,16 +57,8 @@ export function buildHandoff(opts: {
     };
 }
 
+const IMPL_DELEGATION_PATTERN = /\b(implement(?:\s+the\s+feature|\s+this|\s+code)?|write\s+(?:the\s+)?(?:code|function)|create\s+(?:the\s+)?file|build\s+(?:the\s+)?(?:feature|module)|add\s+(?:the\s+)?(?:method|function|class))\b/i;
+
 export function hasImplementationDelegation(taskBody: string): boolean {
-    const lc = taskBody.toLowerCase();
-    const delegationPatterns = [
-        'implement the feature',
-        'implement this',
-        'write the code',
-        'create the file',
-        'write the function',
-        'implement code',
-        'build the module',
-    ];
-    return delegationPatterns.some(p => lc.includes(p));
+    return IMPL_DELEGATION_PATTERN.test(taskBody);
 }

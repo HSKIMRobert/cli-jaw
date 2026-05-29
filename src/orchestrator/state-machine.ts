@@ -297,11 +297,12 @@ The result is returned via stdout. Review it:
 
 You are now in Build mode. The plan has been audited and approved.
 
-⚠️ YOU (the Boss) must implement the code DIRECTLY. Write every file yourself.
-⚠️ Do NOT delegate implementation to an employee. Employees are READ-ONLY verifiers.
+⚠️ By default, YOU (the Boss) implement the code DIRECTLY. Employees are READ-ONLY verifiers.
+💡 To delegate writes to a worker, use \`--mutable\` (and optionally \`--scope\`):
+   \`cli-jaw dispatch --agent "Frontend" --mutable --scope "src/components" --task "Create button component"\`
 
-⛔ Forbidden dispatch examples: "implement the feature", "write the code", "create src/x.ts".
-✅ Allowed dispatch examples: "verify src/x.ts compiles", "check integration of Y reports DONE/NEEDS_FIX".
+⛔ Without --mutable, these are forbidden: "implement the feature", "write the code", "create src/x.ts".
+✅ Always allowed: "verify src/x.ts compiles", "check integration of Y reports DONE/NEEDS_FIX".
 
 Steps:
 1. Read the approved plan: the orchestrator injects it into Boss prompts and dispatch tasks under \`## Approved Plan\`.
@@ -363,11 +364,11 @@ export function getStatePrompt(target: string): string {
 const VALID_TRANSITIONS: Record<string, string[]> = {
   IDLE: ['I', 'P'],
   I: ['P', 'IDLE'],
-  P: ['A'],
-  A: ['B'],
-  B: ['C'],
-  C: ['D'],
-  D: ['IDLE'],
+  P: ['I', 'A'],
+  A: ['I', 'B'],
+  B: ['I', 'C'],
+  C: ['I', 'D'],
+  D: ['I', 'IDLE'],
 };
 
 export interface TransitionResult {
@@ -382,6 +383,10 @@ export function canTransition(
 ): TransitionResult {
   if (!VALID_TRANSITIONS[from]?.includes(to)) {
     return { ok: false, reason: `Invalid transition: ${from} → ${to}. Force cannot skip phases; start from the next valid phase.` };
+  }
+  // Any state → I: always allowed, context preserved by caller passing undefined ctx.
+  if (to === 'I' && from !== 'IDLE') {
+    return { ok: true };
   }
   // Phase 2.1: I→P soft gate — warn if no interview context, but don't block.
   if (from === 'I' && to === 'P' && !ctx?.interview) {

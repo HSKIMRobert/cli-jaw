@@ -369,7 +369,10 @@ export async function runSingleAgent(
     if (empRole) promptEmployee.role = empRole;
     if (typeof emp.id === 'string' || typeof emp.id === 'number') promptEmployee.id = emp.id;
     if (empCli) promptEmployee.cli = empCli;
-    const sysPrompt = getEmployeePromptV2(promptEmployee, text(ap["role"]), currentPhase);
+    const sysPrompt = getEmployeePromptV2(promptEmployee, text(ap["role"]), currentPhase, {
+        mutable: ap["mutable"] === true,
+        scope: typeof ap["scope"] === 'string' ? ap["scope"] : null,
+    });
 
     const executionContext = ap["parallel"]
         ? buildParallelContext(ap, parallelPeers)
