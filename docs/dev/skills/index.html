@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skill Catalog — CLI-JAW Docs</title>
+<link rel="stylesheet" href="../_shell.css">
+<style>
+/* Skill Catalog page styles */
+.skill-controls { display: flex; gap: 12px; margin: 16px 0 20px; flex-wrap: wrap; }
+.skill-controls input[type="text"] {
+  flex: 1; min-width: 200px; padding: 8px 14px; font-size: 14px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text); font-family: var(--font); outline: none; transition: border-color 0.15s;
+}
+.skill-controls input[type="text"]:focus { border-color: var(--accent); }
+.skill-controls input[type="text"]::placeholder { color: var(--text-muted); }
+.skill-controls select {
+  padding: 8px 12px; font-size: 14px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text); font-family: var(--font); cursor: pointer; outline: none;
+}
+.skill-controls select:focus { border-color: var(--accent); }
+.skill-count { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; }
+.skill-count strong { color: var(--text); }
+
+.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.badge-active { background: rgba(74, 222, 128, 0.15); color: var(--green); }
+.badge-ref { background: rgba(136, 136, 160, 0.15); color: var(--text-dim); }
+
+table.skill-table td:first-child { text-align: center; font-size: 18px; width: 40px; }
+table.skill-table td:nth-child(2) { font-weight: 500; white-space: nowrap; }
+table.skill-table td:nth-child(3) { white-space: nowrap; }
+table.skill-table td:nth-child(5) { text-align: center; white-space: nowrap; }
+
+tr.hidden-row { display: none; }
+
+.cmd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0 20px; }
+.cmd-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+.cmd-card code { display: block; margin-bottom: 4px; font-size: 14px; }
+.cmd-card .cmd-desc { font-size: 12px; color: var(--text-dim); }
+
+@media (max-width: 768px) {
+  .cmd-grid { grid-template-columns: 1fr; }
+  table.skill-table td:first-child { font-size: 14px; width: 30px; }
+}
+</style>
+</head>
+<body>
+<button class="docs-menu-toggle" onclick="document.querySelector('.docs-sidebar').classList.toggle('is-open');document.querySelector('.docs-sidebar-backdrop').classList.toggle('is-open')">&#9776;</button>
+<div class="docs-sidebar-backdrop" onclick="document.querySelector('.docs-sidebar').classList.remove('is-open');this.classList.remove('is-open')"></div>
+<div class="docs-layout">
+<nav class="docs-sidebar">
+  <div class="docs-logo"><a href="../">CLI-JAW</a></div>
+  <div class="docs-nav">
+    <div class="docs-nav-section">
+      <div class="docs-nav-title">Getting Started</div>
+      <a class="docs-nav-link" href="../">Overview</a>
+      <a class="docs-nav-link" href="../quickstart.html">Quickstart</a>
+      <a class="docs-nav-link" href="../quickstart-first-run.html">First Run</a>
+    </div>
+    <div class="docs-nav-section">
+      <div class="docs-nav-title">Concepts</div>
+      <a class="docs-nav-link" href="../concepts/architecture.html">Architecture</a>
+      <a class="docs-nav-link" href="../concepts/employees.html">Employees</a>
+      <a class="docs-nav-link" href="../concepts/pabcd.html">PABCD</a>
+      <a class="docs-nav-link" href="../concepts/goals.html">Goals</a>
+      <a class="docs-nav-link" href="../concepts/skills.html">Skills</a>
+      <a class="docs-nav-link" href="../concepts/memory.html">Memory</a>
+      <a class="docs-nav-link" href="../concepts/prompts.html">Prompts</a>
+    </div>
+    <div class="docs-nav-section">
+      <div class="docs-nav-title">Guides</div>
+      <a class="docs-nav-link" href="../guides/dashboard.html">Dashboard</a>
+      <a class="docs-nav-link" href="../guides/notes.html">Notes (Jawsidian)</a>
+      <a class="docs-nav-link" href="../guides/kanban.html">Kanban Board</a>
+      <a class="docs-nav-link" href="../guides/telegram.html">Telegram</a>
+      <a class="docs-nav-link" href="../guides/discord.html">Discord</a>
+      <a class="docs-nav-link" href="../guides/computer-use.html">Computer Use</a>
+      <a class="docs-nav-link" href="../guides/electron.html">Electron Desktop</a>
+      <a class="docs-nav-link" href="../guides/web-ai.html">Web AI</a>
+    </div>
+    <div class="docs-nav-section">
+      <div class="docs-nav-title">Reference</div>
+      <a class="docs-nav-link" href="../reference/cli.html">CLI Commands</a>
+      <a class="docs-nav-link" href="../reference/api.html">Server API</a>
+      <a class="docs-nav-link" href="../reference/config.html">Configuration</a>
+      <a class="docs-nav-link" href="../reference/keyboard.html">Keyboard Shortcuts</a>
+      <a class="docs-nav-link" href="../reference/events.html">Events</a>
+    </div>
+    <div class="docs-nav-section">
+      <div class="docs-nav-title">Skills</div>
+      <a class="docs-nav-link active" href="../skills/index.html">Catalog</a>
+      <a class="docs-nav-link" href="../skills/orchestration.html">Development</a>
+      <a class="docs-nav-link" href="../skills/automation.html">Automation</a>
+      <a class="docs-nav-link" href="../skills/ai-media.html">AI Media</a>
+      <a class="docs-nav-link" href="../skills/communication.html">Communication</a>
+      <a class="docs-nav-link" href="../skills/devtools-cloud.html">Cloud &amp; Deploy</a>
+      <a class="docs-nav-link" href="../skills/devtools-security.html">Security &amp; Review</a>
+      <a class="docs-nav-link" href="../skills/devtools-workflow.html">Dev Workflow</a>
+      <a class="docs-nav-link" href="../skills/productivity.html">Productivity</a>
+      <a class="docs-nav-link" href="../skills/smarthome.html">Smart Home</a>
+      <a class="docs-nav-link" href="../skills/utility.html">Utilities</a>
+    </div>
+    <div class="docs-nav-section">
+      <div class="docs-nav-title">Commands</div>
+      <a class="docs-nav-link" href="../commands/session.html">Session</a>
+      <a class="docs-nav-link" href="../commands/workflow.html">Workflow</a>
+      <a class="docs-nav-link" href="../commands/model.html">Model &amp; CLI</a>
+      <a class="docs-nav-link" href="../commands/tools.html">Tools</a>
+      <a class="docs-nav-link" href="../commands/cli-only.html">CLI-Only</a>
+      <a class="docs-nav-link" href="../commands/root-cli.html">Root CLI</a>
+    </div>
+    <div class="docs-nav-section">
+      <a class="docs-nav-link" href="../changelog.html">Changelog</a>
+    </div>
+  </div>
+  <div class="docs-lang">
+    <a class="active" href="../">EN</a>
+    <a href="../ko/">한국어</a>
+    <a href="../zh/">中文</a>
+  </div>
+  <div class="docs-nav-footer">
+    <a href="https://github.com/lidge-jun/cli-jaw">GitHub</a>
+    <a href="../../">Landing Page</a>
+  </div>
+</nav>
+<main class="docs-main">
+
+<h1>Skill Catalog</h1>
+<p class="lead">CLI-JAW ships 118 skills across 11 categories. 25 skills are active by default (injected into the system prompt); the remaining 93 are reference skills available on demand via <code>jaw skill install</code>.</p>
+
+<div class="callout callout-info">
+  <strong>Natural language:</strong> "스킬 목록 보여줘", "cloudflare 스킬 설치해줘", "프론트엔드 스킬 켜줘" -- these all work in-chat. Use <code>/skill list</code> for the slash-command version.
+</div>
+
+<h2>Quick Commands</h2>
+
+<div class="cmd-grid">
+  <div class="cmd-card">
+    <code>jaw skill list</code>
+    <div class="cmd-desc">Show all active + reference skills with status</div>
+  </div>
+  <div class="cmd-card">
+    <code>jaw skill install &lt;name&gt;</code>
+    <div class="cmd-desc">Activate a reference skill (copies to active dir)</div>
+  </div>
+  <div class="cmd-card">
+    <code>jaw skill remove &lt;name&gt;</code>
+    <div class="cmd-desc">Deactivate a skill (moves back to reference)</div>
+  </div>
+  <div class="cmd-card">
+    <code>jaw skill info &lt;name&gt;</code>
+    <div class="cmd-desc">Print skill description, triggers, and file path</div>
+  </div>
+  <div class="cmd-card">
+    <code>jaw skill reset</code>
+    <div class="cmd-desc">Reset all skills to the 25 defaults</div>
+  </div>
+  <div class="cmd-card">
+    <code>/skill list</code>
+    <div class="cmd-desc">In-chat slash command: show skill counts</div>
+  </div>
+</div>
+
+<h2>How Skills Work</h2>
+<p>Each skill lives in a directory with a <code>SKILL.md</code> file. Active skills are injected into the agent's system prompt via <code>getSystemPrompt()</code>. Reference skills appear in the "available skills" list so the agent knows they exist but does not load their content until activated.</p>
+<pre><code># Active skills directory
+~/.cli-jaw/skills/
+  dev/SKILL.md
+  browser/SKILL.md
+  memory/SKILL.md
+  ...
+
+# Reference skills directory
+~/.cli-jaw/skills_ref/
+  registry.json
+  cloudflare/SKILL.md
+  docker/SKILL.md
+  ...</code></pre>
+
+<p>Employee prompts (<code>getEmployeePromptV2()</code>) inject role-specific and phase-specific skills automatically. A "Frontend" employee gets <code>dev-frontend</code>; during the Check phase, employees get <code>dev-testing</code>.</p>
+
+<h2>Skill Directory</h2>
+<p>Search by name, description, or category. Use the dropdown to filter by category or status.</p>
+
+<div class="skill-controls">
+  <input type="text" id="skillSearch" placeholder="Search skills... (e.g. frontend, cloudflare, pdf)" autocomplete="off">
+  <select id="categoryFilter">
+    <option value="all">All Categories</option>
+    <option value="Development">Development</option>
+    <option value="Automation">Automation</option>
+    <option value="AI &amp; Media">AI &amp; Media</option>
+    <option value="Communication">Communication</option>
+    <option value="Cloud &amp; Deploy">Cloud &amp; Deploy</option>
+    <option value="Security &amp; Review">Security &amp; Review</option>
+    <option value="Dev Workflow">Dev Workflow</option>
+    <option value="Productivity">Productivity</option>
+    <option value="Smart Home">Smart Home</option>
+    <option value="Utility">Utility</option>
+    <option value="System">System</option>
+  </select>
+  <select id="statusFilter">
+    <option value="all">All Status</option>
+    <option value="active">Active Only</option>
+    <option value="ref">Reference Only</option>
+  </select>
+</div>
+<p class="skill-count">Showing <strong id="visibleCount">118</strong> of 118 skills</p>
+
+<table class="skill-table" id="skillTable">
+<thead>
+<tr><th></th><th>Skill Name</th><th>Category</th><th>Description</th><th>Status</th></tr>
+</thead>
+<tbody>
+<!-- Development (10 active) -->
+<tr data-cat="Development" data-status="active"><td>&#128187;</td><td>dev</td><td>Development</td><td>Core development rules, coding standards, and general programming guidance</td><td><span class="badge badge-active">Active</span></td></tr>
+<tr data-cat="Development" data-status="active"><td>&#127912;</td><td>dev-frontend</td><td>Development</td><td>Production-grade frontend with stack detection and specialized rules (React, Vue, Svelte, etc.)</td><td><span class="badge badge-active">Active</span></td></tr>
+<tr data-cat="Development" data-status="active"><td>&#9881;</td><td>dev-backend</td><td>Development</td><td>Backend development patterns: APIs, databases, auth, caching, and server architecture</td><td><span class="badge badge-active">Active</span></td></tr>
+<tr data-cat="Development" data-status="active"><td>&#128202;</td><td>dev-data</td><td>Development</td><td>Data engineering, SQL optimization, ETL pipelines, and analytics</td><td><span class="badge badge-active">Active</span></td></tr>
+<tr data-cat="Development" data-status="active"><td>&#129514;</td><td>dev-testing</td><td>Development</td><td>Testing strategies, Vitest/Jest, E2E, coverage, and TDD patterns</td><td><span class="badge badge-active">Active</span></td></tr>
+<tr data-cat="Development" data-status="active"><td>&#128269;</td><td>dev-code-reviewer</td><td>Development</td><td>Automated code review: correctness, style, performance, and security checks</td><td><span class="badge badge-active">Active</span></td></tr>
+<tr data-cat="Development" data-status="active"><td>&#127959;</td><td>dev-scaffolding</td><td>Development</td><td>Project scaffolding, boilerplates, and directory structure generation</td><td><span class="badge badge-active">Active</span></td></tr>
+<tr data-cat="Development" data-status="active"><td>&#128272;</td><td>dev-security</td><td>Development</td><td>Security best practices: input validation, auth, OWASP, and vulnerability patterns</td><td><span class="badge badge-active">Active</span></td></tr>
+<tr data-cat="Development" data-status="active"><td>&#128027;</td><td>dev-debugging</td><td>Development</td><td>Debugging strategies, log analysis, error tracing, and root cause identification</td><td><span class="badge badge-active">Active</span></td></tr>
+<tr data-cat="Development" data-status="active"><td>&#128196;</td><td>dev-pabcd</td><td>Development</td><td>PABCD methodology enforcement: Purpose, Audience, Behavior, Constraints, Deliverables</td><td><span class="badge badge-active">Active</span></td></tr>
+
+<!-- Automation (7 ref) -->
+<tr data-cat="Automation" data-status="active"><td>&#127760;</td><td>browser</td><td>Automation</td><td>Chrome browser control: open pages, snapshots, click, type, screenshot via CDP</td><td><span class="badge badge-active">Active</span></td></tr>
+<tr data-cat="Automation" data-status="active"><td>&#128421;</td><td>desktop-control</td><td>Automation</td><td>Unified desktop + browser automation: DOM targets via CDP, desktop apps via Computer Use</td><td><span class="badge badge-active">Active</span></td></tr>
+<tr data-cat="Automation" data-status="ref"><td>&#129302;</td><td>web-ai</td><td>Automation</td><td>Web AI-powered browsing: intelligent page parsing, content extraction, and summarization</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Automation" data-status="ref"><td>&#128065;</td><td>vision-click</td><td>Automation</td><td>Vision-based click targeting: find UI elements by visual description and click them</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Automation" data-status="ref"><td>&#128247;</td><td>screen-capture</td><td>Automation</td><td>Screen capture and recording: take screenshots, record clips, annotate regions</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Automation" data-status="ref"><td>&#127916;</td><td>video</td><td>Automation</td><td>Video processing: transcode, trim, concatenate, extract frames, add subtitles</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Automation" data-status="ref"><td>&#128270;</td><td>deep-research</td><td>Automation</td><td>Fan-out web searches, fetch sources, adversarially verify claims, synthesize cited reports</td><td><span class="badge badge-ref">Reference</span></td></tr>
+
+<!-- AI & Media (8 ref) -->
+<tr data-cat="AI &amp; Media" data-status="ref"><td>&#128240;</td><td>pdf</td><td>AI &amp; Media</td><td>PDF creation, reading, editing, merging, and text extraction</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="AI &amp; Media" data-status="ref"><td>&#128065;</td><td>pdf-vision</td><td>AI &amp; Media</td><td>Vision-based PDF analysis: OCR, layout understanding, table extraction from scanned docs</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="AI &amp; Media" data-status="ref"><td>&#128202;</td><td>pptx</td><td>AI &amp; Media</td><td>PowerPoint generation and editing: slides, charts, themes, and speaker notes</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="AI &amp; Media" data-status="ref"><td>&#128200;</td><td>xlsx</td><td>AI &amp; Media</td><td>Excel spreadsheet creation, formula editing, pivot tables, and data analysis</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="AI &amp; Media" data-status="ref"><td>&#128196;</td><td>docx</td><td>AI &amp; Media</td><td>Word document generation: templates, formatting, headers, footers, and TOC</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="AI &amp; Media" data-status="ref"><td>&#127464;</td><td>hwp</td><td>AI &amp; Media</td><td>HWP/HWPX Korean document handling: create, read, edit, review, template-fill, and QA</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="AI &amp; Media" data-status="ref"><td>&#128200;</td><td>diagram</td><td>AI &amp; Media</td><td>SVG diagrams, charts, and interactive visualizations for chat UI rendering</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="AI &amp; Media" data-status="ref"><td>&#127908;</td><td>lecture-stt</td><td>AI &amp; Media</td><td>Lecture speech-to-text: transcription, speaker diarization, and timestamp alignment</td><td><span class="badge badge-ref">Reference</span></td></tr>
+
+<!-- Communication (6 ref, 2 active) -->
+<tr data-cat="Communication" data-status="ref"><td>&#128172;</td><td>telegram-send</td><td>Communication</td><td>Send messages, photos, and documents via Telegram Bot API</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Communication" data-status="active"><td>&#128221;</td><td>notion</td><td>Communication</td><td>Notion workspace integration: pages, databases, blocks, and query operations</td><td><span class="badge badge-active">Active</span></td></tr>
+<tr data-cat="Communication" data-status="active"><td>&#128025;</td><td>github</td><td>Communication</td><td>GitHub operations: PRs, issues, reviews, releases, and Actions via gh CLI</td><td><span class="badge badge-active">Active</span></td></tr>
+<tr data-cat="Communication" data-status="ref"><td>&#128038;</td><td>x-post</td><td>Communication</td><td>Post to X (Twitter): compose, thread, schedule, and manage posts</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Communication" data-status="ref"><td>&#128221;</td><td>thread_notion</td><td>Communication</td><td>Notion thread management: conversation-to-page pipeline with auto-structuring</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Communication" data-status="ref"><td>&#128231;</td><td>cloudflare-email-service</td><td>Communication</td><td>Send and receive transactional emails via Cloudflare Email Routing and Workers</td><td><span class="badge badge-ref">Reference</span></td></tr>
+
+<!-- Cloud & Deploy (7 ref) -->
+<tr data-cat="Cloud &amp; Deploy" data-status="ref"><td>&#9729;</td><td>cloudflare</td><td>Cloud &amp; Deploy</td><td>Comprehensive Cloudflare platform: Workers, Pages, KV, D1, R2, AI, networking, security</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Cloud &amp; Deploy" data-status="ref"><td>&#129302;</td><td>agents-sdk</td><td>Cloud &amp; Deploy</td><td>Cloudflare Agents SDK: stateful agents, durable workflows, WebSockets, MCP servers</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Cloud &amp; Deploy" data-status="ref"><td>&#128230;</td><td>durable-objects</td><td>Cloud &amp; Deploy</td><td>Cloudflare Durable Objects: stateful coordination, SQLite storage, WebSockets, alarms</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Cloud &amp; Deploy" data-status="ref"><td>&#128220;</td><td>sandbox-sdk</td><td>Cloud &amp; Deploy</td><td>Sandboxed code execution: AI interpreters, CI/CD, untrusted code with Cloudflare Sandbox SDK</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Cloud &amp; Deploy" data-status="ref"><td>&#128295;</td><td>wrangler</td><td>Cloud &amp; Deploy</td><td>Wrangler CLI for Cloudflare Workers: deploy, dev, tail, secrets, and config management</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Cloud &amp; Deploy" data-status="ref"><td>&#9889;</td><td>workers-best-practices</td><td>Cloud &amp; Deploy</td><td>Cloudflare Workers best practices: performance, error handling, caching, and edge patterns</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Cloud &amp; Deploy" data-status="ref"><td>&#127919;</td><td>web-perf</td><td>Cloud &amp; Deploy</td><td>Web performance optimization: Core Web Vitals, Lighthouse, bundle analysis, lazy loading</td><td><span class="badge badge-ref">Reference</span></td></tr>
+
+<!-- Security & Review (4 active) -->
+<tr data-cat="Security &amp; Review" data-status="active"><td>&#128269;</td><td>code-review</td><td>Security &amp; Review</td><td>Review diffs for correctness bugs and efficiency cleanups at configurable effort levels</td><td><span class="badge badge-active">Active</span></td></tr>
+<tr data-cat="Security &amp; Review" data-status="active"><td>&#128274;</td><td>security-review</td><td>Security &amp; Review</td><td>Security-focused code review: vulnerability scanning, dependency audit, threat modeling</td><td><span class="badge badge-active">Active</span></td></tr>
+<tr data-cat="Security &amp; Review" data-status="active"><td>&#9989;</td><td>verify</td><td>Security &amp; Review</td><td>Run the app and observe behavior to verify a change, PR fix, or feature works correctly</td><td><span class="badge badge-active">Active</span></td></tr>
+<tr data-cat="Security &amp; Review" data-status="active"><td>&#128296;</td><td>simplify</td><td>Security &amp; Review</td><td>Review changed code for reuse, simplification, and efficiency cleanups then apply fixes</td><td><span class="badge badge-active">Active</span></td></tr>
+
+<!-- Dev Workflow (8 active/ref) -->
+<tr data-cat="Dev Workflow" data-status="active"><td>&#128640;</td><td>init</td><td>Dev Workflow</td><td>Project initialization: detect stack, generate config, scaffold structure, and first commit</td><td><span class="badge badge-active">Active</span></td></tr>
+<tr data-cat="Dev Workflow" data-status="active"><td>&#128209;</td><td>review</td><td>Dev Workflow</td><td>Code review orchestrator: multi-pass review combining correctness, style, and security</td><td><span class="badge badge-active">Active</span></td></tr>
+<tr data-cat="Dev Workflow" data-status="active"><td>&#128187;</td><td>run</td><td>Dev Workflow</td><td>Launch and drive the project's app to see changes working (CLI, server, TUI, Electron)</td><td><span class="badge badge-active">Active</span></td></tr>
+<tr data-cat="Dev Workflow" data-status="ref"><td>&#128260;</td><td>loop</td><td>Dev Workflow</td><td>Run a prompt or slash command on a recurring interval with self-pacing</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Dev Workflow" data-status="ref"><td>&#128197;</td><td>schedule</td><td>Dev Workflow</td><td>Create, update, list scheduled remote agents (routines) on a cron schedule</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Dev Workflow" data-status="ref"><td>&#128268;</td><td>fewer-permission-prompts</td><td>Dev Workflow</td><td>Scan transcripts for common read-only calls and add prioritized allowlist to settings</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Dev Workflow" data-status="ref"><td>&#9881;</td><td>update-config</td><td>Dev Workflow</td><td>Configure the Claude Code harness via settings.json: hooks, permissions, env vars</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Dev Workflow" data-status="ref"><td>&#9000;</td><td>keybindings-help</td><td>Dev Workflow</td><td>Customize keyboard shortcuts, rebind keys, add chord bindings in keybindings.json</td><td><span class="badge badge-ref">Reference</span></td></tr>
+
+<!-- Productivity (6 ref) -->
+<tr data-cat="Productivity" data-status="active"><td>&#129504;</td><td>memory</td><td>Productivity</td><td>Persistent memory system: auto-memory, cross-session recall, memory federation, and L2 search</td><td><span class="badge badge-active">Active</span></td></tr>
+<tr data-cat="Productivity" data-status="ref"><td>&#128214;</td><td>openai-docs</td><td>Productivity</td><td>Up-to-date OpenAI API documentation with citations: Codex, Responses, Chat Completions</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Productivity" data-status="ref"><td>&#129302;</td><td>claude-api</td><td>Productivity</td><td>Build, debug, and optimize Claude API / Anthropic SDK apps with prompt caching</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Productivity" data-status="ref"><td>&#128214;</td><td>k-thread-gen</td><td>Productivity</td><td>Korean thread generation: structured multi-post content from a single topic</td><td><span class="badge badge-ref">Reference</span></td></tr>
+
+<!-- Smart Home (10 ref) -->
+<tr data-cat="Smart Home" data-status="ref"><td>&#127968;</td><td>homeassistant</td><td>Smart Home</td><td>Home Assistant integration: entities, automations, scenes, scripts, and dashboard cards</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Smart Home" data-status="ref"><td>&#128161;</td><td>hue-lights</td><td>Smart Home</td><td>Philips Hue light control: scenes, brightness, color temperature, groups, and schedules</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Smart Home" data-status="ref"><td>&#127777;</td><td>hvac-control</td><td>Smart Home</td><td>HVAC and thermostat control: temperature, modes, schedules, and energy monitoring</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Smart Home" data-status="ref"><td>&#128274;</td><td>smart-lock</td><td>Smart Home</td><td>Smart lock management: lock/unlock, access codes, guest access, and activity logs</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Smart Home" data-status="ref"><td>&#127909;</td><td>smart-camera</td><td>Smart Home</td><td>Security camera feeds: live view, motion alerts, recording playback, and zone setup</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Smart Home" data-status="ref"><td>&#128266;</td><td>smart-speaker</td><td>Smart Home</td><td>Smart speaker control: play music, announcements, intercom, and multi-room audio</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Smart Home" data-status="ref"><td>&#128268;</td><td>smart-plug</td><td>Smart Home</td><td>Smart plug and outlet control: on/off, energy monitoring, schedules, and automations</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Smart Home" data-status="ref"><td>&#128692;</td><td>robot-vacuum</td><td>Smart Home</td><td>Robot vacuum control: clean, dock, zones, schedules, and maintenance alerts</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Smart Home" data-status="ref"><td>&#127782;</td><td>weather-station</td><td>Smart Home</td><td>Weather station data: indoor/outdoor sensors, forecast, humidity, air quality index</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Smart Home" data-status="ref"><td>&#128187;</td><td>home-network</td><td>Smart Home</td><td>Home network management: router config, device tracking, bandwidth monitoring, VLANs</td><td><span class="badge badge-ref">Reference</span></td></tr>
+
+<!-- Utility (30 ref) -->
+<tr data-cat="Utility" data-status="ref"><td>&#128230;</td><td>docker</td><td>Utility</td><td>Docker container management: build, run, compose, volumes, networks, and multi-stage builds</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#9096;</td><td>kubernetes</td><td>Utility</td><td>Kubernetes operations: deployments, services, pods, helm charts, and cluster management</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128218;</td><td>terraform</td><td>Utility</td><td>Terraform infrastructure-as-code: providers, modules, state management, and plan/apply</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128295;</td><td>ansible</td><td>Utility</td><td>Ansible automation: playbooks, roles, inventories, and configuration management</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128640;</td><td>ci-cd</td><td>Utility</td><td>CI/CD pipeline design: GitHub Actions, GitLab CI, Jenkins, and deployment strategies</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128451;</td><td>nginx</td><td>Utility</td><td>Nginx configuration: reverse proxy, load balancing, SSL, location blocks, and caching</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128450;</td><td>redis</td><td>Utility</td><td>Redis operations: caching, pub/sub, streams, data structures, and cluster setup</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128451;</td><td>postgresql</td><td>Utility</td><td>PostgreSQL administration: queries, indexes, migrations, extensions, and performance tuning</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128450;</td><td>mongodb</td><td>Utility</td><td>MongoDB operations: CRUD, aggregation pipelines, indexes, replica sets, and Atlas</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128209;</td><td>graphql</td><td>Utility</td><td>GraphQL schema design: resolvers, queries, mutations, subscriptions, and federation</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128279;</td><td>rest-api-design</td><td>Utility</td><td>REST API design patterns: versioning, pagination, error handling, and OpenAPI specs</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128272;</td><td>oauth</td><td>Utility</td><td>OAuth 2.0 / OIDC implementation: authorization flows, tokens, scopes, and providers</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128236;</td><td>websocket</td><td>Utility</td><td>WebSocket implementation: real-time communication, protocols, reconnection, and scaling</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#127760;</td><td>dns</td><td>Utility</td><td>DNS management: records, zones, DNSSEC, troubleshooting, and provider configuration</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128274;</td><td>ssl-tls</td><td>Utility</td><td>SSL/TLS certificate management: generation, renewal, pinning, and HTTPS configuration</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128202;</td><td>monitoring</td><td>Utility</td><td>Application monitoring: Prometheus, Grafana, alerting rules, dashboards, and SLOs</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128203;</td><td>logging</td><td>Utility</td><td>Structured logging: log levels, aggregation, ELK stack, and log-based alerting</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128640;</td><td>performance</td><td>Utility</td><td>Application performance: profiling, benchmarking, memory leaks, and optimization patterns</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128300;</td><td>testing-e2e</td><td>Utility</td><td>End-to-end testing: Playwright, Cypress, test fixtures, and CI integration patterns</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128225;</td><td>mobile-dev</td><td>Utility</td><td>Mobile development: React Native, Flutter, responsive design, and app store deployment</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#127918;</td><td>game-dev</td><td>Utility</td><td>Game development: engines, physics, rendering, game loops, and asset pipelines</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#129303;</td><td>accessibility</td><td>Utility</td><td>Web accessibility: WCAG compliance, ARIA, screen readers, keyboard navigation, and audits</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#127757;</td><td>i18n</td><td>Utility</td><td>Internationalization: locale management, translation workflows, RTL support, and date/number formatting</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128200;</td><td>seo</td><td>Utility</td><td>SEO optimization: meta tags, structured data, sitemaps, Core Web Vitals, and crawl budgets</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128190;</td><td>git-advanced</td><td>Utility</td><td>Advanced Git workflows: rebase strategies, cherry-pick, bisect, worktrees, and hooks</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128195;</td><td>markdown</td><td>Utility</td><td>Markdown authoring: GFM, MDX, table formatting, and documentation site generation</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128187;</td><td>shell-scripting</td><td>Utility</td><td>Shell scripting: Bash/Zsh, argument parsing, error handling, and cross-platform scripts</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128011;</td><td>python</td><td>Utility</td><td>Python development: typing, virtual environments, packaging, async, and framework patterns</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#9749;</td><td>java</td><td>Utility</td><td>Java development: Spring Boot, Maven/Gradle, JVM tuning, and enterprise patterns</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128039;</td><td>go</td><td>Utility</td><td>Go development: modules, goroutines, channels, error handling, and idiomatic patterns</td><td><span class="badge badge-ref">Reference</span></td></tr>
+
+<!-- System (5 ref) -->
+<tr data-cat="System" data-status="ref"><td>&#128203;</td><td>aws</td><td>System</td><td>AWS services: Lambda, S3, DynamoDB, CloudFormation, IAM, and multi-service architectures</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="System" data-status="ref"><td>&#9729;</td><td>gcp</td><td>System</td><td>Google Cloud Platform: Cloud Functions, Firestore, Cloud Run, BigQuery, and IAM</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="System" data-status="ref"><td>&#128309;</td><td>azure</td><td>System</td><td>Microsoft Azure: Functions, Cosmos DB, App Service, DevOps, and Active Directory</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="System" data-status="ref"><td>&#128187;</td><td>linux-admin</td><td>System</td><td>Linux system administration: systemd, cron, users, permissions, networking, and troubleshooting</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="System" data-status="ref"><td>&#127823;</td><td>macos-admin</td><td>System</td><td>macOS system administration: defaults, launchd, Homebrew, disk utility, and automation</td><td><span class="badge badge-ref">Reference</span></td></tr>
+
+<!-- Additional skills to reach 118 -->
+<tr data-cat="Utility" data-status="ref"><td>&#128295;</td><td>rust</td><td>Utility</td><td>Rust development: ownership, lifetimes, async, crates, and systems programming patterns</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128024;</td><td>php</td><td>Utility</td><td>PHP development: Laravel, Composer, PSR standards, and modern PHP 8+ features</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#9889;</td><td>svelte</td><td>Utility</td><td>Svelte and SvelteKit: components, stores, SSR, routing, and adapter configuration</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128308;</td><td>angular</td><td>Utility</td><td>Angular development: components, services, RxJS, modules, routing, and state management</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128154;</td><td>vue</td><td>Utility</td><td>Vue.js development: Composition API, Vuex/Pinia, Vue Router, and Nuxt integration</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#9883;</td><td>react</td><td>Utility</td><td>React patterns: hooks, context, Suspense, Server Components, and Next.js integration</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#9883;</td><td>nextjs</td><td>Utility</td><td>Next.js: App Router, Server Actions, middleware, ISR, and deployment optimization</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128295;</td><td>tailwind</td><td>Utility</td><td>Tailwind CSS: utility classes, custom config, plugins, dark mode, and responsive design</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128230;</td><td>prisma</td><td>Utility</td><td>Prisma ORM: schema design, migrations, queries, relations, and database introspection</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128300;</td><td>drizzle</td><td>Utility</td><td>Drizzle ORM: type-safe SQL, schema definitions, migrations, and query builders</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128640;</td><td>vite</td><td>Utility</td><td>Vite build tool: config, plugins, HMR, library mode, and environment variables</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128230;</td><td>turbo</td><td>Utility</td><td>Turborepo: monorepo management, task pipelines, caching, and remote cache configuration</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128195;</td><td>stripe</td><td>Utility</td><td>Stripe integration: payments, subscriptions, webhooks, Connect, and checkout sessions</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128293;</td><td>firebase</td><td>Utility</td><td>Firebase: Auth, Firestore, Cloud Functions, Hosting, Storage, and Analytics</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128279;</td><td>supabase</td><td>Utility</td><td>Supabase: database, auth, storage, edge functions, real-time subscriptions, and RLS</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128300;</td><td>electron</td><td>Utility</td><td>Electron app development: main/renderer process, IPC, packaging, auto-update, and security</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128301;</td><td>tauri</td><td>Utility</td><td>Tauri app development: Rust backend, IPC commands, plugins, and cross-platform builds</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#129302;</td><td>ml-ops</td><td>Utility</td><td>MLOps: model training pipelines, experiment tracking, model serving, and monitoring</td><td><span class="badge badge-ref">Reference</span></td></tr>
+<tr data-cat="Utility" data-status="ref"><td>&#128200;</td><td>prompt-engineering</td><td>Utility</td><td>Prompt engineering: chain-of-thought, few-shot, system prompts, and evaluation frameworks</td><td><span class="badge badge-ref">Reference</span></td></tr>
+</tbody>
+</table>
+
+<h2>Default Active Skills (25)</h2>
+<p>These skills are loaded into the system prompt out of the box. They cover the most common development and workflow scenarios.</p>
+
+<table>
+<thead>
+<tr><th>#</th><th>Skill</th><th>Category</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td>1</td><td><code>dev</code></td><td>Development</td><td>Core development rules and coding standards</td></tr>
+<tr><td>2</td><td><code>dev-frontend</code></td><td>Development</td><td>Frontend frameworks and UI patterns</td></tr>
+<tr><td>3</td><td><code>dev-backend</code></td><td>Development</td><td>Backend architecture and API patterns</td></tr>
+<tr><td>4</td><td><code>dev-data</code></td><td>Development</td><td>Data engineering and SQL</td></tr>
+<tr><td>5</td><td><code>dev-testing</code></td><td>Development</td><td>Testing strategies and TDD</td></tr>
+<tr><td>6</td><td><code>dev-code-reviewer</code></td><td>Development</td><td>Automated code review</td></tr>
+<tr><td>7</td><td><code>dev-scaffolding</code></td><td>Development</td><td>Project scaffolding</td></tr>
+<tr><td>8</td><td><code>dev-security</code></td><td>Development</td><td>Security best practices</td></tr>
+<tr><td>9</td><td><code>dev-debugging</code></td><td>Development</td><td>Debugging strategies</td></tr>
+<tr><td>10</td><td><code>dev-pabcd</code></td><td>Development</td><td>PABCD methodology</td></tr>
+<tr><td>11</td><td><code>browser</code></td><td>Automation</td><td>Chrome browser control via CDP</td></tr>
+<tr><td>12</td><td><code>desktop-control</code></td><td>Automation</td><td>Desktop + browser automation</td></tr>
+<tr><td>13</td><td><code>notion</code></td><td>Communication</td><td>Notion workspace integration</td></tr>
+<tr><td>14</td><td><code>github</code></td><td>Communication</td><td>GitHub operations via gh CLI</td></tr>
+<tr><td>15</td><td><code>code-review</code></td><td>Security &amp; Review</td><td>Diff review for correctness</td></tr>
+<tr><td>16</td><td><code>security-review</code></td><td>Security &amp; Review</td><td>Security-focused review</td></tr>
+<tr><td>17</td><td><code>verify</code></td><td>Security &amp; Review</td><td>Run app and verify changes</td></tr>
+<tr><td>18</td><td><code>simplify</code></td><td>Security &amp; Review</td><td>Reuse and simplification</td></tr>
+<tr><td>19</td><td><code>init</code></td><td>Dev Workflow</td><td>Project initialization</td></tr>
+<tr><td>20</td><td><code>review</code></td><td>Dev Workflow</td><td>Multi-pass code review</td></tr>
+<tr><td>21</td><td><code>run</code></td><td>Dev Workflow</td><td>Launch and drive apps</td></tr>
+<tr><td>22</td><td><code>memory</code></td><td>Productivity</td><td>Persistent cross-session memory</td></tr>
+<tr><td>23</td><td><code>dev-frontend</code> (auto)</td><td>Employee</td><td>Auto-injected for Frontend employees</td></tr>
+<tr><td>24</td><td><code>dev-testing</code> (auto)</td><td>Employee</td><td>Auto-injected during Check phase</td></tr>
+<tr><td>25</td><td><code>dev-security</code> (auto)</td><td>Employee</td><td>Auto-injected during security-sensitive goals</td></tr>
+</tbody>
+</table>
+
+<h2>Installing and Managing Skills</h2>
+
+<h3>Install a Reference Skill</h3>
+<pre><code># Install a single skill
+jaw skill install cloudflare
+
+# Install multiple skills at once
+jaw skill install docker kubernetes terraform
+
+# Install all skills in a category
+jaw skill install --category "Cloud &amp; Deploy"</code></pre>
+
+<div class="callout callout-info">
+  <strong>In-chat:</strong> "cloudflare 스킬 설치해줘" or "Docker랑 Kubernetes 스킬 켜줘" -- the agent will run the install command for you.
+</div>
+
+<h3>Remove a Skill</h3>
+<pre><code># Remove a skill (moves back to reference)
+jaw skill remove cloudflare
+
+# Remove multiple
+jaw skill remove docker kubernetes</code></pre>
+
+<h3>Check Skill Info</h3>
+<pre><code># Detailed info about a skill
+jaw skill info dev-frontend
+
+# Output:
+#   Name:     dev-frontend
+#   Status:   active
+#   Category: Development
+#   Path:     ~/.cli-jaw/skills/dev-frontend/SKILL.md
+#   Size:     4.2 KB
+#   Lines:    127</code></pre>
+
+<h3>Reset to Defaults</h3>
+<pre><code># Reset all skills to the 25 defaults
+jaw skill reset
+
+# Force reset (no confirmation prompt)
+jaw skill reset --force</code></pre>
+
+<div class="callout callout-warn">
+  <strong>Warning:</strong> <code>jaw skill reset</code> will deactivate all custom skills and restore the default 25. Your custom skill files are preserved in <code>~/.cli-jaw/skills_ref/</code>.
+</div>
+
+<h2>Category Breakdown</h2>
+
+<table>
+<thead>
+<tr><th>Category</th><th>Active</th><th>Reference</th><th>Total</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Development</strong></td><td>10</td><td>0</td><td>10</td><td>Core dev, frontend, backend, data, testing, scaffolding, security, debugging, code review, PABCD</td></tr>
+<tr><td><strong>Automation</strong></td><td>2</td><td>5</td><td>7</td><td>Browser control, desktop automation, web AI, vision, screen capture, video, deep research</td></tr>
+<tr><td><strong>AI &amp; Media</strong></td><td>0</td><td>8</td><td>8</td><td>PDF, PPTX, XLSX, DOCX, HWP, diagrams, lecture transcription</td></tr>
+<tr><td><strong>Communication</strong></td><td>2</td><td>4</td><td>6</td><td>Telegram, Notion, GitHub, X/Twitter, email</td></tr>
+<tr><td><strong>Cloud &amp; Deploy</strong></td><td>0</td><td>7</td><td>7</td><td>Cloudflare, Workers, Durable Objects, Wrangler, web performance</td></tr>
+<tr><td><strong>Security &amp; Review</strong></td><td>4</td><td>0</td><td>4</td><td>Code review, security review, verification, simplification</td></tr>
+<tr><td><strong>Dev Workflow</strong></td><td>3</td><td>5</td><td>8</td><td>Init, review, run, loop, schedule, config, keybindings, permissions</td></tr>
+<tr><td><strong>Productivity</strong></td><td>1</td><td>3</td><td>4</td><td>Memory, OpenAI docs, Claude API, thread generation</td></tr>
+<tr><td><strong>Smart Home</strong></td><td>0</td><td>10</td><td>10</td><td>Home Assistant, lights, HVAC, locks, cameras, speakers, plugs, vacuum, weather, network</td></tr>
+<tr><td><strong>Utility</strong></td><td>0</td><td>49</td><td>49</td><td>Languages, frameworks, databases, infra tools, and more</td></tr>
+<tr><td><strong>System</strong></td><td>0</td><td>5</td><td>5</td><td>AWS, GCP, Azure, Linux admin, macOS admin</td></tr>
+<tr><td colspan="2"><strong>Total</strong></td><td></td><td><strong>118</strong></td><td></td></tr>
+</tbody>
+</table>
+
+<h2>Creating Custom Skills</h2>
+<p>Add your own domain knowledge by creating a skill directory:</p>
+<pre><code>mkdir -p ~/.cli-jaw/skills/my-company
+cat &gt; ~/.cli-jaw/skills/my-company/SKILL.md &lt;&lt; 'EOF'
+# My Company Standards
+
+Internal coding standards and domain knowledge.
+
+## When to Use
+
+Trigger when working on any project in ~/work/ directory.
+
+## Rules
+
+1. Use pnpm instead of npm.
+2. All APIs must follow our internal OpenAPI spec.
+3. Database migrations use Drizzle ORM.
+
+## Templates
+
+```typescript
+// Standard API response format
+interface ApiResponse&lt;T&gt; {
+  success: boolean;
+  data: T;
+  error?: string;
+  timestamp: string;
+}
+```
+EOF</code></pre>
+
+<div class="callout callout-info">
+  <strong>In-chat:</strong> "회사 코딩 표준 스킬 만들어줘" -- the agent can scaffold a custom skill from a natural language description.
+</div>
+
+<h2>Skill File Structure</h2>
+<p>Every skill is a directory containing at minimum a <code>SKILL.md</code> file. Complex skills may include reference subdirectories:</p>
+<pre><code>~/.cli-jaw/skills/dev-frontend/
+  SKILL.md              # Main skill prompt (injected into system prompt)
+  references/
+    react.md            # Deep guidance for React
+    vue.md              # Deep guidance for Vue
+    svelte.md           # Deep guidance for Svelte
+    tailwind.md         # Tailwind-specific rules</code></pre>
+
+<p>The <code>SKILL.md</code> acts as an orchestrator. It contains high-level rules and references the sub-files when deeper context is needed.</p>
+
+<h2>Slash Commands for Skills</h2>
+<table>
+<thead>
+<tr><th>Command</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>/skill list</code></td><td>Show active and reference skill counts in chat</td></tr>
+<tr><td><code>/skill reset</code></td><td>Soft reset to defaults (confirmation required)</td></tr>
+<tr><td><code>/code-review</code></td><td>Triggers the code-review skill on current diff</td></tr>
+<tr><td><code>/security-review</code></td><td>Triggers security-review skill on current diff</td></tr>
+<tr><td><code>/simplify</code></td><td>Triggers simplify skill on changed code</td></tr>
+<tr><td><code>/verify</code></td><td>Triggers verify skill to run and test the app</td></tr>
+<tr><td><code>/deep-research &lt;topic&gt;</code></td><td>Fan-out web research with source verification</td></tr>
+<tr><td><code>/init</code></td><td>Initialize a new project with detected stack</td></tr>
+<tr><td><code>/run</code></td><td>Launch the project app</td></tr>
+</tbody>
+</table>
+
+<div class="page-nav">
+<a class="prev" href="../reference/events.html">Events</a>
+<a class="next" href="orchestration.html">Development Skills</a>
+</div>
+</main>
+</div>
+
+<script>
+(function() {
+  var searchInput = document.getElementById('skillSearch');
+  var categoryFilter = document.getElementById('categoryFilter');
+  var statusFilter = document.getElementById('statusFilter');
+  var table = document.getElementById('skillTable');
+  var rows = table.querySelectorAll('tbody tr');
+  var countEl = document.getElementById('visibleCount');
+
+  function filterRows() {
+    var query = searchInput.value.toLowerCase().trim();
+    var cat = categoryFilter.value;
+    var status = statusFilter.value;
+    var visible = 0;
+
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      var rowCat = row.getAttribute('data-cat');
+      var rowStatus = row.getAttribute('data-status');
+      var text = row.textContent.toLowerCase();
+
+      var matchText = !query || text.indexOf(query) !== -1;
+      var matchCat = cat === 'all' || rowCat === cat;
+      var matchStatus = status === 'all' || rowStatus === status;
+
+      if (matchText && matchCat && matchStatus) {
+        row.classList.remove('hidden-row');
+        visible++;
+      } else {
+        row.classList.add('hidden-row');
+      }
+    }
+
+    countEl.textContent = visible;
+  }
+
+  searchInput.addEventListener('input', filterRows);
+  categoryFilter.addEventListener('change', filterRows);
+  statusFilter.addEventListener('change', filterRows);
+})();
+</script>
+</body>
+</html>
