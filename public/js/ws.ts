@@ -254,6 +254,20 @@ function applyOrcContext(ctx: { taskAnchor?: string | null; resolvedSelection?: 
     renderInterviewPanel(ctx?.interview || null);
 }
 
+let interviewCollapsed: boolean = (() => {
+    try { return localStorage.getItem('jaw:interviewCollapsed') === '1'; } catch { return false; }
+})();
+
+function setInterviewCollapsed(collapsed: boolean): void {
+    interviewCollapsed = collapsed;
+    try { localStorage.setItem('jaw:interviewCollapsed', collapsed ? '1' : '0'); } catch { /* storage unavailable */ }
+    const panel = document.getElementById('interviewPanel');
+    if (!panel) return;
+    panel.classList.toggle('collapsed', collapsed);
+    const toggle = panel.querySelector('.iv-toggle');
+    if (toggle) toggle.setAttribute('aria-expanded', String(!collapsed));
+}
+
 function renderInterviewPanel(interview: { known: string[]; unknown: string[]; round: number } | null): void {
     const panel = document.getElementById('interviewPanel');
     if (!panel) return;
@@ -262,13 +276,27 @@ function renderInterviewPanel(interview: { known: string[]; unknown: string[]; r
         return;
     }
     panel.hidden = false;
+    panel.classList.toggle('collapsed', interviewCollapsed);
     const knownHtml = interview.known.map(k => `<li class="iv-known">${escapeHtml(k)}</li>`).join('');
     const unknownHtml = interview.unknown.map(u => `<li class="iv-unknown">${escapeHtml(u)}</li>`).join('');
     panel.innerHTML = `
-        <div class="iv-section"><strong>Known (${interview.known.length})</strong><ul>${knownHtml}</ul></div>
-        <div class="iv-section"><strong>Unknown (${interview.unknown.length})</strong><ul>${unknownHtml}</ul></div>
-        <div class="iv-round">Round ${interview.round}</div>
+        <button type="button" class="iv-toggle" aria-expanded="${!interviewCollapsed}" aria-controls="interviewBody" title="인터뷰 트래커 접기/펼치기">
+            <span class="iv-chevron" aria-hidden="true">▸</span>
+            <span class="iv-summary">Interview · <span class="iv-known-count">Known ${interview.known.length}</span> · <span class="iv-unknown-count">Unknown ${interview.unknown.length}</span> · Round ${interview.round}</span>
+        </button>
+        <div class="iv-body" id="interviewBody">
+            <div class="iv-section"><strong>Known (${interview.known.length})</strong><ul>${knownHtml}</ul></div>
+            <div class="iv-section"><strong>Unknown (${interview.unknown.length})</strong><ul>${unknownHtml}</ul></div>
+        </div>
     `;
+    if (!panel.dataset['toggleBound']) {
+        panel.dataset['toggleBound'] = '1';
+        panel.addEventListener('click', (e) => {
+            if ((e.target as HTMLElement).closest('.iv-toggle')) {
+                setInterviewCollapsed(!interviewCollapsed);
+            }
+        });
+    }
 }
 
 async function hydrateGoalState(): Promise<void> {
