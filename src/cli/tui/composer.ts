@@ -1,3 +1,5 @@
+import { toGraphemes } from './text-buffer.js';
+
 const BRACKETED_PASTE_START = '\x1b[200~';
 const BRACKETED_PASTE_END = '\x1b[201~';
 
@@ -20,6 +22,8 @@ export type ComposerSegment = TextSegment | PasteSegment;
 export interface ComposerState {
     segments: ComposerSegment[];
     nextPasteOrdinal: number;
+    /** Cursor as a grapheme index within the trailing text segment (the active edit area). */
+    cursor: number;
 }
 
 export interface PasteCaptureState {
@@ -32,7 +36,19 @@ export function createComposerState(): ComposerState {
     return {
         segments: [{ kind: 'text', text: '' }],
         nextPasteOrdinal: 1,
+        cursor: 0,
     };
+}
+
+/** Grapheme count of the trailing text segment (the cursor's domain). */
+function trailingLen(state: ComposerState): number {
+    return toGraphemes(getTrailingTextSegment(state).text).length;
+}
+
+function clampCursor(state: ComposerState): void {
+    const max = trailingLen(state);
+    if (state.cursor < 0) state.cursor = 0;
+    else if (state.cursor > max) state.cursor = max;
 }
 
 export function createPasteCaptureState(): PasteCaptureState {
@@ -78,11 +94,17 @@ function normalizeComposerState(state: ComposerState): void {
 
 export function appendTextToComposer(state: ComposerState, text: string): void {
     if (!text) return;
-    getTrailingTextSegment(state).text += text;
+    const seg = getTrailingTextSegment(state);
+    const g = toGraphemes(seg.text);
+    const ins = toGraphemes(text);
+    const at = Math.max(0, Math.min(state.cursor, g.length));
+    g.splice(at, 0, ...ins);
+    seg.text = g.join('');
+    state.cursor = at + ins.length; // insert at cursor; cursor defaults to end so typing appends
 }
 
 export function appendNewlineToComposer(state: ComposerState): void {
-    getTrailingTextSegment(state).text += '\n';
+    appendTextToComposer(state, '\n');
 }
 
 function countTextMetrics(text: string) {
@@ -127,14 +149,20 @@ export function appendPasteToComposer(state: ComposerState, rawText: string, con
         state.segments.push(paste, { kind: 'text', text: '' });
     }
     normalizeComposerState(state);
+    state.cursor = trailingLen(state); // continue typing after the paste
 }
 
 export function backspaceComposer(state: ComposerState): void {
     const trailing = getTrailingTextSegment(state);
-    if (trailing.text.length > 0) {
-        trailing.text = trailing.text.slice(0, -1);
+    const g = toGraphemes(trailing.text);
+    if (state.cursor > 0 && g.length > 0) {
+        const at = Math.min(state.cursor, g.length);
+        g.splice(at - 1, 1);
+        trailing.text = g.join('');
+        state.cursor = at - 1;
         return;
     }
+    // cursor at start of trailing text → remove the preceding paste/char (legacy behavior)
     if (state.segments.length <= 1) return;
     const prev = state.segments[state.segments.length - 2];
     if (!prev) return;
@@ -144,11 +172,54 @@ export function backspaceComposer(state: ComposerState): void {
         prev.text = prev.text.slice(0, -1);
     }
     normalizeComposerState(state);
+    clampCursor(state);
+}
+
+/** Delete the grapheme at the cursor (Delete key). */
+export function deleteForwardComposer(state: ComposerState): void {
+    const seg = getTrailingTextSegment(state);
+    const g = toGraphemes(seg.text);
+    if (state.cursor < g.length) {
+        g.splice(state.cursor, 1);
+        seg.text = g.join('');
+    }
+}
+
+// ─── Cursor movement (within the trailing text segment) ──────────────
+export function moveCursorLeft(state: ComposerState): void { if (state.cursor > 0) state.cursor -= 1; }
+export function moveCursorRight(state: ComposerState): void { if (state.cursor < trailingLen(state)) state.cursor += 1; }
+export function moveCursorHome(state: ComposerState): void { state.cursor = 0; }
+export function moveCursorEnd(state: ComposerState): void { state.cursor = trailingLen(state); }
+export function moveCursorWordLeft(state: ComposerState): void {
+    const g = toGraphemes(getTrailingTextSegment(state).text);
+    let i = Math.min(state.cursor, g.length);
+    while (i > 0 && /\s/.test(g[i - 1] ?? '')) i -= 1;
+    while (i > 0 && !/\s/.test(g[i - 1] ?? '')) i -= 1;
+    state.cursor = i;
+}
+export function moveCursorWordRight(state: ComposerState): void {
+    const g = toGraphemes(getTrailingTextSegment(state).text);
+    let i = Math.min(state.cursor, g.length);
+    while (i < g.length && /\s/.test(g[i] ?? '')) i += 1;
+    while (i < g.length && !/\s/.test(g[i] ?? '')) i += 1;
+    state.cursor = i;
+}
+
+/** Cursor's grapheme offset within the full display text (getComposerDisplayText). */
+export function getDisplayCursorOffset(state: ComposerState): number {
+    let before = 0;
+    for (let i = 0; i < state.segments.length - 1; i += 1) {
+        const seg = state.segments[i];
+        if (!seg) continue;
+        before += toGraphemes(seg.kind === 'text' ? seg.text : seg.label).length;
+    }
+    return before + Math.min(state.cursor, trailingLen(state));
 }
 
 export function clearComposer(state: ComposerState): void {
     state.segments = [{ kind: 'text', text: '' }];
     state.nextPasteOrdinal = 1;
+    state.cursor = 0;
 }
 
 export function getComposerDisplayText(state: ComposerState): string {

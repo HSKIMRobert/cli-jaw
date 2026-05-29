@@ -11,7 +11,8 @@
 
 const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 
-function toGraphemes(s: string): string[] {
+/** Split a string into grapheme clusters (CJK/emoji safe). Shared with composer.ts. */
+export function toGraphemes(s: string): string[] {
     if (!s) return [];
     return Array.from(segmenter.segment(s), (seg) => seg.segment);
 }
