@@ -55,7 +55,7 @@ test('manager shortcut action lookup uses the configured keymap', () => {
     );
     assert.equal(
         actionForShortcutEvent(keyEvent('b', { metaKey: true, shiftKey: true, code: 'KeyB' }), DEFAULT_MANAGER_SHORTCUT_KEYMAP),
-        'toggleRightPanel',
+        'toggleLeftSidebar',
     );
 });
 

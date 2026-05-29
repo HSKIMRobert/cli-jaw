@@ -505,7 +505,9 @@ test('SAF-004j2: fresh-machine evidence collector documents supported release ev
     assert.equal(packageJson.scripts?.['collect:fresh-install-evidence'], 'bash scripts/collect-fresh-install-evidence.sh');
     assert.equal(packageJson.scripts?.['audit:fresh-install-evidence'], 'node scripts/audit-fresh-install-evidence.mjs');
     assert.equal(packageJson.scripts?.['verify:release-evidence'], 'node scripts/verify-release-evidence.mjs');
-    assert.equal(packageJson.scripts?.prepublishOnly, 'node scripts/require-release-evidence.mjs && npm run build && npm run build:frontend');
+    // Evidence gate runs via release.sh/release-preview.sh (asserted in SAF-004j3),
+    // not the npm prepublishOnly hook — removed in ce8e5ca4 to avoid double-blocking.
+    assert.equal(packageJson.scripts?.prepublishOnly, 'npm run build && npm run build:frontend');
     assert.ok(freshInstallEvidenceSrc.includes('--target macos|wsl|linux|auto'), 'collector should require explicit supported target wording');
     assert.ok(freshInstallEvidenceSrc.includes('--install-script FILE'), 'collector should allow branch/local installer verification before release');
     assert.ok(freshInstallEvidenceSrc.includes('--verifier-script FILE'), 'collector should allow local verifier validation before release');
