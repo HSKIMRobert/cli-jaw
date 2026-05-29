@@ -53,6 +53,14 @@ jobs:
           cache: npm
           cache-dependency-path: electron/package-lock.json
 
+      # node-gyp rebuilds the native node-pty module during packaging. The
+      # bundled node-gyp still imports stdlib `distutils`, which Python 3.12+
+      # removed (PEP 632). GitHub runners now default to 3.12+, so pin 3.11.
+      - name: Setup Python 3.11 (node-gyp needs distutils)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Install Electron dependencies
         run: npm ci --prefix electron
 
