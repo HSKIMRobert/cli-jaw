@@ -2,6 +2,7 @@
  * TUI shared types, constants, and helpers.
  */
 import type { TuiStore } from '../../../src/cli/tui/store.js';
+import type { StreamSink } from '../../../src/cli/tui/stream.js';
 import type { IdeType } from '../../../src/ide/diff.js';
 import type WebSocket from 'ws';
 
@@ -69,6 +70,7 @@ export interface TuiContext {
     overlayBoxHeight: number;
     inputActive: boolean;
     streaming: boolean;
+    streamSink: StreamSink | null;
     commandRunning: boolean;
     escPending: boolean;
     escTimer: ReturnType<typeof setTimeout> | null;

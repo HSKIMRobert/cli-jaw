@@ -7,8 +7,10 @@ import {
     finalizeAssistant, appendStatusItem, clearEphemeralStatus,
 } from '../../../src/cli/tui/transcript.js';
 import { captureFileSet, diffFileSets, getDiffStat, getIdeCli, openDiffInIde } from '../../../src/ide/diff.js';
+import { createStreamSink } from '../../../src/cli/tui/stream.js';
+import { renderMarkdown } from '../../../src/cli/tui/markdown.js';
 import { c, type TuiContext } from './types.js';
-import { openPromptBlock, renderAssistantTurnStart } from './renderer.js';
+import { openPromptBlock } from './renderer.js';
 import { dismissOverlay } from './overlays.js';
 
 export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
@@ -28,10 +30,15 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                 if (!ctx.streaming) {
                     ctx.streaming = true;
                     startAssistantItem(transcript);
-                    renderAssistantTurnStart();
+                    process.stdout.write('\n');
+                    ctx.streamSink = createStreamSink({
+                        write: (s) => process.stdout.write(s),
+                        width: Math.max(20, (process.stdout.columns || 80) - 4),
+                        gutter: '  ',
+                    });
                 }
                 appendToActiveAssistant(transcript, msg.text || '');
-                process.stdout.write((msg.text || '').replace(/\n/g, '\n  '));
+                ctx.streamSink?.push(msg.text || '');
                 break;
 
             case 'agent_done':
@@ -39,14 +46,17 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                 if (ctx.isRaw) {
                     console.log(`  ${c.dim}${raw}${c.reset}`);
                 } else if (ctx.streaming) {
+                    ctx.streamSink?.end();
+                    ctx.streamSink = null;
                     finalizeAssistant(transcript);
                     console.log('');
                 } else if (msg.text) {
                     startAssistantItem(transcript);
                     appendToActiveAssistant(transcript, msg.text);
                     finalizeAssistant(transcript);
-                    renderAssistantTurnStart();
-                    console.log(msg.text.replace(/\n/g, '\n  '));
+                    process.stdout.write('\n');
+                    process.stdout.write(renderMarkdown(msg.text, { width: Math.max(20, (process.stdout.columns || 80) - 4), gutter: '  ' }));
+                    console.log('');
                 }
                 // IDE diff
                 if (ctx.isGit && ctx.preFileSetQueue.length > 0) {
