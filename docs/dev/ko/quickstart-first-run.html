@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>First Run — CLI-JAW Docs</title>
+<title>첫 실행 — CLI-JAW 문서</title>
 <link rel="stylesheet" href="../_shell.css">
 </head>
 <body>
@@ -64,47 +64,47 @@
 </nav>
 <main class="docs-main">
 
-<h1>First Run</h1>
-<p class="lead">Choose between single-instance and multi-instance modes, then send your first message.</p>
+<h1>첫 실행</h1>
+<p class="lead">단일 인스턴스 모드와 다중 인스턴스 모드 중 하나를 선택한 후, 첫 메시지를 보내보세요.</p>
 
-<h2>Two Ways to Run</h2>
+<h2>두 가지 실행 방법</h2>
 <table>
-<tr><th>Command</th><th>Mode</th><th>Best For</th></tr>
-<tr><td><code>jaw serve</code></td><td>Single instance</td><td>Quick one-off tasks, simple setup</td></tr>
-<tr><td><code>jaw dashboard</code></td><td>Multi-instance manager</td><td>Running multiple agents, full dashboard</td></tr>
+<tr><th>명령어</th><th>모드</th><th>적합한 용도</th></tr>
+<tr><td><code>jaw serve</code></td><td>단일 인스턴스</td><td>간단한 일회성 작업, 간편한 설정</td></tr>
+<tr><td><code>jaw dashboard</code></td><td>다중 인스턴스 관리</td><td>여러 에이전트 실행, 전체 대시보드</td></tr>
 </table>
 
-<h2>Single Instance: jaw serve</h2>
+<h2>단일 인스턴스: jaw serve</h2>
 <pre><code>jaw serve
 # Opens browser at http://localhost:3457</code></pre>
-<p>You get a chat interface immediately. Type a message and your AI agent responds.</p>
+<p>즉시 채팅 인터페이스가 열립니다. 메시지를 입력하면 AI 에이전트가 응답합니다.</p>
 
-<h2>Multi-Instance: jaw dashboard</h2>
+<h2>다중 인스턴스: jaw dashboard</h2>
 <pre><code>jaw dashboard
 # Opens browser at http://localhost:24576</code></pre>
-<p>The dashboard shows all your instances. Click <strong>Start</strong> to launch an instance, or <strong>Perm</strong> to make it persist across reboots.</p>
+<p>대시보드에서 모든 인스턴스를 확인할 수 있습니다. <strong>Start</strong>를 클릭하여 인스턴스를 실행하거나, <strong>Perm</strong>을 클릭하여 재부팅 후에도 유지되도록 설정할 수 있습니다.</p>
 
-<h2>Sending Your First Message</h2>
-<p>Type in the chat input and press Enter. The AI agent will respond using your configured CLI (Claude Code by default).</p>
+<h2>첫 메시지 보내기</h2>
+<p>채팅 입력창에 메시지를 입력하고 Enter를 누르세요. AI 에이전트가 설정된 CLI(기본값은 Claude Code)를 사용하여 응답합니다.</p>
 
-<h2>Switching CLI / Model</h2>
+<h2>CLI / 모델 전환</h2>
 <pre><code>/cli claude    # Switch to Claude Code
 /cli codex     # Switch to Codex
 /cli gemini    # Switch to Gemini CLI
 /model claude-sonnet-4-6  # Change model</code></pre>
 
-<h2>Instance Controls</h2>
+<h2>인스턴스 제어</h2>
 <ul>
-<li><strong>Start</strong> — Launch instance (runs while dashboard is open)</li>
-<li><strong>Stop</strong> — Stop instance</li>
-<li><strong>Perm</strong> — Persist via launchd/systemd (survives reboots)</li>
+<li><strong>Start</strong> — 인스턴스 실행 (대시보드가 열려 있는 동안 동작)</li>
+<li><strong>Stop</strong> — 인스턴스 중지</li>
+<li><strong>Perm</strong> — launchd/systemd를 통해 영구 실행 (재부팅 후에도 유지)</li>
 </ul>
 
-<h2>Next Steps</h2>
+<h2>다음 단계</h2>
 <ul>
-<li><a href="concepts/architecture.html">Architecture</a> — Understand the system design</li>
-<li><a href="concepts/employees.html">Employees</a> — Dispatch tasks to other AI CLIs</li>
-<li><a href="guides/dashboard.html">Dashboard Guide</a> — Master the multi-instance UI</li>
+<li><a href="concepts/architecture.html">Architecture</a> — 시스템 설계 이해하기</li>
+<li><a href="concepts/employees.html">Employees</a> — 다른 AI CLI에 작업 위임하기</li>
+<li><a href="guides/dashboard.html">Dashboard Guide</a> — 다중 인스턴스 UI 활용하기</li>
 </ul>
 
 <div class="page-nav">

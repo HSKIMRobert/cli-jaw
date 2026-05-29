@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kanban Board — CLI-JAW Docs</title>
+<title>看板 — CLI-JAW 文档</title>
 <link rel="stylesheet" href="../../_shell.css">
 </head>
 <body>
@@ -64,38 +64,38 @@
 </nav>
 <main class="docs-main">
 
-<h1>Kanban Board</h1>
-<p class="lead">The built-in Kanban board provides task management with standard workflow lanes. Access it from the Dashboard's Board tab.</p>
+<h1>看板</h1>
+<p class="lead">内置看板提供标准工作流泳道的任务管理功能。可通过仪表盘的 Board 选项卡访问。</p>
 
-<h2>Workflow Lanes</h2>
-<p>Tasks flow through these lanes:</p>
+<h2>工作流泳道</h2>
+<p>任务按以下泳道流转：</p>
 <table>
-<tr><th>Lane</th><th>Purpose</th></tr>
-<tr><td><strong>Backlog</strong></td><td>Tasks waiting to be started</td></tr>
-<tr><td><strong>Ready</strong></td><td>Tasks prepared and ready for work</td></tr>
-<tr><td><strong>Active</strong></td><td>Tasks currently being worked on</td></tr>
-<tr><td><strong>Review</strong></td><td>Tasks completed and awaiting review</td></tr>
-<tr><td><strong>Done</strong></td><td>Completed tasks</td></tr>
+<tr><th>泳道</th><th>用途</th></tr>
+<tr><td><strong>Backlog</strong></td><td>等待开始的任务</td></tr>
+<tr><td><strong>Ready</strong></td><td>已准备就绪可以开始的任务</td></tr>
+<tr><td><strong>Active</strong></td><td>正在进行中的任务</td></tr>
+<tr><td><strong>Review</strong></td><td>已完成并等待审核的任务</td></tr>
+<tr><td><strong>Done</strong></td><td>已完成的任务</td></tr>
 </table>
 
-<h2>Card Operations</h2>
+<h2>卡片操作</h2>
 <ul>
-<li><strong>Create</strong> -- Add new cards to any lane</li>
-<li><strong>Edit</strong> -- Update card title, description, and metadata</li>
-<li><strong>Move</strong> -- Drag cards between lanes or reorder within a lane</li>
-<li><strong>Delete</strong> -- Remove cards from the board</li>
+<li><strong>创建</strong> -- 在任意泳道中添加新卡片</li>
+<li><strong>编辑</strong> -- 更新卡片标题、描述和元数据</li>
+<li><strong>移动</strong> -- 在泳道之间拖拽卡片或在泳道内重新排序</li>
+<li><strong>删除</strong> -- 从看板中移除卡片</li>
 </ul>
 
-<h2>Board API</h2>
+<h2>看板 API</h2>
 <table>
-<tr><th>Method</th><th>Path</th><th>Description</th></tr>
-<tr><td>GET</td><td><code>/api/dashboard/board/tasks</code></td><td>List all tasks</td></tr>
-<tr><td>POST</td><td><code>/api/dashboard/board/tasks</code></td><td>Create a task</td></tr>
-<tr><td>PATCH</td><td><code>/api/dashboard/board/tasks</code></td><td>Update a task (move, edit)</td></tr>
-<tr><td>DELETE</td><td><code>/api/dashboard/board/tasks</code></td><td>Delete a task</td></tr>
+<tr><th>方法</th><th>路径</th><th>描述</th></tr>
+<tr><td>GET</td><td><code>/api/dashboard/board/tasks</code></td><td>列出所有任务</td></tr>
+<tr><td>POST</td><td><code>/api/dashboard/board/tasks</code></td><td>创建任务</td></tr>
+<tr><td>PATCH</td><td><code>/api/dashboard/board/tasks</code></td><td>更新任务（移动、编辑）</td></tr>
+<tr><td>DELETE</td><td><code>/api/dashboard/board/tasks</code></td><td>删除任务</td></tr>
 </table>
 
-<h2>CLI Access</h2>
+<h2>CLI 访问</h2>
 <pre><code># Add a task
 jaw connector board add "Implement user auth" --lane backlog
 
@@ -105,8 +105,8 @@ jaw connector board update &lt;id&gt; --lane active
 # List tasks
 jaw connector board list</code></pre>
 
-<h2>Future: Instance Sync</h2>
-<div class="callout callout-info">Future versions will support syncing board tasks with instance orchestration state, allowing PABCD phases to automatically create and move board cards.</div>
+<h2>未来计划：实例同步</h2>
+<div class="callout callout-info">未来版本将支持将看板任务与实例编排状态同步，使 PABCD 阶段能够自动创建和移动看板卡片。</div>
 
 <div class="page-nav">
 <a class="prev" href="notes.html">Notes (Jawsidian)</a>

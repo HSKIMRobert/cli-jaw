@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kanban Board — CLI-JAW Docs</title>
+<title>칸반 보드 — CLI-JAW 문서</title>
 <link rel="stylesheet" href="../../_shell.css">
 </head>
 <body>
@@ -64,38 +64,38 @@
 </nav>
 <main class="docs-main">
 
-<h1>Kanban Board</h1>
-<p class="lead">The built-in Kanban board provides task management with standard workflow lanes. Access it from the Dashboard's Board tab.</p>
+<h1>칸반 보드</h1>
+<p class="lead">내장된 칸반 보드는 표준 워크플로 레인을 사용한 작업 관리를 제공합니다. Dashboard의 Board 탭에서 접근할 수 있습니다.</p>
 
-<h2>Workflow Lanes</h2>
-<p>Tasks flow through these lanes:</p>
+<h2>워크플로 레인</h2>
+<p>작업은 다음 레인을 통해 진행됩니다:</p>
 <table>
-<tr><th>Lane</th><th>Purpose</th></tr>
-<tr><td><strong>Backlog</strong></td><td>Tasks waiting to be started</td></tr>
-<tr><td><strong>Ready</strong></td><td>Tasks prepared and ready for work</td></tr>
-<tr><td><strong>Active</strong></td><td>Tasks currently being worked on</td></tr>
-<tr><td><strong>Review</strong></td><td>Tasks completed and awaiting review</td></tr>
-<tr><td><strong>Done</strong></td><td>Completed tasks</td></tr>
+<tr><th>레인</th><th>용도</th></tr>
+<tr><td><strong>Backlog</strong></td><td>시작 대기 중인 작업</td></tr>
+<tr><td><strong>Ready</strong></td><td>준비가 완료되어 착수 가능한 작업</td></tr>
+<tr><td><strong>Active</strong></td><td>현재 진행 중인 작업</td></tr>
+<tr><td><strong>Review</strong></td><td>완료되어 검토 대기 중인 작업</td></tr>
+<tr><td><strong>Done</strong></td><td>완료된 작업</td></tr>
 </table>
 
-<h2>Card Operations</h2>
+<h2>카드 조작</h2>
 <ul>
-<li><strong>Create</strong> -- Add new cards to any lane</li>
-<li><strong>Edit</strong> -- Update card title, description, and metadata</li>
-<li><strong>Move</strong> -- Drag cards between lanes or reorder within a lane</li>
-<li><strong>Delete</strong> -- Remove cards from the board</li>
+<li><strong>생성</strong> -- 원하는 레인에 새 카드를 추가합니다</li>
+<li><strong>편집</strong> -- 카드의 제목, 설명, 메타데이터를 수정합니다</li>
+<li><strong>이동</strong> -- 카드를 레인 간에 드래그하거나 레인 내에서 순서를 변경합니다</li>
+<li><strong>삭제</strong> -- 보드에서 카드를 제거합니다</li>
 </ul>
 
-<h2>Board API</h2>
+<h2>보드 API</h2>
 <table>
-<tr><th>Method</th><th>Path</th><th>Description</th></tr>
-<tr><td>GET</td><td><code>/api/dashboard/board/tasks</code></td><td>List all tasks</td></tr>
-<tr><td>POST</td><td><code>/api/dashboard/board/tasks</code></td><td>Create a task</td></tr>
-<tr><td>PATCH</td><td><code>/api/dashboard/board/tasks</code></td><td>Update a task (move, edit)</td></tr>
-<tr><td>DELETE</td><td><code>/api/dashboard/board/tasks</code></td><td>Delete a task</td></tr>
+<tr><th>메서드</th><th>경로</th><th>설명</th></tr>
+<tr><td>GET</td><td><code>/api/dashboard/board/tasks</code></td><td>모든 작업 목록 조회</td></tr>
+<tr><td>POST</td><td><code>/api/dashboard/board/tasks</code></td><td>작업 생성</td></tr>
+<tr><td>PATCH</td><td><code>/api/dashboard/board/tasks</code></td><td>작업 수정 (이동, 편집)</td></tr>
+<tr><td>DELETE</td><td><code>/api/dashboard/board/tasks</code></td><td>작업 삭제</td></tr>
 </table>
 
-<h2>CLI Access</h2>
+<h2>CLI 접근</h2>
 <pre><code># Add a task
 jaw connector board add "Implement user auth" --lane backlog
 
@@ -105,8 +105,8 @@ jaw connector board update &lt;id&gt; --lane active
 # List tasks
 jaw connector board list</code></pre>
 
-<h2>Future: Instance Sync</h2>
-<div class="callout callout-info">Future versions will support syncing board tasks with instance orchestration state, allowing PABCD phases to automatically create and move board cards.</div>
+<h2>향후 계획: 인스턴스 동기화</h2>
+<div class="callout callout-info">향후 버전에서는 보드 작업을 인스턴스 오케스트레이션 상태와 동기화하는 기능을 지원할 예정이며, PABCD 단계가 자동으로 보드 카드를 생성하고 이동할 수 있게 됩니다.</div>
 
 <div class="page-nav">
 <a class="prev" href="notes.html">Notes (Jawsidian)</a>

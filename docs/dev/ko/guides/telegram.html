@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Telegram — CLI-JAW Docs</title>
+<title>Telegram — CLI-JAW 문서</title>
 <link rel="stylesheet" href="../../_shell.css">
 </head>
 <body>
@@ -65,17 +65,17 @@
 <main class="docs-main">
 
 <h1>Telegram</h1>
-<p class="lead">Control your CLI-JAW agent remotely through Telegram. Send messages, receive responses, forward agent output, handle voice messages with STT, and use slash commands -- all from your phone.</p>
+<p class="lead">Telegram을 통해 CLI-JAW 에이전트를 원격으로 제어하세요. 메시지 전송, 응답 수신, 에이전트 출력 전달, STT를 활용한 음성 메시지 처리, 슬래시 명령어 사용까지 -- 모두 휴대폰에서 가능합니다.</p>
 
-<h2>Setup</h2>
-<h3>1. Create a Bot with BotFather</h3>
+<h2>설정</h2>
+<h3>1. BotFather로 봇 생성</h3>
 <ol>
-<li>Open <a href="https://t.me/BotFather">@BotFather</a> in Telegram</li>
-<li>Send <code>/newbot</code> and follow the prompts</li>
-<li>Copy the bot token (looks like <code>123456:ABC-DEF...</code>)</li>
+<li>Telegram에서 <a href="https://t.me/BotFather">@BotFather</a>를 엽니다</li>
+<li><code>/newbot</code>을 보내고 안내에 따릅니다</li>
+<li>봇 토큰을 복사합니다 (<code>123456:ABC-DEF...</code> 형태)</li>
 </ol>
 
-<h3>2. Configure settings.json</h3>
+<h3>2. settings.json 구성</h3>
 <pre><code>{
   "telegram": {
     "token": "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
@@ -83,44 +83,44 @@
     "forwardAll": true
   }
 }</code></pre>
-<div class="callout callout-info">Leave <code>allowedChatIds</code> empty initially. Send <code>/id</code> to your bot to get your chat ID, then add it to the array for security.</div>
+<div class="callout callout-info">처음에는 <code>allowedChatIds</code>를 비워 두세요. 봇에 <code>/id</code>를 보내 채팅 ID를 확인한 후, 보안을 위해 배열에 추가하세요.</div>
 
-<h3>3. Alternative: Use jaw init</h3>
+<h3>3. 대안: jaw init 사용</h3>
 <pre><code>jaw init --channel telegram --telegram-token "YOUR_TOKEN"</code></pre>
 
-<h2>Sending and Receiving</h2>
+<h2>메시지 송수신</h2>
 <ul>
-<li><strong>Text messages</strong> -- Send any text to your bot; it goes to the agent as a prompt</li>
-<li><strong>Slash commands</strong> -- Use <code>/model</code>, <code>/cli</code>, <code>/status</code>, etc. directly in Telegram</li>
-<li><strong>Photos and documents</strong> -- Attachments are downloaded, saved, and described to the agent</li>
-<li><strong>Voice messages</strong> -- Transcribed via Gemini STT (or Whisper fallback) and sent as text</li>
+<li><strong>텍스트 메시지</strong> -- 봇에 텍스트를 보내면 에이전트에 프롬프트로 전달됩니다</li>
+<li><strong>슬래시 명령어</strong> -- Telegram에서 직접 <code>/model</code>, <code>/cli</code>, <code>/status</code> 등을 사용할 수 있습니다</li>
+<li><strong>사진 및 문서</strong> -- 첨부 파일은 다운로드되어 저장되고, 에이전트에 설명이 전달됩니다</li>
+<li><strong>음성 메시지</strong> -- Gemini STT(또는 Whisper 폴백)를 통해 텍스트로 변환되어 전송됩니다</li>
 </ul>
 
-<h2>Forwarding</h2>
-<p>When <code>forwardAll</code> is <code>true</code>, the agent's <code>agent_done</code> results are automatically forwarded to your Telegram chat. Telegram-origin results are excluded to avoid echo.</p>
+<h2>전달</h2>
+<p><code>forwardAll</code>이 <code>true</code>이면 에이전트의 <code>agent_done</code> 결과가 자동으로 Telegram 채팅으로 전달됩니다. Telegram에서 시작된 결과는 에코를 방지하기 위해 제외됩니다.</p>
 <pre><code>/forward on   # Enable forwarding
 /forward off  # Disable forwarding</code></pre>
 
-<h2>File Delivery</h2>
-<p>The agent can send files to Telegram using the channel send API:</p>
+<h2>파일 전송</h2>
+<p>에이전트는 채널 전송 API를 사용하여 Telegram으로 파일을 보낼 수 있습니다:</p>
 <pre><code>POST /api/telegram/send
 POST /api/channel/send  # Unified endpoint (preferred)</code></pre>
-<p>Files are validated against a 20MB size limit. Telegram messages are chunked at 4096 characters and converted to Telegram HTML format.</p>
+<p>파일은 20MB 크기 제한에 따라 검증됩니다. Telegram 메시지는 4096자 단위로 분할되며 Telegram HTML 형식으로 변환됩니다.</p>
 
-<h2>Group Chat</h2>
-<p>In group/supergroup chats, the bot only responds when mentioned with <code>@botUsername</code>. The mention is automatically stripped from the message before processing.</p>
+<h2>그룹 채팅</h2>
+<p>그룹/슈퍼그룹 채팅에서는 <code>@botUsername</code>으로 멘션할 때만 봇이 응답합니다. 멘션은 처리 전에 메시지에서 자동으로 제거됩니다.</p>
 
-<h2>Available Commands</h2>
-<p>27 slash commands are visible in Telegram (same set as Discord). Bot-specific commands:</p>
+<h2>사용 가능한 명령어</h2>
+<p>Telegram에서 27개의 슬래시 명령어를 사용할 수 있습니다 (Discord와 동일한 세트). 봇 전용 명령어:</p>
 <table>
-<tr><th>Command</th><th>Description</th></tr>
-<tr><td><code>/start</code></td><td>Welcome message</td></tr>
-<tr><td><code>/id</code></td><td>Show your chat ID</td></tr>
-<tr><td><code>/settings</code></td><td>Bot settings (handled by bot, not the server)</td></tr>
+<tr><th>명령어</th><th>설명</th></tr>
+<tr><td><code>/start</code></td><td>환영 메시지</td></tr>
+<tr><td><code>/id</code></td><td>채팅 ID 표시</td></tr>
+<tr><td><code>/settings</code></td><td>봇 설정 (서버가 아닌 봇에서 처리)</td></tr>
 </table>
 
-<h2>Environment Variables</h2>
-<p>Settings can be overridden via environment variables:</p>
+<h2>환경 변수</h2>
+<p>환경 변수를 통해 설정을 재정의할 수 있습니다:</p>
 <pre><code>TELEGRAM_TOKEN=123456:ABC-DEF...
 TELEGRAM_ALLOWED_CHAT_IDS=12345,67890</code></pre>
 

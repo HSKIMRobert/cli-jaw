@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Memory — CLI-JAW Docs</title>
+<title>메모리 — CLI-JAW 문서</title>
 <link rel="stylesheet" href="../../_shell.css">
 </head>
 <body>
@@ -64,18 +64,18 @@
 </nav>
 <main class="docs-main">
 
-<h1>Memory</h1>
-<p class="lead">CLI-JAW has a 3-tier memory system: structured file storage, episode-based conversation summaries, and semantic search with FTS5 indexing. Memory persists across sessions and is injected into the agent's system prompt.</p>
+<h1>메모리</h1>
+<p class="lead">CLI-JAW는 3계층 메모리 시스템을 갖추고 있습니다: 구조화된 파일 저장소, 에피소드 기반 대화 요약, 그리고 FTS5 인덱싱을 활용한 시맨틱 검색. 메모리는 세션 간에 유지되며 에이전트의 시스템 프롬프트에 주입됩니다.</p>
 
-<h2>Three Tiers</h2>
+<h2>3개의 계층</h2>
 <table>
-<tr><th>Tier</th><th>Purpose</th><th>Storage</th></tr>
-<tr><td><strong>Structured</strong></td><td>Profile, preferences, decisions, soul/identity</td><td><code>~/.cli-jaw/memory/structured/</code></td></tr>
-<tr><td><strong>Episodes</strong></td><td>Conversation summaries from memory flush</td><td><code>~/.cli-jaw/memory/structured/episodes/live/</code></td></tr>
-<tr><td><strong>Semantic</strong></td><td>Imported and categorized knowledge</td><td><code>~/.cli-jaw/memory/structured/semantic/</code></td></tr>
+<tr><th>계층</th><th>용도</th><th>저장 위치</th></tr>
+<tr><td><strong>구조화</strong></td><td>프로필, 선호 설정, 결정 사항, 소울/정체성</td><td><code>~/.cli-jaw/memory/structured/</code></td></tr>
+<tr><td><strong>에피소드</strong></td><td>메모리 플러시로 생성된 대화 요약</td><td><code>~/.cli-jaw/memory/structured/episodes/live/</code></td></tr>
+<tr><td><strong>시맨틱</strong></td><td>가져오기 및 분류된 지식</td><td><code>~/.cli-jaw/memory/structured/semantic/</code></td></tr>
 </table>
 
-<h2>Memory Directory Structure</h2>
+<h2>메모리 디렉토리 구조</h2>
 <pre><code>~/.cli-jaw/memory/structured/
 ├── profile.md          # User profile and preferences
 ├── shared/
@@ -91,25 +91,25 @@
 ├── sessions/           # (not indexed)
 └── index.sqlite        # FTS5 search index</code></pre>
 
-<h2>How Memory Works</h2>
-<h3>1. History Block (Conversation Context)</h3>
-<p>On new sessions, the most recent conversation history (up to 8000 chars, 10 sessions) is prepended to the user prompt as <code>[Recent Context]</code>. This is scoped to the current <code>workingDir</code>.</p>
+<h2>메모리 작동 방식</h2>
+<h3>1. 히스토리 블록 (대화 컨텍스트)</h3>
+<p>새 세션이 시작되면 가장 최근의 대화 기록(최대 8000자, 10개 세션)이 사용자 프롬프트 앞에 <code>[Recent Context]</code>로 추가됩니다. 이는 현재 <code>workingDir</code> 범위로 한정됩니다.</p>
 
-<h3>2. Memory Flush (Conversation to Storage)</h3>
-<p>After every N assistant responses (default: 10, configurable via <code>settings.memory.flushEvery</code>), a separate agent extracts key information and appends it to the daily episode file.</p>
+<h3>2. 메모리 플러시 (대화에서 저장소로)</h3>
+<p>어시스턴트가 N회 응답할 때마다(기본값: 10, <code>settings.memory.flushEvery</code>로 설정 가능), 별도의 에이전트가 핵심 정보를 추출하여 일일 에피소드 파일에 추가합니다.</p>
 <pre><code>## 15:30
 User discussed refactoring the auth module. Decided to use JWT tokens.
 Prefers ES Module only, no CommonJS.</code></pre>
 
-<h3>3. Advanced Prompt Injection</h3>
-<p>When the FTS5 index is ready, the system prompt includes:</p>
+<h3>3. 고급 프롬프트 주입</h3>
+<p>FTS5 인덱스가 준비되면 시스템 프롬프트에 다음이 포함됩니다:</p>
 <ul>
-<li><strong>Profile Context</strong> -- from <code>profile.md</code> (800 chars)</li>
-<li><strong>Soul &amp; Identity</strong> -- from <code>shared/soul.md</code> (1000 chars)</li>
-<li><strong>Task Snapshot</strong> -- FTS5 search results relevant to the current prompt (up to 4 hits, 2800 chars)</li>
+<li><strong>프로필 컨텍스트</strong> -- <code>profile.md</code>에서 가져옴 (800자)</li>
+<li><strong>소울 및 정체성</strong> -- <code>shared/soul.md</code>에서 가져옴 (1000자)</li>
+<li><strong>태스크 스냅샷</strong> -- 현재 프롬프트와 관련된 FTS5 검색 결과 (최대 4건, 2800자)</li>
 </ul>
 
-<h2>CLI Commands</h2>
+<h2>CLI 명령어</h2>
 <pre><code># Search memory
 jaw memory search "JWT authentication"
 
@@ -134,34 +134,34 @@ jaw memory flush
 # Cleanup old entries
 jaw memory cleanup --days 30</code></pre>
 
-<h2>Slash Commands</h2>
+<h2>슬래시 명령어</h2>
 <table>
-<tr><th>Command</th><th>Description</th></tr>
-<tr><td><code>/memory</code> or <code>/memory list</code></td><td>List memory files</td></tr>
-<tr><td><code>/memory &lt;query&gt;</code></td><td>Search memory</td></tr>
-<tr><td><code>/memory status</code></td><td>Show runtime status</td></tr>
-<tr><td><code>/memory bootstrap</code></td><td>Import legacy memory sources</td></tr>
-<tr><td><code>/memory reindex</code></td><td>Rebuild FTS5 index</td></tr>
-<tr><td><code>/memory flush</code></td><td>Trigger immediate flush</td></tr>
-<tr><td><code>/memory embed status</code></td><td>Show embedding state</td></tr>
-<tr><td><code>/memory embed estimate</code></td><td>Estimate embedding cost</td></tr>
+<tr><th>명령어</th><th>설명</th></tr>
+<tr><td><code>/memory</code> 또는 <code>/memory list</code></td><td>메모리 파일 목록 보기</td></tr>
+<tr><td><code>/memory &lt;query&gt;</code></td><td>메모리 검색</td></tr>
+<tr><td><code>/memory status</code></td><td>런타임 상태 표시</td></tr>
+<tr><td><code>/memory bootstrap</code></td><td>레거시 메모리 소스 가져오기</td></tr>
+<tr><td><code>/memory reindex</code></td><td>FTS5 인덱스 재구축</td></tr>
+<tr><td><code>/memory flush</code></td><td>즉시 플러시 실행</td></tr>
+<tr><td><code>/memory embed status</code></td><td>임베딩 상태 표시</td></tr>
+<tr><td><code>/memory embed estimate</code></td><td>임베딩 비용 추정</td></tr>
 </table>
 
-<h2>L1 / L2 Memory Boundary</h2>
+<h2>L1 / L2 메모리 경계</h2>
 <table>
-<tr><th>Layer</th><th>Command</th><th>Scope</th><th>Access</th></tr>
-<tr><td><strong>L1 (Instance-local)</strong></td><td><code>jaw memory</code></td><td>Current <code>JAW_HOME</code></td><td>Read/Write</td></tr>
-<tr><td><strong>L2 (Dashboard federation)</strong></td><td><code>jaw dashboard memory</code></td><td>All <code>~/.cli-jaw*</code> instances</td><td>Read-only</td></tr>
+<tr><th>레이어</th><th>명령어</th><th>범위</th><th>접근 권한</th></tr>
+<tr><td><strong>L1 (인스턴스 로컬)</strong></td><td><code>jaw memory</code></td><td>현재 <code>JAW_HOME</code></td><td>읽기/쓰기</td></tr>
+<tr><td><strong>L2 (대시보드 연합)</strong></td><td><code>jaw dashboard memory</code></td><td>모든 <code>~/.cli-jaw*</code> 인스턴스</td><td>읽기 전용</td></tr>
 </table>
-<div class="callout callout-info">Use L1 (<code>jaw memory</code>) for normal operations. L2 (<code>jaw dashboard memory</code>) is for explicit cross-instance searches when you need context from other instances.</div>
+<div class="callout callout-info">일반 작업에는 L1(<code>jaw memory</code>)을 사용하세요. L2(<code>jaw dashboard memory</code>)는 다른 인스턴스의 컨텍스트가 필요할 때 명시적으로 크로스 인스턴스 검색을 수행하기 위한 것입니다.</div>
 
-<h2>Dashboard Embedding (Optional)</h2>
-<p>The dashboard supports optional vector embedding on top of FTS5 search. This is an add-on layer that is <strong>off by default</strong>. Supported providers: OpenAI, Gemini, Voyage, Vertex, Local (Ollama).</p>
+<h2>대시보드 임베딩 (선택 사항)</h2>
+<p>대시보드는 FTS5 검색 위에 선택적 벡터 임베딩을 지원합니다. 이는 <strong>기본적으로 비활성화</strong>된 추가 레이어입니다. 지원 프로바이더: OpenAI, Gemini, Voyage, Vertex, Local (Ollama).</p>
 <pre><code># Configure via dashboard settings or CLI:
 jaw dashboard memory config set --provider openai --api-key sk-...
 jaw dashboard memory reindex --embedding</code></pre>
 
-<h2>Memory Settings</h2>
+<h2>메모리 설정</h2>
 <pre><code>{
   "memory": {
     "enabled": true,

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard — CLI-JAW Docs</title>
+<title>仪表盘 — CLI-JAW 文档</title>
 <link rel="stylesheet" href="../../_shell.css">
 </head>
 <body>
@@ -64,45 +64,45 @@
 </nav>
 <main class="docs-main">
 
-<h1>Dashboard</h1>
-<p class="lead">The multi-instance dashboard lets you run 7+ CLI-JAW instances simultaneously and manage them from a single React-based UI. It includes notes, kanban board, schedule, reminders, settings, and memory federation.</p>
+<h1>仪表盘</h1>
+<p class="lead">多实例仪表盘允许您同时运行 7 个以上的 CLI-JAW 实例，并通过一个基于 React 的统一界面进行管理。它包含笔记、看板、日程安排、提醒、设置和记忆联邦搜索等功能。</p>
 
-<h2>Starting the Dashboard</h2>
+<h2>启动仪表盘</h2>
 <pre><code>jaw dashboard serve</code></pre>
-<p>This starts the manager server on port 24576 (default) and scans for CLI-JAW instances starting from port 3457.</p>
+<p>此命令在端口 24576（默认）上启动管理服务器，并从端口 3457 开始扫描 CLI-JAW 实例。</p>
 <table>
-<tr><th>Option</th><th>Default</th><th>Description</th></tr>
-<tr><td><code>--port</code></td><td>24576</td><td>Dashboard server port</td></tr>
-<tr><td><code>--from</code></td><td>3457</td><td>Start scanning from this port</td></tr>
-<tr><td><code>--count</code></td><td>50</td><td>Number of ports to scan</td></tr>
-<tr><td><code>--no-open</code></td><td>-</td><td>Do not auto-open browser</td></tr>
+<tr><th>选项</th><th>默认值</th><th>描述</th></tr>
+<tr><td><code>--port</code></td><td>24576</td><td>仪表盘服务器端口</td></tr>
+<tr><td><code>--from</code></td><td>3457</td><td>从此端口开始扫描</td></tr>
+<tr><td><code>--count</code></td><td>50</td><td>扫描的端口数量</td></tr>
+<tr><td><code>--no-open</code></td><td>-</td><td>不自动打开浏览器</td></tr>
 </table>
 
-<h2>Instance Management</h2>
-<p>The dashboard scans for running instances and displays them in a list. Each instance shows its port, status, active CLI, model, and working directory.</p>
+<h2>实例管理</h2>
+<p>仪表盘会扫描正在运行的实例并以列表形式展示。每个实例显示其端口、状态、活跃 CLI、模型和工作目录。</p>
 <ul>
-<li><strong>Start</strong>: Launch a new CLI-JAW instance on an available port</li>
-<li><strong>Stop</strong>: Gracefully shut down an instance</li>
-<li><strong>Preview</strong>: Embed the instance's Web UI in the dashboard via iframe</li>
-<li><strong>Permissions</strong>: Manage instance-level settings</li>
+<li><strong>启动</strong>：在可用端口上启动一个新的 CLI-JAW 实例</li>
+<li><strong>停止</strong>：优雅地关闭一个实例</li>
+<li><strong>预览</strong>：通过 iframe 在仪表盘中嵌入实例的 Web 界面</li>
+<li><strong>权限</strong>：管理实例级别的设置</li>
 </ul>
 
-<h2>Dashboard Tabs</h2>
+<h2>仪表盘选项卡</h2>
 <table>
-<tr><th>Tab</th><th>Description</th></tr>
-<tr><td><strong>Instances</strong></td><td>Instance list with start/stop/preview controls</td></tr>
-<tr><td><strong>Notes</strong></td><td>Jawsidian markdown notes with WYSIWYG editing</td></tr>
-<tr><td><strong>Board</strong></td><td>Kanban task board with workflow lanes</td></tr>
-<tr><td><strong>Schedule</strong></td><td>Heartbeat job scheduling</td></tr>
-<tr><td><strong>Reminders</strong></td><td>Eisenhower-style priority matrix with drag/drop</td></tr>
-<tr><td><strong>Settings</strong></td><td>Dashboard-level configuration including developer tools</td></tr>
+<tr><th>选项卡</th><th>描述</th></tr>
+<tr><td><strong>Instances</strong></td><td>实例列表，包含启动/停止/预览控件</td></tr>
+<tr><td><strong>Notes</strong></td><td>Jawsidian Markdown 笔记，支持所见即所得编辑</td></tr>
+<tr><td><strong>Board</strong></td><td>看板任务面板，包含工作流泳道</td></tr>
+<tr><td><strong>Schedule</strong></td><td>心跳任务调度</td></tr>
+<tr><td><strong>Reminders</strong></td><td>艾森豪威尔优先级矩阵，支持拖放操作</td></tr>
+<tr><td><strong>Settings</strong></td><td>仪表盘级别的配置，包含开发者工具</td></tr>
 </table>
 
-<h2>Search and Filters</h2>
-<p>The instance list supports filtering by status, CLI type, and text search across instance metadata.</p>
+<h2>搜索与筛选</h2>
+<p>实例列表支持按状态、CLI 类型进行筛选，以及跨实例元数据的文本搜索。</p>
 
-<h2>Memory Federation</h2>
-<p>The dashboard provides L2 cross-instance memory search. This fans out queries to all <code>~/.cli-jaw-*</code> instance SQLite indexes.</p>
+<h2>记忆联邦</h2>
+<p>仪表盘提供 L2 跨实例记忆搜索功能。它会将查询扇出到所有 <code>~/.cli-jaw-*</code> 实例的 SQLite 索引中。</p>
 <pre><code># Search across all instances
 jaw dashboard memory search "JWT authentication"
 
@@ -112,11 +112,11 @@ jaw dashboard memory instances
 # Read from a specific instance
 jaw dashboard memory read 3457:shared/decisions.md</code></pre>
 
-<h2>Desktop Integration</h2>
-<p>In the Electron desktop app, the dashboard gains additional panels:</p>
+<h2>桌面端集成</h2>
+<p>在 Electron 桌面应用中，仪表盘会获得额外的面板：</p>
 <ul>
-<li><strong>Browser panel</strong> -- Webview-based browser with tab management</li>
-<li><strong>Diff panel</strong> -- Git diff viewer backed by server API</li>
+<li><strong>浏览器面板</strong> -- 基于 Webview 的浏览器，支持标签页管理</li>
+<li><strong>差异面板</strong> -- 由服务器 API 驱动的 Git 差异查看器</li>
 </ul>
 
 <div class="page-nav">

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>First Run — CLI-JAW Docs</title>
+<title>首次运行 — CLI-JAW 文档</title>
 <link rel="stylesheet" href="../_shell.css">
 </head>
 <body>
@@ -17,7 +17,7 @@
       <div class="docs-nav-title">Getting Started</div>
       <a class="docs-nav-link" href="./">Overview</a>
       <a class="docs-nav-link" href="./quickstart.html">Quickstart</a>
-      <a class="docs-nav-link active" href="./quickstart-first-run.html"First Run</a>
+      <a class="docs-nav-link active" href="./quickstart-first-run.html">First Run</a>
     </div>
     <div class="docs-nav-section">
       <div class="docs-nav-title">Concepts</div>
@@ -64,47 +64,47 @@
 </nav>
 <main class="docs-main">
 
-<h1>First Run</h1>
-<p class="lead">Choose between single-instance and multi-instance modes, then send your first message.</p>
+<h1>首次运行</h1>
+<p class="lead">选择单实例或多实例模式，然后发送你的第一条消息。</p>
 
-<h2>Two Ways to Run</h2>
+<h2>两种运行方式</h2>
 <table>
-<tr><th>Command</th><th>Mode</th><th>Best For</th></tr>
-<tr><td><code>jaw serve</code></td><td>Single instance</td><td>Quick one-off tasks, simple setup</td></tr>
-<tr><td><code>jaw dashboard</code></td><td>Multi-instance manager</td><td>Running multiple agents, full dashboard</td></tr>
+<tr><th>命令</th><th>模式</th><th>适用场景</th></tr>
+<tr><td><code>jaw serve</code></td><td>单实例</td><td>快速一次性任务，简单设置</td></tr>
+<tr><td><code>jaw dashboard</code></td><td>多实例管理器</td><td>运行多个代理，完整仪表盘</td></tr>
 </table>
 
-<h2>Single Instance: jaw serve</h2>
+<h2>单实例：jaw serve</h2>
 <pre><code>jaw serve
 # Opens browser at http://localhost:3457</code></pre>
-<p>You get a chat interface immediately. Type a message and your AI agent responds.</p>
+<p>你将立即获得一个聊天界面。输入消息，你的 AI 代理就会回复。</p>
 
-<h2>Multi-Instance: jaw dashboard</h2>
+<h2>多实例：jaw dashboard</h2>
 <pre><code>jaw dashboard
 # Opens browser at http://localhost:24576</code></pre>
-<p>The dashboard shows all your instances. Click <strong>Start</strong> to launch an instance, or <strong>Perm</strong> to make it persist across reboots.</p>
+<p>仪表盘会显示你的所有实例。点击 <strong>Start</strong> 启动一个实例，或点击 <strong>Perm</strong> 使其在重启后持续运行。</p>
 
-<h2>Sending Your First Message</h2>
-<p>Type in the chat input and press Enter. The AI agent will respond using your configured CLI (Claude Code by default).</p>
+<h2>发送你的第一条消息</h2>
+<p>在聊天输入框中输入内容并按回车。AI 代理将使用你配置的 CLI（默认为 Claude Code）进行回复。</p>
 
-<h2>Switching CLI / Model</h2>
+<h2>切换 CLI / 模型</h2>
 <pre><code>/cli claude    # Switch to Claude Code
 /cli codex     # Switch to Codex
 /cli gemini    # Switch to Gemini CLI
 /model claude-sonnet-4-6  # Change model</code></pre>
 
-<h2>Instance Controls</h2>
+<h2>实例控制</h2>
 <ul>
-<li><strong>Start</strong> — Launch instance (runs while dashboard is open)</li>
-<li><strong>Stop</strong> — Stop instance</li>
-<li><strong>Perm</strong> — Persist via launchd/systemd (survives reboots)</li>
+<li><strong>Start</strong> — 启动实例（在仪表盘打开期间运行）</li>
+<li><strong>Stop</strong> — 停止实例</li>
+<li><strong>Perm</strong> — 通过 launchd/systemd 持久化（重启后仍然存活）</li>
 </ul>
 
-<h2>Next Steps</h2>
+<h2>下一步</h2>
 <ul>
-<li><a href="concepts/architecture.html">Architecture</a> — Understand the system design</li>
-<li><a href="concepts/employees.html">Employees</a> — Dispatch tasks to other AI CLIs</li>
-<li><a href="guides/dashboard.html">Dashboard Guide</a> — Master the multi-instance UI</li>
+<li><a href="concepts/architecture.html">Architecture</a> — 了解系统设计</li>
+<li><a href="concepts/employees.html">Employees</a> — 将任务分派给其他 AI CLI</li>
+<li><a href="guides/dashboard.html">Dashboard Guide</a> — 掌握多实例界面</li>
 </ul>
 
 <div class="page-nav">

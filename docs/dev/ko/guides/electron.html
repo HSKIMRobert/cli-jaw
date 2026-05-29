@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Electron Desktop — CLI-JAW Docs</title>
+<title>Electron 데스크톱 — CLI-JAW 문서</title>
 <link rel="stylesheet" href="../../_shell.css">
 </head>
 <body>
@@ -64,58 +64,58 @@
 </nav>
 <main class="docs-main">
 
-<h1>Electron Desktop</h1>
-<p class="lead">CLI-JAW is available as a native macOS desktop application built with Electron. It wraps the full dashboard experience and adds a terminal, diff viewer, browser panel, and folder panel.</p>
+<h1>Electron 데스크톱</h1>
+<p class="lead">CLI-JAW는 Electron으로 구축된 네이티브 macOS 데스크톱 애플리케이션으로도 사용할 수 있습니다. 전체 대시보드 환경을 래핑하고 터미널, diff 뷰어, 브라우저 패널, 폴더 패널을 추가로 제공합니다.</p>
 
-<h2>Installation</h2>
-<p>Download the DMG from the releases page and drag CLI-JAW to your Applications folder. The app bundles the dashboard and connects to your local CLI-JAW instances.</p>
+<h2>설치</h2>
+<p>릴리스 페이지에서 DMG를 다운로드하고 CLI-JAW를 응용 프로그램 폴더로 드래그하세요. 앱에는 대시보드가 번들로 포함되어 있으며 로컬 CLI-JAW 인스턴스에 연결됩니다.</p>
 <pre><code># Build from source:
 npm run electron:dist:mac</code></pre>
 
-<h2>Panel Layout</h2>
-<p>The Electron app provides a multi-panel workspace:</p>
+<h2>패널 레이아웃</h2>
+<p>Electron 앱은 멀티 패널 작업 공간을 제공합니다:</p>
 <table>
-<tr><th>Panel</th><th>Location</th><th>Description</th></tr>
-<tr><td><strong>Dashboard</strong></td><td>Center</td><td>Full manager dashboard with instances, notes, board</td></tr>
-<tr><td><strong>Terminal</strong></td><td>Bottom</td><td>Embedded terminal for CLI commands</td></tr>
-<tr><td><strong>Browser</strong></td><td>Right</td><td>Webview-based browser with tabs (desktop only)</td></tr>
-<tr><td><strong>Diff Viewer</strong></td><td>Right</td><td>Git diff panel backed by server API (desktop only)</td></tr>
-<tr><td><strong>Folder Panel</strong></td><td>Left/Right</td><td>File tree navigation</td></tr>
+<tr><th>패널</th><th>위치</th><th>설명</th></tr>
+<tr><td><strong>Dashboard</strong></td><td>중앙</td><td>인스턴스, 노트, 보드가 포함된 전체 매니저 대시보드</td></tr>
+<tr><td><strong>Terminal</strong></td><td>하단</td><td>CLI 명령어용 내장 터미널</td></tr>
+<tr><td><strong>Browser</strong></td><td>우측</td><td>탭이 있는 Webview 기반 브라우저 (데스크톱 전용)</td></tr>
+<tr><td><strong>Diff Viewer</strong></td><td>우측</td><td>서버 API 기반 Git diff 패널 (데스크톱 전용)</td></tr>
+<tr><td><strong>Folder Panel</strong></td><td>좌측/우측</td><td>파일 트리 탐색</td></tr>
 </table>
 
-<h2>Browser Panel</h2>
-<p>The desktop browser panel uses webview tags for full browsing. Features:</p>
+<h2>브라우저 패널</h2>
+<p>데스크톱 브라우저 패널은 완전한 브라우징을 위해 webview 태그를 사용합니다. 주요 기능:</p>
 <ul>
-<li>Tab management (Cmd+T new tab, Cmd+W close tab, Cmd+1-4 switch tabs)</li>
-<li>URL bar with smart input -- URLs navigate directly, search terms go to Google</li>
-<li>Default new tab opens Google</li>
-<li>Local/private hosts are allowed (desktop only -- not available in Web UI)</li>
+<li>탭 관리 (Cmd+T 새 탭, Cmd+W 탭 닫기, Cmd+1-4 탭 전환)</li>
+<li>스마트 입력이 가능한 URL 바 -- URL은 직접 이동, 검색어는 Google로 전달</li>
+<li>새 탭 기본 페이지는 Google</li>
+<li>로컬/프라이빗 호스트 허용 (데스크톱 전용 -- Web UI에서는 사용 불가)</li>
 </ul>
 
-<h2>Diff Viewer</h2>
-<p>The diff panel shows Git changes for your project:</p>
+<h2>Diff 뷰어</h2>
+<p>diff 패널은 프로젝트의 Git 변경 사항을 표시합니다:</p>
 <ul>
-<li>Repo root candidates from <code>projectDirs</code>, <code>workingDir</code>, pinned root, home fallback</li>
-<li>Configurable diff settings: root policy, diff mode, base ref, untracked files</li>
-<li>Server-backed API prevents git operations from running in Electron main process</li>
-<li>Path traversal and ref validation guards in <code>diff-service.ts</code></li>
+<li><code>projectDirs</code>, <code>workingDir</code>, 고정된 루트, 홈 폴백으로부터의 저장소 루트 후보</li>
+<li>구성 가능한 diff 설정: 루트 정책, diff 모드, 기준 ref, 미추적 파일</li>
+<li>서버 기반 API로 Electron 메인 프로세스에서 git 작업 실행을 방지</li>
+<li><code>diff-service.ts</code>의 경로 탐색 및 ref 유효성 검사 가드</li>
 </ul>
 
-<h2>Keyboard Shortcuts</h2>
-<p>See the <a href="../reference/keyboard.html">Keyboard Shortcuts</a> reference for the complete list. Key desktop shortcuts:</p>
+<h2>키보드 단축키</h2>
+<p>전체 목록은 <a href="../reference/keyboard.html">키보드 단축키</a> 참조 문서를 확인하세요. 주요 데스크톱 단축키:</p>
 <table>
-<tr><th>Shortcut</th><th>Action</th></tr>
-<tr><td><code>Cmd+T</code></td><td>New browser tab</td></tr>
-<tr><td><code>Cmd+W</code></td><td>Close current tab</td></tr>
-<tr><td><code>Cmd+1-4</code></td><td>Switch to tab 1-4</td></tr>
-<tr><td><code>Cmd+R</code></td><td>Reload main window</td></tr>
-<tr><td><code>Cmd+Shift+R</code></td><td>Hard reload</td></tr>
+<tr><th>단축키</th><th>동작</th></tr>
+<tr><td><code>Cmd+T</code></td><td>새 브라우저 탭</td></tr>
+<tr><td><code>Cmd+W</code></td><td>현재 탭 닫기</td></tr>
+<tr><td><code>Cmd+1-4</code></td><td>탭 1-4로 전환</td></tr>
+<tr><td><code>Cmd+R</code></td><td>메인 윈도우 새로고침</td></tr>
+<tr><td><code>Cmd+Shift+R</code></td><td>강제 새로고침</td></tr>
 </table>
 
-<h2>macOS Permissions</h2>
-<p>The Electron app may prompt for macOS automation access. Grant it in System Preferences > Privacy & Security > Automation. The app's quit flow is visible and handles cleanup gracefully.</p>
+<h2>macOS 권한</h2>
+<p>Electron 앱이 macOS 자동화 접근 권한을 요청할 수 있습니다. 시스템 환경설정 > 개인 정보 보호 및 보안 > 자동화에서 권한을 허용하세요. 앱의 종료 과정은 시각적으로 표시되며 정리 작업을 안정적으로 처리합니다.</p>
 
-<h2>Development</h2>
+<h2>개발</h2>
 <pre><code># Run Electron in dev mode (concurrent with jaw server):
 npm run electron:dev
 

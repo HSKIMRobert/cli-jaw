@@ -1,86 +1,86 @@
 <!DOCTYPE html><html lang="zh"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Changelog — CLI-JAW Docs</title><link rel="stylesheet" href="../_shell.css"></head><body>
+<title>更新日志 — CLI-JAW 文档</title><link rel="stylesheet" href="../_shell.css"></head><body>
 <button class="docs-menu-toggle" onclick="document.querySelector('.docs-sidebar').classList.toggle('is-open');document.querySelector('.docs-sidebar-backdrop').classList.toggle('is-open')">☰</button>
 <div class="docs-sidebar-backdrop" onclick="document.querySelector('.docs-sidebar').classList.remove('is-open');this.classList.remove('is-open')"></div>
 <div class="docs-layout">
 <nav class="docs-sidebar"><div class="docs-logo"><a href="./">CLI-JAW</a></div><div class="docs-nav"><div class="docs-nav-section"><div class="docs-nav-title">Getting Started</div><a class="docs-nav-link" href="./">Overview</a><a class="docs-nav-link" href="quickstart.html">Quickstart</a><a class="docs-nav-link" href="quickstart-first-run.html">First Run</a></div><div class="docs-nav-section"><div class="docs-nav-title">Concepts</div><a class="docs-nav-link" href="concepts/architecture.html">Architecture</a><a class="docs-nav-link" href="concepts/employees.html">Employees</a><a class="docs-nav-link" href="concepts/pabcd.html">PABCD</a><a class="docs-nav-link" href="concepts/goals.html">Goals</a><a class="docs-nav-link" href="concepts/skills.html">Skills</a><a class="docs-nav-link" href="concepts/memory.html">Memory</a><a class="docs-nav-link" href="concepts/prompts.html">Prompts</a></div><div class="docs-nav-section"><div class="docs-nav-title">Guides</div><a class="docs-nav-link" href="guides/dashboard.html">Dashboard</a><a class="docs-nav-link" href="guides/notes.html">Notes (Jawsidian)</a><a class="docs-nav-link" href="guides/kanban.html">Kanban Board</a><a class="docs-nav-link" href="guides/telegram.html">Telegram</a><a class="docs-nav-link" href="guides/discord.html">Discord</a><a class="docs-nav-link" href="guides/computer-use.html">Computer Use</a><a class="docs-nav-link" href="guides/electron.html">Electron Desktop</a><a class="docs-nav-link" href="guides/web-ai.html">Web AI</a></div><div class="docs-nav-section"><div class="docs-nav-title">Reference</div><a class="docs-nav-link" href="reference/cli.html">CLI Commands</a><a class="docs-nav-link" href="reference/api.html">Server API</a><a class="docs-nav-link" href="reference/config.html">Configuration</a><a class="docs-nav-link" href="reference/keyboard.html">Keyboard Shortcuts</a><a class="docs-nav-link" href="reference/events.html">Events</a></div><div class="docs-nav-section"><a class="docs-nav-link active" href="changelog.html">Changelog</a></div></div><div class="docs-lang"><a href="../dev/">EN</a><a href="ko/">한국어</a><a class="active" href="./">中文</a></div><div class="docs-nav-footer"><a href="https://github.com/lidge-jun/cli-jaw">GitHub</a><a href="../../">Landing Page</a></div></nav>
 <main class="docs-main">
-<h1>Changelog</h1>
-<p class="lead">Release history since CLI-JAW 2.0.0 GA.</p>
+<h1>更新日志</h1>
+<p class="lead">CLI-JAW 2.0.0 正式版以来的发布历史。</p>
 
 <h2>v2.0.17 <span style="color:var(--text-dim);font-size:14px;">— 2026-05-29</span></h2>
-<h4>Features</h4>
+<h4>新功能</h4>
 <ul>
-<li>IDE keyboard shortcuts: Cmd+W tab close, Cmd+1-4 tab switch, Cmd+Shift+[/] tab nav</li>
-<li>Browser panel shortcuts: Cmd+L (URL), Cmd+R (reload), Cmd+Shift+R (hard reload), Cmd+Left/Right (back/forward)</li>
-<li>Terminal shortcuts: Cmd+K (clear), Cmd+T (new tab)</li>
-<li>Cmd+Shift+B toggles left sidebar (instances)</li>
-<li>Right panel width cap removed — expand freely</li>
-<li><code>cli-jaw goal</code> CLI subcommand (set/status/done/cancel/update/history)</li>
-<li>Goal continuation now fires during PABCD phases</li>
+<li>IDE 键盘快捷键：Cmd+W 关闭标签页，Cmd+1-4 切换标签页，Cmd+Shift+[/] 标签页导航</li>
+<li>浏览器面板快捷键：Cmd+L（URL 栏），Cmd+R（刷新），Cmd+Shift+R（强制刷新），Cmd+Left/Right（前进/后退）</li>
+<li>终端快捷键：Cmd+K（清屏），Cmd+T（新建标签页）</li>
+<li>Cmd+Shift+B 切换左侧边栏（实例列表）</li>
+<li>移除右侧面板宽度上限 -- 可自由扩展</li>
+<li><code>cli-jaw goal</code> CLI 子命令（set/status/done/cancel/update/history）</li>
+<li>目标续行功能现在在 PABCD 阶段中触发</li>
 </ul>
-<h4>Fixes</h4>
+<h4>修复</h4>
 <ul>
-<li>Electron permission policy: allow-by-default with safety denylist</li>
-<li>Preview permission notice removed (no more "background-sync blocked")</li>
-<li>Frontend tsc type safety: PanelBusAction union</li>
-<li>Focus-scoped shortcuts (browser/terminal actions only fire when focused)</li>
-<li>PanelLayoutProvider stale closure fix</li>
-<li>Cmd+K conflict resolved (CommandPalette kept, menu accelerator removed)</li>
+<li>Electron 权限策略：默认允许，使用安全拒绝列表</li>
+<li>移除预览权限提示（不再出现 "background-sync blocked" 提示）</li>
+<li>前端 tsc 类型安全：PanelBusAction 联合类型</li>
+<li>焦点范围快捷键（浏览器/终端操作仅在获得焦点时触发）</li>
+<li>PanelLayoutProvider 过期闭包修复</li>
+<li>Cmd+K 冲突解决（保留 CommandPalette，移除菜单加速器）</li>
 </ul>
 
 <h2>v2.0.14 – v2.0.16 <span style="color:var(--text-dim);font-size:14px;">— 2026-05-27 ~ 28</span></h2>
-<h4>Features</h4>
+<h4>新功能</h4>
 <ul>
-<li>Electron 41 desktop app — macOS universal DMG</li>
-<li>Built-in terminal (xterm.js + node-pty, multi-tab)</li>
-<li>Diff viewer, folder panel, browser panel (hardened webview)</li>
-<li>Right sidebar 2-split with drag resizer</li>
-<li>Bottom panel: terminal / browser / logs / activity tabs</li>
-<li>Panel state persistence</li>
-<li>Claude fast mode forwarding</li>
-<li>claude-opus-4-8 model ID pre-staging</li>
+<li>Electron 41 桌面应用 -- macOS 通用 DMG</li>
+<li>内置终端（xterm.js + node-pty，多标签页）</li>
+<li>差异查看器、文件夹面板、浏览器面板（加固 webview）</li>
+<li>右侧边栏双分屏，支持拖拽调整大小</li>
+<li>底部面板：终端 / 浏览器 / 日志 / 活动标签页</li>
+<li>面板状态持久化</li>
+<li>Claude 快速模式转发</li>
+<li><code>claude-opus-4-8</code> 模型 ID 预置</li>
 </ul>
 
 <h2>v2.0.5 – v2.0.13 <span style="color:var(--text-dim);font-size:14px;">— 2026-05-10 ~ 26</span></h2>
-<h4>Features</h4>
+<h4>新功能</h4>
 <ul>
-<li>Interview mode: structured known/unknown tracker, 1-3 questions per round</li>
-<li>Goal system: no length limit, auto continuation, timer leak fix</li>
-<li>Dashboard git diff API + diff panel rendering</li>
-<li>Jawsidian graph view controls</li>
-<li>Web AI observation/automation primitives</li>
-<li>steerPrompt fires submitMessage on Web/CLI</li>
+<li>访谈模式：结构化已知/未知追踪器，每轮 1-3 个问题</li>
+<li>目标系统：无长度限制，自动续行，计时器泄漏修复</li>
+<li>Dashboard git diff API + 差异面板渲染</li>
+<li>Jawsidian 图视图控件</li>
+<li>Web AI 观察/自动化原语</li>
+<li><code>steerPrompt</code> 在 Web/CLI 上触发 <code>submitMessage</code></li>
 </ul>
-<h4>Fixes</h4>
+<h4>修复</h4>
 <ul>
-<li>AGY/Grok resume hardening</li>
-<li>Desktop panels web/Electron separation</li>
-<li>CI contract restoration</li>
+<li>AGY/Grok 恢复加固</li>
+<li>桌面面板 web/Electron 分离</li>
+<li>CI 契约恢复</li>
 </ul>
 
 <h2>v2.0.1 – v2.0.4 <span style="color:var(--text-dim);font-size:14px;">— 2026-05-02 ~ 09</span></h2>
-<h4>Features</h4>
+<h4>新功能</h4>
 <ul>
-<li>Notes image paste (remote URL, local drag, clipboard)</li>
-<li>Client-side image compression (>5MB auto-resize)</li>
-<li>Browser tab lifecycle persistence</li>
-<li>Web AI session management + tab pool reuse</li>
-<li>Notes inline title layout</li>
-<li>Skill propagation to all instances on install</li>
+<li>笔记图片粘贴（远程 URL、本地拖拽、剪贴板）</li>
+<li>客户端图片压缩（>5MB 自动缩放）</li>
+<li>浏览器标签页生命周期持久化</li>
+<li>Web AI 会话管理 + 标签页池复用</li>
+<li>笔记内联标题布局</li>
+<li>技能安装时传播至所有实例</li>
 </ul>
-<h4>Fixes</h4>
+<h4>修复</h4>
 <ul>
-<li>Dashboard sidebar stale data</li>
-<li>Discord AllowedMentions default</li>
-<li>Upload content validation hardening</li>
-<li>Auth path and process check hardening</li>
-<li>launchd status actual plist port display</li>
-<li>npm vulnerability patches</li>
+<li>Dashboard 侧边栏数据过期问题</li>
+<li>Discord AllowedMentions 默认值</li>
+<li>上传内容验证加固</li>
+<li>认证路径和进程检查加固</li>
+<li>launchd 状态显示实际 plist 端口</li>
+<li>npm 漏洞补丁</li>
 </ul>
 
-<h2>v2.0.0 GA <span style="color:var(--text-dim);font-size:14px;">— 2026-05-02</span></h2>
-<p>Initial GA release with multi-instance dashboard, Jawsidian notes, Kanban board, employee system, PABCD orchestration, 195 skills, goal system, Telegram/Discord integration, and voice recognition.</p>
+<h2>v2.0.0 正式版 <span style="color:var(--text-dim);font-size:14px;">— 2026-05-02</span></h2>
+<p>初始正式版发布，包含多实例仪表盘、Jawsidian 笔记、看板、员工系统、PABCD 编排、195 个技能、目标系统、Telegram/Discord 集成和语音识别。</p>
 
 <div class="page-nav"><a class="prev" href="reference/events.html">Events</a><span></span></div>
 </main></div></body></html>

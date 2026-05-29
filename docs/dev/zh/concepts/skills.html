@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Skills — CLI-JAW Docs</title>
+<title>技能 — CLI-JAW 文档</title>
 <link rel="stylesheet" href="../../_shell.css">
 </head>
 <body>
@@ -64,11 +64,11 @@
 </nav>
 <main class="docs-main">
 
-<h1>Skills</h1>
-<p class="lead">Skills are domain knowledge plugins that get injected into the agent's system prompt. CLI-JAW ships with 32 active skills and 195 reference skills covering development, cloud platforms, documentation, and more.</p>
+<h1>技能</h1>
+<p class="lead">技能是注入到智能体系统提示词中的领域知识插件。CLI-JAW 内置 32 个活跃技能和 195 个参考技能，涵盖开发、云平台、文档等领域。</p>
 
-<h2>How Skills Work</h2>
-<p>Each skill is a directory containing a <code>SKILL.md</code> file. Active skills are loaded into the system prompt automatically. Reference skills are listed as available but not injected unless activated.</p>
+<h2>技能的工作原理</h2>
+<p>每个技能是一个包含 <code>SKILL.md</code> 文件的目录。活跃技能会自动加载到系统提示词中。参考技能会被列为可用，但除非激活，否则不会被注入。</p>
 <pre><code>~/.cli-jaw/skills/
 ├── dev/SKILL.md           # Active: common development rules
 ├── dev-frontend/SKILL.md  # Active: frontend-specific guidance
@@ -81,18 +81,18 @@
 ├── docker/SKILL.md
 └── ...</code></pre>
 
-<h2>Skill Categories</h2>
+<h2>技能分类</h2>
 <table>
-<tr><th>Category</th><th>Examples</th></tr>
-<tr><td><strong>Development</strong></td><td>dev, dev-frontend, dev-backend, dev-data, dev-testing, dev-code-reviewer, dev-scaffolding, dev-security, dev-debugging, dev-pabcd</td></tr>
-<tr><td><strong>Cloud / Infra</strong></td><td>cloudflare, agents-sdk, durable-objects, sandbox-sdk, workers-best-practices, wrangler</td></tr>
-<tr><td><strong>Browser</strong></td><td>browser, web-ai, vision-click, desktop-control</td></tr>
-<tr><td><strong>Documents</strong></td><td>pdf, pdf-vision, pptx, xlsx, docx, hwp</td></tr>
-<tr><td><strong>Communication</strong></td><td>telegram-send, notion, github, x-post</td></tr>
-<tr><td><strong>System</strong></td><td>memory, init, review, security-review, verify, simplify, code-review</td></tr>
+<tr><th>分类</th><th>示例</th></tr>
+<tr><td><strong>开发</strong></td><td>dev, dev-frontend, dev-backend, dev-data, dev-testing, dev-code-reviewer, dev-scaffolding, dev-security, dev-debugging, dev-pabcd</td></tr>
+<tr><td><strong>云 / 基础设施</strong></td><td>cloudflare, agents-sdk, durable-objects, sandbox-sdk, workers-best-practices, wrangler</td></tr>
+<tr><td><strong>浏览器</strong></td><td>browser, web-ai, vision-click, desktop-control</td></tr>
+<tr><td><strong>文档</strong></td><td>pdf, pdf-vision, pptx, xlsx, docx, hwp</td></tr>
+<tr><td><strong>通讯</strong></td><td>telegram-send, notion, github, x-post</td></tr>
+<tr><td><strong>系统</strong></td><td>memory, init, review, security-review, verify, simplify, code-review</td></tr>
 </table>
 
-<h2>CLI Commands</h2>
+<h2>CLI 命令</h2>
 <pre><code># List all skills
 jaw skill list
 
@@ -108,15 +108,15 @@ jaw skill info dev-frontend
 # Reset skills to defaults
 jaw skill reset</code></pre>
 
-<h2>Slash Commands</h2>
+<h2>斜杠命令</h2>
 <table>
-<tr><th>Command</th><th>Description</th></tr>
-<tr><td><code>/skill list</code></td><td>Show active and reference skill counts</td></tr>
-<tr><td><code>/skill reset</code></td><td>Soft reset skills to defaults</td></tr>
+<tr><th>命令</th><th>说明</th></tr>
+<tr><td><code>/skill list</code></td><td>显示活跃技能和参考技能的数量</td></tr>
+<tr><td><code>/skill reset</code></td><td>软重置技能为默认值</td></tr>
 </table>
 
-<h2>SKILL.md Format</h2>
-<p>A skill file is a markdown document that follows a specific structure:</p>
+<h2>SKILL.md 格式</h2>
+<p>技能文件是一个遵循特定结构的 Markdown 文档：</p>
 <pre><code># Skill Name
 
 Brief description of what this skill provides.
@@ -136,8 +136,8 @@ Trigger conditions for when the agent should activate this skill.
 # Example command or code
 ```</code></pre>
 
-<h2>Custom Skill Authoring</h2>
-<p>You can create custom skills by adding a directory to <code>~/.cli-jaw/skills/</code>:</p>
+<h2>自定义技能创作</h2>
+<p>你可以通过在 <code>~/.cli-jaw/skills/</code> 中添加目录来创建自定义技能：</p>
 <pre><code>mkdir -p ~/.cli-jaw/skills/my-custom-skill
 cat > ~/.cli-jaw/skills/my-custom-skill/SKILL.md << 'EOF'
 # My Custom Skill
@@ -149,18 +149,18 @@ Custom domain knowledge for my specific workflow.
 1. Always prefer TypeScript over JavaScript.
 2. Use pnpm instead of npm.
 EOF</code></pre>
-<p>The skill will be automatically loaded into the system prompt on the next agent run.</p>
+<p>该技能将在下一次智能体运行时自动加载到系统提示词中。</p>
 
-<h2>Prompt Injection</h2>
-<p>Skills are injected into the system prompt by <code>getSystemPrompt()</code> in <code>src/prompt/builder.ts</code>. The rendering logic:</p>
+<h2>提示词注入</h2>
+<p>技能通过 <code>src/prompt/builder.ts</code> 中的 <code>getSystemPrompt()</code> 注入到系统提示词中。渲染逻辑如下：</p>
 <ul>
-<li>If both active and reference skills exist: renders active skills inline + available skill list + discovery hint</li>
-<li>If only active skills exist: renders them without the available list</li>
-<li>If only reference skills exist: renders the available list + discovery hint</li>
+<li>如果同时存在活跃技能和参考技能：内联渲染活跃技能 + 可用技能列表 + 发现提示</li>
+<li>如果只有活跃技能：仅渲染活跃技能，不显示可用列表</li>
+<li>如果只有参考技能：渲染可用列表 + 发现提示</li>
 </ul>
 
-<h2>Employee Skills</h2>
-<p>Employee prompts (<code>getEmployeePromptV2()</code>) include role-specific and phase-specific skills automatically. For example, a "Frontend" employee gets <code>dev-frontend</code>, and during the Check phase, employees get <code>dev-testing</code>.</p>
+<h2>员工技能</h2>
+<p>员工提示词（<code>getEmployeePromptV2()</code>）会自动包含角色特定和阶段特定的技能。例如，"Frontend" 员工会获得 <code>dev-frontend</code>，在 Check 阶段，员工会获得 <code>dev-testing</code>。</p>
 
 <div class="page-nav">
 <a class="prev" href="goals.html">Goals</a>
