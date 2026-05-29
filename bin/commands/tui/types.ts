@@ -75,6 +75,7 @@ export interface TuiContext {
     escPending: boolean;
     escTimer: ReturnType<typeof setTimeout> | null;
     prevLineCount: number;
+    promptCursorRow: number;
     resizeTimer: ReturnType<typeof setTimeout> | null;
 
     ideEnabled: boolean;

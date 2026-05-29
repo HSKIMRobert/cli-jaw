@@ -5,6 +5,8 @@ import {
     appendNewlineToComposer, appendTextToComposer, backspaceComposer,
     clearComposer, flattenComposerForSubmit, getComposerDisplayText,
     getPlainCommandDraft, getTrailingTextSegment, setBracketedPaste,
+    moveCursorLeft, moveCursorRight, moveCursorWordLeft, moveCursorWordRight,
+    moveCursorHome, moveCursorEnd,
 } from '../../../src/cli/tui/composer.js';
 import { classifyKeyAction } from '../../../src/cli/tui/keymap.js';
 import {
@@ -364,6 +366,18 @@ export function handleKeyInput(ctx: TuiContext, rawKey: string): void {
     } else if (action === 'ctrl-u') {
         clearComposer(composer);
         redrawInputWithAutocomplete(ctx);
+    } else if (action === 'arrow-left') {
+        if (ctx.inputActive) { moveCursorLeft(composer); redrawPromptLine(ctx); }
+    } else if (action === 'arrow-right') {
+        if (ctx.inputActive) { moveCursorRight(composer); redrawPromptLine(ctx); }
+    } else if (action === 'word-left') {
+        if (ctx.inputActive) { moveCursorWordLeft(composer); redrawPromptLine(ctx); }
+    } else if (action === 'word-right') {
+        if (ctx.inputActive) { moveCursorWordRight(composer); redrawPromptLine(ctx); }
+    } else if (action === 'home') {
+        if (ctx.inputActive) { moveCursorHome(composer); redrawPromptLine(ctx); }
+    } else if (action === 'end') {
+        if (ctx.inputActive) { moveCursorEnd(composer); redrawPromptLine(ctx); }
     } else if (action === 'printable') {
         if (!ctx.inputActive) {
             if (ctx.commandRunning) return;

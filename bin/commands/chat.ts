@@ -134,6 +134,7 @@ const ctx: TuiContext = {
     escPending: false,
     escTimer: null,
     prevLineCount: 1,
+    promptCursorRow: 0,
     resizeTimer: null,
     ideEnabled: isGit,
     idePopEnabled: false,
