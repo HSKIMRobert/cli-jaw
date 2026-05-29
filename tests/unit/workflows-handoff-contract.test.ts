@@ -33,7 +33,7 @@ test('WH-005: handoff uses correct B-phase verdict tokens', () => {
 
 test('WH-006: implementation delegation detection exists', () => {
     assert.ok(handoffSrc.includes('hasImplementationDelegation'), 'must export delegation checker');
-    assert.ok(handoffSrc.includes('implement the feature'), 'must detect implementation patterns');
+    assert.ok(handoffSrc.includes('IMPL_DELEGATION_PATTERN'), 'must detect implementation patterns via regex');
 });
 
 test('WH-007: employee boundary prevents non-Boss dispatch', () => {

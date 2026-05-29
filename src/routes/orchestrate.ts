@@ -20,6 +20,8 @@ import type { EmployeeRow, SyntheticEmployeeRow } from '../core/employees.js';
 import { getHeartbeatRuntimeState } from '../memory/heartbeat.js';
 import { sanitizeToolLogForDurableStorage } from '../shared/tool-log-sanitize.js';
 import { getSecurityAuditLog } from '../security/security-audit-log.js';
+import { validateDispatchTask } from '../workflows/employee-boundary.js';
+import { normalizeScope, postDispatchDiffCheck } from '../workflows/scope-sandbox.js';
 
 function getRuntimeSnapshot() {
     return {
@@ -194,30 +196,40 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
             console.warn(`[dispatch:deny] ip=${req.ip} ua=${String(req.headers['user-agent'] || '').slice(0, 80)}`);
             return fail(res, 403, 'Dispatch requires boss-scoped token. Employees cannot dispatch.');
         }
-        const { agent: agentName, task: rawTask, phase } = req.body || {};
+        const { agent: agentName, task: rawTask, phase, mutable, scope } = req.body || {};
         const task = typeof rawTask === 'string' ? rawTask.trim() : '';
         if (!agentName || !task) return fail(res, 400, 'Missing agent or task');
+        const allowWrite = mutable === true;
 
-        // Phase 57: B-phase workers are READ-ONLY verifiers (Phase 4=Check), not implementers (Phase 3=Dev).
-        // PABCD A=Plan Audit (Phase 2), B=Build but workers verify only (Phase 4), C=Check (Phase 4).
+        // Scope fail-fast: validate scope path before any work
+        if (allowWrite && scope) {
+            try {
+                normalizeScope(settings["workingDir"] || process.cwd(), scope);
+            } catch (e) {
+                return fail(res, 400, (e as Error).message);
+            }
+        }
+
         const PABCD_PHASE_MAP: Record<string, number> = { A: 2, B: 4, C: 4 };
         const dispatchScope = resolveOrcScope({ origin: 'web', workingDir: settings["workingDir"] || null });
         const currentOrcState = getState(dispatchScope);
-        const resolvedPhase = phase ?? PABCD_PHASE_MAP[currentOrcState] ?? 3;
+        const resolvedPhase = allowWrite ? 3 : (phase ?? PABCD_PHASE_MAP[currentOrcState] ?? 3);
         const dispatchCtx = getCtx(dispatchScope);
 
-        // Phase 57: Delegation Guard — block code-implementation tasks during B phase.
-        // Boss must implement directly; workers are read-only verifiers.
-        if (currentOrcState === 'B') {
-            const implPattern = /\b(implement|write\s+(?:the\s+)?code|create\s+(?:the\s+)?file|build\s+(?:the\s+)?feature|add\s+(?:the\s+)?(?:method|function|class))\b/i;
-            if (implPattern.test(String(task))) {
-                res.status(400).json({
-                    ok: false,
-                    error: 'delegation_guard',
-                    message: 'B phase: Boss must implement directly. Workers are read-only verifiers. Reword the task as "verify X compiles" / "check integration of Y" / "report DONE or NEEDS_FIX".',
-                });
-                return;
-            }
+        // Unified delegation guard via validateDispatchTask
+        const validation = validateDispatchTask({
+            isBoss: true,
+            phase: currentOrcState as OrcStateName,
+            taskBody: task,
+            allowWrite,
+        });
+        if (!validation.ok) {
+            res.status(400).json({
+                ok: false,
+                error: 'delegation_guard',
+                message: validation.error,
+            });
+            return;
         }
 
         // Phase 56.1: Auto-inject the full approved plan inline at the top of every
@@ -313,6 +325,7 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
         try {
             getSecurityAuditLog().append('dispatch_start', String(req.ip || 'local'), {
                 agent: emp.name, task: task.slice(0, 200), phase: resolvedPhase,
+                mutable: allowWrite, scope: scope || null,
             });
         } catch { /* non-fatal */ }
 
@@ -327,11 +340,28 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
                 task: enrichedTask, parallel: false,
                 currentPhase: resolvedPhase, currentPhaseIdx: 0,
                 phaseProfile: [resolvedPhase],
+                mutable: allowWrite,
+                scope: scope || null,
             };
             // Phase 57: Pass worklog path so the worker can append progress entries.
             const worklog = dispatchCtx?.worklogPath ? { path: dispatchCtx.worklogPath } : {};
             const result = await runSingleAgent(ap, emp, worklog, 1, { origin: 'api', projectDirs: dispatchCtx?.projectDirs }, []);
             finishWorker(slot.agentId, String(result["text"] || ''));
+
+            // Post-dispatch scope violation check
+            if (allowWrite && scope) {
+                try {
+                    const workDir = dispatchCtx?.workingDir || settings["workingDir"] || process.cwd();
+                    const diffResult = postDispatchDiffCheck(String(workDir), scope);
+                    if (!diffResult.ok) {
+                        getSecurityAuditLog().append('scope_violation', String(req.ip || 'local'), {
+                            agent: emp.name, agentId: slot.agentId,
+                            modifiedOutside: diffResult.modifiedOutside,
+                        });
+                    }
+                } catch { /* non-fatal — git might not be available */ }
+            }
+
             try {
                 getSecurityAuditLog().append('dispatch_end', String(req.ip || 'local'), {
                     agent: emp.name, agentId: slot.agentId, status: 'success',
@@ -455,11 +485,21 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
             clearProjectDirs();
             broadcast('settings_change', { projectDirs: null });
         } else {
-            const initCtx = t === 'P'
-                ? { originalPrompt: '', workingDir: settings["workingDir"] || null, projectDirs: settings["projectDirs"] || null, plan: null, workerResults: [], origin: 'api' }
-                : t === 'I'
-                    ? { originalPrompt: req.body?.ctx?.originalPrompt || '', workingDir: settings["workingDir"] || null, projectDirs: settings["projectDirs"] || null, plan: null, workerResults: [], origin: 'api' }
-                    : undefined;
+            let initCtx;
+            if (t === 'P') {
+                const existingCtx = getCtx(scope);
+                initCtx = existingCtx?.plan
+                    ? { ...existingCtx, origin: 'api' as const }
+                    : { originalPrompt: '', workingDir: settings["workingDir"] || null, projectDirs: settings["projectDirs"] || null, plan: null, workerResults: [], origin: 'api' as const };
+            } else if (t === 'I') {
+                // non-IDLE → I: preserve existing context (plan, auditStatus, etc.)
+                const existingCtx = getCtx(scope);
+                initCtx = current !== 'IDLE' && existingCtx
+                    ? undefined
+                    : { originalPrompt: req.body?.ctx?.originalPrompt || '', workingDir: settings["workingDir"] || null, projectDirs: settings["projectDirs"] || null, plan: null, workerResults: [], origin: 'api' as const };
+            } else {
+                initCtx = undefined;
+            }
             setState(
                 t,
                 initCtx,

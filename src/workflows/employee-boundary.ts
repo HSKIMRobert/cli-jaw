@@ -10,14 +10,14 @@ export function assertBossOnlyDispatch(isBoss: boolean): void {
     }
 }
 
-export function assertNoImplementationDelegation(phase: OrcStateName, taskBody: string): void {
-    if (phase === 'B' && hasImplementationDelegation(taskBody)) {
-        throw new Error('B-phase employees are read-only verifiers; implementation delegation is forbidden');
+export function assertNoImplementationDelegation(phase: OrcStateName, taskBody: string, allowWrite = false): void {
+    if (phase === 'B' && !allowWrite && hasImplementationDelegation(taskBody)) {
+        throw new Error('B-phase employees are read-only verifiers; implementation delegation is forbidden. Use --mutable to allow writes.');
     }
 }
 
-export function assertReadOnlyAudit(phase: OrcStateName, taskBody: string): void {
-    if (phase === 'A') {
+export function assertReadOnlyAudit(phase: OrcStateName, taskBody: string, allowWrite = false): void {
+    if (phase === 'A' && !allowWrite) {
         const lc = taskBody.toLowerCase();
         if (lc.includes('write file') || lc.includes('create file') || lc.includes('modify code')) {
             throw new Error('A-phase audit must be read-only');
@@ -29,11 +29,12 @@ export function validateDispatchTask(opts: {
     isBoss: boolean;
     phase: OrcStateName;
     taskBody: string;
+    allowWrite?: boolean;
 }): { ok: boolean; error?: string } {
     try {
         assertBossOnlyDispatch(opts.isBoss);
-        assertNoImplementationDelegation(opts.phase, opts.taskBody);
-        assertReadOnlyAudit(opts.phase, opts.taskBody);
+        assertNoImplementationDelegation(opts.phase, opts.taskBody, opts.allowWrite);
+        assertReadOnlyAudit(opts.phase, opts.taskBody, opts.allowWrite);
         return { ok: true };
     } catch (err) {
         return { ok: false, error: (err as Error).message };

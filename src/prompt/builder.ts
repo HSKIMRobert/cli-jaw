@@ -576,12 +576,25 @@ export function getEmployeePrompt(emp: { name: string; role?: string; id?: strin
 
 // ─── Employee Prompt v2 (orchestration phase-aware) ──
 
-export function getEmployeePromptV2(emp: { name: string; role?: string; id?: string | number; cli?: string }, role: string, currentPhase: number | string) {
+export function getEmployeePromptV2(
+    emp: { name: string; role?: string; id?: string | number; cli?: string },
+    role: string,
+    currentPhase: number | string,
+    opts?: { mutable?: boolean; scope?: string | null },
+) {
     const phase = Number(currentPhase);
-    const cacheKey = `${emp.id || emp.name}:${role}:${phase}:${settings["workingDir"] || '~'}`;
+    const cacheKey = `${emp.id || emp.name}:${role}:${phase}:${settings["workingDir"] || '~'}:${opts?.mutable ? 'mut' : 'ro'}:${opts?.scope || ''}`;
     if (promptCache.has(cacheKey)) return promptCache.get(cacheKey);
 
     let prompt = getEmployeePrompt(emp);
+
+    // --mutable: override the hard read-only block in employee.md
+    if (opts?.mutable) {
+        prompt = prompt.replace(
+            /- ⛔ Do NOT create, modify, or delete files\..*/,
+            `- ✅ You are authorized to create or modify files${opts.scope ? ` inside \`${opts.scope}\`` : ''}. Protected paths (.git, .env, settings.json) remain blocked.`,
+        );
+    }
 
     // Static-employee system prompt patch (Control etc.) injected near the top
     // so role-specific guidance downstream can still override style/tone.
