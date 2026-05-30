@@ -207,6 +207,10 @@ export function setSteerInProgress(v: boolean): void {
     if (was && !v) queueMicrotask(() => processQueue());
 }
 
+export function isSteerInProgress(): boolean {
+    return steerInProgress;
+}
+
 export function isAgentBusy(): boolean {
     return !!activeProcess || queueCtrl.isRetryPending() || mainSpawnStarting || steerInProgress;
 }
