@@ -393,10 +393,13 @@ export async function orchestrate(
             result["text"] = stripInterviewTracker(originalText);
 
             // P0-2 + P1-1: parse Evidence-Ref or legacy string format
-            const block = originalText.match(/<interview_tracker>([\s\S]*?)<\/interview_tracker>/);
-            if (block) {
+            // Try XML-tagged block first, then fallback to raw known:/unknown: in text
+            const xmlBlock = originalText.match(/<interview_tracker>([\s\S]*?)<\/interview_tracker>/);
+            const body = xmlBlock
+                ? xmlBlock[1]!
+                : (originalText.includes('known:') ? originalText : null);
+            if (body) {
                 try {
-                    const body = block[1]!;
                     const knownMatch = body.match(/known:\s*(\[[\s\S]*?\])\s*(?:unknown:|$)/);
                     const unknownMatch = body.match(/unknown:\s*(\[[\s\S]*?\])/)
                         || body.match(/unknown:\s*(\[[\s\S]*\])\s*$/);
