@@ -340,6 +340,27 @@ OpenCode는 여러 step에 걸친 token/cost를 누적합으로 저장한다. `s
 
 ## 11. `agent_output`와 최종 응답
 
+### 라이브 출력 bullet 정렬 (`appendAssistantTextSegment`)
+
+Codex/Claude/Gemini/Cursor/OpenCode는 `src/agent/events/helpers.ts`의 `appendAssistantTextSegment()`로 live chunk를 누적한다.
+
+| 규칙 | 결과 |
+| --- | --- |
+| 첫 assistant segment (tool 없음) | raw text |
+| 첫 assistant segment (tool 이미 있음) | `- {text}` |
+| 이후 segment | `\n- {text}` (공백/구두점 경계 예외는 helpers 참고) |
+
+Plain-text runtime은 raw stdout(`fullText`)과 formatted preview(`liveOutputText`)를 분리한다.
+
+| CLI | raw capture | formatted `agent_output` |
+| --- | --- | --- |
+| `agy` | stdout → `fullText` | `liveOutputText` via `appendAssistantTextSegment` |
+| `kiro-code` | stdout → `fullText` (kiro-runtime) | **raw** `assistant_delta` → `liveOutputText` (no `-` inject; Kiro has native `- Completed` / numbered lines) |
+| `grok` | NDJSON handler → `fullText` | raw delta concat → `pendingOutputChunk` (paragraph bullets deferred) |
+| `copilot` (ACP) | ACP chunks → `fullText` | `appendAssistantTextSegment` + `agent_output` broadcast |
+
+Web UI는 ProcessBlock(아이콘 - 라벨) 아래 markdown list bullet(`- ...`)로 흘러나오는 assistant preview를 기대한다.
+
 ### 라이브 출력
 
 - `src/agent/spawn.ts`는 일부 CLI 경로에서 `broadcast('agent_output', { text })`를 실제로 보낸다.

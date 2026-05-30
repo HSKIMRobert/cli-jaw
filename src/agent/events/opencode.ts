@@ -10,6 +10,7 @@ import {
     buildPreview,
     appendAssistantTextSegment,
     isOpencodeToolFailure,
+    formatPostToolAssistantLead,
 } from './helpers.js';
 
 function flushOpenCodeStepText(
@@ -26,7 +27,11 @@ function flushOpenCodeStepText(
         : `${preToolText}${postToolText}`;
     const suppressedText = isToolCallStep ? preToolText : '';
     if (textToCommit) {
-        const segment = appendAssistantTextSegment(ctx, textToCommit);
+        const streamText = ctx.liveOutputText ?? ctx.fullText;
+        const lead = isToolCallStep && !streamText.trim()
+            ? formatPostToolAssistantLead(textToCommit)
+            : textToCommit;
+        const segment = appendAssistantTextSegment(ctx, lead);
         ctx.pendingOutputChunk = (ctx.pendingOutputChunk || '') + segment;
     }
     if (suppressedText) {
