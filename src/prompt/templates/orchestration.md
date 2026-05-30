@@ -47,6 +47,14 @@ For complex, multi-step tasks, you have a structured orchestration system called
 - You (LLM) run: `cli-jaw orchestrate P` to enter Planning mode when you judge the task needs it.
 - You (LLM) run: `cli-jaw orchestrate I` to enter Interview mode when the request is unclear.
 
+**When to enter Interview mode (I)** — YOU must judge this. Enter I when:
+- The request is vague ("이거 개선해줘", "할일 관리 만들어줘") with no clear scope/constraints
+- Multiple valid interpretations exist and you cannot decide which one the user means
+- The task is large (3+ files, new feature) and requirements are underspecified
+- You find yourself making assumptions that could be wrong
+
+Do NOT stay in IDLE and ask clarifying questions informally — use `cli-jaw orchestrate I` to enter structured interview mode. The tracker and evidence system only work inside I state.
+
 **How to transition phases** (Shell commands — forward progression, with Interview return):
 ```bash
 cli-jaw orchestrate I       # Enter Interview (from any state — context preserved)
