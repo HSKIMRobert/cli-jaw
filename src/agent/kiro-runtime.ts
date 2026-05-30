@@ -1,5 +1,14 @@
 import os from 'node:os';
-import { extractKiroSessionIdFromV2Store, resolveKiroDataPath } from './kiro-auth.js';
+import {
+    extractKiroSessionIdFromV2Store,
+    listKiroConversationIdsForCwd,
+    resolveKiroDataPath,
+    resolveKiroSessionIdAfterSpawn,
+} from './kiro-auth.js';
+
+export { listKiroConversationIdsForCwd, resolveKiroSessionIdAfterSpawn };
+
+const KIRO_SESSION_ID_STDOUT_RE = /Session\s+ID:\s*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
 
 const ANSI_RE = /\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g;
 const KIRO_RESPONSE_LINE_RE = /^>\s*(.*)\s*$/;
@@ -74,13 +83,25 @@ export function extractKiroSessionIdFromStore(
     updatedAfterMs = 0,
     homedir = os.homedir(),
 ): string | null {
-    // kiro-cli writes `--no-interactive` sessions to the v2 sqlite store, not
-    // the legacy `~/.kiro/sessions/cli/*.json` files. Read from the real store.
     return extractKiroSessionIdFromV2Store(cwd, updatedAfterMs, resolveKiroDataPath(homedir));
 }
 
-export function isKiroPlainTextCli(cli: string): boolean {
-    return cli === 'kiro-code';
+/** TUI / exit hint lines — headless `--no-interactive` usually omits these. */
+export function parseKiroSessionIdFromStdout(text: string): string | null {
+    const match = KIRO_SESSION_ID_STDOUT_RE.exec(stripKiroAnsi(text));
+    return match?.[1] ?? null;
+}
+
+export function parseAiESessionIdFromStderr(text: string): string | null {
+    for (const line of text.split(/\r?\n/)) {
+        const match = /\[ai-e\]\s+session:\s*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i.exec(line);
+        if (match?.[1]) return match[1];
+    }
+    return null;
+}
+
+export function isKiroPlainTextCli(cli: string, effectiveProvider?: string | null): boolean {
+    return cli === 'kiro-code' || (cli === 'ai-e' && effectiveProvider === 'kiro');
 }
 
 export type KiroStreamEvent =

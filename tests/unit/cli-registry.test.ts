@@ -86,7 +86,8 @@ test('Cursor registry exposes Cursor as a top-level runtime, not an ai-e provide
 
 test('ai-e registry exposes explicit provider selector metadata', () => {
     assert.equal(CLI_REGISTRY['ai-e'].defaultProvider, 'claude');
-    assert.deepEqual(CLI_REGISTRY['ai-e'].providers, ['claude', 'codex', 'gemini', 'grok', 'copilot']);
+    assert.deepEqual(CLI_REGISTRY['ai-e'].providers, ['claude', 'codex', 'gemini', 'grok', 'copilot', 'kiro']);
+    assert.ok(CLI_REGISTRY['ai-e'].modelsByProvider?.kiro.includes('auto'));
     assert.ok(CLI_REGISTRY['ai-e'].modelsByProvider?.codex.includes('gpt-5.4'));
     assert.ok(CLI_REGISTRY['ai-e'].modelsByProvider?.copilot.includes('gpt-5-mini'));
 });

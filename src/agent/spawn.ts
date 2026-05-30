@@ -56,12 +56,16 @@ import { isJawRuntimeEvent, handleJawRuntimeEvent } from './claude-e-runtime.js'
 import { appendTraceEvent, stampTraceTool, startTraceRun } from '../trace/store.js';
 import { extractAgyConversationId, formatAgyTimeoutMessage, isAgyStaleSessionOutput, isAgyTimeoutOutput } from './agy-runtime.js';
 import { appendAssistantTextSegment, appendPostToolAssistantLead } from './events/helpers.js';
+import { listKiroConversationIdsForCwd } from './kiro-auth.js';
 import {
     extractKiroSessionIdFromStore,
     finalizeKiroFullText,
     flushKiroStdoutContext,
     isKiroPlainTextCli,
+    parseAiESessionIdFromStderr,
+    parseKiroSessionIdFromStdout,
     processKiroStdoutChunk,
+    resolveKiroSessionIdAfterSpawn,
     type KiroStreamEvent,
 } from './kiro-runtime.js';
 import { resolveCursorModelVariant } from './cursor-runtime.js';
@@ -779,7 +783,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     const bucketResumeKey = typeof bucketRow?.resume_key === 'string' ? bucketRow.resume_key : null;
     const bucketUpdatedAt = bucketRow?.updated_at ?? null;
     const resumeKey = buildSessionResumeKey(cli, spawnEnv);
-    const providerSupportsResume = !(cli === 'ai-e' && effectiveProvider !== 'claude');
+    const providerSupportsResume = !(cli === 'ai-e' && effectiveProvider !== 'claude' && effectiveProvider !== 'kiro');
     const canResumeBucketSession = !bucketSessionId || shouldResumeBucketSession(
         cli,
         runtimeModel,
@@ -787,6 +791,8 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         resumeKey,
         bucketResumeKey,
         bucketUpdatedAt,
+        Date.now(),
+        effectiveProvider,
     );
     const isResume = empSid
         ? true
@@ -843,7 +849,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     let promptForArgs = (cli === 'agy' || cli === 'cursor' || cli === 'kiro-code' || cli === 'gemini' || cli === 'grok' || cli === 'opencode' || (cli === 'ai-e' && effectiveProvider !== 'claude'))
         ? withHistoryPrompt(prompt, historyBlock)
         : prompt;
-    if ((cli === 'agy' || cli === 'kiro-code') && sysPrompt) {
+    if ((cli === 'agy' || cli === 'kiro-code' || (cli === 'ai-e' && effectiveProvider === 'kiro')) && sysPrompt) {
         promptForArgs = `[Operational Context — cli-jaw Integration]\nThe following operational guidelines apply to this session. Follow these task rules and use the tools/commands described:\n\n${sysPrompt}\n\n---\n\n${promptForArgs}`;
     }
     const claudeBin = (cli === 'claude-e' || (cli === 'ai-e' && effectiveProvider === 'claude'))
@@ -1625,7 +1631,11 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     if (!opts.internal) broadcast('agent_status', { status: 'running', cli, agentId: agentLabel, ...runtimeStatusMeta, ...empTag }, traceAudience);
 
     const traceRunId = startTraceRun({ cli, model: runtimeModel, workingDir: settings["workingDir"] || null, agentLabel, audience: traceAudience });
-    const kiroSpawnStartedAt = cli === 'kiro-code' ? Date.now() - 1000 : 0;
+    const kiroPlainText = isKiroPlainTextCli(cli, effectiveProvider);
+    const kiroSpawnStartedAt = kiroPlainText ? Date.now() - 1000 : 0;
+    const kiroConversationIdsBefore = (kiroPlainText && !isResume && !empSid)
+        ? listKiroConversationIdsForCwd(spawnCwd)
+        : null;
     const agyResumeOffset = cli === 'agy' && isResume
         ? (empSid ? (opts.employeeOutputLen ?? 0) : (bucketRow?.output_len ?? 0))
         : 0;
@@ -1635,7 +1645,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         toolLog: [],
         seenToolKeys: new Set<string>(),
         hasClaudeStreamEvents: false,
-        sessionId: null as string | null,
+        sessionId: (kiroPlainText && isResume && resumeSessionId) ? resumeSessionId : null,
         cost: null as number | null,
         turns: null as number | null,
         duration: null as number | null,
@@ -1652,8 +1662,8 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         geminiResultSeen: false,
         ...(opencodeSpawnAudit ? { opencodeSpawnAudit: opencodeSpawnAudit as Record<string, unknown> } : {}),
         ...(agyResumeOffset > 0 ? { agyResumeOffset, agyBytesReceived: 0 } : {}),
-        ...(isKiroPlainTextCli(cli) || cli === 'agy' ? { liveOutputText: '' } : {}),
-        ...(isKiroPlainTextCli(cli) ? { kiroLastVisibleAt: Date.now(), kiroHeartbeatSent: false } : {}),
+        ...(kiroPlainText || cli === 'agy' ? { liveOutputText: '' } : {}),
+        ...(kiroPlainText ? { kiroLastVisibleAt: Date.now(), kiroHeartbeatSent: false } : {}),
     };
     let geminiWatchdog: ReturnType<typeof setTimeout> | null = null;
 
@@ -1768,7 +1778,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     }
 
     const agyUtf8 = cli === 'agy' ? new StringDecoder('utf8') : null;
-    const kiroUtf8 = isKiroPlainTextCli(cli) ? new StringDecoder('utf8') : null;
+    const kiroUtf8 = kiroPlainText ? new StringDecoder('utf8') : null;
 
     child.stdout.on('data', (chunk) => {
         opts.lifecycle?.onActivity?.('stdout');
@@ -1809,7 +1819,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             }, traceAudience);
             return;
         }
-        if (isKiroPlainTextCli(cli)) {
+        if (kiroPlainText) {
             const text = kiroUtf8!.write(chunk);
             if (!text) return;
             appendTraceEvent({ runId: ctx.traceRunId, source: 'cli_raw', eventType: 'plain_text', raw: text });
@@ -1895,9 +1905,29 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             } catch (e) { console.warn('[jaw:agy] stale bucket clear failed:', (e as Error).message); }
             ctx.sessionId = null;
         }
-        if (isKiroPlainTextCli(cli)) {
+        if (kiroPlainText) {
             if (!ctx.sessionId) {
+                ctx.sessionId = parseAiESessionIdFromStderr(ctx.stderrBuf);
+            }
+            if (!ctx.sessionId && kiroConversationIdsBefore) {
+                ctx.sessionId = resolveKiroSessionIdAfterSpawn(
+                    spawnCwd,
+                    kiroConversationIdsBefore,
+                    kiroSpawnStartedAt,
+                );
+            } else if (!ctx.sessionId) {
                 ctx.sessionId = extractKiroSessionIdFromStore(spawnCwd, kiroSpawnStartedAt);
+            }
+            if (!ctx.sessionId) {
+                ctx.sessionId = parseKiroSessionIdFromStdout(ctx.fullText);
+            }
+            if (!ctx.sessionId) {
+                console.warn(`[jaw:kiro] session id capture failed cwd=${spawnCwd}`);
+            } else if (isResume && resumeSessionId && ctx.sessionId !== resumeSessionId) {
+                console.warn(
+                    `[jaw:kiro] resume session id drift expected=${resumeSessionId.slice(0, 12)} got=${ctx.sessionId.slice(0, 12)} — keeping resume id`,
+                );
+                ctx.sessionId = resumeSessionId;
             }
             const parsed = finalizeKiroFullText(ctx.fullText, ctx.kiroLineBuffer);
             const best = [ctx.liveOutputText, ctx.kiroDisplayedText, parsed]
