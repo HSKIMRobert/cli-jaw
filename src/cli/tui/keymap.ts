@@ -14,9 +14,15 @@ export type KeyAction =
     | 'tab'
     | 'enter'
     | 'backspace'
+    | 'delete'
     | 'ctrl-c'
     | 'ctrl-u'
     | 'ctrl-k'
+    | 'ctrl-w'
+    | 'ctrl-y'
+    | 'ctrl-x'
+    | 'ctrl-e'
+    | 'ctrl-_'
     | 'printable'
     | 'other';
 
@@ -37,9 +43,15 @@ export function classifyKeyAction(key: string): KeyAction {
     if (key === '\t') return 'tab';
     if (key === '\r' || key === '\n') return 'enter';
     if (key === '\x7f' || key === '\b') return 'backspace';
+    if (key === '\x1b[3~') return 'delete';
     if (key === '\x03') return 'ctrl-c';
     if (key === '\x15') return 'ctrl-u';
     if (key === '\x0b') return 'ctrl-k';
+    if (key === '\x17') return 'ctrl-w';
+    if (key === '\x19') return 'ctrl-y';
+    if (key === '\x18') return 'ctrl-x';
+    if (key === '\x05') return 'ctrl-e';
+    if (key === '\x1f') return 'ctrl-_';
     if (key.length > 0 && (key.charCodeAt(0) >= 32 || key.charCodeAt(0) > 127)) return 'printable';
     return 'other';
 }

@@ -23,6 +23,15 @@ test('classifyKeyAction detects ctrl-k', () => {
     assert.equal(classifyKeyAction('\x0b'), 'ctrl-k');
 });
 
+test('classifyKeyAction detects edit chord keys', () => {
+    assert.equal(classifyKeyAction('\x17'), 'ctrl-w');
+    assert.equal(classifyKeyAction('\x19'), 'ctrl-y');
+    assert.equal(classifyKeyAction('\x18'), 'ctrl-x');
+    assert.equal(classifyKeyAction('\x05'), 'ctrl-e');
+    assert.equal(classifyKeyAction('\x1f'), 'ctrl-_');
+    assert.equal(classifyKeyAction('\x1b[3~'), 'delete');
+});
+
 test('classifyKeyAction detects printable input and unknown keys', () => {
     assert.equal(classifyKeyAction('a'), 'printable');
     assert.equal(classifyKeyAction('가'), 'printable');

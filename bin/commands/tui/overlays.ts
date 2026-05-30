@@ -5,12 +5,15 @@ import {
     clearOverlayBox, renderHelpOverlay, renderCommandPalette, renderChoiceSelector,
     clearAutocomplete, closeAutocomplete, resolveAutocompleteState,
     applyResolvedAutocompleteState, renderAutocomplete, popupTotalRows,
-    makeSelectionKey, filterSelectorItems,
+    makeSelectionKey, filterSelectorItems, resetAutocompleteState,
 } from '../../../src/cli/tui/overlay.js';
 import {
     getPlainCommandDraft, clearComposer, appendTextToComposer, setBracketedPaste,
+    getTrailingTextSegment, insertAtMention,
 } from '../../../src/cli/tui/composer.js';
+import { findAtMentionMatch, listRepoFiles } from '../../../src/cli/tui/file-mention.js';
 import { clipTextToCols } from '../../../src/cli/tui/renderers.js';
+import { tuiWrite } from './tui-io.js';
 import {
     resolveShellLayout, setupScrollRegion, cleanupScrollRegion, ensureSpaceBelow,
 } from '../../../src/cli/tui/shell.js';
@@ -22,12 +25,124 @@ import { c, hrLine, getRows, renderCommandText, type TuiContext } from './types.
 import { showPrompt, redrawPromptLine, openPromptBlock, rebuildFooter } from './renderer.js';
 import { refreshInfo, makeCliCommandCtx } from './api.js';
 
+export function closeAutocompleteForCtx(ctx: TuiContext): void {
+    const ac = ctx.store.autocomplete;
+    if (ctx.displayMode === 'fullscreen') {
+        resetAutocompleteState(ac);
+        return;
+    }
+    closeAutocomplete(ac, (chunk) => tuiWrite(ctx, chunk));
+}
+
+function paletteRenderOpts(ctx: TuiContext) {
+    const ov = ctx.store.overlay;
+    return {
+        write: (chunk: string) => tuiWrite(ctx, chunk),
+        cols: process.stdout.columns || 80,
+        rows: getRows(),
+        dimCode: c.dim,
+        resetCode: c.reset,
+        filter: ov.paletteFilter,
+        items: ov.paletteItems,
+        selected: ov.paletteSelected,
+    };
+}
+
+function selectorRenderOpts(ctx: TuiContext) {
+    const sel = ctx.store.overlay.selector;
+    return {
+        write: (chunk: string) => tuiWrite(ctx, chunk),
+        cols: process.stdout.columns || 80,
+        rows: getRows(),
+        dimCode: c.dim,
+        resetCode: c.reset,
+        title: sel.title,
+        subtitle: sel.subtitle,
+        filter: sel.filter,
+        items: sel.filteredItems,
+        selected: sel.selected,
+    };
+}
+
+export function openHelpOverlay(ctx: TuiContext): void {
+    const ov = ctx.store.overlay;
+    ov.helpOpen = true;
+    closeAutocompleteForCtx(ctx);
+    if (ctx.displayMode === 'fullscreen') {
+        ctx.requestFrame?.();
+        return;
+    }
+    const cmds = getCompletionItems('/', 'cli');
+    ctx.overlayBoxHeight = renderHelpOverlay(
+        (chunk) => tuiWrite(ctx, chunk),
+        process.stdout.columns || 80,
+        getRows(),
+        c.dim, c.reset,
+        cmds,
+    );
+}
+
+export function openCommandPalette(ctx: TuiContext): void {
+    const ov = ctx.store.overlay;
+    ov.paletteOpen = true;
+    ov.paletteFilter = '';
+    ov.paletteSelected = 0;
+    ov.paletteItems = getCompletionItems('/', 'cli');
+    closeAutocompleteForCtx(ctx);
+    if (ctx.displayMode === 'fullscreen') {
+        ctx.requestFrame?.();
+        return;
+    }
+    ctx.overlayBoxHeight = renderCommandPalette(paletteRenderOpts(ctx));
+}
+
+export function refreshCommandPalette(ctx: TuiContext): void {
+    if (ctx.displayMode === 'fullscreen') {
+        ctx.requestFrame?.();
+        return;
+    }
+    ctx.overlayBoxHeight = renderCommandPalette(paletteRenderOpts(ctx));
+}
+
+export function openChoiceSelector(ctx: TuiContext, setup: () => void): void {
+    setup();
+    closeAutocompleteForCtx(ctx);
+    if (ctx.displayMode === 'fullscreen') {
+        ctx.requestFrame?.();
+        return;
+    }
+    ctx.overlayBoxHeight = renderChoiceSelector(selectorRenderOpts(ctx));
+}
+
+export function refreshChoiceSelector(ctx: TuiContext): void {
+    if (ctx.displayMode === 'fullscreen') {
+        ctx.requestFrame?.();
+        return;
+    }
+    ctx.overlayBoxHeight = renderChoiceSelector(selectorRenderOpts(ctx));
+}
+
 export function dismissOverlay(ctx: TuiContext): void {
     const ov = ctx.store.overlay;
     if (!ov.helpOpen && !ov.paletteOpen && !ov.selector.open) return;
+    if (ctx.displayMode === 'fullscreen') {
+        ov.helpOpen = false;
+        ov.paletteOpen = false;
+        ov.paletteFilter = '';
+        ov.paletteSelected = 0;
+        ov.paletteItems = [];
+        ov.selector.open = false;
+        ov.selector.commandName = '';
+        ov.selector.filter = '';
+        ov.selector.selected = 0;
+        ov.selector.allItems = [];
+        ov.selector.filteredItems = [];
+        ctx.requestFrame?.();
+        return;
+    }
     if (ctx.overlayBoxHeight > 0) {
         clearOverlayBox(
-            (chunk) => process.stdout.write(chunk),
+            (chunk) => tuiWrite(ctx, chunk),
             process.stdout.columns || 80,
             getRows(),
             ctx.overlayBoxHeight,
@@ -62,19 +177,51 @@ export async function redrawInputWithAutocomplete(ctx: TuiContext): Promise<void
     const ac = ctx.store.autocomplete;
     const prevItem = ac.items[ac.selected];
     const prevKey = makeSelectionKey(prevItem, ac.stage);
-    const next = await resolveAutocompleteState({
-        draft: getPlainCommandDraft(ctx.store.composer),
-        prevKey,
-        maxPopupRows: getMaxPopupRows(),
-        maxRowsCommand: ac.maxRowsCommand,
-        maxRowsArgument: ac.maxRowsArgument,
-    });
-    clearAutocomplete(ac, (chunk) => process.stdout.write(chunk));
+    const slashDraft = getPlainCommandDraft(ctx.store.composer);
+    let next;
+    if (slashDraft !== null && slashDraft.startsWith('/')) {
+        next = await resolveAutocompleteState({
+            draft: slashDraft,
+            prevKey,
+            maxPopupRows: getMaxPopupRows(),
+            maxRowsCommand: ac.maxRowsCommand,
+            maxRowsArgument: ac.maxRowsArgument,
+        });
+    } else {
+        const trailing = getTrailingTextSegment(ctx.store.composer);
+        const mention = findAtMentionMatch(trailing.text, ctx.store.composer.cursor);
+        if (mention && ctx.store.composer.segments.length === 1) {
+            const items = listRepoFiles(ctx.chatCwd, mention.query);
+            const headerRows = 1;
+            const maxItemRows = Math.max(0, getMaxPopupRows() - headerRows);
+            const visibleRows = Math.min(ac.maxRowsArgument, items.length, maxItemRows);
+            next = items.length && visibleRows > 0
+                ? {
+                    open: true,
+                    stage: 'argument',
+                    contextHeader: '@ files',
+                    items,
+                    selected: Math.min(ac.selected, items.length - 1),
+                    visibleRows,
+                }
+                : { open: false, items: [], selected: 0, visibleRows: 0 };
+        } else {
+            next = { open: false, items: [], selected: 0, visibleRows: 0 };
+        }
+    }
+
+    if (ctx.displayMode === 'fullscreen') {
+        applyResolvedAutocompleteState(ac, next);
+        ctx.requestFrame?.();
+        return;
+    }
+
+    clearAutocomplete(ac, (chunk) => tuiWrite(ctx, chunk));
     if (next.open) ensureSpaceBelow(popupTotalRows(next));
     redrawPromptLine(ctx);
     applyResolvedAutocompleteState(ac, next);
     renderAutocomplete(ac, {
-        write: (chunk) => process.stdout.write(chunk),
+        write: (chunk) => tuiWrite(ctx, chunk),
         columns: process.stdout.columns || 80,
         dimCode: c.dim,
         resetCode: c.reset,
@@ -102,15 +249,7 @@ export async function runSlashCommand(ctx: TuiContext, parsed: ParsedSlashComman
 
     // Overlay intercepts
     if (parsed.name === 'help') {
-        ov.helpOpen = true;
-        const cmds = getCompletionItems('/', 'cli');
-        ctx.overlayBoxHeight = renderHelpOverlay(
-            (chunk) => process.stdout.write(chunk),
-            process.stdout.columns || 80,
-            getRows(),
-            c.dim, c.reset,
-            cmds,
-        );
+        openHelpOverlay(ctx);
         ctx.commandRunning = false;
         ctx.inputActive = true;
         return;
@@ -118,26 +257,20 @@ export async function runSlashCommand(ctx: TuiContext, parsed: ParsedSlashComman
 
     if (parsed.name === 'model' && !parsed.args.length) {
         const argItems = await getArgumentCompletionItems('model', '', 'cli', [], makeCliCommandCtx(ctx));
-        const sel = ov.selector;
-        sel.open = true;
-        sel.commandName = 'model';
-        sel.title = 'Model';
-        sel.subtitle = `${ctx.info.cli}: ${ctx.info.model || 'default'}`;
-        sel.filter = '';
-        sel.selected = 0;
-        sel.allItems = argItems.map((a: ArgumentCompletionItem) => ({
-            value: a.name, label: a.desc || '', current: a.name === ctx.info.model,
-        }));
-        sel.filteredItems = sel.allItems;
-        const curIdx = sel.filteredItems.findIndex(i => i.current);
-        if (curIdx >= 0) sel.selected = curIdx;
-        ctx.overlayBoxHeight = renderChoiceSelector({
-            write: (chunk) => process.stdout.write(chunk),
-            cols: process.stdout.columns || 80,
-            rows: getRows(),
-            dimCode: c.dim, resetCode: c.reset,
-            title: sel.title, subtitle: sel.subtitle,
-            filter: sel.filter, items: sel.filteredItems, selected: sel.selected,
+        openChoiceSelector(ctx, () => {
+            const sel = ov.selector;
+            sel.open = true;
+            sel.commandName = 'model';
+            sel.title = 'Model';
+            sel.subtitle = `${ctx.info.cli}: ${ctx.info.model || 'default'}`;
+            sel.filter = '';
+            sel.selected = 0;
+            sel.allItems = argItems.map((a: ArgumentCompletionItem) => ({
+                value: a.name, label: a.desc || '', current: a.name === ctx.info.model,
+            }));
+            sel.filteredItems = sel.allItems;
+            const curIdx = sel.filteredItems.findIndex(i => i.current);
+            if (curIdx >= 0) sel.selected = curIdx;
         });
         ctx.commandRunning = false;
         ctx.inputActive = true;
@@ -146,26 +279,20 @@ export async function runSlashCommand(ctx: TuiContext, parsed: ParsedSlashComman
 
     if (parsed.name === 'cli' && !parsed.args.length) {
         const argItems = await getArgumentCompletionItems('cli', '', 'cli', [], makeCliCommandCtx(ctx));
-        const sel = ov.selector;
-        sel.open = true;
-        sel.commandName = 'cli';
-        sel.title = 'CLI Engine';
-        sel.subtitle = `current: ${ctx.info.cli}`;
-        sel.filter = '';
-        sel.selected = 0;
-        sel.allItems = argItems.map((a: ArgumentCompletionItem) => ({
-            value: a.name, label: a.desc || '', current: a.name === ctx.info.cli,
-        }));
-        sel.filteredItems = sel.allItems;
-        const curIdx = sel.filteredItems.findIndex(i => i.current);
-        if (curIdx >= 0) sel.selected = curIdx;
-        ctx.overlayBoxHeight = renderChoiceSelector({
-            write: (chunk) => process.stdout.write(chunk),
-            cols: process.stdout.columns || 80,
-            rows: getRows(),
-            dimCode: c.dim, resetCode: c.reset,
-            title: sel.title, subtitle: sel.subtitle,
-            filter: sel.filter, items: sel.filteredItems, selected: sel.selected,
+        openChoiceSelector(ctx, () => {
+            const sel = ov.selector;
+            sel.open = true;
+            sel.commandName = 'cli';
+            sel.title = 'CLI Engine';
+            sel.subtitle = `current: ${ctx.info.cli}`;
+            sel.filter = '';
+            sel.selected = 0;
+            sel.allItems = argItems.map((a: ArgumentCompletionItem) => ({
+                value: a.name, label: a.desc || '', current: a.name === ctx.info.cli,
+            }));
+            sel.filteredItems = sel.allItems;
+            const curIdx = sel.filteredItems.findIndex(i => i.current);
+            if (curIdx >= 0) sel.selected = curIdx;
         });
         ctx.commandRunning = false;
         ctx.inputActive = true;
@@ -173,17 +300,7 @@ export async function runSlashCommand(ctx: TuiContext, parsed: ParsedSlashComman
     }
 
     if (parsed.name === 'commands') {
-        ov.paletteOpen = true;
-        ov.paletteFilter = '';
-        ov.paletteSelected = 0;
-        ov.paletteItems = getCompletionItems('/', 'cli');
-        ctx.overlayBoxHeight = renderCommandPalette({
-            write: (chunk) => process.stdout.write(chunk),
-            cols: process.stdout.columns || 80,
-            rows: getRows(),
-            dimCode: c.dim, resetCode: c.reset,
-            filter: ov.paletteFilter, items: ov.paletteItems, selected: ov.paletteSelected,
-        });
+        openCommandPalette(ctx);
         ctx.commandRunning = false;
         ctx.inputActive = true;
         return;
@@ -227,7 +344,7 @@ export async function runSlashCommand(ctx: TuiContext, parsed: ParsedSlashComman
         if (!exiting) {
             ctx.commandRunning = false;
             ctx.inputActive = true;
-            closeAutocomplete(ac, (chunk) => process.stdout.write(chunk));
+            closeAutocomplete(ac, (chunk) => tuiWrite(ctx, chunk));
             openPromptBlock(ctx);
         }
     }

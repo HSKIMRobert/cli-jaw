@@ -89,6 +89,8 @@ export interface TuiContext {
     commandRunning: boolean;
     escPending: boolean;
     escTimer: ReturnType<typeof setTimeout> | null;
+    footerTimer: ReturnType<typeof setInterval> | null;
+    editorChordPending: boolean;
     prevLineCount: number;
     promptCursorRow: number;
     resizeTimer: ReturnType<typeof setTimeout> | null;
@@ -102,4 +104,6 @@ export interface TuiContext {
 
     promptPrefix: string;
     footer: string;
+    displayMode: 'line' | 'fullscreen';
+    requestFrame: (() => void) | null;
 }
