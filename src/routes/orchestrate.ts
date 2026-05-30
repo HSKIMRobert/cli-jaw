@@ -114,6 +114,8 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
             resolvedSelection: ctx.resolvedSelection,
             projectDirs: ctx.projectDirs,
             interview: ctx.interview,
+            buildBudget: ctx.buildBudget,
+            researchReport: ctx.researchReport,
         } : null;
         res.json({
             orc: {
