@@ -10,9 +10,8 @@ aliases: [CLI-JAW Frontend, public architecture, frontend.md]
 
 > Web UI 본체는 Vanilla HTML + CSS + TypeScript ES Modules로 구성된다. Manager 대시보드는 `public/manager/`의 React 19 + TSX 앱이다.
 > 빌드는 Vite 8 기준이며, `vite.config.ts`는 `public/index.html`과 `public/manager/index.html`을 multi-entry로 빌드한다.
-> 현재 `public/`에서 `public/dist/*`를 제외한 소스/자산/legacy duplicate는 544개다. `public/public/dist/*`까지 generated로 보면 실제 편집 대상 소스/자산은 410개다. 생성 산출물은 `public/dist/` 481개와 별도 중복 트리 `public/public/dist/` 127개가 남아 있고, `public/dist/dist/`는 전자에 재귀 포함된 nested 복제본이다.
 > 메인 UI는 `index.html`에서 Google Fonts `Chakra Petch` + `Outfit`을 불러오고, 로컬 `public/assets/fonts/GeistVF.woff2`와 `JetBrainsMono-Variable.woff2`는 자산으로 보관 중이다.
-> PWA는 `manifest.json` + `sw.js` + `icons/`로 구성된다. 오프라인 메시지 캐시, virtual scroll, markdown/KaTeX/Mermaid 렌더링, sandboxed diagram widget, avatar emoji/image 커스터마이즈, voice recording, PABCD roadmap, subagent-aware ProcessBlock 렌더링, slash command 복구 액션, 반응형 사이드바, theme toggle이 현재 런타임의 핵심이다.
+> PWA는 `manifest.json` + `sw.js` + `icons/`로 구성된다. 오프라인 메시지 캐시, virtual scroll, markdown/KaTeX/Mermaid 렌더링, sandboxed diagram widget, avatar emoji/image 커스터마이즈, voice recording, PABCD roadmap, subagent-aware ProcessBlock 렌더링, slash command 복구 액션, 반응형 사이드바, theme toggle, chat search, workflow cockpit이 현재 런타임의 핵심이다.
 
 ---
 
@@ -26,43 +25,37 @@ public/
 ├── theme-test.html       ← 테마 점검 페이지
 ├── assets/
 │   ├── fonts/            ← 2 fonts (GeistVF, JetBrainsMono variable)
-│   ├── providers/        ← 12 SVG provider assets
+│   ├── providers/        ← 18 SVG provider assets
 │   └── shark.svg
-├── css/                  ← 11 CSS files
+├── css/                  ← 12 CSS files
 ├── icons/                ← 3 PWA icons
 ├── img/                  ← shark sprite
-├── js/                   ← 75 TypeScript modules
+├── js/                   ← 78 TypeScript modules
 │   ├── diagram/          ← 3 diagram pipeline modules
-│   ├── features/         ← 43 feature modules
-│   └── render/           ← 12 markdown/diagram rendering modules
+│   ├── features/         ← 47 feature modules
+│   └── render/           ← 13 markdown/diagram rendering modules
 ├── locales/              ← ko/en/ja/zh JSON bundles
-├── manager/              ← React manager dashboard + notes/search/settings workspaces (286 files)
+├── manager/              ← React manager dashboard (297 files)
 │   ├── index.html        ← Manager HTML entry
 │   └── src/              ← React components/hooks/styles
-└── dist/                 ← Vite build output (generated, nested dist copies remain)
+└── dist/                 ← Vite build output (generated)
 ```
 
 ### 파일 수 요약
 
 | 영역 | 파일 수 | 비고 |
 | --- | ---: | --- |
-| `public/` source/assets | 537 | 문서 관례상 `public/dist/*`만 제외, `public/public/dist/*`는 포함 |
-| `public/` source/assets (generated 제외) | 410 | `public/dist/*`, `public/public/dist/*` 모두 제외 |
-| `public/js/` root | 19 | 전부 TypeScript ES modules, `mermaid-loader.ts`, `uuid.ts`, `virtual-scroll-bootstrap.ts`, `preview-parent-origin.ts` 포함 |
+| `public/` source/assets (generated 제외) | 426 | `public/dist/*`, `public/public/dist/*` 모두 제외 |
+| `public/js/` root | 18 | TypeScript ES modules |
 | `public/js/diagram/` | 3 | SVG/iframe diagram pipeline |
 | `public/js/render/` | 13 | markdown/KaTeX/Mermaid/SVG/file-link/post-render 책임 분리 |
-| `public/js/features/` | 47 | settings 분해 + help/attention/orchestrate scope + process-step-match + preview shortcut/invalidate bridge + MCP registry 포함 |
-| `public/manager/` | 299 | React 19 manager dashboard, notes/search, schedule, settings, sync, desktop panels(doc/folder/diff/terminal + resizer/layout), WYSIWYG source |
-| `public/css/` | 11 | theme/layout/chat/markdown/tool UI/diagram/trace drawer |
+| `public/js/features/` | 47 | settings 분해 + help/attention/orchestrate scope + process-step-match + preview shortcut/invalidate bridge + MCP registry + chat-search + workflow-event-adapter 포함 |
+| `public/manager/src/` | 297 | React 19 manager dashboard |
+| `public/css/` | 12 | theme/layout/chat/markdown/tool UI/diagram/trace drawer/workflow cockpit/chat-search |
 | `public/locales/` | 4 | `ko.json`, `en.json`, `ja.json`, `zh.json` |
-| `public/assets/providers/` | 18 | provider SVG 세트. Cursor는 공식 brand asset에서 crop한 `cursor*.svg`를 쓰고, `codex`는 원본 `openai.svg` 색을 유지하며 `codex-app` color variant만 ChatGPT/OpenAI green(`#10A37F`)으로 렌더. kiro-code는 `kiro.svg`/`kiro-color.svg` 사용 |
+| `public/assets/providers/` | 18 | provider SVG 세트 |
 | `public/assets/fonts/` | 2 | 로컬 폰트 자산 |
 | `public/icons/` | 3 | PWA icons |
-| `public/dist/` | 478 | generated build output, nested `dist/dist` 포함 |
-| `public/public/dist/` | 127 | old build duplicate |
-| `public/dist/dist/` | 127 | old build duplicate |
-
-> 참고: `public/dist/` 481개에는 `public/dist/dist/` 127개가 이미 재귀 포함된다. 그래서 별도 루트 기준으로 보면 현재 남아 있는 build tree는 `public/dist/`와 `public/public/dist/` 두 갈래다.
 
 ---
 
@@ -70,49 +63,44 @@ public/
 
 ### Bootstrap / Runtime
 
-| 파일 | 역할 |
-| --- | --- |
-| `js/main.ts` | 앱 부트스트랩. 아이콘/프로바이더 아이콘 hydrate, i18n 초기화, CLI registry 로드, WS 연결, 드래그앤드롭, auto-resize, commands/settings/employees/heartbeat/memory/app name/avatar/sidebar/theme/gesture 바인딩, production에서 SW 등록 |
-| `js/state.ts` | 공유 상태 저장소. WS, agent busy, attached files, heartbeat jobs/errors, CLI status cache, recording, `currentAgentDiv`, `currentProcessBlock` |
-| `js/constants.ts` | CLI registry 동적 로딩, provider/model 매핑, CLI 메타 데이터 |
-| `js/api.ts` | `api`, `apiJson`, `apiFire` fetch 래퍼 |
-| `js/locale.ts` | localStorage 기반 locale 동기화 |
-| `js/icons.ts` | Lucide 기반 중앙 아이콘 레지스트리 + emoji compatibility. `ICONS.robot`/`ICONS.tool` 등 ProcessBlock summary와 row icon에 재사용 |
-| `js/provider-icons.ts` | provider SVG raw import + hydrate helper + label lookup. `codex-app` alias는 OpenAI icon을 녹색 color variant로 표시 |
-| `js/uuid.ts` | virtual scroll와 live append가 공유하는 DOM-safe id 생성기 |
+| 파일 | 라인 | 역할 |
+| --- | ---: | --- |
+| `js/main.ts` | 593L | 앱 부트스트랩. 아이콘/프로바이더 아이콘 hydrate, i18n 초기화, CLI registry 로드, WS 연결, 드래그앤드롭, auto-resize, commands/settings/employees/heartbeat/memory/app name/avatar/sidebar/theme/gesture 바인딩, production에서 SW 등록 |
+| `js/state.ts` | 107L | 공유 상태 저장소. WS, agent busy, attached files, heartbeat jobs/errors, CLI status cache, recording, `currentAgentDiv`, `currentProcessBlock` |
+| `js/constants.ts` | 279L | CLI registry 동적 로딩, provider/model 매핑, CLI 메타 데이터 |
+| `js/api.ts` | — | `api`, `apiJson`, `apiFire` fetch 래퍼 |
+| `js/locale.ts` | — | localStorage 기반 locale 동기화 |
+| `js/icons.ts` | 278L | Lucide 기반 중앙 아이콘 레지스트리 + emoji compatibility. `ICONS.robot`/`ICONS.tool` 등 ProcessBlock summary와 row icon에 재사용 |
+| `js/provider-icons.ts` | 117L | provider SVG raw import + hydrate helper + label lookup. `codex-app` alias는 OpenAI icon을 녹색 color variant로 표시. kiro-code는 `kiro.svg`/`kiro-color.svg` 사용 |
+| `js/uuid.ts` | — | virtual scroll와 live append가 공유하는 DOM-safe id 생성기 |
+| `js/preview-parent-origin.ts` | — | `postPreviewInvalidate(topics, reason)` + `postPreviewOpenDoc(path)` bridge |
 
 ### Rendering / UI
 
-| 파일 | 역할 |
-| --- | --- |
-| `js/render.ts` | render public API façade. 기존 caller는 계속 `./render.js`에서 `renderMarkdown`, sanitizer, file-link, Mermaid helper를 import한다 |
-| `js/render/markdown.ts` | marked pipeline, CJK punctuation fix, math/SVG shielding, sanitize/unshield, post-render scheduling |
-| `js/render/sanitize.ts` | DOMPurify 기반 HTML/SVG sanitizer. Mermaid SVG sanitizer는 `<style>`을 허용하고 user inline SVG sanitizer는 `<style>`을 차단 |
-| `js/render/mermaid.ts` | lazy Mermaid load, queued render, observer, rerender, prewarm, unmount release |
-| `js/render/svg-actions.ts` | inline SVG block render, diagram copy/save/zoom actions, SVG overlay kind 분리(`inline-svg` vs `mermaid`) |
-| `js/render/highlight.ts` | highlight.js language registration, code block highlight, mounted block rehighlight |
-| `js/render/file-links.ts` | local absolute path linkification, `/api/file/open` click delegation, external web-link new-tab targeting |
-| `js/render/post-render.ts` | Mermaid render, rehighlight, zoom binding, file-path linkify를 100ms debounce로 coalesce |
-| `js/ui.ts` | 메시지 렌더링, skeleton/empty state, virtual scroll 연동, ProcessBlock 오케스트레이션, subagent/tool step merge + dedup, copy button, markdown/file-path post-render linkification, avatar markup 주입, message finalization, `scrollIntent` 기반 bottom-follow/restore policy |
-| `js/ws.ts` | WebSocket 메시지 라우팅. agent status, queue update, `agent_tool`→typed ProcessStep, agent output/done, orchestration state, Telegram/Discord new message, reconnect snapshot, 10초 reload dedup, reconnect 후 bottom anchor reconciliation |
-| `js/streaming-render.ts` | 스트리밍 텍스트 렌더러 |
-| `js/virtual-scroll-bootstrap.ts` | virtual scroll 초기 hydrate/measure/bootstrap 오케스트레이터. bootstrap 전 scroll tracking bind와 bootstrap 후 following intent 확정 hook을 제공 |
-| `js/virtual-scroll.ts` | TanStack virtualizer 기반 DOM 풀링, mounted node 재사용, post-render hook 실행, pageshow/visibility/focus 복귀 시 guarded bottom-follow reconciliation, ProcessBlock mutation anchor 보존 |
-| `js/sanitizer.ts` | DOMPurify singleton + SVG/HTML attribute hook boundary. `render.ts`는 이 adapter를 통해서만 sanitizer 인스턴스를 사용한다 |
-| `js/cjk-fix.ts` | CJK 줄바꿈/구두점 보정 |
-
-### Runtime Hardening Invariants
-
-| 영역 | invariant |
-| --- | --- |
-| Web UI runtime tests | `tests/unit/web-ui-test-dom.ts`가 jsdom window/document/observer globals를 먼저 설치하고, frontend modules는 dynamic import한다 |
-| ProcessBlock DOM recovery | `.process-step` row는 `data-step-id`, `data-type`, `data-status`, `data-step-ref`, `data-start-time`을 보존한다. DOM에서 복구한 `ProcessBlockState`는 `element`, `steps`, `collapsed`를 유지한다 |
-| ProcessBlock ownership | assistant message의 tool UI는 `.agent-body > .process-block` 또는 legacy `.agent-body > .tool-group` 하나만 허용되며 `.msg-content` 내부 tool block은 normalize 단계에서 제거/승격된다 |
-| ProcessBlock layout mutation | detail/summary toggle은 `window.__jawProcessBlockLayoutMutation(anchor, mutate)` bridge를 거쳐 virtual-scroll mounted row remeasure와 row-top anchor 보존을 요청한다 |
-| Restore bottom-follow intent | restore/reconnect는 `scrollIntent = unknown/following/pinnedAway`를 기준으로 guarded reconciliation을 수행한다. 사용자가 위에서 읽는 `pinnedAway` 상태에서는 delayed restore pass와 final DOM scroll이 bottom으로 끌어내리지 않는다 |
-| Mermaid lifecycle | virtual-scroll unmount/deactivate 전 `releaseMermaidNodes()`가 pending/queued/in-flight Mermaid nodes를 observer에서 해제하고 transient markers를 제거한다 |
-| Build output guard | `npm run check:frontend-build-output`가 built app entry에서 eager Mermaid/vendor-utils reference를 차단하고 lazy `mermaid-loader` dynamic import는 허용한다 |
-| Tool-log memory cap | Server-side `sanitizeToolLog*()` caps `agent_tool`, `agent_done.toolLog`, and snapshot `activeRun.toolLog` before ProcessBlock/Manager hydration. |
+| 파일 | 라인 | 역할 |
+| --- | ---: | --- |
+| `js/render.ts` | 17L | render public API façade |
+| `js/render/markdown.ts` | — | marked pipeline, CJK punctuation fix, math/SVG shielding, sanitize/unshield, post-render scheduling |
+| `js/render/sanitize.ts` | — | DOMPurify 기반 HTML/SVG sanitizer |
+| `js/render/mermaid.ts` | — | lazy Mermaid load, queued render, observer, rerender, prewarm, unmount release |
+| `js/render/mermaid-preprocess.ts` | — | Mermaid code fence preprocessing |
+| `js/render/svg-actions.ts` | — | inline SVG block render, diagram copy/save/zoom actions |
+| `js/render/highlight.ts` | — | highlight.js language registration, code block highlight |
+| `js/render/file-links.ts` | — | local absolute path linkification, `.md` → `postPreviewOpenDoc()` 분기, external web-link `_blank` targeting |
+| `js/render/post-render.ts` | — | Mermaid render, rehighlight, zoom binding, file-path linkify를 100ms debounce로 coalesce |
+| `js/render/code-copy.ts` | — | code block copy button |
+| `js/render/html.ts` | — | HTML rendering helpers |
+| `js/render/math.ts` | — | KaTeX math rendering |
+| `js/render/notes-vault-path.ts` | — | notes vault path resolution |
+| `js/render/delegations.ts` | — | render delegation registry |
+| `js/ui.ts` | 419L | 메시지 렌더링, skeleton/empty state, virtual scroll 연동, ProcessBlock 오케스트레이션, copy button, avatar markup 주입, message finalization, `scrollIntent` 기반 bottom-follow/restore policy |
+| `js/ws.ts` | 760L | WebSocket 메시지 라우팅. agent status, queue update, `agent_tool`→typed ProcessStep, agent output/done, orchestration state, interview panel, Telegram/Discord new message, reconnect snapshot, 10초 reload dedup, reconnect 후 bottom anchor reconciliation |
+| `js/streaming-render.ts` | — | 스트리밍 텍스트 렌더러 |
+| `js/virtual-scroll-bootstrap.ts` | — | virtual scroll 초기 hydrate/measure/bootstrap 오케스트레이터 |
+| `js/virtual-scroll.ts` | 596L | TanStack virtualizer 기반 DOM 풀링, mounted node 재사용, post-render hook 실행, Mermaid observer release, scroll anchor preservation |
+| `js/sanitizer.ts` | — | DOMPurify singleton + SVG/HTML attribute hook boundary |
+| `js/cjk-fix.ts` | — | CJK 줄바꿈/구두점 보정 |
+| `js/mermaid-loader.ts` | — | lazy Mermaid dynamic import |
 
 ### Diagram Pipeline
 
@@ -124,61 +112,67 @@ public/
 
 ### Feature Modules
 
-| 파일 | 역할 |
-| --- | --- |
-| `js/features/avatar.ts` | agent/user avatar emoji 저장 + image upload/reset, `/api/avatar*` 동기화, `.agent-icon`/`.user-icon` DOM 갱신 |
-| `js/features/appname.ts` | sidebar agent name만 localStorage로 저장. 로고/헤더 타이틀은 고정 `CLI-JAW` |
-| `js/features/attention-badge.ts` | window focus/visibility 기반 unread/attention badge |
-| `js/features/chat.ts` | send, slash command dispatch, unknown-command recovery block, multi-file attachment upload, stop-mode, clear chat, auto-resize, voice send integration |
-| `js/features/chat-messages.ts` | message DOM append/finalization helpers split from `ui.ts` |
-| `js/features/chat-scroll.ts` | bottom-follow/scroll intent helpers and initial settle support |
-| `js/features/employees.ts` | employee CRUD + CLI/model/role 조정 |
-| `js/features/gesture.ts` | 모바일 edge swipe sidebar toggle |
-| `js/features/heartbeat.ts` | heartbeat job editor, cron/every + timezone validation, sidebar badge |
-| `js/features/help-content.ts` | help dialog topic content registry |
-| `js/features/help-dialog.ts` | help trigger binding + modal rendering |
-| `js/features/i18n.ts` | 프론트엔드 번역 bootstrap + `t()` |
-| `js/features/idb-cache.ts` | IndexedDB conversation cache — DB v3, scope-based (workingDir), incremental upsert, version-aware migration, versionchange handler |
-| `js/features/memory.ts` | basic memory + advanced memory modal/indexing UI |
-| `js/features/message-actions.ts` | message action button delegation |
-| `js/features/message-history.ts` | history loading and reconnect restore flow |
-| `js/features/message-item-html.ts` | message item HTML serialization helper |
-| `js/features/orchestrate-scope.ts` | PABCD/orchestration scope display helper |
-| `js/features/pending-queue.ts` | queued prompt overlay / pending queue 렌더 |
-| `js/features/process-block.ts` | collapsible ProcessBlock UI. `tool`/`thinking`/`search`/`subagent` step type, type별 summary, trusted icon 렌더링, expandable detail row |
-| `js/features/process-block-dom.ts` | ProcessBlock DOM ownership, normalization, and row replacement helpers |
-| `js/features/process-log-adapter.ts` | persisted tool log to ProcessStep adapter |
-| `js/features/settings-channel.ts` | active channel + fallback order |
-| `js/features/settings-cli-status.ts` | CLI availability/quota/status, AGY/Cursor run-time auth hints, Copilot keychain refresh, generic auth/status-only badge for runtimes without quota windows |
-| `js/features/settings-core.ts` | settings load/update, per-CLI model/effort, locale sync, Claude 1M / Codex fast/context controls; legacy `index.html` keeps active/flush CLI selects and AGY per-CLI controls |
-| `js/features/settings-discord.ts` | Discord settings save/load/toggles |
-| `js/features/settings-mcp.ts` | MCP server list/sync/install + registry browse/install (`/api/mcp/registry`) |
-| `js/features/settings-stt.ts` | STT engine/provider fields, gemini/openai/vertex/whisper wiring |
-| `js/features/settings-telegram.ts` | Telegram settings save/load/toggles |
-| `js/features/settings-templates.ts` | prompt/template tree + editor + dev mode |
-| `js/features/settings-types.ts` | shared settings interfaces |
-| `js/features/settings.ts` | barrel re-export |
-| `js/features/sidebar.ts` | responsive collapse/expand, narrow overlay behavior, arrow sync |
-| `js/features/skills.ts` | skill load/filter/toggle |
-| `js/features/slash-commands.ts` | web slash command dropdown + file-path guard + workflow metadata chips(`phase/risk/output`) + structured workflow args 렌더 |
-| `js/features/theme.ts` | dark/light theme toggle, hljs theme swap, Mermaid/iframe refresh |
-| `js/features/tool-ui.ts` | legacy finalized tool group + live activity helper. 현재 assistant tool history는 주로 ProcessBlock HTML로 렌더링 |
-| `js/features/trace-drawer.ts` | trace drawer open/close/render controls |
-| `js/features/ui-status.ts` | compact UI status helper |
-| `js/features/voice-recorder.ts` | MediaRecorder wrapper, MIME detection, pending/error UI, preview STT lifecycle coordination, timer |
+| 파일 | 라인 | 역할 |
+| --- | ---: | --- |
+| `features/avatar.ts` | — | agent/user avatar emoji 저장 + image upload/reset |
+| `features/appname.ts` | — | sidebar agent name localStorage 저장 |
+| `features/attention-badge.ts` | — | window focus/visibility 기반 unread/attention badge |
+| `features/chat.ts` | 543L | send, slash command dispatch, unknown-command recovery, multi-file attachment, stop-mode, clear chat, auto-resize, voice send |
+| `features/chat-messages.ts` | — | message DOM append/finalization helpers |
+| `features/chat-scroll.ts` | — | bottom-follow/scroll intent helpers and initial settle |
+| `features/chat-search.ts` | 227L | in-chat message search UI |
+| `features/copy-text.ts` | 39L | clipboard copy utility |
+| `features/employees.ts` | — | employee CRUD + CLI/model/role 조정 |
+| `features/gesture.ts` | — | 모바일 edge swipe sidebar toggle |
+| `features/heartbeat.ts` | — | heartbeat job editor, cron/every + timezone validation |
+| `features/help-content.ts` | — | help dialog topic content registry |
+| `features/help-dialog.ts` | — | help trigger binding + modal rendering |
+| `features/i18n.ts` | — | 프론트엔드 번역 bootstrap + `t()` |
+| `features/idb-cache.ts` | — | IndexedDB conversation cache — scope-based, incremental upsert |
+| `features/memory.ts` | — | basic memory + advanced memory modal/indexing UI |
+| `features/message-actions.ts` | — | message action button delegation |
+| `features/message-history.ts` | — | history loading and reconnect restore flow |
+| `features/message-item-html.ts` | — | message item HTML serialization helper |
+| `features/orchestrate-scope.ts` | — | PABCD/orchestration scope display helper |
+| `features/pending-queue.ts` | — | queued prompt overlay / pending queue 렌더 |
+| `features/preview-shortcut-bridge.ts` | 44L | preview iframe shortcut message bridge |
+| `features/process-block.ts` | 563L | collapsible ProcessBlock UI. `tool`/`thinking`/`search`/`subagent` step type, type별 summary, trusted icon 렌더링, expandable detail row |
+| `features/process-block-dom.ts` | 175L | ProcessBlock DOM ownership, normalization, row replacement helpers |
+| `features/process-log-adapter.ts` | — | persisted tool log to ProcessStep adapter |
+| `features/process-step-match.ts` | — | ProcessStep matching helper |
+| `features/settings.ts` | — | barrel re-export |
+| `features/settings-channel.ts` | — | active channel + fallback order |
+| `features/settings-cli-status.ts` | 478L | CLI availability/quota/status, kiro-code quota, generic auth/status badge |
+| `features/settings-cli-status-render.ts` | 163L | CLI status row rendering helpers |
+| `features/settings-core.ts` | 573L | settings load/update, per-CLI model/effort, locale sync, `postPreviewInvalidate` on active CLI change |
+| `features/settings-discord.ts` | — | Discord settings save/load/toggles |
+| `features/settings-mcp.ts` | 561L | MCP server list/sync/install + registry browse/install (`/api/mcp/registry`) |
+| `features/settings-stt.ts` | — | STT engine/provider fields |
+| `features/settings-telegram.ts` | — | Telegram settings save/load/toggles |
+| `features/settings-templates.ts` | — | prompt/template tree + editor + dev mode |
+| `features/settings-types.ts` | — | shared settings interfaces |
+| `features/sidebar.ts` | — | responsive collapse/expand, narrow overlay behavior |
+| `features/skills.ts` | — | skill load/filter/toggle |
+| `features/slash-commands.ts` | — | web slash command dropdown + workflow metadata chips |
+| `features/theme.ts` | — | dark/light theme toggle, hljs theme swap, Mermaid/iframe refresh |
+| `features/tool-ui.ts` | — | legacy finalized tool group + live activity helper |
+| `features/trace-drawer.ts` | — | trace drawer open/close/render controls |
+| `features/transport-status-row.ts` | 94L | transport status row rendering |
+| `features/ui-status.ts` | — | compact UI status helper |
+| `features/voice-recorder.ts` | — | MediaRecorder wrapper, MIME detection, pending/error UI, preview STT lifecycle |
+| `features/workflow-event-adapter.ts` | 77L | workflow event → UI adapter |
 
 ### Settings Split
 
-`settings.ts`는 더 이상 모놀리스가 아니라 barrel 역할만 한다. 실제 상태/저장 로직은 아래처럼 분리되어 있다.
-
 ```text
-settings.ts
+settings.ts (barrel)
 ├─ settings-core.ts
 ├─ settings-telegram.ts
 ├─ settings-discord.ts
 ├─ settings-channel.ts
 ├─ settings-mcp.ts
 ├─ settings-cli-status.ts
+├─ settings-cli-status-render.ts
 ├─ settings-stt.ts
 ├─ settings-templates.ts
 └─ settings-types.ts
@@ -192,174 +186,72 @@ settings.ts
 | --- | --- |
 | `css/variables.css` | 컬러/타이포/spacing/easing token, light/dark variables, reveal animations |
 | `css/layout.css` | 전체 grid layout, sidebar width, base UI scaffolding |
-| `css/chat.css` | chat area, message layout, input bar, attachments, voice button/arming state, theme switch, virtual scroll container, slash command workflow chips, unknown-command recovery block, `.file-path-link` open states (`opening/opened/open-failed`) |
-| `css/orc-state.css` | PABCD roadmap, shark runner, orc glow, state badge, interview panel (known/unknown 트래커) |
+| `css/chat.css` | chat area, message layout, input bar, attachments, voice button, virtual scroll container, slash command workflow chips, unknown-command recovery block, `.file-path-link` open states |
+| `css/chat-search.css` | in-chat search overlay styling |
+| `css/orc-state.css` | PABCD roadmap, shark runner, orc glow, state badge, interview panel (known/unknown 트래커, dimension bars, budget panel) |
 | `css/sidebar.css` | left/right sidebar, collapse behavior, status / CLI / app name sections |
 | `css/modals.css` | prompt/template/heartbeat/memory modal shells + form controls |
 | `css/markdown.css` | markdown rendering, code block, copy button, tables, mermaid/KaTeX styles |
 | `css/tool-ui.css` | tool call group, live activity, ProcessBlock summary/row/detail, subagent badge, row icon column |
-| `css/diagram.css` | diagram container, widget iframe, overlay, zoom/copy/save buttons, semantic inline SVG label/connector color ramps, `.diagram-svg-overlay` clone styling |
+| `css/diagram.css` | diagram container, widget iframe, overlay, zoom/copy/save buttons, semantic inline SVG label/connector color ramps |
 | `css/trace-drawer.css` | trace drawer panel and event list styling |
-
-### 현재 CSS 동작
-
-| 기능 | 구현 사실 |
-| --- | --- |
-| 테마 | 기본 dark, `[data-theme="light"]`로 light override. `theme.ts`가 `hljs` 스타일도 교체 |
-| 폰트 | `--font-display`, `--font-ui`, `--font-mono` 조합. 메인 화면은 Google Fonts 기반, 로컬 폰트는 자산으로만 보관 |
-| 채팅 레이아웃 | agent 메시지는 bubble 대신 `agent-icon + agent-body` 2컬럼 구조 |
-| 아바타 | emoji 입력 저장 + PNG/JPEG/WebP/GIF 업로드 버튼이 sidebar settings에 통합되어 있고, 이미지 활성 시 `.avatar-image`로 렌더링 |
-| 성능 | `.chat-messages` `contain: content`, `.msg` `contain: layout style`로 reflow 격리 |
-| PABCD | roadmap visibility, shark sprite animation, state glow는 `orc-state.css`가 담당. Interview known/unknown 트래커 패널 DOM은 `#interviewPanel`, 렌더는 `ws.ts`의 `renderInterviewPanel()`이 `orc_state` payload의 `interview`(known/unknown/round)에서 처리 |
-| Diagram | widget/overlay/copy/save/zoom 버튼은 `diagram.css`와 `diagram/iframe-renderer.ts`가 함께 처리 |
+| `css/workflow-cockpit.css` | workflow cockpit panel styling |
 
 ---
 
 ## Manager Dashboard — `public/manager/`
 
-`public/manager/`는 메인 채팅 UI와 별개의 React 19 앱이다. `vite.config.ts`의 `manager` entry가 `public/manager/index.html`을 빌드하고, HTML은 `/manager/src/main.tsx`를 로드한다.
+`public/manager/`는 메인 채팅 UI와 별개의 React 19 앱이다. `vite.config.ts`의 `manager` entry가 `public/manager/index.html`을 빌드한다.
 
 | 파일/폴더 | 역할 |
 | --- | --- |
-| `manager/index.html` | `#manager-root`와 `/manager/src/main.tsx`를 가진 Manager HTML entry |
 | `manager/src/main.tsx` | `react-dom/client` `createRoot()`로 `App` 렌더 |
-| `manager/src/App.tsx` | instance scan/filter/select/lifecycle + dashboard section 상태 orchestration |
-| `manager/src/InstancePreview.tsx` | preview iframe mount/theme sync + parent-focus STT shortcut bridge + sandbox popup escape for external links + `jaw-preview-open-doc` 수신(`onOpenDocFromPreview`) |
-| `manager/src/panels/` | desktop panel infra: `PanelResizer.tsx`, `PanelLayoutProvider.tsx`, `BottomPanel.tsx`, `BottomPanelTabBar.tsx` (RightSidebar/BottomPanel 리사이즈 + 탭 레이아웃 상태) |
-| `manager/src/doc-panel/` | `DocPanel.tsx` — `.md` 절대경로를 우측 사이드바에 markdown preview로 렌더(Electron only), 빈 상태 "Drop .md file here" |
-| `manager/src/folder-panel/` `manager/src/terminal/` | Electron desktop folder tree panel + terminal panel |
-| `manager/src/settings/pages/Mcp.tsx` | MCP settings page — server cards add/edit/delete UI + registry browse/install |
-| `manager/src/api.ts` | `/api/dashboard/instances`, `/api/dashboard/registry`, `/api/dashboard/lifecycle/:action`, `/api/dashboard/notes/search` fetch wrapper |
-| `manager/src/components/` | `ManagerShell`, `WorkspaceLayout`, `Instance*`, `Command*`, `ActivityDock`, `MobileNav` 등 dashboard UI |
-| `manager/src/dashboard-board/` | standard workflow lanes (`backlog`, `ready`, `active`, `review`, `done`) 기반 board UI |
+| `manager/src/App.tsx` | 475L — instance scan/filter/select/lifecycle + dashboard section 상태 orchestration |
+| `manager/src/AppChrome.tsx` | App chrome shell (sidebar rail + workspace layout) |
+| `manager/src/SidebarRailRouter.tsx` | 295L — sidebar rail routing to workspace panels |
+| `manager/src/InstancePreview.tsx` | 283L — preview iframe mount/theme sync + STT shortcut bridge + sandbox popup escape + `jaw-preview-open-doc` 수신 |
+| `manager/src/panels/` | desktop panel infra: `PanelResizer`, `PanelLayoutProvider`, `RightSidebar`, `BottomPanel`, `BottomPanelTabBar`, `desktop-bridge`, `panel-capabilities`, `panel-shortcut-bus` |
+| `manager/src/doc-panel/` | `DocPanel.tsx` — `.md` 절대경로를 우측 사이드바에 markdown preview로 렌더(Electron only) |
+| `manager/src/folder-panel/` | Electron desktop folder tree panel |
+| `manager/src/terminal/` | Electron desktop terminal panel |
+| `manager/src/browser-panel/` | Electron desktop Browser panel (Google default, URL/search normalization) |
+| `manager/src/diff-panel/` | Electron desktop Git Diff panel (server-backed via `/api/dashboard/git/*`) |
+| `manager/src/settings/` | settings pages/components/field renderers, `pages/Mcp.tsx` (MCP server cards + registry) |
+| `manager/src/api.ts` | Dashboard API wrapper |
+| `manager/src/components/` | `ManagerShell`, `WorkspaceLayout`, `Instance*`, `Command*`, `ActivityDock`, `MobileNav`, `DesktopPanelControls` 등 |
+| `manager/src/dashboard-board/` | Kanban board UI (backlog/ready/active/review/done lanes) |
 | `manager/src/dashboard-schedule/` | schedule/heartbeat dashboard UI |
-| `manager/src/dashboard-reminders/` | reminders matrix/sidebar/workspace UI, API wrapper, drag/drop, detail popover |
-| `manager/src/browser-panel/` | Electron desktop Browser panel. 새 탭 기본값은 Google이며 URL-like 입력은 URL로, 검색어 입력은 Google Search로 normalize한다. Local/private host는 Electron desktop에서만 허용한다. |
-| `manager/src/diff-panel/` | Electron desktop Git Diff panel. 선택된 instance의 `projectDirs`/`workingDir`를 repo 후보로 만들고, registry UI 설정의 root policy/diff mode/base ref/untracked 옵션을 적용한다. |
-| `manager/src/hooks/` | dashboard registry/view persistence hooks |
-| `manager/src/usePreviewSttLifecycle.ts` | preview child STT lifecycle message를 받아 Jaw CEO realtime mic을 release |
-| `manager/src/usePreviewShortcutMessages.ts` | preview iframe shortcut message를 Manager navigation action으로 변환 |
-| `manager/src/notes/` | markdown notes, search sidebar mode, image-assets, rich-markdown, WYSIWYG editing |
-| `manager/src/settings/` | settings pages/components/field renderers |
-| `manager/src/sync/` | dashboard sync helpers |
-| `manager/src/*.css` | manager 전용 layout/components/persistence/polish/styles |
+| `manager/src/dashboard-reminders/` | reminders matrix/sidebar/workspace UI, drag/drop, detail popover |
+| `manager/src/dashboard-settings/` | Developer tools settings (diff defaults, embedding) |
+| `manager/src/jaw-ceo/` | Jaw CEO console panels, voice, virtual timeline |
+| `manager/src/notes/` | markdown notes, search sidebar, WYSIWYG editing, wikilinks, graph view |
+| `manager/src/hooks/` | dashboard registry/view persistence/instance message events hooks |
+| `manager/src/sync/` | dashboard sync helpers (invalidation bus, iframe/visibility bridge) |
+| `manager/src/help/` | help drawer + topic content |
+| `manager/src/clipboard/` | copy-text utility |
+| `manager/src/lib/` | shared utilities (preview-prefs, use-hidden-unload) |
 
-Manager 서버는 `jaw dashboard serve`가 실행하는 `src/manager/server.ts`이며 기본 port는 `24576`, 기본 scan 범위는 `3457`부터 50개다.
-
-### Manager Desktop Browser / Diff
-
-Desktop-only Browser panel은 `webview` 기반이다. `browser-url.ts`가 주소창 입력을 분류한다. `https?://`와 domain/local/IP/port 형태는 URL로 이동하고, 공백이 있거나 hostname으로 보기 어려운 입력은 `https://www.google.com/search?q=...`로 변환한다. 기본 새 탭은 `https://www.google.com/`이다. Web UI에서는 같은 Browser panel을 노출하지 않아 local/private/same-origin iframe 혼동을 만들지 않는다.
-
-Desktop-only Diff panel은 `$HOME`에서 `git rev-parse`를 시작하지 않는다. `SidebarRailRouter`가 선택된 `DashboardInstance`와 registry UI diff 설정을 `DiffPanel`로 넘기고, `diff-root-candidates.ts`가 `projectDirs[]` → `workingDir` → pinned root → home fallback 순서로 후보를 만든다. root policy가 `working-dir-first` 또는 `manual`이면 순서를 바꾼다. 실제 git repo 검증과 diff 읽기는 이제 server-backed dashboard API(`diff-client.ts`의 `createDashboardGitDiffClient` → `POST /api/dashboard/git/{repo-candidates,diff-summary,file-diff}` → `src/manager/routes/dashboard-git.ts` → `src/manager/git/diff-service.ts`)가 맡는다. Electron main의 git IPC는 이 서버 경로로 대체됐고, `core.quotepath=false`, ref validation, home/path traversal guard는 diff-service에서 유지한다.
-
-Dashboard Settings의 Developer tools 섹션은 Diff 기본값(`diffRootPolicy`, `diffDefaultMode`, `diffBaseRef`, `diffIncludeUntracked`)을 registry UI state에 저장한다. 사용자가 Diff panel에서 repo root를 고르면 `diffPinnedRootByPort`에 instance port별 root가 저장되어 다음 open에서 우선 후보로 쓰인다.
-
-### Manager Notes Search
-
-Notes 검색은 backend `src/manager/notes/search.ts`의 ripgrep 기반 검색과 frontend `NotesSearchSidebar.tsx`가 한 세트다. 검색은 floating overlay가 아니라 Notes sidebar의 search mode로 들어간다.
-
-| 관심사 | 현재 구현 |
-| --- | --- |
-| API wrapper | `public/manager/src/api.ts`의 `searchNotes()`가 `/api/dashboard/notes/search?q=`를 호출하고 typed `DashboardNoteSearchResult[]`를 반환한다. `AbortController.signal`은 값이 있을 때만 `RequestInit`에 넣어 `exactOptionalPropertyTypes`와 맞춘다. |
-| UI entry | `App.tsx`가 `notesSearchFocusToken`을 올리고, `SidebarRailRouter`가 `NotesSidebar`/`NotesWorkspace`에 search opener를 전달한다. |
-| Sidebar behavior | `NotesSearchSidebar.tsx`는 debounced query, stale request abort, typed error rendering, result click-to-open을 담당한다. |
-| Styling | `notes-search.css`는 `.notes-search-sidebar`와 scrollable `.notes-search-sidebar-results`를 담당한다. `.notes-search-panel` floating overlay는 현재 유지하지 않는다. |
-
-### Manager Reminders Parity
-
-Dashboard reminders는 manager dashboard 내부 DB-backed reminders surface다. 최근 parity update 이후 단순 리스트가 아니라 Eisenhower-style matrix, top-priority strip, detail popover, drag/drop bucket 이동을 지원한다.
-
-| 관심사 | 현재 구현 |
-| --- | --- |
-| Feed/API | `dashboard-reminders/reminders-api.ts`가 `/api/dashboard/reminders`를 호출하고 `DashboardReminder`를 normalize한다. `useRemindersFeed.ts`가 list/create/update refresh flow를 소유한다. |
-| Matrix model | `reminders-view-model.ts`가 `urgentImportant`, `important`, `waiting`, `later` bucket, top priority ranking, view counts를 계산한다. |
-| Workspace | `DashboardRemindersWorkspace.tsx`가 matrix quadrants, Top Priority 3, quick create rows, done toggle, detail popover entry, drag/drop handlers를 렌더한다. |
-| Drag/drop | `useDashboardReminderDrag.ts`는 `application/x-jaw-dashboard-reminder` MIME으로 reminder id를 옮기고 drop bucket을 patch input으로 변환한다. |
-| Styling | `manager-dashboard-reminders-parity.css`와 `manager-dashboard-board-sidebar-scroll.css`가 parity matrix, popover, sidebar scrolling을 보강한다. |
-
-### Manager Notes WYSIWYG Knowledge Navigation
-
-Notes WYSIWYG는 Milkdown 편집 화면을 1차 UX로 본다. Markdown preview용 wikilink 렌더링은 유지하되, 실제 편집 표면에서는 ProseMirror decoration plugin과 구조화된 frontmatter panel이 markdown 저장 포맷을 보존한다.
-
-| 관심사 | 현재 구현 |
-| --- | --- |
-| WYSIWYG wikilink | `milkdown-wikilink-plugin.ts`가 `[[target|label]]` 텍스트를 resolved/unresolved live widget으로 꾸미고, 선택 영역이 원문과 겹치면 raw source를 다시 보여준다. resolved widget click은 direct DOM listener로 `onWikiLinkNavigate(path)`를 호출한다. 새로 입력한 링크는 outgoing index refresh 전에도 `vaultIndex.notes` fallback으로 resolved 후보를 찾는다. |
-| Frontmatter panel | `wysiwyg-frontmatter.ts`가 leading YAML frontmatter를 body와 분리하고, `WysiwygFrontmatterPanel.tsx`가 `aliases`, `tags`, `created`를 편집 가능한 metadata UI로 보여준다. 알 수 없는 YAML key는 clone/update 방식으로 보존한다. |
-| Invalid YAML safety | `parseDocument()` 후 `document.errors`가 있거나 mapping document가 아니면 editable=false로 처리해 raw frontmatter를 그대로 저장한다. |
-| Composition boundary | `MilkdownWysiwygEditor.tsx`는 Milkdown에는 body만 넣고, 모든 markdownUpdated/task/heading/source sync 경로에서 frontmatter + body를 다시 합성해 `onChange`로 올린다. |
-| Workspace wiring | `NotesWorkspace.tsx`는 현재 노트의 outgoing links와 indexed notes를 WYSIWYG editor로 전달하고, WYSIWYG가 frontmatter를 소유할 때 preview strip 중복 노출을 막는다. Preview wikilink는 아직 `outgoingLinks[selectedPath]` 중심이라 새 follow-up 문서에서 resolver parity를 추적한다. |
+Manager 서버는 `jaw dashboard serve`가 실행하는 `src/manager/server.ts`이며 기본 port는 `24576`.
 
 ---
 
 ## ProcessBlock / Subagent Rendering
 
-subagent 렌더링 변경 이후 tool history의 canonical UI는 `features/process-block.ts`다. `ui.ts`는 live WS 이벤트, persisted `tool_log`, IndexedDB fallback, virtual-scroll history 모두를 `ToolLogEntry[]` -> `ProcessStep[]` -> ProcessBlock HTML 흐름으로 맞춘다.
+tool history의 canonical UI는 `features/process-block.ts`다. `ui.ts`는 live WS 이벤트, persisted `tool_log`, IndexedDB fallback, virtual-scroll history 모두를 `ToolLogEntry[]` → `ProcessStep[]` → ProcessBlock HTML 흐름으로 맞춘다.
 
 | 관심사 | 현재 구현 |
 | --- | --- |
-| 타입 보존 | `ws.ts`는 `msg.toolType === 'subagent'`를 `ProcessStep.type = 'subagent'`로 넘기고, `ui.ts`의 `processStepType()`도 persisted `toolLog.toolType`에서 `subagent`를 보존한다. unknown type만 `tool`로 떨어진다. |
-| Summary split | `process-block.ts`의 summary는 type별로 `Thinking`, `Search`, `Subagent`, `Tool`을 따로 count한다. 그래서 subagent rows는 generic Tool count에 섞이지 않는다. |
-| row layout | `tool-ui.css`의 `.process-step-toggle`은 `auto 16px auto minmax(0, 1fr) auto` grid다. dot 다음에 고정 16px `.process-step-icon` column이 있고, badge/label/chevron은 별도 column에 놓인다. |
-| rawIcon / SVG policy | `ws.ts`와 `ui.ts`는 merge/dedup용 provenance로 `rawIcon`을 보존한다. 표시용 `step.icon`은 `emojiToIcon()`으로 local Lucide/custom SVG를 우선 만들고, `process-block.ts`의 `renderTrustedIcon()`은 `<svg...`로 시작하는 값만 SVG로 삽입하며 나머지는 escape한다. |
-| running -> done merge | `showProcessStep()`는 done/error 이벤트가 오면 먼저 같은 `stepRef`의 running row를 찾고, 없으면 같은 label의 running row를 찾는다. 매칭되면 기존 row id를 유지하고 detail을 병합해서 `replaceStep()`한다. |
-| done-only fallback blocking | `stepRef`가 있는 done/error 이벤트는 legacy "아무 running row 닫기" fallback을 타지 않는다. fallback은 `!step.stepRef`인 uncorrelated legacy tool 이벤트에만 허용되어 다른 subagent running row를 닫지 않는다. |
-| repeated done-only dedup | 같은 `stepRef`의 done/error row가 이미 있으면 새 row를 추가하지 않고 기존 done/error row를 `replaceStep()`로 갱신한다. |
-| ghost replacement | detail 있는 재broadcast가 같은 label+type의 detail 없는 running ghost를 만나면 해당 row를 교체한다. |
-| finalization | `finalizeAgent()`는 live ProcessBlock 또는 canonical DOM block이 이미 있던 응답에서는 static tool HTML을 다시 붙이지 않는다. static tool HTML은 `.msg-content` 안이 아니라 `.agent-body > .process-block` 위치에만 둔다. |
-| single-owner invariant | assistant message의 tool history는 `.agent-body > .process-block` 또는 legacy `.agent-body > .tool-group` 하나만 허용한다. `normalizeAgentToolBlocks()`가 finalize/hydrate/live-step/virtual-scroll serialization 전에 중첩 `.msg-content > .process-block`과 duplicate block을 정리한다. |
-| layout mutation anchor | ProcessBlock detail expand/collapse와 summary collapse는 clicked `.process-step`/`.process-block` anchor를 전달한다. virtual scroll은 mutation 전 row top을 캡처하고 remeasure 후 delta를 보정해 사용자가 읽던 위치를 유지한다. |
-| lazy history render | virtual-scroll history item은 raw markdown `data-raw`와 escaped raw `data-tool-log`만 저장한다. markdown과 tool-log ProcessBlock detail HTML은 mounted lazy render 시점에 만들고 `body.dataset.toolLog`를 삭제한다. |
-| mermaid cleanup | `virtual-scroll.ts`는 unmount/deactivate 전에 `releaseMermaidNodes()`를 호출해 `.mermaid-pending` observer target과 transient queue flags를 해제한다. |
-| vendor chunk split | Mermaid는 `public/js/mermaid-loader.ts` lazy path 뒤에 둔다. `vite.config.ts`는 강제 `vendor-mermaid` manual chunk를 만들지 않고, lodash-es/d3/chevrotain만 `vendor-utils`로 분리해 app entry의 Mermaid/static utility hoist를 줄인다. |
-
-`tool-ui.ts`의 `buildToolGroupHtml()`/`.tool-group` CSS는 여전히 남아 있지만, 현재 `ui.ts`의 assistant history/finalization path는 `buildProcessBlockHtml()`을 사용한다. 그래서 새 subagent semantics는 `process-block.ts`, `ui.ts`, `ws.ts`, `icons.ts`, `tool-ui.css`가 함께 담당한다.
-
-### Drift / Line Counts
-
-이번 점검 기준 관련 파일 라인 수는 아래와 같다.
-
-| 파일 | 현재 라인 수 | drift 메모 |
-| --- | ---: | --- |
-| `public/js/ws.ts` | 490L | `WsMessage`가 `toolType`, `detail`, `stepRef`, `isEmployee`를 받고 `agent_tool`을 typed ProcessStep으로 변환. reconnect 시 snapshot hydration과 bottom reconciliation 호출 |
-| `public/js/ui.ts` | 390L | Message rendering orchestration shell. ProcessBlock DOM/history/action details are split into feature helpers |
-| `public/js/main.ts` | 563L | bootstrap + event binding, preview STT toggle message, STT shortcut fallback 포함 |
-| `public/js/render.ts` | 17L | render public API façade. 기존 import surface를 유지하고 실제 구현은 `public/js/render/` 하위 모듈로 분리 |
-| `public/js/render/*.ts` | 12 files / max 291L | markdown/KaTeX/sanitize/Mermaid/SVG actions/highlight/file-links/post-render/delegation 책임 분리. `post-render.ts`는 `highlight.ts`를 import해 markdown cycle을 피함 |
-| `public/js/virtual-scroll.ts` | 577L | TanStack virtualizer activation, mounted row remeasure, Mermaid observer release before unmount/deactivate, restore/reconnect scroll anchor preservation, `pageshow`/`visibilitychange`/`focus` 복귀 후 near-bottom일 때 bottom reconciliation |
-| `public/js/features/process-block.ts` | 528L | `subagent` type, type별 summary, trusted SVG row icon, expandable row detail |
-| `public/js/features/process-block-dom.ts` | 175L | ProcessBlock DOM ownership, normalization, row replacement, layout mutation helpers |
-| `public/js/features/process-log-adapter.ts` | 104L | Persisted tool log to ProcessStep adapter |
-| `public/js/features/process-step-match.ts` | 18L | ProcessStep matching helper |
-| `public/js/features/tool-ui.ts` | 122L | legacy tool group/live activity helper로 축소 설명 필요 |
-| `public/js/features/trace-drawer.ts` | 122L | Trace drawer UI controls |
-| `public/js/features/voice-recorder.ts` | 254L | MediaRecorder start/stop, pending guard, preview lifecycle, STT upload handoff |
-| `public/js/icons.ts` | 278L | Lucide registry + emoji compatibility + `robot`/`tool` ProcessBlock icon source |
-| `public/css/tool-ui.css` | 550L | legacy tool group뿐 아니라 ProcessBlock layout/style 대부분 포함 |
-| `public/css/trace-drawer.css` | 48L | Trace drawer layout/style |
-| `public/js/state.ts` | 89L | `currentProcessBlock` + `currentAgentDiv` shared runtime state |
-| `public/manager/src/App.tsx` | 487L | Manager dashboard state orchestration |
-| `public/manager/src/InstancePreview.tsx` | 144L | Preview iframe theme/visibility sync + STT shortcut bridge |
-| `public/manager/src/usePreviewSttLifecycle.ts` | 31L | Preview STT lifecycle -> Jaw CEO voice release hook |
-| `public/manager/src/api.ts` | 276L | Dashboard API wrapper, including typed notes search fetch |
-| `public/manager/src/browser-panel/browser-url.ts` | 55L | Browser panel Google default/search normalization + local/private URL classification |
-| `public/manager/src/diff-panel/DiffPanel.tsx` | 219L | Desktop Git Diff panel root selector, diff mode controls, file list, content preview (data via `diff-client.ts` → `/api/dashboard/git/*`) |
-| `public/manager/src/diff-panel/diff-root-candidates.ts` | 54L | Selected-instance `projectDirs`/`workingDir`/pinned/home candidate builder |
-| `public/manager/src/dashboard-settings/DashboardDeveloperSettingsSection.tsx` | 123L | Developer tools settings section for Git Diff defaults |
-| `public/manager/src/dashboard-reminders/DashboardRemindersWorkspace.tsx` | 329L | Reminders matrix, top-priority strip, quick-create rows, done toggle, drag/drop, detail popover entry |
-| `public/manager/src/dashboard-reminders/ReminderDetailPopover.tsx` | 118L | Reminder detail editing popover |
-| `public/manager/src/dashboard-reminders/reminders-view-model.ts` | 86L | Matrix bucket/default patch/top-priority ranking helpers |
-| `public/manager/src/dashboard-reminders/useDashboardReminderDrag.ts` | 47L | Reminder drag/drop hook with dashboard reminder MIME type |
-| `public/manager/src/notes/NotesWorkspace.tsx` | 259L | Notes workspace + sidebar search opener + WYSIWYG wikilink/frontmatter wiring |
-| `public/manager/src/notes/NotesSearchSidebar.tsx` | 118L | Abortable debounced notes search sidebar mode |
-| `public/manager/src/notes/notes-search.css` | 90L | Notes sidebar search positioning/styling |
-| `public/manager/src/notes/MarkdownEditor.tsx` | 114L | Markdown editor mode switch + WYSIWYG navigation metadata props |
-| `public/manager/src/notes/wiki-link-rendering.ts` | 142L | Shared preview/WYSIWYG wikilink token parsing and display labels |
-| `public/manager/src/notes/wysiwyg/MilkdownWysiwygEditor.tsx` | 498L | Milkdown WYSIWYG editor shell, body/frontmatter composition, image paste/drop, toolbar |
-| `public/manager/src/notes/wysiwyg/milkdown-wikilink-plugin.ts` | 169L | ProseMirror decoration plugin for WYSIWYG wikilink live preview + vault notes fallback |
-| `public/manager/src/notes/wysiwyg/wysiwyg-frontmatter.ts` | 132L | YAML frontmatter split/normalize/update helpers |
-| `public/manager/src/notes/wysiwyg/WysiwygFrontmatterPanel.tsx` | 76L | Structured WYSIWYG metadata editor |
-| `public/manager/src/notes/wysiwyg/milkdown-editor-utils.ts` | 32L | Milkdown DOM/image/paste utility helpers |
-| `public/manager/src/notes/wysiwyg/milkdown-wysiwyg-types.ts` | 13L | WYSIWYG editor prop types |
+| 타입 보존 | `ws.ts`는 `msg.toolType === 'subagent'`를 `ProcessStep.type = 'subagent'`로 넘기고, unknown type만 `tool`로 떨어진다 |
+| Summary split | type별로 `Thinking`, `Search`, `Subagent`, `Tool`을 따로 count |
+| row layout | `.process-step-toggle`은 `auto 16px auto minmax(0, 1fr) auto` grid |
+| rawIcon / SVG policy | `renderTrustedIcon()`은 `<svg...`로 시작하는 값만 SVG로 삽입, 나머지는 escape |
+| running → done merge | `stepRef` 기반 매칭 우선, 없으면 같은 label의 running row 매칭 |
+| done-only fallback blocking | `stepRef`가 있는 done/error 이벤트는 legacy fallback을 타지 않음 |
+| repeated done-only dedup | 같은 `stepRef`의 done/error row가 이미 있으면 `replaceStep()` |
+| single-owner invariant | `.agent-body > .process-block` 하나만 허용, `normalizeAgentToolBlocks()`가 정리 |
+| layout mutation anchor | `window.__jawProcessBlockLayoutMutation(anchor, mutate)` bridge로 virtual-scroll remeasure + row-top anchor 보존 |
+| lazy history render | virtual-scroll history item은 mounted lazy render 시점에 ProcessBlock detail HTML 생성 |
+| mermaid cleanup | unmount/deactivate 전 `releaseMermaidNodes()` 호출 |
 
 ---
 
@@ -370,19 +262,9 @@ subagent 렌더링 변경 이후 tool history의 canonical UI는 `features/proce
 | `manifest.json` | `standalone`, `theme_color: #22d3ee`, 192/512/maskable icons |
 | `sw.js` | navigation network-first, `/dist/assets/*` cache-first, 그 외 stale-while-revalidate |
 | `icons/` | `icon-192.png`, `icon-512.png`, `icon-512-maskable.png` |
-| `assets/providers/` | `antigravity`, `antigravity-color`, `claude`, `claude-color`, `copilot`, `copilot-color`, `cursor`, `cursor-color`, `gemini`, `gemini-color`, `grok`, `grok-color`, `openai`, `opencode`, `discord`, `telegram` |
+| `assets/providers/` | `antigravity(-color)`, `claude(-color)`, `copilot(-color)`, `cursor(-color)`, `gemini(-color)`, `grok(-color)`, `kiro(-color)`, `openai`, `opencode`, `discord`, `telegram` |
 | `assets/fonts/` | `GeistVF.woff2`, `JetBrainsMono-Variable.woff2` |
-| `assets/shark.svg`, `img/shark-sprite.png` | shark brand/sprite assets |
 | `locales/` | `ko.json`, `en.json`, `ja.json`, `zh.json` |
-| `theme-test.html` | 독립 테마 진단 페이지. Google Fonts + mock sidebar/chat samples |
-
-### Provider Icons
-
-`provider-icons.ts`는 raw SVG를 직접 import해서 `cli-status`, `headerCli`, memory/skills/agents UI에 재사용한다. `agy`는 Antigravity asset alias를 쓰고, `cursor`는 공식 Cursor brand SVG crop을 쓰며, `codex`는 OpenAI 계열 아이콘을, `openai`는 GPT/O 계열 이름까지 alias로 묶는다. Manager settings metadata also keeps `agy` and `cursor` in the primary CLI list alongside the legacy settings UI.
-
-### Locale Behavior
-
-`locale.ts`는 `claw_locale` / `claw.locale` 둘 다 동기화한다. `main.ts`는 bootstrap 시 i18n을 먼저 올리고, `ws.ts`는 reconnect 시 `?lang=` 쿼리로 locale을 넘긴다.
 
 ---
 
@@ -393,76 +275,42 @@ subagent 렌더링 변경 이후 tool history의 canonical UI는 `features/proce
 | 초기화 | `hydrateIcons()` → `hydrateProviderIcons()` → `initI18n()` → `loadCliRegistry()` → `connect()` → `initAvatar()` + pending/help/attention 초기화 |
 | 입력 | slash command dropdown, file attachment, drag/drop, auto-resize, voice record/cancel, STT mic pending state |
 | 전송 | 일반 메시지는 `/api/message`, slash command는 `/api/command`, stop 버튼은 `/api/stop` |
-| 복구 | 등록되지 않은 slash command는 입력 원문을 recovery card로 표시하고, 사용자가 복사하거나 입력창에 다시 넣을 수 있다 |
-| 업로드 | 첨부 파일은 병렬 업로드 후 prompt에 합성 |
-| 렌더링 | `render.ts`는 stable facade이고, markdown/KaTeX/Mermaid/code copy/diagram widget/local file-path click-to-open/external web-link new-tab targeting/post-render 작업은 `public/js/render/*` 모듈이 담당한다 |
-| 오프라인 | `idb-cache.ts`가 메시지 히스토리를 IndexedDB에 보관 — scope별 캐시(workingDir), 실시간 upsert, 서버 다운 시 캐시 복원 + tool_log process block 렌더 |
-| 아바타 | `initAvatar()`가 localStorage emoji와 `/api/avatar` 서버 상태를 합쳐 agent/user 아이콘을 hydrate하고, 업로드는 `/api/avatar/:target/upload`, reset은 `/api/avatar/:target/image` `DELETE`로 처리한다 |
-| WS | `agent_tool`은 typed ProcessBlock step으로, `agent_output`은 streaming renderer로, `agent_done`은 finalization으로 흘러가며, reconnect 직후 10초 이내에는 중복 `loadMessages()`를 건너뛴다 |
-| 상태 | `agent_status`, `queue_update`, `orc_state`, `session_reset`, `clear`, Telegram/Discord `new_message`를 처리한다 |
-| 반응형 | sidebar collapse/expand, mobile edge swipe, mobile nav, theme switch, PABCD roadmap, voice shortcut(`Ctrl/Cmd+Shift+Space`, `Alt/Option+M`) 지원 |
-| Manager | 별도 React 앱이 dashboard API로 Jaw 인스턴스 scan/preview/lifecycle과 notes search를 관리 |
+| 렌더링 | `render.ts` façade → `public/js/render/*` 모듈이 markdown/KaTeX/Mermaid/code copy/diagram widget/file-path click-to-open/external web-link new-tab targeting/post-render 담당 |
+| 오프라인 | `idb-cache.ts`가 메시지 히스토리를 IndexedDB에 보관 — scope별 캐시, 실시간 upsert |
+| WS | `agent_tool`→typed ProcessBlock step, `agent_output`→streaming renderer, `agent_done`→finalization, reconnect 10초 dedup |
+| 상태 | `agent_status`, `queue_update`, `orc_state`, `session_reset`, `clear`, Telegram/Discord `new_message` |
+| 반응형 | sidebar collapse/expand, mobile edge swipe, theme switch, PABCD roadmap, voice shortcut(`Ctrl/Cmd+Shift+Space`, `Alt/Option+M`) |
+| Manager | 별도 React 앱이 dashboard API로 Jaw 인스턴스 scan/preview/lifecycle, notes, board, reminders, schedule, CEO console 관리 |
 
-### 주의할 점
+---
 
-`public/dist/`, `public/public/dist/`, `public/dist/dist/`는 모두 같은 Vite 산출물 계열이다. 현재 repo에는 root duplicate 하나(`public/public/dist/`)와 nested duplicate 하나(`public/dist/dist/`)가 함께 남아 있지만, 실제 소스 구조 설명에서는 `public/dist/`를 대표 build output으로 보는 것이 맞다.
+## Runtime Hardening Invariants
 
-메인 채팅 UI에 React가 도입된 것은 아니다. React는 `public/manager/` dashboard에만 사용된다.
-
-### 최근 프런트엔드 변경 메모
-
-- `db9179f feat: avatar image upload support (#95)` 이후 Web UI는 emoji뿐 아니라 image avatar도 지원하며, 프런트엔드와 `/api/avatar*` 라우트가 함께 추가됐다.
-- `7ade8e5` 이후 virtual scroll은 viewport child를 재사용하고 `onPostRender` hook에서 widget activation/linkification을 처리한다.
-- `a42de89` 이후 virtual scroll live append id 안정성과 runtime path hardening이 같이 들어가, 서비스 재기동 직후에도 avatar/image path와 UI append 흐름이 덜 깨지도록 보강됐다.
-- 2026-04-24 subagent rendering 반영: `toolType: 'subagent'` 보존, summary Tool/Subagent split, stepRef 기반 running->done merge, done-only fallback 제한, repeated done-only dedup, ProcessBlock row icon column, rawIcon/trusted SVG 정책을 문서화했다.
-- 2026-05-08 notes search 반영: `NotesSearchSidebar.tsx` + `notes-search.css` + `searchNotes()` wrapper가 추가되어 Manager Notes에서 markdown 본문 검색을 sidebar mode로 지원한다.
-- 2026-05-09 render split 반영: `public/js/render.ts`는 17L facade가 되었고, sanitizer/markdown/math/Mermaid/SVG actions/highlight/file-links/post-render/code-copy/delegations는 `public/js/render/` 하위 12개 모듈이 소유한다.
-- 2026-05-09 SVG overlay fix 반영: inline SVG diagram zoom overlay는 `.diagram-svg-overlay` kind를 붙여 `.label`/`.connector` 스타일을 보존하고, Mermaid overlay에는 inline SVG primitive CSS를 섞지 않는다.
-- 2026-05-09/10 scroll restore 반영: reconnect/initial load 이후 bottom-follow는 사용자의 pinned-away intent와 row anchor를 보존하고, initial load settle은 `chat-scroll.ts`/message-history path가 담당한다.
-- 2026-05-09 WYSIWYG Knowledge Navigation 반영: Milkdown WYSIWYG에서 wikilink live preview/navigation과 YAML frontmatter structured editing을 지원한다. Invalid YAML은 raw 보존, unknown frontmatter key는 clone/update 방식으로 보존한다. 새로 typed 된 wikilink는 WYSIWYG에서 vault notes fallback으로 preview 가능하지만 Markdown Preview resolver parity는 후속 계획으로 추적한다.
-- 2026-05-09 Manager reminders parity 반영: dashboard reminders는 matrix buckets, Top Priority 3, detail popover, drag/drop bucket 이동, sidebar scroll polish를 지원한다.
-- 2026-05-16 STT hardening 반영: Web STT 버튼은 `getUserMedia` pending/MediaRecorder 실패를 UI와 system message로 표면화하고, Manager preview는 부모 포커스 상태에서도 iframe STT 토글을 전달한다. Preview STT 시작 요청은 Jaw CEO realtime voice 세션을 release해서 마이크 점유 충돌을 줄인다.
-- 2026-05-28 preview link escape 반영: Manager preview iframe은 `allow-popups-to-escape-sandbox`를 포함하고, preview proxy HTML에는 외부 http(s) link/form submit을 iframe 내부 navigation 대신 새 탭/기본 브라우저로 보내는 link policy가 주입된다. Web UI markdown/render delegation도 외부 web 링크에 `_blank`/`noopener noreferrer`를 보강한다.
-- 2026-05-31 feature wave 반영:
-  - **kiro-code provider UI**: settings/provider rows에 kiro-code 아이콘(`kiro.svg`/`kiro-color.svg`)·model metadata·CLI status 행이 추가됐고, TUI도 kiro-code label/color를 렌더한다.
-  - **MCP settings page**: `manager/src/settings/pages/Mcp.tsx`가 server cards add/edit/delete + registry browse/install UI를 제공하고, settings sidebar의 MCP 그룹이 상단으로 이동했다. Web UI `settings-mcp.ts`는 `/api/mcp/registry` browse+install을 지원한다.
-  - **dashboard cache invalidation bridge**: `public/js/preview-parent-origin.ts`의 `postPreviewInvalidate(topics, reason)`가 `dashboard.invalidate` postMessage를 부모(Manager)로 보낸다. `settings-core.ts`가 활성 CLI 변경 시 `postPreviewInvalidate(['instances'], 'active-cli-changed')`를 호출해 매니저가 새로고침 없이 즉시 재조회한다. `postPreviewOpenDoc()`는 `.md` 절대경로를 우측 DocPanel로 연다.
-  - **markdown doc preview (Electron only)**: `public/js/render/file-links.ts`가 `.md` 절대경로를 `postPreviewOpenDoc()`로 분기하고, `InstancePreview.tsx`가 `jaw-preview-open-doc`을 받아 `DocPanel`에 렌더한다.
-  - **electron panel system**: `manager/src/panels/`(PanelResizer/PanelLayoutProvider/BottomPanel/BottomPanelTabBar) + doc/folder/terminal panel + `DesktopPanelControls.tsx`로 우측 사이드바/하단 패널 리사이즈·탭 레이아웃을 구성한다. Cmd+W 탭 닫기, Cmd+1–4 탭 전환, tray background mode가 함께 들어갔다.
-  - **interview panel UI**: Known/Unknown collapsible tracker, Evidence-Ref source icon 렌더, dimension bars + budget panel이 추가됐고, tracker JSON/Perspective 태그는 visible response에서 sanitizer로 제거된다.
-  - **live stream rendering**: provider 전반의 `agent_output` 라이브 렌더가 정렬됐고, tool block은 항상 live output 위에 유지된다.
+| 영역 | invariant |
+| --- | --- |
+| Web UI runtime tests | `tests/unit/web-ui-test-dom.ts`가 jsdom globals를 먼저 설치 |
+| ProcessBlock DOM recovery | `.process-step` row는 `data-step-id`, `data-type`, `data-status`, `data-step-ref`, `data-start-time` 보존 |
+| Restore bottom-follow intent | `scrollIntent = unknown/following/pinnedAway` 기준 guarded reconciliation |
+| Build output guard | `npm run check:frontend-build-output`가 eager Mermaid reference 차단 |
+| Tool-log memory cap | Server-side `sanitizeToolLog*()` caps before ProcessBlock/Manager hydration |
 
 ---
 
 ## UI 모달/팝업 규약
 
-### 메인 Web UI (public/index.html + public/js/)
+### 메인 Web UI
 
-모달/팝업은 **`document.body`에 동적 생성**해야 한다. `index.html` 내부(설정 패널 등)에 정적 HTML로 넣으면 안 된다.
+모달/팝업은 **`document.body`에 동적 생성**. `help-dialog.ts` 참조:
+1. overlay → `className = 'modal-overlay'` → `document.body.append(overlay)`
+2. box → `role="dialog"` + `aria-modal="true"`
+3. 열기: `.open` 클래스 추가
+4. 닫기: `.open` 제거 + Esc 키
+5. CSS: `public/css/modals.css`
 
-**필수 패턴** — `public/js/features/help-dialog.ts` 참조:
+### Manager Dashboard
 
-1. **overlay**: `document.createElement('div')` → `className = 'modal-overlay'` → `document.body.append(overlay)`
-2. **box**: `className = 'modal-box'` → `role="dialog"` + `aria-modal="true"`
-3. **열기**: `overlay.classList.add('open')` (CSS `display: flex` + 애니메이션)
-4. **닫기**: `overlay.classList.remove('open')` + Esc 키 핸들러
-5. **배경 클릭**: `overlay.addEventListener('click', ...)` — 배경 클릭 시 닫기
-6. **CSS**: `public/css/modals.css`의 `.modal-overlay`, `.modal-box`, `.modal-header`, `.modal-footer` 사용
-
-**금지 사항:**
-- `index.html`에 모달 HTML 정적 삽입 (설정 패널 안에 넣으면 메인 채팅창 위로 안 뜸)
-- `style.display = 'flex'` / `style.display = 'none'` 직접 조작 (`.open` 클래스 토글 사용)
-- 인라인 스타일로 모달 배경/레이아웃 구현 (`modals.css` 클래스 사용)
-
-**이유:** `index.html`의 설정 패널은 사이드바 안에 있어서, 거기에 모달을 넣으면 사이드바 안에서만 렌더링되고 메인 채팅 영역 위로 올라오지 않는다. `document.body`에 추가해야 전체 뷰포트를 덮는 전면 팝업이 된다.
-
-### Manager Dashboard (public/manager/)
-
-Manager의 React 컴포넌트에서는 `Memory.tsx`의 `role="dialog"` + `aria-modal` 패턴을 따른다. `settings-memory-modal*` 클래스 또는 동일 패턴의 커스텀 클래스를 사용한다.
+React 컴포넌트에서는 `role="dialog"` + `aria-modal` 패턴.
 
 ### 두 UI 간 기능 동기화
 
-메인 Web UI와 Manager Dashboard에서 동일 기능을 제공할 때:
-- **백엔드 API는 동일** (`/api/mcp`, `/api/mcp/sync` 등)
-- **프론트엔드만 다름** (Vanilla JS vs React)
-- 기능 추가 시 **양쪽 모두 구현**해야 함 — Web UI만 쓰는 사용자도 있음
+백엔드 API는 동일, 프론트엔드만 다름 (Vanilla JS vs React). 기능 추가 시 양쪽 모두 구현 필요.
