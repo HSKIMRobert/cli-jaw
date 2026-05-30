@@ -8,10 +8,9 @@ aliases: [CLI-JAW Commands, slash commands registry, commands.md]
 
 # src/cli/ — Slash Command Registry & Dispatcher
 
-> `commands.ts`(400L) + `handlers.ts`(397L) + `handlers-runtime.ts`(499L) + `handlers-completions.ts`(97L) + `handlers-workflows.ts`(95L) + `api-auth.ts`(45L) + `command-context.ts`(140L) + `registry.ts`(160L) + `acp-client.ts`(382L) + `claude-models.ts`(78L) + `compact.ts`(139L) + `src/workflows/{artifacts,plan}.ts`(260L)
-> slash registry는 32개 커맨드, 4개 실행 인터페이스. root CLI는 `bin/cli-jaw.ts` + `bin/commands/*.ts` 기준 23개 user-facing command이며, helper까지 포함한 `bin/commands/*.ts` top-level 파일은 26개다. `browser web-ai`는 `browser-web-ai.ts`, `dashboard memory`는 `dashboard-memory.ts`, dispatch unwrap 보조는 `dispatch-helpers.ts`로 분리되어 있다. visible 기준 CLI 30 / Web 28 / Telegram 28 / Discord 28. `cmdline` capability는 contract 전용이며 12개가 보인다.
-> 모델/CLI 선택은 `registry.ts` 단일 소스를 따른다. 현재 registry 런타임은 `agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `cursor`, `gemini`, `grok`, `kiro-code`, `opencode`, `copilot` 12개이며, `claude-e`는 experimental native interactive wrapper(`jaw-claude-i`)를 통해 Claude CLI를 PTY로 구동하고 legacy session/event bucket은 `claude-i`를 유지한다. Web/CLI/Telegram/Discord는 모두 `makeCommandCtx()`로 통합된 command context를 사용한다.
-> 최근 구조 변화 핵심은 네 가지다: `handlers.ts` 분해(`handlers-runtime.ts`, `handlers-completions.ts`), workflow command handler 분리(`handlers-workflows.ts`), CLI→server 인증 bootstrap 공통화(`api-auth.ts`), 그리고 Claude Interactive native helper build/test/doctor surface 추가다.
+> `commands.ts`(403L) + `handlers.ts`(446L) + `handlers-runtime.ts`(501L) + `handlers-completions.ts`(97L) + `handlers-workflows.ts`(370L) + `api-auth.ts`(45L) + `command-context.ts`(140L) + `registry.ts`(213L) + `acp-client.ts`(382L) + `claude-models.ts`(81L) + `compact.ts`(141L)
+> slash registry는 33개 커맨드, 4개 실행 인터페이스. root CLI는 `bin/cli-jaw.ts` + `bin/commands/*.ts` 기준 24개 user-facing command이며, helper까지 포함한 `bin/commands/*.ts` top-level 파일은 27개다. `browser web-ai`는 `browser-web-ai.ts`, `dashboard memory`는 `dashboard-memory.ts`, dispatch unwrap 보조는 `dispatch-helpers.ts`로 분리되어 있다.
+> 모델/CLI 선택은 `registry.ts` 단일 소스를 따른다. 현재 registry 런타임은 `agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `cursor`, `gemini`, `grok`, `kiro-code`, `opencode`, `copilot` 12개다.
 
 ---
 
@@ -26,13 +25,11 @@ aliases: [CLI-JAW Commands, slash commands registry, commands.md]
 | `getArgumentCompletionItems(...)` | command별 인자 completion |
 | `COMMANDS` | command registry 단일 소스 |
 
-내부 정렬/검색 헬퍼는 `sortCommands`, `findCommand`, `displayUsage`, `scoreCommandCandidate`, `scoreArgumentCandidate`, `normalizeArgumentCandidate`, `dedupeChoices`가 담당한다.
-
 ---
 
 ## Registry Snapshot
 
-### Command 목록 (32)
+### Command 목록 (33)
 
 ```text
 help, commands, status, clear, purge, compact, reset, plan, interview, deliberate,
@@ -45,11 +42,11 @@ ide, orchestrate, project
 
 | Interface | Visible | 비고 |
 | --- | ---: | --- |
-| `cli` | 29 | `file` hidden, `steer` 미지원 |
-| `web` | 27 | `commands`, `quit`, `file`, `ide` 미지원 |
-| `telegram` | 27 | remote-safe command set |
-| `discord` | 27 | remote-safe command set |
-| `cmdline` | 11 | 루트 CLI 서브커맨드용 contract-only capability 필터; workflow commands는 hidden |
+| `cli` | 30 | `file` hidden, `steer` 미지원 |
+| `web` | 28 | `commands`, `quit`, `file`, `ide` 미지원 |
+| `telegram` | 28 | remote-safe command set |
+| `discord` | 28 | remote-safe command set |
+| `cmdline` | 12 | 루트 CLI 서브커맨드용 contract-only capability 필터; workflow commands는 hidden |
 
 ### 카테고리
 
@@ -63,7 +60,7 @@ ide, orchestrate, project
 
 ## Root CLI Surface (`bin/cli-jaw.ts` + `bin/commands/*.ts`)
 
-소스 기준 entrypoint는 `bin/cli-jaw.ts`(213L)다. `package.json`의 published bin은 build 산출물 `dist/bin/cli-jaw.js` / `jaw`를 가리킨다. 현재 소스 트리에는 `bin/cli-jaw.js`가 없고, root command router는 아래 23개 user-facing command를 동적 import 한다. 파일 수 기준으로는 `browser-web-ai.ts`, `dashboard-memory.ts`, `dispatch-helpers.ts` helper가 추가되어 `bin/commands/*.ts` top-level은 26개다.
+소스 기준 entrypoint는 `bin/cli-jaw.ts`(213L)다. 현재 소스 트리에서 root command router는 아래 24개 user-facing command를 동적 import 한다. 파일 수 기준으로는 `browser-web-ai.ts`, `dashboard-memory.ts`, `dispatch-helpers.ts` helper가 추가되어 `bin/commands/*.ts` top-level은 27개다.
 
 ### Global options
 
@@ -80,7 +77,7 @@ ide, orchestrate, project
 | `serve` | `bin/commands/serve.ts` | `--port <port>`, `--host <host>`, `--no-open`, `--lan`, `--remote`, `--trust-proxy`, `--trust-forwarded` |
 | `init` | `bin/commands/init.ts` | `--help`, `--non-interactive`, `--safe`, `--dry-run`, `--force`, `--working-dir <path>`, `--cli <name>`, `--channel <telegram\|discord>`, `--telegram-token <t>`, `--allowed-chat-ids <ids>`, `--discord-token <t>`, `--discord-guild-id <id>`, `--discord-channel-ids <ids>`, `--skills-dir <path>` |
 | `doctor` | `bin/commands/doctor.ts` | `--json`, `--repair-shared-paths`, `--tcc`, `--fix`, `--prime` |
-| `chat` | `bin/commands/chat.ts` | `process.argv.slice(3)`를 TUI로 전달. 주석 기준 기본/`--raw`/`--simple` 모드 |
+| `chat` | `bin/commands/chat.ts` | `process.argv.slice(3)`를 TUI로 전달. 기본/`--raw`/`--simple` 모드 |
 | `employee` | `bin/commands/employee.ts` | `reset [--port 3457]`; `help`/`--help`/`-h` |
 | `reset` | `bin/commands/reset.ts` | `[--yes] [--port 3457]`; `confirm`도 확인값으로 허용 |
 | `mcp` | `bin/commands/mcp.ts` | `install <package> [--pypi\|--npm]`, `sync`, `reset [--force]`, `list` |
@@ -91,7 +88,7 @@ ide, orchestrate, project
 | `memory` | `bin/commands/memory.ts` | `search <query>`, `read <file> [--lines N-M]`, `save <file> <content>`, `list`, `init`, `reflect [--sinceDays N]`, `flush`, `cleanup [--days N]` |
 | `launchd` | `bin/commands/launchd.ts` | `[--port PORT] [status\|unset\|cleanup]` |
 | `clone` | `bin/commands/clone.ts` | `<target-dir> [--from <source>] [--with-memory] [--link-ref]` |
-| `orchestrate` | `bin/commands/orchestrate.ts` | `[P\|A\|B\|C\|D\|status\|reset] [--force] [--json] [--port <port>]` |
+| `orchestrate` | `bin/commands/orchestrate.ts` | `[I\|P\|A\|B\|C\|D\|status\|reset] [--force] [--json] [--port <port>]` |
 | `dispatch` | `bin/commands/dispatch.ts` | `--agent <name> --task <task> [--mutable] [--scope <path>] [--port <port>] [--watch] [--json]` |
 | `goal` | `bin/commands/goal.ts` | `set <objective>`, `status`, `update <summary>`, `done [note]`, `cancel [reason]`, `pause`, `resume`, `clear`, `reset`, `history [limit]`; `--json` |
 | `worker` | `bin/commands/worker.ts` | `status [agent]`, `watch [agent]`, `--json`, `--port <port>` |
@@ -99,108 +96,61 @@ ide, orchestrate, project
 | `dashboard` | `bin/commands/dashboard.ts` | `serve [--port 24576] [--from 3457] [--count 50] [--no-open]`, `memory {search\|instances\|read\|config\|state\|estimate\|reindex\|help} [--instance <ids>] [--limit N] [--json] [--port <port>]` |
 | `connector` | `bin/commands/connector.ts` | `board add/update/list`, `notes write/list`, `reminders add/list/done`, `audit [--limit N] [--json]` |
 | `reminders` | `bin/commands/reminders.ts` | `list`, `add`, `done`; `--json`, `--priority`, `--due`, `--remind`, message/thread link flags |
-| `project` | `bin/commands/project.ts` | `set <path>[, <path>...]`, `reset`/`clear`, `list` (instance projectDirs 관리; diff panel root candidates에 사용) |
+| `project` | `bin/commands/project.ts` | `set <path>[, <path>...]`, `reset`/`clear`, `list` (instance projectDirs 관리) |
 
 ---
 
 ## Command Behavior Notes
 
-### `/commands` (alias: `/cmd`)
-
-- CLI 전용.
-- command palette 오버레이를 연다.
-- TUI에서 `Ctrl+K`와 같은 UI 경로를 공유한다.
-
 ### `/clear`
 
 4-tier cleanup system (`/clear` < `/clear all` < `/purge` < `/reset confirm`):
 
-- `/clear` — session clear only. `ctx.clearSession()` 호출. CLI/Web에서는 `code: 'clear_screen'` 반환으로 UI clear도 유도. Telegram/Discord에서는 안내 텍스트만 반환하지만 remote ctx의 `clearSession()`은 먼저 실행된다.
-- `/clear all` — skills reset + employees reset + MCP sync + session reset. `resetSkills()` → `resetEmployees()` → `syncMcp()` → `resetSession()` 순서.
-- `/purge` — session clear + memory wipe. `clearSession()` 후 `memory/structured/` 디렉토리를 삭제·재생성한다. UI clear도 유도한다.
-- `/reset confirm` — full factory reset. `confirm` 없으면 확인 메시지 반환. `confirm`이면: `resetSkills()` → `resetEmployees()` → `syncMcp()` → `resetSession()` + memory wipe.
-
-서버 측 `POST /api/clear`는 UI-only broadcast라서 slash `/clear`와 의미가 다르다.
-
-### `/reset [confirm]`
-
-- 4-tier cleanup의 최상위 단계 (위 `/clear` 참조).
-- `confirm` 없으면 확인 메시지 반환.
-- `confirm`이면 가능한 범위에서 다음을 순서대로 실행한다:
-  `resetSkills()` → `resetEmployees()` → `syncMcp()` → `resetSession()` + memory wipe
-- 현재 Web/remote ctx의 `resetSession()`은 메시지 history를 지우지 않고 session ID만 비운다.
-
-### Workflow slash commands
-
-- `/plan [request|status|copy]`: 다른 CLI의 `/plan` 습관을 cli-jaw에 맞춰 설명하는 compatibility command. 새 plan mode를 만들지 않고 "cli-jaw에서는 이게 PABCD P"라고 안내하며, 필요하면 `/interview`, `/deliberate`, `/planaudit`, `/orchestrate P`로 이어가게 한다. 결과는 non-authoritative local-cache workflow artifact다.
-- `/interview <request>`: IPABCD I(Interview) 상태 머신으로 진입. 요구사항을 라운드당 1~3개 질문으로 좁히며, LLM이 응답마다 `<interview_tracker>` 블록으로 known/unknown을 구조화 추출한다. 이 트래커는 `OrcContext.interview`(known/unknown/round)에 저장되고 `orc_state` WS로 Web UI interview 패널에 실시간 표시되며, 충분히 명확해지면 P로 전환. 인터뷰 데이터는 워크로그를 생성하지 않는다.
-- `/deliberate <request-or-plan>`: Planner/Architect/Critic 관점으로 계획을 점검하는 prompt-only workflow.
-- `/planaudit [plan]`: PABCD A에서 직원에게 보낼 수 있는 읽기 전용 감사 task text를 만든다. Phase 1 canonical name은 원격 메뉴 안전성을 위해 `/planaudit`이며 `/plan-audit` alias는 없다.
-- `/goal [set|status|run|done|cancel|pause|resume|clear|reset|history] [args...]`: Persistent goal lifecycle management. Subcommands: `set <objective>` (create goal), `status`/`--json` (show active), `update <summary> [--evidence <notes>]` (add checkpoint), `done [note]` (complete), `cancel [reason]`, `pause`, `resume`, `clear` (remove active), `reset` (wipe store+history), `history [limit]`. `/goal run` has sub-subcommands: `preflight` (gate check), `start` (begin bounded run), `stop [reason]`, `status`. Goal state is persisted via `src/goal/store.ts`; bounded run via `src/goal-run/controller.ts`.
-- `/team [plan|audit|status|collect|stop] [args...]`: 여러 worker를 병렬로 쓰는 team orchestration helper다. workflow category라 root cmdline contract에서는 숨긴다.
-- `/autopilot`: 등록하지 않는다. 자동 실행은 별도 top-level command가 아니라 `/goal run ...` 하위 동작이다.
-- workflow commands는 CLI/Web/Telegram/Discord에 보이지만 root `cmdline` capability에서는 hidden이다. Telegram/Discord가 `c.name`을 직접 등록하므로 remote command name은 lowercase/digit/underscore-safe 이름만 사용한다.
-- 등록되지 않은 slash command는 원문 프롬프트를 `originalText`/`recovery.originalText`로 되돌려 주고, Web UI는 입력창에 다시 넣기/복사 액션을 표시한다. 이 복구 결과도 non-authoritative local-cache workflow artifact로 저장된다.
-
-### Workflow Artifact Contract
-
-- 기본 저장 위치는 `JAW_HOME/artifacts/workflows/<projectKey>/<YYYY-MM-DD>/<artifactId>.json`이다.
-- `projectKey`, 날짜, artifact id는 path traversal/absolute path escape를 거부한다.
-- `/plan`과 unknown command recovery artifact는 기본적으로 비영구 안내 자료다. PABCD worklog, devlog, memory, project file로 승격하려면 사용자의 명시 액션이 필요하다.
-- authoritative source of truth는 여전히 PABCD worklog와 사용자가 지정한 Jawdev/devlog 파일이다.
+- `/clear` — session clear only. CLI/Web에서는 `code: 'clear_screen'` 반환으로 UI clear도 유도.
+- `/clear all` — skills reset + employees reset + MCP sync + session reset.
+- `/purge` — session clear + memory wipe.
+- `/reset confirm` — full factory reset.
 
 ### `/model [name]` / `/cli [name]`
 
 - 값이 없으면 현재 상태 조회.
 - 값이 있으면 `settings.perCli[activeCli].model` 또는 `settings.cli`를 갱신한다.
-- remote interface에서도 허용된다.
-- `/cli agy`는 `agy -p` print-mode runtime surface를 선택한다. 저장된 세션 재개는 `agy --conversation <sessionId> -p <prompt>`를 사용하고, `-c`/`--continue`는 최신 대화 재개라 bucket persistence에는 쓰지 않는다. 모델은 native AGY UI에서 현재 선택된 값을 사용하며, cli-jaw는 per-run model/effort flag를 넘기지 않는다. 인증은 실행 시 `agy`가 직접 판정한다.
-- `/cli claude-e`는 Claude E runtime surface를 선택한다. helper는 `CLAUDE_E_BIN`, bundled npm `claude-e`, PATH `claude-e`, compatibility `claude-exec`, legacy `jaw-claude-i` / `claude-i`, `native/jaw-claude-i/target/{release,debug}/jaw-claude-i` fallback 순으로 탐지되며, `jaw doctor`는 runtime과 underlying `claude`를 별도로 점검한다.
 
 ### `/fallback [cli1 cli2...|off]`
 
 - `fallbackOrder`를 설정하거나 해제한다.
-- 허용 대상은 `settings.perCli`에 등록된 CLI 키다.
 
 ### `/forward [on|off]`
 
 - 현재 remote channel 또는 active channel의 `forwardAll` 값을 조정한다.
-- Telegram/Discord remote UX에 맞춰 channel별 patch shape를 다르게 만든다.
 
 ### `/thought [status|on|off]`
 
-- Gemini thought visibility toggle.
-- 값이 없거나 `status`면 `settings.showReasoning === true` 기준으로 `ON/OFF`를 보여준다.
-- `on|off`는 `ctx.updateSettings({ showReasoning })`로 저장한다.
-- stream 처리에서는 Gemini thought/thinking content가 `fullText`에 들어가지 않는다. `showReasoning`이 켜진 경우에만 process-step(`agent_tool`, `toolType: 'thinking'`)로 보이고, 꺼진 경우 trace에는 hidden marker만 남는다.
+- Gemini thought visibility toggle. `settings.showReasoning`을 저장한다.
 
 ### `/flush [cli] [model] | off`
 
 - memory flush 전용 CLI/model override를 설정한다.
-- `off`/`reset`이면 `settings.memory.cli`, `settings.memory.model`을 비운다.
-- 모델만 넣으면 registry 기반으로 CLI를 역추론한다.
-- Claude legacy model name은 힌트 맵으로 `claude`에 귀속된다.
-- AGY flush를 지정하면 `agy -p` plain-text 경로를 쓰며 native AGY UI의 현재 선택 모델을 따른다. model/effort flag는 넘기지 않는다.
-- Grok flush를 지정하면 표준 `grok -p ... --output-format streaming-json` 경로를 쓰지만, `grok-build`에는 `--effort`를 넘기지 않는다.
 
-### `/skill [list|reset]`
+### Workflow slash commands
 
-- `list`: active/ref count 반환
-- `reset`: `runSkillReset()` 기반 soft reset
+- `/plan [request|status|copy]`: PABCD P 안내 compatibility command.
+- `/interview <request>`: IPABCD I(Interview) 상태 머신으로 진입.
+- `/deliberate <request-or-plan>`: Planner/Architect/Critic 관점으로 계획을 점검.
+- `/planaudit [plan]`: PABCD A에서 직원에게 보낼 읽기 전용 감사 task text를 만든다.
+- `/goal [set|status|run|done|cancel|pause|resume|clear|reset|history] [args...]`: Persistent goal lifecycle management.
+- `/team [plan|audit|status|collect|stop] [args...]`: 여러 worker를 병렬로 쓰는 team orchestration helper.
 
-### `/employee reset`
+### `/steer <prompt>`
 
-- 기본 직원 세트를 재시드한다.
+- Web/Telegram/Discord에서 실행 가능. CLI slash registry에는 노출되지 않는다.
+- 실행 중 agent가 없으면 에러. 실행 중이면 kill 후 재지시.
 
-### `/mcp [sync|install]`
+### `/orchestrate` (alias: `/pabcd`)
 
-- 인자 없으면 서버 목록 조회
-- `sync`: `syncToAll(loadUnifiedMcp())`
-- `install`: install 후 sync까지 수행
+- PABCD explicit entry. `jaw orchestrate P|A|B|C|D|I|status|reset`는 root CLI transition/control surface.
 
 ### `/memory`
-
-기본 동작은 list 또는 search다. 추가 subcommand가 많이 붙었다.
 
 | Form | 동작 |
 | --- | --- |
@@ -211,107 +161,58 @@ ide, orchestrate, project
 | `/memory reindex` | memory reindex |
 | `/memory flush` | memory flush trigger |
 | `/memory adv ...` | integrated memory runtime 상태/초기화/bootstrap/reindex 래퍼 |
-| `/memory embed status` | slash/runtime embedding state (state/mode/provider/chunks/DB size) |
-| `/memory embed estimate` | slash/runtime embedding cost estimate (chunks/batches/seconds/cost) |
+| `/memory embed status` | embedding state (state/mode/provider/chunks/DB size) |
+| `/memory embed estimate` | embedding cost estimate (chunks/batches/seconds/cost) |
 
 ### `/browser [status|tabs]`
 
 - 브라우저 상태 또는 열린 탭을 요약한다.
-- 실제 browser automation command surface는 별도 `bin/commands/browser.ts`와 server browser API가 담당한다.
-- `jaw browser fetch <url>`는 slash search가 아니라 root CLI URL-reader다. known public endpoint, direct fetch, metadata/feed/oEmbed discovery, opt-in third-party reader, and optional browser render/network JSON escalation을 순서대로 시도한다.
-- CAPTCHA/login/paywall/stealth 우회가 목적이 아니며, public/non-browser path로 읽을 수 있는 면을 먼저 넓히고 막힌 boundary는 `blocked`, `auth_required`, `challenge`, `paywall`, `browser_required`로 드러낸다.
-
-### `/prompt`
-
-- 현재 A2 prompt를 읽어 상위 20줄까지만 preview 한다.
-
-### `/steer <prompt>`
-
-- Web/Telegram/Discord에서 실행 가능. CLI slash registry에는 노출되지 않는다.
-- 실행 중 agent가 없으면 에러.
-- 실행 중이면 kill 후:
-  remote는 `type: 'steer'` signal을 반환하고,
-  web은 `submitMessage()`로 직접 재지시한다.
-
-### `/orchestrate` (alias: `/pabcd`)
-
-- PABCD explicit entry.
-- auto-activation 제거 후 명시적 진입점으로만 유지된다.
-- `jaw orchestrate P|A|B|C|D|status|reset`는 root CLI transition/control surface다.
-- `/continue`는 worklog/PABCD resume 전용 intent다. Natural-language “continue/계속/이어서”은 더 이상 resume trigger가 아니다.
 
 ---
 
-### `jaw dashboard memory` (federation search)
+## Registry.ts — CLI / Model Source of Truth
 
-L2 cross-instance read-only memory search. Fans out queries to all `~/.cli-jaw-*` instance SQLite indexes via the dashboard manager server. Use L1 `jaw memory search/read/save` first for normal current-instance memory; use L2 only for explicit dashboard/all-instance/another-home/cross-instance context.
+`src/cli/registry.ts` (213L)
 
-| Subcommand | 동작 |
-| --- | --- |
-| `search <query...>` | FTS5 BM25 + trigram fan-out search across instances |
-| `instances` / `list` | List discovered instances with DB status |
-| `read <instanceId:path>` | Read a `.md` memory file from a specific instance |
-| `config get` | Get embedding provider configuration |
-| `config set [--provider X] [--api-key X] [--mode X] [--enabled|--disabled]` | Set optional embedding provider configuration |
-| `state` / `embed-state` | Embedding state (state/mode/provider/chunks/DB size/last sync); embedding is default OFF |
-| `estimate` / `embed-estimate` | Embedding cost estimate (chunks/batches/seconds/cost) |
-| `reindex --embedding` | Trigger full re-embedding of all memory chunks |
-| no subcommand | Show memory subcommand help |
+현재 CLI registry는 12개 top-level runtime을 갖는다.
 
-| Option | 동작 |
-| --- | --- |
-| `--instance <ids>` | Comma-separated instance filter (e.g., `3457,3458`) |
-| `--limit <N>` | Max results (default: 50, max 200) |
-| `--json` | Raw JSON output |
-| `--port <port>` | Dashboard manager port (default: `DASHBOARD_PORT` env or 24576) |
+| CLI | Default Model | Default Effort |
+| --- | --- | --- |
+| `agy` | *(TUI-managed)* | `''` |
+| `ai-e` | `sonnet` | `medium` |
+| `claude` | `sonnet` | `medium` |
+| `claude-e` | `sonnet` | `medium` |
+| `codex` | `gpt-5.5` | `medium` |
+| `codex-app` | `gpt-5.5` | `medium` |
+| `cursor` | `composer-2.5` | `medium-fast` |
+| `gemini` | `gemini-3-flash-preview` | `''` |
+| `grok` | `grok-build` | `''` |
+| `kiro-code` | `auto` | `''` |
+| `opencode` | `opencode-go/kimi-k2.6` | `''` |
+| `copilot` | `claude-sonnet-4.6` | `high` |
 
-Security: `/read` rejects symlinks, path traversal, non-`.md` extensions, and files > 256KB. Origin guard (`requireManagerOrigin`) protects all routes.
-
----
-
-### Root CLI release gates
-
-`package.json` exposes named release gates through `scripts/release-gates.mjs`:
-
-```text
-gate:typecheck, gate:tests, gate:truth-table-fresh,
-gate:mcp-scope-frozen, gate:no-experimental-in-readme-ready-section, gate:all
-```
-
-Use `npm run gate:all` as the broad docs/release sanity command when available.
-
-Claude E의 vendored native fallback helper는 release gate와 별도로 `npm run build:claude-exec`(Rust release build)와 `npm run test:claude-exec`(Rust test)를 제공한다. 기존 `build:claude-i` / `test:claude-i`는 호환 alias다.
+`CLI_KEYS`, `buildDefaultPerCli()`, `buildModelChoicesByCli()`가 `/cli`, `/model`, `/flush` completion과 settings 기본값 생성에 모두 재사용된다.
 
 ---
 
 ## CommandContext 통합
 
-`src/cli/command-context.ts`
+`src/cli/command-context.ts` (140L)
 
 ### 공통 필드
 
-- `interface`
-- `locale`
-- `version`
-- `getSession()`
-- `getSettings()`
-- `updateSettings()`
-- `getRuntime()`
-- `getSkills()`
-- `clearSession()`
-- `resetSession()`
-- `getCliStatus()`
+- `interface`, `locale`, `version`
+- `getSession()`, `getSettings()`, `updateSettings()`, `getRuntime()`
+- `getSkills()`, `clearSession()`, `resetSession()`, `getCliStatus()`
 - MCP / Memory / Browser / Employees / Skills / Prompt helpers
 
 ### remote settings patch 제한
 
-Telegram/Discord는 아래 키만 patch 가능하다.
+Telegram/Discord는 아래 키만 patch 가능하다:
 
 ```text
 fallbackOrder, cli, perCli, showReasoning, memory, telegram, discord
 ```
-
-즉 remote에서 `/model`, `/cli`, `/fallback`, `/thought`, `/flush`, `/forward`는 가능하지만 임의 settings write는 막힌다.
 
 ---
 
@@ -328,68 +229,18 @@ fallbackOrder, cli, perCli, showReasoning, memory, telegram, discord
 | `hidden` | 목록/실행 모두 숨김 |
 | `blocked` | 목록은 가능할 수 있으나 실행 차단 |
 
-현재 `REMOTE_READONLY`는 비어 있다. 즉 Telegram/Discord 노출 커맨드는 전부 `full` capability다.
-
 ### `cmdline` hidden 세트
-
-다음 14개는 명시 hidden set으로, workflow category 6개는 category rule로 루트 CLI 서브커맨드 관점에서 숨긴다.
 
 ```text
 help, clear, model, cli, fallback, status, reset,
 skill, employee, mcp, memory, browser, prompt, version
 ```
 
-그 결과 `cmdline` visible command는 11개다. `file`은 slash registry에서는 hidden이지만 `cmdline` capability hidden set에는 없어서 contract visible 쪽에 남고, `plan`/`interview`/`deliberate`/`planaudit`/`goal`/`team`은 workflow category라 hidden 처리된다.
-
-### `getTelegramMenuCommands()`
-
-- bot 자체 처리인 `start`, `id`, `settings`만 제외한다.
-- 나머지는 `getVisibleCommands('telegram')` 기준으로 메뉴에 남긴다.
-
----
-
-## Registry.ts — CLI / Model Source of Truth
-
-`src/cli/registry.ts`
-
-현재 CLI registry는 12개 top-level runtime을 갖는다. `agy`와 `cursor`는 `ai-e` provider가 아니라 별도 runtime이며, `ai-e`/`claude-e`/`codex-app` 같은 wrapper runtime은 provider quota/status를 위임한다.
-
-| CLI | Default Model | Default Effort |
-| --- | --- | --- |
-| `agy` | `gemini-3.5-flash` | `''` |
-| `ai-e` | `sonnet` | `medium` |
-| `claude` | `sonnet` | `medium` |
-| `claude-e` | `sonnet` | `medium` |
-| `codex` | `gpt-5.4` | `medium` |
-| `codex-app` | `gpt-5.4` | `medium` |
-| `cursor` | `composer-2.5` | `medium-fast` |
-| `gemini` | `gemini-3-flash-preview` | `''` |
-| `grok` | `grok-build` | `''` |
-| `opencode` | `opencode-go/kimi-k2.6` | `''` |
-| `copilot` | `claude-sonnet-4.6` | `high` |
-| `kiro-code` | `auto` | `''` |
-
-`CLI_KEYS`, `buildDefaultPerCli()`, `buildModelChoicesByCli()`가 `/cli`, `/model`, `/flush` completion과 settings 기본값 생성에 모두 재사용된다.
-
----
-
-## Claude Model Normalization (`claude-models.ts`)
-
-| Export | 역할 |
-| --- | --- |
-| `CLAUDE_CANONICAL_MODELS` | `opus`, `sonnet`, `sonnet[1m]`, `haiku` |
-| `CLAUDE_LEGACY_VALUE_MAP` | 레거시 full-name → canonical alias |
-| `migrateLegacyClaudeValue()` | settings / employee / memory model 마이그레이션 |
-| `getDefaultClaudeModel()` | 기본값 `sonnet` |
-| `getDefaultClaudeChoices()` | canonical choices 반환 |
-
-`opus[1m]` 입력값은 현재 `CLAUDE_LEGACY_VALUE_MAP`에서 `opus`로 정규화된다. startup employee DB migration에는 아직 `opus[1m]` 대상 row가 남아 있어, registry choice와 startup migration text가 완전히 같은 source는 아니다.
+Workflow category commands (`plan`, `interview`, `deliberate`, `planaudit`, `goal`, `team`)도 `cmdline`에서 hidden 처리된다.
 
 ---
 
 ## CLI API Auth (`api-auth.ts`, 45L)
-
-CLI/TUI command client가 server token bootstrap을 공통으로 사용한다.
 
 | Export | 역할 |
 | --- | --- |
@@ -397,37 +248,37 @@ CLI/TUI command client가 server token bootstrap을 공통으로 사용한다.
 | `authHeaders(extra?)` | `Authorization: Bearer <token>` 병합 |
 | `cliFetch(url, init)` | origin 기준 token 확보 후 fetch |
 
-사용처:
+---
 
-- `bin/commands/browser.ts`
-- `bin/commands/memory.ts`
-- `bin/commands/dispatch.ts`
-- `bin/commands/worker.ts`
-- `bin/commands/reset.ts`
-- `bin/commands/orchestrate.ts`
-- `bin/commands/employee.ts`
-- `bin/commands/tui/api.ts`
+## `jaw dashboard memory` (federation search)
 
-주의점:
+L2 cross-instance read-only memory search.
 
-- Web 브라우저는 same-origin에서만 `/api/auth/token`을 받을 수 있다.
-- CLI는 `Sec-Fetch-Site`를 보내지 않으므로 token bootstrap이 허용된다.
+| Subcommand | 동작 |
+| --- | --- |
+| `search <query...>` | FTS5 BM25 + trigram fan-out search across instances |
+| `instances` / `list` | List discovered instances with DB status |
+| `read <instanceId:path>` | Read a `.md` memory file from a specific instance |
+| `config get` | Get embedding provider configuration |
+| `config set [--provider X] [--api-key X] [--mode X] [--enabled\|--disabled]` | Set embedding provider configuration |
+| `state` / `embed-state` | Embedding state (state/mode/provider/chunks/DB size/last sync) |
+| `estimate` / `embed-estimate` | Embedding cost estimate (chunks/batches/seconds/cost) |
+| `reindex --embedding` | Trigger full re-embedding of all memory chunks |
+
+| Option | 동작 |
+| --- | --- |
+| `--instance <ids>` | Comma-separated instance filter |
+| `--limit <N>` | Max results (default: 50, max 200) |
+| `--json` | Raw JSON output |
+| `--port <port>` | Dashboard manager port (default: 24576) |
 
 ---
 
-## Web UI Slash Commands
+## Root CLI release gates
 
-`public/js/features/slash-commands.ts`
+```text
+gate:typecheck, gate:tests, gate:truth-table-fresh,
+gate:mcp-scope-frozen, gate:no-experimental-in-readme-ready-section, gate:all
+```
 
-- `/` 입력 시 command completion dropdown 표시
-- `GET /api/commands?interface=web`로 command 목록 로드
-- workflow metadata(`phase`/`risk`/`output`/`workflowArgs`)는 compact chip과 structured arg string으로 렌더한다.
-- 방향키/Enter/Esc 지원
-- 실행은 `POST /api/command`
-
-default TUI는 일부 no-arg command를 selector overlay로 가로챈다.
-
-- `/model`
-- `/cli`
-
-선택 결과는 settings를 직접 쓰지 않고, `/<command> <value>` 문자열을 합성해 기존 command 실행 경로로 다시 넣는다.
+Use `npm run gate:all` as the broad docs/release sanity command.

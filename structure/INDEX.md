@@ -17,13 +17,16 @@ aliases: [CLI-JAW Architecture Reference, cli-jaw 구조 허브, structure index
 ```mermaid
 graph LR
     CLI["bin/commands/*"] -->|HTTP| SRV["server.ts (glue)"]
+    TUI["src/cli/tui/"] -->|HTTP| SRV
     WEB["public/"] -->|HTTP+WS| SRV
     TG["Telegram Bot"] -->|HTTP| SRV
     DC["Discord Bot"] -->|HTTP| SRV
+    ELEC["electron/"] -->|HTTP+WS| SRV
     DASH["jaw dashboard (port 24576)"] -->|scan/proxy| MGR["src/manager/"]
     SRV --> ROUTES["src/routes/*"]
     ROUTES --> CORE["src/core/"]
     ROUTES --> AGT["src/agent/"]
+    ROUTES --> GOAL["src/goal/"]
     ROUTES --> ORC["src/orchestrator/"]
     ROUTES --> PRM["src/prompt/"]
     ROUTES --> MEM["src/memory/"]
@@ -32,11 +35,13 @@ graph LR
     ROUTES --> DCMOD["src/discord/"]
     ROUTES --> BR["src/browser/"]
     ROUTES --> CMD["src/cli/"]
+    ROUTES --> TEAM["src/team/"]
+    ROUTES --> CEO["src/jaw-ceo/"]
     ORC --> AGT
     AGT --> NATIVE["native/jaw-claude-i"]
 ```
 
-4개 인터페이스(CLI, Web, Telegram, Discord)는 `server.ts`를 경유하고, `server.ts`는 인증/보안/WS/bootstrap을 맡은 뒤 `src/routes/`의 12개 route registrar와 2개 shared helper(`types.ts`, `quota.ts`)로 API를 위임합니다. Browser route registrar는 일반 CDP primitive, runtime doctor/cleanup, `web-ai` ChatGPT/Gemini/Grok 자동화 API를 함께 제공하므로 route 수가 가장 큽니다. 별도 `jaw dashboard serve` manager 서버는 notes/search/schedule/reminders/board surface를 `src/manager/`에서 제공한다. Process/tool logs는 `src/shared/tool-log-sanitize.ts`에서 WS와 snapshot 저장 전에 cap/truncate되어 Manager 대시보드 메모리 폭주를 막습니다.
+5개 인터페이스(CLI, TUI, Web, Telegram, Discord) + Electron 데스크톱은 `server.ts`를 경유하고, `server.ts`(903L)는 인증/보안/WS/bootstrap을 맡은 뒤 `src/routes/`의 23개 route registrar로 API를 위임합니다(총 180 handlers). `src/goal/`은 goal-mode autonomy(completion evidence gate)를 관리하고, `src/team/`은 multi-agent dispatch planning, `src/jaw-ceo/`는 OpenAI Realtime CEO channel을 제공합니다. 별도 `jaw dashboard serve` manager 서버는 notes/search/schedule/reminders/board surface를 `src/manager/`에서 제공한다. Process/tool logs는 `src/shared/tool-log-sanitize.ts`에서 WS와 snapshot 저장 전에 cap/truncate되어 Manager 대시보드 메모리 폭주를 막습니다.
 
 ---
 
@@ -60,13 +65,13 @@ graph LR
 | [AGENTS.md](AGENTS.md) | Command/API/README/CLAUDE 변경 시 동기화 체크리스트 | 동기화, 체크리스트, 변경관리 |
 | [str_func.md](str_func.md) | 전체 파일 트리 + 함수 시그니처 레퍼런스 | 파일트리, 함수, 마스터맵 |
 | [prompt_flow.md](prompt_flow.md) | 프롬프트가 조립되는 9단계 파이프라인 | 프롬프트, 파이프라인, 주입 |
-| [agent_spawn.md](agent_spawn.md) | CLI spawn + ACP 분기 + AGY print-mode + Cursor stream-json runtime + Claude Interactive helper + Gemini full-access flags + Grok streaming-json runtime + 오케스트레이션 | spawn, ACP, AGY, Cursor, claude-e, Gemini, Grok, 멀티에이전트 |
+| [agent_spawn.md](agent_spawn.md) | CLI spawn + ACP 분기 + AGY print-mode + Cursor stream-json + Claude E + Gemini + Grok + Kiro-code + Goal autonomy + 오케스트레이션 | spawn, ACP, AGY, Cursor, claude-e, Gemini, Grok, Kiro, Goal, 멀티에이전트 |
 | [memory_architecture.md](memory_architecture.md) | History Block + Flush + Advanced Runtime + Task Snapshot | 메모리, flush, runtime, snapshot |
 | [infra.md](infra.md) | config, db, bus, security 등 코어 모듈 | 인프라, SQLite, EventBus |
-| [commands.md](commands.md) | 31개 슬래시 커맨드 + workflow category(`/interview`, `/deliberate`, `/planaudit`, `/goal`, `/team`; 자동 실행은 `/goal run ...`) + root CLI 22개 user-facing command + 11개 CLI registry runtime | 커맨드, 디스패처, 레지스트리 |
-| [server_api.md](server_api.md) | `server.ts` 글루 + `src/routes/` API 143 handlers / 142 endpoints + 41 WebSocket events | REST, WebSocket, 라우트 |
+| [commands.md](commands.md) | 33개 슬래시 커맨드 + workflow category(`/interview`, `/deliberate`, `/planaudit`, `/goal`, `/team`; 자동 실행은 `/goal run ...`) + root CLI 24개 user-facing command + 11개 CLI registry runtime | 커맨드, 디스패처, 레지스트리 |
+| [server_api.md](server_api.md) | `server.ts` 글루 + `src/routes/` API 180 handlers + 41 WebSocket events | REST, WebSocket, 라우트 |
 | [stream-events.md](stream-events.md) | CLI NDJSON 이벤트 트레이스 + Grok streaming-json + ProcessBlock 매핑 | NDJSON, stepRef, ProcessBlock, Grok |
-| [🎨 frontend.md](frontend.md) | `public/` 소스/자산 553개(`dist` 제외) + `public/dist/` 생성물 482개, slash workflow chips, Manager notes/search/settings/reminders/WYSIWYG, interview tracker panel, ProcessBlock 렌더링 | 프론트엔드, Vite 8, PWA, ProcessBlock |
+| [🎨 frontend.md](frontend.md) | `public/` 소스/자산 + Electron 데스크톱, slash workflow chips, Manager notes/search/settings/reminders/WYSIWYG, interview tracker panel, MCP settings page, kiro-code provider UI, ProcessBlock 렌더링 | 프론트엔드, Vite 8, PWA, Electron, ProcessBlock |
 | [frontend_modernization_analysis.md](frontend_modernization_analysis.md) | 8개 현대화 제안의 비용-편익 분석 | 리팩터링, 비용분석, 마이그레이션 |
 | [telegram.md](telegram.md) | Telegram 봇 + heartbeat + 음성 STT | 텔레그램, 하트비트, STT |
 | [prompt_basic_A1.md](prompt_basic_A1.md) | 시스템 프롬프트 기본값 (A-1.md) | 시스템규칙, 기본값 |
@@ -170,4 +175,4 @@ Support labels must stay aligned with agbrowse:
 
 ---
 
-*마지막 갱신: 2026-05-30 (`server.ts` 882L, `src/routes/` 22 files, `src/routes/browser.ts` 475L, `src/manager/` 77 TS/TSX files / 12352L, `src/browser/web-ai/` 68 TS files / 12616L, `src/browser/adaptive-fetch/` 18 TS mirror files, `src/agent/` 37 TS files, `native/jaw-claude-i/` 15 Rust source files / 1956L, `bin/commands/` 25 top-level ts files + `tui/` 7 helper, `public/js/` 80 .ts, tests 476 .test.ts / unit 447 .test.ts 기준)*
+*마지막 갱신: 2026-05-31 (`server.ts` 903L, `src/routes/` 23 files, `src/agent/` 40 TS files, `src/goal/` 4 TS files, `src/cli/tui/` 22 TS files, `src/manager/` 77 TS/TSX files, `src/browser/web-ai/` 68 TS files, `src/browser/adaptive-fetch/` 18 TS files, `native/jaw-claude-i/` 15 Rust source files, `bin/commands/` 34 TS files, `public/js/` 81 .ts, `electron/` 25 TS files 기준)*

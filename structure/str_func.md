@@ -278,6 +278,7 @@ cli-jaw/
 │   ├── shared/               ← 공유 유틸리티 (2 files) ✨
 │   │   ├── tool-log-sanitize.ts ← tool log sanitization helpers (205L)
 │   │   └── shell-command-display.ts ← shell command display formatter (48L)
+│   ├── manager/              ← Multi-instance 대시보드 매니저 (80+ TS files; board/notes/search/schedule/reminders/connector/routes/memory/git 서브모듈)
 │   ├── team/                 ← Team dispatch planner (5 files, 323L) ✨
 │   │   ├── planner.ts        ← team task planning logic (75L)
 │   │   ├── collector.ts      ← team result collector (66L)
