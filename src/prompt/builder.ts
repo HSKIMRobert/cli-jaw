@@ -711,7 +711,7 @@ export function getEmployeePromptV2(
     prompt += `\n- Report results clearly with specific file paths and line numbers`;
     prompt += `\n- Your process cwd may be an isolated temporary directory. Do NOT treat process.cwd() as the repository root.`;
     prompt += `\n- Use the task's ## Workspace Context block as the source of truth for Project root and Devlog root.`;
-    prompt += `\n- Resolve relative repository paths against Project root, and prefer absolute paths in commands and reports.`;
+    prompt += `\n- Resolve relative repository paths against Project root, and always use absolute paths in commands and reports.`;
 
     prompt += `\n\n## Delegation Rules`;
     prompt += `\n- Execute the assigned task directly in this employee session.`;
