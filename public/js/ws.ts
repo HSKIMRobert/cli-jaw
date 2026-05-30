@@ -135,7 +135,9 @@ async function refreshRuntimeSnapshot(options: { hydrateRun?: boolean } = {}): P
     if (options.hydrateRun) hydrateActiveRun(snap.activeRun);
     hydrateGoalState();
     setStatus(snap.runtime.busy ? 'running' : 'idle');
-    if (snap.runtime.busy && snap.activeRun?.cli === 'agy') showLiveToolActivity(`${providerLabel(snap.activeRun.cli)} working...`);
+    if (snap.runtime.busy && (snap.activeRun?.cli === 'agy' || snap.activeRun?.cli === 'kiro-code')) {
+        showLiveToolActivity(`${providerLabel(snap.activeRun.cli)} working...`);
+    }
     import('./features/employees.js').then(m => {
         if (typeof m.renderEmployees === 'function') m.renderEmployees();
     });
@@ -580,10 +582,14 @@ export function connect(): void {
         if (msg.type === 'agent_status') {
             if (msg.running !== undefined) {
                 setStatus(msg.running ? 'running' : 'idle');
-                if (msg.running && msg.cli === 'agy') showLiveToolActivity(`${providerLabel(msg.cli)} working...`);
+                if (msg.running && (msg.cli === 'agy' || msg.cli === 'kiro-code')) {
+                    showLiveToolActivity(`${providerLabel(msg.cli)} working...`);
+                }
             } else {
                 setStatus(msg.status || 'idle');
-                if (msg.status === 'running' && msg.cli === 'agy') showLiveToolActivity(`${providerLabel(msg.cli)} working...`);
+                if (msg.status === 'running' && (msg.cli === 'agy' || msg.cli === 'kiro-code')) {
+                    showLiveToolActivity(`${providerLabel(msg.cli)} working...`);
+                }
             }
             // Track per-agent phase for badge rendering
             if (msg.agentId && msg.phase) {
@@ -631,7 +637,7 @@ export function connect(): void {
                 status: (msg.status as 'running' | 'done' | 'error') || 'running',
                 startTime: Date.now(),
             });
-        } else if (msg.type === 'agent_output') {
+        } else if (msg.type === 'agent_output' || msg.type === 'agent_chunk') {
             appendAgentText(msg.text || '');
         } else if (msg.type === 'agent_retry') {
             const retryDelay = Number(msg.delay ?? 0);

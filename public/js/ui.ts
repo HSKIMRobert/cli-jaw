@@ -307,9 +307,11 @@ export function finalizeAgent(text: string, toolLog?: ToolLogEntry[]): void {
         }
         state.currentAgentDiv.removeAttribute(ACTIVE_RUN_HYDRATED_ATTR);
         const content = (state.currentAgentDiv as HTMLElement)?.querySelector('.msg-content');
-        // Live stream is preview-only; agent_done text stays authoritative.
+        // Live stream is preview-only; agent_done text stays authoritative unless stream is longer.
         const streamedText = currentStream ? finalizeStream(currentStream, true) : '';
-        const finalText = text || streamedText;
+        const finalText = text && streamedText && streamedText.length > text.length
+            ? streamedText
+            : (text || streamedText);
         currentStream = null;
         if (content) content.innerHTML = renderMarkdown(finalText);
         if (hasTools && state.currentAgentDiv && !hadProcessBlock && !hasAgentToolBlock(state.currentAgentDiv)) {
@@ -359,6 +361,7 @@ export function finalizeAgent(text: string, toolLog?: ToolLogEntry[]): void {
                     tool_log: durableToolLogJson,
                 }, vs.count));
                 releaseProcessBlockDetails(div);
+                vs.scrollToBottom();
             } else {
                 vs.appendLiveItem(div);
             }
