@@ -419,3 +419,38 @@ subagent 렌더링 변경 이후 tool history의 canonical UI는 `features/proce
 - 2026-05-09 Manager reminders parity 반영: dashboard reminders는 matrix buckets, Top Priority 3, detail popover, drag/drop bucket 이동, sidebar scroll polish를 지원한다.
 - 2026-05-16 STT hardening 반영: Web STT 버튼은 `getUserMedia` pending/MediaRecorder 실패를 UI와 system message로 표면화하고, Manager preview는 부모 포커스 상태에서도 iframe STT 토글을 전달한다. Preview STT 시작 요청은 Jaw CEO realtime voice 세션을 release해서 마이크 점유 충돌을 줄인다.
 - 2026-05-28 preview link escape 반영: Manager preview iframe은 `allow-popups-to-escape-sandbox`를 포함하고, preview proxy HTML에는 외부 http(s) link/form submit을 iframe 내부 navigation 대신 새 탭/기본 브라우저로 보내는 link policy가 주입된다. Web UI markdown/render delegation도 외부 web 링크에 `_blank`/`noopener noreferrer`를 보강한다.
+
+---
+
+## UI 모달/팝업 규약
+
+### 메인 Web UI (public/index.html + public/js/)
+
+모달/팝업은 **`document.body`에 동적 생성**해야 한다. `index.html` 내부(설정 패널 등)에 정적 HTML로 넣으면 안 된다.
+
+**필수 패턴** — `public/js/features/help-dialog.ts` 참조:
+
+1. **overlay**: `document.createElement('div')` → `className = 'modal-overlay'` → `document.body.append(overlay)`
+2. **box**: `className = 'modal-box'` → `role="dialog"` + `aria-modal="true"`
+3. **열기**: `overlay.classList.add('open')` (CSS `display: flex` + 애니메이션)
+4. **닫기**: `overlay.classList.remove('open')` + Esc 키 핸들러
+5. **배경 클릭**: `overlay.addEventListener('click', ...)` — 배경 클릭 시 닫기
+6. **CSS**: `public/css/modals.css`의 `.modal-overlay`, `.modal-box`, `.modal-header`, `.modal-footer` 사용
+
+**금지 사항:**
+- `index.html`에 모달 HTML 정적 삽입 (설정 패널 안에 넣으면 메인 채팅창 위로 안 뜸)
+- `style.display = 'flex'` / `style.display = 'none'` 직접 조작 (`.open` 클래스 토글 사용)
+- 인라인 스타일로 모달 배경/레이아웃 구현 (`modals.css` 클래스 사용)
+
+**이유:** `index.html`의 설정 패널은 사이드바 안에 있어서, 거기에 모달을 넣으면 사이드바 안에서만 렌더링되고 메인 채팅 영역 위로 올라오지 않는다. `document.body`에 추가해야 전체 뷰포트를 덮는 전면 팝업이 된다.
+
+### Manager Dashboard (public/manager/)
+
+Manager의 React 컴포넌트에서는 `Memory.tsx`의 `role="dialog"` + `aria-modal` 패턴을 따른다. `settings-memory-modal*` 클래스 또는 동일 패턴의 커스텀 클래스를 사용한다.
+
+### 두 UI 간 기능 동기화
+
+메인 Web UI와 Manager Dashboard에서 동일 기능을 제공할 때:
+- **백엔드 API는 동일** (`/api/mcp`, `/api/mcp/sync` 등)
+- **프론트엔드만 다름** (Vanilla JS vs React)
+- 기능 추가 시 **양쪽 모두 구현**해야 함 — Web UI만 쓰는 사용자도 있음

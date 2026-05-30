@@ -22,6 +22,7 @@ export type SettingsCategoryId =
 export type SettingsCategoryGroup =
     | 'runtime'
     | 'identity'
+    | 'mcp'
     | 'channels'
     | 'automation'
     | 'integrations'

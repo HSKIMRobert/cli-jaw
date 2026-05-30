@@ -57,20 +57,9 @@ function titleSupportFromEnvelope(data: MessageEnvelope['data']): DashboardActiv
     return 'activity' in data || 'latestAssistant' in data ? 'ready' : 'legacy';
 }
 
-const BUSY_STALE_MS = 2 * 60 * 60_000;
-
-function parseUtcTimestamp(raw: string): number {
-    const iso = raw.includes('T') ? raw : raw.replace(' ', 'T');
-    return Date.parse(iso.endsWith('Z') ? iso : iso + 'Z');
-}
-
-function isActivityBusy(data: MessageEnvelope['data']): boolean {
-    if (!data || !('activity' in data)) return false;
-    const activity = data.activity;
-    if (!activity || activity.role !== 'user') return false;
-    const updatedAt = parseUtcTimestamp(activity.updatedAt);
-    if (Number.isNaN(updatedAt)) return false;
-    return Date.now() - updatedAt < BUSY_STALE_MS;
+function isProcessBusy(data: MessageEnvelope['data']): boolean {
+    if (!data || typeof data !== 'object') return false;
+    return 'processBusy' in data && data.processBusy === true;
 }
 
 async function fetchLatestAssistantMessage(port: number): Promise<{
@@ -86,7 +75,7 @@ async function fetchLatestAssistantMessage(port: number): Promise<{
         latest: notifiableAssistantFromEnvelope(body.data),
         title: activityTitleFromEnvelope(body.data),
         support: titleSupportFromEnvelope(body.data),
-        busy: isActivityBusy(body.data),
+        busy: isProcessBusy(body.data),
     };
 }
 

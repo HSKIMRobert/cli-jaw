@@ -1,13 +1,3 @@
-// Phase 8 — MCP page: structured editor for server cards plus an Advanced
-// JSON view, plus action buttons for sync/install/reset against the
-// unified MCP config (`/api/mcp`).
-//
-// The page owns one synthetic dirty-store key (`mcp.config`) carrying the
-// full normalized config. Save PUTs back with `toPersistShape` to keep the
-// on-disk JSON minimal. Render-time validation (duplicate names, missing
-// commands, malformed env) gates the dirty entry's `valid` flag — invalid
-// configs cannot save.
-
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SettingsPageProps } from '../types';
 import { JsonEditorField } from '../fields';
@@ -21,7 +11,9 @@ import {
 import { InlineWarn } from './components/InlineWarn';
 import { McpServerCard } from './components/McpServerCard';
 import {
+    countInstallBundleCandidates,
     findDuplicateNames,
+    getServerTag,
     makeEmptyServer,
     newServerName,
     normalizeMcpConfig,
@@ -46,6 +38,9 @@ type SyncResultsPayload = {
     servers?: unknown;
 };
 
+type ModalTab = 'active' | 'add';
+type AddSubTab = 'local' | 'remote';
+
 export default function Mcp({ port, client, dirty, registerSave }: SettingsPageProps) {
     const { state, refresh, setData } = usePageSnapshot<unknown>(client, '/api/mcp');
     const [draft, setDraft] = useState<McpConfig>({ servers: {} });
@@ -54,6 +49,18 @@ export default function Mcp({ port, client, dirty, registerSave }: SettingsPageP
     const [advancedValid, setAdvancedValid] = useState(true);
     const [actionState, setActionState] = useState<ActionResult>({ kind: 'idle' });
     const actionRunIdRef = useRef(0);
+
+    const [modalOpen, setModalOpen] = useState(false);
+    const [modalTab, setModalTab] = useState<ModalTab>('active');
+    const [addSubTab, setAddSubTab] = useState<AddSubTab>('local');
+    const [addName, setAddName] = useState('');
+    const [addCommand, setAddCommand] = useState('');
+    const [addArgs, setAddArgs] = useState('');
+    const [addEnv, setAddEnv] = useState('');
+    const [addUrl, setAddUrl] = useState('');
+    const [addHeaders, setAddHeaders] = useState('');
+    const [addError, setAddError] = useState<string | null>(null);
+    const [addPending, setAddPending] = useState(false);
 
     const original = useMemo<McpConfig>(
         () => (state.kind === 'ready' ? normalizeMcpConfig(state.data) : { servers: {} }),
@@ -69,9 +76,7 @@ export default function Mcp({ port, client, dirty, registerSave }: SettingsPageP
     }, [state]);
 
     useEffect(() => {
-        return () => {
-            dirty.remove(DIRTY_KEY);
-        };
+        return () => { dirty.remove(DIRTY_KEY); };
     }, [dirty]);
 
     const names = useMemo(() => Object.keys(draft.servers), [draft]);
@@ -85,6 +90,10 @@ export default function Mcp({ port, client, dirty, registerSave }: SettingsPageP
     const hasFieldErrors = validations.some((v) => v.result.kind === 'invalid');
     const hasDupes = duplicates.size > 0;
     const isValid = !hasFieldErrors && !hasDupes && advancedValid;
+    const bundleCandidates = useMemo(
+        () => countInstallBundleCandidates(draft.servers),
+        [draft],
+    );
 
     const writeDirty = useCallback(
         (next: McpConfig, valid: boolean) => {
@@ -101,7 +110,6 @@ export default function Mcp({ port, client, dirty, registerSave }: SettingsPageP
         (next: McpConfig, nextOrder?: string[]) => {
             setDraft(next);
             if (nextOrder) setOrder(nextOrder);
-            // Recompute validity on the next draft, not the stale `isValid`.
             const ns = nextOrder ?? Object.keys(next.servers);
             const dupes = findDuplicateNames(ns);
             const fieldOk = ns.every(
@@ -115,8 +123,6 @@ export default function Mcp({ port, client, dirty, registerSave }: SettingsPageP
     const onRenameServer = useCallback(
         (oldName: string, nextName: string) => {
             if (oldName === nextName) return;
-            // Preserve insertion order; keep the same card in place even if the
-            // new name collides with a later card (validation surfaces the dupe).
             const nextOrder = order.map((n) => (n === oldName ? nextName : n));
             const nextServers: Record<string, McpServer> = {};
             for (const n of nextOrder) {
@@ -185,9 +191,6 @@ export default function Mcp({ port, client, dirty, registerSave }: SettingsPageP
         if (!(DIRTY_KEY in bundle)) return;
         const body = bundle[DIRTY_KEY];
         const updated = await client.put<unknown>('/api/mcp', body);
-        // /api/mcp PUT returns `{ ok, servers: string[] }` — re-fetch to get the
-        // canonical persisted shape rather than reusing the (possibly trimmed)
-        // request body.
         dirty.clear();
         const fresh = await client.get<unknown>('/api/mcp').catch(() => updated);
         const normalized = normalizeMcpConfig(fresh);
@@ -211,9 +214,7 @@ export default function Mcp({ port, client, dirty, registerSave }: SettingsPageP
                     !window.confirm(
                         `You have unsaved MCP edits. ${label} will use the on-disk config, not your unsaved changes. Continue?`,
                     )
-                ) {
-                    return;
-                }
+                ) { return; }
             }
             const runId = actionRunIdRef.current + 1;
             actionRunIdRef.current = runId;
@@ -235,6 +236,94 @@ export default function Mcp({ port, client, dirty, registerSave }: SettingsPageP
         },
         [client, dirty],
     );
+
+    const resetAddForm = useCallback(() => {
+        setAddName('');
+        setAddCommand('');
+        setAddArgs('');
+        setAddEnv('');
+        setAddUrl('');
+        setAddHeaders('');
+        setAddError(null);
+        setAddPending(false);
+    }, []);
+
+    const openModal = useCallback(() => {
+        setModalTab('active');
+        resetAddForm();
+        setModalOpen(true);
+    }, [resetAddForm]);
+
+    const closeModal = useCallback(() => {
+        setModalOpen(false);
+        resetAddForm();
+    }, [resetAddForm]);
+
+    const handleAddAndSync = useCallback(async () => {
+        const name = addName.trim() || newServerName(Object.keys(original.servers));
+        const server: McpServer = addSubTab === 'remote'
+            ? { url: addUrl.trim(), ...(addHeaders.trim() ? { headers: parseSimpleKV(addHeaders) } : {}) }
+            : {
+                command: addCommand.trim(),
+                ...(addArgs.trim() ? { args: addArgs.split(/\r?\n|,/).map(s => s.trim()).filter(Boolean) } : {}),
+                ...(addEnv.trim() ? { env: parseSimpleKV(addEnv) } : {}),
+            };
+
+        const validation = validateServer(name, server);
+        if (validation.kind === 'invalid') {
+            setAddError(validation.reason);
+            return;
+        }
+        if (original.servers[name]) {
+            setAddError(`Server "${name}" already exists.`);
+            return;
+        }
+
+        setAddPending(true);
+        setAddError(null);
+
+        try {
+            const merged: McpConfig = {
+                ...original,
+                servers: { ...original.servers, [name]: server },
+            };
+            await client.put<unknown>('/api/mcp', toPersistShape(merged));
+            await client.post<unknown>('/api/mcp/sync', {});
+            dirty.clear();
+            const fresh = await client.get<unknown>('/api/mcp').catch(() => merged);
+            const normalized = normalizeMcpConfig(fresh);
+            setDraft(normalized);
+            setOrder(Object.keys(normalized.servers));
+            setData(fresh);
+            await refresh();
+            closeModal();
+        } catch (err: unknown) {
+            setAddError(err instanceof Error ? err.message : String(err));
+            setAddPending(false);
+        }
+    }, [addName, addSubTab, addUrl, addHeaders, addCommand, addArgs, addEnv, original, client, dirty, refresh, setData, closeModal]);
+
+    const handleRemoveFromModal = useCallback(async (name: string) => {
+        const nextServers = { ...original.servers };
+        delete nextServers[name];
+        const merged: McpConfig = { ...original, servers: nextServers };
+        try {
+            await client.put<unknown>('/api/mcp', toPersistShape(merged));
+            await client.post<unknown>('/api/mcp/sync', {});
+            dirty.clear();
+            const fresh = await client.get<unknown>('/api/mcp').catch(() => merged);
+            const normalized = normalizeMcpConfig(fresh);
+            setDraft(normalized);
+            setOrder(Object.keys(normalized.servers));
+            setData(fresh);
+            await refresh();
+        } catch (err: unknown) {
+            setActionState({
+                kind: 'error',
+                message: err instanceof Error ? err.message : String(err),
+            });
+        }
+    }, [original, client, dirty, refresh, setData]);
 
     if (state.kind === 'loading') return <PageLoading />;
     if (state.kind === 'offline') return <PageOffline port={port} />;
@@ -277,15 +366,6 @@ export default function Mcp({ port, client, dirty, registerSave }: SettingsPageP
                         );
                     })}
                 </div>
-                <div className="mcp-servers-actions">
-                    <button
-                        type="button"
-                        className="settings-action"
-                        onClick={onAddServer}
-                    >
-                        Add server
-                    </button>
-                </div>
                 {hasDupes && (
                     <InlineWarn role="alert">
                         Duplicate server name{dupeNames.length === 1 ? '' : 's'}: {dupeNames.join(', ')}.
@@ -294,7 +374,7 @@ export default function Mcp({ port, client, dirty, registerSave }: SettingsPageP
                 )}
                 {hasFieldErrors && !hasDupes && (
                     <InlineWarn role="alert">
-                        Some servers have errors (missing command or invalid name).
+                        Some servers have errors (missing command/URL or invalid name).
                         Saving is blocked until they are fixed.
                     </InlineWarn>
                 )}
@@ -308,6 +388,13 @@ export default function Mcp({ port, client, dirty, registerSave }: SettingsPageP
                     <button
                         type="button"
                         className="settings-action"
+                        onClick={openModal}
+                    >
+                        + Add, Set MCP
+                    </button>
+                    <button
+                        type="button"
+                        className="settings-action"
                         disabled={actionState.kind === 'pending'}
                         onClick={() => void runAction('Sync to all CLIs', '/api/mcp/sync')}
                     >
@@ -316,10 +403,10 @@ export default function Mcp({ port, client, dirty, registerSave }: SettingsPageP
                     <button
                         type="button"
                         className="settings-action"
-                        disabled={actionState.kind === 'pending'}
+                        disabled={actionState.kind === 'pending' || bundleCandidates === 0}
                         onClick={() => void runAction('Install bundle', '/api/mcp/install')}
                     >
-                        Install bundle
+                        Install bundle ({bundleCandidates})
                     </button>
                     <button
                         type="button"
@@ -331,9 +418,7 @@ export default function Mcp({ port, client, dirty, registerSave }: SettingsPageP
                                 !window.confirm(
                                     'Reset MCP config to defaults? Your custom servers will be removed.',
                                 )
-                            ) {
-                                return;
-                            }
+                            ) { return; }
                             void runAction('Reset to defaults', '/api/mcp/reset');
                         }}
                     >
@@ -341,14 +426,10 @@ export default function Mcp({ port, client, dirty, registerSave }: SettingsPageP
                     </button>
                 </div>
                 {actionState.kind === 'pending' && (
-                    <p className="settings-section-hint" role="status">
-                        {actionState.label}…
-                    </p>
+                    <p className="settings-section-hint" role="status">{actionState.label}…</p>
                 )}
                 {actionState.kind === 'success' && (
-                    <p className="settings-section-hint" role="status">
-                        ✅ {actionState.message}
-                    </p>
+                    <p className="settings-section-hint" role="status">{actionState.message}</p>
                 )}
                 {actionState.kind === 'error' && (
                     <InlineWarn role="alert">{actionState.message}</InlineWarn>
@@ -382,6 +463,193 @@ export default function Mcp({ port, client, dirty, registerSave }: SettingsPageP
                     </p>
                 )}
             </SettingsSection>
+
+            {modalOpen && (
+                <div className="mcp-modal-backdrop" onClick={closeModal}>
+                    <div
+                        className="mcp-modal"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="MCP Server Management"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="mcp-modal-tabs">
+                            <button
+                                type="button"
+                                className={`mcp-modal-tab${modalTab === 'active' ? ' is-active' : ''}`}
+                                onClick={() => setModalTab('active')}
+                            >
+                                Active Servers
+                            </button>
+                            <button
+                                type="button"
+                                className={`mcp-modal-tab${modalTab === 'add' ? ' is-active' : ''}`}
+                                onClick={() => { setModalTab('add'); resetAddForm(); }}
+                            >
+                                Add New
+                            </button>
+                        </div>
+
+                        <div className="mcp-modal-body">
+                            {modalTab === 'active' && (
+                                <div className="mcp-active-list">
+                                    {Object.keys(original.servers).length === 0 && (
+                                        <p className="settings-section-hint">No active MCP servers.</p>
+                                    )}
+                                    {Object.entries(original.servers).map(([name, srv]) => {
+                                        const tag = getServerTag(srv);
+                                        return (
+                                            <div key={name} className="mcp-active-row">
+                                                <span className="mcp-active-name">{name}</span>
+                                                <span className="mcp-active-detail">
+                                                    {srv.url || [srv.command, ...(srv.args || [])].filter(Boolean).join(' ')}
+                                                </span>
+                                                {tag && <span className="mcp-server-tag" data-tag={tag}>[{tag}]</span>}
+                                                <button
+                                                    type="button"
+                                                    className="settings-action settings-action-discard mcp-active-remove"
+                                                    onClick={() => void handleRemoveFromModal(name)}
+                                                >
+                                                    Remove
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            {modalTab === 'add' && (
+                                <div className="mcp-add-form">
+                                    <div className="mcp-add-subtabs">
+                                        <button
+                                            type="button"
+                                            className={`mcp-modal-tab${addSubTab === 'local' ? ' is-active' : ''}`}
+                                            onClick={() => setAddSubTab('local')}
+                                        >
+                                            Local
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={`mcp-modal-tab${addSubTab === 'remote' ? ' is-active' : ''}`}
+                                            onClick={() => setAddSubTab('remote')}
+                                        >
+                                            Remote
+                                        </button>
+                                    </div>
+
+                                    <label className="settings-field settings-field-text">
+                                        <span className="settings-field-label">Name</span>
+                                        <input
+                                            type="text"
+                                            value={addName}
+                                            placeholder="my-server"
+                                            spellCheck={false}
+                                            onChange={(e) => setAddName(e.target.value)}
+                                        />
+                                    </label>
+
+                                    {addSubTab === 'local' ? (
+                                        <>
+                                            <label className="settings-field settings-field-text">
+                                                <span className="settings-field-label">Command</span>
+                                                <input
+                                                    type="text"
+                                                    value={addCommand}
+                                                    placeholder="npx"
+                                                    spellCheck={false}
+                                                    onChange={(e) => setAddCommand(e.target.value)}
+                                                />
+                                            </label>
+                                            <label className="settings-field settings-field-text">
+                                                <span className="settings-field-label">Args (one per line)</span>
+                                                <textarea
+                                                    value={addArgs}
+                                                    rows={3}
+                                                    spellCheck={false}
+                                                    placeholder="-y&#10;@upstash/context7-mcp"
+                                                    onChange={(e) => setAddArgs(e.target.value)}
+                                                />
+                                            </label>
+                                            <label className="settings-field settings-field-text">
+                                                <span className="settings-field-label">Env (KEY=value per line)</span>
+                                                <textarea
+                                                    value={addEnv}
+                                                    rows={2}
+                                                    spellCheck={false}
+                                                    onChange={(e) => setAddEnv(e.target.value)}
+                                                />
+                                            </label>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <label className="settings-field settings-field-text">
+                                                <span className="settings-field-label">URL</span>
+                                                <input
+                                                    type="text"
+                                                    value={addUrl}
+                                                    placeholder="https://mcp.example.com/sse"
+                                                    spellCheck={false}
+                                                    onChange={(e) => setAddUrl(e.target.value)}
+                                                />
+                                            </label>
+                                            <label className="settings-field settings-field-text">
+                                                <span className="settings-field-label">Headers (KEY=value per line)</span>
+                                                <textarea
+                                                    value={addHeaders}
+                                                    rows={2}
+                                                    spellCheck={false}
+                                                    onChange={(e) => setAddHeaders(e.target.value)}
+                                                />
+                                            </label>
+                                        </>
+                                    )}
+
+                                    {addError && <InlineWarn role="alert">{addError}</InlineWarn>}
+
+                                    <div className="mcp-add-actions">
+                                        <button
+                                            type="button"
+                                            className="settings-action"
+                                            onClick={closeModal}
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="settings-action"
+                                            disabled={addPending}
+                                            onClick={() => void handleAddAndSync()}
+                                        >
+                                            {addPending ? 'Adding…' : 'Add & Sync'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <button
+                            type="button"
+                            className="mcp-modal-close"
+                            aria-label="Close"
+                            onClick={closeModal}
+                        >
+                            &times;
+                        </button>
+                    </div>
+                </div>
+            )}
         </form>
     );
+}
+
+function parseSimpleKV(text: string): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const line of text.split(/\r?\n/)) {
+        const t = line.trim();
+        if (!t || t.startsWith('#')) continue;
+        const eq = t.indexOf('=');
+        if (eq === -1) continue;
+        out[t.slice(0, eq).trim()] = t.slice(eq + 1);
+    }
+    return out;
 }

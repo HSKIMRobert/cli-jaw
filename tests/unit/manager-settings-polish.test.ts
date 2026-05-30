@@ -45,6 +45,7 @@ test('Sidebar group order starts with runtime and keeps advanced last', () => {
     assert.deepEqual(SIDEBAR_GROUP_ORDER, [
         'runtime',
         'identity',
+        'mcp',
         'channels',
         'automation',
         'integrations',

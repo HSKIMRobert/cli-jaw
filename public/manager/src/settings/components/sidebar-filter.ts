@@ -14,6 +14,7 @@ export type SidebarEntry = {
 export const SIDEBAR_GROUP_ORDER: ReadonlyArray<SettingsCategoryGroup> = [
     'runtime',
     'identity',
+    'mcp',
     'channels',
     'automation',
     'integrations',
@@ -24,6 +25,7 @@ export const SIDEBAR_GROUP_ORDER: ReadonlyArray<SettingsCategoryGroup> = [
 export const SIDEBAR_GROUP_LABELS: Record<SettingsCategoryGroup, string> = {
     runtime: 'Runtime',
     identity: 'Identity',
+    mcp: 'MCP',
     channels: 'Channels',
     automation: 'Automation',
     integrations: 'Integrations',

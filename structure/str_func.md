@@ -9,7 +9,7 @@ aliases: [CLI-JAW Source Structure, str_func, source structure reference]
 # CLI-JAW — Source Structure & Function Reference
 
 > 마지막 검증: 2026-05-28 (실제 코드베이스 재측정)
-> `server.ts` 882L / `src/routes/` 22 files (registrars + helper modules, 143 route handlers) / `src/cli/handlers*.ts` 397L + 499L + 97L + 57L + workflow 365L / `src/cli/api-auth.ts` 45L / `src/workflows/` 2 files (260L, workflow artifact/cache helpers) / `src/agent/` 37 TS files (`spawn.ts` 1821L + `events.ts` 15L + `agy-runtime.ts` 26L + `claude-e-runtime.ts` 44L 포함) / `src/manager/` 77 TS/TSX files (12352L, dashboard manager + board/notes/search/schedule/reminders/connector/routes + notes assets/watcher 서브모듈) / `src/browser/web-ai/` 68 TS files (12616L, ChatGPT/Gemini/Grok 멀티벤더 자동화 + resolver/source-audit/observation helpers + context-pack/tab-pool) / `src/types/` 3 files (296L) / `bin/commands/` 25 top-level ts files + `tui/` 7 helper files / `native/jaw-claude-i/` 15 Rust source files (1956L)
+> `server.ts` 882L / `src/routes/` 22 files (registrars + helper modules, 143 route handlers) / `src/cli/handlers*.ts` 397L + 499L + 97L + 57L + workflow 365L / `src/cli/api-auth.ts` 45L / `src/workflows/` 2 files (260L, workflow artifact/cache helpers) / `src/agent/` 37 TS files (`spawn.ts` 1825L + `events.ts` 15L + `agy-runtime.ts` 26L + `claude-e-runtime.ts` 44L 포함) / `src/manager/` 77 TS/TSX files (12352L, dashboard manager + board/notes/search/schedule/reminders/connector/routes + notes assets/watcher 서브모듈) / `src/browser/web-ai/` 68 TS files (12616L, ChatGPT/Gemini/Grok 멀티벤더 자동화 + resolver/source-audit/observation helpers + context-pack/tab-pool) / `src/types/` 3 files (296L) / `bin/commands/` 25 top-level ts files + `tui/` 7 helper files / `native/jaw-claude-i/` 15 Rust source files (1956L)
 > issue #91: OfficeCLI 10-phase integration (dual-audited, 94/94 tests) — closed
 > issue #92: Phase 20 overlay consolidation + GitHub Release v1.0.28-lidge.1 (3 audits passed: A-/A/A) — closed
 > issue #95: Avatar image upload — emoji+image dual support, 4 API endpoints, secure path serving — closed
@@ -27,7 +27,7 @@ aliases: [CLI-JAW Source Structure, str_func, source structure reference]
 
 ```text
 cli-jaw/
-├── server.ts                 ← Express 라우트 base + auth/CORS/rate-limit + WS bootstrap + `register*Routes()` glue + startup stale orc_state guard + graceful shutdown(closeDb) + employee migration + seed defaults + registerAvatarRoutes + async listen bootstrap (await initActiveMessagingRuntime) + orphaned jaw-emp-* cleanup + clearAllEmployeeSessions startup + no-store Vite index serving (882L)
+├── server.ts                 ← Express 라우트 base + auth/CORS/rate-limit + WS bootstrap + `register*Routes()` glue + startup stale orc_state guard + graceful shutdown(closeDb) + employee migration + seed defaults + registerAvatarRoutes + async listen bootstrap (await initActiveMessagingRuntime) + orphaned jaw-emp-* cleanup + clearAllEmployeeSessions startup + no-store Vite index serving (883L)
 ├── lib/                      ← 외부 통합/공용 헬퍼 (5 files)
 │   ├── mcp-sync.ts           ← MCP 통합 + 스킬 복사 + softResetSkills + runSkillReset + trusted repair gate + clone cooldown (73L)
 │   ├── upload.ts             ← 파일 업로드 + Telegram 다운로드 guards(status/timeout/maxBytes) + 유니코드 파일명 (200L)
@@ -64,7 +64,7 @@ cli-jaw/
 │   │   └── settings-merge.ts ← perCli/activeOverrides deep merge (52L)
 │   ├── agent/                ← CLI 에이전트 런타임 (35 files incl. events/ + spawn/)
 │   │   ├── alert-escalation.ts ← alert escalation event helper (80L)
-│   │   ├── spawn.ts          ← CLI spawn + ACP/Codex App/AGY plain text/log session capture/claude-e helper 분기 + 큐 + 메모리 flush + 429 retry timer + isAgentBusy + buildHistoryBlock compact cutoff + working_dir scoping + enqueue→processQueue race fix + QueueItem persistent DB queue + makeCleanEnv PATH augment + claude-i runtime error capture (1821L)
+│   │   ├── spawn.ts          ← CLI spawn + ACP/Codex App/AGY plain text/log session capture/claude-e helper 분기 + 큐 + 메모리 flush + 429 retry timer + isAgentBusy/isSteerInProgress + buildHistoryBlock compact cutoff + working_dir scoping + enqueue→processQueue race fix + QueueItem persistent DB queue + makeCleanEnv PATH augment + claude-i runtime error capture (1825L)
 │   │   ├── spawn-env.ts      ← spawn용 child env 빌더 (AGY NO_COLOR, OpenCode/Gemini permissions config 주입 등, 148L)
 │   │   ├── args.ts           ← CLI별 인자 빌더 + AGY print-mode/`--log-file`/`--conversation` resume args + `claude-e` helper run/resume args + session bucket 분리 (381L)
 │   │   ├── agy-runtime.ts    ← AGY timeout stdout 판별/메시지 정규화 + stdout/log conversation id 추출 (20L)
@@ -303,7 +303,7 @@ cli-jaw/
 │   │   ├── jaw-memory.ts     ← jaw memory search/read/list/save/init/reflect/flush/soul/soul-activate/bootstrap 라우트 (282L)
 │   │   ├── jaw-ceo.ts        ← Jaw CEO channel/session support routes (321L)
 │   │   ├── i18n.ts           ← locale bundle 라우트 (35L)
-│   │   ├── orchestrate.ts    ← IPABCD reset/state/workers/snapshot/queue cancel/queue steer/dispatch/worker result/state PUT 라우트 (I state ctx init 포함, 578L)
+│   │   ├── orchestrate.ts    ← IPABCD reset/state/workers/snapshot/queue cancel/queue steer async accept/dispatch/worker result/state PUT 라우트 (I state ctx init 포함, 583L)
 │   │   ├── memory.ts         ← memory status/KV/files/settings 라우트 (192L)
 │   │   ├── settings.ts       ← settings/prompt/heartbeat-md/MCP/registry/status/quota/copilot 라우트 + CLI_KEYS 기반 quota parity/status-only metadata (316L)
 │   │   ├── messaging.ts      ← upload/file-open/voice/telegram/channel/discord send 라우트 (249L)
@@ -332,8 +332,8 @@ cli-jaw/
 │   └── workflows/            ← workflow helper artifact/cache layer
 │       ├── artifacts.ts      ← JAW_HOME workflow artifact cache + project key/path safety + unknown command recovery artifact (169L)
 │       └── plan.ts           ← `/plan` compatibility artifact/text builder (PABCD P 안내, non-authoritative) (91L)
-├── public/                   ← Web UI (Vite 8 + ES Modules, 551 files [source + assets + public/public/dist mirror, public/dist 제외], public/dist build output 482 files, mirrored copies under `public/public/dist/` and `public/dist/dist/`, ~79013L)
-│   ├── index.html            ← 뼈대 (1050L, CLI-JAW 대문자 로고, pill theme switch, data-i18n, 로컬 avatar 입력)
+├── public/                   ← Web UI (Vite 8 + ES Modules, 551 files [source + assets + public/public/dist mirror, public/dist 제외], public/dist build output 482 files, mirrored copies under `public/public/dist/` and `public/dist/dist/`, ~79602L)
+│   ├── index.html            ← 뼈대 (1053L, CLI-JAW 대문자 로고, pill theme switch, data-i18n, 로컬 avatar 입력)
 │   ├── manifest.json         ← PWA 매니페스트 (20L) ✨
 │   ├── sw.js                 ← Service Worker 오프라인 캐시 (104L) ✨
 │   ├── icons/                ← PWA 아이콘 세트 ✨
@@ -780,6 +780,7 @@ graph LR
 144. **[fix] 서비스 모드 리부트 후 직원 파견 실패 (#102)**: launchd/systemd 서비스로 실행 중 시스템 재시작 시 직원(employee) dispatch 실패하던 10건의 결함 전수 수정. **CRITICAL**: (1) stale employee_sessions 서버 시작 시 일괄 삭제. (2) `runtime-path.ts` 신규 — `buildServicePath()` PATH 보강 (nvm/fnm/homebrew/volta/asdf/cargo/bun 14+ dirs), launchd/systemd/spawn/detectCli 전파. **HIGH**: (3) listen callback async화 + `await initActiveMessagingRuntime()` → seed → heartbeat 순서 보장. (4) stale main session reactive invalidation (resume-classifier). (5) corrupt settings.json backup+warning. **MEDIUM**: (6) messaging init fire-and-forget → await. (7) `dispatch.ts` ECONNREFUSED 5단계 retry. (8) `queued_messages` DB 테이블 — 메시지 큐 영속화/복구. (9) orphaned `jaw-emp-*` tmp dir 서버 시작 시 정리. (10) `shared.ts` migration lock PID staleness check (`process.kill(pid, 0)`). 11개 SRH 테스트 전량 통과. Opus 4.6 10/10 + GPT-5.4 8/10 이중 감사 PASS. ([#102](https://github.com/lidge-jun/cli-jaw/issues/102) closed)
 145. **[fix] VS 스크롤 80+ 메시지 최상단 튕김 (#101)**: 채팅 이력 80+ 시 하단 스크롤 도달 시 최상단으로 점프하는 버그 수정. 5-phase dual-model 검증 (Opus 4.6 + GPT-5.4). **v2 Root Causes (RC1-RC7)**: (1) CSS flex-shrink spacer 붕괴 → flex:0 0 auto. (2) scrollToBottom synchronous (RAF dedup 제거). (3) spacer update before early-return. (4) gap:0 + margin-bottom on .msg. (5) setItems bulk API (mid-loop activate 방지). (6) activate(toBottom) 사전 spacer 설정. (7) appendLiveItem scrollToBottom 위임. **v3 Structural (fix 10-14)**: (10) bootstrapVirtualHistory 순수 로직 모듈 + server/cache 공통 경로. (11) prefix sum + binary search O(log n) + markPrefixDirty invalidation. (12) spacing model (getComputedStyle marginBottom) + effectiveOffset/totalEffectiveHeight. (13) 7+2 regression tests (bootstrap 순서 + anchor 검증). (14) 문서 동기화. **v4 Scroll Anchor (fix 15-18)**: (15) DOM-based scroll anchor correction — captureScrollAnchor(getBoundingClientRect)/restoreScrollAnchor(delta adjustment) → spacer 변경 시 시각적 위치 보정. (16) totalEffectiveHeight conservation law 교정 — N*s → (N-1)*s (N-1 gap rule). (17) bottomSpacerHeight 공식 교정 — effectiveOffset(N)-effectiveOffset(last+1) (conservation law algebraic proof). (18) dead `_totalHeight` 필드 제거 (9 write sites, 0 read). refreshLayoutMetrics probe fallback + primeSpacingFromExisting activate() 사전 spacing. 9/9 tests pass, tsc --noEmit clean. ([#101](https://github.com/lidge-jun/cli-jaw/issues/101))
 146. **[feat] private-network access (#108)**: 같은 LAN의 태블릿/노트북에서 Web UI 접속 차단되던 증상을 opt-in으로 해제. `src/security/network-acl.ts` 신규 (순수함수 5종 — `isPrivateIP`/`isAllowedHost`/`isAllowedOrigin`/`originMatchesHost`/`extractHost`, RFC1918 + 169.254/16 + fe80::/10 + fc00::/7 + ::ffff:v4 커버, 포트+IPv6 브래킷 정규화 기반 DNS rebinding guard). `server.ts` `ALLOWED_HOSTS`/`ALLOWED_ORIGINS` Set → predicate 전환, `requireAuth`에 `isLoopback || isLanBypass` 분기 추가, `server.listen`이 `settings.network.bindHost` 읽음, LAN URL 자동 안내 + `lanBypass` 보안 경고 출력. `src/core/config.ts` `createDefaultSettings()`에 `network.{bindHost:'127.0.0.1',lanBypass:false}` + `loadSettings()` deep merge 확장. `src/core/settings-merge.ts` nested merge 목록에 `'network'` 추가 (런타임 PATCH 정합). 403/401 응답 body에 LAN hint 포함. 테스트 35건 신규 (NA-001~011, AB-001~008). 1207 tests pass, tsc --noEmit clean. ([#108](https://github.com/lidge-jun/cli-jaw/issues/108))
+147. **[fix] queue steer async accept**: Web UI pending queue `POST /api/orchestrate/queue/:id/steer`가 `claude-e`/`ai-e` old-agent 종료 대기 전에 queued row를 accept/remove/respond 하도록 변경. `steerInProgress` 동안 추가 입력은 기존 busy 게이트로 queue에 남고, old busy path kill/wait + 새 orchestration은 background에서 실행된다. `target`/`chatId`/`requestId` metadata 전파, concurrent queued steer 409 reject, background error `orchestrate_done` broadcast 추가.
 
 </details>
 

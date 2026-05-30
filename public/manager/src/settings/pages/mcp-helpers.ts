@@ -7,9 +7,11 @@
 // silently drop fields the runtime added later (e.g. `disabledServers`).
 
 export type McpServer = {
-    command: string;
+    command?: string;
     args?: string[];
     env?: Record<string, string>;
+    url?: string;
+    headers?: Record<string, string>;
     autostart?: boolean;
     [key: string]: unknown;
 };
@@ -44,9 +46,10 @@ export function normalizeMcpConfig(raw: unknown): McpConfig {
 }
 
 export function normalizeServer(raw: unknown): McpServer {
-    if (!raw || typeof raw !== 'object') return { command: '' };
+    if (!raw || typeof raw !== 'object') return {};
     const r = raw as Record<string, unknown>;
-    const command = typeof r['command'] === 'string' ? r['command'] : '';
+    const command = typeof r['command'] === 'string' && r['command'] ? r['command'] : undefined;
+    const url = typeof r['url'] === 'string' && r['url'] ? r['url'] : undefined;
     const args = Array.isArray(r['args'])
         ? r['args'].filter((v): v is string => typeof v === 'string')
         : undefined;
@@ -59,21 +62,32 @@ export function normalizeServer(raw: unknown): McpServer {
                 ),
             )
             : undefined;
+    const headers =
+        r['headers'] && typeof r['headers'] === 'object' && !Array.isArray(r['headers'])
+            ? Object.fromEntries(
+                Object.entries(r['headers'] as Record<string, unknown>).filter(
+                    (entry): entry is [string, string] =>
+                        typeof entry[1] === 'string',
+                ),
+            )
+            : undefined;
     const autostart = typeof r['autostart'] === 'boolean' ? r['autostart'] : undefined;
-    const out: McpServer = { command };
+    const out: McpServer = {};
+    if (command) out.command = command;
+    if (url) out.url = url;
     if (args && args.length > 0) out.args = args;
     if (env && Object.keys(env).length > 0) out.env = env;
+    if (headers && Object.keys(headers).length > 0) out.headers = headers;
     if (autostart !== undefined) out.autostart = autostart;
-    // Preserve any unknown extras so the runtime can keep evolving the schema.
     for (const [k, v] of Object.entries(r)) {
-        if (k === 'command' || k === 'args' || k === 'env' || k === 'autostart') continue;
+        if (['command', 'url', 'args', 'env', 'headers', 'autostart'].includes(k)) continue;
         out[k] = v;
     }
     return out;
 }
 
-export function makeEmptyServer(): McpServer {
-    return { command: '' };
+export function makeEmptyServer(type: 'local' | 'remote' = 'local'): McpServer {
+    return type === 'remote' ? { url: '' } : { command: '' };
 }
 
 // Args round-tripping: prefer one-arg-per-line. We accept comma-separated
@@ -136,10 +150,33 @@ export function validateServer(name: string, server: McpServer): ServerValidatio
             reason: 'Server name must match [a-zA-Z0-9._-] (1–64 chars).',
         };
     }
-    if (!server.command || server.command.trim() === '') {
-        return { kind: 'invalid', reason: 'Command is required.' };
+    const hasCommand = server.command && server.command.trim() !== '';
+    const hasUrl = server.url && String(server.url).trim() !== '';
+    if (!hasCommand && !hasUrl) {
+        return { kind: 'invalid', reason: 'Command or URL is required.' };
     }
     return { kind: 'ok' };
+}
+
+export type ServerTag = 'npx' | 'uvx' | 'docker' | 'remote' | null;
+
+export function getServerTag(server: McpServer): ServerTag {
+    if (server.url) return 'remote';
+    if (!server.command) return null;
+    const cmd = server.command;
+    if (cmd === 'npx' || cmd.endsWith('/npx')) return 'npx';
+    if (cmd === 'uvx' || cmd === 'uv' || cmd.endsWith('/uvx')) return 'uvx';
+    if (cmd === 'docker' || cmd.endsWith('/docker')) return 'docker';
+    return null;
+}
+
+export function countInstallBundleCandidates(
+    servers: Record<string, McpServer>,
+): number {
+    return Object.values(servers).filter(s => {
+        if (!s.command) return false;
+        return s.command === 'npx' || s.command === 'uv' || s.command === 'uvx';
+    }).length;
 }
 
 export function findDuplicateNames(
@@ -163,14 +200,19 @@ export function findDuplicateNames(
 export function toPersistShape(config: McpConfig): McpConfig {
     const servers: Record<string, McpServer> = {};
     for (const [name, srv] of Object.entries(config.servers)) {
-        const out: McpServer = { command: srv.command };
+        const out: McpServer = {};
+        if (srv.command) out.command = srv.command;
+        if (srv.url) out.url = srv.url;
         if (srv.args && srv.args.length > 0) out.args = [...srv.args];
         if (srv.env && Object.keys(srv.env).length > 0) {
             out.env = { ...srv.env };
         }
+        if (srv.headers && Object.keys(srv.headers).length > 0) {
+            out.headers = { ...srv.headers };
+        }
         if (srv.autostart !== undefined) out.autostart = srv.autostart;
         for (const [k, v] of Object.entries(srv)) {
-            if (k === 'command' || k === 'args' || k === 'env' || k === 'autostart') continue;
+            if (['command', 'url', 'args', 'env', 'headers', 'autostart'].includes(k)) continue;
             out[k] = v;
         }
         servers[name] = out;

@@ -230,6 +230,7 @@ export type InstanceLatestMessageSummary = {
         title: string;
         updatedAt: string;
     } | null;
+    processBusy?: boolean;
 };
 
 export type HealthEvent = {

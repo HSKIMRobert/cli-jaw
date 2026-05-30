@@ -487,6 +487,7 @@ app.get('/api/messages/latest', (_req, res) => {
             title,
             updatedAt: String(activityRow.created_at || ''),
         } : null,
+        processBusy: isAgentBusy(),
     });
 });
 app.get('/api/runtime', (req, res) => {
