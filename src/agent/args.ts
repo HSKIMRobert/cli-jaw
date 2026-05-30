@@ -218,7 +218,7 @@ export function buildArgs(cli: string, model: string, effort: string, prompt: st
             }
 
             const promptModeArgs = [
-                provider, 'p',
+                provider,
                 '--output-format', 'stream-json',
                 '--timeout-ms', '600000',
             ];
@@ -335,7 +335,19 @@ export function buildResumeArgs(cli: string, model: string, effort: string, sess
                 return buildAiEKiroArgs(model, prompt || '', sessionId);
             }
             if (provider !== 'claude') {
-                return buildArgs('ai-e', model, effort, prompt, options.sysPrompt || '', permissions, options);
+                // codex/grok/gemini/copilot: interactive mode with --resume
+                const resumeArgs = [
+                    provider,
+                    '--output-format', 'stream-json',
+                    '--timeout-ms', '600000',
+                ];
+                if (model && model !== 'default') resumeArgs.push('--model', model);
+                if (effort && effort !== 'medium' && provider !== 'gemini' && provider !== 'grok') {
+                    resumeArgs.push('--effort', effort);
+                }
+                if (sessionId) resumeArgs.push('--resume', sessionId);
+                resumeArgs.push(prompt || '');
+                return resumeArgs;
             }
             const claudeExtraArgs: string[] = [];
             if (model && model !== 'default') claudeExtraArgs.push('--model', model);

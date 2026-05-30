@@ -142,7 +142,8 @@ export function captureKiroSessionIdAfterExit(args: {
 
 export function parseAiESessionIdFromStderr(text: string): string | null {
     for (const line of text.split(/\r?\n/)) {
-        const match = /\[ai-e\]\s+session:\s*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i.exec(line);
+        // Match UUID format (grok, kiro) or codex timestamp-uuid format
+        const match = /\[ai-e\]\s+session:\s*(\S+)/i.exec(line);
         if (match?.[1]) return match[1];
     }
     return null;
