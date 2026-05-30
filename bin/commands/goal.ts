@@ -13,8 +13,8 @@ if (shouldShowHelp(process.argv)) printAndExit(`
   Subcommands:
     set <objective>     Set a new goal
     status              Show active goal
-    update <summary>    Add a checkpoint
-    done [note]         Mark goal complete
+    update <summary>    Add a checkpoint  (add --evidence <note>[,<...>] to record verification)
+    done [note]         Mark goal complete (add --force to skip the evidence gate)
     cancel [reason]     Cancel goal
     pause               Pause goal
     resume              Resume paused goal
@@ -82,9 +82,21 @@ try {
 
     const payload: Record<string, unknown> = { action };
     if (sub === 'set') payload['objective'] = rest || undefined;
-    if (sub === 'done') payload['note'] = rest || undefined;
     if (sub === 'cancel') payload['reason'] = rest || undefined;
-    if (sub === 'update') payload['summary'] = rest || undefined;
+    if (sub === 'done') {
+        payload['note'] = args.slice(1).filter(a => a !== '--force').join(' ').trim() || undefined;
+        if (args.includes('--force')) payload['force'] = true;
+    }
+    if (sub === 'update') {
+        const u = args.slice(1);
+        const evIdx = u.indexOf('--evidence');
+        if (evIdx >= 0) {
+            payload['summary'] = u.slice(0, evIdx).join(' ').trim() || undefined;
+            payload['evidence'] = u.slice(evIdx + 1).join(' ').split(',').map(s => s.trim()).filter(Boolean);
+        } else {
+            payload['summary'] = rest || undefined;
+        }
+    }
 
     const res = await cliFetch(`${BASE}/api/goal`, {
         method: 'POST',

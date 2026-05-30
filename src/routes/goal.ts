@@ -3,6 +3,7 @@ import {
     getActiveGoal, getGoalHistory,
     setGoal, updateGoal, completeGoal, cancelGoal,
     pauseGoal, resumeGoal, clearGoal, resetGoalStore,
+    goalHasCompletionEvidence,
 } from '../goal/store.js';
 import { clearGoalTimers, kickGoalContinuation } from '../agent/lifecycle-handler.js';
 
@@ -50,12 +51,19 @@ export function registerGoalRoutes(app: Router, requireAuth: RequestHandler): vo
                         res.status(400).json({ ok: false, error: 'summary is required' });
                         return;
                     }
-                    const goal = updateGoal(summary, String(body?.['nextAction'] || ''));
+                    const ev = body?.['evidence'];
+                    const evidence = Array.isArray(ev) ? ev.map(String) : (typeof ev === 'string' && ev ? [ev] : []);
+                    const goal = updateGoal(summary, String(body?.['nextAction'] || ''), evidence);
                     if (!goal) { res.status(404).json({ ok: false, error: 'No active goal' }); return; }
                     res.json({ ok: true, goal });
                     return;
                 }
                 case 'done': {
+                    const force = body?.['force'] === true;
+                    if (!force && !goalHasCompletionEvidence(getActiveGoal())) {
+                        res.status(409).json({ ok: false, error: 'Goal completion requires verification evidence on the latest checkpoint. Log it via `cli-jaw goal update "<summary>" --evidence "<test result / changed file>"`, then retry — or pass --force for an explicit manual override.' });
+                        return;
+                    }
                     const goal = completeGoal(body?.['note'] as string | undefined);
                     if (!goal) { res.status(404).json({ ok: false, error: 'No active goal' }); return; }
                     clearGoalTimers();
