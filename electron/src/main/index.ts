@@ -5,6 +5,10 @@ import { dirname, join } from 'node:path';
 import { createServer } from 'node:net';
 import type { ChildProcess } from 'node:child_process';
 import { findJawBinary, spawnJawDashboard, gracefulShutdown } from './lib/jaw-spawn.js';
+import {
+  createTray, isKeepRunning, destroyTray,
+  updateServerStatus, notifyServerCrash, clearTrayBadge,
+} from './lib/tray-manager.js';
 import { waitForManagerReady, isManagerHealthy, probeOnce } from './lib/health-check.js';
 import {
   buildManagerCsp,
@@ -50,6 +54,7 @@ interface CliFlags {
   port: number;
   attachOnly: boolean;
   spawn: boolean;
+  background: boolean;
   managerUrl: string;
   managerUrlExplicit: boolean;
 }
@@ -82,6 +87,7 @@ function parseArgs(argv: string[]): CliFlags {
   let port = Number(process.env.JAW_MANAGER_PORT ?? DEFAULT_MANAGER_PORT);
   let attachOnly = false;
   let spawn = false;
+  let background = false;
   let managerUrl = process.env.JAW_MANAGER_URL ?? '';
   let managerUrlExplicit = managerUrl.trim().length > 0;
   for (let i = 0; i < argv.length; i++) {
@@ -104,13 +110,15 @@ function parseArgs(argv: string[]): CliFlags {
     } else if (a?.startsWith('--manager-url=')) {
       managerUrl = a.slice('--manager-url='.length);
       managerUrlExplicit = managerUrl.trim().length > 0;
+    } else if (a === '--background') {
+      background = true;
     }
   }
   if (!Number.isFinite(port) || port <= 0) port = DEFAULT_MANAGER_PORT;
   if (!managerUrl) managerUrl = `http://127.0.0.1:${port}/`;
   if (!managerUrl.endsWith('/')) managerUrl = `${managerUrl}/`;
   assertLoopbackManagerUrl(managerUrl);
-  return { port, attachOnly, spawn, managerUrl, managerUrlExplicit };
+  return { port, attachOnly, spawn, background, managerUrl, managerUrlExplicit };
 }
 
 const FLAGS = parseArgs(process.argv.slice(1));
@@ -170,6 +178,9 @@ let restartTimestamps: number[] = [];
 let crashLoopStopped = false;
 let shuttingDown = false;
 let shutdownComplete = false;
+let forceQuitRequested = false;
+let managerRestarting = false;
+let windowCreating = false;
 let bootstrapPromise: Promise<void> | null = null;
 let managerReadyPromise: Promise<void> | null = null;
 let metricsCollector: MetricsCollectorHandle | null = null;
@@ -195,7 +206,11 @@ if (!gotLock) {
       void handleDeepLink(deepLink);
       return;
     }
-    focusWindow(mainWindow);
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      void createManagerWindow();
+    } else {
+      focusWindow(mainWindow);
+    }
   });
 
   app.on('open-url', (event, url) => {
@@ -220,7 +235,7 @@ if (!gotLock) {
 
     app.on('activate', () => {
       if (!mainWindow || mainWindow.isDestroyed()) {
-        void bootstrapOnce();
+        void createManagerWindow();
       }
     });
   }).catch((err) => {
@@ -245,11 +260,17 @@ function getInitialWindowBounds(): { width: number; height: number; x: number; y
 }
 
 app.on('window-all-closed', () => {
+  if (isKeepRunning()) return;
   if (process.platform !== 'darwin') app.quit();
 });
 
 app.on('before-quit', (event) => {
   if (shutdownComplete) return;
+  if (isKeepRunning() && !forceQuitRequested) {
+    event.preventDefault();
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
+    return;
+  }
   event.preventDefault();
   void requestApplicationQuit('before-quit');
 });
@@ -261,6 +282,7 @@ async function requestApplicationQuit(reason: string): Promise<void> {
   }
   if (shuttingDown) return;
   shuttingDown = true;
+  destroyTray();
   ringBuffer.append(`[quit] requested by ${reason}\n`);
   showQuitProgress(mainWindow, ringBuffer);
   setTimeout(() => {
@@ -287,6 +309,64 @@ async function requestApplicationQuit(reason: string): Promise<void> {
   }
 }
 
+async function forceQuit(): Promise<void> {
+  forceQuitRequested = true;
+  destroyTray();
+  void requestApplicationQuit('tray-quit');
+}
+
+async function createManagerWindow(): Promise<void> {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.show();
+    mainWindow.focus();
+    return;
+  }
+  if (windowCreating) return;
+  windowCreating = true;
+  try {
+    await createWindow();
+    updateServerStatus('Server: Running');
+    clearTrayBadge();
+    if (!metricsCollector) {
+      try {
+        metricsCollector = startAppMetricsCollector();
+      } catch (err) {
+        ringBuffer.append(`[metrics restart error] ${(err as Error)?.message ?? err}\n`);
+      }
+    }
+  } catch (err) {
+    ringBuffer.append(`[createManagerWindow error] ${(err as Error)?.message ?? err}\n`);
+    updateServerStatus('Server: Unreachable');
+  } finally {
+    windowCreating = false;
+  }
+}
+
+async function restartManagerServer(): Promise<void> {
+  managerRestarting = true;
+  updateServerStatus('Server: Restarting...');
+  const child = managerProcess;
+  managerProcess = null;
+  try {
+    if (child) {
+      child.removeAllListeners('exit');
+      await gracefulShutdown(child, 5000);
+    }
+    await ensureManagerRunning();
+    updateServerStatus('Server: Running');
+    clearTrayBadge();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      await mainWindow.loadURL(MANAGER_URL);
+    }
+  } catch (err) {
+    ringBuffer.append(`[restart error] ${(err as Error)?.message ?? err}\n`);
+    updateServerStatus('Server: Restart failed');
+    notifyServerCrash();
+  } finally {
+    managerRestarting = false;
+  }
+}
+
 async function bootstrap(): Promise<void> {
   installManagerApplicationMenu();
   installSecurityHeaders(MANAGER_ORIGIN);
@@ -299,8 +379,26 @@ async function bootstrap(): Promise<void> {
   registerPermissionDiagnosticsIpc();
   registerWindowIpc();
 
+  createTray({
+    onOpenDashboard: () => {
+      void createManagerWindow();
+    },
+    onRestartServer: () => {
+      void restartManagerServer();
+    },
+    onQuit: () => {
+      void forceQuit();
+    },
+    getManagerUrl: () => MANAGER_URL,
+  });
+
   await ensureManagerRunning();
-  await createWindow();
+  updateServerStatus('Server: Running');
+  if (FLAGS.background) {
+    updateServerStatus('Server: Running (background)');
+  } else {
+    await createManagerWindow();
+  }
   primeMacAutomationPermission({
     log: ringBuffer,
     onBlocked: showAutomationPermissionDialog,
@@ -814,6 +912,7 @@ async function spawnAndWait(): Promise<void> {
 function handleManagerExit(code: number | null, signal: NodeJS.Signals | null): void {
   ringBuffer.append(`[manager exit] code=${code} signal=${signal}\n`);
   if (shuttingDown || crashLoopStopped) return;
+  if (managerRestarting) return;
   void (async () => {
     if (shouldAttachToExistingManager() && await probeOnce(MANAGER_URL)) {
       ringBuffer.append(`[manager exit] another instance owns ${MANAGER_URL}; attaching\n`);
@@ -827,16 +926,24 @@ function handleManagerExit(code: number | null, signal: NodeJS.Signals | null): 
       }
       return;
     }
+    updateServerStatus('Server: Crashed');
+    if (isKeepRunning() && (!mainWindow || mainWindow.isDestroyed())) {
+      notifyServerCrash();
+    }
     const now = Date.now();
     restartTimestamps = restartTimestamps.filter((t) => now - t < 60_000);
     restartTimestamps.push(now);
     if (restartTimestamps.length > 3) {
       crashLoopStopped = true;
+      updateServerStatus('Server: Crash loop');
+      notifyServerCrash();
       void showCrashLoopDialog(ringBuffer.read()).then(() => app.quit());
       return;
     }
     try {
       await ensureManagerRunning();
+      updateServerStatus('Server: Running');
+      clearTrayBadge();
       if (await probeOnce(MANAGER_URL)) {
         if (mainWindow && !mainWindow.isDestroyed()) {
           try {
@@ -924,6 +1031,16 @@ async function createWindow(): Promise<void> {
   });
   mainWindow.on('close', (event) => {
     if (shutdownComplete || shuttingDown) return;
+    if (isKeepRunning()) {
+      if (metricsCollector) {
+        metricsCollector.stop();
+        metricsCollector = null;
+      }
+      cleanupTerminals();
+      cleanupFolderWatchers();
+      updateServerStatus('Server: Running (background)');
+      return;
+    }
     event.preventDefault();
     void requestApplicationQuit('window-close');
   });
