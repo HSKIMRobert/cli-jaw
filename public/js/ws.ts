@@ -268,7 +268,15 @@ function setInterviewCollapsed(collapsed: boolean): void {
     if (toggle) toggle.setAttribute('aria-expanded', String(!collapsed));
 }
 
-function renderInterviewPanel(interview: { known: string[]; unknown: string[]; round: number } | null): void {
+interface InterviewEvidenceView {
+    fact: string;
+    source?: string;
+    confidence?: number;
+    turnNumber?: number;
+    dimension?: string;
+}
+
+function renderInterviewPanel(interview: { known: (string | InterviewEvidenceView)[]; unknown: string[]; round: number } | null): void {
     const panel = document.getElementById('interviewPanel');
     if (!panel) return;
     if (!interview || (!interview.known.length && !interview.unknown.length)) {
@@ -277,12 +285,30 @@ function renderInterviewPanel(interview: { known: string[]; unknown: string[]; r
     }
     panel.hidden = false;
     panel.classList.toggle('collapsed', interviewCollapsed);
-    const knownHtml = interview.known.map(k => `<li class="iv-known">${escapeHtml(k)}</li>`).join('');
-    const unknownHtml = interview.unknown.map(u => `<li class="iv-unknown">${escapeHtml(u)}</li>`).join('');
+
+    const sourceIcon = (src?: string) => {
+        switch (src) {
+            case 'user_statement': return '🟢';
+            case 'repo_fact': return '🔵';
+            case 'inference': return '🟡';
+            case 'assumption': return '🟠';
+            case 'default': return '⚪';
+            default: return '·';
+        }
+    };
+
+    const knownHtml = interview.known.map(k => {
+        if (typeof k === 'string') return `<li class="iv-known">· ${escapeHtml(k)}</li>`;
+        const ev = k as InterviewEvidenceView;
+        const icon = sourceIcon(ev.source);
+        const dim = ev.dimension ? ` <span class="iv-dim">[${ev.dimension}]</span>` : '';
+        return `<li class="iv-known">${icon} ${escapeHtml(ev.fact)}${dim}</li>`;
+    }).join('');
+    const unknownHtml = interview.unknown.map(u => `<li class="iv-unknown">❓ ${escapeHtml(typeof u === 'string' ? u : JSON.stringify(u))}</li>`).join('');
     panel.innerHTML = `
         <button type="button" class="iv-toggle" aria-expanded="${!interviewCollapsed}" aria-controls="interviewBody" title="인터뷰 트래커 접기/펼치기">
             <span class="iv-chevron" aria-hidden="true">▸</span>
-            <span class="iv-summary">Interview · <span class="iv-known-count">Known ${interview.known.length}</span> · <span class="iv-unknown-count">Unknown ${interview.unknown.length}</span> · Round ${interview.round}</span>
+            <span class="iv-summary">Interview · <span class="iv-known-count">Known ${interview.known.length}</span> · <span class="iv-unknown-count">Unknown ${interview.unknown.length}</span>${interview.known.filter(k => typeof k === 'object' && k && 'source' in k && (k as InterviewEvidenceView).source === 'assumption').length > 0 ? ` · <span class="iv-assumption-count">⚠️ ${interview.known.filter(k => typeof k === 'object' && k && 'source' in k && (k as InterviewEvidenceView).source === 'assumption').length} assumptions</span>` : ''} · Round ${interview.round}</span>
         </button>
         <div class="iv-body" id="interviewBody">
             <div class="iv-section"><strong>Known (${interview.known.length})</strong><ul>${knownHtml}</ul></div>
