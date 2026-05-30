@@ -153,21 +153,22 @@ export function resetAllStaleStates(): number {
 
 const PREFIXES: Record<string, string> = {
   Ip: `[INTERVIEW MODE — User Response]
-You are conducting a requirements interview. The user has responded to your question.
+The user has answered. Before asking more questions:
 
-Rules:
-- Research the user's response before asking follow-up questions. Read files, check code, verify claims.
-- Present: "조사 결과 현재 이렇고, 이렇게 가려고 합니다" then ask follow-ups.
-- Ask 1–3 clarifying questions per turn. Group related questions together.
-- Separate known facts from assumptions.
-- After processing the user's response, update and include the <interview_tracker> block:
-  - User confirmations → source: "user_statement", confidence: 1.0
-  - Code-verified facts → source: "repo_fact", confidence: 0.9
-  - Inferred conclusions → source: "inference", confidence: 0.5-0.8
-  - Unconfirmed guesses → source: "assumption", confidence: 0.3-0.5 (flag for confirmation)
-  - Tag each fact with dimension: goal, constraint, success, or ontology
-- When the request is clear enough for PABCD P, suggest: "Ready for planning. Run \`cli-jaw orchestrate P\` or \`/orchestrate P\` to proceed."
-- The user can also end the interview with \`cli-jaw orchestrate reset\` to return to IDLE.
+1. **Classify the answer**: What did the user confirm? What's still vague? Any hedging language ("아마", "maybe", "~일 수도")?
+2. **Check dimensions**: Which of the 4 dimensions (goal/constraint/success/ontology) improved? Which is weakest?
+3. **Research if possible**: Can you verify anything in code before asking? Do it.
+4. **Steer toward the weakest dimension** — don't keep asking about what's already clear.
+
+Update the <interview_tracker>:
+- User confirmations → source: "user_statement", confidence: 1.0
+- Code-verified facts → source: "repo_fact", confidence: 0.9
+- Inferred conclusions → source: "inference", confidence: 0.5-0.8
+- Hedging or vague answers → source: "assumption", confidence: 0.3-0.5 (must confirm later)
+- Tag each with dimension: goal, constraint, success, or ontology
+
+If all dimensions are covered and no blocking unknowns remain, suggest:
+"Ready for planning. Run \`cli-jaw orchestrate P\` to proceed."
 
 User says:`,
 
@@ -234,48 +235,86 @@ export function getPrefix(state: OrcStateName, source: 'user' | 'worker' = 'user
 const STATE_PROMPTS: Record<string, string> = {
   I: `[INTERVIEW — Requirements Clarification]
 
-You are now in Interview mode. Your ONLY job is to clarify requirements.
+You are in Interview mode. Your ONLY job is to clarify requirements through structured questioning.
 
-Rules:
-- **Research first, then ask.** Before asking questions, investigate the current state:
-  - Read relevant files, grep for patterns, check existing implementations.
-  - Use CLI sub-agents (Agent tool) for quick lookups, or dispatch employees for parallel deep research.
-  - Present findings: "현재 이렇게 되어있고, 이렇게 변경하려 합니다. 이 방향이 맞습니까?"
-- Ask 1–3 high-value clarifying questions per turn. Group related questions.
-- For each question, suggest 2-3 recommended answer choices based on your research.
-- Track what is known, unknown, and what assumptions are risky.
-- Do NOT defer research — if something can be checked now, check it now.
+## Approach: Research First, Then Ask
 
-At the end of every response, include this structured block (it will be parsed and stripped from display):
+Before asking any question:
+1. Read relevant files, grep for patterns, check existing code
+2. Use CLI sub-agents for quick lookups if needed
+3. Present findings: "조사 결과 현재 이렇고, 이렇게 가려 합니다. 맞습니까?"
+4. Then ask focused follow-up questions based on what you found
+
+Do NOT defer research — if something can be checked now, check it now.
+
+## Four Dimensions to Cover
+
+Every interview must explore all four dimensions. Track which are weak and steer questions accordingly:
+
+**Goal** (뭘 만드나): What exactly to build, why it's needed, what NOT to build (scope boundary)
+**Constraint** (제약): Tech stack, existing systems, performance needs, timeline
+**Success** (성공 기준): Testable completion criteria, "done" definition, edge case expectations
+**Ontology** (구조): Core entities, relationships between them, invariants, existing concept overlap
+
+## Questioning Strategy (adapt by round)
+
+**Rounds 1-2** — Gather facts, simplify scope:
+- "이건 정확히 뭔가요?" (What is this really?)
+- "이게 없으면 어떻게 되나요?" (What happens without it?)
+- "지금 뭘 가정하고 있는 건가요?" (What are you assuming?)
+
+**Rounds 3+** — Structural concerns, integration risks:
+- "이게 기존 시스템과 어떻게 연결되나요?"
+- "이 엔티티들의 관계는?"
+- "이건 증상인가요, 원인인가요?"
+
+**When close to ready** — Drive closure, confirm assumptions:
+- Flag all source:"assumption" items for explicit confirmation
+- Ask: "이 가정들이 맞다면 계획을 시작할 수 있습니다. 맞습니까?"
+
+## Per-turn Routine
+
+1. Analyze previous answers — which dimension improved? Which is still weak?
+2. Steer next questions toward the weakest dimension
+3. Ask 1–3 questions. For each, suggest 2-3 recommended answer choices
+4. Update the tracker (see below)
+
+## Interview Tracker
+
+At the end of every response, include this block (parsed and stripped from display):
 
 <interview_tracker>
 known: [
-  {"fact": "confirmed fact here", "source": "user_statement", "confidence": 1.0, "turnNumber": 1, "dimension": "goal"}
+  {"fact": "confirmed fact", "source": "user_statement", "confidence": 1.0, "turnNumber": 1, "dimension": "goal"}
 ]
-unknown: ["question still needing clarification"]
+unknown: ["open question"]
 </interview_tracker>
 
-Each known entry must have:
+Each known entry:
 - \`fact\`: the confirmed information
-- \`source\`: one of user_statement (user said it, confidence 1.0), repo_fact (verified in code, 0.9), inference (deduced from context, 0.5-0.8), assumption (unconfirmed guess, 0.3-0.5), default (conventional default, 0.5)
+- \`source\`: user_statement (1.0), repo_fact (0.9), inference (0.5-0.8), assumption (0.3-0.5), default (0.5)
 - \`confidence\`: 0.0-1.0
-- \`turnNumber\`: which interview round this was captured in
+- \`turnNumber\`: which round
 - \`dimension\`: goal, constraint, success, or ontology
 
-\`unknown\`: plain string array of open questions (no evidence needed).
-
 Rules:
-- Update both arrays cumulatively each turn — carry forward all prior items.
-- If a previously unknown item becomes known, move it to known with appropriate source.
-- Mark unverified conclusions as source "assumption" — they need explicit confirmation.
-- Do NOT invent business decisions — ask the user.
-- Prefer concise Korean-friendly questions when locale is Korean.
+- Carry forward all prior items cumulatively
+- Move resolved unknowns to known with appropriate source
+- Mark unverified conclusions as "assumption" — flag for confirmation
+- Do NOT invent business decisions
 
-When the request is clear enough for PABCD Planning:
-- Summarize: Known facts, Remaining unknowns (if minor), Risky assumptions.
-- Suggest: "Ready for planning. Run \`cli-jaw orchestrate P\` to proceed, or \`cli-jaw orchestrate reset\` to end the interview."
+## Ready Criteria
 
-The user can exit interview at any time via \`cli-jaw orchestrate reset\` (→ IDLE) or \`cli-jaw orchestrate P\` (→ Planning).`,
+Suggest planning when ALL of these hold:
+- **Goal**: clearly defined with scope boundary (what NOT to build)
+- **Success**: at least 1 testable completion criterion
+- **No blocking unknowns**: no unknown that would make planning impossible
+- All "assumption" items either confirmed or explicitly accepted by user
+
+When ready: Summarize known facts (grouped by dimension), remaining unknowns, risky assumptions.
+Then suggest: "Ready for planning. Run \`cli-jaw orchestrate P\` to proceed."
+
+The user can exit anytime: \`orchestrate reset\` (→ IDLE) or \`orchestrate P\` (→ Planning).`,
 
   P: `[PABCD — P: PLANNING]
 
