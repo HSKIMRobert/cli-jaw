@@ -88,6 +88,16 @@ interface WsMessage {
     deferredPending?: number;
     taskAnchor?: string | null;
     resolvedSelection?: ResolvedSelectionState | null;
+    buildBudget?: {
+        maxWorkerDispatches: number;
+        maxSelfHealRetries: number;
+        maxVerificationRounds: number;
+        spent: {
+            workerDispatches: number;
+            selfHealRetries: number;
+            verificationRounds: number;
+        };
+    } | null;
     interview?: { known: string[]; unknown: string[]; round: number } | null;
     delaySeconds?: number;
     attempts?: number;
@@ -277,7 +287,34 @@ interface InterviewEvidenceView {
     dimension?: string;
 }
 
-function renderInterviewPanel(interview: { known: (string | InterviewEvidenceView)[]; unknown: string[]; round: number } | null): void {
+interface DimensionAssessmentView {
+    goal: string;
+    constraint: string;
+    success: string;
+    ontology: string;
+}
+
+function renderDimensionBars(assessment: DimensionAssessmentView): string {
+    const bar = (dim: string, level: string) => {
+        const pct = level === 'high' ? 100 : level === 'medium' ? 60 : 20;
+        const color = level === 'high' ? '#4caf50' : level === 'medium' ? '#ff9800' : '#f44336';
+        return `<div style="display:flex;align-items:center;gap:6px;font-size:12px">
+            <span style="width:70px;color:var(--text-secondary)">${dim}</span>
+            <div style="flex:1;height:5px;background:var(--bg-tertiary);border-radius:3px">
+                <div style="width:${pct}%;height:100%;background:${color};border-radius:3px;transition:width .3s"></div>
+            </div>
+            <span style="width:45px;text-align:right;font-weight:600;font-size:11px">${level.toUpperCase()}</span>
+        </div>`;
+    };
+    return `<div style="display:flex;flex-direction:column;gap:3px;margin:6px 0">
+        ${bar('Goal', assessment.goal)}
+        ${bar('Constraint', assessment.constraint)}
+        ${bar('Success', assessment.success)}
+        ${bar('Ontology', assessment.ontology)}
+    </div>`;
+}
+
+function renderInterviewPanel(interview: { known: (string | InterviewEvidenceView)[]; unknown: string[]; round: number; assessment?: DimensionAssessmentView } | null): void {
     const panel = document.getElementById('interviewPanel');
     if (!panel) return;
     if (!interview || (!interview.known.length && !interview.unknown.length)) {
@@ -312,6 +349,7 @@ function renderInterviewPanel(interview: { known: (string | InterviewEvidenceVie
             <span class="iv-summary">Interview · <span class="iv-known-count">Known ${interview.known.length}</span> · <span class="iv-unknown-count">Unknown ${interview.unknown.length}</span>${interview.known.filter(k => typeof k === 'object' && k && 'source' in k && (k as InterviewEvidenceView).source === 'assumption').length > 0 ? ` · <span class="iv-assumption-count">⚠️ ${interview.known.filter(k => typeof k === 'object' && k && 'source' in k && (k as InterviewEvidenceView).source === 'assumption').length} assumptions</span>` : ''} · Round ${interview.round}</span>
         </button>
         <div class="iv-body" id="interviewBody">
+            ${interview.assessment ? renderDimensionBars(interview.assessment) : ''}
             <div class="iv-section"><strong>Known (${interview.known.length})</strong><ul>${knownHtml}</ul></div>
             <div class="iv-section"><strong>Unknown (${interview.unknown.length})</strong><ul>${unknownHtml}</ul></div>
         </div>
@@ -324,6 +362,28 @@ function renderInterviewPanel(interview: { known: (string | InterviewEvidenceVie
             }
         });
     }
+}
+
+function renderBudgetPanel(budget: { maxWorkerDispatches: number; maxSelfHealRetries: number; maxVerificationRounds: number; spent: { workerDispatches: number; selfHealRetries: number; verificationRounds: number } } | null, orcState: string): void {
+    const panel = document.getElementById('budgetPanel');
+    if (!panel) return;
+    if (!budget || orcState !== 'B') { panel.hidden = true; return; }
+    panel.hidden = false;
+    const bar = (label: string, spent: number, max: number) => {
+        const pct = max > 0 ? Math.min((spent / max) * 100, 100) : 0;
+        const color = pct >= 100 ? '#f44336' : pct >= 66 ? '#ff9800' : '#4caf50';
+        return `<div style="display:flex;align-items:center;gap:6px;font-size:12px">
+            <span style="width:70px;color:var(--text-secondary)">${label}</span>
+            <div style="flex:1;height:5px;background:var(--bg-tertiary);border-radius:3px">
+                <div style="width:${pct}%;height:100%;background:${color};border-radius:3px"></div>
+            </div>
+            <span style="width:30px;text-align:right;font-size:11px">${spent}/${max}</span>
+        </div>`;
+    };
+    panel.innerHTML = `<div style="font-size:11px;font-weight:600;margin-bottom:4px;color:var(--text-secondary)">Build Budget</div>
+        ${bar('Workers', budget.spent.workerDispatches, budget.maxWorkerDispatches)}
+        ${bar('Self-heal', budget.spent.selfHealRetries, budget.maxSelfHealRetries)}
+        ${bar('Verify', budget.spent.verificationRounds, budget.maxVerificationRounds)}`;
 }
 
 async function hydrateGoalState(): Promise<void> {
@@ -608,6 +668,7 @@ export function connect(): void {
                 resolvedSelection: msg.resolvedSelection || null,
                 interview: msg.interview || null,
             });
+            renderBudgetPanel(msg.buildBudget || null, typeof msg.state === 'string' ? msg.state : 'IDLE');
         } else if (msg.type === 'memory_status') {
             import('./features/memory.js').then(m => m.refreshMemorySidebar());
         } else if (msg.type === 'steer_started') {
