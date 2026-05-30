@@ -423,6 +423,19 @@ function searchBM25(db: Database.Database, groups: string[][]): SearchHit[] {
     return [...hits.values()];
 }
 
+// CJK detection helpers for trigram routing
+const CJK_RE = /[\u4E00-\u9FFF\u3400-\u4DBF\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F]/;
+
+function containsCJK(text: string): boolean {
+    return CJK_RE.test(text);
+}
+
+function countCJKChars(text: string): number {
+    let n = 0;
+    for (const ch of text) { if (CJK_RE.test(ch)) n++; }
+    return n;
+}
+
 function searchTrigram(db: Database.Database, query: string): SearchHit[] {
     const term = String(query || '').trim();
     if (term.length < 3) return [];
@@ -434,6 +447,21 @@ function searchTrigram(db: Database.Database, query: string): SearchHit[] {
             WHERE chunks_trigram MATCH ?
             LIMIT 15
         `).all(quoteFtsTerm(term)) as ChunkRow[];
+        return rows.map((row, idx) => toHit(row, idx));
+    } catch { return []; }
+}
+
+function searchLikeFallback(db: Database.Database, query: string): SearchHit[] {
+    const term = String(query || '').trim();
+    if (!term) return [];
+    try {
+        const escaped = term.replace(/[%_\\]/g, c => '\\' + c);
+        const rows = db.prepare(`
+            SELECT path, relpath, kind, source_start_line, source_end_line, content, 0 AS score
+            FROM chunks
+            WHERE content LIKE '%' || ? || '%' ESCAPE '\\'
+            LIMIT 15
+        `).all(escaped) as ChunkRow[];
         return rows.map((row, idx) => toHit(row, idx));
     } catch { return []; }
 }
@@ -477,13 +505,32 @@ function searchIndexCore(
     const terms = tokenizeExpandedQuery(query, expanded);
     if (!terms.length) return { hits: [], degraded: [] };
     const degraded: string[] = [];
+    const baseQuery = terms[0] || query;
+
+    // CJK-primary path: route Korean/Japanese/Chinese queries to trigram
+    if (containsCJK(query) && cap.hasTrigram) {
+        if (countCJKChars(query) >= 3) {
+            const hits = searchTrigram(db, query)
+                .map(hit => ({ ...hit, score: computeFinalScore(hit, baseQuery) }))
+                .sort((a, b) => a.score - b.score)
+                .slice(0, 8);
+            return { hits, degraded };
+        }
+        // Short CJK (< 3 chars): LIKE fallback
+        const hits = searchLikeFallback(db, query)
+            .map(hit => ({ ...hit, score: computeFinalScore(hit, baseQuery) }))
+            .sort((a, b) => a.score - b.score)
+            .slice(0, 8);
+        return { hits, degraded };
+    }
+
+    // Non-CJK: existing BM25 + trigram RRF
     const groups = cap.hasSynonyms
         ? terms.map(term => expandSynonyms(db, term))
         : (degraded.push('memory_synonyms'), terms.map(t => [t]));
     const bm25 = searchBM25(db, groups);
     const trigram = cap.hasTrigram ? searchTrigram(db, query) : (degraded.push('chunks_trigram'), [] as SearchHit[]);
     const merged = reciprocalRankFusion(bm25, trigram);
-    const baseQuery = terms[0] || query;
     const hits = merged
         .map(hit => ({ ...hit, score: computeFinalScore(hit, baseQuery) }))
         .sort((a, b) => a.score - b.score)
