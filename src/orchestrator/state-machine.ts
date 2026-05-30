@@ -30,7 +30,7 @@ export interface InterviewEvidence {
 }
 
 // ─── P2-2: Dimension Assessment ────────────────────
-export type ClarityLevel = 'high' | 'medium' | 'low';
+export type ClarityLevel = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 export interface DimensionAssessment {
   goal: ClarityLevel;
   constraint: ClarityLevel;
@@ -247,7 +247,8 @@ export function getPrefix(state: OrcStateName, source: 'user' | 'worker' = 'user
     } else {
       prefix += '\n[Perspective: ARCHITECT + BREADTH_KEEPER — structural concerns, check blind spots]';
     }
-    if (assessment && !Object.values(assessment).includes('low')) {
+    const closerReady = assessment && Object.values(assessment).every(v => v === 'xhigh' || v === 'max');
+    if (closerReady) {
       prefix += '\n[Perspective: SEED_CLOSER — drive toward closure, confirm all assumptions]';
     }
     return prefix;
@@ -316,11 +317,15 @@ The tracker block below is machine-parsed and hidden from the user.
 Your visible response should contain questions and discussion only — never raw JSON arrays.
 
 <interview_tracker>
+assessment: {"goal":"high","constraint":"medium","success":"low","ontology":"low"}
 known: [
   {"fact": "confirmed fact", "source": "user_statement", "confidence": 1.0, "turnNumber": 1, "dimension": "goal"}
 ]
 unknown: ["open question"]
 </interview_tracker>
+
+Assessment levels (per dimension): low → medium → high → xhigh → max.
+"max" means fully confirmed and testable. All dimensions must reach "max" to be Ready.
 
 Each known entry:
 - \`fact\`: the confirmed information
@@ -338,8 +343,9 @@ Rules:
 ## Ready Criteria
 
 Suggest planning when ALL of these hold:
-- **Goal**: clearly defined with scope boundary (what NOT to build)
-- **Success**: at least 1 testable completion criterion
+- **Goal**: "max" — clearly defined with scope boundary
+- **Success**: "max" — at least 1 testable completion criterion, fully confirmed
+- **All dimensions**: at least "xhigh" or above
 - **No blocking unknowns**: no unknown that would make planning impossible
 - All "assumption" items either confirmed or explicitly accepted by user
 
