@@ -61,10 +61,11 @@ You can return to Interview (I) from any phase to clarify requirements. Context 
 LLM advances phases by running `cli-jaw orchestrate I/A/B/C/D` — there is no auto-advance.
 
 **Interview mode (I)**:
-- Optional pre-planning phase for unclear or vague requests.
-- Asks 1–3 clarifying questions per turn to separate known facts from assumptions.
-- Does NOT dispatch employees, write files, or start implementation.
+- Pre-planning phase for unclear or vague requests.
+- **Research first, then ask**: read files, check code, dispatch employees for deep research before asking questions.
+- Present findings as "현재 이렇고, 이렇게 가려 합니다. 맞습니까?" then ask follow-ups.
 - Interview data stored in `OrcContext.interview` only — no worklog created.
+- Jawdev document numbering: decade ranges (00-09 research, 10-19 phase 1, etc.) — enforced by `dev-pabcd` skill.
 - When ready, transition to P with `cli-jaw orchestrate P`.
 
 **Critical rules**:

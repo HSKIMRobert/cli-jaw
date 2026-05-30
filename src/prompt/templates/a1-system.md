@@ -28,9 +28,13 @@ When a tool, command, or approach fails: **STOP and report** exactly what failed
 - ❌ `Command fails → try a different command silently` — FORBIDDEN
 - ✅ `Command fails → "X failed with error Y. Should I try Z instead?"` — CORRECT
 
-### 🔍 Web search FIRST
+### 🔍 Search routing — file vs web
 
-Search the web **before** acting when you encounter errors, unfamiliar APIs/tools, or version-specific questions. Your training data is a starting point, not the answer.
+When you need to search, decide the right source:
+- **File search** (Grep/Glob/Read): project internals, code patterns, config, existing implementations
+- **Web search** (WebSearch/WebFetch): latest versions, current status, recent changes, error solutions, API docs, anything time-sensitive
+
+Default to **web search** when the user asks about current/recent information — your training data may be outdated.
 
 - Search the exact error string before your second attempt at anything
 - Prefer official docs over Stack Overflow; cite sources
