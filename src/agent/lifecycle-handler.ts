@@ -27,7 +27,7 @@ import {
     memoryFlushCounter,
 } from './memory-flush-controller.js';
 import { buildGoalContinuation } from '../goal/heartbeat.js';
-import { completeGoal, cancelGoal, getActiveGoal } from '../goal/store.js';
+import { completeGoal, cancelGoal, getActiveGoal, goalHasCompletionEvidence } from '../goal/store.js';
 
 const GOAL_CONT_MAX_ATTEMPTS = 20;
 let _goalContAttempts = 0;
@@ -800,14 +800,21 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
     // ─── AI-initiated /goal done or /goal cancel ───
     // The AI can't execute slash commands directly. Detect the pattern in output
     // and execute it so the continuation loop stops.
+    let goalDoneRejected = false;
     if (mainManaged && !opts.internal && ctx.fullText) {
         const activeGoal = getActiveGoal();
         if (activeGoal && activeGoal.status === 'active') {
             if (GOAL_DONE_RE.test(ctx.fullText)) {
-                completeGoal();
-                clearGoalTimers();
-                console.log('[jaw:goal] AI output contained /goal done — goal marked complete');
-                broadcast('goal_done', { goalId: activeGoal.id, source: 'ai_output' });
+                if (goalHasCompletionEvidence(activeGoal)) {
+                    completeGoal();
+                    clearGoalTimers();
+                    console.log('[jaw:goal] AI /goal done — evidence present, goal marked complete');
+                    broadcast('goal_done', { goalId: activeGoal.id, source: 'ai_output' });
+                } else {
+                    goalDoneRejected = true;
+                    console.warn('[jaw:goal] AI /goal done REJECTED — no verification evidence on latest checkpoint');
+                    broadcast('goal_done_rejected', { goalId: activeGoal.id, reason: 'no_evidence' });
+                }
             } else if (GOAL_CANCEL_RE.test(ctx.fullText)) {
                 cancelGoal();
                 clearGoalTimers();
@@ -902,7 +909,10 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
                         _goalContAttempts = 0;
                         return;
                     }
-                    const { promise: contP } = _spawnAgent(goalCont.prompt!, {
+                    const contPrompt = goalDoneRejected
+                        ? `[goal-gate] Your previous \`/goal done\` was REJECTED: the latest checkpoint had no verification evidence. Before declaring done again, run \`cli-jaw goal update "<summary>" --evidence "<test result / changed file>"\` with concrete evidence, and metacognitively confirm every part of the objective is truly finished.\n\n${goalCont.prompt!}`
+                        : goalCont.prompt!;
+                    const { promise: contP } = _spawnAgent(contPrompt, {
                         ...opts,
                         _isGoalContinuation: true,
                         _skipInsert: true,

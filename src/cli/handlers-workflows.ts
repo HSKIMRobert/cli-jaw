@@ -205,11 +205,16 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
     }
 
     if (sub === 'update') {
-        const summary = args.slice(1).join(' ').trim();
-        if (!summary) return blocked('Usage: /goal update <summary>');
-        const goal = updateGoal(summary);
+        const rest = args.slice(1);
+        const evIdx = rest.indexOf('--evidence');
+        const evidence = evIdx >= 0
+            ? rest.slice(evIdx + 1).join(' ').split(',').map(s => s.trim()).filter(Boolean)
+            : [];
+        const summary = (evIdx >= 0 ? rest.slice(0, evIdx) : rest).join(' ').trim();
+        if (!summary) return blocked('Usage: /goal update <summary> [--evidence <note-or-path>[,<...>]]');
+        const goal = updateGoal(summary, '', evidence);
         if (!goal) return blocked('No active goal to update.');
-        return info(`Checkpoint added: ${summary}`);
+        return info(`Checkpoint added: ${summary}${evidence.length ? ` (evidence: ${evidence.length})` : ''}`);
     }
 
     if (sub === 'done') {
