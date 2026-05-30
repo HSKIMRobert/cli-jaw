@@ -1423,8 +1423,8 @@ test('opencode close flush preserves tool-call text suppression without step_fin
 
     flushOpenCodeBuffers(ctx, 'oc');
 
-    assert.equal(ctx.fullText, 'The command completed.');
-    assert.equal(extractOutputChunk('opencode', { type: 'close' }, ctx), 'The command completed.');
+    assert.equal(ctx.fullText, '- The command completed.');
+    assert.equal(extractOutputChunk('opencode', { type: 'close' }, ctx), '- The command completed.');
     assert.equal(ctx.toolLog[0].status, 'done');
     assert.equal(ctx.toolLog[0].icon, '✅');
     assert.equal(ctx.toolLog[1].toolType, 'thinking');
@@ -1576,14 +1576,14 @@ test('opencode keeps post-tool text during tool-calls steps', () => {
         part: { reason: 'tool-calls' },
     }, ctx, 'oc');
 
-    assert.equal(ctx.fullText, 'I could not read that file because permission was denied.');
+    assert.equal(ctx.fullText, '- I could not read that file because permission was denied.');
     assert.equal(
         extractOutputChunk('opencode', {
             type: 'step_finish',
             sessionID: 'oc-1',
             part: { reason: 'tool-calls' },
         }, ctx),
-        'I could not read that file because permission was denied.',
+        '- I could not read that file because permission was denied.',
     );
 });
 
@@ -1623,14 +1623,14 @@ test('opencode keeps post-tool progress text after successful tool_use when step
         part: { reason: 'tool-calls' },
     }, ctx, 'oc');
 
-    assert.equal(ctx.fullText, '좋아요! 파일 있네요! 내용 확인하고 websearch 추가할게요!');
+    assert.equal(ctx.fullText, '- 좋아요! 파일 있네요! 내용 확인하고 websearch 추가할게요!');
     assert.equal(
         extractOutputChunk('opencode', {
             type: 'step_finish',
             sessionID: 'oc-1',
             part: { reason: 'tool-calls' },
         }, ctx),
-        '좋아요! 파일 있네요! 내용 확인하고 websearch 추가할게요!',
+        '- 좋아요! 파일 있네요! 내용 확인하고 websearch 추가할게요!',
     );
     assert.equal(ctx.toolLog[0].status, 'done');
     assert.equal(ctx.toolLog[0].icon, '✅');
@@ -1673,7 +1673,7 @@ test('opencode commits only post-tool text during tool-calls step and suppresses
         part: { reason: 'tool-calls' },
     }, ctx, 'oc');
 
-    assert.equal(ctx.fullText, 'The repo is available; I will inspect the parser next.');
+    assert.equal(ctx.fullText, '- The repo is available; I will inspect the parser next.');
     assert.ok(!ctx.fullText.includes('Let me check first.'));
     assert.equal(ctx.toolLog[1].toolType, 'thinking');
     assert.equal(ctx.toolLog[1].detail, 'Let me check first.');
@@ -1683,7 +1683,7 @@ test('opencode commits only post-tool text during tool-calls step and suppresses
             sessionID: 'oc-1',
             part: { reason: 'tool-calls' },
         }, ctx),
-        'The repo is available; I will inspect the parser next.',
+        '- The repo is available; I will inspect the parser next.',
     );
 });
 

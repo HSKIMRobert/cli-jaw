@@ -10,6 +10,7 @@ import {
 } from '../../types/cli-events.js';
 import type { CliEventRecord } from '../../types/cli-events.js';
 import type { SpawnContext, ToolEntry } from '../../types/agent.js';
+import { finalizeKiroFullText } from '../kiro-runtime.js';
 import { replaceLiveRunTools, appendLiveRunTool } from '../live-run-state.js';
 import { stampTraceToolEntries } from '../../trace/store.js';
 import { updateWorkerTools } from '../../orchestrator/worker-registry.js';
@@ -93,24 +94,67 @@ export function formatJsonDetail(label: string, value: unknown): string {
 
 // ─── Assistant text segment helpers ──────────────────
 
+function assistantStreamText(ctx: SpawnContext): string {
+    return ctx.liveOutputText ?? ctx.fullText;
+}
+
+function appendAssistantStreamText(ctx: SpawnContext, segment: string): void {
+    if (ctx.liveOutputText !== undefined) ctx.liveOutputText += segment;
+    else ctx.fullText += segment;
+}
+
 export function formatAssistantTextSegment(ctx: SpawnContext, text: unknown): string {
     const raw = String(text || '');
     if (!raw) return '';
+    const streamText = assistantStreamText(ctx);
     if (!ctx.outputTextStarted) {
         ctx.outputTextStarted = true;
         return raw;
     }
-    if (/\s$/.test(ctx.fullText) || /^\s/.test(raw) || /^[,.;:!?)]/.test(raw) || /^-\S/.test(raw)) return raw;
+    if (/\s$/.test(streamText) || /^\s/.test(raw) || /^[,.;:!?)]/.test(raw) || /^-\S/.test(raw)) return raw;
     return raw.startsWith('- ') || raw.startsWith('* ')
         ? `\n${raw}`
         : `\n- ${raw}`;
 }
 
+/** First visible assistant line after tools when the formatted stream is still empty. */
+export function formatPostToolAssistantLead(text: unknown): string {
+    const raw = String(text || '');
+    if (!raw) return '';
+    return raw.startsWith('- ') || raw.startsWith('* ') ? raw : `- ${raw}`;
+}
+
+export function appendPostToolAssistantLead(ctx: SpawnContext, text: unknown): string {
+    const segment = formatPostToolAssistantLead(text);
+    if (!segment) return '';
+    if (!ctx.outputTextStarted) ctx.outputTextStarted = true;
+    appendAssistantStreamText(ctx, segment);
+    return segment;
+}
+
 export function appendAssistantTextSegment(ctx: SpawnContext, text: unknown): string {
     const segment = formatAssistantTextSegment(ctx, text);
     if (!segment) return '';
-    ctx.fullText += segment;
+    appendAssistantStreamText(ctx, segment);
     return segment;
+}
+
+/** Pick the best assistant body for agent_done after plain-text / segmented CLIs. */
+export function resolveSpawnOutputText(ctx: {
+    fullText: string;
+    liveOutputText?: string;
+    kiroDisplayedText?: string;
+    kiroLineBuffer?: string;
+}): string {
+    const raw = ctx.fullText.trim();
+    const live = (ctx.liveOutputText || '').trim();
+    const displayed = (ctx.kiroDisplayedText || '').trim();
+    const parsedKiro = ctx.kiroDisplayedText !== undefined || ctx.kiroLineBuffer !== undefined
+        ? finalizeKiroFullText(ctx.fullText, ctx.kiroLineBuffer).trim()
+        : '';
+    const candidates = [displayed, parsedKiro, raw, live].filter(Boolean);
+    if (!candidates.length) return '';
+    return candidates.sort((a, b) => b.length - a.length)[0] ?? '';
 }
 
 export function extractAssistantText(event: CliEventRecord): string {

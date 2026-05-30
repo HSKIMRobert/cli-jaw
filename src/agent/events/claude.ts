@@ -221,6 +221,7 @@ export function handleClaudeEvent(
             for (const block of evt.message.content) {
                 if (block.type === 'text') {
                     const segment = appendAssistantTextSegment(ctx, block.text);
+                    ctx.pendingOutputChunk = (ctx.pendingOutputChunk || '') + segment;
                     const scope = liveScopeOf(ctx);
                     if (scope) appendLiveRunText(scope, segment);
                 }

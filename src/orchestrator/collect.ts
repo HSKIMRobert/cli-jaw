@@ -29,13 +29,14 @@ export function orchestrateAndCollect(
         }
 
         const handler = (type: string, data: Record<string, any>) => {
-            if (type === 'agent_chunk' || type === 'agent_tool' ||
+            // Live assistant chunks arrive as agent_output (Web UI + spawn.ts); legacy alias agent_chunk.
+            if (type === 'agent_chunk' || type === 'agent_output' || type === 'agent_tool' ||
                 type === 'agent_status' || type === 'agent_retry' ||
                 type === 'agent_done' || type === 'agent_fallback' ||
                 type === 'round_start' || type === 'round_done') {
                 resetTimeout();
             }
-            // NOTE: agent_output removed — no broadcast emits this event (dead branch)
+            // agent_output is the live stream event; agent_done remains authoritative.
             if (type === 'agent_done' && data["error"] && data["text"]) {
                 collected = collected || data["text"];
             }
