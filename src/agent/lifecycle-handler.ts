@@ -13,6 +13,7 @@ import { shouldInvalidateResumeSession } from './resume-classifier.js';
 import { classifyExitError } from './error-classifier.js';
 import { backfillGrokTraceTools } from './grok-trace-backfill.js';
 import { recordError, clearErrors } from './alert-escalation.js';
+import { stripInterviewTracker } from '../orchestrator/sanitize.js';
 import { clearLiveRun, getLiveRun } from './live-run-state.js';
 import { sanitizeToolLogForDurableStorage, serializeSanitizedToolLog } from '../shared/tool-log-sanitize.js';
 import { finalizeTraceRun, linkTraceRunToMessage } from '../trace/store.js';
@@ -368,7 +369,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
             .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
             .replace(/\n{3,}/g, '\n\n')
             .trim();
-        const displayText = cleaned || ctx.fullText.trim();
+        const displayText = stripInterviewTracker(cleaned || ctx.fullText.trim());
         let finalContent = displayText + costLine;
         let traceText = ctx.traceLog.join('\n');
 

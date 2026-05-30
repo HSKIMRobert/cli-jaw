@@ -36,6 +36,7 @@ import {
     type BuildBudget,
 } from './state-machine.js';
 import { recordFriction, resetFriction, getFrictionSummary } from './friction.js';
+import { stripInterviewTracker } from './sanitize.js';
 // scope is globally 'default' — resolveOrcScope/findActiveScope no longer needed here
 import { buildTaskSnapshot, getMemoryStatus } from '../memory/runtime.js';
 import { buildMemoryInjection } from '../memory/injection.js';
@@ -388,16 +389,8 @@ export async function orchestrate(
         if (ivCtx?.interview) {
             const originalText = result["text"] as string || '';
 
-            // P0-1: strip unconditionally — never leak tracker XML to user
-            let cleaned = originalText.replace(
-                /<interview_tracker>[\s\S]*?<\/interview_tracker>/g, ''
-            );
-            // P0-1b: strip raw tracker data LLM printed outside XML block
-            // Match "known: [...]" or "unknown: [...]" with balanced brackets
-            cleaned = cleaned.replace(
-                /\n*(?:known|unknown)\s*:\s*\[(?:[^\[\]]*|\[(?:[^\[\]]*|\[[^\[\]]*\])*\])*\]/g, ''
-            );
-            result["text"] = cleaned.trim();
+            // Strip tracker from user-visible text (shared sanitizer)
+            result["text"] = stripInterviewTracker(originalText);
 
             // P0-2 + P1-1: parse Evidence-Ref or legacy string format
             const block = originalText.match(/<interview_tracker>([\s\S]*?)<\/interview_tracker>/);
@@ -485,12 +478,9 @@ export async function orchestrate(
         }
     }
 
-    // Final safety strip: remove any tracker remnants regardless of state
+    // Final safety strip: shared sanitizer regardless of state
     if (typeof result["text"] === 'string') {
-        result["text"] = result["text"]
-            .replace(/<interview_tracker>[\s\S]*?<\/interview_tracker>/g, '')
-            .replace(/\n*(?:known|unknown)\s*:\s*\[(?:[^\[\]]*|\[(?:[^\[\]]*|\[[^\[\]]*\])*\])*\]/g, '')
-            .trim();
+        result["text"] = stripInterviewTracker(result["text"]);
     }
 
     // Normal response → broadcast
