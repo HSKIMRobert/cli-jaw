@@ -16,6 +16,30 @@ export type OrcStateName = 'IDLE' | 'I' | 'P' | 'A' | 'B' | 'C' | 'D';
 export type AuditVerdict = 'pending' | 'pass' | 'fail';
 export type VerificationVerdict = 'pending' | 'done' | 'needs_fix';
 
+// ─── P1-1: Interview Evidence-Ref ──────────────────
+export type EvidenceSource = 'user_statement' | 'repo_fact' | 'inference' | 'assumption' | 'default';
+export type EvidenceDimension = 'goal' | 'constraint' | 'success' | 'ontology';
+
+export interface InterviewEvidence {
+  fact: string;
+  source: EvidenceSource;
+  confidence: number;
+  turnNumber: number;
+  dimension?: EvidenceDimension;
+}
+
+// ─── P1-2: Build Budget Gate ───────────────────────
+export interface BuildBudget {
+  maxWorkerDispatches: number;
+  maxSelfHealRetries: number;
+  maxVerificationRounds: number;
+  spent: {
+    workerDispatches: number;
+    selfHealRetries: number;
+    verificationRounds: number;
+  };
+}
+
 export interface OrcContext {
   originalPrompt: string;
   workingDir: string | null;
@@ -36,13 +60,16 @@ export interface OrcContext {
   verificationStatus?: VerificationVerdict;
   userApproved?: boolean;
   projectDirs?: string[] | null;
-  // ─── Phase 2.1: Interview state ──────────────────
+  // ─── Interview state (P1-1: Evidence-Ref) ────────
   interview?: {
     request: string;
     round: number;
-    known: string[];
+    known: InterviewEvidence[];
     unknown: string[];
   };
+  // ─── Build budget (P1-2) ─────────────────────────
+  buildBudget?: BuildBudget;
+  researchReport?: string | null;
 }
 
 // ─── State Read/Write (DB-backed) ───────────────────
@@ -98,6 +125,7 @@ export function setState(
     taskAnchor: ctx?.taskAnchor || null,
     resolvedSelection: ctx?.resolvedSelection || null,
     interview: ctx?.interview || null,
+    buildBudget: ctx?.buildBudget || null,
   });
 }
 
@@ -128,10 +156,16 @@ const PREFIXES: Record<string, string> = {
 You are conducting a requirements interview. The user has responded to your question.
 
 Rules:
+- Research the user's response before asking follow-up questions. Read files, check code, verify claims.
+- Present: "조사 결과 현재 이렇고, 이렇게 가려고 합니다" then ask follow-ups.
 - Ask 1–3 clarifying questions per turn. Group related questions together.
 - Separate known facts from assumptions.
-- After processing the user's response, update and include the <interview_tracker> block.
-- Do NOT dispatch employees, write files, or start implementation.
+- After processing the user's response, update and include the <interview_tracker> block:
+  - User confirmations → source: "user_statement", confidence: 1.0
+  - Code-verified facts → source: "repo_fact", confidence: 0.9
+  - Inferred conclusions → source: "inference", confidence: 0.5-0.8
+  - Unconfirmed guesses → source: "assumption", confidence: 0.3-0.5 (flag for confirmation)
+  - Tag each fact with dimension: goal, constraint, success, or ontology
 - When the request is clear enough for PABCD P, suggest: "Ready for planning. Run \`cli-jaw orchestrate P\` or \`/orchestrate P\` to proceed."
 - The user can also end the interview with \`cli-jaw orchestrate reset\` to return to IDLE.
 
@@ -203,22 +237,37 @@ const STATE_PROMPTS: Record<string, string> = {
 You are now in Interview mode. Your ONLY job is to clarify requirements.
 
 Rules:
+- **Research first, then ask.** Before asking questions, investigate the current state:
+  - Read relevant files, grep for patterns, check existing implementations.
+  - Use CLI sub-agents (Agent tool) for quick lookups, or dispatch employees for parallel deep research.
+  - Present findings: "현재 이렇게 되어있고, 이렇게 변경하려 합니다. 이 방향이 맞습니까?"
 - Ask 1–3 high-value clarifying questions per turn. Group related questions.
-- For each question, optionally suggest 2-3 recommended answer choices.
+- For each question, suggest 2-3 recommended answer choices based on your research.
 - Track what is known, unknown, and what assumptions are risky.
+- Do NOT defer research — if something can be checked now, check it now.
 
 At the end of every response, include this structured block (it will be parsed and stripped from display):
 
 <interview_tracker>
-known: ["fact 1", "fact 2"]
-unknown: ["question 1", "question 2"]
+known: [
+  {"fact": "confirmed fact here", "source": "user_statement", "confidence": 1.0, "turnNumber": 1, "dimension": "goal"}
+]
+unknown: ["question still needing clarification"]
 </interview_tracker>
 
-- \`known\`: facts confirmed by the user or clearly stated in the request
-- \`unknown\`: items still needing clarification
-- Update both arrays cumulatively each turn — carry forward all prior items
-- If a previously unknown item becomes known, move it to known
-- Do NOT dispatch employees, write project files, or start implementation.
+Each known entry must have:
+- \`fact\`: the confirmed information
+- \`source\`: one of user_statement (user said it, confidence 1.0), repo_fact (verified in code, 0.9), inference (deduced from context, 0.5-0.8), assumption (unconfirmed guess, 0.3-0.5), default (conventional default, 0.5)
+- \`confidence\`: 0.0-1.0
+- \`turnNumber\`: which interview round this was captured in
+- \`dimension\`: goal, constraint, success, or ontology
+
+\`unknown\`: plain string array of open questions (no evidence needed).
+
+Rules:
+- Update both arrays cumulatively each turn — carry forward all prior items.
+- If a previously unknown item becomes known, move it to known with appropriate source.
+- Mark unverified conclusions as source "assumption" — they need explicit confirmation.
 - Do NOT invent business decisions — ask the user.
 - Prefer concise Korean-friendly questions when locale is Korean.
 
@@ -230,30 +279,29 @@ The user can exit interview at any time via \`cli-jaw orchestrate reset\` (→ I
 
   P: `[PABCD — P: PLANNING]
 
-You are now in Planning mode. Your ONLY job right now is to write a plan.
+You are now in Planning mode. Write the complete plan, then report it simply to the user.
+
+Think of this as: a developer reporting a fully-formed plan to the CEO. The plan is already complete internally — your job is to explain it clearly and get approval.
 
 Steps:
-1. Read the project's structural documentation and dev skill docs.
-2. Write a plan with TWO parts:
-   - Part 1 (chat): Easy explanation + a Mermaid/SVG diagram showing the file change map.
-   - Part 2 (file): Diff-level plan — exact file paths (NEW/MODIFY/DELETE),
-     before/after diffs for MODIFY, complete content for NEW.
-     Save Part 2 to a file (ask the user where to save, or use the project's existing plan folder).
-3. In chat, present ONLY: Part 1 summary (≤5 sentences), diagram, and the Part 2 file path.
-   Do NOT paste diffs, full file contents, or line-by-line changes into chat.
-4. Ask: "Any business logic I shouldn't decide alone?" and "Does Part 1 match your intent?"
+1. Read project docs, dev skills, and relevant code. If anything is unclear, return to Interview (\`cli-jaw orchestrate I\`) — do NOT ask questions in P.
+2. Write the complete plan internally:
+   - Diff-level precision: exact file paths (NEW/MODIFY/DELETE), before/after diffs for MODIFY, complete content for NEW.
+   - Save to a devlog plan file using Jawdev decade numbering (see dev-pabcd skill).
+3. Present to the user in chat:
+   - Part 1: Easy, non-developer explanation of what will change and why (≤5 sentences).
+   - A Mermaid/SVG diagram showing the file change map.
+   - The devlog plan file path.
+4. Final confirmation: "혼자 결정하면 안 되는 비즈니스 로직이 있나요?" and "이 방향이 맞습니까?"
 
-⛔ STOP HERE. Do NOT proceed to the next phase.
-⛔ WAIT for the user to review and approve your plan.
-⛔ When user approves, run: \`cli-jaw orchestrate A\`
+⛔ STOP. WAIT for user approval before advancing.
+⛔ When approved, run: \`cli-jaw orchestrate A\`
 
 You will receive user feedback with a [PLANNING MODE] prefix. Revise until approved.
 
 IMPORTANT — Project Workspace:
-Before writing a plan, you MUST confirm the project workspace with the user.
-Even if projectDirs is already set in settings, ask: "작업할 프로젝트 디렉토리를 확인합니다: <current dirs>. 이대로 진행할까요?"
-If projectDirs is not set, ask: "어떤 프로젝트 디렉토리에서 작업하시겠습니까? (예: jaw project set ~/Developer/my-project)"
-Do NOT proceed with planning until project workspace is confirmed.`,
+Before writing a plan, confirm the project workspace: "작업할 프로젝트 디렉토리를 확인합니다: <dirs>. 이대로 진행할까요?"
+If projectDirs is not set, ask the user to set it.`,
 
   A: `[PABCD — A: PLAN AUDIT]
 
