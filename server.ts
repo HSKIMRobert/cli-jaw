@@ -58,7 +58,7 @@ import {
     APP_VERSION,
 } from './src/core/config.js';
 import {
-    db, getSession, getMessages, getMessagesWithTrace, searchMessages, getLatestAssistantMessage, getLatestDashboardActivityMessage, closeDb,
+    db, getSession, getMessages, getMessagesWithTrace, getRecentMessagesAll, getRecentMessagesAllWithTrace, searchMessages, getLatestAssistantMessage, getLatestDashboardActivityMessage, closeDb,
     clearAllEmployeeSessions,
 } from './src/core/db.js';
 import { dashboardActivityTitleFromExcerpt } from './src/core/message-summary.js';
@@ -446,7 +446,17 @@ app.get('/api/health', (_req, res) => res.json({
 app.get('/api/session', (_, res) => ok(res, getSession(), getSession() as Record<string, unknown> | undefined));
 app.get('/api/messages', (req, res) => {
     const includeTrace = ['1', 'true', 'yes'].includes(String(req.query["includeTrace"] || '').toLowerCase());
-    const rows = includeTrace ? getMessagesWithTrace.all() : getMessages.all();
+    // Optional recent-window: `?limit=N` returns only the most recent N messages
+    // (still ascending) so the chat boot/instance-switch payload stays small.
+    // Absent/invalid limit preserves the legacy full-history behavior.
+    const limitRaw = Number(req.query["limit"]);
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(Math.floor(limitRaw), 5000) : 0;
+    let rows: unknown[];
+    if (limit > 0) {
+        rows = (includeTrace ? getRecentMessagesAllWithTrace.all(limit) : getRecentMessagesAll.all(limit)).reverse();
+    } else {
+        rows = includeTrace ? getMessagesWithTrace.all() : getMessages.all();
+    }
     const safeRows = (rows as Record<string, unknown>[]).map(row => ({
         ...row,
         tool_log: sanitizeSerializedToolLog(row["tool_log"] as string | null | undefined),

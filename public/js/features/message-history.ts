@@ -19,6 +19,11 @@ export function buildVirtualHistoryItems(msgs: MessageItem[]): VirtualItem[] {
     return msgs.map((m, index) => buildLazyVirtualMessageItem(normalizeMessageToolLog(m), index));
 }
 
+// Boot/instance-switch fetches only the most recent N messages. Full history
+// stays in the DB and remains reachable via `/api/messages/search`. This bounds
+// the per-(re)mount payload (previously the entire all-time history, ~tens of MB).
+export const BOOT_MESSAGE_LIMIT = 300;
+
 function normalizeMessageScopePart(value: string | null | undefined): string {
     return String(value || '').trim() || 'unknown';
 }
@@ -127,7 +132,7 @@ export async function loadMessages(): Promise<void> {
     const nextScope = buildMessageScopeIdentity({ locationKey, workingDir });
     setMessageScope(nextScope);
     const scopeChanged = nextScope !== previousScope;
-    const msgs = await api<MessageItem[]>('/api/messages');
+    const msgs = await api<MessageItem[]>(`/api/messages?limit=${BOOT_MESSAGE_LIMIT}`);
     if (msgs !== null) {
         const safeMsgs = msgs.map(normalizeMessageToolLog);
         const hadRenderedHistory = Boolean(chatEl?.querySelector('.msg')) || vs.active;
