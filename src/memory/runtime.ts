@@ -5,7 +5,7 @@ import Database from 'better-sqlite3';
 import { JAW_HOME, settings } from '../core/config.js';
 import { expandHomePath } from '../core/path-expand.js';
 import { instanceId } from '../core/instance.js';
-import { getMemory, getRecentMessages } from '../core/db.js';
+import { getMemory, getRecentMessagesLite } from '../core/db.js';
 
 // Re-export everything from sub-modules for backward compatibility
 export {
@@ -179,7 +179,7 @@ export function buildTaskSnapshot(query: string | string[], budget = 2800, expan
     if (cleaned.length < 20) {
         try {
             const wd = settings["workingDir"] || null;
-            const rows = (getRecentMessages.all(wd, 5) as Array<{ role?: string; content?: string }>) || [];
+            const rows = (getRecentMessagesLite.all(wd, 5) as Array<{ role?: string; content?: string }>) || [];
             const recentText = rows
                 .filter(r => r.role === 'user' || r.role === 'assistant')
                 .map(r => String(r.content || '').slice(0, 200))

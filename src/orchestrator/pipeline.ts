@@ -10,7 +10,7 @@ import {
     insertMessage, getEmployees,
     clearAllEmployeeSessions,
     upsertEmployeeSession,
-    getRecentMessages,
+    getRecentMessagesLite,
     getLatestUnconsumedAnchor,
 } from '../core/db.js';
 
@@ -232,7 +232,7 @@ export async function orchestrate(
     const numericResolution = state === 'P' && !ctx?.plan
         ? resolveNumericReference(
             userText,
-            getRecentMessages.all(settings["workingDir"] || null, 20) as Array<{ role?: string; content?: string }>,
+            getRecentMessagesLite.all(settings["workingDir"] || null, 20) as Array<{ role?: string; content?: string }>,
         )
         : null;
     if (numericResolution?.needsConfirmation) {
