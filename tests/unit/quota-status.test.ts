@@ -183,7 +183,7 @@ test('QS-005b: /api/quota returns every top-level CLI runtime key', () => {
         settingsRouteSrc.includes('CLI_KEYS.map((key) => [key, quotaByCli[key]'),
         '/api/quota should be keyed by CLI_KEYS instead of a hand-maintained subset',
     );
-    for (const key of ['agy', "'ai-e'", 'claude', "'claude-e'", 'codex', "'codex-app'", 'cursor', 'gemini', 'grok', 'opencode', 'copilot']) {
+    for (const key of ['agy', "'ai-e'", 'claude', "'claude-e'", 'codex', "'codex-app'", 'cursor', "'kiro-code'", 'gemini', 'grok', 'opencode', 'copilot']) {
         assert.ok(settingsRouteSrc.includes(`${key}:`), `/api/quota should define ${key}`);
     }
 });
@@ -203,6 +203,24 @@ test('QS-005c3: AGY quota uses reverse-engineered adapters', () => {
     assert.ok(
         agyQuotaSrc.includes('agy:google-cloud-code-api'),
         'AGY reverse quota should fall back to Google Cloud Code API',
+    );
+});
+
+test('QS-005c4: Kiro quota uses reverse-engineered CodeWhisperer adapter', () => {
+    const settingsRouteSrc = readSource(
+        path.join(import.meta.dirname, '../../src/routes/settings.ts'), 'utf8'
+    );
+    const kiroQuotaSrc = readSource(
+        path.join(import.meta.dirname, '../../src/routes/quota-kiro-reverse.ts'), 'utf8'
+    );
+    assert.ok(settingsRouteSrc.includes('fetchKiroUsage()'), 'Kiro quota should use fetchKiroUsage');
+    assert.ok(
+        kiroQuotaSrc.includes('AmazonCodeWhispererService.GetUsageLimits'),
+        'Kiro reverse quota should call CodeWhisperer GetUsageLimits',
+    );
+    assert.ok(
+        settingsRouteSrc.includes('buildLiveCliRegistry'),
+        '/api/cli-registry should merge live Kiro models',
     );
 });
 
