@@ -6,10 +6,10 @@ aliases: [CLI-JAW Agent Spawn, agent runtime, ACP orchestration]
 
 > 📚 [INDEX](INDEX.md) · **동기화 체크리스트** · [커맨드](commands.md) · [서버 API](server_api.md) · [str_func](str_func.md)
 
-# Agent Spawn — agent/ · orchestrator/ · cli/acp-client
+# Agent Spawn — agent/ · orchestrator/ · cli/acp-client · goal/
 
-> CLI spawn + ACP 분기 + 스트림 + 큐 + 메모리 flush + PABCD 오케스트레이션
-> 현재 기준: `src/agent/` 37개 TS 파일(이벤트 서브모듈 포함), `src/orchestrator/*` 10개 파일, `src/cli/acp-client.ts`
+> CLI spawn + ACP 분기 + 스트림 + 큐 + 메모리 flush + PABCD 오케스트레이션 + goal-mode autonomy
+> 현재 기준: `src/agent/` 40개 TS 파일(이벤트/spawn 서브모듈 포함), `src/orchestrator/` 14개 파일, `src/goal/` 4개 파일, `src/cli/acp-client.ts`
 
 ---
 
@@ -17,29 +17,57 @@ aliases: [CLI-JAW Agent Spawn, agent runtime, ACP orchestration]
 
 | File | Line count | Role |
 | --- | ---: | --- |
-| `src/agent/alert-escalation.ts` | 80L | alert escalation event helper |
-| `src/agent/args.ts` | 367L | CLI별 신규/재개 인자 생성; AGY print-mode + per-run `--log-file` + `--conversation` resume args, Cursor stream-json + model-id effort args, Gemini full-access + workspace include-directory flags, Grok streaming-json args, Claude Interactive helper args 포함 |
-| `src/agent/agy-runtime.ts` | 20L | AGY timeout stdout 판별/메시지 정규화 + stdout/log conversation id 추출 |
-| `src/agent/claude-e-runtime.ts` | 44L | `jaw_runtime` helper event를 legacy `agent:claude-i:*` runtime/status broadcast로 변환 |
-| `src/agent/cli-helpers.ts` | 7L | Claude-like CLI 판별 helper |
-| `src/agent/codex-app-client.ts` | 259L | Codex App stdio server client |
-| `src/agent/codex-app-events.ts` | 236L | Codex App turn/tool/message event adapter |
-| `src/agent/cursor-runtime.ts` | 217L | Cursor installed model inventory + model/effort → full model-id resolver |
-| `src/agent/error-classifier.ts` | 38L | stderr/result 기반 에러 분류 helper |
-| `src/agent/events/cursor.ts` | 145L | Cursor stream-json event adapter; system/session, assistant deltas, tool calls, result usage |
-| `src/agent/events.ts` | 2137L | NDJSON 파서 + ACP `session/update` / subagent lifecycle 매핑 + Grok streaming-json text/thought/end/error 중복 억제 + `claude-e`/legacy `claude-i` complete-message parsing |
-| `src/agent/grok-trace-backfill.ts` | 153L | Grok streaming-json가 생략한 tool_calls/tool_result를 종료 후 trace archive에서 backfill |
-| `src/agent/lifecycle-handler.ts` | 580L | child lifecycle, fallback, retry, queue resume orchestration |
-| `src/agent/live-run-state.ts` | 64L | active run snapshot / hydrate helper |
-| `src/agent/memory-flush-controller.ts` | 159L | memory flush lock + post-response trigger |
+| `src/agent/spawn.ts` | 1990L | spawn/ACP/stream/DB/broadcast + queue drain 핵심 |
+| `src/agent/lifecycle-handler.ts` | 951L | child lifecycle, fallback, retry, queue resume, goal continuation |
+| `src/agent/args.ts` | 413L | CLI별 신규/재개 인자 생성 |
+| `src/agent/kiro-runtime.ts` | 377L | kiro-code plain-text stdout parser (tool lines, assistant blocks, parallel tool merge, tail-buffer flush) |
+| `src/agent/kiro-auth.ts` | 230L | Kiro CLI data path resolution, session ID extraction from v2 sqlite store, conversation listing |
+| `src/agent/kiro-models.ts` | 98L | `kiro-cli chat --list-models --format json` dynamic model inventory |
+| `src/agent/codex-app-client.ts` | 274L | Codex App stdio server client (JSON-RPC thread/turn) |
+| `src/agent/codex-app-events.ts` | 291L | Codex App turn/tool/message/reasoning event adapter |
+| `src/agent/cursor-runtime.ts` | 239L | Cursor installed model inventory + model/effort → full model-id resolver |
+| `src/agent/memory-flush-controller.ts` | 184L | memory flush lock + post-response trigger |
 | `src/agent/opencode-diagnostics.ts` | 156L | OpenCode binary/permission 점검 + raw event 버퍼 |
-| `src/agent/resume-classifier.ts` | 51L | stale resume 판별 |
-| `src/agent/session-persistence.ts` | 74L | main session persistence gate; `claude-i` SIGINT exit 2 is resumable |
-| `src/agent/smoke-detector.ts` | 141L | smoke response 감지 + auto-continue 판단 |
+| `src/agent/grok-trace-backfill.ts` | 153L | Grok streaming-json tool_calls/tool_result backfill from trace archive |
 | `src/agent/spawn-env.ts` | 148L | AGY plain-text `NO_COLOR=1`, OpenCode/Gemini 전용 env/permission 보정 |
-| `src/agent/spawn.ts` | 1794L | spawn/ACP/stream/DB/broadcast + queue drain 핵심; AGY plain-text output/log session capture path + Cursor runtimeModel session buckets + `claude-i` prompt/write/runtime event bridge |
-| `src/agent/tool-timeout.ts` | 33L | tool inactivity timeout helper |
+| `src/agent/smoke-detector.ts` | 141L | smoke response 감지 + auto-continue 판단 |
 | `src/agent/watchdog.ts` | 104L | idle/progress watchdog; progress extends deadline within 4h hard cap |
+| `src/agent/resume-classifier.ts` | 81L | CLI별 stale session regex |
+| `src/agent/alert-escalation.ts` | 80L | alert escalation event helper |
+| `src/agent/session-persistence.ts` | 78L | main session persistence gate |
+| `src/agent/live-run-state.ts` | 64L | active run snapshot / hydrate helper |
+| `src/agent/claude-e-runtime.ts` | 44L | `jaw_runtime` helper event → legacy `agent:claude-e:*` runtime broadcast 변환 |
+| `src/agent/error-classifier.ts` | 38L | stderr/result 기반 에러 분류 helper |
+| `src/agent/tool-timeout.ts` | 33L | tool inactivity timeout helper |
+| `src/agent/agy-runtime.ts` | 20L | AGY timeout stdout 판별/메시지 정규화 + session id 추출 |
+| `src/agent/cli-helpers.ts` | 7L | Claude-like CLI 판별 helper |
+
+### src/agent/spawn/ — Extracted Submodules
+
+| File | Line count | Role |
+| --- | ---: | --- |
+| `spawn/queue.ts` | 350L | Message queue controller (factory pattern, fair policy, race fix) |
+| `spawn/resume.ts` | 84L | ACP heartbeat helper + resume bucket decision (pure functions) |
+| `spawn/process-kill.ts` | 22L | Recursive process tree kill via `pgrep -P` (no shell injection) |
+
+### src/agent/events/ — Event Adapters
+
+| File | Line count | Role |
+| --- | ---: | --- |
+| `events/index.ts` | 353L | Event dispatcher + public API (extractSessionId, extractOutputChunk, extractFromEvent) |
+| `events/helpers.ts` | 322L | syncLiveTools, emitAgentTool, pushTrace, buildPreview, resolveSpawnOutputText |
+| `events/tool-labels.ts` | 343L | tool label extraction + summarizeToolInput |
+| `events/grok.ts` | 344L | Grok streaming-json text/thought/end/error + duplicate suppression |
+| `events/claude.ts` | 264L | Claude/claude-e complete-message parsing + rate limit handling |
+| `events/codex.ts` | 96L | Codex NDJSON event adapter |
+| `events/cursor.ts` | 196L | Cursor stream-json event adapter |
+| `events/acp.ts` | 219L | ACP `session/update` / subagent lifecycle mapping |
+| `events/opencode.ts` | 196L | OpenCode event adapter |
+| `events/gemini.ts` | 117L | Gemini event adapter |
+| `events/summary.ts` | 139L | logEventSummary helper |
+| `events/types.ts` | — | Type-only re-export boundary |
+
+---
 
 ### `spawn.ts` 핵심 흐름
 
@@ -49,81 +77,71 @@ aliases: [CLI-JAW Agent Spawn, agent runtime, ACP orchestration]
 → resume면 buildResumeArgs, 아니면 buildArgs
 → history는 `working_dir` 스코프 + legacy `NULL` row fallback으로 조회
 → employee spawn이면 tmp cwd + AGENTS.md/CLAUDE.md/GEMINI.md/CONTEXT.md + .claude/CLAUDE.md 주입
-→ copilot면 ACP branch, `codex-app`면 app stdio branch, 아니면 일반 stdio branch
-→ 종료 시 session 저장 / smoke auto-continue / fallback retry / processQueue
+→ copilot면 ACP branch, `codex-app`면 app stdio branch, `kiro-code`면 plain stdout branch, 아니면 일반 stdio branch
+→ 종료 시 session 저장 / smoke auto-continue / goal continuation / fallback retry / processQueue
 ```
 
-- `buildHistoryBlock(currentPrompt, workingDir)`는 `getRecentMessages.all(workingDir || null, ...)`로 최근 기록을 읽고, `isCompactMarkerRow()`를 만나면 `row.trace` 요약을 넣은 뒤 중단한다. SQL은 `working_dir = ? OR working_dir IS NULL`이고, 누적 상한은 `maxTotalChars = 8000`이다.
-- `workingDir`는 히스토리 조회, 메시지 저장, 세션 persistence, 메모리 flush의 공통 스코프다. `cleanupEmployeeTmpDir()`는 `cwd !== workingDir`일 때만 임시 디렉터리를 지운다.
-- `opts.agentId`가 있고 `sysPrompt`가 있으면 employee 전용 tmp cwd를 만들고 `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `CONTEXT.md`, `.claude/CLAUDE.md`를 모두 덮어쓴다.
-- `enqueueMessage()`는 queue push 직후 `processQueue()`를 즉시 한 번 더 호출한다. 게이트웨이의 busy 체크 직후 agent가 종료해 close handler가 빈 큐를 본 경우를 다시 잡기 위한 race fix다.
-- `processQueue()`는 `queueProcessing` 플래그와 `queueMicrotask(() => processQueue())` 재드레인으로 중복 drain을 막고, `source+target` 첫 그룹만 처리한 뒤 나머지를 다시 큐에 넣는 fair policy를 유지한다.
-- `processQueue()`는 `let inserted = false` 플래그 패턴으로 race condition을 방지한다. `insertMessage.run()`이 아직 실행되지 않았다면 실패 시 requeue가 안전하고, `insertMessage.run()` 이후 setup이 실패하면 broadcast error만 보내고 requeue하지 않아 메시지 중복을 막는다.
-- `watchdog.ts`는 idle/progress watchdog을 분리해 activity마다 deadline을 연장한다. `markProgress()`는 `now + idleMs`로 다음 deadline을 갱신하되 absolute hard cap 4h를 넘기지 않는다.
-- `killProcessTree()`는 `execSync` 대신 `execFileSync`를 사용한다. shell injection 방지를 위해 pid를 문자열 인자로 넘기고, shell을 경유하지 않는다.
+- `buildHistoryBlock(currentPrompt, workingDir)`는 최근 기록을 읽고, compact marker를 만나면 요약을 넣은 뒤 중단. 누적 상한 `maxTotalChars = 8000`.
+- `workingDir`는 히스토리 조회, 메시지 저장, 세션 persistence, 메모리 flush의 공통 스코프.
+- `enqueueMessage()`는 queue push 직후 `processQueue()`를 즉시 재호출 (race fix).
+- `processQueue()`는 `queueProcessing` 플래그 + `queueMicrotask` 재드레인으로 중복 방지, `source+target` 첫 그룹만 처리하는 fair policy.
+- `killProcessTree()`는 `execFileSync`를 사용 (shell injection 방지).
 
 ### Copilot ACP branch
 
-- `~/.copilot/config.json`에 `model`과 `reasoning_effort`를 먼저 동기화한다. `model === 'default'`면 model 저장은 건너뛴다.
-- `AcpClient({ model, workDir: spawnCwd, permissions, env })`를 생성하고, `initialize()` 후 `isResume`면 `loadSession(resumeSessionId)`를 시도한다.
-- `loadSession()`이 성공하면 replay 모드를 켜서 `session/update`를 무시하고, `ctx.fullText`, `ctx.toolLog`, `ctx.seenToolKeys`, `ctx.thinkingBuf`를 모두 비운다.
-- `loadSession()`이 실패하면 `createSession(spawnCwd)`로 새 세션을 만든 뒤, `needsHistoryFallback`일 때만 `withHistoryPrompt()`로 히스토리를 다시 붙인다.
-- `session/update`는 `extractFromAcpUpdate()`로 변환되고, 💭는 버퍼링, non-💭 tool은 `icon:label:stepRef:status` 기준으로 dedupe, 텍스트는 `ctx.fullText`에 누적된다.
-- Copilot ACP subagent/task wire shape은 별도 `subagent.*` 이벤트가 아니라 `session/update`의 `tool_call` + `rawInput.agent_type === 'task'`다. 이때 `toolCallId`를 `ctx.acpSubagentToolCallIds`와 `ctx.acpSubagentLabels`에 저장하고, matching `tool_call_update`를 같은 `acp:callid:{toolCallId}` step으로 done/error 갱신한다.
-- `stderr_activity`는 진단용 버퍼를 채우고, 가시적 progress가 오래 없으면 `agent_tool`로 ⏳ heartbeat를 보낸다.
-- `acp.shutdown()` 전에 `persistMainSession()`를 먼저 호출한다. 이 경로는 SIGTERM으로 종료되기 때문에, 사전 저장하지 않으면 세션 연속성이 끊긴다.
+- `~/.copilot/config.json`에 `model`과 `reasoning_effort`를 동기화.
+- `AcpClient({ model, workDir, permissions, env })`를 생성, `initialize()` 후 resume/new session 분기.
+- `loadSession()` 성공 시 replay 모드, 실패 시 `createSession()` + `withHistoryPrompt()` fallback.
+- `session/update`는 `extractFromAcpUpdate()`로 변환. subagent는 `tool_call` + `rawInput.agent_type === 'task'`로 감지.
+- `acp.shutdown()` 전에 `persistMainSession()` 선행.
 
 ### Codex AppServer branch
 
-- `CodexAppClient`는 `codex app-server --listen stdio://`를 띄우고 JSON-RPC `thread/start`, `thread/resume`, `turn/start`를 사용한다.
-- thread config에는 `model_reasoning_summary="detailed"`, `hide_agent_reasoning=false`, `show_raw_agent_reasoning=true`, `model_reasoning_effort=<effort>`를 넣는다. turn 시작에는 `effort`와 `summary="detailed"`를 다시 보낸다.
-- `codex-app-events.ts`는 `item/reasoning/summaryTextDelta`, `item/reasoning/textDelta`, `item/reasoning/summaryPartAdded`, completed reasoning item의 `content/summary` fallback을 모두 `toolType:"thinking"`으로 정규화한다.
-- 빈 `item/started` reasoning은 `thinking...` placeholder를 만들지 않는다. app-server가 raw `textDelta`를 내보내면 raw reasoning을 우선 표시하고, raw가 없으면 detailed summary stream 또는 completed item의 string/object-shaped `content[]`/`summary[]`를 표시한다.
+- `CodexAppClient`는 `codex app-server --listen stdio://`를 띄우고 JSON-RPC 사용.
+- thread config: `model_reasoning_summary="detailed"`, `hide_agent_reasoning=false`, `show_raw_agent_reasoning=true`.
+- `codex-app-events.ts`는 reasoning summaryTextDelta/textDelta/summaryPartAdded를 `toolType:"thinking"`으로 정규화.
 
-### Standard CLI branch
+### Kiro-code branch
 
-- `claude`는 stdin에 `withHistoryPrompt(prompt, historyBlock)`를 직접 쓴다.
-- `agy`는 fresh run에서 `agy -p <prompt> --print-timeout 10m --log-file <tmp>` 표면을 실행하고, resume run에서 `agy --conversation <sessionId> -p <prompt> --print-timeout 10m --log-file <tmp>`을 실행한다. AGY print mode는 native AGY UI에서 현재 선택된 모델을 쓰며, `agy 1.0.0` help에는 per-run `--model`/`--effort` flag가 없다. `-c`/`--continue`는 최신 대화 재개라 저장된 bucket session에는 쓰지 않는다. auto permission이면 `--dangerously-skip-permissions`, workspace 보정은 반복 `--add-dir`로 넘기고 model/effort/output-format/include-directories flag는 넘기지 않는다. stdout은 NDJSON으로 파싱하지 않고 plain text로 `agent_output`에 누적하며 (`liveOutputText` + `appendAssistantTextSegment`), stdout의 `Resume with: agy --conversation=<id>` 또는 per-run log의 `Created conversation <id>`/`conversation=<id>`에서 session id를 저장하고, `Error: timed out waiting for response` stdout은 effective exit code `124`로 lifecycle에 전달한다.
-- `kiro-code`는 `kiro-cli chat --no-interactive` plain stdout 표면을 쓴다. `src/agent/kiro-runtime.ts`가 tool line(`using tool:`), completion marker, `>` assistant block + continuation lines, parallel tool merge, tail-buffer flush를 파싱해 `agent_tool` + `agent_output`으로 브로드캐스트한다. live preview는 **raw delta**(`liveOutputText`, bullet inject 없음), session/finalize용 raw capture는 `fullText`, authoritative body는 `resolveSpawnOutputText()`(parsed Kiro 우선)다. 동적 모델 목록은 `kiro-cli chat --list-models --format json`, quota는 `quota-kiro-reverse.ts`(CodeWhisperer GetUsageLimits) 경로다.
-- `claude-e` provider는 `claude-e run --jsonl --output-format stream-json --idle-timeout-ms 600000 --hard-timeout-ms 3600000` 표면을 우선 실행한다. 탐지는 `CLAUDE_E_BIN` / `CLAUDE_EXEC_BIN` / `JAW_CLAUDE_I_BIN`, bundled npm `claude-e` release/debug helper, PATH `claude-e`, compatibility `claude-exec`, legacy `jaw-claude-i` / `claude-i`, native target fallback 순서다. `run --help`가 `--idle-timeout-ms`를 노출하지 않는 오래된 helper는 spawn 전에 거부한다. fresh run은 stdin에 `withHistoryPrompt(prompt, historyBlock)`를 쓰고, resume run은 helper의 `--resume <sessionId>`와 현재 prompt만 넘긴다.
-- `claude-e` helper가 내보내는 `jaw_runtime` 이벤트는 discriminator 전에 가로채 기존 `agent:claude-i:*` runtime broadcast로 변환하고, `session_started`/`interrupted`의 `sessionId`를 main session persistence에 반영한다.
-- `cursor` fresh/resume 인자는 `cursor-agent -p --trust --output-format stream-json --model <resolvedModelId>` 표면을 쓴다. auto permission이면 `--force`만 추가하고, Cursor CLI에 없는 `--effort`/`--reasoning-effort`/`--thinking` flag는 넘기지 않는다. effort는 spawn 전에 `src/agent/cursor-runtime.ts`가 full model id로 해석하고, 이 `runtimeModel`이 session bucket, trace, persistence, resume guard에 모두 쓰인다.
-- `codex`는 resume가 아닐 때만 stdin에 `[User Message]` 블록을 쓴다.
-- `agy`, `cursor`, `gemini`, `grok`, `opencode`는 fresh run에서 `promptForArgs = withHistoryPrompt(prompt, historyBlock)`를 받아 인자 레벨에서 prompt/history를 합친다. AGY resume은 native `--conversation <sessionId>`를 쓰므로 현재 prompt만 넘긴다.
-- `gemini` fresh/resume 인자는 headless `-p`, model, stream JSON, `--skip-trust`, `--approval-mode yolo`, 그리고 workspace 보정을 함께 다룬다.
-- `grok` fresh/resume 인자는 `-p`, optional `-m`, `--output-format streaming-json`, `--no-alt-screen`, auto permission이면 `--always-approve --permission-mode bypassPermissions`만 넘긴다. `grok-build`는 서버가 `reasoningEffort`를 거부하므로 `--effort`, `--reasoning-effort`, system-prompt override 계열 플래그를 넘기지 않는다.
-- Grok `streaming-json` stdout이 실제 tool event를 생략하는 버전은 정상 종료 후 `grok trace --local --json <sessionId>`를 한 번 호출하고 `chat_history.jsonl`의 `tool_calls`/`tool_result`를 최종 toolLog에 backfill한다. `ai-e` Grok provider도 `effectiveProvider=grok`로 같은 lifecycle 보강을 탄다.
-- Gemini CLI는 multi-directory workspace에 `--include-directories <dir1,dir2>` 또는 반복 플래그를 지원한다. cli-jaw의 Gemini spawn 경로는 OS home을 include-directory로 넘기고, WSL이면 Linux home에 더해 발견 가능한 Windows user home(`/mnt/c/Users/...`)도 넘긴다. 자동 감지가 부족하면 `perCli.gemini.includeDirectories` 값을 추가 include로 넘긴다.
-- 이 include-directory 보정이 빠지면 Gemini file tools가 cwd 밖의 폴더를 외부 경로로 보고 `Path not in workspace` 계열 오류를 낼 수 있다. 단순 trust env(`GEMINI_CLI_TRUST_WORKSPACE`)나 prompt 지침만으로는 workspace membership을 확장한 것으로 보지 않는다.
-- stdout NDJSON은 `jaw_runtime` 사전 처리(`claude-i` only) → `logEventSummary()` → `extractSessionId()` → `extractFromEvent()` → `extractOutputChunk()` 순으로 처리된다.
-- `shouldInvalidateResumeSession()`가 true면 `updateSession.run(cli, null, model, settings.permissions, settings.workingDir, ...)`로 stale resume을 지운다.
-- smoke response가 감지되면 세션을 먼저 저장하고, `buildContinuationPrompt()`로 같은 엔진에 재스폰한다.
+- `kiro-cli chat --no-interactive` plain stdout 표면.
+- `kiro-runtime.ts`가 tool line(`using tool:`), completion marker, `>` assistant block + continuation lines, parallel tool merge, tail-buffer flush를 파싱해 `agent_tool` + `agent_output`으로 브로드캐스트.
+- Live preview는 raw delta (`liveOutputText`, bullet inject 없음), session/finalize용 raw capture는 `fullText`, authoritative body는 `resolveSpawnOutputText()` (parsed Kiro 우선).
+- 동적 모델 목록은 `kiro-cli chat --list-models --format json` (`kiro-models.ts`).
+- Quota는 `quota-kiro-reverse.ts` (CodeWhisperer GetUsageLimits) 경로.
+- Session ID는 stdout regex 또는 v2 sqlite store에서 추출 (`kiro-auth.ts`).
+- Resume은 `--resume <sessionId>` 또는 `--conversation <id>` 인자.
+
+### Standard CLI branches
+
+| CLI | 표면 | 특이사항 |
+| --- | --- | --- |
+| `claude` | stdin에 `withHistoryPrompt()` 직접 쓰기 | — |
+| `claude-e` | `claude-e run --jsonl --output-format stream-json --idle-timeout-ms 600000 --hard-timeout-ms 3600000` | `jaw_runtime` 이벤트 가로채기, resume `--resume <sessionId>` |
+| `agy` | `agy -p <prompt> --print-timeout 10m --log-file <tmp>` | plain text stdout, session id from stdout/log, resume `--conversation <id>` |
+| `cursor` | `cursor-agent -p --trust --output-format stream-json --model <resolvedModelId>` | effort는 full model id로 해석, `runtimeModel` session bucket |
+| `codex` | stdin에 `[User Message]` 블록 (fresh only) | — |
+| `gemini` | headless `-p`, model, stream JSON, `--skip-trust`, `--approval-mode yolo` | multi-directory workspace `--include-directories` |
+| `grok` | `-p`, optional `-m`, `--output-format streaming-json`, `--no-alt-screen` | trace backfill on exit, `ai-e` alias |
+| `opencode` | diagnostics + raw event buffer | — |
 
 ### Session persistence / resume classifier
 
-| File | Line count | Role |
-| --- | ---: | --- |
-| `src/agent/session-persistence.ts` | 72L | `ownerGeneration` 가드 + bucket-aware `updateSession.run()` 래퍼 |
-| `src/agent/resume-classifier.ts` | 51L | CLI별 stale session regex |
-
-- `persistMainSession()`는 `forceNew`, `employeeSessionId`, `!sessionId`, `isFallback`, 비정상 exit를 모두 차단한다.
-- 저장할 때는 `cli`, `sessionId`, `model`, `permissions`, `workingDir`, `effort`를 같이 기록한다.
-- `shouldInvalidateResumeSession()`는 `code === 0`이면 무조건 false이고, 실패한 stderr/resultText에서 generic matcher + CLI별 matcher를 함께 검사한다.
-- resume 무효화 조건은 `claude`, `claude-e`/legacy `claude-i`, `agy`, `codex`, `cursor`, `gemini`, `grok`, `opencode`, `copilot` 각각 따로 분기된다. Cursor는 resolved model id가 bucket model과 같을 때만 resume한다. AGY는 plain stdout 또는 per-run log에서 conversation id를 추출해 bucket session으로 저장하고, 다음 resume에서 `--conversation <sessionId>`를 쓴다. `claude-i`는 Claude-like 세션 ID를 쓰지만 별도 bucket(`claude-i`)에 저장해 standard `claude` resume과 섞이지 않는다. Grok는 generic `session not found` 계열을 공유하고, copilot은 `session not found`와 `loadSession failed`를 본다.
+- `persistMainSession()`는 `forceNew`, `employeeSessionId`, `!sessionId`, `isFallback`, 비정상 exit를 모두 차단.
+- 저장: `cli`, `sessionId`, `model`, `permissions`, `workingDir`, `effort`.
+- `shouldInvalidateResumeSession()`는 `code === 0`이면 무조건 false, 실패 시 generic + CLI별 matcher 검사.
+- Resume 무효화: `claude`, `claude-e`, `agy`, `codex`, `cursor`, `gemini`, `grok`, `opencode`, `copilot`, `kiro-code` 각각 분기.
 
 ---
 
 ### Tool-log safety boundary
 
-`src/shared/tool-log-sanitize.ts` is the shared cap/truncate boundary for live and persisted tool UI:
+`src/shared/tool-log-sanitize.ts`가 live/persisted tool UI의 공유 cap/truncate boundary:
 
 | Surface | Sanitization path |
 | --- | --- |
 | WS `agent_tool` | `core/bus.ts` → `sanitizeToolLogEntry()` |
 | WS `agent_done.toolLog` | `core/bus.ts` → `sanitizeToolLogForDurableStorage()` |
 | `/api/orchestrate/snapshot.activeRun.toolLog` | `routes/orchestrate.ts` → `getSafeLiveRun()` |
-
-Limits are intentionally bounded (`MAX_TOOL_LOG_ENTRIES`, per-detail cap, total-detail cap, JSON cap) so Manager/ProcessBlock hydration cannot retain unbounded raw tool output.
 
 ---
 
@@ -142,33 +160,45 @@ Limits are intentionally bounded (`MAX_TOOL_LOG_ENTRIES`, per-detail cap, total-
 | `prompt()` | `session/prompt` + activity timeout |
 | `shutdown()` | `shutdown` 후 kill |
 
-### ACP 세부
-
-- `permissions === 'auto'` 또는 `'yolo'`이면 `--allow-all-tools --allow-all-paths --allow-all-urls`를 붙인다.
-- `spawn()`은 `cwd: workDir`, `stdio: ['pipe', 'pipe', 'pipe']`, `env: { ...process.env, ...env }`로 띄운다.
-- stdout은 readline NDJSON 파서로 읽고, stderr는 debug/heartbeat 용도로만 다룬다.
-- `_handleLine()`는 유효한 JSON-RPC 메시지마다 `_activityPing()`을 호출해서 idle timer를 리셋한다.
-- `session/request_permission`은 항상 자동 승인한다.
-- `prompt()`의 activity timeout은 idle 1200000ms, max 14400000ms다.
-- `createSession()`과 `loadSession()` 모두 성공 시 `this.sessionId`를 갱신한다. 현재 문맥에서 `AcpClient` 생성자는 `{ model, workDir, permissions, env }`만 받고, 별도 `mcpServers` 인자를 직접 넘기지 않는다.
+- `permissions === 'auto'` 또는 `'yolo'`이면 `--allow-all-tools --allow-all-paths --allow-all-urls`.
+- `prompt()` activity timeout: idle 1200000ms, max 14400000ms.
+- `session/request_permission`은 항상 자동 승인.
 
 ---
 
-## src/orchestrator/* — PABCD Orchestration
+## src/goal/* — Goal-Mode Autonomy (4 files)
 
 | File | Line count | Role |
 | --- | ---: | --- |
-| `src/orchestrator/collect.ts` | 65L | orchestrate 결과 수집 |
-| `src/orchestrator/distribute.ts` | 583L | employee dispatch + parallel safety |
-| `src/orchestrator/gateway.ts` | 155L | queue / intent gateway |
-| `src/orchestrator/parser.ts` | 176L | legacy subtask JSON 파서 + intent matcher + numeric reference + verdict 파서 |
-| `src/orchestrator/pipeline.ts` | 523L | PABCD sole entry point + interview first-turn init + `<interview_tracker>` 추출 |
-| `src/orchestrator/scope.ts` | 17L | scope stub — 항상 `'default'` 반환 |
-| `src/orchestrator/state-machine.ts` | 432L | IPABCD state (I=Interview pre-plan) + prompts (1–3 questions/round) + `<interview_tracker>` known/unknown → OrcContext.interview + audit/verification verdict |
-| `src/orchestrator/worker-monitor.ts` | 58L | stall/disconnect/timeout monitor |
-| `src/orchestrator/worker-progress.ts` | 58L | worker progress safe-summary sanitizer + snapshot types |
-| `src/orchestrator/worker-registry.ts` | 241L | worker ownership + replay registry + sanitized progress snapshots |
-| `src/orchestrator/workspace-context.ts` | 95L | task에서 repo path hint 추출, project root resolve |
+| `goal/store.ts` | 158L | active goal CRUD, checkpoint, history, completion evidence gate |
+| `goal/heartbeat.ts` | 92L | goal-aware heartbeat continuation builder (stale detection, worker/orc state check) |
+| `goal/runtime.ts` | 55L | goal runtime helpers |
+| `goal/types.ts` | 42L | GoalState, GoalHistory, GoalCheckpoint, GoalBudget types |
+
+- `lifecycle-handler.ts`는 agent 종료 후 active goal이 있으면 `buildGoalContinuation()`으로 자동 재스폰 판단.
+- `completeGoal()`은 `goalHasCompletionEvidence()`가 true일 때만 goal을 완료 처리 (verification evidence gate).
+- Goal continuation은 `GOAL_CONT_MAX_ATTEMPTS = 20` 회 제한, goal ID 변경 시 카운터 리셋.
+
+---
+
+## src/orchestrator/* — PABCD Orchestration (14 files)
+
+| File | Line count | Role |
+| --- | ---: | --- |
+| `orchestrator/pipeline.ts` | 537L | PABCD sole entry point + interview first-turn init + `<interview_tracker>` 추출 |
+| `orchestrator/state-machine.ts` | 604L | IPABCD state + prompts + interview tracker → OrcContext + audit/verification verdict |
+| `orchestrator/distribute.ts` | 583L | employee dispatch + parallel safety |
+| `orchestrator/worker-registry.ts` | 241L | worker ownership + replay registry + sanitized progress snapshots |
+| `orchestrator/gateway.ts` | 155L | queue / intent gateway |
+| `orchestrator/parser.ts` | 176L | legacy subtask JSON 파서 + intent matcher + numeric reference + verdict 파서 |
+| `orchestrator/seed.ts` | 107L | ontology schema + seed metadata for interview-driven planning |
+| `orchestrator/workspace-context.ts` | 95L | task에서 repo path hint 추출, project root resolve |
+| `orchestrator/friction.ts` | 76L | friction signature ledger + retry/escalate/stop verdict |
+| `orchestrator/collect.ts` | 66L | orchestrate 결과 수집 |
+| `orchestrator/worker-progress.ts` | 58L | worker progress safe-summary sanitizer + snapshot types |
+| `orchestrator/worker-monitor.ts` | 58L | stall/disconnect/timeout monitor |
+| `orchestrator/sanitize.ts` | 18L | `stripInterviewTracker()` — interview tracker/perspective tags from visible text |
+| `orchestrator/scope.ts` | 17L | scope stub — 항상 `'default'` 반환 |
 
 ### `pipeline.ts` 실제 흐름
 
@@ -184,65 +214,84 @@ orchestrate(prompt, meta)
   └─ result broadcast + worklog/state update
 ```
 
-- PABCD 진입은 이제 명시적이다. `orchestrate()`는 `/orchestrate`, `/pabcd`, 혹은 LLM tool call에서만 들어온다고 전제하고, auto-entry / auto-advance 로직은 없다.
-- `orchestrate()`는 실행 전에 `listPendingWorkerResults()`를 먼저 비우고, `claimWorkerReplay()` 성공한 항목만 재주입한다.
-- 첫 planning turn에서는 `getStatePrompt('P')`와 `User request` 블록을 조합해 planning prompt를 만든다.
-- `state === 'P'`이고 `ctx.plan`이 비어 있으면 `resolveNumericReference()`로 "1번", "2번" 같은 사용자 지시를 직전 assistant numbered list에서 본문으로 치환하고, 매칭이 모호하면 `orchestrate_done`으로 확인 요청을 보내고 종료한다.
-- `buildApprovedPlanPromptBlock()`이 `A/B/C` 상태에서 `ctx.plan`을 prompt 최상단에 붙여 worker가 plan을 재구성하지 못하도록 잠근다.
-- `memorySnapshot`은 `buildMemoryInjection()`의 advanced snapshot 경로를 재사용해 boss turn에서만 붙인다.
-- `orchestrateContinue()`는 active PABCD면 `"Please continue from where you left off."`로 이어가고, IDLE이면 최신 worklog가 `done/reset`이 아닐 때만 worklog-based resume를 한다. 이 경로는 parser 기준 explicit `/continue`에서만 들어와야 하며, 일반 “continue/계속/이어서” 발화는 평범한 사용자 프롬프트로 처리한다.
-- `orchestrateReset()`는 active agent / worker / queue / worker registry / employee session / state / worklog status를 모두 reset한다.
-
-### Worker registry / monitor
-
-- `claimWorker()`는 worker 슬롯을 `running` 상태로 등록하고, `finishWorker()`는 `done + pendingReplay=true`로 바꾼다.
-- worker registry는 현재 실행 중 run과 직원별 직전 완료 run을 메모리에서 유지하며, `worker-progress.ts`를 통해 thinking/detail을 제거한 안전 요약만 `worker-progress` API와 CLI watch/status에 노출한다.
-- `claimWorkerReplay()` / `markWorkerReplayed()` / `releaseWorkerReplay()`로 replay를 관리한다. replay 실패는 3회까지 재시도한다.
-- `startWorkerMonitor()`는 `stallThresholdMs: 120_000`, `maxDurationMs: 600_000` 기준으로 stall / disconnect / timeout 콜백을 쏜다.
-- `touch()`는 `stdout | stderr | acp | heartbeat` 이벤트마다 호출되고, stall 상태를 해제한다.
-- `exit(code)`는 `code !== 0 || code === null`일 때만 disconnect 콜백을 보낸다.
+- PABCD 진입은 명시적 (`/orchestrate`, `/pabcd`, LLM tool call).
+- `state === 'P'`이고 `ctx.plan`이 비어 있으면 `resolveNumericReference()`로 사용자 지시를 직전 numbered list에서 치환.
+- `buildApprovedPlanPromptBlock()`이 `A/B/C` 상태에서 `ctx.plan`을 prompt 최상단에 붙임.
+- `orchestrateContinue()`는 active PABCD면 continue prompt, IDLE이면 worklog-based resume.
+- `orchestrateReset()`는 agent/worker/queue/registry/employee session/state/worklog 모두 reset.
 
 ### State machine
 
-- `OrcStateName`은 `IDLE | P | A | B | C | D` 6개. `OrcContext`는 `auditStatus`(pending/pass/fail), `verificationStatus`(pending/done/needs_fix), `userApproved`, `worklogPath`, `planHash`, `planUpdatedAt`, `taskAnchor`, `resolvedSelection`, `interview`(request/round/known/unknown)까지 포함한다.
-- `getCtx()`는 `workingDir`가 빠진 구형 ctx를 읽어도 `workingDir: null`로 보정한다.
-- `setState()`는 worklog title을 최대 두 단어 + ellipsis로 자르고, fallback title은 `PABCD`다.
-- 상태 프롬프트는 이제 승인 시 `cli-jaw orchestrate A/B/C/D`를 명시적으로 실행하라고 말한다.
-- Interview(I) 상태는 라운드당 1~3개 질문 프롬프트를 쓰고, LLM 응답의 `<interview_tracker>known: [...]\nunknown: [...]</interview_tracker>` 블록을 `pipeline.ts`가 정규식으로 파싱해 `ctx.interview`(known/unknown/round)를 갱신한 뒤 본문에서 블록을 strip한다. 갱신된 트래커는 `orc_state` WS payload로 Web UI interview 패널에 실시간 전달된다.
+- `OrcStateName`: `IDLE | P | A | B | C | D`.
+- `OrcContext`: `auditStatus`, `verificationStatus`, `userApproved`, `worklogPath`, `planHash`, `planUpdatedAt`, `taskAnchor`, `resolvedSelection`, `interview`(request/round/known/unknown).
+- Interview(I): 라운드당 1~3개 질문, `<interview_tracker>` 블록을 정규식 파싱 → `ctx.interview` 갱신 → `orc_state` WS payload로 Web UI 전달.
 
-### Parser (`orchestrator/parser.ts`)
+### Worker registry / monitor
 
-- `isContinueIntent`는 explicit `/continue`만 매칭한다. `isResetIntent` / `isApproveIntent`는 한국어·영어 짧은 명령을 매칭한다.
-- `parseSubtasks()` / `parseDirectAnswer()` / `stripSubtaskJSON()`은 patch3 이후 deprecated이지만 하위 호환용으로 남아 있다. `pipeline.ts`는 P 상태 plan 추출 시 `stripSubtaskJSON()`만 사용한다.
-- `resolveNumericReference()`는 직전 assistant 메시지의 numbered list에서 항목을 찾는다.
-- `parseVerdicts()`는 fenced/raw JSON 양쪽으로 verdict 객체를 추출한다.
+- `claimWorker()` → `running`, `finishWorker()` → `done + pendingReplay=true`.
+- `worker-progress.ts`로 thinking/detail 제거한 안전 요약만 노출.
+- `startWorkerMonitor()`: `stallThresholdMs: 120_000`, `maxDurationMs: 600_000`.
 
-### Scope
+### Friction ledger (`friction.ts`)
 
-- `resolveOrcScope()`와 `findActiveScope()`는 항상 `'default'`를 반환한다. 다중 scope 분기는 제거됐고, pipeline은 이 상수를 직접 사용한다.
+- `recordFriction(tool, error)` → normalized error fingerprint → count 기반 verdict (`retry`/`escalate`/`stop`).
+- 같은 tool+error 패턴이 반복되면 자동 escalate/stop.
+
+### Seed / Ontology (`seed.ts`)
+
+- Interview 결과에서 ontology schema (entities, relationships, invariants)와 seed metadata를 구조화.
+- Planning phase에서 interview evidence를 structured plan input으로 변환.
 
 ---
 
-## prompt/builder.ts — System Prompt & Skills (674L)
+## prompt/builder.ts — System Prompt & Skills (727L)
 
 | Function | Role |
 | --- | --- |
 | `loadActiveSkills()` | 활성 스킬 로드 |
 | `loadSkillRegistry()` | skills_ref registry 로드 |
 | `getMergedSkills()` | active + ref 병합 |
-| `initPromptFiles()` | A-1/A-2/HEARTBEAT 프롬프트 초기화 + A1 hash migration |
+| `initPromptFiles()` | A-1/A-2/HEARTBEAT 프롬프트 초기화 |
 | `getSystemPrompt()` | 메인 시스템 프롬프트 구성 |
 | `loadRecentMemories()` | flush memory 로드 |
 | `getEmployeePrompt(emp)` | 경량 실행자 프롬프트 |
-| `getEmployeePromptV2(emp, role, phase)` | v2 employee prompt |
+| `getEmployeePromptV2(emp, role, phase)` | v2 employee prompt (phase/role-aware skill) |
 | `regenerateB()` | B 프롬프트 + workspace `AGENTS.md` 재생성 |
 
-### promptCache 키
+- promptCache 키: `emp:role:phase:workingDir` 4-segment.
+- Boss prompt는 `cli-jaw dispatch --agent ... --task ...` 경로만 설명.
+- Employee prompt는 CLI 자체 sub-agent(Task/Agent tool)를 내부 병렬화 용도로 허용.
 
-`emp:role:phase:workingDir` 4-segment 키를 쓴다. `workingDir`가 들어가므로 프로젝트 전환 시 캐시가 자동으로 분리된다.
+---
 
-### 현재 프롬프트/오케스트레이션 드리프트 메모
+## Memory Flush Controller (`memory-flush-controller.ts`, 184L)
 
-- Boss prompt는 더 이상 subtask JSON dispatch를 설명하지 않는다. 현재 기본 경로는 `cli-jaw dispatch --agent ... --task ...`다.
-- `orchestrator/parser.ts`에는 legacy `parseSubtasks` / `parseDirectAnswer` / `stripSubtaskJSON`이 남아 있지만, `pipeline.ts`는 이 중 `stripSubtaskJSON`만 plan 추출 단계에서 사용한다.
-- employee prompt는 `getEmployeePromptV2()`가 phase/role-aware skill을 덧붙이고, `cli-jaw dispatch`와 subtask JSON 출력만 금지한다. CLI 자체 sub-agent(Task/Agent tool)는 employee 내부 병렬화 용도로 명시적으로 허용된다.
+| Export | Role |
+| --- | --- |
+| `incrementMemoryFlush()` | 카운터 증가 |
+| `resetMemoryFlushCounter()` | 카운터 리셋 + cycle 증가 |
+| `triggerMemoryFlush()` | flush lock + spawnAgent로 memory flush 실행 |
+| `setSpawnRef(fn, procs)` | circular import 회피용 forward reference 설정 |
+
+- `_flushLock`으로 동시 flush 방지.
+- `_lastFlushedMessageId`로 중복 flush 방지.
+- `lifecycle-handler.ts`가 agent 종료 후 `memoryFlushCounter` 기준으로 flush 트리거.
+- Dashboard home resolution으로 flush 결과를 dashboard notes에도 반영 가능.
+
+---
+
+## Lifecycle Handler 주요 책임 (951L)
+
+| 관심사 | 구현 |
+| --- | --- |
+| Session persistence | `persistMainSession()` 호출 + bucket 저장 |
+| Smoke auto-continue | `buildContinuationPrompt()` → 같은 엔진 재스폰 |
+| Goal continuation | active goal + completion evidence 미충족 시 `buildGoalContinuation()` → 재스폰 (max 20회) |
+| Fallback retry | error classification → retry with different model/effort |
+| Grok trace backfill | 정상 종료 후 `grok trace --local --json` 호출 |
+| Memory flush trigger | `memoryFlushCounter` 기준 `triggerMemoryFlush()` |
+| Queue resume | `processQueue()` 호출 |
+| Interview tracker strip | `stripInterviewTracker()` from broadcast text |
+| Tool-log sanitize | `sanitizeToolLogForDurableStorage()` before DB insert |
+| Trace finalization | `finalizeTraceRun()` + `linkTraceRunToMessage()` |
+| Kiro output resolution | `resolveSpawnOutputText()` (parsed Kiro body 우선) |

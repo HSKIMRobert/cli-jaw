@@ -304,3 +304,179 @@ cli-jaw/
 │   ├── reminders/            ← Reminders bridge (2 files) ✨
 │   │   ├── jaw-reminders-bridge.ts ← jaw↔dashboard reminders bridge (363L)
 │   │   └── types.ts          ← reminder types (69L)
+│   └── workflows/            ← workflow helper + employee boundary/handoff/scope-sandbox + deliberate/planaudit/runtime/guards (18 root files + 3 subdirs)
+│       ├── artifacts.ts      ← JAW_HOME workflow artifact cache + project key/path safety + unknown command recovery artifact (172L)
+│       ├── plan.ts           ← `/plan` compatibility artifact/text builder (91L)
+│       ├── scope-sandbox.ts  ← normalizeScope + isProtectedPath + postDispatchDiffCheck (57L)
+│       ├── employee-boundary.ts ← assertBossOnlyDispatch + assertNoImplementationDelegation + assertReadOnlyAudit (42L)
+│       ├── handoff.ts        ← buildHandoff (mutable option) + hasImplementationDelegation (64L)
+│       ├── deliberate.ts     ← `/deliberate` workflow handler (85L)
+│       ├── planaudit.ts      ← `/planaudit` workflow handler (82L)
+│       ├── competitive-gap.ts ← competitive gap analysis workflow (113L)
+│       ├── runtime.ts / runtime-guards.ts / guards.ts / events.ts / status.ts / context.ts / index.ts / types.ts / browser-web-ai.ts / web-ai-guards.ts
+│       ├── checkpoint/       ← checkpoint store + types (2 files, 59L) ✨
+│       ├── permissions/      ← permission policy + types (2 files, 80L) ✨
+│       └── context-map/      ← context map builder (1 file, 71L) ✨
+├── public/                   ← Web UI (Vite 8 + ES Modules, ~80000L)
+│   ├── index.html            ← 뼈대 (1072L)
+│   ├── manifest.json         ← PWA 매니페스트
+│   ├── sw.js                 ← Service Worker 오프라인 캐시
+│   ├── css/                  ← 11 files (variables/layout/markdown/chat/diagram/orc-state/sidebar/modals/tool-ui/trace-drawer)
+│   ├── locales/              ← i18n (ko/en/ja/zh .json)
+│   └── js/                   ← 75 .ts files (root 17 + features/ 43 + diagram/ 3 + render/ 12, 전 파일 TypeScript)
+├── electron/                 ← Electron tray background app (25 TS files, 2844L) ✨
+│   ├── package.json / electron-builder.yml / electron.vite.config.ts
+│   └── src/
+│       ├── main/index.ts     ← Electron main process — BrowserWindow + tray + jaw server spawn + deep-link + IPC (1053L)
+│       ├── main/lib/         ← 22 helper modules (jaw-spawn 196L, tray-manager 154L, terminal/ 185L, navigation-policy 112L, app-metrics 93L, folder/ipc 171L, health-check 78L, deep-link 78L, permissions, path-security, quit-progress, etc.)
+│       └── preload/          ← preload scripts (index 112L + metrics 68L)
+├── native/
+│   └── jaw-claude-i/         ← Claude Interactive native helper (Rust, 11 src files, 1703L)
+│       ├── Cargo.toml        ← Rust package/dependency/test profile
+│       └── src/              ← main.rs(421L) + args/child/hook/protocol/transcript/config/terminal/cleanup/normalize/sanitize
+├── bin/
+│   ├── cli-jaw.ts            ← 22개 user-facing 서브커맨드 라우팅 + --home flag (213L)
+│   ├── _http-client.ts       ← shared HTTP client helper (35L) ✨
+│   ├── star-prompt.ts        ← `gh` 기반 GitHub star 1회 프롬프트 (129L)
+│   ├── postinstall.ts        ← npm install 후 CLI 런타임 + OfficeCLI 자동설치 + MCP + 스킬 + safe 가드 (1038L)
+│   ├── helpers/help.ts       ← CLI help text helper (10L)
+│   └── commands/             ← 26 top-level ts files + `tui/` 9 helper 모듈
+│       ├── serve.ts          ← 서버 시작 (--port/--host/--open) + SIGINT child.kill('SIGINT') orphan fix (121L)
+│       ├── dispatch.ts       ← 직원 호출 (pipe mode 호환) + route contract bridge + worker result polling + ECONNREFUSED retry (383L)
+│       ├── chat.ts           ← 터미널 채팅 TUI (3모드, locale bootstrap, refreshInfo, active model 표시, no-arg `/model`·`/cli` selector intercept, transcript 축적, overlay wiring, 292L)
+│       ├── goal.ts           ← goal autonomy CLI (start/status/pause/resume/stop) (130L) ✨
+│       ├── project.ts        ← project directory management CLI (166L) ✨
+│       ├── init.ts           ← 초기화 마법사 + --safe/--dry-run + --help (256L)
+│       ├── doctor.ts         ← 진단 (다중 체크 + claude-i helper/underlying claude + headless 감지, --json) (641L)
+│       ├── status.ts         ← 서버 상태 (--json) (86L)
+│       ├── mcp.ts            ← MCP 관리 (install/sync/list/reset) (230L)
+│       ├── skill.ts          ← 스킬 관리 (install/remove/info/list/reset soft·hard) (245L)
+│       ├── employee.ts       ← 직원 관리 (reset, REST API 호출, 82L)
+│       ├── worker.ts         ← 직원 progress status/watch CLI + employee name/id resolver + safe-summary printer (196L)
+│       ├── reset.ts          ← 전체 초기화 (MCP/스킬/직원/세션) (104L)
+│       ├── clone.ts          ← 인스턴스 복제 (--from, --with-memory, regenerateB) (180L)
+│       ├── memory.ts         ← 메모리 CLI (search/read/save/list/init) (146L)
+│       ├── launchd.ts        ← macOS LaunchAgent 관리 (243L)
+│       ├── service.ts        ← 크로스 플랫폼 서비스 관리 (systemd/launchd/docker, 289L)
+│       ├── orchestrate.ts    ← IPABCD 상태 제어 CLI (jaw orchestrate [I|P|A|B|C|D|reset]) (154L)
+│       ├── browser.ts        ← 브라우저 CLI (primitive + tab/debug + web-ai delegator, 876L)
+│       ├── browser-web-ai.ts ← `jaw browser web-ai` ChatGPT/Gemini/Grok 자동화 helper (305L)
+│       ├── dashboard.ts      ← `jaw dashboard serve` + dashboard memory delegation (264L)
+│       ├── dashboard-memory.ts ← `jaw dashboard memory` L2 federation CLI helper (243L)
+│       ├── connector.ts      ← dashboard connector board/notes/reminders/audit CLI (216L)
+│       ├── reminders.ts      ← local reminders list/add/done CLI (100L)
+│       ├── dispatch-helpers.ts ← dispatch output unwrap helper (21L)
+│       └── tui/              ← chat 터미널 TUI 분리 (9 files: api 84L, fullscreen-mode 264L, input-handler 430L, overlays 350L, renderer 135L, simple-mode 103L, tui-io 12L, types 111L, ws-handler 209L)
+├── tests/                    ← 회귀 방지 테스트 (450+ .test.ts files: root 5 / unit 420+ / integration 10 / browser 5 / fixtures + smoke)
+├── scripts/                  ← 도구 스크립트 (21+ files, TypeScript + Shell + CJS)
+├── officecli/                ← OfficeCLI 포크 서브모듈 (lidge-jun/OfficeCLI, Apache 2.0)
+├── skills_ref/               ← 레퍼런스 스킬 (241 top-level dirs)
+├── docs/                     ← 프로젝트 문서
+├── README.md / README.ko.md / README.zh-CN.md / README.ja.md ← 다국어 README
+├── tsconfig.json / tsconfig.frontend.json / tsconfig.build.json
+├── types/
+│   ├── frontend.d.ts         ← CDN 글로벌 타입 선언 (marked, hljs, katex, mermaid, DOMPurify)
+│   └── global.d.ts           ← Node + Express 글로벌 타입
+├── vite.config.ts            ← Vite 8 빌드 설정
+├── package.json / pnpm-workspace.yaml
+└── devlog/                   ← MVP 12 Phase + Post-MVP devlogs
+```
+
+### 런타임 데이터 (`~/.cli-jaw/`)
+
+| 경로               | 설명                                      |
+| ------------------ | ----------------------------------------- |
+| `jaw.db`           | SQLite DB                                 |
+| `settings.json`    | 사용자 설정                               |
+| `mcp.json`         | 통합 MCP 설정 (source of truth)           |
+| `prompts/`         | A-1, A-2, HEARTBEAT 프롬프트              |
+| `memory/`          | Persistent memory (`MEMORY.md`, `daily/`) |
+| `skills/`          | Active 스킬 (시스템 프롬프트 주입)        |
+| `skills_ref/`      | Reference 스킬 (AI 참조용)                |
+| `browser-profile/` | Chrome 사용자 프로필                      |
+| `backups/`         | symlink 충돌 시 백업 디렉토리             |
+
+npm 의존성: `express` ^5.2 · `ws` ^8.18 · `better-sqlite3` ^12.8 · `grammy` ^1.40 · `@grammyjs/runner` ^2.0 · `discord.js` ^14.25 · `node-fetch` ^3.3 · `playwright-core` ^1.58 · `react`/`react-dom` ^19.2 · `marked`/`katex`/`mermaid` 렌더링 스택
+
+dev 의존성: `typescript` ^6.0 · `tsx` ^4.21 · `vite` ^8.0 · `@vitejs/plugin-react` ^5.2 · `jsdom` ^29.1 · `concurrently` ^9.2 · `@types/node` ^25 · `@types/express` ^5.0 · `@types/better-sqlite3` ^7.6 · `@types/ws` ^8.5
+
+---
+
+## 코드 구조 개요
+
+```mermaid
+graph LR
+    CLI["bin/commands/*"] -->|HTTP| SRV["server.ts"]
+    WEB["public/"] -->|HTTP+WS| SRV
+    TG["Telegram"] & DC["Discord"] & ELEC["Electron"] -->|HTTP| SRV
+    SRV --> CORE["core/"] & AGT["agent/"] & ORC["orchestrator/"] & PRM["prompt/"]
+    SRV --> MEM["memory/"] & MSG["messaging/"] & BR["browser/"] & RT["routes/"]
+    SRV --> GOAL["goal/"] & TRACE["trace/"] & WF["workflows/"] & TEAM["team/"] & CEO["jaw-ceo/"]
+    AGT --> NATIVE["native/jaw-claude-i"] & ACP["cli/acp-client"]
+    ORC --> AGT
+    GOAL --> ORC
+    TEAM --> ORC
+    MSG --> TG & DC
+```
+
+### 디렉토리 의존 규칙
+
+| 디렉토리 | 의존 대상 | 비고 |
+|---|---|---|
+| `core/` `security/` `http/` `shared/` | — | 의존 0 계층 |
+| `browser/` | — | 독립 (CDP + adaptive-fetch + web-ai) |
+| `messaging/` `cli/` `prompt/` `memory/` | core | 중간 계층 |
+| `agent/` | core, prompt, orc, cli/acp, native | 핵심 허브 (AGY/ACP/Codex/Kiro/Cursor) |
+| `goal/` `goal-run/` `trace/` | core, orc, agent | 자율 실행 + 추적 |
+| `team/` `jaw-ceo/` `reminders/` | core, orc, agent | 확장 모듈 |
+| `workflows/` | orc, agent, core | Employee boundary + checkpoint |
+| `orchestrator/` | core, prompt, agent | IPABCD + interview + worker |
+| `telegram/` `discord/` | core, orc, agent, messaging | 외부 인터페이스 |
+| `routes/` | core, browser, http, security, goal | Express 라우트 |
+| `electron/` | server.ts (HTTP) | Electron tray app |
+| `server.ts` | 전체 | 글루 레이어 |
+
+---
+
+## 핵심 주의 포인트
+
+1.  **큐**: busy 시 queue → agent 종료 후 자동 처리 (persistent DB queue)
+2.  **세션 무효화**: CLI 변경 시 session_id 제거
+3.  **직원 dispatch**: B 프롬프트에 JSON subtask 포맷
+4.  **메모리 flush**: `forceNew` spawn → 메인 세션 분리, threshold개 메시지만 요약
+5.  **메모리 주입**: MEMORY.md = 매번, session memory = `injectEvery` cycle마다
+6.  **에러 처리**: 429/auth 커스텀 메시지 + smart retry + fallback chain
+7.  **IPv4 강제**: `--dns-result-order=ipv4first` + Telegram
+8.  **MCP 동기화**: mcp.json → 지원되는 MCP-aware CLI 포맷 자동 변환 (lib/mcp/ 모듈)
+9.  **이벤트 dedupe**: src/agent/events/ 모듈별 분리 — Claude/Codex/Grok/ACP/Cursor/Gemini/OpenCode
+10. **Telegram/Discord origin**: `origin` 메타 기반으로 포워딩 판단
+11. **Messaging runtime**: `src/messaging/` — 채널 추상화 (transport registry + unified send + session key + channel-health)
+12. **CLI registry**: `src/cli/registry.ts` — 12개 CLI 런타임 정의. `kiro-code`는 `kiro-cli` binary; `registry-live.ts`가 동적 모델 목록 병합
+13. **Copilot ACP**: JSON-RPC 2.0 over stdio, `session/update` 실시간 스트리밍
+14. **Goal autonomy**: `src/goal/` — heartbeat continuation + store + runtime snapshot; `src/goal-run/` — execution controller + policy gates
+15. **Kiro provider**: `kiro-auth.ts` (auth store reader) + `kiro-models.ts` (live inventory) + `kiro-runtime.ts` (stdout parser) + `registry-live.ts` (dynamic merge)
+16. **Interview enhancement**: `orchestrator/friction.ts` (5-level clarity + oscillation detection) + `seed.ts` (evidence-ref ontology) + `sanitize.ts` (tracker strip) + pipeline.ts budget gate
+17. **TUI**: `src/cli/tui/` 18 files — transcript model + composer (paste collapse) + overlay (help/palette/selector) + text-buffer + theme + render/ sub-modules; `bin/commands/tui/` 9 files — fullscreen/simple mode + input-handler + ws-handler
+18. **Electron tray**: `electron/` — background mode, jaw server spawn, tray menu, deep-link, terminal IPC, navigation policy, permission diagnostics
+19. **Adaptive fetch**: `src/browser/adaptive-fetch/` 18 files — multi-strategy web fetch (direct → reader API → browser escalation) with WAF detection + content scoring
+20. **Team dispatch**: `src/team/` — planner/collector/dispatcher/preflight for structured multi-employee coordination
+21. **Jaw CEO**: `src/jaw-ceo/` — OpenAI Realtime API sideband channel + coordinator (admin/workers/completions/realtime-tools)
+
+---
+
+## 서브 문서
+
+| 문서                                               | 범위                                                                          |
+| -------------------------------------------------- | ----------------------------------------------------------------------------- |
+| [🔧 infra.md](infra.md)                             | core/ (config·db·bus·logger·i18n·settings-merge) + security/ + http/          |
+| [🌐 server_api.md](server_api.md)                   | server.ts · routes/ · REST API · WebSocket                                    |
+| [⚡ commands.md](commands.md)                       | cli/ (commands·handlers·registry) + command-contract/                         |
+| [🤖 agent_spawn.md](agent_spawn.md)                 | agent/ (spawn·args·events) + orchestrator/ (pipeline·parser) + cli/acp-client |
+| [📱 telegram.md](telegram.md)                       | telegram/ (bot·forwarder·telegram-file) + memory/heartbeat                    |
+| [🎨 frontend.md](frontend.md)                       | public/ 전체                                                                  |
+| [🧠 prompt_flow.md](prompt_flow.md)                 | prompt/builder.ts · 직원 프롬프트 · promptCache                               |
+| [💾 memory_architecture.md](memory_architecture.md) | 3계층 메모리 시스템                                                           |
+
+---
+
+> 프로젝트 전체 파일 검증 완전 레퍼런스. 상세는 서브 문서 참조.
