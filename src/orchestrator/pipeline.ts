@@ -459,10 +459,15 @@ export async function orchestrate(
                     }
 
                     if (known.length || unknown.length) {
+                        // Gap B: drop any prior-round assessment from the carried state so a
+                        // missing assessment block can't silently persist a stale score (drift).
+                        // Re-add only when THIS round actually emitted a fresh assessment.
+                        const { assessment: _stale, ...prevInterview } = ivCtx.interview!;
+                        void _stale;
                         setState('I', {
                             ...ivCtx,
                             interview: {
-                                ...ivCtx.interview, round: nextRound, known, unknown,
+                                ...prevInterview, round: nextRound, known, unknown,
                                 ...(assessment ? { assessment } : {}),
                             },
                         }, scope, 'Interview');
