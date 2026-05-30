@@ -63,15 +63,23 @@ test('Fix B: steer route does not call submitMessage (avoids double insert+broad
     assert.ok(!block.includes('submitMessage('), 'steer route must NOT call submitMessage — that path re-inserts and re-broadcasts the user message');
 });
 
-test('Fix B: steer route uses peek → kill → wait → remove ordering', () => {
+test('Fix B: steer route accepts/removes/responds before background kill wait', () => {
     const block = getSteerHandlerBlock();
     const peekIdx = block.indexOf('messageQueue.find');
-    const killIdx = block.indexOf("killActiveAgent('steer')");
-    const waitIdx = block.indexOf('waitForProcessEnd');
     const removeIdx = block.indexOf('removeQueuedMessage');
-    assert.ok(peekIdx > 0 && killIdx > peekIdx, 'must peek before killing — otherwise a kill failure leaves the queue mutated');
-    assert.ok(waitIdx > killIdx, 'must wait for process end after kill');
-    assert.ok(removeIdx > waitIdx, 'must remove from queue only after the kill+wait succeeds');
+    const responseIdx = block.indexOf('res.json({ ok: true');
+    const backgroundIdx = block.indexOf('void (async () =>');
+    const killIdx = block.indexOf("killActiveAgent('steer')", backgroundIdx);
+    const waitIdx = block.indexOf('waitForProcessEnd', backgroundIdx);
+    assert.ok(peekIdx > 0 && removeIdx > peekIdx, 'must peek before accepting/removing the queued item');
+    assert.ok(responseIdx > removeIdx, 'must return the button response after queue removal');
+    assert.ok(backgroundIdx > responseIdx, 'old-process kill/wait must run in background after response');
+    assert.ok(killIdx > backgroundIdx, 'background task must kill the previous busy path');
+    assert.ok(waitIdx > killIdx, 'background task must wait for process end after kill');
+    assert.ok(
+        block.slice(0, responseIdx).indexOf('waitForProcessEnd') === -1,
+        'button response path must not wait for the old process',
+    );
 });
 
 test('Fix B: steer route inserts the user message exactly once and orchestrates with _skipInsert', () => {
@@ -84,6 +92,21 @@ test('Fix B: steer route inserts the user message exactly once and orchestrates 
     const broadcastMatch = codeOnly.match(/broadcast\(\s*['"]new_message['"][^)]*\)/);
     assert.ok(broadcastMatch, 'must broadcast new_message when steer fires (web client renders here)');
     assert.ok(broadcastMatch[0].includes('fromQueue: true'), 'broadcast must include fromQueue: true');
+});
+
+test('Fix B: queued steer preserves routing metadata and rejects concurrent steer', () => {
+    const block = getSteerHandlerBlock();
+    assert.ok(block.includes('isSteerInProgress()'), 'must reject a second queued steer while one is already in progress');
+    assert.ok(block.includes("return fail(res, 409, 'steer already in progress')"), 'concurrent queued steer should be a 409 without removing the item');
+    assert.ok(block.includes('const wasBusyBeforeSteer = isAgentBusy()'), 'must capture full busy state before setting steer busy');
+    assert.ok(block.includes('const target = peek.target'), 'must capture queue target metadata');
+    assert.ok(block.includes('const chatId = peek.chatId'), 'must capture queue chatId metadata');
+    assert.ok(block.includes('const requestId = peek.requestId'), 'must capture queue requestId metadata');
+    assert.ok(block.includes('const steerMeta = stripUndefined({ origin, target, chatId, requestId })'), 'must build shared steer metadata');
+    assert.ok(block.includes('orchestrateReset({ ...steerMeta, _skipInsert: true })'), 'reset branch must preserve metadata');
+    assert.ok(block.includes('orchestrateContinue({ ...steerMeta, _skipInsert: true })'), 'continue branch must preserve metadata');
+    assert.ok(block.includes('orchestrate(prompt, { ...steerMeta, _skipInsert: true, _skipReplayDrain: true })'), 'normal branch must preserve metadata');
+    assert.ok(block.includes("broadcast('orchestrate_done', stripUndefined({ text: `[error] ${message}`, error: true, ...steerMeta }))"), 'background errors must preserve metadata');
 });
 
 // ─── Fix C1: stop should make isAgentBusy() return false synchronously ──

@@ -173,25 +173,41 @@ test('SF-005: ai-e PTY steer uses graceful interrupt timing', () => {
     );
 });
 
-test('SF-006: queued web steer holds target item while waiting for old process exit', () => {
+test('SF-006: queued web steer accepts item before background old-process wait', () => {
     const routeSrc = fs.readFileSync(join(__dirname, '../../src/routes/orchestrate.ts'), 'utf8');
     const spawnSrc = fs.readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
 
     const routeIdx = routeSrc.indexOf("app.post('/api/orchestrate/queue/:id/steer'");
     assert.ok(routeIdx > 0, 'queued steer route should exist');
-    const routeBlock = routeSrc.slice(routeIdx, routeIdx + 1400);
+    const routeBlock = routeSrc.slice(routeIdx, routeIdx + 3200);
 
     const waitConfigIdx = routeBlock.indexOf('const steerWaitMs = getSteerWaitMsForActiveAgent()');
+    const busyCaptureIdx = routeBlock.indexOf('const wasBusyBeforeSteer = isAgentBusy()');
     const holdIdx = routeBlock.indexOf('setQueueHold(id, Math.max(10_000, steerWaitMs + 5_000))');
-    const killIdx = routeBlock.indexOf("killActiveAgent('steer')");
-    const waitIdx = routeBlock.indexOf('await waitForProcessEnd(steerWaitMs)');
+    const setBusyIdx = routeBlock.indexOf('setSteerInProgress(true)');
     const removeIdx = routeBlock.indexOf('removeQueuedMessage(id)');
+    const responseIdx = routeBlock.indexOf('res.json({ ok: true');
+    const backgroundIdx = routeBlock.indexOf('void (async () =>');
+    const killIdx = routeBlock.indexOf("killActiveAgent('steer')", backgroundIdx);
+    const waitIdx = routeBlock.indexOf('await waitForProcessEnd(steerWaitMs)', backgroundIdx);
+    const finalClearIdx = routeBlock.indexOf('setSteerInProgress(false)', backgroundIdx);
 
     assert.ok(waitConfigIdx > 0, 'route should compute provider-specific wait before holding the queue item');
-    assert.ok(holdIdx > waitConfigIdx, 'route should hold the target queued item before process exit wait');
-    assert.ok(killIdx > holdIdx, 'route should set hold before killing the active process');
-    assert.ok(waitIdx > killIdx, 'route should wait for process exit after killing');
-    assert.ok(removeIdx > waitIdx, 'route should remove the held queued item after process exit wait');
+    assert.ok(busyCaptureIdx > waitConfigIdx, 'route should capture pre-steer busy state before marking steer busy');
+    assert.ok(holdIdx > busyCaptureIdx, 'route should hold the target queued item before accepting it');
+    assert.ok(setBusyIdx > holdIdx, 'route should mark steer busy before accepting the item');
+    assert.ok(removeIdx > setBusyIdx, 'route should remove the queued item immediately after marking steer busy');
+    assert.ok(responseIdx > removeIdx, 'route should respond after queue removal is committed');
+    assert.ok(backgroundIdx > responseIdx, 'old-process wait must run only in background after response');
+    assert.ok(killIdx > backgroundIdx, 'background task should kill the old busy path');
+    assert.ok(waitIdx > killIdx, 'background task should wait for process end after kill');
+    assert.ok(finalClearIdx > waitIdx, 'background task should clear steer busy after wait/orchestrate');
+    assert.ok(
+        routeBlock.slice(0, responseIdx).indexOf('waitForProcessEnd(steerWaitMs)') === -1,
+        'route must not block the button response on waitForProcessEnd',
+    );
+    assert.ok(routeBlock.includes('isSteerInProgress()'), 'route should reject concurrent queued steer attempts');
+    assert.ok(spawnSrc.includes('export function isSteerInProgress()'), 'spawn.ts should expose steer-in-progress state for route gating');
     const queueSrc = fs.readFileSync(join(__dirname, '../../src/agent/spawn/queue.ts'), 'utf8');
     assert.ok(
         queueSrc.includes('function setQueueHold(id: string, timeoutMs = QUEUE_HOLD_TIMEOUT_MS)'),
