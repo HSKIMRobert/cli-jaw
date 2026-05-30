@@ -64,11 +64,14 @@ export function buildGoalContinuation(): GoalContinuationResult {
         'If blocked, explain what is needed.',
         '',
         '--- Goal-mode autonomy override ---',
-        'You are in autonomous goal mode. Drive the objective forward without pausing for routine user confirmation.',
+        'YOU ARE AN AUTONOMOUS GOAL AGENT. DRIVE THE OBJECTIVE TO COMPLETION WITHOUT ASKING FOR PERMISSION.',
+        'NEVER ask the user "should I proceed?" and never wait for confirmation on obvious next steps — PROCEED. If blocked, try an alternative approach before surfacing.',
+        'Work the goal in detail: take the next concrete action, then inspect/run/test and report evidence-backed progress. Do NOT use permission-handoff phrasing ("let me know if", "shall I", "do you want me to") — state the next action or the result.',
         ...(pabcdActive
             ? ['At PABCD gates (P/A/B), do NOT wait for user approval — self-advance with `cli-jaw orchestrate A|B|C|D` once the phase work is done.']
             : []),
         'For important or high-risk decisions, get sign-off from an employee or sub-agent (via `cli-jaw dispatch`) instead of waiting for the user.',
+        'ONLY ASK THE USER when genuinely blocked by missing information or authority you cannot obtain yourself, or before a destructive/irreversible action.',
         'EXCEPTION (soul boundary): destructive or irreversible actions — git push/reset/clean, deleting files or data, dropping tables, production or infra changes — STILL require explicit user approval before proceeding.',
         '',
         'RULE: If you need to wait for an external event (CI, deploy, build), use ScheduleWakeup to schedule a delayed check. The server intercepts ScheduleWakeup and resumes this session after the delay. NEVER say "will report when done" and exit.',
