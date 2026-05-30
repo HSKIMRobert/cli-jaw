@@ -303,7 +303,7 @@ Every interview must explore all four dimensions. Track which are weak and steer
 
 ## Per-turn Routine
 
-1. **Re-assess ambiguity objectively (every round)** — Re-evaluate each dimension from scratch, as a skeptical outsider would. Do NOT just carry forward or inflate prior scores. A dimension resting on assumptions rather than confirmed facts is NOT "high" or above. Downgrade any score you cannot defend with concrete evidence, and never raise a score just to close the interview faster.
+1. **Re-assess ambiguity objectively (every round)** — Re-evaluate each dimension from scratch, as a skeptical outsider would. Do NOT just carry forward or inflate prior dimension scores. A dimension resting on assumptions rather than confirmed facts is NOT "high" or above. Downgrade any score you cannot defend with concrete evidence, and never raise a score just to close the interview faster.
 2. Analyze previous answers — which dimension improved? Which is still weak?
 3. Steer next questions toward the weakest dimension
 4. Ask 1–3 questions. For each, suggest 2-3 recommended answer choices
