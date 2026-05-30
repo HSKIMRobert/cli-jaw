@@ -8,9 +8,9 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 
 # server.ts — Glue + Route Registration (903L)
 
-> Express/WS bootstrap + localhost/LAN opt-in 보안 가드 + base route 14개 + `src/routes/*` 15개 registrar 등록.
-> 현재 라이브 surface는 총 144개 route handler이며, 이 중 `/`를 제외한 API 엔드포인트는 143개다.
-> mutation route(`POST`/`PUT`/`DELETE`)는 총 71개고 모두 `requireAuth`를 거친다. 단, `requireAuth()`는 loopback 요청을 토큰 없이 통과시키고, `lanAllowed()`가 true일 때 private IP도 LAN bypass로 통과시킨다.
+> Express/WS bootstrap + localhost/LAN opt-in 보안 가드 + base route 14개 + `src/routes/*` 17개 registrar 등록.
+> 현재 라이브 surface는 총 180개 route handler이며, 이 중 `/`를 제외한 API 엔드포인트는 179개다.
+> mutation route(`POST`/`PUT`/`DELETE`)는 모두 `requireAuth`를 거친다. 단, `requireAuth()`는 loopback 요청을 토큰 없이 통과시키고, `lanAllowed()`가 true일 때 private IP도 LAN bypass로 통과시킨다.
 > `GET /api/auth/token`은 Bearer bootstrap 전용이며 `Sec-Fetch-Site`가 `same-origin` 또는 `none`이 아닐 때 `403`을 반환한다.
 
 ---
@@ -20,24 +20,35 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 | Module | Lines | Routes | 역할 |
 | --- | ---: | ---: | --- |
 | `server.ts` | 903L | 14 | Helmet/CORS/Host/rate-limit/WS/bootstrap + base routes + module registration |
-| `src/routes/settings.ts` | 316L | 18 | settings/prompt/heartbeat-md/MCP/CLI registry/quota/copilot |
-| `src/routes/memory.ts` | 185L | 13 | memory runtime + KV memory + memory files |
+| `src/routes/settings.ts` | 343L | 19 | settings/prompt/heartbeat-md/MCP/CLI registry/quota/copilot |
+| `src/routes/memory.ts` | 191L | 13 | memory runtime + KV memory + memory files |
 | `src/routes/browser.ts` | 475L | 41 | browser primitive/tab/debug/doctor/cleanup routes + adaptive fetch + web-ai render/send/poll/watch/sessions/capabilities/context routes |
-| `src/routes/jaw-memory.ts` | 239L | 11 | jaw memory search/read/save/list/init/reflect/flush/soul/soul-activate/bootstrap |
+| `src/routes/jaw-memory.ts` | 282L | 11 | jaw memory search/read/save/list/init/reflect/flush/soul/soul-activate/bootstrap |
 | `src/routes/orchestrate.ts` | 637L | 13 | reset/state/workers/worker-progress/snapshot/queue cancel/hold/queue steer async accept/dispatch/worker result/state PUT |
-| `src/routes/goal.ts` | 89L | 3 | durable goal state get/history/set-update-complete-cancel-pause-resume |
-| `src/routes/goal-run.ts` | 81L | 3 | bounded goal-run state/preflight/start-pause-resume-stop |
-| `src/routes/messaging.ts` | 222L | 6 | upload/file-open/voice/telegram/channel/discord send |
-| `src/routes/employees.ts` | 96L | 5 | employee CRUD + reset |
-| `src/routes/skills.ts` | 74L | 5 | skills list/read/enable/disable/reset |
+| `src/routes/goal.ts` | 118L | 3 | durable goal state get/history/set-update-complete-cancel-pause-resume-clear-reset |
+| `src/routes/goal-run.ts` | 83L | 3 | bounded goal-run state/preflight/start-pause-resume-stop |
+| `src/routes/messaging.ts` | 254L | 6 | upload/file-open/voice/telegram/channel/discord send |
+| `src/routes/employees.ts` | 105L | 5 | employee CRUD + reset |
+| `src/routes/skills.ts` | 89L | 5 | skills list/read/enable/disable/reset |
 | `src/routes/avatar.ts` | 146L | 4 | avatar summary + agent/user image upload/delete/read |
 | `src/routes/traces.ts` | 80L | 3 | public trace summary/event read routes |
-| `src/routes/heartbeat.ts` | 43L | 2 | heartbeat GET + validated PUT |
+| `src/routes/heartbeat.ts` | 47L | 2 | heartbeat GET + validated PUT |
+| `src/routes/jaw-ceo.ts` | 321L | 20 | Jaw CEO coordinator: state/message/query/docs-edit/settings/events/pending/watch/audit/voice/confirmations |
 | `src/routes/runtime-context.ts` | 46L | 4 | runtime context entry CRUD (ephemeral prompt injection) |
-| `src/routes/i18n.ts` | 26L | 2 | language list + locale bundle |
+| `src/routes/security-audit.ts` | 18L | 2 | security audit log entries + verify |
+| `src/routes/i18n.ts` | 35L | 2 | language list + locale bundle |
 | `src/routes/quota.ts` | 459L | — | `settings.ts`가 호출하는 quota/auth/status reader helper |
 | `src/routes/quota-kiro-reverse.ts` | 239L | — | Kiro/CodeWhisperer reverse-engineered usage-limits reader (`fetchKiroUsage`) |
+| `src/routes/quota-agy-reverse.ts` | 154L | — | Antigravity quota snapshot reader (`fetchAgyUsage`) |
+| `src/routes/quota-cursor-dashboard.ts` | 203L | — | Cursor dashboard session/usage reader (`fetchCursorUsage`) |
 | `src/routes/types.ts` | 3L | — | shared `AuthMiddleware` type |
+
+### Dashboard Board/Schedule (P3, mounted in server.ts)
+
+| Module | Routes | 역할 |
+| --- | ---: | --- |
+| `src/manager/board/routes.ts` | 5 | board tasks CRUD + from-message |
+| `src/manager/schedule/routes.ts` | 5 | scheduled work CRUD + dispatch |
 
 ### 등록 순서 (`server.ts`)
 
@@ -47,7 +58,7 @@ employees → heartbeat → skills → jaw-memory → orchestrate
 → jaw-ceo → runtime-context → security-audit → dashboard board/schedule → browser → i18n
 ```
 
-라우트 모듈은 `server.ts:543-561` 부근에서 등록된다.
+라우트 모듈은 `server.ts:636-710` 부근에서 등록된다.
 
 ---
 
@@ -70,63 +81,36 @@ employees → heartbeat → skills → jaw-memory → orchestrate
 | `POST` | `/api/clear` | UI-only clear broadcast, DB 메시지는 유지 |
 | `POST` | `/api/session/reset` | 메시지 삭제 + session reset |
 
-### 서버 헬퍼
-
-| Function | 역할 |
-| --- | --- |
-| `findProjectRoot()` | `package.json` 기준 프로젝트 루트 탐색 |
-| `getRuntimeSnapshot()` | uptime/activeAgent/queuePending 스냅샷 |
-| `clearSessionState()` | ownership generation 증가 + 메시지 삭제 + `clear` broadcast |
-| `resetSessionOnly()` | session ID만 비우고 history 유지 + `session_reset` broadcast |
-| `resolveRequestLocale()` | body/query/Accept-Language/settings 순으로 locale 확정 |
-| `applySettingsPatch()` | runtime patch 적용 + fallback state reset hook |
-| `makeWebCommandCtx()` | Web용 `makeCommandCtx('web', ...)` 래퍼 |
-| `requireAuth()` | loopback bypass + optional private-LAN bypass + non-local Bearer 검사 |
-
 ---
 
-## Startup / Shutdown
+## REST API
 
-## 초기화 순서
+| Category | Endpoints |
+| --- | --- |
+| Core/Auth | `GET /api/health` `GET /api/session` `GET /api/messages` `GET /api/messages/search` `GET /api/messages/latest` `GET /api/runtime` `GET /api/auth/token` `POST /api/message` `POST /api/stop` `POST /api/clear` `POST /api/session/reset` |
+| Commands | `POST /api/command` `GET /api/commands?interface=` |
+| Settings/Prompt | `GET/PUT /api/settings` `GET /api/codex-context` `GET/PUT /api/prompt` `GET /api/prompt-templates` `PUT /api/prompt-templates/:id` `GET/PUT /api/heartbeat-md` |
+| MCP/CLI/Quota | `GET/PUT /api/mcp` `POST /api/mcp/sync` `POST /api/mcp/install` `POST /api/mcp/reset` `GET /api/mcp/registry` `GET /api/cli-registry` `GET /api/cli-status` `GET /api/quota` `POST /api/copilot/refresh` |
+| Runtime Context | `GET /api/runtime-context` `POST /api/runtime-context` `DELETE /api/runtime-context/:id` `DELETE /api/runtime-context` |
+| Security Audit | `GET /api/security-audit/entries` `GET /api/security-audit/verify` |
+| Heartbeat | `GET/PUT /api/heartbeat` |
+| Browser | `POST /api/browser/start` `POST /api/browser/stop` `GET /api/browser/status` `GET /api/browser/doctor` `POST /api/browser/cleanup-runtimes` `GET /api/browser/snapshot` `POST /api/browser/screenshot` `POST /api/browser/act` `POST /api/browser/vision-click` `POST /api/browser/navigate` `POST /api/browser/reload` `POST /api/browser/resize` `GET /api/browser/tabs` `GET /api/browser/active-tab` `POST /api/browser/tab-switch` `POST /api/browser/tab-new` `POST /api/browser/tab-close` `POST /api/browser/tab-cleanup` `POST /api/browser/evaluate` `GET /api/browser/text` `GET /api/browser/dom` `GET /api/browser/console` `GET /api/browser/network` `POST /api/browser/fetch` `POST /api/browser/wait-for-selector` `POST /api/browser/wait-for-text` `POST /api/browser/web-ai/render` `POST /api/browser/web-ai/context-dry-run` `POST /api/browser/web-ai/context-render` `GET /api/browser/web-ai/status` `POST /api/browser/web-ai/send` `GET /api/browser/web-ai/poll` `GET /api/browser/web-ai/watch` `GET /api/browser/web-ai/watchers` `GET /api/browser/web-ai/sessions` `POST /api/browser/web-ai/sessions/prune` `GET /api/browser/web-ai/notifications` `GET /api/browser/web-ai/capabilities` `POST /api/browser/web-ai/query` `POST /api/browser/web-ai/stop` `GET /api/browser/web-ai/diagnose` |
+| Orchestrate | `POST /api/orchestrate/reset` `GET /api/orchestrate/state` `GET /api/orchestrate/workers` `GET /api/orchestrate/worker-progress` `GET /api/orchestrate/worker-progress/:agentId` `GET /api/orchestrate/snapshot` `DELETE /api/orchestrate/queue/:id` `POST /api/orchestrate/queue/:id/hold` `DELETE /api/orchestrate/queue/:id/hold` `POST /api/orchestrate/queue/:id/steer` `POST /api/orchestrate/dispatch` `GET /api/orchestrate/worker/:agentId/result` `PUT /api/orchestrate/state` |
+| Goal | `GET /api/goal` `GET /api/goal/history` `POST /api/goal` |
+| Goal Run | `GET /api/goal-run` `GET /api/goal-run/preflight` `POST /api/goal-run` |
+| Employees | `GET /api/employees` `POST /api/employees` `PUT /api/employees/:id` `DELETE /api/employees/:id` `POST /api/employees/reset` |
+| Skills | `GET /api/skills` `GET /api/skills/:id` `POST /api/skills/enable` `POST /api/skills/disable` `POST /api/skills/reset` |
+| Memory Runtime / KV / Files | `GET /api/memory/status` `POST /api/memory/reindex` `POST /api/memory/bootstrap` `GET /api/memory/files` `GET /api/memory` `POST /api/memory` `DELETE /api/memory/:key` `GET /api/memory-files` `GET /api/memory-file` `GET /api/memory-files/:filename` `DELETE /api/memory-file` `DELETE /api/memory-files/:filename` `PUT /api/memory-files/settings` |
+| Jaw Memory | `GET /api/jaw-memory/search` `GET /api/jaw-memory/read` `POST /api/jaw-memory/save` `GET /api/jaw-memory/list` `POST /api/jaw-memory/init` `POST /api/jaw-memory/reflect` `POST /api/jaw-memory/flush` `GET /api/jaw-memory/soul` `POST /api/jaw-memory/soul/activate` `POST /api/jaw-memory/soul` `POST /api/soul/bootstrap` |
+| Jaw CEO | `GET /api/jaw-ceo/state` `POST /api/jaw-ceo/message` `POST /api/jaw-ceo/query` `POST /api/jaw-ceo/docs/edit` `GET /api/jaw-ceo/settings` `PUT /api/jaw-ceo/settings` `POST /api/jaw-ceo/events/ingest` `POST /api/jaw-ceo/events/refresh` `GET /api/jaw-ceo/pending` `POST /api/jaw-ceo/pending/:completionKey/continue` `POST /api/jaw-ceo/pending/:completionKey/summarize` `POST /api/jaw-ceo/pending/:completionKey/ack` `POST /api/jaw-ceo/pending/:completionKey/dismiss` `POST /api/jaw-ceo/watch` `GET /api/jaw-ceo/audit` `POST /api/jaw-ceo/voice/connect` `POST /api/jaw-ceo/voice/:sessionId/close` `POST /api/jaw-ceo/confirmations` `POST /api/jaw-ceo/confirmations/:confirmationId/confirm` `POST /api/jaw-ceo/confirmations/:confirmationId/cancel` |
+| Messaging | `POST /api/upload` `POST /api/file/open` `POST /api/voice` `POST /api/telegram/send` `POST /api/channel/send` `POST /api/discord/send` |
+| Avatar | `GET /api/avatar` `POST /api/avatar/:target/upload` `DELETE /api/avatar/:target/image` `GET /api/avatar/:target/image` |
+| Traces | `GET /api/traces/:runId` `GET /api/traces/:runId/events` `GET /api/traces/:runId/events/:seq` |
+| Dashboard Board | `GET /api/dashboard/board/tasks` `POST /api/dashboard/board/tasks` `PATCH /api/dashboard/board/tasks/:id` `DELETE /api/dashboard/board/tasks/:id` `POST /api/dashboard/board/tasks/from-message` |
+| Dashboard Schedule | `GET /api/dashboard/schedule/work` `POST /api/dashboard/schedule/work` `PATCH /api/dashboard/schedule/work/:id` `DELETE /api/dashboard/schedule/work/:id` `POST /api/dashboard/schedule/work/:id/dispatch` |
+| i18n | `GET /api/i18n/languages` `GET /api/i18n/:lang` |
 
-```text
-ensureDirs()
-→ mkdir public
-→ runMigration(projectRoot)
-→ loadSettings()
-→ DB quick_check
-→ stale employee sessions clear
-→ orphan jaw-emp-* tmp dir cleanup
-→ syncMainSessionToSettings()
-→ ensureMemoryRuntimeReady()
-→ permissions safe→auto migration
-→ initPromptFiles() / regenerateB()
-→ stale/non-default orc_state reset/prune
-→ express/http/ws 생성
-→ middleware + base routes + route modules + errorHandler
-→ watchHeartbeatFile()
-→ server.listen(bindHost)
-→ loadLocales()
-→ initMcpConfig() / ensureWorkingDirSkillsLinks() / copyDefaultSkills()
-→ hydrateTargetsFromSettings() / initActiveMessagingRuntime()
-→ seedDefaultEmployees()
-→ startHeartbeat()
-→ employee name/model migration
-```
-
-### listen 시점 후처리
-
-- `settings.port`를 실제 listen port로 다시 저장한다.
-- `JAW_OPEN_BROWSER=1`이면 테스트 환경이 아닐 때만 브라우저를 auto-open 한다.
-- MCP/skills 링크 충돌이 있으면 `~/.cli-jaw/backups/skills-conflicts`로 백업 이동한다.
-- 직원이 비어 있으면 default employees를 seed 한다.
-- 한국어 직원명(`프런트`, `백엔드`, `문서` 등)을 영문명으로 마이그레이션한다.
-- 레거시 Claude employee model 값을 alias(`sonnet`, `opus`, `sonnet[1m]`, `opus[1m]`)로 정규화한다.
-
-### 종료 처리
-
-- `SIGTERM`/`SIGINT`에서 heartbeat 중지, 모든 agent 종료, active `orc_state` reset, messaging runtime shutdown 시도, WebSocket/HTTP close, SQLite close를 수행한다.
-- 5초 내 종료가 끝나지 않으면 force exit 한다.
+> 실제 코드(`server.ts` + `src/routes/*.ts` + dashboard board/schedule)에서 추출한 총 180개 route handler 기준이다. 이 중 API 엔드포인트는 179개이고, 나머지 1개는 `/` 엔트리이다. Browser API 41개는 `src/routes/browser.ts`에서 등록된다. Jaw CEO 20개는 `src/routes/jaw-ceo.ts`에서 sub-router로 등록된다.
 
 ---
 
@@ -140,7 +124,7 @@ ensureDirs()
 
 ### 인증
 
-- mutation route 71개는 모두 `requireAuth`로 보호된다.
+- mutation route는 모두 `requireAuth`로 보호된다.
 - 다만 로컬 동일 머신 사용성을 위해 loopback 요청은 Bearer 없이 허용된다. LAN bypass가 켜진 private IP 요청도 토큰 없이 통과할 수 있으므로 trusted network 전용이다.
 - `/api/auth/token`은 cross-origin token theft 방지를 위해 `Sec-Fetch-Site`를 검사한다.
 
@@ -162,42 +146,6 @@ ensureDirs()
 
 ---
 
-## REST API
-
-| Category | Endpoints |
-| --- | --- |
-| Core/Auth | `GET /api/health` `GET /api/session` `GET /api/messages` `GET /api/messages/search` `GET /api/messages/latest` `GET /api/runtime` `GET /api/auth/token` `POST /api/message` `POST /api/stop` `POST /api/clear` `POST /api/session/reset` |
-| Commands | `POST /api/command` `GET /api/commands?interface=` |
-| Settings/Prompt | `GET/PUT /api/settings` `GET /api/codex-context` `GET/PUT /api/prompt` `GET /api/prompt-templates` `PUT /api/prompt-templates/:id` `GET/PUT /api/heartbeat-md` |
-| MCP/CLI/Quota | `GET/PUT /api/mcp` `POST /api/mcp/sync` `POST /api/mcp/install` `POST /api/mcp/reset` `GET /api/mcp/registry` `GET /api/cli-registry` `GET /api/cli-status` `GET /api/quota` `POST /api/copilot/refresh` |
-| Runtime Context | `GET /api/runtime-context` `POST /api/runtime-context` `DELETE /api/runtime-context/:id` `DELETE /api/runtime-context` |
-| Heartbeat | `GET/PUT /api/heartbeat` |
-| Browser | `POST /api/browser/start` `POST /api/browser/stop` `GET /api/browser/status` `GET /api/browser/doctor` `POST /api/browser/cleanup-runtimes` `GET /api/browser/snapshot` `POST /api/browser/screenshot` `POST /api/browser/act` `POST /api/browser/vision-click` `POST /api/browser/navigate` `POST /api/browser/reload` `POST /api/browser/resize` `GET /api/browser/tabs` `GET /api/browser/active-tab` `POST /api/browser/tab-switch` `POST /api/browser/tab-new` `POST /api/browser/tab-close` `POST /api/browser/tab-cleanup` `POST /api/browser/evaluate` `GET /api/browser/text` `GET /api/browser/dom` `GET /api/browser/console` `GET /api/browser/network` `POST /api/browser/fetch` `POST /api/browser/wait-for-selector` `POST /api/browser/wait-for-text` `POST /api/browser/web-ai/render` `POST /api/browser/web-ai/context-dry-run` `POST /api/browser/web-ai/context-render` `GET /api/browser/web-ai/status` `POST /api/browser/web-ai/send` `GET /api/browser/web-ai/poll` `GET /api/browser/web-ai/watch` `GET /api/browser/web-ai/watchers` `GET /api/browser/web-ai/sessions` `POST /api/browser/web-ai/sessions/prune` `GET /api/browser/web-ai/notifications` `GET /api/browser/web-ai/capabilities` `POST /api/browser/web-ai/query` `POST /api/browser/web-ai/stop` `GET /api/browser/web-ai/diagnose` |
-| Orchestrate | `POST /api/orchestrate/reset` `GET /api/orchestrate/state` `GET /api/orchestrate/workers` `GET /api/orchestrate/worker-progress` `GET /api/orchestrate/worker-progress/:agentId` `GET /api/orchestrate/snapshot` `DELETE /api/orchestrate/queue/:id` `POST /api/orchestrate/queue/:id/hold` `DELETE /api/orchestrate/queue/:id/hold` `POST /api/orchestrate/queue/:id/steer` `POST /api/orchestrate/dispatch` `GET /api/orchestrate/worker/:agentId/result` `PUT /api/orchestrate/state` |
-| Goal | `GET /api/goal` `GET /api/goal/history` `POST /api/goal` |
-| Goal Run | `GET /api/goal-run` `GET /api/goal-run/preflight` `POST /api/goal-run` |
-| Employees | `GET /api/employees` `POST /api/employees` `PUT /api/employees/:id` `DELETE /api/employees/:id` `POST /api/employees/reset` |
-| Skills | `GET /api/skills` `GET /api/skills/:id` `POST /api/skills/enable` `POST /api/skills/disable` `POST /api/skills/reset` |
-| Memory Runtime / KV / Files | `GET /api/memory/status` `POST /api/memory/reindex` `POST /api/memory/bootstrap` `GET /api/memory/files` `GET /api/memory` `POST /api/memory` `DELETE /api/memory/:key` `GET /api/memory-files` `GET /api/memory-file` `GET /api/memory-files/:filename` `DELETE /api/memory-file` `DELETE /api/memory-files/:filename` `PUT /api/memory-files/settings` |
-| Jaw Memory | `GET /api/jaw-memory/search` `GET /api/jaw-memory/read` `POST /api/jaw-memory/save` `GET /api/jaw-memory/list` `POST /api/jaw-memory/init` `POST /api/jaw-memory/reflect` `POST /api/jaw-memory/flush` `GET /api/jaw-memory/soul` `POST /api/jaw-memory/soul/activate` `POST /api/jaw-memory/soul` `POST /api/soul/bootstrap` |
-| Messaging | `POST /api/upload` `POST /api/file/open` `POST /api/voice` `POST /api/telegram/send` `POST /api/channel/send` `POST /api/discord/send` |
-| Avatar | `GET /api/avatar` `POST /api/avatar/:target/upload` `DELETE /api/avatar/:target/image` `GET /api/avatar/:target/image` |
-| Traces | `GET /api/traces/:runId` `GET /api/traces/:runId/events` `GET /api/traces/:runId/events/:seq` |
-| i18n | `GET /api/i18n/languages` `GET /api/i18n/:lang` |
-
-> 실제 코드(`server.ts` + `src/routes/*.ts`)에서 추출한 총 144개 route handler 기준이다. 이 중 API 엔드포인트는 143개이고, 나머지 1개는 `/` 엔트리이다. Browser API 41개는 `src/routes/browser.ts`에서 등록된다. 이 중 POST/PUT/DELETE mutation endpoint 74개는 모두 `requireAuth` 보호를 받고, `GET /api/auth/token`은 `Sec-Fetch-Site`가 `same-origin|none`이 아닐 때 `403`을 반환한다.
-
-### 최근 surface drift
-
-- `jaw-memory`는 이제 `flush`, `soul` read/write, `soul/activate`, `POST /api/soul/bootstrap`까지 포함한 11개 route다.
-- avatar API가 `registerAvatarRoutes()`로 연결되어 agent/user custom image를 관리한다.
-- `/api/session/reset`이 base route로 추가되어 `/clear`와 의미가 분리됐다.
-- orchestrate API는 queue cancel / queue hold / queue steer async accept / worker progress 조회 / worker result 조회까지 포함한 13개 route이며, 이전 `continue` route는 현재 코드 표면에 없다.
-- goal API는 durable goal state와 bounded goal-run state/preflight/start control 6개 route를 노출한다.
-- browser API는 primitive/tab/debug/doctor/runtime-cleanup, adaptive URL fetch, web-ai provider automation 라우트를 합쳐 41개 route로 확장됐다.
-- trace API는 public trace summary와 bounded event page/read를 `GET /api/traces/:runId*` 3개 route로 노출한다.
-- `/api/cli-registry`, `/api/cli-status`, `/api/quota`는 registry/detectAllCli/CLI_KEYS 기준으로 AGY(`agy`) top-level runtime을 포함한다. `/api/quota`에서 quota API가 없는 runtime은 `quotaCapable:false` status-only metadata로 반환한다.
-
 ## Selected Route Notes
 
 ### `/api/command`
@@ -205,99 +153,47 @@ ensureDirs()
 - body `text`를 500자까지 자른 뒤 `parseCommand()`로 해석한다.
 - locale은 body/query/Accept-Language/settings 순으로 정해지고 `Content-Language`가 세팅된다.
 - command가 아니면 `400 { code: 'not_command' }`.
-- slash command 결과는 handler의 `SlashResult`를 그대로 반환한다. Workflow helper는 `artifact`, `originalText`를 포함할 수 있고, 등록되지 않은 slash command는 `recovery.originalText`와 추천 커맨드를 포함한다.
-- `/plan`은 별도 plan mode가 아니라 PABCD P 안내 결과를 반환하며, non-authoritative local-cache workflow artifact를 함께 내려준다.
-- unknown command recovery도 원문 prompt를 보존한 non-authoritative local-cache workflow artifact를 만들며, 저장 위치는 `JAW_HOME/artifacts/workflows/...` 아래로 제한된다.
 
-### `/api/commands`
+### `/api/goal` — action-based POST
 
-- `getVisibleCommands(interface)`를 사용해 command policy와 동일한 hidden/blocked 필터를 적용한다.
-- 응답에는 `name`, `desc`, `args`, `category`, `aliases`, `workflow`, `capability`가 포함된다.
-- workflow slash commands는 `workflow.phase`, `risk`, `output`, `workflowArgs`, `gatedUntilPhase` metadata를 내려주며 Web palette는 이 값을 compact chips로 표시한다.
-
-### `/api/settings`
-
-- `GET`은 live `settings`를 반환하되 STT secrets(`geminiApiKey`, `openaiApiKey`)를 비우고 `*KeySet`/`*KeyLast4` 메타만 노출한다.
-- `PUT`은 `applyRuntimeSettingsPatch()`를 거치며 `perCli`, `activeOverrides`, `telegram`, `discord`, `memory`, `stt`, `tui`, `messaging`, `network` 같은 nested object는 merge semantics를 따른다.
-- `showReasoning`은 top-level scalar setting이며 `/thought` command와 Gemini thought visibility가 이 값을 공유한다.
-
-### `/api/orchestrate/queue/:id/steer`
-
-- Web UI pending queue의 "Run now (steer)" button 전용 route다. typed `/steer` slash command와 별도 surface다.
-- 클릭 시 selected queued item을 즉시 accept/remove하고 `new_message`(`fromQueue:true`)와 `steer_started`를 broadcast한 뒤 응답한다.
-- old `claude-e`/`ai-e` process interrupt, provider-specific `waitForProcessEnd()`, 새 orchestration dispatch는 response 이후 background task에서 수행한다.
-- `steerInProgress` 동안 gateway busy check가 새 입력을 queue로 보내며, concurrent queued steer 요청은 selected row를 보존하고 `409`로 거절된다.
-- queue metadata `target`/`chatId`/`requestId`는 orchestration branch와 background error `orchestrate_done`까지 전달된다.
-
-### `/api/cli-registry` / `/api/cli-status`
-
-- `/api/cli-registry`는 `src/cli/registry.ts`의 `CLI_REGISTRY`를 그대로 내려준다. AGY는 top-level key `agy`이며 `ai-e.providers`에는 포함되지 않는다.
-- `/api/cli-status`는 `src/core/config.ts`의 `detectAllCli()` 결과를 내려준다. AGY는 registry binary `agy` 기준으로 설치 상태가 표시되고, auth hint는 frontend가 "run time check"로 렌더한다. 자동 기본 CLI 선정은 별도 `src/cli/readiness.ts`의 installed/authenticated tier를 쓴다.
-
-### `/api/message`
-
-- `submitMessage()`를 통해 idle 즉시 실행 / busy 큐잉 / reset/continue intent 분기를 공통 처리한다.
-- reject 시 `409 busy` 또는 `400` reason을 반환한다.
-
-### `/api/clear` vs `/api/session/reset`
-
-- `/api/clear`: UI-only clear broadcast. DB 메시지 삭제 없음.
-- `/api/session/reset`: `clearMainSessionState()` 호출. 메시지 삭제 + session cleared.
-
-### `/api/file/open`
-
-- `:line[:col]` suffix가 붙은 문서형 경로를 허용한다.
-- exact path가 없을 때만 suffix를 strip 해 fallback 해석한다.
-- 문서형 확장자는 reveal, 일반 파일은 상위 폴더 open, 디렉터리는 디렉터리 자체 open 전략을 쓴다.
-
-### `/api/heartbeat`
-
-- `PUT`은 `jobs` 배열 전체를 검증한다.
-- invalid schedule이면 `400`과 함께 `code`, `detail`, `index`, `jobId`를 포함해 반환한다.
-
-### `/api/quota`
-
-- 응답 키: `agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `cursor`, `gemini`, `grok`, `opencode`, `copilot` (`CLI_KEYS` 순서).
-- `claude-e`는 underlying Claude quota/auth를, `codex-app`은 underlying Codex quota/auth를, `ai-e`는 현재 선택 provider의 quota/auth를 delegated metadata와 함께 반환한다.
-- `agy`, `cursor`, `opencode`는 현재 `{ authenticated:true, quotaCapable:false }` status-only 응답이다. Cursor는 `CURSOR_API_KEY` 또는 `cursor-agent status` 인증 상태를 쓰고 `quotaSource:'not-exposed-by-cursor-cli'`를 반환한다.
-- `grok`는 `grok models` 기반 auth/status-only 응답이다. Grok CLI는 남은 할당량을 노출하지 않으므로 `quotaCapable:false`, `quotaSource:'not-exposed-by-grok-cli'`, `displayTier:'Grok Heavy'`를 반환하고, 있으면 최신 `~/.grok/sessions/**/signals.json`의 세션 context 사용량만 best-effort로 붙인다.
-- AGY는 현 runtime에서 quota/auth API가 분리되어 있지 않아 real quota window를 만들지 않는다. 상태 표시는 `/api/cli-status` 설치 상태와 `/api/quota`의 `not-exposed-by-agy-cli` metadata가 함께 담당한다.
-- `kiro-code`는 `src/routes/quota-kiro-reverse.ts`의 `fetchKiroUsage()`를 통해 CodeWhisperer `GetUsageLimits` API를 reverse-engineer 호출한다. `quotaSource:'kiro:codewhisperer-get-usage-limits'`, `displayTier:'Kiro <plan>'`을 반환하며, auth store가 없거나 token이 만료되면 `authenticated:false`를 반환한다.
-
-### `/api/runtime-context`
-
-- `src/routes/runtime-context.ts`의 `createRuntimeContextRouter()`가 sub-router로 마운트된다. 전체 경로에 `requireAuth`가 적용된다.
-- `GET /api/runtime-context` — 모든 entry를 반환하며 각 entry에 `expired` boolean을 추가한다.
-- `POST /api/runtime-context` — body `{ text, label?, expiresAt? }`. `text`는 필수(max 2000자). 201 + 생성된 entry 반환.
-- `DELETE /api/runtime-context/:id` — 단일 entry 삭제. 없으면 404.
-- `DELETE /api/runtime-context` — 전체 삭제. `{ cleared: <count> }` 반환.
-- entry는 `PROMPTS_DIR/runtime-context.json`에 저장되며, prompt builder가 `buildInjectionBlock()`으로 active(미만료) entry를 `## Temporary User Context` 블록으로 주입한다.
-
-### `/api/mcp/registry`
-
-- `src/routes/settings.ts`에서 등록. `GET` only, auth 불필요.
-- `lib/mcp/mcp-registry.ts`의 `fetchMcpRegistry()` / `fetchMcpRegistryLocal()`을 사용한다.
-- 로컬 후보 경로(`JAW_HOME/mcp-ref/registry.json`, `~/Developer/new/700_projects/mcp-ref/registry.json`)를 먼저 시도하고, 없으면 GitHub raw URL에서 fetch + 1시간 TTL 캐시(`~/.cli-jaw/mcp-registry-cache.json`).
-- 응답: `{ ok, entries: McpRegistryEntry[], builtins: McpHarnessBuiltin[] }`. 실패 시 `500 { ok:false, error, entries:[], builtins:[] }`.
-
-### `/api/goal` — resume action + continuation kick
-
-- `POST /api/goal` body `{ action:'resume' }` 시, 이미 active이면 `{ ok, goal, alreadyActive:true }`를 반환하고 continuation을 kick하지 않는다.
-- paused goal을 resume하면 `resumeGoal()` 후 `kickGoalContinuation()`을 호출해 agent continuation을 즉시 트리거한다.
-- `kickGoalContinuation()`은 `src/agent/lifecycle-handler.ts`에서 export되며, goal heartbeat timer와 별개로 즉시 한 번 continuation을 시도한다.
-
-### `/api/orchestrate/snapshot` — `buildBudget` / `researchReport`
-
-- `GET /api/orchestrate/snapshot` 응답의 `orc.ctx` 객체에 `buildBudget`과 `researchReport` 필드가 포함된다.
-- `buildBudget`: `{ maxFiles?, maxLines?, scope? }` — B phase에서 worker에게 전달되는 구현 범위 제한.
-- `researchReport`: Interview(I) phase에서 수집된 evidence/unknowns를 markdown으로 정리한 문자열. P phase 진입 시 plan context로 사용된다.
+- `POST /api/goal` body `{ action }` 분기: `set`, `update`, `done`, `cancel`, `pause`, `resume`, `clear`, `reset`.
+- `done` action은 `goalHasCompletionEvidence()` gate를 거치며, evidence 없으면 `409`를 반환한다. `force:true`로 override 가능.
+- `resume` action은 이미 active이면 `{ alreadyActive:true }`를 반환하고, paused goal을 resume하면 `kickGoalContinuation()`을 즉시 트리거한다.
 
 ### `/api/orchestrate/dispatch`
 
 - boss-scoped `x-jaw-boss-token`이 필수다. employee spawn 환경에서는 이 토큰이 제거되므로 직원이 다시 dispatch하는 흐름은 서버에서 `403`으로 막힌다.
-- PABCD A/B/C 상태에서는 phase가 각각 Plan Audit/Verifier 쪽으로 매핑된다. 특히 B phase에서는 implementation wording을 delegation guard가 차단하고, worker는 READ-ONLY verifier로만 동작해야 한다.
-- 현재 plan이 있으면 dispatch body 상단에 `## Approved Plan`으로 자동 주입된다. worker에게 별도 plan 파일을 읽으라고 지시하지 않는다.
-- PABCD Approved Plan 자동 주입 블록에는 `Project root: <absolute path>`와 path guard가 포함된다. A/B dispatch 예시도 task body 첫 줄에 Project root를 명시해 `~/.cli-jaw*`/JAW_HOME/employee temp cwd를 repo root로 착각하지 않게 한다.
+- 현재 plan이 있으면 dispatch body 상단에 `## Approved Plan`으로 자동 주입된다.
+
+### `/api/jaw-ceo/*`
+
+- `requireAuth` 보호 sub-router로 `/api/jaw-ceo` 아래 마운트.
+- Core: state read, message send, query (dashboard/cli_readonly/web/github_read source), docs edit.
+- Settings: OpenAI API key management for voice.
+- Events: ingest manager events, refresh with port/cursor filter.
+- Pending: list/continue/summarize/ack/dismiss completions.
+- Watch/Audit: watch completion on port, audit log with kind/port filter.
+- Voice: WebRTC connect via OpenAI Realtime API, session close.
+- Confirmations: create/confirm/cancel action confirmations.
+
+### `/api/quota`
+
+- 응답 키: `agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `cursor`, `gemini`, `grok`, `opencode`, `copilot`, `kiro-code` (`CLI_KEYS` 순서).
+- `agy`는 `src/routes/quota-agy-reverse.ts`의 `fetchAgyUsage()`를 통해 Antigravity quota snapshot을 읽는다.
+- `cursor`는 `src/routes/quota-cursor-dashboard.ts`의 `fetchCursorUsage()`를 통해 dashboard session/usage를 읽는다.
+- `kiro-code`는 `src/routes/quota-kiro-reverse.ts`의 `fetchKiroUsage()`를 통해 CodeWhisperer `GetUsageLimits` API를 reverse-engineer 호출한다.
+
+### `/api/runtime-context`
+
+- `GET` — 모든 entry를 반환하며 각 entry에 `expired` boolean을 추가한다.
+- `POST` — body `{ text, label?, expiresAt? }`. `text`는 필수(max 2000자). 201 + 생성된 entry 반환.
+- `DELETE /:id` — 단일 entry 삭제. 없으면 404.
+- `DELETE /` — 전체 삭제. `{ cleared: <count> }` 반환.
+
+### `/api/security-audit/*`
+
+- `GET /entries` — audit log entries (limit param, max 500).
+- `GET /verify` — integrity verification of audit chain.
 
 ---
 
@@ -317,42 +213,39 @@ ensureDirs()
 | `queue_update` | 대기열 길이 갱신 |
 | `clear` / `session_reset` | UI clear / session reset broadcast |
 | `new_message` | Telegram/Discord inbound message |
-| `orc_state` | PABCD 상태 변경 + `taskAnchor`/`resolvedSelection`/`interview`(known/unknown/round 트래커) 컨텍스트 |
-| `orchestrate_done` / `orchestrate_warning` | orchestration 완료/실패 + 비차단 경고(stale interview carry-over 등) |
-| `steer_started` | `/steer` 또는 pending queue steer가 새 프롬프트를 accepted 상태로 전환 (`prompt`/`origin`, queue route는 `target`/`chatId`/`requestId`/`scope` 포함 가능) |
+| `orc_state` | PABCD 상태 변경 + `taskAnchor`/`resolvedSelection`/`interview` 컨텍스트 |
+| `orchestrate_done` / `orchestrate_warning` | orchestration 완료/실패 + 비차단 경고 |
+| `steer_started` | `/steer` 또는 pending queue steer가 새 프롬프트를 accepted 상태로 전환 |
 | `agent_added` / `agent_updated` / `agent_deleted` | employee CRUD 반영 |
-| `agent:claude-e:runtime_started` / `agent:claude-e:spawned` / `agent:claude-e:session` / `agent:claude-e:prompt_injected` / `agent:claude-e:stop` / `agent:claude-e:stop_failure` / `agent:claude-e:interrupted` / `agent:claude-e:cleanup` / `agent:claude-e:error` | Claude E native helper lifecycle bridge |
+| `agent:claude-e:*` | Claude E native helper lifecycle bridge (runtime_started/spawned/session/prompt_injected/stop/stop_failure/interrupted/cleanup/error) |
 | `settings_change` | project/workspace settings 변경 신호 |
 | `memory_status` | memory sidebar / runtime 상태 갱신 신호 |
 | `system_notice` | compact refresh 같은 시스템 공지 |
 | `heartbeat_pending` | pending heartbeat job 수 |
 | `worker_stalled` / `worker_disconnected` / `worker_timeout` | distributed worker 상태 변화 |
-| `goal_done` / `goal_done_rejected` / `goal_cancel` / `goal_continuation` / `goal_continuation_failed` / `goal_continuation_limit` | durable goal / bounded continuation lifecycle (`goal_done_rejected` = OMX-style completion gate가 조기 완료 거부) |
+| `goal_done` / `goal_done_rejected` / `goal_cancel` / `goal_continuation` / `goal_continuation_failed` / `goal_continuation_limit` | durable goal / bounded continuation lifecycle |
 | `schedule_wakeup` / `schedule_wakeup_failed` | ScheduleWakeup continuation scheduling lifecycle |
-
-- 새 연결 시 서버는 필요하면 `agent_status`, `queue_update`, non-IDLE `orc_state`를 먼저 push 한다.
-- 실제 broadcast 함수는 `src/core/bus.ts`의 `broadcast(type, data)` 하나다. WebSocket 전송과 내부 listener fan-out을 동시에 처리한다.
-- Web UI가 소비하는 이벤트별 상세 흐름은 [stream-events.md](stream-events.md)에 정리한다.
 
 ---
 
 ## Manager Dashboard Server Surface
 
-`jaw dashboard serve`가 띄우는 별도 manager 서버(`src/manager/server.ts`)는 core `server.ts` route count에 포함하지 않는다. 현재 manager 전용 API는 scan/proxy/lifecycle 외에 board, notes, schedule, reminders, git diff, memory federation을 함께 제공한다.
+`jaw dashboard serve`가 띄우는 별도 manager 서버(`src/manager/server.ts`, 753L)는 core `server.ts` route count에 포함하지 않는다.
 
 | Surface | Endpoints |
 | --- | --- |
-| Manager health/scan | `GET /api/dashboard/health` `GET /api/dashboard/instances` `GET /api/dashboard/instances/:port` |
-| Instance preview proxy | legacy `/i/:port/*` reverse proxy plus origin-port preview servers. HTML preview responses inject an external-link policy so off-instance http(s) links/forms open in a new tab/default browser instead of replacing the embedded iframe. |
-| Notes | `GET /api/dashboard/notes/info` `GET /api/dashboard/notes/version` `GET /api/dashboard/notes/tree` `GET /api/dashboard/notes/index` `GET /api/dashboard/notes/capabilities` `GET /api/dashboard/notes/search` `GET/POST/PUT /api/dashboard/notes/file` `POST /api/dashboard/notes/asset` |
-| Board | `GET/POST/PATCH/DELETE /api/dashboard/board/tasks` and lane/task ordering routes under `/api/dashboard/board` |
-| Schedule | `GET/POST/PATCH/DELETE /api/dashboard/schedule` plus schedule runner-backed dispatch |
-| Reminders | `GET /api/dashboard/reminders` `POST /api/dashboard/reminders` `POST /api/dashboard/reminders/from-message` `PATCH /api/dashboard/reminders/:id` |
+| Manager health/scan | `GET /api/dashboard/health` `GET /api/dashboard/instances` `GET /api/dashboard/instances/:port` `POST /api/dashboard/instances/:port/message` |
+| Manager events/logs | `GET /api/manager/events` `GET /api/manager/health-history/:port` `GET /api/manager/instance-logs/:port` |
+| Registry | `GET /api/dashboard/registry` `PATCH /api/dashboard/registry` |
+| Lifecycle | `POST /api/dashboard/lifecycle/:action` (start/stop/restart/perm/unperm) |
+| Process control | `GET /api/dashboard/process-control` `POST /api/dashboard/process-control/adopt` `POST /api/dashboard/process-control/stop-managed` `POST /api/dashboard/process-control/force-release` |
 | Desktop/Electron | `GET /api/dashboard/desktop-status` `GET/POST /api/dashboard/electron-metrics` |
-| Git diff | `POST /api/dashboard/git/repo-candidates` `POST /api/dashboard/git/diff-summary` `POST /api/dashboard/git/file-diff` (`src/manager/routes/dashboard-git.ts` → `git/diff-service.ts`; desktop Diff panel data path, `core.quotepath=false` + ref/path-traversal guard) |
-| Memory federation | `GET /api/dashboard/memory/search` `GET /api/dashboard/memory/instances` `GET /api/dashboard/memory/read` |
-| Memory embedding | `GET /api/dashboard/memory/embed-config` `POST /api/dashboard/memory/embed-config` `GET /api/dashboard/memory/embed-state` `GET /api/dashboard/memory/embed-estimate` `GET /api/dashboard/memory/reindex-stream` (SSE) `POST /api/dashboard/memory/reindex` |
-
-Memory embedding routes are served by `src/manager/routes/dashboard-memory.ts`. The embed-config POST doubles as connection test when `body.test=true`. The reindex-stream returns SSE events (`{done,total}` progress, `{complete:true}` on finish, `{error}` on failure). Auto-sync triggers on memory save broadcasts with 2s debounce, plus a 30-minute background catchall sync.
-
-Reminders are backed by `src/manager/reminders/store.ts` and normalized through `src/manager/reminders/api.ts`. The scheduler checks due reminders, dispatches channel notifications, and records `notificationStatus`/attempt metadata.
+| Notes | `GET /api/dashboard/notes/auth/status` `POST /api/dashboard/notes/ws-token` `GET /api/dashboard/notes/history/status` `POST /api/dashboard/notes/history/init` `GET /api/dashboard/notes/history` `GET /api/dashboard/notes/history/show` `GET /api/dashboard/notes/history/diff` `POST /api/dashboard/notes/history/flush` `GET /api/dashboard/notes/plugins` `GET /api/dashboard/notes/plugins/:id/asset/*` `GET /api/dashboard/notes/version` `POST /api/dashboard/notes/asset` `POST /api/dashboard/notes/asset/remote` `GET /api/dashboard/notes/asset` `GET /api/dashboard/notes/info` `GET /api/dashboard/notes/tree` `GET /api/dashboard/notes/templates` `GET /api/dashboard/notes/template` `GET /api/dashboard/notes/snippets` `GET /api/dashboard/notes/snippets/file` `PUT /api/dashboard/notes/snippets/toggle` `PUT /api/dashboard/notes/theme` `PUT /api/dashboard/notes/plugins/:id/toggle` `GET /api/dashboard/notes/search` `GET /api/dashboard/notes/index` `GET /api/dashboard/notes/capabilities` `GET/POST/PUT /api/dashboard/notes/file` `POST /api/dashboard/notes/folder` `POST /api/dashboard/notes/rename` `POST /api/dashboard/notes/trash` |
+| Board | `GET/POST/PATCH/DELETE /api/dashboard/board/tasks` `POST /api/dashboard/board/tasks/from-message` |
+| Schedule | `GET/POST/PATCH/DELETE /api/dashboard/schedule/work` `POST /api/dashboard/schedule/work/:id/dispatch` |
+| Reminders | `GET /api/dashboard/reminders` `POST /api/dashboard/reminders` `POST /api/dashboard/reminders/from-message` `PATCH /api/dashboard/reminders/:id` |
+| Connector | `POST /api/dashboard/connector/board` `PATCH /api/dashboard/connector/board/:id` `POST /api/dashboard/connector/reminders` `PATCH /api/dashboard/connector/reminders/:id` `POST /api/dashboard/connector/notes` `GET /api/dashboard/connector/audit` |
+| Git diff | `POST /api/dashboard/git/repo-candidates` `POST /api/dashboard/git/diff-summary` `POST /api/dashboard/git/file-diff` |
+| Memory federation | `GET /api/dashboard/memory/instances` `GET /api/dashboard/memory/search` `GET /api/dashboard/memory/read` |
+| Memory embedding | `GET /api/dashboard/memory/embed-config` `POST /api/dashboard/memory/embed-config` `POST /api/dashboard/memory/reindex` `GET /api/dashboard/memory/embed-state` `GET /api/dashboard/memory/embed-estimate` `GET /api/dashboard/memory/reindex-stream` (SSE) |
+| Jaw CEO (manager) | `/api/jaw-ceo/*` (same sub-router as core server) |
