@@ -77,7 +77,7 @@ export function applyCliEnvDefaults(
         return merged;
     }
 
-    if (cli === 'agy') {
+    if (cli === 'agy' || cli === 'kiro-code') {
         return {
             ...extraEnv,
             NO_COLOR: extraEnv["NO_COLOR"] ?? inheritedEnv["NO_COLOR"] ?? '1',

@@ -55,6 +55,15 @@ import { asCliEventRecord, discriminate, fieldString, type CliEventRecord } from
 import { isJawRuntimeEvent, handleJawRuntimeEvent } from './claude-e-runtime.js';
 import { appendTraceEvent, stampTraceTool, startTraceRun } from '../trace/store.js';
 import { extractAgyConversationId, formatAgyTimeoutMessage, isAgyStaleSessionOutput, isAgyTimeoutOutput } from './agy-runtime.js';
+import { appendAssistantTextSegment, appendPostToolAssistantLead } from './events/helpers.js';
+import {
+    extractKiroSessionIdFromStore,
+    finalizeKiroFullText,
+    flushKiroStdoutContext,
+    isKiroPlainTextCli,
+    processKiroStdoutChunk,
+    type KiroStreamEvent,
+} from './kiro-runtime.js';
 import { resolveCursorModelVariant } from './cursor-runtime.js';
 
 // ─── State ───────────────────────────────────────────
@@ -140,6 +149,74 @@ function appendParentLiveRunTool(ctx: SpawnContext, tool: ToolEntry): void {
     const [safeTool] = sanitizeWorkerProgressTools([{ ...tool, isEmployee: true }]);
     if (!safeTool) return;
     appendLiveRunTool(ctx.parentLiveScope, { ...safeTool, isEmployee: true });
+}
+
+function emitKiroStreamEvents(
+    events: KiroStreamEvent[],
+    ctx: SpawnContext,
+    agentLabel: string,
+    cli: string,
+    empTag: Record<string, unknown>,
+    traceAudience: 'public' | 'internal',
+): void {
+    for (const event of events) {
+        ctx.kiroLastVisibleAt = Date.now();
+        ctx.kiroHeartbeatSent = false;
+        ctx.stallWatchdog?.markProgress();
+        if (event.kind === 'assistant_delta') {
+            const segment = event.text;
+            if (!segment) continue;
+            if (ctx.liveOutputText !== undefined) {
+                ctx.liveOutputText += segment;
+            }
+            ctx.outputTextStarted = true;
+            if (ctx.liveScope) appendLiveRunText(ctx.liveScope, segment);
+            broadcast('agent_output', {
+                agentId: agentLabel,
+                cli,
+                text: segment,
+                ...empTag,
+            }, traceAudience);
+            continue;
+        }
+        const tool: ToolEntry = {
+            icon: event.icon,
+            label: event.label,
+            detail: event.detail || '',
+            stepRef: event.stepRef,
+            status: event.status,
+            toolType: 'tool',
+        };
+        stampTraceTool(tool, ctx, 'tool');
+        const existingIdx = ctx.toolLog.findIndex((entry) => entry.stepRef === event.stepRef);
+        if (existingIdx >= 0) {
+            ctx.toolLog[existingIdx] = { ...ctx.toolLog[existingIdx], ...tool };
+        } else {
+            ctx.toolLog.push(tool);
+        }
+        if (ctx.liveScope) replaceLiveRunTools(ctx.liveScope, ctx.toolLog);
+        appendParentLiveRunTool(ctx, tool);
+        broadcast('agent_tool', { agentId: agentLabel, ...tool, ...empTag }, traceAudience);
+    }
+}
+
+function maybeEmitKiroWorkingHeartbeat(
+    ctx: SpawnContext,
+    agentLabel: string,
+    empTag: Record<string, unknown>,
+    traceAudience: 'public' | 'internal',
+): void {
+    const lastVisible = ctx.kiroLastVisibleAt ?? Date.now();
+    if (!shouldEmitHeartbeat(lastVisible, ctx.kiroHeartbeatSent === true)) return;
+    ctx.kiroHeartbeatSent = true;
+    broadcast('agent_tool', {
+        agentId: agentLabel,
+        icon: '⏳',
+        label: 'Kiro working...',
+        toolType: 'tool',
+        status: 'running',
+        ...empTag,
+    }, traceAudience);
 }
 
 export function killAgentById(agentId: string): boolean {
@@ -763,10 +840,10 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             cli === 'gemini' ? GEMINI_HISTORY_MAX_CHARS : 8000,
         )
         : '';
-    let promptForArgs = (cli === 'agy' || cli === 'cursor' || cli === 'gemini' || cli === 'grok' || cli === 'opencode' || (cli === 'ai-e' && effectiveProvider !== 'claude'))
+    let promptForArgs = (cli === 'agy' || cli === 'cursor' || cli === 'kiro-code' || cli === 'gemini' || cli === 'grok' || cli === 'opencode' || (cli === 'ai-e' && effectiveProvider !== 'claude'))
         ? withHistoryPrompt(prompt, historyBlock)
         : prompt;
-    if (cli === 'agy' && sysPrompt) {
+    if ((cli === 'agy' || cli === 'kiro-code') && sysPrompt) {
         promptForArgs = `[Operational Context — cli-jaw Integration]\nThe following operational guidelines apply to this session. Follow these task rules and use the tools/commands described:\n\n${sysPrompt}\n\n---\n\n${promptForArgs}`;
     }
     const claudeBin = (cli === 'claude-e' || (cli === 'ai-e' && effectiveProvider === 'claude'))
@@ -1000,9 +1077,18 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             }
             if (parsed.text) {
                 flushThinking();
-                ctx.fullText += parsed.text;
-                if (ctx.liveScope) appendLiveRunText(ctx.liveScope, parsed.text);
-                // text-only updates are local accumulation, not visible to user — no gate reset
+                const segment = appendAssistantTextSegment(ctx, parsed.text);
+                if (segment) {
+                    if (ctx.liveScope) appendLiveRunText(ctx.liveScope, segment);
+                    broadcast('agent_output', {
+                        agentId: agentLabel,
+                        cli,
+                        text: segment,
+                        ...empTag,
+                    }, traceAudience);
+                    lastVisibleBroadcastTs = Date.now();
+                    heartbeatSent = false;
+                }
             }
             opts.lifecycle?.onActivity?.('acp');
         });
@@ -1284,10 +1370,20 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                     heartbeatSent = false;
                 }
             }
-            if (parsed.text) {
+    if (parsed.text) {
                 flushCodexAppThinking();
-                ctx.fullText += parsed.text;
-                if (ctx.liveScope) appendLiveRunText(ctx.liveScope, parsed.text);
+                const segment = appendAssistantTextSegment(ctx, parsed.text);
+                if (segment) {
+                    if (ctx.liveScope) appendLiveRunText(ctx.liveScope, segment);
+                    broadcast('agent_output', {
+                        agentId: agentLabel,
+                        cli,
+                        text: segment,
+                        ...empTag,
+                    }, traceAudience);
+                    lastVisibleBroadcastTs = Date.now();
+                    heartbeatSent = false;
+                }
             }
             if (parsed.sessionId && !ctx.sessionId) {
                 ctx.sessionId = parsed.sessionId;
@@ -1529,6 +1625,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     if (!opts.internal) broadcast('agent_status', { status: 'running', cli, agentId: agentLabel, ...runtimeStatusMeta, ...empTag }, traceAudience);
 
     const traceRunId = startTraceRun({ cli, model: runtimeModel, workingDir: settings["workingDir"] || null, agentLabel, audience: traceAudience });
+    const kiroSpawnStartedAt = cli === 'kiro-code' ? Date.now() - 1000 : 0;
     const agyResumeOffset = cli === 'agy' && isResume
         ? (empSid ? (opts.employeeOutputLen ?? 0) : (bucketRow?.output_len ?? 0))
         : 0;
@@ -1555,6 +1652,8 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         geminiResultSeen: false,
         ...(opencodeSpawnAudit ? { opencodeSpawnAudit: opencodeSpawnAudit as Record<string, unknown> } : {}),
         ...(agyResumeOffset > 0 ? { agyResumeOffset, agyBytesReceived: 0 } : {}),
+        ...(isKiroPlainTextCli(cli) || cli === 'agy' ? { liveOutputText: '' } : {}),
+        ...(isKiroPlainTextCli(cli) ? { kiroLastVisibleAt: Date.now(), kiroHeartbeatSent: false } : {}),
     };
     let geminiWatchdog: ReturnType<typeof setTimeout> | null = null;
 
@@ -1669,6 +1768,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     }
 
     const agyUtf8 = cli === 'agy' ? new StringDecoder('utf8') : null;
+    const kiroUtf8 = isKiroPlainTextCli(cli) ? new StringDecoder('utf8') : null;
 
     child.stdout.on('data', (chunk) => {
         opts.lifecycle?.onActivity?.('stdout');
@@ -1687,22 +1787,38 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 const newText = newStart > 0 ? text.slice(newStart) : text;
                 ctx.agyResumeOffset = 0;
                 if (!newText) return;
-                if (ctx.liveScope) appendLiveRunText(ctx.liveScope, newText);
+                const segment = appendAssistantTextSegment(ctx, newText);
+                if (!segment) return;
+                if (ctx.liveScope) appendLiveRunText(ctx.liveScope, segment);
                 broadcast('agent_output', {
                     agentId: agentLabel,
                     cli,
-                    text: newText,
+                    text: segment,
                     ...empTag,
                 }, traceAudience);
                 return;
             }
-            if (ctx.liveScope) appendLiveRunText(ctx.liveScope, text);
+            const segment = appendAssistantTextSegment(ctx, text);
+            if (!segment) return;
+            if (ctx.liveScope) appendLiveRunText(ctx.liveScope, segment);
             broadcast('agent_output', {
                 agentId: agentLabel,
                 cli,
-                text,
+                text: segment,
                 ...empTag,
             }, traceAudience);
+            return;
+        }
+        if (isKiroPlainTextCli(cli)) {
+            const text = kiroUtf8!.write(chunk);
+            if (!text) return;
+            appendTraceEvent({ runId: ctx.traceRunId, source: 'cli_raw', eventType: 'plain_text', raw: text });
+            const events = processKiroStdoutChunk(ctx, text);
+            if (events.length) {
+                emitKiroStreamEvents(events, ctx, agentLabel, cli, empTag, traceAudience);
+            } else {
+                maybeEmitKiroWorkingHeartbeat(ctx, agentLabel, empTag, traceAudience);
+            }
             return;
         }
         buffer += chunk.toString();
@@ -1739,6 +1855,13 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             const remaining = agyUtf8.end();
             if (remaining) ctx.fullText += remaining;
         }
+        if (kiroUtf8) {
+            const remaining = kiroUtf8.end();
+            if (remaining) {
+                emitKiroStreamEvents(processKiroStdoutChunk(ctx, remaining), ctx, agentLabel, cli, empTag, traceAudience);
+            }
+            emitKiroStreamEvents(flushKiroStdoutContext(ctx), ctx, agentLabel, cli, empTag, traceAudience);
+        }
         const agyTotalOutputLen = cli === 'agy' ? ctx.fullText.length : 0;
         if (cli === 'agy' && agyResumeOffset > 0) {
             ctx.fullText = ctx.fullText.slice(Math.min(agyResumeOffset, ctx.fullText.length));
@@ -1771,6 +1894,18 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 clearSessionBucket.run(bucket);
             } catch (e) { console.warn('[jaw:agy] stale bucket clear failed:', (e as Error).message); }
             ctx.sessionId = null;
+        }
+        if (isKiroPlainTextCli(cli)) {
+            if (!ctx.sessionId) {
+                ctx.sessionId = extractKiroSessionIdFromStore(spawnCwd, kiroSpawnStartedAt);
+            }
+            const parsed = finalizeKiroFullText(ctx.fullText, ctx.kiroLineBuffer);
+            const best = [ctx.liveOutputText, ctx.kiroDisplayedText, parsed]
+                .map((value) => String(value || '').trim())
+                .filter(Boolean)
+                .sort((a, b) => b.length - a.length)[0];
+            if (best) ctx.fullText = best;
+            else if (parsed) ctx.fullText = parsed;
         }
         const agyTimedOut = cli === 'agy' && isAgyTimeoutOutput(ctx.fullText);
         const effectiveExitCode = agyTimedOut ? 124 : code;
