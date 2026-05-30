@@ -138,6 +138,8 @@ test('manager frontend exposes one-instance preview controls', () => {
     assert.ok(preview.includes("actualOrigin !== 'null'"), 'InstancePreview must skip opaque about:blank origins');
     assert.ok(preview.includes("expectedOrigin === 'null' ? null : expectedOrigin"), 'InstancePreview must not call postMessage with target origin null');
     assert.ok(preview.includes('postPreviewTheme(iframeRef.current, state.src, props.theme)'), 'InstancePreview must route theme sync through guarded postMessage helper');
+    assert.ok(preview.includes('function postPreviewVisible('), 'InstancePreview must centralize the visibility ping in a guarded helper');
+    assert.ok(/onLoad=\{\(\) => \{[\s\S]*?postPreviewVisible\(iframeRef\.current, state\.src\)/.test(preview), 'InstancePreview onLoad must re-settle the embedded chat on every iframe (re)mount, covering instance switches where active does not transition');
     assert.ok(preview.includes("console.warn('[manager-preview] theme sync skipped'"), 'InstancePreview must not let origin mismatch postMessage errors break the dashboard');
     assert.equal(preview.includes("postMessage(\n            { type: 'jaw-preview-theme-sync', theme: props.theme },\n            '*',"), false, 'InstancePreview must not post preview theme with wildcard origin');
     assert.ok(preview.includes("data.type !== 'jaw-preview-send-message'"), 'Manager preview must listen for child iframe send relay requests');

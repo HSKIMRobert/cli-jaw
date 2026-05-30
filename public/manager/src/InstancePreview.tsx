@@ -115,6 +115,21 @@ function postPreviewSttToggle(frame: HTMLIFrameElement | null, src: string): voi
     }
 }
 
+function postPreviewVisible(frame: HTMLIFrameElement | null, src: string): void {
+    const targetWindow = frame?.contentWindow;
+    if (!targetWindow) return;
+    const targetOrigin = previewTargetOrigin(src, frame);
+    if (!targetOrigin || targetOrigin === 'null') return;
+    try {
+        targetWindow.postMessage(
+            { type: 'jaw-preview-visibility', visible: true },
+            targetOrigin,
+        );
+    } catch (error) {
+        console.warn('[manager-preview] visibility sync skipped', error);
+    }
+}
+
 function isEditableShortcutTarget(target: EventTarget | null): boolean {
     if (!(target instanceof HTMLElement)) return false;
     if (target.isContentEditable) return true;
@@ -233,16 +248,8 @@ export function InstancePreview(props: InstancePreviewProps) {
     useEffect(() => {
         const wasActive = prevActiveRef.current;
         prevActiveRef.current = props.active;
-        if (!wasActive && props.active && iframeRef.current?.contentWindow && state.src) {
-            const origin = previewTargetOrigin(state.src, iframeRef.current);
-            if (origin && origin !== 'null') {
-                try {
-                    iframeRef.current.contentWindow.postMessage(
-                        { type: 'jaw-preview-visibility', visible: true },
-                        origin,
-                    );
-                } catch { /* cross-origin guard */ }
-            }
+        if (!wasActive && props.active && state.src) {
+            postPreviewVisible(iframeRef.current, state.src);
         }
     }, [props.active, state.src]);
 
@@ -262,6 +269,12 @@ export function InstancePreview(props: InstancePreviewProps) {
                     onLoad={() => {
                         loadedSrcRef.current = state.src;
                         syncTheme();
+                        // Every (re)mount is a fresh document. The active-tab
+                        // effect only pings on a !wasActive→active transition, so
+                        // an instance switch (port/key changes, active stays true)
+                        // remounts without re-settling. Ping here so the embedded
+                        // chat runs its jaw-preview-visibility re-settle path.
+                        if (state.src) postPreviewVisible(iframeRef.current, state.src);
                     }}
                 />
             )}
