@@ -1,6 +1,7 @@
 import { api } from '../api.js';
 import { getVirtualScroll } from '../virtual-scroll.js';
 import { escapeHtml } from '../render.js';
+import { BOOT_MESSAGE_LIMIT } from './message-history.js';
 
 const IS_IFRAME = window.parent !== window;
 
@@ -94,7 +95,9 @@ export function closeChatSearch(): void {
 
 function buildMessageIndexMap(): void {
     messageIdToVsIndex = new Map();
-    api<{ id: number }[]>('/api/messages').then(msgs => {
+    // Must mirror the rendered boot window (same limit) so id→virtual-scroll
+    // index stays aligned with what loadMessages() actually rendered.
+    api<{ id: number }[]>(`/api/messages?limit=${BOOT_MESSAGE_LIMIT}`).then(msgs => {
         if (!msgs) return;
         messageIdToVsIndex = new Map();
         msgs.forEach((m, i) => messageIdToVsIndex!.set(m.id, i));
