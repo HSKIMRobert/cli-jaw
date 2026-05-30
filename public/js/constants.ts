@@ -26,7 +26,7 @@ const FALLBACK_CLI_REGISTRY: CliRegistry = {
     'ai-e': {
         label: 'AI-E',
         defaultProvider: 'claude',
-        providers: ['claude', 'codex', 'gemini', 'grok', 'copilot'],
+        providers: ['claude', 'codex', 'gemini', 'grok', 'copilot', 'kiro'],
         efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
         models: [
             'opus', 'sonnet', 'haiku',
@@ -41,6 +41,7 @@ const FALLBACK_CLI_REGISTRY: CliRegistry = {
             gemini: ['gemini-3-flash-preview'],
             grok: ['grok-build'],
             copilot: ['gpt-5-mini'],
+            kiro: ['auto', 'claude-sonnet-4.6', 'deepseek-3.2', 'minimax-m2.5', 'glm-5', 'qwen3-coder-next'],
         },
         effortsByProvider: {
             claude: ['low', 'medium', 'high', 'xhigh', 'max'],
@@ -48,6 +49,7 @@ const FALLBACK_CLI_REGISTRY: CliRegistry = {
             gemini: [],
             grok: [],
             copilot: ['low', 'medium', 'high'],
+            kiro: [],
         },
     },
     claude: {

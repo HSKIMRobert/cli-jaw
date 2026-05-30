@@ -26,6 +26,7 @@ export function shouldResumeBucketSession(
     bucketResumeKey?: string | null,
     bucketUpdatedAt?: string | number | null,
     nowMs: number = Date.now(),
+    effectiveProvider?: string | null,
 ): boolean {
     if (cli === 'gemini') {
         if (!bucketModel) return false;
@@ -42,9 +43,9 @@ export function shouldResumeBucketSession(
         if (!bucketModel) return false;
         return normalizeModelForCli(cli, requestedModel) === normalizeModelForCli(cli, bucketModel);
     }
-    if (cli === 'kiro-code') {
+    if (cli === 'kiro-code' || (cli === 'ai-e' && effectiveProvider === 'kiro')) {
         if (!bucketModel) return false;
-        return normalizeModelForCli(cli, requestedModel) === normalizeModelForCli(cli, bucketModel);
+        return normalizeModelForCli('kiro-code', requestedModel) === normalizeModelForCli('kiro-code', bucketModel);
     }
     if (cli === 'opencode' && requestedResumeKey) {
         return requestedResumeKey === (bucketResumeKey ?? null);

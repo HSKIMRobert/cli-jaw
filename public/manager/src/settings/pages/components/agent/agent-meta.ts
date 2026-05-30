@@ -37,7 +37,7 @@ export const CLI_META: Record<string, CliMeta> = {
     'ai-e': {
         label: 'AI-E',
         defaultProvider: 'claude',
-        providers: ['claude', 'codex', 'gemini', 'grok', 'copilot'],
+        providers: ['claude', 'codex', 'gemini', 'grok', 'copilot', 'kiro'],
         models: ['opus', 'sonnet', 'haiku', 'gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gemini-3-flash-preview', 'grok-build', 'gpt-5-mini'],
         efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
         modelsByProvider: {
@@ -46,6 +46,7 @@ export const CLI_META: Record<string, CliMeta> = {
             gemini: ['gemini-3-flash-preview'],
             grok: ['grok-build'],
             copilot: ['gpt-5-mini'],
+            kiro: ['auto', 'claude-sonnet-4.6', 'deepseek-3.2', 'minimax-m2.5', 'glm-5', 'qwen3-coder-next'],
         },
         effortsByProvider: {
             claude: ['low', 'medium', 'high', 'xhigh', 'max'],
@@ -53,6 +54,7 @@ export const CLI_META: Record<string, CliMeta> = {
             gemini: [],
             grok: [],
             copilot: ['low', 'medium', 'high'],
+            kiro: [],
         },
     },
     claude: {

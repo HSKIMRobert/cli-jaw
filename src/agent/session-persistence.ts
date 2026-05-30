@@ -43,7 +43,7 @@ export function isCurrentSessionOwner(ownerGeneration: number): boolean {
 export function shouldPersistMainSession(input: SessionPersistenceInput): boolean {
     if (input.skipSessionPersist) return false;
     if (input.forceNew || input.employeeSessionId || !input.sessionId || input.isFallback) return false;
-    if (input.cli === 'ai-e' && input.provider !== 'claude') return false;
+    if (input.cli === 'ai-e' && input.provider !== 'claude' && input.provider !== 'kiro') return false;
     // User-initiated kill (SIGTERM/SIGKILL) yields exit codes like 143/137/1 depending on
     // the CLI's signal handler. Allow persistence when wasKilled=true so resume works for
     // CLIs (claude, copilot) that don't translate SIGTERM to exit 0.

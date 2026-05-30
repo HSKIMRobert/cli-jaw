@@ -170,13 +170,35 @@ test('AG-006f: ai-e copilot explicit provider wins over gpt model inference', ()
     assert.equal(resolveAiEProvider(undefined, 'gpt-5-mini'), 'codex');
 });
 
-test('AG-006g: ai-e resume only injects Claude resume for Claude provider', () => {
+test('AG-006g: ai-e resume injects Claude resume for Claude and kiro resume for kiro', () => {
     const claudeArgs = buildResumeArgs('ai-e', 'sonnet', 'medium', 'sess-1', 'hi', 'auto', { aiEProvider: 'claude' });
     assert.deepEqual(claudeArgs.slice(0, 2), ['claude', 'run']);
     assert.ok(claudeArgs.includes('--resume'));
     const codexArgs = buildResumeArgs('ai-e', 'gpt-5.4', 'medium', 'sess-1', 'hi', 'auto', { aiEProvider: 'codex' });
     assert.deepEqual(codexArgs.slice(0, 2), ['codex', 'p']);
     assert.ok(!codexArgs.includes('--resume'));
+    const kiroArgs = buildResumeArgs(
+        'ai-e',
+        'auto',
+        'medium',
+        '79eee8a5-7c00-4cd9-8385-c534a2f8b814',
+        'follow up',
+        'auto',
+        { aiEProvider: 'kiro' },
+    );
+    assert.deepEqual(kiroArgs.slice(0, 2), ['kiro', 'p']);
+    assert.ok(kiroArgs.includes('--resume'));
+    assert.ok(kiroArgs.includes('79eee8a5-7c00-4cd9-8385-c534a2f8b814'));
+    assert.equal(kiroArgs.at(-1), 'follow up');
+});
+
+test('AG-006g-kiro: ai-e kiro uses text output and auto provider inference', () => {
+    const args = buildArgs('ai-e', 'auto', 'medium', 'hi', '', 'auto', { aiEProvider: 'kiro' });
+    assert.deepEqual(args.slice(0, 2), ['kiro', 'p']);
+    assert.ok(args.includes('--output-format'));
+    assert.ok(args.includes('text'));
+    assert.equal(resolveAiEProvider('kiro', 'auto'), 'kiro');
+    assert.equal(resolveAiEProvider(undefined, 'deepseek-3.2'), 'kiro');
 });
 
 test('AG-006g2: ai-e non-Claude providers use p-mode argv prompt and never include AGY', () => {
@@ -185,6 +207,7 @@ test('AG-006g2: ai-e non-Claude providers use p-mode argv prompt and never inclu
         ['gemini', 'gemini-3.1-flash'],
         ['grok', 'grok-4'],
         ['copilot', 'gpt-5-mini'],
+        ['kiro', 'auto'],
     ] as const;
     for (const [provider, model] of cases) {
         const args = buildArgs('ai-e', model, 'medium', `prompt-${provider}`, '', 'auto', { aiEProvider: provider });
@@ -217,7 +240,7 @@ test('AG-006h2: ai-e spawn prefers perCli provider over stale active override pr
 
 test('AG-006i: ai-e non-Claude PTY prompt providers are forced fresh until resume is implemented', () => {
     const spawnSrc = fs.readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
-    assert.match(spawnSrc, /providerSupportsResume\s*=\s*!\(cli\s*===\s*'ai-e'\s*&&\s*effectiveProvider\s*!==\s*'claude'\)/);
+    assert.match(spawnSrc, /providerSupportsResume\s*=\s*!\(cli\s*===\s*'ai-e'\s*&&\s*effectiveProvider\s*!==\s*'claude'\s*&&\s*effectiveProvider\s*!==\s*'kiro'\)/);
     assert.match(spawnSrc, /providerSupportsResume\s*&&\s*!\s*opts\._skipResume/);
 });
 

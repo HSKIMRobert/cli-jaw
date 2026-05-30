@@ -127,6 +127,82 @@ function kiroCwdKeys(cwd: string): string[] {
     return [...keys];
 }
 
+/** Snapshot conversation ids for a cwd before a fresh kiro-cli spawn. */
+export function listKiroConversationIdsForCwd(
+    cwd: string,
+    dataPath = resolveKiroDataPath(),
+): Set<string> {
+    const ids = new Set<string>();
+    if (!fs.existsSync(dataPath)) return ids;
+    const keys = kiroCwdKeys(cwd);
+    if (keys.length === 0) return ids;
+
+    let db: Database.Database | null = null;
+    try {
+        db = new Database(dataPath, { readonly: true, fileMustExist: true });
+        const placeholders = keys.map(() => '?').join(',');
+        const rows = db.prepare(
+            `SELECT conversation_id FROM conversations_v2 WHERE key IN (${placeholders})`,
+        ).all(...keys) as { conversation_id?: string }[];
+        for (const row of rows) {
+            if (row.conversation_id?.trim()) ids.add(row.conversation_id.trim());
+        }
+    } catch {
+        return ids;
+    } finally {
+        try { db?.close(); } catch { /* ignore */ }
+    }
+    return ids;
+}
+
+function pickNewestKiroConversationId(
+    cwd: string,
+    conversationIds: string[],
+    updatedAfterMs: number,
+    dataPath: string,
+): string | null {
+    if (conversationIds.length === 0) return null;
+    if (!fs.existsSync(dataPath)) return conversationIds[0] ?? null;
+    const keys = kiroCwdKeys(cwd);
+    if (keys.length === 0) return conversationIds[0] ?? null;
+
+    let db: Database.Database | null = null;
+    try {
+        db = new Database(dataPath, { readonly: true, fileMustExist: true });
+        const keyPh = keys.map(() => '?').join(',');
+        const idPh = conversationIds.map(() => '?').join(',');
+        const row = db.prepare(
+            `SELECT conversation_id AS id FROM conversations_v2
+             WHERE key IN (${keyPh}) AND conversation_id IN (${idPh}) AND updated_at >= ?
+             ORDER BY updated_at DESC LIMIT 1`,
+        ).get(...keys, ...conversationIds, updatedAfterMs) as { id?: string } | undefined;
+        return row?.id ?? conversationIds[0] ?? null;
+    } catch {
+        return conversationIds[0] ?? null;
+    } finally {
+        try { db?.close(); } catch { /* ignore */ }
+    }
+}
+
+/**
+ * After a **fresh** `--no-interactive` spawn, resolve the conversation id kiro-cli
+ * created for this cwd. Prefer set-diff over "latest row" to avoid cross-dispatch races.
+ */
+export function resolveKiroSessionIdAfterSpawn(
+    cwd: string,
+    beforeIds: ReadonlySet<string>,
+    updatedAfterMs = 0,
+    dataPath = resolveKiroDataPath(),
+): string | null {
+    const afterIds = listKiroConversationIdsForCwd(cwd, dataPath);
+    const novel = [...afterIds].filter((id) => !beforeIds.has(id));
+    if (novel.length === 1) return novel[0] ?? null;
+    if (novel.length > 1) {
+        return pickNewestKiroConversationId(cwd, novel, updatedAfterMs, dataPath);
+    }
+    return extractKiroSessionIdFromV2Store(cwd, updatedAfterMs, dataPath);
+}
+
 export function extractKiroSessionIdFromV2Store(
     cwd: string,
     updatedAfterMs = 0,

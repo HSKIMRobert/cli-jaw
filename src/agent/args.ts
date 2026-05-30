@@ -13,7 +13,7 @@ export const AGY_PRINT_TIMEOUT = '10m';
 // CLI's settings via --settings (the claude analogue of codex's service_tier="fast").
 // Gated on options.fastMode, which is sourced from perCli.<cli>.fastMode in spawn.ts.
 const CLAUDE_FAST_MODE_SETTINGS = '{"fastMode":true}';
-const AI_E_PROVIDERS = ['claude', 'codex', 'gemini', 'grok', 'copilot'] as const;
+const AI_E_PROVIDERS = ['claude', 'codex', 'gemini', 'grok', 'copilot', 'kiro'] as const;
 export type AiEProvider = typeof AI_E_PROVIDERS[number];
 
 type BuildArgOptions = {
@@ -42,7 +42,22 @@ export function resolveAiEProvider(explicitProvider: string | null | undefined, 
     if (value.startsWith('grok-')) return 'grok';
     if (value.startsWith('copilot-') || value.includes('github')) return 'copilot';
     if (value.startsWith('gpt-') || value.includes('codex')) return 'codex';
+    if (
+        value === 'auto'
+        || value.startsWith('deepseek-')
+        || value.startsWith('minimax-')
+        || value.startsWith('glm-')
+        || value.startsWith('qwen3-')
+    ) return 'kiro';
     return 'claude';
+}
+
+function buildAiEKiroArgs(model: string, prompt: string, sessionId?: string): string[] {
+    const args = ['kiro', 'p', '--output-format', 'text', '--timeout-ms', '600000'];
+    if (model && model !== 'default') args.push('--model', model);
+    if (sessionId) args.push('--resume', sessionId);
+    args.push(prompt || '');
+    return args;
 }
 
 function normalizePathForDedupe(dir: string): string {
@@ -198,6 +213,9 @@ export function buildArgs(cli: string, model: string, effort: string, prompt: st
                     ...(options.claudeBin ? ['--claude-bin', options.claudeBin] : []),
                     ...(claudeExtraArgs.length ? ['--', ...claudeExtraArgs] : [])];
             }
+            if (provider === 'kiro') {
+                return buildAiEKiroArgs(model, prompt || '');
+            }
 
             const promptModeArgs = [
                 provider, 'p',
@@ -313,6 +331,9 @@ export function buildResumeArgs(cli: string, model: string, effort: string, sess
         }
         case 'ai-e': {
             const provider = resolveAiEProvider(options.aiEProvider, model);
+            if (provider === 'kiro') {
+                return buildAiEKiroArgs(model, prompt || '', sessionId);
+            }
             if (provider !== 'claude') {
                 return buildArgs('ai-e', model, effort, prompt, options.sysPrompt || '', permissions, options);
             }

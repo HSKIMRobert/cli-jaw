@@ -296,6 +296,7 @@ export function registerSettingsRoutes(
             gemini: geminiQuota,
             grok: grokQuota,
             copilot: copilotQuota,
+            kiro: kiroQuota,
         };
         const aiEProvider = resolveAiEQuotaProvider();
         const aiEQuota = withQuotaMeta(providerQuota[aiEProvider] ?? buildStatusOnlyQuota({

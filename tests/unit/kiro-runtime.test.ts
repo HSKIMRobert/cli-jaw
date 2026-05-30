@@ -5,14 +5,18 @@ import os from 'node:os';
 import { dirname, join } from 'node:path';
 import Database from 'better-sqlite3';
 import { buildArgs, buildResumeArgs } from '../../src/agent/args.ts';
-import { resolveKiroDataPath } from '../../src/agent/kiro-auth.ts';
+import { listKiroConversationIdsForCwd, resolveKiroDataPath } from '../../src/agent/kiro-auth.ts';
 import {
     appendKiroStdoutChunk,
     extractKiroSessionIdFromStore,
     finalizeKiroFullText,
     flushKiroStdoutContext,
+    isKiroPlainTextCli,
     parseKiroAssistantText,
+    parseKiroSessionIdFromStdout,
+    parseAiESessionIdFromStderr,
     processKiroStdoutChunk,
+    resolveKiroSessionIdAfterSpawn,
     stripKiroAnsi,
 } from '../../src/agent/kiro-runtime.ts';
 
@@ -198,4 +202,49 @@ test('extractKiroSessionIdFromStore picks newest matching cwd session', () => {
         'new-session',
     );
     assert.equal(extractKiroSessionIdFromStore('/other', 0, homedir), null);
+});
+
+test('resolveKiroSessionIdAfterSpawn prefers set-diff over latest row', () => {
+    const homedir = fs.mkdtempSync(join(os.tmpdir(), 'kiro-runtime-'));
+    const dataPath = resolveKiroDataPath(homedir);
+    fs.mkdirSync(dirname(dataPath), { recursive: true });
+    const db = new Database(dataPath);
+    db.exec(`CREATE TABLE conversations_v2 (
+        key TEXT NOT NULL,
+        conversation_id TEXT NOT NULL,
+        value TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        PRIMARY KEY (key, conversation_id)
+    );`);
+    const cwd = '/tmp/kiro-diff-cwd';
+    const insert = db.prepare(
+        'INSERT INTO conversations_v2 (key, conversation_id, value, created_at, updated_at) VALUES (?,?,?,?,?)',
+    );
+    insert.run(cwd, 'stale-latest', '{}', 0, Date.parse('2026-05-31T12:00:00.000Z'));
+    insert.run(cwd, 'older-existing', '{}', 0, Date.parse('2026-05-31T10:00:00.000Z'));
+    const before = listKiroConversationIdsForCwd(cwd, dataPath);
+    assert.deepEqual([...before].sort(), ['older-existing', 'stale-latest']);
+    insert.run(cwd, 'brand-new', '{}', 0, Date.parse('2026-05-31T11:00:00.000Z'));
+    db.close();
+
+    const resolved = resolveKiroSessionIdAfterSpawn(cwd, before, 0, dataPath);
+    assert.equal(resolved, 'brand-new');
+});
+
+test('parseAiESessionIdFromStderr reads ai-e session footer', () => {
+    const raw = 'ai-e: kiro provider timed out\n[ai-e] session: 79eee8a5-7c00-4cd9-8385-c534a2f8b814\n[ai-e] resume: ai-e kiro --resume 79eee8a5-7c00-4cd9-8385-c534a2f8b814 "next"';
+    assert.equal(parseAiESessionIdFromStderr(raw), '79eee8a5-7c00-4cd9-8385-c534a2f8b814');
+});
+
+test('isKiroPlainTextCli includes ai-e kiro provider', () => {
+    assert.equal(isKiroPlainTextCli('kiro-code'), true);
+    assert.equal(isKiroPlainTextCli('ai-e', 'kiro'), true);
+    assert.equal(isKiroPlainTextCli('ai-e', 'codex'), false);
+});
+
+test('parseKiroSessionIdFromStdout reads TUI session hint lines', () => {
+    const raw = '● Session ID: 24b53e9c-e117-479e-8d9e-191688be7dd5\nResume with: kiro-cli --resume-id 24b53e9c-e117-479e-8d9e-191688be7dd5';
+    assert.equal(parseKiroSessionIdFromStdout(raw), '24b53e9c-e117-479e-8d9e-191688be7dd5');
+    assert.equal(parseKiroSessionIdFromStdout('> OK\n'), null);
 });
