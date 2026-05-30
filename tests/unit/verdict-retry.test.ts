@@ -44,7 +44,7 @@ test('VR-004: pipeline handles worker failure gracefully', () => {
 test('VR-005: state machine has PABCD transition guards', () => {
     assert.ok(stateMachineSrc.includes('VALID_TRANSITIONS'), 'must define valid transition map');
     assert.ok(stateMachineSrc.includes("IDLE: ['I', 'P']"), 'IDLE should allow I and P transitions');
-    assert.ok(stateMachineSrc.includes("C: ['D']"), 'C should transition to D');
+    assert.ok(stateMachineSrc.includes("C: ['I', 'D', 'B', 'P']"), 'C should transition to D');
 });
 
 test('VR-006: state machine exports canTransition', () => {
