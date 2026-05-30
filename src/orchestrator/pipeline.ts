@@ -384,23 +384,34 @@ export async function orchestrate(
     if (state === 'I' && !meta["_workerResult"]) {
         const ivCtx = getCtx(scope);
         if (ivCtx?.interview) {
-            const trackerMatch = (result["text"] as string || '').match(
-                /<interview_tracker>\s*\n?known:\s*(\[.*?\])\s*\n?unknown:\s*(\[.*?\])\s*\n?<\/interview_tracker>/s
-            );
-            if (trackerMatch) {
+            const originalText = result["text"] as string || '';
+
+            // P0-1: strip unconditionally — never leak tracker XML to user
+            result["text"] = originalText.replace(
+                /<interview_tracker>[\s\S]*?<\/interview_tracker>/g, ''
+            ).trim();
+
+            // P0-2: parse opportunistically — extract tracker block, then JSON.parse each array
+            const block = originalText.match(/<interview_tracker>([\s\S]*?)<\/interview_tracker>/);
+            if (block) {
                 try {
-                    const rawKnown = JSON.parse(trackerMatch[1]!);
-                    const rawUnknown = JSON.parse(trackerMatch[2]!);
-                    const known = Array.isArray(rawKnown) ? rawKnown.filter((v): v is string => typeof v === 'string') : [];
-                    const unknown = Array.isArray(rawUnknown) ? rawUnknown.filter((v): v is string => typeof v === 'string') : [];
-                    setState('I', {
-                        ...ivCtx,
-                        interview: { ...ivCtx.interview, round: ivCtx.interview.round + 1, known, unknown },
-                    }, scope, 'Interview');
-                } catch { /* malformed JSON — keep existing state */ }
-                result["text"] = (result["text"] as string).replace(
-                    /<interview_tracker>[\s\S]*?<\/interview_tracker>/g, ''
-                ).trim();
+                    const body = block[1]!;
+                    const knownMatch = body.match(/known:\s*(\[[\s\S]*?\])\s*(?:unknown:|$)/);
+                    const unknownMatch = body.match(/unknown:\s*(\[[\s\S]*?\])/)
+                        || body.match(/unknown:\s*(\[[\s\S]*\])\s*$/);
+
+                    const rawKnown = knownMatch ? JSON.parse(knownMatch[1]!) : [];
+                    const rawUnknown = unknownMatch ? JSON.parse(unknownMatch[1]!) : [];
+                    const known = Array.isArray(rawKnown) ? rawKnown.filter((v): v is string => typeof v === 'string' && v.trim().length > 0) : [];
+                    const unknown = Array.isArray(rawUnknown) ? rawUnknown.filter((v): v is string => typeof v === 'string' && v.trim().length > 0) : [];
+
+                    if (known.length || unknown.length) {
+                        setState('I', {
+                            ...ivCtx,
+                            interview: { ...ivCtx.interview, round: ivCtx.interview.round + 1, known, unknown },
+                        }, scope, 'Interview');
+                    }
+                } catch { /* parse failed — state unchanged, tracker already stripped */ }
             }
         }
     }
