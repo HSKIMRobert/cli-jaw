@@ -25,12 +25,6 @@ interface AntigravityQuotaSnapshot {
     models?: AntigravityModelQuota[];
 }
 
-function asRecord(value: unknown): QuotaRecord | null {
-    return value && typeof value === 'object' && !Array.isArray(value)
-        ? value as QuotaRecord
-        : null;
-}
-
 function usedPercentFromRemaining(remaining?: number, exhausted?: boolean): number {
     if (exhausted) return 100;
     if (remaining == null || !Number.isFinite(remaining)) return 0;

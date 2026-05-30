@@ -4,7 +4,7 @@ export function isJawRuntimeEvent(raw: unknown): boolean {
     return typeof raw === 'object' && raw !== null && (raw as Record<string, unknown>)['type'] === 'jaw_runtime';
 }
 
-export function handleJawRuntimeEvent(event: Record<string, unknown>, agentLabel: string): void {
+export function handleJawRuntimeEvent(event: Record<string, unknown>, _agentLabel: string): void {
     const eventName = String(event['event'] || '');
     const runId = String(event['run_id'] || '');
     const seq = Number(event['seq'] || 0);

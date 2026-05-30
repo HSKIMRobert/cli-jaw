@@ -54,9 +54,6 @@ const home = os.homedir();
 const jawHome = JAW_HOME;
 const PATH_LOOKUP_CMD = process.platform === 'win32' ? 'where' : 'which';
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
-const PROJECT_ROOT = fs.existsSync(path.join(MODULE_DIR, '..', '..', 'scripts'))
-    ? path.resolve(MODULE_DIR, '..', '..')
-    : path.resolve(MODULE_DIR, '..');
 const MCP_SERVERS_SKIP = process.env["CLI_JAW_SKIP_MCP_SERVERS"] === '1'
     || process.env["CLI_JAW_SKIP_MCP_SERVERS"] === 'true';
 const SKILL_DEPS_SKIP = process.env["CLI_JAW_SKIP_SKILL_DEPS"] === '1'
@@ -93,44 +90,6 @@ function ensureDir(dir: string) {
     }
 }
 
-function ensureSymlink(target: string, linkPath: string) {
-    const resolvedTarget = path.resolve(target);
-    const resolvedLink = path.resolve(linkPath);
-    if (!resolvedTarget.startsWith(home + path.sep) && !resolvedTarget.startsWith(os.tmpdir()) && !resolvedTarget.startsWith(jawHome)) {
-        console.error(`[jaw:init] ❌ symlink target outside allowed paths: ${resolvedTarget}`);
-        return false;
-    }
-    if (!resolvedLink.startsWith(home + path.sep) && !resolvedLink.startsWith(os.tmpdir())) {
-        console.error(`[jaw:init] ❌ symlink link path outside user home: ${resolvedLink}`);
-        return false;
-    }
-    if (fs.existsSync(linkPath)) return false;
-    fs.mkdirSync(path.dirname(linkPath), { recursive: true });
-    try {
-        fs.symlinkSync(target, linkPath);
-        console.log(`[jaw:init] symlink: ${linkPath} → ${target}`);
-        return true;
-    } catch (e: unknown) {
-        const err = asRecord(e);
-        if (process.platform === 'win32' && (err["code"] === 'EPERM' || err["code"] === 'UNKNOWN')) {
-            try {
-                const stat = fs.statSync(target);
-                if (stat.isDirectory()) {
-                    fs.symlinkSync(target, linkPath, 'junction');
-                } else {
-                    fs.copyFileSync(target, linkPath);
-                }
-                console.log(`[jaw:init] fallback link: ${linkPath} → ${target}`);
-                return true;
-            } catch (fallbackErr: unknown) {
-                console.error(`[jaw:init] ⚠️ symlink fallback failed: ${linkPath} (${errString(fallbackErr) || 'unknown'})`);
-                return false;
-            }
-        }
-        console.error(`[jaw:init] ⚠️ symlink failed: ${linkPath} (${errString(e) || 'unknown'})`);
-        return false;
-    }
-}
 
 export function removeJawHomeClaudeInstructionFile(baseDir = jawHome): ClaudeInstructionCleanupResult {
     const agentsMd = path.join(baseDir, 'AGENTS.md');
@@ -264,30 +223,6 @@ function ensureNpmGlobalBinOnUserPath(): void {
     console.warn('[jaw:init]    Add it to your shell profile if `jaw` is not found after install.');
 }
 
-function pathMtimeMs(target: string): number {
-    try {
-        return fs.statSync(target).mtimeMs;
-    } catch {
-        return 0;
-    }
-}
-
-function latestMtimeMs(target: string, depth = 0): number {
-    if (depth > 20) return 0;
-    if (!fs.existsSync(target)) return 0;
-    const stat = fs.lstatSync(target);
-    if (stat.isSymbolicLink()) return stat.mtimeMs;
-    if (!stat.isDirectory()) return stat.mtimeMs;
-
-    let latest = stat.mtimeMs;
-    const ignoredDirs = new Set(['.git', 'bin', 'obj', 'target', 'build-local', '99.9_test']);
-    for (const entry of fs.readdirSync(target, { withFileTypes: true })) {
-        if (entry.isSymbolicLink()) continue;
-        if (entry.isDirectory() && ignoredDirs.has(entry.name)) continue;
-        latest = Math.max(latest, latestMtimeMs(path.join(target, entry.name), depth + 1));
-    }
-    return latest;
-}
 
 interface SkillsSymlinkLink {
     action?: unknown;

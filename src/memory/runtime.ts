@@ -1,7 +1,6 @@
 import fs from 'fs';
 import os from 'os';
 import { join, relative } from 'path';
-import Database from 'better-sqlite3';
 import { JAW_HOME, settings } from '../core/config.js';
 import { expandHomePath } from '../core/path-expand.js';
 import { instanceId } from '../core/instance.js';

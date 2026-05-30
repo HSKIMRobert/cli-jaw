@@ -5,7 +5,7 @@
 import { createInterface } from 'node:readline';
 import { parseArgs } from 'node:util';
 import fs from 'node:fs';
-import os from 'node:os';
+
 import path from 'node:path';
 import { JAW_HOME, SETTINGS_PATH } from '../../src/core/config.js';
 import { CLI_KEYS } from '../../src/cli/registry.js';

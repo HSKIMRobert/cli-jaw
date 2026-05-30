@@ -11,7 +11,7 @@ import { getVisibleCommands } from './policy.js';
  * @param {'text'|'html'} [opts.format='text']
  * @returns {{ ok: boolean, text: string }}
  */
-export function renderHelp({ iface, commandName, format = 'text' }: { iface?: string; commandName?: string; format?: string } = {}) {
+export function renderHelp({ iface, commandName, format: _format = 'text' }: { iface?: string; commandName?: string; format?: string } = {}) {
     const cmds = getVisibleCommands(iface || 'cli');
 
     if (!commandName) {

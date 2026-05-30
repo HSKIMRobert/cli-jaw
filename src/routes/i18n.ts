@@ -5,7 +5,7 @@ import { join } from 'path';
 import { normalizeLocale } from '../core/i18n.js';
 import { settings } from '../core/config.js';
 
-export function registerI18nRoutes(app: Express, requireAuth: AuthMiddleware, projectRoot: string): void {
+export function registerI18nRoutes(app: Express, _requireAuth: AuthMiddleware, projectRoot: string): void {
     app.get('/api/i18n/languages', (_, res) => {
         const localeDir = join(projectRoot, 'public', 'locales');
         if (!fs.existsSync(localeDir)) {

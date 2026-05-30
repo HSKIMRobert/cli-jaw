@@ -66,7 +66,7 @@ graph LR
 | [commands.md](commands.md) | 31개 슬래시 커맨드 + workflow category(`/interview`, `/deliberate`, `/planaudit`, `/goal`, `/team`; 자동 실행은 `/goal run ...`) + root CLI 22개 user-facing command + 11개 CLI registry runtime | 커맨드, 디스패처, 레지스트리 |
 | [server_api.md](server_api.md) | `server.ts` 글루 + `src/routes/` API 143 handlers / 142 endpoints + 41 WebSocket events | REST, WebSocket, 라우트 |
 | [stream-events.md](stream-events.md) | CLI NDJSON 이벤트 트레이스 + Grok streaming-json + ProcessBlock 매핑 | NDJSON, stepRef, ProcessBlock, Grok |
-| [🎨 frontend.md](frontend.md) | `public/` 소스/자산 551개(`dist` 제외) + `public/dist/` 생성물 482개, slash workflow chips, Manager notes/search/settings/reminders/WYSIWYG, interview tracker panel, ProcessBlock 렌더링 | 프론트엔드, Vite 8, PWA, ProcessBlock |
+| [🎨 frontend.md](frontend.md) | `public/` 소스/자산 553개(`dist` 제외) + `public/dist/` 생성물 482개, slash workflow chips, Manager notes/search/settings/reminders/WYSIWYG, interview tracker panel, ProcessBlock 렌더링 | 프론트엔드, Vite 8, PWA, ProcessBlock |
 | [frontend_modernization_analysis.md](frontend_modernization_analysis.md) | 8개 현대화 제안의 비용-편익 분석 | 리팩터링, 비용분석, 마이그레이션 |
 | [telegram.md](telegram.md) | Telegram 봇 + heartbeat + 음성 STT | 텔레그램, 하트비트, STT |
 | [prompt_basic_A1.md](prompt_basic_A1.md) | 시스템 프롬프트 기본값 (A-1.md) | 시스템규칙, 기본값 |

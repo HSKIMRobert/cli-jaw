@@ -1,6 +1,6 @@
 import type { Express } from 'express';
 import type { AuthMiddleware } from './types.js';
-import { httpStatus, httpCode } from './_http-error.js';
+import { httpStatus } from './_http-error.js';
 import fs from 'fs';
 import { join } from 'path';
 import { ok, fail } from '../http/response.js';
@@ -11,7 +11,6 @@ import { bootstrapMemory, getMemoryStatus, getLastReflectedAt, hasSoulFile, load
 import { getFlushStatus } from '../agent/memory-flush-controller.js';
 import { getMigrationLockPath, hashText, safeReadFile, readMeta } from '../memory/shared.js';
 import { activeProcesses, memoryFlushCounter } from '../agent/spawn.js';
-import { getMemoryDir } from '../prompt/builder.js';
 import { assertMemoryRelPath, assertFilename, safeResolveUnder } from '../security/path-guards.js';
 import { migrateLegacyClaudeValue } from '../cli/claude-models.js';
 

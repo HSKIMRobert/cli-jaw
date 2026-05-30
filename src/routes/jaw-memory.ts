@@ -1,6 +1,6 @@
 import type { Express } from 'express';
 import type { AuthMiddleware } from './types.js';
-import { httpStatus, httpCode } from './_http-error.js';
+import { httpStatus } from './_http-error.js';
 import { assertMemoryRelPath } from '../security/path-guards.js';
 import * as memory from '../memory/memory.js';
 import { getMemoryStatus, searchIndexedMemory, readIndexedMemorySnippet, reflectMemory, hasSoulFile, loadSoulSummary, getAdvancedMemoryDir, safeReadFile, readMeta, writeMeta, listMemoryFiles, writeText } from '../memory/runtime.js';
@@ -144,7 +144,7 @@ export function registerJawMemoryRoutes(app: Express, requireAuth: AuthMiddlewar
         }
     });
 
-    app.post('/api/jaw-memory/flush', requireAuth, async (req, res) => {
+    app.post('/api/jaw-memory/flush', requireAuth, async (_req, res) => {
         try {
             const { triggerMemoryFlush } = await import('../agent/memory-flush-controller.js');
             await triggerMemoryFlush();

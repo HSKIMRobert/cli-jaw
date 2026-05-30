@@ -48,14 +48,14 @@ public/
 | --- | ---: | --- |
 | `public/` source/assets | 537 | 문서 관례상 `public/dist/*`만 제외, `public/public/dist/*`는 포함 |
 | `public/` source/assets (generated 제외) | 410 | `public/dist/*`, `public/public/dist/*` 모두 제외 |
-| `public/js/` root | 17 | 전부 TypeScript ES modules, `mermaid-loader.ts`, `uuid.ts`, `virtual-scroll-bootstrap.ts` 포함 |
+| `public/js/` root | 19 | 전부 TypeScript ES modules, `mermaid-loader.ts`, `uuid.ts`, `virtual-scroll-bootstrap.ts`, `preview-parent-origin.ts` 포함 |
 | `public/js/diagram/` | 3 | SVG/iframe diagram pipeline |
-| `public/js/render/` | 12 | markdown/KaTeX/Mermaid/SVG/file-link/post-render 책임 분리 |
-| `public/js/features/` | 43 | settings 분해 + help/attention/orchestrate scope + process-step-match + preview shortcut bridge 포함 |
-| `public/manager/` | 286 | React 19 manager dashboard, notes/search, schedule, settings, sync, desktop panels, WYSIWYG source |
+| `public/js/render/` | 13 | markdown/KaTeX/Mermaid/SVG/file-link/post-render 책임 분리 |
+| `public/js/features/` | 47 | settings 분해 + help/attention/orchestrate scope + process-step-match + preview shortcut/invalidate bridge + MCP registry 포함 |
+| `public/manager/` | 299 | React 19 manager dashboard, notes/search, schedule, settings, sync, desktop panels(doc/folder/diff/terminal + resizer/layout), WYSIWYG source |
 | `public/css/` | 11 | theme/layout/chat/markdown/tool UI/diagram/trace drawer |
 | `public/locales/` | 4 | `ko.json`, `en.json`, `ja.json`, `zh.json` |
-| `public/assets/providers/` | 14 | provider SVG 세트. Cursor는 공식 brand asset에서 crop한 `cursor*.svg`를 쓰고, `codex`는 원본 `openai.svg` 색을 유지하며 `codex-app` color variant만 ChatGPT/OpenAI green(`#10A37F`)으로 렌더 |
+| `public/assets/providers/` | 18 | provider SVG 세트. Cursor는 공식 brand asset에서 crop한 `cursor*.svg`를 쓰고, `codex`는 원본 `openai.svg` 색을 유지하며 `codex-app` color variant만 ChatGPT/OpenAI green(`#10A37F`)으로 렌더. kiro-code는 `kiro.svg`/`kiro-color.svg` 사용 |
 | `public/assets/fonts/` | 2 | 로컬 폰트 자산 |
 | `public/icons/` | 3 | PWA icons |
 | `public/dist/` | 478 | generated build output, nested `dist/dist` 포함 |
@@ -152,7 +152,7 @@ public/
 | `js/features/settings-cli-status.ts` | CLI availability/quota/status, AGY/Cursor run-time auth hints, Copilot keychain refresh, generic auth/status-only badge for runtimes without quota windows |
 | `js/features/settings-core.ts` | settings load/update, per-CLI model/effort, locale sync, Claude 1M / Codex fast/context controls; legacy `index.html` keeps active/flush CLI selects and AGY per-CLI controls |
 | `js/features/settings-discord.ts` | Discord settings save/load/toggles |
-| `js/features/settings-mcp.ts` | MCP server list/sync/install |
+| `js/features/settings-mcp.ts` | MCP server list/sync/install + registry browse/install (`/api/mcp/registry`) |
 | `js/features/settings-stt.ts` | STT engine/provider fields, gemini/openai/vertex/whisper wiring |
 | `js/features/settings-telegram.ts` | Telegram settings save/load/toggles |
 | `js/features/settings-templates.ts` | prompt/template tree + editor + dev mode |
@@ -224,7 +224,11 @@ settings.ts
 | `manager/index.html` | `#manager-root`와 `/manager/src/main.tsx`를 가진 Manager HTML entry |
 | `manager/src/main.tsx` | `react-dom/client` `createRoot()`로 `App` 렌더 |
 | `manager/src/App.tsx` | instance scan/filter/select/lifecycle + dashboard section 상태 orchestration |
-| `manager/src/InstancePreview.tsx` | preview iframe mount/theme sync + parent-focus STT shortcut bridge + sandbox popup escape for external links |
+| `manager/src/InstancePreview.tsx` | preview iframe mount/theme sync + parent-focus STT shortcut bridge + sandbox popup escape for external links + `jaw-preview-open-doc` 수신(`onOpenDocFromPreview`) |
+| `manager/src/panels/` | desktop panel infra: `PanelResizer.tsx`, `PanelLayoutProvider.tsx`, `BottomPanel.tsx`, `BottomPanelTabBar.tsx` (RightSidebar/BottomPanel 리사이즈 + 탭 레이아웃 상태) |
+| `manager/src/doc-panel/` | `DocPanel.tsx` — `.md` 절대경로를 우측 사이드바에 markdown preview로 렌더(Electron only), 빈 상태 "Drop .md file here" |
+| `manager/src/folder-panel/` `manager/src/terminal/` | Electron desktop folder tree panel + terminal panel |
+| `manager/src/settings/pages/Mcp.tsx` | MCP settings page — server cards add/edit/delete UI + registry browse/install |
 | `manager/src/api.ts` | `/api/dashboard/instances`, `/api/dashboard/registry`, `/api/dashboard/lifecycle/:action`, `/api/dashboard/notes/search` fetch wrapper |
 | `manager/src/components/` | `ManagerShell`, `WorkspaceLayout`, `Instance*`, `Command*`, `ActivityDock`, `MobileNav` 등 dashboard UI |
 | `manager/src/dashboard-board/` | standard workflow lanes (`backlog`, `ready`, `active`, `review`, `done`) 기반 board UI |
@@ -419,6 +423,14 @@ subagent 렌더링 변경 이후 tool history의 canonical UI는 `features/proce
 - 2026-05-09 Manager reminders parity 반영: dashboard reminders는 matrix buckets, Top Priority 3, detail popover, drag/drop bucket 이동, sidebar scroll polish를 지원한다.
 - 2026-05-16 STT hardening 반영: Web STT 버튼은 `getUserMedia` pending/MediaRecorder 실패를 UI와 system message로 표면화하고, Manager preview는 부모 포커스 상태에서도 iframe STT 토글을 전달한다. Preview STT 시작 요청은 Jaw CEO realtime voice 세션을 release해서 마이크 점유 충돌을 줄인다.
 - 2026-05-28 preview link escape 반영: Manager preview iframe은 `allow-popups-to-escape-sandbox`를 포함하고, preview proxy HTML에는 외부 http(s) link/form submit을 iframe 내부 navigation 대신 새 탭/기본 브라우저로 보내는 link policy가 주입된다. Web UI markdown/render delegation도 외부 web 링크에 `_blank`/`noopener noreferrer`를 보강한다.
+- 2026-05-31 feature wave 반영:
+  - **kiro-code provider UI**: settings/provider rows에 kiro-code 아이콘(`kiro.svg`/`kiro-color.svg`)·model metadata·CLI status 행이 추가됐고, TUI도 kiro-code label/color를 렌더한다.
+  - **MCP settings page**: `manager/src/settings/pages/Mcp.tsx`가 server cards add/edit/delete + registry browse/install UI를 제공하고, settings sidebar의 MCP 그룹이 상단으로 이동했다. Web UI `settings-mcp.ts`는 `/api/mcp/registry` browse+install을 지원한다.
+  - **dashboard cache invalidation bridge**: `public/js/preview-parent-origin.ts`의 `postPreviewInvalidate(topics, reason)`가 `dashboard.invalidate` postMessage를 부모(Manager)로 보낸다. `settings-core.ts`가 활성 CLI 변경 시 `postPreviewInvalidate(['instances'], 'active-cli-changed')`를 호출해 매니저가 새로고침 없이 즉시 재조회한다. `postPreviewOpenDoc()`는 `.md` 절대경로를 우측 DocPanel로 연다.
+  - **markdown doc preview (Electron only)**: `public/js/render/file-links.ts`가 `.md` 절대경로를 `postPreviewOpenDoc()`로 분기하고, `InstancePreview.tsx`가 `jaw-preview-open-doc`을 받아 `DocPanel`에 렌더한다.
+  - **electron panel system**: `manager/src/panels/`(PanelResizer/PanelLayoutProvider/BottomPanel/BottomPanelTabBar) + doc/folder/terminal panel + `DesktopPanelControls.tsx`로 우측 사이드바/하단 패널 리사이즈·탭 레이아웃을 구성한다. Cmd+W 탭 닫기, Cmd+1–4 탭 전환, tray background mode가 함께 들어갔다.
+  - **interview panel UI**: Known/Unknown collapsible tracker, Evidence-Ref source icon 렌더, dimension bars + budget panel이 추가됐고, tracker JSON/Perspective 태그는 visible response에서 sanitizer로 제거된다.
+  - **live stream rendering**: provider 전반의 `agent_output` 라이브 렌더가 정렬됐고, tool block은 항상 live output 위에 유지된다.
 
 ---
 

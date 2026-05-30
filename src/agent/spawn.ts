@@ -11,9 +11,9 @@ import { settings, UPLOADS_DIR, detectCli } from '../core/config.js';
 import { migrateLegacyClaudeValue } from '../cli/claude-models.js';
 import { stripUndefined } from '../core/strip-undefined.js';
 import {
-    clearEmployeeSession, getSession, updateSession, insertMessage, getRecentMessages, getEmployees,
+    clearEmployeeSession, getSession, insertMessage, getRecentMessages,
     listQueuedMessages, insertQueuedMessage, deleteQueuedMessage,
-    getSessionBucket, upsertSessionBucket, clearSessionBucket,
+    getSessionBucket, clearSessionBucket,
 } from '../core/db.js';
 import { getSystemPrompt, regenerateB } from '../prompt/builder.js';
 import { extractSessionId, extractFromEvent, extractFromAcpUpdate, extractOutputChunk, logEventSummary, flushClaudeBuffers, flushOpenCodeBuffers } from './events.js';

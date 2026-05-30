@@ -119,7 +119,7 @@ function extractJsonArray(text: string) {
     }
 }
 
-async function expandViaGemini(query: string, override: Partial<AdvancedConfig> = {}) {
+async function _expandViaGemini(query: string, override: Partial<AdvancedConfig> = {}) {
     const cfg = getAdvancedConfig(override);
     const apiKey = cfg.apiKey || process.env["GEMINI_API_KEY"] || '';
     const model = cfg.model || 'gemini-3.1-flash-lite-preview';
@@ -147,7 +147,7 @@ async function expandViaGemini(query: string, override: Partial<AdvancedConfig> 
     return extractJsonArray(text);
 }
 
-async function expandViaOpenAiCompatible(query: string, override: Partial<AdvancedConfig> = {}) {
+async function _expandViaOpenAiCompatible(query: string, override: Partial<AdvancedConfig> = {}) {
     const cfg = getAdvancedConfig(override);
     const apiKey = cfg.apiKey || '';
     const baseUrl = cfg.baseUrl || '';
@@ -235,7 +235,7 @@ async function getGoogleAccessToken(sa: ServiceAccountKey) {
     return json?.access_token || '';
 }
 
-async function expandViaVertex(query: string, override: Partial<AdvancedConfig> = {}) {
+async function _expandViaVertex(query: string, override: Partial<AdvancedConfig> = {}) {
     const cfgSetting = getAdvancedConfig(override);
     const cfgRaw = cfgSetting.vertexConfig || '';
     if (!cfgRaw) return [];

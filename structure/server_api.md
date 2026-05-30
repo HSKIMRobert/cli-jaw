@@ -6,10 +6,10 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 
 > 📚 [INDEX](INDEX.md) · [체크리스트 ↗](AGENTS.md) · [커맨드 ↗](commands.md) · **서버 API**
 
-# server.ts — Glue + Route Registration (876L)
+# server.ts — Glue + Route Registration (903L)
 
 > Express/WS bootstrap + localhost/LAN opt-in 보안 가드 + base route 14개 + `src/routes/*` 15개 registrar 등록.
-> 현재 라이브 surface는 총 143개 route handler이며, 이 중 `/`를 제외한 API 엔드포인트는 142개다.
+> 현재 라이브 surface는 총 144개 route handler이며, 이 중 `/`를 제외한 API 엔드포인트는 143개다.
 > mutation route(`POST`/`PUT`/`DELETE`)는 총 71개고 모두 `requireAuth`를 거친다. 단, `requireAuth()`는 loopback 요청을 토큰 없이 통과시키고, `lanAllowed()`가 true일 때 private IP도 LAN bypass로 통과시킨다.
 > `GET /api/auth/token`은 Bearer bootstrap 전용이며 `Sec-Fetch-Site`가 `same-origin` 또는 `none`이 아닐 때 `403`을 반환한다.
 
@@ -19,12 +19,12 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 
 | Module | Lines | Routes | 역할 |
 | --- | ---: | ---: | --- |
-| `server.ts` | 853L | 14 | Helmet/CORS/Host/rate-limit/WS/bootstrap + base routes + module registration |
+| `server.ts` | 903L | 14 | Helmet/CORS/Host/rate-limit/WS/bootstrap + base routes + module registration |
 | `src/routes/settings.ts` | 316L | 18 | settings/prompt/heartbeat-md/MCP/CLI registry/quota/copilot |
 | `src/routes/memory.ts` | 185L | 13 | memory runtime + KV memory + memory files |
 | `src/routes/browser.ts` | 475L | 41 | browser primitive/tab/debug/doctor/cleanup routes + adaptive fetch + web-ai render/send/poll/watch/sessions/capabilities/context routes |
 | `src/routes/jaw-memory.ts` | 239L | 11 | jaw memory search/read/save/list/init/reflect/flush/soul/soul-activate/bootstrap |
-| `src/routes/orchestrate.ts` | 583L | 13 | reset/state/workers/worker-progress/snapshot/queue cancel/hold/queue steer async accept/dispatch/worker result/state PUT |
+| `src/routes/orchestrate.ts` | 637L | 13 | reset/state/workers/worker-progress/snapshot/queue cancel/hold/queue steer async accept/dispatch/worker result/state PUT |
 | `src/routes/goal.ts` | 89L | 3 | durable goal state get/history/set-update-complete-cancel-pause-resume |
 | `src/routes/goal-run.ts` | 81L | 3 | bounded goal-run state/preflight/start-pause-resume-stop |
 | `src/routes/messaging.ts` | 222L | 6 | upload/file-open/voice/telegram/channel/discord send |
@@ -33,8 +33,10 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 | `src/routes/avatar.ts` | 146L | 4 | avatar summary + agent/user image upload/delete/read |
 | `src/routes/traces.ts` | 80L | 3 | public trace summary/event read routes |
 | `src/routes/heartbeat.ts` | 43L | 2 | heartbeat GET + validated PUT |
+| `src/routes/runtime-context.ts` | 46L | 4 | runtime context entry CRUD (ephemeral prompt injection) |
 | `src/routes/i18n.ts` | 26L | 2 | language list + locale bundle |
 | `src/routes/quota.ts` | 459L | — | `settings.ts`가 호출하는 quota/auth/status reader helper |
+| `src/routes/quota-kiro-reverse.ts` | 239L | — | Kiro/CodeWhisperer reverse-engineered usage-limits reader (`fetchKiroUsage`) |
 | `src/routes/types.ts` | 3L | — | shared `AuthMiddleware` type |
 
 ### 등록 순서 (`server.ts`)
@@ -42,7 +44,7 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 ```text
 employees → heartbeat → skills → jaw-memory → orchestrate
 → goal → goal-run → memory → settings → messaging → avatar → traces
-→ jaw-ceo → dashboard board/schedule → browser → i18n
+→ jaw-ceo → runtime-context → security-audit → dashboard board/schedule → browser → i18n
 ```
 
 라우트 모듈은 `server.ts:543-561` 부근에서 등록된다.
@@ -56,7 +58,7 @@ employees → heartbeat → skills → jaw-memory → orchestrate
 | `GET` | `/` | `public/dist/index.html`이 있으면 Vite build를 서빙, 없으면 static fallback |
 | `GET` | `/api/health` | `{ ok, version, uptime }` |
 | `GET` | `/api/session` | 현재 main session row 반환 |
-| `GET` | `/api/messages` | `includeTrace=1|true|yes`면 trace 포함 메시지 조회 |
+| `GET` | `/api/messages` | `includeTrace=1|true|yes`면 trace 포함 메시지 조회. `?limit=N`(1–5000)이면 최근 N개만 ascending 반환; 생략 시 전체 history |
 | `GET` | `/api/messages/search` | 메시지 본문 검색 결과 반환 |
 | `GET` | `/api/messages/latest` | 가장 최근 메시지 스냅샷 반환 |
 | `GET` | `/api/runtime` | uptime, activeAgent, queuePending |
@@ -167,7 +169,8 @@ ensureDirs()
 | Core/Auth | `GET /api/health` `GET /api/session` `GET /api/messages` `GET /api/messages/search` `GET /api/messages/latest` `GET /api/runtime` `GET /api/auth/token` `POST /api/message` `POST /api/stop` `POST /api/clear` `POST /api/session/reset` |
 | Commands | `POST /api/command` `GET /api/commands?interface=` |
 | Settings/Prompt | `GET/PUT /api/settings` `GET /api/codex-context` `GET/PUT /api/prompt` `GET /api/prompt-templates` `PUT /api/prompt-templates/:id` `GET/PUT /api/heartbeat-md` |
-| MCP/CLI/Quota | `GET/PUT /api/mcp` `POST /api/mcp/sync` `POST /api/mcp/install` `POST /api/mcp/reset` `GET /api/cli-registry` `GET /api/cli-status` `GET /api/quota` `POST /api/copilot/refresh` |
+| MCP/CLI/Quota | `GET/PUT /api/mcp` `POST /api/mcp/sync` `POST /api/mcp/install` `POST /api/mcp/reset` `GET /api/mcp/registry` `GET /api/cli-registry` `GET /api/cli-status` `GET /api/quota` `POST /api/copilot/refresh` |
+| Runtime Context | `GET /api/runtime-context` `POST /api/runtime-context` `DELETE /api/runtime-context/:id` `DELETE /api/runtime-context` |
 | Heartbeat | `GET/PUT /api/heartbeat` |
 | Browser | `POST /api/browser/start` `POST /api/browser/stop` `GET /api/browser/status` `GET /api/browser/doctor` `POST /api/browser/cleanup-runtimes` `GET /api/browser/snapshot` `POST /api/browser/screenshot` `POST /api/browser/act` `POST /api/browser/vision-click` `POST /api/browser/navigate` `POST /api/browser/reload` `POST /api/browser/resize` `GET /api/browser/tabs` `GET /api/browser/active-tab` `POST /api/browser/tab-switch` `POST /api/browser/tab-new` `POST /api/browser/tab-close` `POST /api/browser/tab-cleanup` `POST /api/browser/evaluate` `GET /api/browser/text` `GET /api/browser/dom` `GET /api/browser/console` `GET /api/browser/network` `POST /api/browser/fetch` `POST /api/browser/wait-for-selector` `POST /api/browser/wait-for-text` `POST /api/browser/web-ai/render` `POST /api/browser/web-ai/context-dry-run` `POST /api/browser/web-ai/context-render` `GET /api/browser/web-ai/status` `POST /api/browser/web-ai/send` `GET /api/browser/web-ai/poll` `GET /api/browser/web-ai/watch` `GET /api/browser/web-ai/watchers` `GET /api/browser/web-ai/sessions` `POST /api/browser/web-ai/sessions/prune` `GET /api/browser/web-ai/notifications` `GET /api/browser/web-ai/capabilities` `POST /api/browser/web-ai/query` `POST /api/browser/web-ai/stop` `GET /api/browser/web-ai/diagnose` |
 | Orchestrate | `POST /api/orchestrate/reset` `GET /api/orchestrate/state` `GET /api/orchestrate/workers` `GET /api/orchestrate/worker-progress` `GET /api/orchestrate/worker-progress/:agentId` `GET /api/orchestrate/snapshot` `DELETE /api/orchestrate/queue/:id` `POST /api/orchestrate/queue/:id/hold` `DELETE /api/orchestrate/queue/:id/hold` `POST /api/orchestrate/queue/:id/steer` `POST /api/orchestrate/dispatch` `GET /api/orchestrate/worker/:agentId/result` `PUT /api/orchestrate/state` |
@@ -182,7 +185,7 @@ ensureDirs()
 | Traces | `GET /api/traces/:runId` `GET /api/traces/:runId/events` `GET /api/traces/:runId/events/:seq` |
 | i18n | `GET /api/i18n/languages` `GET /api/i18n/:lang` |
 
-> 실제 코드(`server.ts` + `src/routes/*.ts`)에서 추출한 총 143개 route handler 기준이다. 이 중 API 엔드포인트는 142개이고, 나머지 1개는 `/` 엔트리이다. Browser API 41개는 `src/routes/browser.ts`에서 등록된다. 이 중 POST/PUT/DELETE mutation endpoint 74개는 모두 `requireAuth` 보호를 받고, `GET /api/auth/token`은 `Sec-Fetch-Site`가 `same-origin|none`이 아닐 때 `403`을 반환한다.
+> 실제 코드(`server.ts` + `src/routes/*.ts`)에서 추출한 총 144개 route handler 기준이다. 이 중 API 엔드포인트는 143개이고, 나머지 1개는 `/` 엔트리이다. Browser API 41개는 `src/routes/browser.ts`에서 등록된다. 이 중 POST/PUT/DELETE mutation endpoint 74개는 모두 `requireAuth` 보호를 받고, `GET /api/auth/token`은 `Sec-Fetch-Site`가 `same-origin|none`이 아닐 때 `403`을 반환한다.
 
 ### 최근 surface drift
 
@@ -259,6 +262,35 @@ ensureDirs()
 - `agy`, `cursor`, `opencode`는 현재 `{ authenticated:true, quotaCapable:false }` status-only 응답이다. Cursor는 `CURSOR_API_KEY` 또는 `cursor-agent status` 인증 상태를 쓰고 `quotaSource:'not-exposed-by-cursor-cli'`를 반환한다.
 - `grok`는 `grok models` 기반 auth/status-only 응답이다. Grok CLI는 남은 할당량을 노출하지 않으므로 `quotaCapable:false`, `quotaSource:'not-exposed-by-grok-cli'`, `displayTier:'Grok Heavy'`를 반환하고, 있으면 최신 `~/.grok/sessions/**/signals.json`의 세션 context 사용량만 best-effort로 붙인다.
 - AGY는 현 runtime에서 quota/auth API가 분리되어 있지 않아 real quota window를 만들지 않는다. 상태 표시는 `/api/cli-status` 설치 상태와 `/api/quota`의 `not-exposed-by-agy-cli` metadata가 함께 담당한다.
+- `kiro-code`는 `src/routes/quota-kiro-reverse.ts`의 `fetchKiroUsage()`를 통해 CodeWhisperer `GetUsageLimits` API를 reverse-engineer 호출한다. `quotaSource:'kiro:codewhisperer-get-usage-limits'`, `displayTier:'Kiro <plan>'`을 반환하며, auth store가 없거나 token이 만료되면 `authenticated:false`를 반환한다.
+
+### `/api/runtime-context`
+
+- `src/routes/runtime-context.ts`의 `createRuntimeContextRouter()`가 sub-router로 마운트된다. 전체 경로에 `requireAuth`가 적용된다.
+- `GET /api/runtime-context` — 모든 entry를 반환하며 각 entry에 `expired` boolean을 추가한다.
+- `POST /api/runtime-context` — body `{ text, label?, expiresAt? }`. `text`는 필수(max 2000자). 201 + 생성된 entry 반환.
+- `DELETE /api/runtime-context/:id` — 단일 entry 삭제. 없으면 404.
+- `DELETE /api/runtime-context` — 전체 삭제. `{ cleared: <count> }` 반환.
+- entry는 `PROMPTS_DIR/runtime-context.json`에 저장되며, prompt builder가 `buildInjectionBlock()`으로 active(미만료) entry를 `## Temporary User Context` 블록으로 주입한다.
+
+### `/api/mcp/registry`
+
+- `src/routes/settings.ts`에서 등록. `GET` only, auth 불필요.
+- `lib/mcp/mcp-registry.ts`의 `fetchMcpRegistry()` / `fetchMcpRegistryLocal()`을 사용한다.
+- 로컬 후보 경로(`JAW_HOME/mcp-ref/registry.json`, `~/Developer/new/700_projects/mcp-ref/registry.json`)를 먼저 시도하고, 없으면 GitHub raw URL에서 fetch + 1시간 TTL 캐시(`~/.cli-jaw/mcp-registry-cache.json`).
+- 응답: `{ ok, entries: McpRegistryEntry[], builtins: McpHarnessBuiltin[] }`. 실패 시 `500 { ok:false, error, entries:[], builtins:[] }`.
+
+### `/api/goal` — resume action + continuation kick
+
+- `POST /api/goal` body `{ action:'resume' }` 시, 이미 active이면 `{ ok, goal, alreadyActive:true }`를 반환하고 continuation을 kick하지 않는다.
+- paused goal을 resume하면 `resumeGoal()` 후 `kickGoalContinuation()`을 호출해 agent continuation을 즉시 트리거한다.
+- `kickGoalContinuation()`은 `src/agent/lifecycle-handler.ts`에서 export되며, goal heartbeat timer와 별개로 즉시 한 번 continuation을 시도한다.
+
+### `/api/orchestrate/snapshot` — `buildBudget` / `researchReport`
+
+- `GET /api/orchestrate/snapshot` 응답의 `orc.ctx` 객체에 `buildBudget`과 `researchReport` 필드가 포함된다.
+- `buildBudget`: `{ maxFiles?, maxLines?, scope? }` — B phase에서 worker에게 전달되는 구현 범위 제한.
+- `researchReport`: Interview(I) phase에서 수집된 evidence/unknowns를 markdown으로 정리한 문자열. P phase 진입 시 plan context로 사용된다.
 
 ### `/api/orchestrate/dispatch`
 
@@ -271,7 +303,7 @@ ensureDirs()
 
 ## WebSocket Events
 
-연결 시 서버는 현재 상태 스냅샷을 먼저 보낸다: `agent_status`, `queue_update`, 비-IDLE `orc_state`. 현재 브로드캐스트되는 WebSocket 이벤트는 41종이다.
+연결 시 서버는 현재 상태 스냅샷을 먼저 보낸다: `agent_status`, `queue_update`, 비-IDLE `orc_state`. 현재 브로드캐스트되는 WebSocket 이벤트는 43종이다.
 
 | Type | 설명 |
 | --- | --- |
@@ -286,7 +318,7 @@ ensureDirs()
 | `clear` / `session_reset` | UI clear / session reset broadcast |
 | `new_message` | Telegram/Discord inbound message |
 | `orc_state` | PABCD 상태 변경 + `taskAnchor`/`resolvedSelection`/`interview`(known/unknown/round 트래커) 컨텍스트 |
-| `orchestrate_done` | orchestration 완료/실패 |
+| `orchestrate_done` / `orchestrate_warning` | orchestration 완료/실패 + 비차단 경고(stale interview carry-over 등) |
 | `steer_started` | `/steer` 또는 pending queue steer가 새 프롬프트를 accepted 상태로 전환 (`prompt`/`origin`, queue route는 `target`/`chatId`/`requestId`/`scope` 포함 가능) |
 | `agent_added` / `agent_updated` / `agent_deleted` | employee CRUD 반영 |
 | `agent:claude-e:runtime_started` / `agent:claude-e:spawned` / `agent:claude-e:session` / `agent:claude-e:prompt_injected` / `agent:claude-e:stop` / `agent:claude-e:stop_failure` / `agent:claude-e:interrupted` / `agent:claude-e:cleanup` / `agent:claude-e:error` | Claude E native helper lifecycle bridge |
@@ -295,7 +327,7 @@ ensureDirs()
 | `system_notice` | compact refresh 같은 시스템 공지 |
 | `heartbeat_pending` | pending heartbeat job 수 |
 | `worker_stalled` / `worker_disconnected` / `worker_timeout` | distributed worker 상태 변화 |
-| `goal_done` / `goal_cancel` / `goal_continuation` / `goal_continuation_failed` / `goal_continuation_limit` | durable goal / bounded continuation lifecycle |
+| `goal_done` / `goal_done_rejected` / `goal_cancel` / `goal_continuation` / `goal_continuation_failed` / `goal_continuation_limit` | durable goal / bounded continuation lifecycle (`goal_done_rejected` = OMX-style completion gate가 조기 완료 거부) |
 | `schedule_wakeup` / `schedule_wakeup_failed` | ScheduleWakeup continuation scheduling lifecycle |
 
 - 새 연결 시 서버는 필요하면 `agent_status`, `queue_update`, non-IDLE `orc_state`를 먼저 push 한다.

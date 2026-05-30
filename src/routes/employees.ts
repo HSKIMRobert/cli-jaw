@@ -3,7 +3,7 @@ import type { AuthMiddleware } from './types.js';
 import crypto from 'crypto';
 import { ok } from '../http/response.js';
 import { broadcast } from '../core/bus.js';
-import { clearEmployeeSession, db, getEmployees, insertEmployee, deleteEmployee } from '../core/db.js';
+import { clearEmployeeSession, db, insertEmployee, deleteEmployee } from '../core/db.js';
 import { regenerateB } from '../prompt/builder.js';
 import { CLI_REGISTRY } from '../cli/registry.js';
 import { seedDefaultEmployees, listEmployees, findStaticEmployee } from '../core/employees.js';
@@ -98,7 +98,7 @@ export function registerEmployeeRoutes(app: Express, requireAuth: AuthMiddleware
     });
 
     // Employee reset — delete all + re-seed 5 defaults
-    app.post('/api/employees/reset', requireAuth, (req, res) => {
+    app.post('/api/employees/reset', requireAuth, (_req, res) => {
         const { seeded } = seedDefaultEmployees({ reset: true, notify: true });
         res.json({ ok: true, seeded });
     });
