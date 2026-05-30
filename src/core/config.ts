@@ -3,7 +3,7 @@
 import os from 'os';
 import fs from 'fs';
 import path from 'path';
-import { join, resolve } from 'path';
+import { join } from 'path';
 import { DEFAULT_CLI, buildDefaultPerCli } from '../cli/registry.js';
 import { pickFirstReadyCli } from '../cli/readiness.js';
 import { migrateLegacyClaudeValue } from '../cli/claude-models.js';

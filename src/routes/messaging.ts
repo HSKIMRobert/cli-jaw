@@ -9,7 +9,7 @@ import express from 'express';
 import { ok, fail } from '../http/response.js';
 import { saveUpload } from '../agent/spawn.js';
 import { submitMessage } from '../orchestrator/gateway.js';
-import { telegramActiveChatIds, getTelegramSendClient, getLatestTelegramChatId } from '../telegram/bot.js';
+import { getTelegramSendClient, getLatestTelegramChatId } from '../telegram/bot.js';
 import { validateFileSize, sendTelegramFile } from '../telegram/telegram-file.js';
 import { assertSendFilePath } from '../security/path-guards.js';
 import { decodeFilenameSafe } from '../security/decode.js';

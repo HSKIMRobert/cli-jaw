@@ -26,11 +26,9 @@ export function resetMemoryFlushCounter(): void {
 
 // Forward reference to spawnAgent (avoid circular import)
 let _spawnAgent: Function;
-let _activeProcesses: Map<string, any>;
 
-export function setSpawnRef(fn: Function, procs: Map<string, any>): void {
+export function setSpawnRef(fn: Function, _procs: Map<string, any>): void {
     _spawnAgent = fn;
-    _activeProcesses = procs;
 }
 
 // ─── Flush Prompt Builder (3-A) ──────────────────────

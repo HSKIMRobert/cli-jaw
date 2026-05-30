@@ -39,7 +39,7 @@ import {
 // ─── src/ modules ────────────────────────────────────
 
 
-import { ok, fail } from './src/http/response.js';
+import { ok } from './src/http/response.js';
 
 import { errorHandler } from './src/http/error-middleware.js';
 
@@ -617,7 +617,7 @@ app.post('/api/message', requireAuth, async (req, res) => {
     res.json({ ok: true, ...result });
 });
 
-app.post('/api/stop', requireAuth, (req, res) => {
+app.post('/api/stop', requireAuth, (_req, res) => {
     const killed = killAllAgents('api');
     ok(res, { killed });
 });

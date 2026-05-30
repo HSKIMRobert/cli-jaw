@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { join, relative, dirname } from 'path';
+import { join, dirname } from 'path';
 import { createHash } from 'crypto';
 import { JAW_HOME } from '../core/config.js';
 import { instanceId } from '../core/instance.js';

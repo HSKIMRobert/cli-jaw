@@ -390,7 +390,7 @@ try {
             }
             const opts: Record<string, unknown> = {};
             if (process.argv.includes('--double')) opts["doubleClick"] = true;
-            const r = await api('POST', '/act', { kind: 'mouse-click', x, y, ...opts }) as Record<string, unknown>;
+            await api('POST', '/act', { kind: 'mouse-click', x, y, ...opts });
             console.log(`🖱️ clicked at (${x}, ${y})`);
             break;
         }

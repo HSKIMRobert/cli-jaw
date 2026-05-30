@@ -4,7 +4,7 @@ import { settings, saveSettings } from '../core/config.js';
 import { JawCeoCoordinator, type JawCeoCoordinatorDeps } from '../jaw-ceo/coordinator.js';
 import { extractOpenAiApiKey, hasInvalidOpenAiApiKeyInput, resolveJawCeoOpenAiApiKey } from '../jaw-ceo/openai-key.js';
 import { buildJawCeoRealtimeSessionConfig, JAW_CEO_REALTIME_MODEL, JAW_CEO_REALTIME_VOICE, openJawCeoRealtimeSideband } from '../jaw-ceo/realtime-sideband.js';
-import type { JawCeoManagerEvent, JawCeoResponseMode } from '../jaw-ceo/types.js';
+import type { JawCeoManagerEvent } from '../jaw-ceo/types.js';
 
 export type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void;
 

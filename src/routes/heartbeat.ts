@@ -5,7 +5,7 @@ import { startHeartbeat } from '../memory/heartbeat.js';
 import { validateHeartbeatScheduleInput } from '../memory/heartbeat-schedule.js';
 
 export function registerHeartbeatRoutes(app: Express, requireAuth: AuthMiddleware): void {
-    app.get('/api/heartbeat', (req, res) => res.json(loadHeartbeatFile()));
+    app.get('/api/heartbeat', (_req, res) => res.json(loadHeartbeatFile()));
 
     app.put('/api/heartbeat', requireAuth, (req, res) => {
         const data = req.body;

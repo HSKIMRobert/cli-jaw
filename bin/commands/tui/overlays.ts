@@ -5,11 +5,11 @@ import {
     clearOverlayBox, renderHelpOverlay, renderCommandPalette, renderChoiceSelector,
     clearAutocomplete, closeAutocomplete, resolveAutocompleteState,
     applyResolvedAutocompleteState, renderAutocomplete, popupTotalRows,
-    makeSelectionKey, filterSelectorItems, resetAutocompleteState,
+    makeSelectionKey, resetAutocompleteState,
 } from '../../../src/cli/tui/overlay.js';
 import {
-    getPlainCommandDraft, clearComposer, appendTextToComposer, setBracketedPaste,
-    getTrailingTextSegment, insertAtMention,
+    getPlainCommandDraft, setBracketedPaste,
+    getTrailingTextSegment,
 } from '../../../src/cli/tui/composer.js';
 import { findAtMentionMatch, listRepoFiles } from '../../../src/cli/tui/file-mention.js';
 import { clipTextToCols } from '../../../src/cli/tui/renderers.js';
@@ -244,7 +244,6 @@ export async function runSlashCommand(ctx: TuiContext, parsed: ParsedSlashComman
     if (!parsed || parsed.type !== 'known') return;
     const ov = ctx.store.overlay;
     const ac = ctx.store.autocomplete;
-    const composer = ctx.store.composer;
     const panes = ctx.store.panes;
 
     // Overlay intercepts

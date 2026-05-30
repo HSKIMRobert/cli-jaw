@@ -2,7 +2,7 @@
 // bin/commands/orchestrate.ts — CLI: jaw orchestrate [P|A|B|C|D|status|reset]
 // Calls the running server's API so WS broadcast reaches all clients in real-time.
 
-import { settings, loadSettings, getServerUrl } from '../../src/core/config.js';
+import { loadSettings, getServerUrl } from '../../src/core/config.js';
 import { cliFetch, getCliAuthToken } from '../../src/cli/api-auth.js';
 import { shouldShowHelp, printAndExit } from '../helpers/help.js';
 import { errString, isConnRefused } from '../_http-client.js';
