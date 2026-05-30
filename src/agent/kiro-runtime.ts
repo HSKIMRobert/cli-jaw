@@ -92,6 +92,54 @@ export function parseKiroSessionIdFromStdout(text: string): string | null {
     return match?.[1] ?? null;
 }
 
+const KIRO_STALE_SESSION_RE = /(?:no saved chat sessions|conversation\s+not found|invalid\s+resume|session\s+not found|unknown\s+session)/i;
+
+export function isKiroStaleSessionOutput(text: string): boolean {
+    return KIRO_STALE_SESSION_RE.test(stripKiroAnsi(text));
+}
+
+/** Resume succeeded (exit 0) but produced no assistant body — retry fresh with history. */
+export function isKiroResumeDegradedOutput(
+    outputText: string,
+    toolLogLen: number,
+    isResume: boolean,
+): boolean {
+    if (!isResume) return false;
+    return !outputText.trim() && toolLogLen === 0;
+}
+
+export type KiroSessionCaptureSource = 'resume-carry' | 'stderr' | 'diff' | 'store' | 'stdout';
+
+export function captureKiroSessionIdAfterExit(args: {
+    cwd: string;
+    spawnStartedAt: number;
+    beforeIds: ReadonlySet<string> | null;
+    stdout: string;
+    stderr: string;
+    resumeSessionId?: string | null;
+    isResume: boolean;
+}): { id: string | null; source: KiroSessionCaptureSource | null } {
+    if (args.isResume && args.resumeSessionId?.trim()) {
+        return { id: args.resumeSessionId.trim(), source: 'resume-carry' };
+    }
+
+    const fromStderr = parseAiESessionIdFromStderr(args.stderr);
+    if (fromStderr) return { id: fromStderr, source: 'stderr' };
+
+    if (args.beforeIds) {
+        const fromDiff = resolveKiroSessionIdAfterSpawn(args.cwd, args.beforeIds, args.spawnStartedAt);
+        if (fromDiff) return { id: fromDiff, source: 'diff' };
+    }
+
+    const fromStore = extractKiroSessionIdFromStore(args.cwd, args.spawnStartedAt);
+    if (fromStore) return { id: fromStore, source: 'store' };
+
+    const fromStdout = parseKiroSessionIdFromStdout(args.stdout);
+    if (fromStdout) return { id: fromStdout, source: 'stdout' };
+
+    return { id: null, source: null };
+}
+
 export function parseAiESessionIdFromStderr(text: string): string | null {
     for (const line of text.split(/\r?\n/)) {
         const match = /\[ai-e\]\s+session:\s*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i.exec(line);

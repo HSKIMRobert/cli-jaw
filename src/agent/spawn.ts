@@ -58,14 +58,12 @@ import { extractAgyConversationId, formatAgyTimeoutMessage, isAgyStaleSessionOut
 import { appendAssistantTextSegment, appendPostToolAssistantLead } from './events/helpers.js';
 import { listKiroConversationIdsForCwd } from './kiro-auth.js';
 import {
-    extractKiroSessionIdFromStore,
+    captureKiroSessionIdAfterExit,
     finalizeKiroFullText,
     flushKiroStdoutContext,
     isKiroPlainTextCli,
-    parseAiESessionIdFromStderr,
-    parseKiroSessionIdFromStdout,
+    isKiroStaleSessionOutput,
     processKiroStdoutChunk,
-    resolveKiroSessionIdAfterSpawn,
     type KiroStreamEvent,
 } from './kiro-runtime.js';
 import { resolveCursorModelVariant } from './cursor-runtime.js';
@@ -603,6 +601,7 @@ interface SpawnOpts {
     _skipHistory?: boolean;
     _skipResume?: boolean;
     _skipSessionPersist?: boolean;
+    _kiroFreshRetry?: boolean;
     forceNew?: boolean;
     agentId?: string;
     sysPrompt?: string;
@@ -1906,28 +1905,29 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             ctx.sessionId = null;
         }
         if (kiroPlainText) {
-            if (!ctx.sessionId) {
-                ctx.sessionId = parseAiESessionIdFromStderr(ctx.stderrBuf);
-            }
-            if (!ctx.sessionId && kiroConversationIdsBefore) {
-                ctx.sessionId = resolveKiroSessionIdAfterSpawn(
-                    spawnCwd,
-                    kiroConversationIdsBefore,
-                    kiroSpawnStartedAt,
-                );
-            } else if (!ctx.sessionId) {
-                ctx.sessionId = extractKiroSessionIdFromStore(spawnCwd, kiroSpawnStartedAt);
-            }
-            if (!ctx.sessionId) {
-                ctx.sessionId = parseKiroSessionIdFromStdout(ctx.fullText);
+            const captured = captureKiroSessionIdAfterExit({
+                cwd: spawnCwd,
+                spawnStartedAt: kiroSpawnStartedAt,
+                beforeIds: kiroConversationIdsBefore,
+                stdout: ctx.fullText,
+                stderr: ctx.stderrBuf,
+                resumeSessionId,
+                isResume,
+            });
+            ctx.sessionId = captured.id;
+            if (captured.source) {
+                console.log(`[jaw:kiro] session capture source=${captured.source} id=${captured.id?.slice(0, 12) ?? 'none'}...`);
             }
             if (!ctx.sessionId) {
                 console.warn(`[jaw:kiro] session id capture failed cwd=${spawnCwd}`);
-            } else if (isResume && resumeSessionId && ctx.sessionId !== resumeSessionId) {
-                console.warn(
-                    `[jaw:kiro] resume session id drift expected=${resumeSessionId.slice(0, 12)} got=${ctx.sessionId.slice(0, 12)} — keeping resume id`,
-                );
-                ctx.sessionId = resumeSessionId;
+            }
+            if (isResume && isKiroStaleSessionOutput(ctx.fullText)) {
+                console.log('[jaw:kiro] stale session detected in output — clearing bucket');
+                try {
+                    const bucket = resolveSessionBucket(cli, runtimeModel, effectiveProvider);
+                    clearSessionBucket.run(bucket);
+                } catch (e) { console.warn('[jaw:kiro] stale bucket clear failed:', (e as Error).message); }
+                ctx.sessionId = null;
             }
             const parsed = finalizeKiroFullText(ctx.fullText, ctx.kiroLineBuffer);
             const best = [ctx.liveOutputText, ctx.kiroDisplayedText, parsed]
