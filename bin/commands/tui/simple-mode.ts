@@ -38,7 +38,6 @@ export async function runSimpleMode(ctx: TuiContext): Promise<void> {
                 ws.close();
                 rl.close();
                 process.exit(0);
-                return;
             }
         } catch (err) {
             console.log(`  ${c.red}${(err as Error).message}${c.reset}`);
