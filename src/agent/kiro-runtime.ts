@@ -1,0 +1,308 @@
+import os from 'node:os';
+import { extractKiroSessionIdFromV2Store, resolveKiroDataPath } from './kiro-auth.js';
+
+const ANSI_RE = /\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g;
+const KIRO_RESPONSE_LINE_RE = /^>\s*(.*)\s*$/;
+const KIRO_CREDITS_FOOTER_RE = /^[▸•]\s*Credits:/i;
+const KIRO_TRUST_BANNER_RE = /^All tools are now trusted/i;
+const KIRO_LEARN_MORE_RE = /^Learn more at https?:\/\//i;
+const KIRO_RISK_BANNER_RE = /^Agents can sometimes do unexpected things/i;
+const KIRO_USING_TOOL_RE = /\(using tool:\s*([^)]+)\)/i;
+const KIRO_TOOL_DONE_RE = /^\s*-\s*Completed in\s+[\d.]+s\s*$/i;
+const KIRO_TOOL_SUCCESS_RE = /^[✓✔]\s+/u;
+const KIRO_TERMINAL_MODE_RE = /^\?\d+[hl]/;
+
+export function stripKiroAnsi(text: string): string {
+    return text.replace(ANSI_RE, '');
+}
+
+export function parseKiroAssistantText(text: string): string {
+    const clean = stripKiroAnsi(text);
+    const lines = clean.split(/\r?\n/);
+    const blocks: string[] = [];
+    let current: string[] = [];
+
+    const flush = (): void => {
+        const joined = current.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+        if (joined) blocks.push(joined);
+        current = [];
+    };
+
+    const isToolOrMeta = (line: string): boolean =>
+        isKiroIgnoredLine(line)
+        || KIRO_TOOL_DONE_RE.test(line)
+        || KIRO_USING_TOOL_RE.test(line)
+        || KIRO_TOOL_SUCCESS_RE.test(line)
+        || /^I will run the following command:/i.test(line)
+        || /^Reading file:/i.test(line)
+        || /^Writing file:/i.test(line);
+
+    for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line) {
+            // Kiro long answers use blank lines between markdown sections; keep one block.
+            if (current.length) current.push('');
+            continue;
+        }
+        if (isToolOrMeta(line)) {
+            flush();
+            continue;
+        }
+        const match = KIRO_RESPONSE_LINE_RE.exec(line);
+        if (match) {
+            flush();
+            const lead = (match[1] || '').trim();
+            if (lead) current.push(lead);
+            continue;
+        }
+        if (current.length) current.push(line);
+    }
+    flush();
+    return blocks.join('\n\n').trim();
+}
+
+function isKiroIgnoredLine(line: string): boolean {
+    return KIRO_TRUST_BANNER_RE.test(line)
+        || KIRO_RISK_BANNER_RE.test(line)
+        || KIRO_LEARN_MORE_RE.test(line)
+        || KIRO_CREDITS_FOOTER_RE.test(line)
+        || KIRO_TERMINAL_MODE_RE.test(line);
+}
+
+export function extractKiroSessionIdFromStore(
+    cwd: string,
+    updatedAfterMs = 0,
+    homedir = os.homedir(),
+): string | null {
+    // kiro-cli writes `--no-interactive` sessions to the v2 sqlite store, not
+    // the legacy `~/.kiro/sessions/cli/*.json` files. Read from the real store.
+    return extractKiroSessionIdFromV2Store(cwd, updatedAfterMs, resolveKiroDataPath(homedir));
+}
+
+export function isKiroPlainTextCli(cli: string): boolean {
+    return cli === 'kiro-code';
+}
+
+export type KiroStreamEvent =
+    | { kind: 'assistant_delta'; text: string }
+    | {
+        kind: 'tool';
+        icon: string;
+        label: string;
+        detail?: string;
+        stepRef: string;
+        status: 'running' | 'done';
+    };
+
+export interface KiroStdoutContext {
+    fullText: string;
+    kiroDisplayedText?: string;
+    kiroLineBuffer?: string;
+    kiroToolSeq?: number;
+    kiroActiveToolRef?: string | null;
+    kiroActiveToolLabel?: string | null;
+}
+
+function nextKiroToolRef(ctx: KiroStdoutContext): string {
+    ctx.kiroToolSeq = (ctx.kiroToolSeq ?? 0) + 1;
+    return `kiro:tool:${ctx.kiroToolSeq}`;
+}
+
+function kiroToolIcon(toolName: string): string {
+    const normalized = toolName.trim().toLowerCase();
+    if (normalized.includes('shell') || normalized.includes('bash') || normalized.includes('cmd')) return '💻';
+    if (normalized.includes('read') || normalized.includes('grep') || normalized.includes('glob')) return '📖';
+    if (normalized.includes('write') || normalized.includes('edit') || normalized.includes('patch')) return '✏️';
+    if (normalized.includes('search') || normalized.includes('web')) return '🔍';
+    return '🔧';
+}
+
+function formatKiroToolLabel(line: string, toolName: string): string {
+    const commandMatch = /^I will run the following command:\s*(.+?)(?:\s*\(using tool:|$)/i.exec(line);
+    if (commandMatch?.[1]) {
+        const command = commandMatch[1].trim();
+        return `${toolName}: ${command.length > 72 ? `${command.slice(0, 69)}...` : command}`;
+    }
+    const readingMatch = /^Reading file:\s*(.+?)(?:,|\s*\(using tool:|$)/i.exec(line);
+    if (readingMatch?.[1]) {
+        const path = readingMatch[1].trim();
+        return `${toolName}: ${path}`;
+    }
+    const writingMatch = /^Writing file:\s*(.+?)(?:,|\s*\(using tool:|$)/i.exec(line);
+    if (writingMatch?.[1]) {
+        const path = writingMatch[1].trim();
+        return `${toolName}: ${path}`;
+    }
+    const compact = line.replace(/\s*\(using tool:[^)]+\)\s*$/i, '').trim();
+    return compact ? `${toolName}: ${compact}` : toolName;
+}
+
+function syntheticKiroAssistantText(ctx: KiroStdoutContext, extraLine = ''): string {
+    const bufferLine = stripKiroAnsi(extraLine || ctx.kiroLineBuffer || '').trim();
+    if (!bufferLine) return parseKiroAssistantText(ctx.fullText);
+    const needsSep = ctx.fullText.length > 0 && !ctx.fullText.endsWith('\n');
+    return parseKiroAssistantText(`${ctx.fullText}${needsSep ? '\n' : ''}${bufferLine}`);
+}
+
+function maybePartialKiroAssistant(ctx: KiroStdoutContext): KiroStreamEvent[] {
+    const bufferLine = stripKiroAnsi(ctx.kiroLineBuffer || '').trimStart();
+    if (!bufferLine.startsWith('>')) return [];
+    const assistant = syntheticKiroAssistantText(ctx);
+    return emitKiroAssistantDelta(ctx, assistant);
+}
+
+/** Emit assistant_delta when parsed fullText grows (e.g. continuation lines after `>`). */
+function maybeKiroAssistantGrowth(ctx: KiroStdoutContext): KiroStreamEvent[] {
+    const assistant = parseKiroAssistantText(ctx.fullText);
+    return emitKiroAssistantDelta(ctx, assistant);
+}
+
+function emitKiroAssistantDelta(ctx: KiroStdoutContext, assistant: string): KiroStreamEvent[] {
+    const previous = ctx.kiroDisplayedText || '';
+    if (!assistant || assistant.length <= previous.length) return [];
+    const delta = assistant.slice(previous.length);
+    ctx.kiroDisplayedText = assistant;
+    return delta ? [{ kind: 'assistant_delta', text: delta }] : [];
+}
+
+/** Split parallel tool starts that Kiro prints on one physical line. */
+function splitKiroCompositeLine(line: string): string[] {
+    if (!KIRO_USING_TOOL_RE.test(line)) return [line];
+    const segments: string[] = [];
+    const re = /((?:Reading file:|Writing file:|I will run the following command:)[\s\S]*?\(using tool:\s*[^)]+\))/gi;
+    let match: RegExpExecArray | null;
+    let lastIndex = 0;
+    while ((match = re.exec(line)) !== null) {
+        const segment = match[1]?.trim();
+        if (segment) segments.push(segment);
+        lastIndex = re.lastIndex;
+    }
+    const tail = line.slice(lastIndex).trim();
+    if (tail) segments.push(tail);
+    return segments.length > 0 ? segments : [line];
+}
+
+export function flushKiroRemainingAssistantDelta(ctx: KiroStdoutContext): KiroStreamEvent[] {
+    const parsed = finalizeKiroFullText(ctx.fullText, ctx.kiroLineBuffer);
+    return emitKiroAssistantDelta(ctx, parsed);
+}
+
+function classifyKiroLine(line: string, ctx: KiroStdoutContext): KiroStreamEvent[] {
+    const trimmed = line.trim();
+    if (!trimmed || isKiroIgnoredLine(trimmed)) return [];
+
+    if (KIRO_TOOL_DONE_RE.test(trimmed)) {
+        if (!ctx.kiroActiveToolRef) return [];
+        const stepRef = ctx.kiroActiveToolRef;
+        const label = ctx.kiroActiveToolLabel || 'tool';
+        ctx.kiroActiveToolRef = null;
+        ctx.kiroActiveToolLabel = null;
+        return [{
+            kind: 'tool',
+            icon: '✅',
+            label,
+            stepRef,
+            status: 'done',
+        }];
+    }
+
+    const usingTool = KIRO_USING_TOOL_RE.exec(trimmed);
+    if (usingTool?.[1]) {
+        const toolName = usingTool[1].trim();
+        const stepRef = nextKiroToolRef(ctx);
+        ctx.kiroActiveToolRef = stepRef;
+        ctx.kiroActiveToolLabel = formatKiroToolLabel(trimmed, toolName);
+        return [{
+            kind: 'tool',
+            icon: kiroToolIcon(toolName),
+            label: ctx.kiroActiveToolLabel,
+            detail: trimmed,
+            stepRef,
+            status: 'running',
+        }];
+    }
+
+    if (KIRO_TOOL_SUCCESS_RE.test(trimmed) && ctx.kiroActiveToolRef) {
+        return [{
+            kind: 'tool',
+            icon: '🔧',
+            label: ctx.kiroActiveToolLabel || trimmed,
+            detail: trimmed,
+            stepRef: ctx.kiroActiveToolRef,
+            status: 'running',
+        }];
+    }
+
+    const responseMatch = KIRO_RESPONSE_LINE_RE.exec(trimmed);
+    if (responseMatch) {
+        const assistant = parseKiroAssistantText(ctx.fullText);
+        return emitKiroAssistantDelta(ctx, assistant);
+    }
+
+    return [];
+}
+
+export function processKiroStdoutChunk(
+    ctx: KiroStdoutContext,
+    chunk: string,
+    maxBytes = 102_400,
+): KiroStreamEvent[] {
+    const pending = `${ctx.kiroLineBuffer || ''}${chunk}`;
+    const parts = pending.split(/\r?\n/);
+    ctx.kiroLineBuffer = parts.pop() ?? '';
+
+    const completeText = parts.join('\n');
+    if (completeText) {
+        const prefix = ctx.fullText.length > 0 && !ctx.fullText.endsWith('\n') ? '\n' : '';
+        const addition = `${prefix}${completeText}\n`;
+        if (ctx.fullText.length < maxBytes) {
+            ctx.fullText += addition;
+        } else if (ctx.fullText.length < maxBytes + 100) {
+            ctx.fullText += addition.slice(0, maxBytes - ctx.fullText.length);
+        }
+    }
+
+    const events: KiroStreamEvent[] = [];
+    for (const rawLine of parts) {
+        const cleanLine = stripKiroAnsi(rawLine).trimEnd();
+        if (!cleanLine.trim()) continue;
+        for (const segment of splitKiroCompositeLine(cleanLine.trim())) {
+            events.push(...classifyKiroLine(segment, ctx));
+        }
+        events.push(...maybeKiroAssistantGrowth(ctx));
+    }
+    events.push(...maybePartialKiroAssistant(ctx));
+    return events;
+}
+
+export function flushKiroStdoutContext(ctx: KiroStdoutContext): KiroStreamEvent[] {
+    const pending = ctx.kiroLineBuffer || '';
+    ctx.kiroLineBuffer = '';
+    if (!pending.trim()) return flushKiroRemainingAssistantDelta(ctx);
+    const events = processKiroStdoutChunk(
+        ctx,
+        pending.endsWith('\n') || pending.endsWith('\r\n') ? pending : `${pending}\n`,
+    );
+    events.push(...flushKiroRemainingAssistantDelta(ctx));
+    return events;
+}
+
+export function appendKiroStdoutChunk(
+    ctx: KiroStdoutContext,
+    chunk: string,
+    maxBytes = 102_400,
+): string {
+    let delta = '';
+    for (const event of processKiroStdoutChunk(ctx, chunk, maxBytes)) {
+        if (event.kind === 'assistant_delta') delta += event.text;
+    }
+    return delta;
+}
+
+export function finalizeKiroFullText(fullText: string, lineBuffer = ''): string {
+    const bufferLine = stripKiroAnsi(lineBuffer).trim();
+    const synthetic = bufferLine
+        ? `${fullText}${fullText.length > 0 && !fullText.endsWith('\n') ? '\n' : ''}${bufferLine}`
+        : fullText;
+    return parseKiroAssistantText(synthetic) || parseKiroAssistantText(stripKiroAnsi(synthetic));
+}
