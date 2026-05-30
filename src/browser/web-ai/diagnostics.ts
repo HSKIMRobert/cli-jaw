@@ -212,21 +212,6 @@ async function safeCount(page: DiagnosticsPageLike, selector: string): Promise<n
     }
 }
 
-async function safeVisibleCount(page: DiagnosticsPageLike, selectors: string[]): Promise<number> {
-    let total = 0;
-    for (const selector of selectors) {
-        try {
-            const locators = await (page.locator(selector).all?.() ?? Promise.resolve([]));
-            for (const loc of locators) {
-                if (await loc.isVisible().catch(() => false)) total += 1;
-            }
-        } catch {
-            // ignore
-        }
-    }
-    return total;
-}
-
 async function readButtonState(page: DiagnosticsPageLike, selector: string): Promise<'enabled' | 'disabled' | 'absent'> {
     try {
         const loc = page.locator(selector).first();

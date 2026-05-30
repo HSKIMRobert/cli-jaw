@@ -5,7 +5,6 @@ import { stripUndefined } from '../../core/strip-undefined.js';
 import { cleanupPoolTabs, getPooledTab } from './tab-pool.js';
 import { finalizeProviderTab } from './tab-finalizer.js';
 import { listLeases, recordActiveLease } from './tab-lease-store.js';
-import { withSessionCommandLock } from './session-store.js';
 import { basename } from 'node:path';
 import { statSync } from 'node:fs';
 import { countConversationTurns } from './chatgpt-composer.js';
@@ -23,13 +22,11 @@ import {
     getBaseline,
     getSession,
     discoverConversationUrl,
-    incrementRecoveryCount,
     listSessions,
     pruneSessions,
     saveBaseline,
     updateSessionResult,
     updateSessionStatus,
-    updateSessionTabState,
 } from './session.js';
 import { captureAssistantResponse } from './chatgpt-response.js';
 import { selectChatGptModel } from './chatgpt-model.js';
@@ -41,7 +38,6 @@ import {
     captureWebAiDiagnostics,
     type WebAiFailureStage,
 } from './diagnostics.js';
-import { reportGeminiContractOnlyStatus, GEMINI_DEEP_THINK_OFFICIAL_SOURCES } from './gemini-contract.js';
 import { geminiSend, geminiPoll, geminiStop, geminiStatus } from './gemini-live.js';
 import { grokSend, grokPoll, grokStop, grokStatus, isGrokUrl } from './grok-live.js';
 import { ProviderRuntimeDisabledError } from './provider-adapter.js';
@@ -67,24 +63,11 @@ type SessionPageContext = {
     targetId: string;
     session: WebAiSessionRecord;
 };
-type BoundCommandInput = { vendor?: string; session?: string; [key: string]: unknown };
-type BoundCommandHandler = (port: number, input: BoundCommandInput) => Promise<WebAiOutput>;
-
 const CHATGPT_HOSTS = new Set(['chatgpt.com', 'chat.openai.com']);
 const ASSISTANT_SELECTORS = [
     '[data-message-author-role="assistant"]',
     '[data-turn="assistant"]',
     'article[data-testid^="conversation-turn"]',
-];
-const PLACEHOLDER_PATTERNS = [
-    /^answer now$/i,
-    /^pro thinking/i,
-    /^finalizing answer$/i,
-    /^instant$/i,
-    /^thinking$/i,
-    /^pro$/i,
-    /^configure\.{0,3}$/i,
-    /^\s*$/,
 ];
 
 export function isChatGptUrl(url: string): boolean {
@@ -228,21 +211,6 @@ async function withSessionPage<T>(port: number, sessionId: string, fn: (ctx: Ses
         const recovered = await resolvePage(true);
         return fn(recovered);
     }
-}
-
-async function runBoundCommand(port: number, command: string, input: BoundCommandInput, pollFn: BoundCommandHandler, stopFn: BoundCommandHandler): Promise<WebAiOutput> {
-    if (['poll', 'stop'].includes(command) && input.session) {
-        const sessionId = input.session;
-        return withSessionCommandLock(sessionId, async () => {
-            return withSessionPage(port, sessionId, async ({ session }) => {
-                const boundInput = { ...input, vendor: session.vendor, session: session.sessionId };
-                return command === 'poll' ? pollFn(port, boundInput) : stopFn(port, boundInput);
-            });
-        });
-    }
-    if (command === 'poll') return pollFn(port, input);
-    if (command === 'stop') return stopFn(port, input);
-    throw new Error(`runBoundCommand: unsupported command ${command}`);
 }
 
 export async function send(port: number, input: QuestionEnvelopeInput = {}): Promise<WebAiOutput> {
@@ -807,10 +775,6 @@ function parseSessionStatus(status?: string): WebAiSessionStatus | undefined {
     return undefined;
 }
 
-function errorMessage(error: unknown): string {
-    return error instanceof Error ? error.message : String(error ?? '');
-}
-
 async function requireVerifiedChatGptTab(port: number, vendor?: string): Promise<BrowserTabInfo> {
     const parsed = parseVendor(vendor);
     if (parsed === 'gemini') {
@@ -891,10 +855,6 @@ async function readAssistantMessages(page: Page): Promise<string[]> {
         if (messages.length > 0) break;
     }
     return messages;
-}
-
-function isFinalAnswer(text: string): boolean {
-    return !PLACEHOLDER_PATTERNS.some(pattern => pattern.test(text));
 }
 
 function cleanAssistantText(text: unknown): string {

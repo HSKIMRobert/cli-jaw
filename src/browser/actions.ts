@@ -31,7 +31,6 @@ type SnapshotState = {
 };
 
 type ClipRect = { x: number; y: number; width: number; height: number };
-type Point = { x: number; y: number };
 type BrowserActionOptions = Record<string, unknown>;
 type MouseButton = 'left' | 'right' | 'middle';
 type ScreenshotImageType = 'png' | 'jpeg';
@@ -60,16 +59,6 @@ const INTERACTIVE_ROLES = ['button', 'link', 'textbox', 'checkbox',
 
 function isRecord(value: unknown): value is JsonRecord {
     return Boolean(value && typeof value === 'object' && !Array.isArray(value));
-}
-
-function fieldString(record: JsonRecord, key: string): string {
-    const value = record[key];
-    return typeof value === 'string' ? value : '';
-}
-
-function optionString(opts: BrowserActionOptions, key: string, fallback = ''): string {
-    const value = opts[key];
-    return typeof value === 'string' ? value : fallback;
 }
 
 function optionBoolean(opts: BrowserActionOptions, key: string): boolean {

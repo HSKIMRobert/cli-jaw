@@ -1,10 +1,9 @@
 // ─── Slash Commands Registry + Dispatcher ───────────────────────────────
 // Handlers extracted to commands-handlers.js for 500-line compliance.
 
-import { CLI_KEYS, buildModelChoicesByCli } from './registry.js';
 import { t } from '../core/i18n.js';
 import {
-    formatDuration, unknownCommand, unsupportedCommand, normalizeResult,
+    unknownCommand, unsupportedCommand, normalizeResult,
     statusHandler, modelHandler, cliHandler, skillHandler, employeeHandler,
     thoughtHandler,
     clearHandler, purgeHandler, resetHandler, versionHandler, mcpHandler, memoryHandler,

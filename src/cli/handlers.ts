@@ -3,53 +3,16 @@
 
 import path from 'path';
 import fs from 'fs/promises';
-import { CLI_KEYS, buildModelChoicesByCli } from './registry.js';
+import { CLI_KEYS } from './registry.js';
 import { t } from '../core/i18n.js';
-import { detectCli, settings, JAW_HOME } from '../core/config.js';
+import { JAW_HOME } from '../core/config.js';
 import type { CliCommandContext } from './command-context.js';
 import type { SlashCommand, SlashResult, UnknownCommandRecovery } from './types.js';
 export { compactHandler } from './compact.js';
 
 const DEFAULT_CLI_CHOICES = [...CLI_KEYS];
-const MODEL_CHOICES_BY_CLI = buildModelChoicesByCli();
 
-function toChoiceKey(value: unknown) {
-    return String(value || '').trim().toLowerCase();
-}
 
-function dedupeChoices<T>(list: T[]): T[] {
-    const out: T[] = [];
-    const seen = new Set<string>();
-    for (const entry of list || []) {
-        const candidate: unknown = entry && typeof entry === 'object'
-            ? (entry as { value?: unknown }).value ?? entry
-            : entry;
-        const key = toChoiceKey(candidate);
-        if (!key || seen.has(key)) continue;
-        seen.add(key);
-        out.push(entry);
-    }
-    return out;
-}
-
-function getCliChoicesFromContext(ctx: CliCommandContext): string[] {
-    const s = (ctx as unknown as { settings?: { perCli?: Record<string, unknown> } }).settings;
-    const keys = Object.keys(s?.perCli || {});
-    return keys.length ? keys : DEFAULT_CLI_CHOICES;
-}
-
-function getModelChoicesFromContext(ctx: CliCommandContext): string[] {
-    const s = (ctx as unknown as {
-        settings?: { cli?: string; perCli?: Record<string, { model?: string } | undefined> };
-    }).settings;
-    const fromCatalog = (Object.values(MODEL_CHOICES_BY_CLI) as string[][]).flat();
-    const fromSettings = Object.values(s?.perCli || {})
-        .map((v) => v?.model)
-        .filter((m): m is string => Boolean(m));
-    const activeCli = s?.cli || '';
-    const currentModel = s?.perCli?.[activeCli]?.model;
-    return dedupeChoices([...fromCatalog, ...fromSettings, ...(currentModel ? [currentModel] : [])]);
-}
 
 async function safeCall<T>(
     fn: (() => Promise<T> | T) | undefined | null,

@@ -580,7 +580,7 @@ function toBrowserTabInfo(tab: RawCdpTab, index: number, activeTargetId: string 
     };
 }
 
-async function resolveActiveTargetId(port: number, tabs: RawCdpTab[]): Promise<string | null> {
+async function resolveActiveTargetId(_port: number, tabs: RawCdpTab[]): Promise<string | null> {
     if (verifiedActiveTargetId && tabs.some((t) => t.id === verifiedActiveTargetId)) {
         return verifiedActiveTargetId;
     }

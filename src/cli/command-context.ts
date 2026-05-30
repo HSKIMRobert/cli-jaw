@@ -4,14 +4,13 @@
 
 import fs from 'fs';
 import { settings, detectAllCli, APP_VERSION, deriveCdpPort } from '../core/config.js';
-import { getSession, clearMessages, updateSession } from '../core/db.js';
-import { broadcast } from '../core/bus.js';
-import { t, normalizeLocale } from '../core/i18n.js';
+import { getSession } from '../core/db.js';
+import { t } from '../core/i18n.js';
 import { getMergedSkills, A2_PATH, regenerateB } from '../prompt/builder.js';
 import { isAgentBusy, messageQueue } from '../agent/spawn.js';
 import * as browser from '../browser/index.js';
 import * as memory from '../memory/memory.js';
-import { bootstrapMemory, ensureMemoryStructure, getMemoryStatus, reindexMemory, searchIndexedMemory } from '../memory/runtime.js';
+import { bootstrapMemory, ensureMemoryStructure, getMemoryStatus, reindexMemory } from '../memory/runtime.js';
 import { searchMemoryWithPolicy } from '../memory/injection.js';
 import {
     loadUnifiedMcp, saveUnifiedMcp, syncToAll,
