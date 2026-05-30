@@ -45,33 +45,6 @@ export function handleCodexEvent(
                 }
             }
         }
-        if (evt.item?.type === 'command_execution') {
-            const exitCode = evt.item.exit_code ?? '?';
-            const itemId = evt.item.id || '';
-            const ref = itemId ? `codex:item:${itemId}` : undefined;
-            const existing = ref
-                ? [...ctx.toolLog].reverse().find((t) => t.stepRef === ref)
-                : null;
-            if (existing) {
-                existing.icon = exitCode === 0 ? '✅' : '❌';
-                existing.status = exitCode === 0 ? 'done' : 'error';
-                syncLiveTools(ctx);
-                emitAgentTool(ctx, agentLabel, existing, empTag);
-            } else {
-                const cmd = (evt.item.command || '').slice(0, 120);
-                const fallbackRef = ref || `codex:item:done:${ctx.toolLog.length}`;
-                const doneTool = {
-                    icon: exitCode === 0 ? '✅' : '❌',
-                    label: buildPreview(cmd, 80) || 'done',
-                    toolType: 'tool' as const,
-                    stepRef: fallbackRef,
-                    status: (exitCode === 0 ? 'done' : 'error') as 'done' | 'error',
-                };
-                ctx.toolLog.push(doneTool);
-                syncLiveTools(ctx);
-                emitAgentTool(ctx, agentLabel, doneTool, empTag);
-            }
-        }
         if (evt.item?.type === 'collab_tool_call'
             && ['spawn_agent', 'wait'].includes(String(evt.item.tool || evt.item.name || ''))) {
             ctx.hasActiveSubAgent = false;
@@ -89,22 +62,6 @@ export function handleCodexEvent(
                 ctx.traceLog.push(
                     `[watchdog] extended for ${detectedTimeout.commandKind} by ${Math.round((detectedTimeout.timeoutMs + bufferMs) / 1000)}s`,
                 );
-            }
-            const cmd = fullCommand.slice(0, 120);
-            const itemId = evt.item.id || '';
-            const tool = stripUndefined({
-                icon: '⚡',
-                label: buildPreview(cmd, 80) || 'command',
-                toolType: 'tool' as const,
-                detail: cmd,
-                stepRef: itemId ? `codex:item:${itemId}` : undefined,
-            });
-            const key = `${tool.icon}:${tool.label}:${tool.stepRef || ''}:`;
-            if (!ctx.seenToolKeys?.has(key)) {
-                ctx.seenToolKeys?.add(key);
-                ctx.toolLog.push(tool);
-                syncLiveTools(ctx);
-                emitAgentTool(ctx, agentLabel, tool, empTag);
             }
         }
         if (evt.item?.type === 'collab_tool_call'

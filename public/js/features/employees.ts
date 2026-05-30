@@ -53,8 +53,13 @@ function normalizeEmployeeModel(_cli: string, model?: string): string {
 }
 
 function getDefaultEmployeeModel(cli: string, models: string[]): string {
-    if (cli !== 'claude') return 'default';
-    if (models.includes('sonnet')) return 'sonnet';
+    if (cli === 'claude' || cli === 'claude-e') {
+        if (models.includes('claude-opus-4-8')) return 'claude-opus-4-8';
+        if (models.includes('opus')) return 'opus';
+    }
+    if (cli === 'codex' || cli === 'codex-app') {
+        if (models.includes('gpt-5.5')) return 'gpt-5.5';
+    }
     return models[0] || 'default';
 }
 

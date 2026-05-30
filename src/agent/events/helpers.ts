@@ -12,6 +12,7 @@ import type { CliEventRecord } from '../../types/cli-events.js';
 import type { SpawnContext, ToolEntry } from '../../types/agent.js';
 import { replaceLiveRunTools, appendLiveRunTool } from '../live-run-state.js';
 import { stampTraceToolEntries } from '../../trace/store.js';
+import { updateWorkerTools } from '../../orchestrator/worker-registry.js';
 
 // ─── Core utilities (used by ALL adapters) ───────────
 
@@ -39,11 +40,18 @@ export function emitAgentTool(
     tool: object,
     empTag: Record<string, unknown>,
 ): void {
+    const payload = { agentId: agentLabel, ...tool, ...empTag };
+    if (agentLabel && empTag["isEmployee"] === true) {
+        updateWorkerTools(agentLabel, ctx.toolLog);
+    }
     broadcast(
         'agent_tool',
-        { agentId: agentLabel, ...tool, ...empTag },
+        payload,
         ctx.traceAudience === 'internal' ? 'internal' : 'public',
     );
+    if (ctx.parentLiveScope && ctx.traceAudience === 'internal' && empTag["isEmployee"] === true) {
+        broadcast('agent_tool', payload, 'public');
+    }
 }
 
 export function pushTrace(ctx: SpawnContext | null | undefined, line: string) {

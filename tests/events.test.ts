@@ -838,6 +838,23 @@ test('P1-2.4: Codex failed command shows error icon and exit code', () => {
     assert.equal(labels[0].stepRef, 'codex:item:cmd-1');
 });
 
+test('Codex command labels hide shell login wrappers for display', () => {
+    const labels = extractToolLabelsForTest('codex', {
+        type: 'item.completed',
+        item: {
+            type: 'command_execution',
+            id: 'cmd-shell',
+            command: "/bin/zsh -lc 'git status --short'",
+            exit_code: 0,
+            aggregated_output: ' M README.md',
+        },
+    }, {});
+
+    assert.equal(labels[0].label, 'git status --short');
+    assert.equal(labels[0].detail, '$ git status --short\n M README.md');
+    assert.equal(labels[0].stepRef, 'codex:item:cmd-shell');
+});
+
 test('P0-1.3+1.4: Codex item.started emits running label with item.id stepRef', () => {
     const labels = extractToolLabelsForTest('codex', {
         type: 'item.started',
@@ -846,6 +863,19 @@ test('P0-1.3+1.4: Codex item.started emits running label with item.id stepRef', 
     assert.equal(labels[0].icon, '🔧');
     assert.equal(labels[0].status, 'running');
     assert.equal(labels[0].stepRef, 'codex:item:cmd-42');
+});
+
+test('Codex command start emits one process tool row', () => {
+    const ctx = { toolLog: [], fullText: '', seenToolKeys: new Set() };
+    extractFromEvent('codex', {
+        type: 'item.started',
+        item: { type: 'command_execution', id: 'cmd-zsh', command: "/bin/zsh -lc 'git status --short'" },
+    }, ctx, 'codex');
+
+    assert.equal(ctx.toolLog.length, 1);
+    assert.equal(ctx.toolLog[0].label, 'git status --short');
+    assert.equal(ctx.toolLog[0].stepRef, 'codex:item:cmd-zsh');
+    assert.equal(ctx.toolLog[0].status, 'running');
 });
 
 test('P0-1.10: ACP tool_call_update status mapping covers all known + unknown statuses', () => {
