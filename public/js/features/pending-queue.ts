@@ -11,6 +11,7 @@ import { ICONS } from '../icons.js';
 import { apiJson } from '../api.js';
 import { t } from './i18n.js';
 import { setStatus } from './ui-status.js';
+import { syncOrchestrateSnapshot } from '../ws.js';
 
 export interface PendingItem {
     id: string;
@@ -144,8 +145,13 @@ async function fire(id: string, action: Action): Promise<void> {
     if (action === 'steer') setStatus('running');
     const result = await apiJson<{ pending: number }>(path, method, {});
     if (result == null) {
-        unpaintArmed(id, action);
-        if (action === 'steer') setStatus('idle');
+        // Item may have been processed by processQueue while arm was pending.
+        // Remove from UI regardless — snapshot sync will reconcile.
+        lastItems = lastItems.filter(it => it.id !== id);
+        renderPendingQueue(lastItems);
+        if (action === 'steer') {
+            syncOrchestrateSnapshot('steer-fire-miss').catch(() => {});
+        }
         return;
     }
     lastItems = lastItems.filter(it => it.id !== id);

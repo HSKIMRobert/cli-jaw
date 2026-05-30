@@ -203,6 +203,7 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
                     const stopped = killActiveAgent('steer');
                     if (stopped) await waitForProcessEnd(steerWaitMs);
                 }
+                setSteerInProgress(false);
                 const task = isResetIntent(prompt)
                     ? orchestrateReset({ ...steerMeta, _skipInsert: true })
                     : isContinueIntent(prompt)
