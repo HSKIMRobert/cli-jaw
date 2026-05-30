@@ -25,7 +25,7 @@ export type ActiveOverride = {
     effort?: string;
 };
 
-export const PRIMARY_CLIS: ReadonlyArray<string> = ['claude', 'claude-e', 'agy', 'codex', 'cursor', 'gemini'];
+export const PRIMARY_CLIS: ReadonlyArray<string> = ['claude', 'claude-e', 'agy', 'codex', 'cursor', 'kiro-code', 'gemini'];
 
 export const CLI_META: Record<string, CliMeta> = {
     agy: {
@@ -116,6 +116,27 @@ export const CLI_META: Record<string, CliMeta> = {
         ],
         efforts: ['none', 'none-fast', 'low', 'low-fast', 'medium', 'medium-fast', 'high', 'high-fast', 'xhigh', 'xhigh-fast', 'max', 'max-fast'],
         effortNote: 'Cursor effort resolves to model IDs; no separate --effort flag',
+    },
+    'kiro-code': {
+        label: 'Kiro',
+        models: [
+            'auto',
+            'claude-opus-4.8',
+            'claude-opus-4.7',
+            'claude-opus-4.6',
+            'claude-sonnet-4.6',
+            'claude-opus-4.5',
+            'claude-sonnet-4.5',
+            'claude-sonnet-4',
+            'claude-haiku-4.5',
+            'deepseek-3.2',
+            'minimax-m2.5',
+            'minimax-m2.1',
+            'glm-5',
+            'qwen3-coder-next',
+        ],
+        efforts: [],
+        effortNote: 'Kiro CLI has no separate effort flag',
     },
     gemini: {
         label: 'Gemini',

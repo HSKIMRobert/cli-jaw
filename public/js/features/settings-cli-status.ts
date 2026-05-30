@@ -289,6 +289,7 @@ function renderCliStatus(data: { cliStatus: Record<string, { available: boolean 
         codex: { install: 'npm i -g @openai/codex', auth: 'codex login' },
         'codex-app': { install: 'npm i -g @openai/codex', auth: 'codex login' },
         cursor: { install: 'curl https://cursor.com/install -fsS | bash', auth: 'cursor-agent login, CURSOR_API_KEY, or CURSOR_SESSION_TOKEN for quota' },
+        'kiro-code': { install: 'Install Kiro CLI from https://kiro.dev/docs/cli', auth: 'kiro-cli login' },
         gemini: { install: 'npm i -g @google/gemini-cli', auth: `gemini  (${t('cli.gemini.auth')})` },
         grok: { install: 'curl -fsSL https://x.ai/cli/install.sh | bash', auth: 'grok login --oauth' },
         opencode: { install: 'npm i -g opencode-ai', auth: 'opencode auth' },

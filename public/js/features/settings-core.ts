@@ -11,6 +11,7 @@ import { loadDiscordSettings } from './settings-discord.js';
 import { loadActiveChannel, loadFallbackOrder } from './settings-channel.js';
 import { loadMcpServers } from './settings-mcp.js';
 import { providerIcon, providerLabel } from '../provider-icons.js';
+import { postPreviewInvalidate } from '../preview-parent-origin.js';
 
 let activeSettingsSave: Promise<void> | null = null;
 
@@ -336,6 +337,7 @@ export async function updateSettings(): Promise<void> {
             selCli.dataset['prev'] = confirmedCli;
         }
         setHeaderCli(confirmedCli);
+        postPreviewInvalidate(['instances'], 'active-cli-changed');
     })());
 }
 
@@ -518,7 +520,9 @@ export async function saveActiveCliSettings(): Promise<void> {
     if (effortEl && !effortEl.disabled) overrides[cli].effort = effortEl.value || '';
     const patch: Record<string, unknown> = { activeOverrides: overrides };
     if (cli === 'ai-e') patch['perCli'] = { 'ai-e': { provider: getSelectedAiEProvider() } };
-    await apiJson('/api/settings', 'PUT', patch);
+    if (await apiJson('/api/settings', 'PUT', patch)) {
+        postPreviewInvalidate(['instances'], 'active-cli-changed');
+    }
 }
 
 // ── Flush Agent Sidebar ──
