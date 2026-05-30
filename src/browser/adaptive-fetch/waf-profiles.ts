@@ -1,10 +1,8 @@
-// @ts-nocheck
 // Mirrored from agbrowse adaptive-fetch v2; keep runtime behavior aligned while cli-jaw mirror remains experimental.
 
-/** @typedef {{ id: string, detect: { cookies?: RegExp[], headers?: Record<string, RegExp>, body?: RegExp[], status?: number[] }, behavior: { jsChallengeSolvable?: boolean, interactiveCaptcha?: boolean, cookieWarmingHelps?: boolean, userSessionHelps?: boolean } }} WafProfile */
+import type { WafProfile } from './types.js';
 
-/** @type {WafProfile[]} */
-export const WAF_PROFILES = [
+export const WAF_PROFILES: WafProfile[] = [
     {
         id: 'cloudflare_managed_challenge',
         detect: {
@@ -96,18 +94,11 @@ export const WAF_PROFILES = [
     },
 ];
 
-/**
- * @param {string} id
- */
-export function getProfileById(id) {
+export function getProfileById(id: string): WafProfile | null {
     return WAF_PROFILES.find(p => p.id === id) || null;
 }
 
-/**
- * @param {WafProfile} profile
- * @param {{ cookies?: string[], headers?: Record<string, string>, body?: string, status?: number }} signals
- */
-export function scoreProfile(profile, signals) {
+export function scoreProfile(profile: WafProfile, signals: { cookies?: string[]; headers?: Record<string, string>; body?: string; status?: number }): number {
     let score = 0;
     const detect = profile.detect;
     if (detect.cookies && signals.cookies) {

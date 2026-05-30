@@ -1,15 +1,10 @@
-// @ts-nocheck
 // Mirrored from agbrowse adaptive-fetch v2; keep runtime behavior aligned while cli-jaw mirror remains experimental.
 
 export const DEFAULT_OUTPUT_CONTENT_BYTES = 64 * 1024;
 
-/**
- * @param {Record<string, any>} result
- * @param {{ contentLimitBytes?: number }} [options]
- */
-export function compactAdaptiveFetchResult(result, options = {}) {
+export function compactAdaptiveFetchResult(result: Record<string, unknown>, options: { contentLimitBytes?: number } = {}): Record<string, unknown> {
     const limit = positiveInteger(options.contentLimitBytes, DEFAULT_OUTPUT_CONTENT_BYTES);
-    const compacted = truncateTextToUtf8Bytes(result.content || '', limit);
+    const compacted = truncateTextToUtf8Bytes((result['content'] as string) || '', limit);
     return {
         ...result,
         content: compacted.text,
@@ -19,11 +14,7 @@ export function compactAdaptiveFetchResult(result, options = {}) {
     };
 }
 
-/**
- * @param {string} text
- * @param {number} limit
- */
-export function truncateTextToUtf8Bytes(text, limit) {
+export function truncateTextToUtf8Bytes(text: string, limit: number): { text: string; bytes: number; limit: number; truncated: boolean } {
     const value = String(text || '');
     const safeLimit = positiveInteger(limit, DEFAULT_OUTPUT_CONTENT_BYTES);
     const bytes = Buffer.byteLength(value, 'utf8');
@@ -37,15 +28,11 @@ export function truncateTextToUtf8Bytes(text, limit) {
     return { text: truncated, bytes, limit: safeLimit, truncated: true };
 }
 
-/**
- * @param {string} text
- * @param {{ write: Function }} [stdout]
- */
-export function writeStdoutLine(text, stdout = process.stdout) {
+export function writeStdoutLine(text: string, stdout: { write: (chunk: string, cb?: (error?: Error | null) => void) => boolean } = process.stdout): Promise<void> {
     const chunk = text.endsWith('\n') ? text : `${text}\n`;
     return new Promise((resolve, reject) => {
         let settled = false;
-        const done = (error) => {
+        const done = (error?: Error | null): void => {
             if (settled) return;
             settled = true;
             if (error) reject(error);
@@ -55,16 +42,12 @@ export function writeStdoutLine(text, stdout = process.stdout) {
             const accepted = stdout.write(chunk, done);
             if (accepted && stdout !== process.stdout) done();
         } catch (error) {
-            done(error);
+            done(error as Error);
         }
     });
 }
 
-/**
- * @param {unknown} value
- * @param {number} fallback
- */
-function positiveInteger(value, fallback) {
+function positiveInteger(value: unknown, fallback: number): number {
     const n = Number(value);
     return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 }

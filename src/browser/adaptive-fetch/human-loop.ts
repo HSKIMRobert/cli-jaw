@@ -1,17 +1,26 @@
-// @ts-nocheck
 // Mirrored from agbrowse adaptive-fetch v2; keep runtime behavior aligned while cli-jaw mirror remains experimental.
 
 import { navigateInUserSession } from './browser-session.js';
 
 const DEFAULT_HUMAN_TIMEOUT_MS = 300_000; // 5 minutes
 
-/**
- * @param {string} url
- * @param {{ interactive?: boolean, browserSession?: string, browserSessionRaw?: string, browserDeps?: any, timeoutMs?: number, humanTimeoutMs?: number, selector?: string|null, allowPrivateNetwork?: boolean }} options
- * @param {{ type?: string|null, primary?: any }} challengeInfo
- * @returns {Promise<{ ok: boolean, verdict?: string, source?: string, finalUrl?: string, title?: string, text?: string, contentType?: string, status?: number, session?: string, evidence?: string[], warnings?: string[], safetyFlags?: string[], humanActionNeeded?: boolean, actionMessage?: string }>}
- */
-export async function humanResolve(url, options, challengeInfo) {
+interface HumanLoopOptions {
+    interactive?: boolean;
+    browserSession?: string;
+    browserSessionRaw?: string;
+    browserDeps?: Record<string, unknown>;
+    timeoutMs?: number;
+    humanTimeoutMs?: number;
+    selector?: string | null;
+    allowPrivateNetwork?: boolean;
+}
+
+interface ChallengeInfoInput {
+    type?: string | null;
+    primary?: { profile?: { id?: string } } | null;
+}
+
+export async function humanResolve(url: string, options: HumanLoopOptions, challengeInfo: ChallengeInfoInput) {
     const rawSession = options.browserSessionRaw || options.browserSession;
     if (!options.interactive && rawSession !== 'interactive') {
         return {
@@ -34,12 +43,7 @@ export async function humanResolve(url, options, challengeInfo) {
     };
 }
 
-/**
- * @param {{ type?: string|null, primary?: any }} challengeInfo
- * @param {string} url
- * @returns {string}
- */
-function formatChallengeMessage(challengeInfo, url) {
+function formatChallengeMessage(challengeInfo: ChallengeInfoInput, url: string): string {
     switch (challengeInfo.type) {
         case 'challenge': {
             const waf = challengeInfo.primary?.profile?.id ?? 'unknown';
@@ -67,29 +71,16 @@ function formatChallengeMessage(challengeInfo, url) {
     }
 }
 
-/**
- * @param {{ type?: string|null }} challengeInfo
- * @param {string} url
- * @returns {string}
- */
-function formatNonInteractiveMessage(challengeInfo, url) {
+function formatNonInteractiveMessage(challengeInfo: ChallengeInfoInput, url: string): string {
     const type = challengeInfo.type || 'obstacle';
     return `${type} detected at ${url}. Run with --browser-session interactive to resolve.`;
 }
 
-/**
- * @param {string} message
- * @returns {Promise<void>}
- */
-async function presentToUser(message) {
+async function presentToUser(message: string): Promise<void> {
     process.stderr.write('\n' + message + '\n');
 }
 
-/**
- * @param {number} timeoutMs
- * @returns {Promise<void>}
- */
-async function waitForUserSignal(timeoutMs) {
+async function waitForUserSignal(timeoutMs: number): Promise<void> {
     return new Promise((resolve, reject) => {
         if (!process.stdin.readable) {
             resolve(undefined);
@@ -99,8 +90,7 @@ async function waitForUserSignal(timeoutMs) {
             process.stdin.removeListener('data', onData);
             reject(new Error(`human-loop timeout after ${timeoutMs}ms`));
         }, timeoutMs);
-        /** @param {any} _data */
-        function onData(_data) {
+        function onData(_data: Buffer) {
             clearTimeout(timer);
             resolve(undefined);
         }

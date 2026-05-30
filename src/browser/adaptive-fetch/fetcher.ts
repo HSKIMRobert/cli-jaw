@@ -1,19 +1,17 @@
-// @ts-nocheck
 // Mirrored from agbrowse adaptive-fetch v2; keep runtime behavior aligned while cli-jaw mirror remains experimental.
 
 import { DEFAULT_MAX_BYTES, DEFAULT_REDIRECT_LIMIT, DEFAULT_TIMEOUT_MS, redactHeaders, validateFetchUrl } from './safety.js';
 import { isTextualContentType } from './transforms.js';
 
-/**
- * @param {string} rawUrl
- * @param {{ maxBytes?: number, timeoutMs?: number, redirectLimit?: number, allowPrivateNetwork?: boolean, fetchImpl?: typeof fetch }} [options]
- */
-export async function fetchTextCandidate(rawUrl, options = {}) {
+import type { FetchTextCandidateOptions } from './types.js';
+
+export async function fetchTextCandidate(rawUrl: string, options: FetchTextCandidateOptions = {}) {
     const maxBytes = Number(options.maxBytes || DEFAULT_MAX_BYTES);
     const timeoutMs = Number(options.timeoutMs || DEFAULT_TIMEOUT_MS);
     const redirectLimit = Number(options.redirectLimit ?? DEFAULT_REDIRECT_LIMIT);
     const fetchImpl = options.fetchImpl || fetch;
-    let current = validateFetchUrl(rawUrl, { allowPrivateNetwork: options.allowPrivateNetwork }).href;
+    const safetyOpts = options.allowPrivateNetwork != null ? { allowPrivateNetwork: options.allowPrivateNetwork } : {};
+    let current = validateFetchUrl(rawUrl, safetyOpts).href;
     for (let redirects = 0; redirects <= redirectLimit; redirects += 1) {
         const response = await fetchImpl(current, {
             redirect: 'manual',
@@ -22,7 +20,7 @@ export async function fetchTextCandidate(rawUrl, options = {}) {
         });
         if (response.status >= 300 && response.status < 400 && response.headers.get('location')) {
             const next = new URL(response.headers.get('location') || '', current);
-            current = validateFetchUrl(next.href, { allowPrivateNetwork: options.allowPrivateNetwork }).href;
+            current = validateFetchUrl(next.href, safetyOpts).href;
             continue;
         }
         const contentType = response.headers.get('content-type') || '';
@@ -46,18 +44,14 @@ export async function fetchTextCandidate(rawUrl, options = {}) {
             contentType,
             text,
             headers: redactHeaders(headers),
-            evidence: [`http-${response.status}`, contentType || 'unknown-content-type', body.streamed ? 'stream-limited' : null].filter(Boolean),
+            evidence: [`http-${response.status}`, contentType || 'unknown-content-type', body.streamed ? 'stream-limited' : null].filter((v): v is string => v != null),
             warnings: body.warning ? [body.warning] : [],
         };
     }
     return blockedResult(current, 0, '', {}, 'redirect-limit-exceeded');
 }
 
-/**
- * @param {Response} response
- * @param {number} maxBytes
- */
-async function readTextWithLimit(response, maxBytes) {
+async function readTextWithLimit(response: Response, maxBytes: number) {
     const body = response.body;
     if (!body || typeof body.getReader !== 'function') {
         const text = await response.text();
@@ -65,12 +59,12 @@ async function readTextWithLimit(response, maxBytes) {
             ok: Buffer.byteLength(text, 'utf8') <= maxBytes,
             text,
             streamed: false,
-            warning: 'body-read-without-stream-limit',
+            warning: 'body-read-without-stream-limit' as string | null,
         };
     }
     const reader = body.getReader();
     const decoder = new TextDecoder();
-    const chunks = [];
+    const chunks: string[] = [];
     let bytes = 0;
     while (true) {
         const { done, value } = await reader.read();
@@ -78,22 +72,15 @@ async function readTextWithLimit(response, maxBytes) {
         bytes += value?.byteLength || 0;
         if (bytes > maxBytes) {
             await reader.cancel().catch(() => undefined);
-            return { ok: false, text: '', streamed: true, warning: null };
+            return { ok: false, text: '', streamed: true, warning: null as string | null };
         }
         chunks.push(decoder.decode(value, { stream: true }));
     }
     chunks.push(decoder.decode());
-    return { ok: true, text: chunks.join(''), streamed: true, warning: null };
+    return { ok: true, text: chunks.join(''), streamed: true, warning: null as string | null };
 }
 
-/**
- * @param {string} finalUrl
- * @param {number} status
- * @param {string} contentType
- * @param {Record<string, unknown>} headers
- * @param {string} reason
- */
-function blockedResult(finalUrl, status, contentType, headers, reason) {
+function blockedResult(finalUrl: string, status: number, contentType: string, headers: Record<string, string>, reason: string) {
     return {
         ok: false,
         status,

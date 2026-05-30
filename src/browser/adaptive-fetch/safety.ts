@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Mirrored from agbrowse adaptive-fetch v2; keep runtime behavior aligned while cli-jaw mirror remains experimental.
 
 import net from 'node:net';
@@ -42,7 +41,7 @@ const SENSITIVE_HEADER_KEYS = new Set([
     'x-auth-token',
 ]);
 
-const SPECIAL_USE_IPV6_CIDRS = [
+const SPECIAL_USE_IPV6_CIDRS: Array<[string, number]> = [
     ['::', 128],
     ['::1', 128],
     ['::ffff:0:0', 96],
@@ -66,11 +65,10 @@ const SPECIAL_USE_IPV6_CIDRS = [
 ];
 
 export class AdaptiveFetchInputError extends Error {
-    /**
-     * @param {string} message
-     * @param {{ code?: string, url?: string }} [details]
-     */
-    constructor(message, details = {}) {
+    code: string;
+    url: string | null;
+
+    constructor(message: string, details: { code?: string; url?: string } = {}) {
         super(message);
         this.name = 'AdaptiveFetchInputError';
         this.code = details.code || 'invalid-url';
@@ -78,15 +76,11 @@ export class AdaptiveFetchInputError extends Error {
     }
 }
 
-/**
- * @param {string} rawUrl
- * @param {{ allowPrivateNetwork?: boolean }} [options]
- */
-export function validateFetchUrl(rawUrl, options = {}) {
+export function validateFetchUrl(rawUrl: string, options: { allowPrivateNetwork?: boolean } = {}): URL {
     if (typeof rawUrl !== 'string' || rawUrl.trim() === '') {
         throw new AdaptiveFetchInputError('fetch requires a URL', { code: 'missing-url' });
     }
-    let parsed;
+    let parsed: URL;
     try {
         parsed = new URL(rawUrl.trim());
     } catch {
@@ -95,28 +89,25 @@ export function validateFetchUrl(rawUrl, options = {}) {
     if (!['http:', 'https:'].includes(parsed.protocol)) {
         throw new AdaptiveFetchInputError(`unsupported URL scheme: ${parsed.protocol}`, {
             code: 'unsupported-scheme',
-            url: redactTraceValue(parsed.href),
+            url: redactTraceValue(parsed.href) as string,
         });
     }
     if (parsed.username || parsed.password) {
         throw new AdaptiveFetchInputError('credential-bearing URLs are not allowed', {
             code: 'credential-url',
-            url: redactTraceValue(parsed.href),
+            url: redactTraceValue(parsed.href) as string,
         });
     }
     if (!options.allowPrivateNetwork && isPrivateHostname(parsed.hostname)) {
         throw new AdaptiveFetchInputError(`private or local host is not allowed: ${parsed.hostname}`, {
             code: 'private-network',
-            url: redactTraceValue(parsed.href),
+            url: redactTraceValue(parsed.href) as string,
         });
     }
     return parsed;
 }
 
-/**
- * @param {string} hostname
- */
-export function isPrivateHostname(hostname) {
+export function isPrivateHostname(hostname: string): boolean {
     const host = hostname.replace(/^\[|\]$/g, '').toLowerCase();
     if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local')) return true;
     const ipVersion = net.isIP(host);
@@ -125,13 +116,11 @@ export function isPrivateHostname(hostname) {
     return false;
 }
 
-/**
- * @param {string} ip
- */
-export function isPrivateIpv4(ip) {
+export function isPrivateIpv4(ip: string): boolean {
     const parts = ip.split('.').map(Number);
     if (parts.length !== 4 || parts.some(n => !Number.isInteger(n) || n < 0 || n > 255)) return true;
-    const [a, b] = parts;
+    const a = parts[0]!;
+    const b = parts[1]!;
     if (a === 0 || a === 10 || a === 127) return true;
     if (a === 169 && b === 254) return true;
     if (a === 172 && b >= 16 && b <= 31) return true;
@@ -141,26 +130,20 @@ export function isPrivateIpv4(ip) {
     return false;
 }
 
-/**
- * @param {string} ip
- */
-export function isPrivateIpv6(ip) {
+export function isPrivateIpv6(ip: string): boolean {
     const normalized = ip.toLowerCase();
     const mapped = ipv4FromMappedIpv6(normalized);
     if (mapped) return true;
-    return SPECIAL_USE_IPV6_CIDRS.some(([base, bits]) => ipv6CidrContains(String(base), Number(bits), normalized));
+    return SPECIAL_USE_IPV6_CIDRS.some(([base, bits]) => ipv6CidrContains(base, bits, normalized));
 }
 
-/**
- * @param {string} ip
- */
-function ipv4FromMappedIpv6(ip) {
+function ipv4FromMappedIpv6(ip: string): string {
     const dotted = ip.match(/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i);
-    if (dotted) return dotted[1];
+    if (dotted) return dotted[1]!;
     const hex = ip.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i);
     if (!hex) return '';
-    const high = parseInt(hex[1], 16);
-    const low = parseInt(hex[2], 16);
+    const high = parseInt(hex[1]!, 16);
+    const low = parseInt(hex[2]!, 16);
     if (![high, low].every(Number.isFinite)) return '';
     return [
         (high >> 8) & 255,
@@ -170,12 +153,7 @@ function ipv4FromMappedIpv6(ip) {
     ].join('.');
 }
 
-/**
- * @param {string} base
- * @param {number} bits
- * @param {string} ip
- */
-function ipv6CidrContains(base, bits, ip) {
+function ipv6CidrContains(base: string, bits: number, ip: string): boolean {
     const baseValue = ipv6ToBigInt(base);
     const ipValue = ipv6ToBigInt(ip);
     if (baseValue === null || ipValue === null || bits < 0 || bits > 128) return true;
@@ -184,11 +162,7 @@ function ipv6CidrContains(base, bits, ip) {
     return (baseValue >> shift) === (ipValue >> shift);
 }
 
-/**
- * @param {string} ip
- * @returns {bigint|null}
- */
-function ipv6ToBigInt(ip) {
+function ipv6ToBigInt(ip: string): bigint | null {
     const text = ip.toLowerCase();
     if (text.includes('.')) return null;
     const parts = text.split('::');
@@ -197,7 +171,7 @@ function ipv6ToBigInt(ip) {
     const tail = parts.length === 2 && parts[1] ? parts[1].split(':') : [];
     const missing = 8 - head.length - tail.length;
     if (missing < 0) return null;
-    const groups = [...head, ...Array(missing).fill('0'), ...tail];
+    const groups = [...head, ...Array(missing).fill('0') as string[], ...tail];
     if (groups.length !== 8) return null;
     let value = 0n;
     for (const group of groups) {
@@ -209,10 +183,7 @@ function ipv6ToBigInt(ip) {
     return value;
 }
 
-/**
- * @param {string|URL} rawUrl
- */
-export function hasSensitiveQueryParams(rawUrl) {
+export function hasSensitiveQueryParams(rawUrl: string | URL): boolean {
     const parsed = rawUrl instanceof URL ? rawUrl : new URL(String(rawUrl));
     for (const key of parsed.searchParams.keys()) {
         if (isSensitiveQueryKey(key)) return true;
@@ -220,24 +191,18 @@ export function hasSensitiveQueryParams(rawUrl) {
     return false;
 }
 
-/**
- * @param {string|URL} rawUrl
- */
-export function validateThirdPartyReaderTarget(rawUrl) {
+export function validateThirdPartyReaderTarget(rawUrl: string | URL): URL {
     const parsed = validateFetchUrl(String(rawUrl), { allowPrivateNetwork: false });
     if (hasSensitiveQueryParams(parsed)) {
         throw new AdaptiveFetchInputError('third-party reader target contains sensitive query parameters', {
             code: 'sensitive-query',
-            url: redactTraceValue(parsed.href),
+            url: redactTraceValue(parsed.href) as string,
         });
     }
     return parsed;
 }
 
-/**
- * @param {unknown} value
- */
-export function redactTraceValue(value) {
+export function redactTraceValue(value: unknown): unknown {
     if (typeof value !== 'string') return value;
     let text = value;
     try {
@@ -256,22 +221,15 @@ export function redactTraceValue(value) {
         .replace(/\b(access_token|api_key|apikey|auth|auth_token|password|passwd|secret|session|session_id|sig|signature|token|jwt|x-amz-security-token|x-amz-signature|awsaccesskeyid|client_secret)=([^&\s]+)/ig, '$1=[redacted]');
 }
 
-/**
- * @param {Record<string, unknown>} headers
- */
-export function redactHeaders(headers = {}) {
-    /** @type {Record<string, unknown>} */
-    const redacted = {};
+export function redactHeaders(headers: Record<string, unknown> = {}): Record<string, unknown> {
+    const redacted: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(headers)) {
         redacted[key] = SENSITIVE_HEADER_KEYS.has(key.toLowerCase()) ? '[redacted]' : redactTraceValue(value);
     }
     return redacted;
 }
 
-/**
- * @param {string} key
- */
-function isSensitiveQueryKey(key) {
+function isSensitiveQueryKey(key: string): boolean {
     const normalized = String(key)
         .toLowerCase()
         .replace(/\[\]$/g, '')

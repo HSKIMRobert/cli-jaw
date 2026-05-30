@@ -1,28 +1,25 @@
-// @ts-nocheck
 // Mirrored from agbrowse adaptive-fetch v2; keep runtime behavior aligned while cli-jaw mirror remains experimental.
 
+import type { BrowserCandidateOptions } from './types.js';
 import { closeFetchBrowserPage, getFetchBrowserPage } from './browser-runtime.js';
-import { classifyAccessBoundary, detectChallengeMarkers, detectWafChallenge } from './challenge-detector.js';
+import { classifyAccessBoundary, detectChallengeMarkers } from './challenge-detector.js';
 import { validateFetchUrl } from './safety.js';
 import { classifyBoundarySignals } from './validators.js';
 
-/**
- * @param {string} url
- * @param {{ browserDeps?: any, browserSession?: 'none'|'isolated'|'existing', timeoutMs?: number, selector?: string|null, allowPrivateNetwork?: boolean, challengeInfo?: any }} [options]
- */
-export async function collectBrowserCandidate(url, options = {}) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyPage = any;
+
+export async function collectBrowserCandidate(url: string, options: BrowserCandidateOptions = {}): Promise<Record<string, unknown>> {
     const pageRef = await getFetchBrowserPage({
-        browserDeps: options.browserDeps,
+        ...(options.browserDeps ? { browserDeps: options.browserDeps } : {}),
         browserSession: options.browserSession || 'isolated',
     });
-    const page = pageRef.page;
-    /** @type {any[]} */
-    const networkCandidates = [];
-    /** @param {any} response */
-    const onResponse = async (response) => {
+    const page: AnyPage = pageRef.page;
+    const networkCandidates: Record<string, unknown>[] = [];
+    const onResponse = async (response: AnyPage) => {
         try {
             const finalUrl = validateFetchUrl(response.url?.() || url, {
-                allowPrivateNetwork: options.allowPrivateNetwork,
+                ...(options.allowPrivateNetwork != null ? { allowPrivateNetwork: options.allowPrivateNetwork } : {}),
             }).href;
             if (isTrackingEndpoint(finalUrl) || isAuthEndpoint(finalUrl)) return;
             const contentType = response.headers?.()['content-type'] || '';
@@ -59,16 +56,16 @@ export async function collectBrowserCandidate(url, options = {}) {
         }
 
         const challengeInfo = options.challengeInfo;
-        if (challengeInfo?.primary?.behavior?.jsChallengeSolvable) {
+        if ((challengeInfo as AnyPage)?.primary?.behavior?.jsChallengeSolvable) {
             await waitForChallengeResolution(page, 10000);
         } else if (typeof page.waitForTimeout === 'function') {
             await page.waitForTimeout(300).catch(() => undefined);
         }
 
-        const finalUrl = typeof page.url === 'function' ? page.url() : url;
+        const finalUrl: string = typeof page.url === 'function' ? page.url() : url;
         try {
-            validateFetchUrl(finalUrl, { allowPrivateNetwork: options.allowPrivateNetwork });
-        } catch (error) {
+            validateFetchUrl(finalUrl, { ...(options.allowPrivateNetwork != null ? { allowPrivateNetwork: options.allowPrivateNetwork } : {}) });
+        } catch (error: unknown) {
             return {
                 source: 'browser',
                 label: 'browser-render',
@@ -80,11 +77,11 @@ export async function collectBrowserCandidate(url, options = {}) {
                 ok: false,
                 metadata: null,
                 evidence: ['browser-final-url-rejected'],
-                warnings: [(/** @type {any} */ (error)).code || 'browser-final-url-rejected'],
+                warnings: [(error as AnyPage).code || 'browser-final-url-rejected'],
                 networkCandidates,
             };
         }
-        const title = typeof page.title === 'function' ? await page.title() : '';
+        const title: string = typeof page.title === 'function' ? await page.title() : '';
         const text = await readVisibleText(page, options.selector);
         const markers = detectChallengeMarkers({ url: finalUrl, title, text, status: navStatus });
         const boundary = classifyAccessBoundary(markers);
@@ -114,11 +111,7 @@ export async function collectBrowserCandidate(url, options = {}) {
     }
 }
 
-/**
- * @param {any} page
- * @param {string|null|undefined} selector
- */
-async function readVisibleText(page, selector) {
+async function readVisibleText(page: AnyPage, selector: string | null | undefined): Promise<string> {
     if (selector && typeof page.locator === 'function') {
         const locator = page.locator(selector).first();
         return locator.innerText({ timeout: 2000 }).catch(() => '');
@@ -129,18 +122,11 @@ async function readVisibleText(page, selector) {
     return '';
 }
 
-/**
- * @param {any} browserResult
- */
-export function collectNetworkJsonCandidates(browserResult) {
-    return Array.isArray(browserResult?.networkCandidates) ? browserResult.networkCandidates : [];
+export function collectNetworkJsonCandidates(browserResult: Record<string, unknown>): Record<string, unknown>[] {
+    return Array.isArray(browserResult['networkCandidates']) ? browserResult['networkCandidates'] as Record<string, unknown>[] : [];
 }
 
-/**
- * @param {any} page
- * @param {number} timeoutMs
- */
-async function waitForChallengeResolution(page, timeoutMs) {
+async function waitForChallengeResolution(page: AnyPage, timeoutMs: number): Promise<boolean> {
     if (typeof page.evaluate !== 'function') return false;
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
@@ -152,22 +138,16 @@ async function waitForChallengeResolution(page, timeoutMs) {
         if (typeof page.waitForTimeout === 'function') {
             await page.waitForTimeout(500).catch(() => undefined);
         } else {
-            await new Promise(r => setTimeout(r, 500));
+            await new Promise<void>(r => setTimeout(r, 500));
         }
     }
     return false;
 }
 
-/**
- * @param {string} url
- */
-function isTrackingEndpoint(url) {
+function isTrackingEndpoint(url: string): boolean {
     return /analytics|tracking|telemetry|beacon|pixel|statsig|feature[-_]?flag|experiment|optimizely|launchdarkly|config|metrics|events?|collect|sentry|datadog|segment|braze|adservice|doubleclick|log\b/i.test(url);
 }
 
-/**
- * @param {string} url
- */
-function isAuthEndpoint(url) {
+function isAuthEndpoint(url: string): boolean {
     return /\/auth[\/\?]|\/login[\/\?]|\/token[\/\?]|\/session[\/\?]|\/oauth[\/\?]|\/signin[\/\?]/i.test(url);
 }

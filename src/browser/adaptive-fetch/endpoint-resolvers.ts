@@ -1,10 +1,8 @@
-// @ts-nocheck
 // Mirrored from agbrowse adaptive-fetch v2; keep runtime behavior aligned while cli-jaw mirror remains experimental.
 
-/**
- * @param {string|URL} rawUrl
- */
-export function resolvePublicEndpointCandidates(rawUrl) {
+import type { CandidateUrl } from './types.js';
+
+export function resolvePublicEndpointCandidates(rawUrl: string | URL): CandidateUrl[] {
     const url = rawUrl instanceof URL ? rawUrl : new URL(String(rawUrl));
     return [
         ...githubCandidates(url),
@@ -27,10 +25,7 @@ export function resolvePublicEndpointCandidates(rawUrl) {
     ];
 }
 
-/**
- * @param {URL} url
- */
-function githubCandidates(url) {
+function githubCandidates(url: URL): CandidateUrl[] {
     if (url.hostname !== 'github.com') return [];
     const parts = url.pathname.split('/').filter(Boolean);
     if (parts.length >= 5 && parts[2] === 'blob') {
@@ -51,10 +46,7 @@ function githubCandidates(url) {
     return [];
 }
 
-/**
- * @param {URL} url
- */
-function redditCandidates(url) {
+function redditCandidates(url: URL): CandidateUrl[] {
     if (!/(^|\.)reddit\.com$/i.test(url.hostname)) return [];
     if (url.pathname.endsWith('.json')) return [];
     const clone = new URL(url.href);
@@ -62,10 +54,7 @@ function redditCandidates(url) {
     return [{ label: 'reddit-json', url: clone.href, source: 'public_endpoint' }];
 }
 
-/**
- * @param {URL} url
- */
-function hackerNewsCandidates(url) {
+function hackerNewsCandidates(url: URL): CandidateUrl[] {
     if (url.hostname !== 'news.ycombinator.com') return [];
     const id = url.searchParams.get('id');
     if (!id || !/^\d+$/.test(id)) return [];
@@ -83,10 +72,7 @@ function hackerNewsCandidates(url) {
     ];
 }
 
-/**
- * @param {URL} url
- */
-function wikipediaCandidates(url) {
+function wikipediaCandidates(url: URL): CandidateUrl[] {
     const match = url.hostname.match(/^([a-z-]+)\.wikipedia\.org$/i);
     if (!match) return [];
     const parts = url.pathname.split('/').filter(Boolean);
@@ -98,10 +84,7 @@ function wikipediaCandidates(url) {
     }];
 }
 
-/**
- * @param {URL} url
- */
-function registryCandidates(url) {
+function registryCandidates(url: URL): CandidateUrl[] {
     const parts = url.pathname.split('/').filter(Boolean);
     if (url.hostname === 'www.npmjs.com' && parts[0] === 'package' && parts[1]) {
         const decodedParts = decodeURIComponent(parts.slice(1).join('/')).split('/').filter(Boolean);
@@ -113,7 +96,7 @@ function registryCandidates(url) {
             ? decodedParts[3]
             : (!packageName.startsWith('@') && decodedParts[1] === 'v' ? decodedParts[2] : '');
         const encodedPackageName = encodeURIComponent(packageName);
-        const candidates = [];
+        const candidates: CandidateUrl[] = [];
         if (version) {
             candidates.push({
                 label: 'npm-registry-version',
@@ -139,20 +122,14 @@ function registryCandidates(url) {
     return [];
 }
 
-/**
- * @param {URL} url
- */
-function arxivCandidates(url) {
+function arxivCandidates(url: URL): CandidateUrl[] {
     if (url.hostname !== 'arxiv.org') return [];
     const parts = url.pathname.split('/').filter(Boolean);
     if (parts[0] !== 'abs' || !parts[1]) return [];
     return [{ label: 'arxiv-api', url: `https://export.arxiv.org/api/query?id_list=${encodeURIComponent(parts[1])}`, source: 'public_endpoint' }];
 }
 
-/**
- * @param {URL} url
- */
-function blueskyCandidates(url) {
+function blueskyCandidates(url: URL): CandidateUrl[] {
     if (url.hostname !== 'bsky.app') return [];
     const parts = url.pathname.split('/').filter(Boolean);
     if (parts[0] !== 'profile' || !parts[1]) return [];
@@ -172,12 +149,9 @@ function blueskyCandidates(url) {
     }];
 }
 
-/**
- * @param {URL} url
- */
-function mastodonCandidates(url) {
+function mastodonCandidates(url: URL): CandidateUrl[] {
     const parts = url.pathname.split('/').filter(Boolean);
-    const statusMatch = parts.length >= 2 && parts[0].startsWith('@') && /^\d+$/.test(parts[1]);
+    const statusMatch = parts.length >= 2 && parts[0]!.startsWith('@') && /^\d+$/.test(parts[1]!);
     if (statusMatch) {
         return [{
             label: 'mastodon-status-api',
@@ -185,20 +159,17 @@ function mastodonCandidates(url) {
             source: 'public_endpoint',
         }];
     }
-    if (parts.length === 1 && parts[0].startsWith('@') && parts[0].length > 1) {
+    if (parts.length === 1 && parts[0]!.startsWith('@') && parts[0]!.length > 1) {
         return [{
             label: 'mastodon-account-lookup',
-            url: `https://${url.hostname}/api/v1/accounts/lookup?acct=${encodeURIComponent(parts[0].slice(1))}`,
+            url: `https://${url.hostname}/api/v1/accounts/lookup?acct=${encodeURIComponent(parts[0]!.slice(1))}`,
             source: 'public_endpoint',
         }];
     }
     return [];
 }
 
-/**
- * @param {URL} url
- */
-function stackExchangeCandidates(url) {
+function stackExchangeCandidates(url: URL): CandidateUrl[] {
     const site = stackExchangeSite(url.hostname);
     if (!site) return [];
     const match = url.pathname.match(/\/questions\/(\d+)(?:\/|$)/);
@@ -210,36 +181,27 @@ function stackExchangeCandidates(url) {
     }];
 }
 
-/**
- * @param {string} hostname
- */
-function stackExchangeSite(hostname) {
+function stackExchangeSite(hostname: string): string {
     if (hostname === 'stackoverflow.com' || hostname === 'www.stackoverflow.com') return 'stackoverflow';
     if (hostname === 'superuser.com' || hostname === 'www.superuser.com') return 'superuser';
     if (hostname === 'serverfault.com' || hostname === 'www.serverfault.com') return 'serverfault';
     if (hostname === 'askubuntu.com' || hostname === 'www.askubuntu.com') return 'askubuntu';
     const match = hostname.match(/^([a-z0-9-]+)\.stackexchange\.com$/i);
-    return match ? match[1] : '';
+    return match ? match[1]! : '';
 }
 
-/**
- * @param {URL} url
- */
-function devToCandidates(url) {
+function devToCandidates(url: URL): CandidateUrl[] {
     if (!['dev.to', 'www.dev.to'].includes(url.hostname)) return [];
     const parts = url.pathname.split('/').filter(Boolean);
     if (parts.length < 2 || parts[0] === 't') return [];
     return [{
         label: 'devto-article-api',
-        url: `https://dev.to/api/articles/${encodeURIComponent(parts[0])}/${encodeURIComponent(parts[1])}`,
+        url: `https://dev.to/api/articles/${encodeURIComponent(parts[0]!)}/${encodeURIComponent(parts[1]!)}`,
         source: 'public_endpoint',
     }];
 }
 
-/**
- * @param {URL} url
- */
-function crossRefCandidates(url) {
+function crossRefCandidates(url: URL): CandidateUrl[] {
     const doi = doiFromUrl(url);
     if (!doi) return [];
     return [{
@@ -249,19 +211,13 @@ function crossRefCandidates(url) {
     }];
 }
 
-/**
- * @param {URL} url
- */
-function doiFromUrl(url) {
+function doiFromUrl(url: URL): string {
     if (!['doi.org', 'www.doi.org', 'dx.doi.org'].includes(url.hostname)) return '';
     const doi = decodeURIComponent(url.pathname.replace(/^\/+/, ''));
     return /^10\.\d{4,9}\//i.test(doi) ? doi : '';
 }
 
-/**
- * @param {URL} url
- */
-function openLibraryCandidates(url) {
+function openLibraryCandidates(url: URL): CandidateUrl[] {
     if (url.hostname !== 'openlibrary.org') return [];
     const parts = url.pathname.split('/').filter(Boolean);
     if ((parts[0] === 'works' || parts[0] === 'books') && parts[1]) {
@@ -274,15 +230,12 @@ function openLibraryCandidates(url) {
     return [];
 }
 
-/**
- * @param {URL} url
- */
-function waybackCandidates(url) {
+function waybackCandidates(url: URL): CandidateUrl[] {
     if (url.hostname !== 'web.archive.org') return [];
     const hrefWithoutFragment = url.href.slice(0, url.href.length - (url.hash || '').length);
     const match = hrefWithoutFragment.match(/^https?:\/\/web\.archive\.org\/web\/[^/]+\/(.+)$/i);
     if (!match) return [];
-    let archivedUrl = match[1];
+    let archivedUrl = match[1]!;
     if (!/^https?:\/\//i.test(archivedUrl)) archivedUrl = decodeURIComponent(archivedUrl);
     if (!/^https?:\/\//i.test(archivedUrl)) return [];
     return [{
@@ -292,10 +245,7 @@ function waybackCandidates(url) {
     }];
 }
 
-/**
- * @param {URL} url
- */
-function youtubeCandidates(url) {
+function youtubeCandidates(url: URL): CandidateUrl[] {
     const videoUrl = youtubeVideoUrl(url);
     if (!videoUrl) return [];
     return [{
@@ -305,10 +255,7 @@ function youtubeCandidates(url) {
     }];
 }
 
-/**
- * @param {URL} url
- */
-function youtubeVideoUrl(url) {
+function youtubeVideoUrl(url: URL): string {
     if (url.hostname === 'youtu.be') {
         const id = url.pathname.split('/').filter(Boolean)[0];
         return id ? `https://www.youtube.com/watch?v=${encodeURIComponent(id)}` : '';
@@ -318,14 +265,11 @@ function youtubeVideoUrl(url) {
     return id ? `https://www.youtube.com/watch?v=${encodeURIComponent(id)}` : '';
 }
 
-/**
- * @param {URL} url
- */
-function xTwitterCandidates(url) {
+function xTwitterCandidates(url: URL): CandidateUrl[] {
     const hostname = url.hostname.replace(/^www\./, '');
     if (!['x.com', 'twitter.com'].includes(hostname)) return [];
     const parts = url.pathname.split('/').filter(Boolean);
-    if (parts.length < 3 || parts[1] !== 'status' || !/^\d+$/.test(parts[2])) return [];
+    if (parts.length < 3 || parts[1] !== 'status' || !/^\d+$/.test(parts[2]!)) return [];
     return [{
         label: 'x-twitter-oembed',
         url: `https://publish.twitter.com/oembed?url=${encodeURIComponent(url.href)}`,
@@ -333,10 +277,7 @@ function xTwitterCandidates(url) {
     }];
 }
 
-/**
- * @param {URL} url
- */
-function v2exCandidates(url) {
+function v2exCandidates(url: URL): CandidateUrl[] {
     if (!['v2ex.com', 'www.v2ex.com'].includes(url.hostname)) return [];
     const match = url.pathname.match(/^\/t\/(\d+)/);
     if (!match) return [];
@@ -347,10 +288,7 @@ function v2exCandidates(url) {
     }];
 }
 
-/**
- * @param {URL} url
- */
-function lobstersCandidates(url) {
+function lobstersCandidates(url: URL): CandidateUrl[] {
     if (!['lobste.rs', 'www.lobste.rs'].includes(url.hostname)) return [];
     const parts = url.pathname.split('/').filter(Boolean);
     if (parts[0] !== 's' || !parts[1]) return [];
