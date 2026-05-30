@@ -421,6 +421,25 @@ export class VirtualScroll {
             });
             containerObserver.observe(this.container);
             cleanupFns.push(() => containerObserver.disconnect());
+
+            // ── Content-growth bottom lock ──
+            // innerEl height tracks the virtualizer total size (set in render).
+            // Lazy markdown / mermaid / images grow it *after* the time-boxed
+            // initial settle finishes, drifting the bottom anchor upward with
+            // nothing left to re-bottom. Re-bottom when total content height
+            // grows — but only while bottom-follow intent still holds, so it
+            // releases the moment the user scrolls up (260508 rule preserved).
+            let prevTotal = this.virtualizer?.getTotalSize() ?? 0;
+            const contentObserver = new ResizeObserver(() => {
+                const total = this.virtualizer?.getTotalSize() ?? 0;
+                if (total <= prevTotal) { prevTotal = total; return; }
+                prevTotal = total;
+                if (this.shouldFollowAfterRestore()) {
+                    this.reconcileBottomAfterLayout('manual', true);
+                }
+            });
+            contentObserver.observe(this.innerEl);
+            cleanupFns.push(() => contentObserver.disconnect());
         }
 
         // ── Browser restore reconciliation ──

@@ -179,6 +179,13 @@ describe('bootstrapVirtualHistory', () => {
         assert.ok(virtualScrollSource.includes('clearRestoreTimers()'), 'restore timers should be cleaned up');
     });
 
+    it('content-growth observer re-bottoms only while follow intent holds', () => {
+        assert.ok(virtualScrollSource.includes('contentObserver.observe(this.innerEl)'), 'should observe the height-growing inner element, not the container');
+        assert.ok(virtualScrollSource.includes('if (total <= prevTotal) { prevTotal = total; return; }'), 'should only act when total content height grows (ignore shrink/unchanged)');
+        assert.ok(virtualScrollSource.includes('if (this.shouldFollowAfterRestore()) {'), 'content-growth re-bottom must be gated by live follow intent');
+        assert.ok(virtualScrollSource.includes('cleanupFns.push(() => contentObserver.disconnect())'), 'content observer must be cleaned up');
+    });
+
     it('ProcessBlock mutation helper preserves a passed anchor element', () => {
         assert.ok(virtualScrollSource.includes('preserveScrollDuringMutation<T>(anchorEl: Element | null'), 'mutation helper should accept preferred anchor element');
         assert.ok(virtualScrollSource.includes('captureScrollAnchor(anchorEl)'), 'mutation helper should capture the preferred anchor before mutation');
