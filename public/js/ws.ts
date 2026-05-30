@@ -295,18 +295,46 @@ interface DimensionAssessmentView {
 }
 
 function renderDimensionBars(assessment: DimensionAssessmentView): string {
+    const levelToScore = (l: string) => {
+        switch (l) {
+            case 'max': return 1.0;
+            case 'xhigh': return 0.8;
+            case 'high': return 0.6;
+            case 'medium': return 0.4;
+            default: return 0.2;
+        }
+    };
+    const levelColor = (l: string) => {
+        switch (l) {
+            case 'max': return '#2196f3';
+            case 'xhigh': return '#4caf50';
+            case 'high': return '#8bc34a';
+            case 'medium': return '#ff9800';
+            default: return '#f44336';
+        }
+    };
+    const scores = [levelToScore(assessment.goal), levelToScore(assessment.constraint), levelToScore(assessment.success), levelToScore(assessment.ontology)];
+    const overall = 1 - (scores.reduce((a, b) => a + b, 0) / scores.length);
+    const allMax = Object.values(assessment).every(v => v === 'max');
+    const overallLabel = allMax ? '🟢 Ready' : overall <= 0.2 ? '🟢 Ready' : overall <= 0.4 ? '🟡 Almost' : '🔴 Needs work';
+
     const bar = (dim: string, level: string) => {
-        const pct = level === 'high' ? 100 : level === 'medium' ? 60 : 20;
-        const color = level === 'high' ? '#4caf50' : level === 'medium' ? '#ff9800' : '#f44336';
+        const score = levelToScore(level);
+        const pct = score * 100;
+        const color = levelColor(level);
         return `<div style="display:flex;align-items:center;gap:6px;font-size:12px">
             <span style="width:70px;color:var(--text-secondary)">${dim}</span>
             <div style="flex:1;height:5px;background:var(--bg-tertiary);border-radius:3px">
                 <div style="width:${pct}%;height:100%;background:${color};border-radius:3px;transition:width .3s"></div>
             </div>
-            <span style="width:45px;text-align:right;font-weight:600;font-size:11px">${level.toUpperCase()}</span>
+            <span style="width:60px;text-align:right;font-weight:600;font-size:11px">${score.toFixed(1)} ${level.toUpperCase()}</span>
         </div>`;
     };
     return `<div style="display:flex;flex-direction:column;gap:3px;margin:6px 0">
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px">
+            <span style="color:var(--text-secondary)">Ambiguity: ${overall.toFixed(2)}</span>
+            <span>${overallLabel}</span>
+        </div>
         ${bar('Goal', assessment.goal)}
         ${bar('Constraint', assessment.constraint)}
         ${bar('Success', assessment.success)}

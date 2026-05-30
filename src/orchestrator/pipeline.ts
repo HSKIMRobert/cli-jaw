@@ -448,7 +448,7 @@ export async function orchestrate(
                     if (assessMatch) {
                         try {
                             const raw = JSON.parse(assessMatch[1]!);
-                            const VALID_LEVELS: ClarityLevel[] = ['high', 'medium', 'low'];
+                            const VALID_LEVELS: ClarityLevel[] = ['low', 'medium', 'high', 'xhigh', 'max'];
                             if (raw && VALID_LEVELS.includes(raw['goal']) && VALID_LEVELS.includes(raw['constraint'])) {
                                 assessment = {
                                     goal: raw['goal'], constraint: raw['constraint'],

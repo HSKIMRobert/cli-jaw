@@ -592,9 +592,11 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
 
                     // P2-2: warn if assessment shows low dimensions
                     const assessment = existingCtx.interview.assessment;
-                    if (assessment && (assessment.goal === 'low' || assessment.success === 'low')) {
+                    const notReady = assessment && !Object.values(assessment).every((v: string) => v === 'max');
+                    if (notReady) {
+                        const dims = Object.entries(assessment).map(([k, v]) => `${k}=${v}`).join(', ');
                         broadcast('orchestrate_warning', {
-                            message: `⚠️ Interview clarity warning: goal=${assessment.goal}, success=${assessment.success}. Plan quality may be affected.`,
+                            message: `⚠️ Not all dimensions at max: ${dims}. Plan quality may be affected.`,
                         });
                     }
                 }
