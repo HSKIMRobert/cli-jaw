@@ -90,6 +90,15 @@ export interface SpawnContext {
   stallWatchdog?: WatchdogHandle;
   agyResumeOffset?: number;
   agyBytesReceived?: number;
+  kiroDisplayedText?: string;
+  kiroLineBuffer?: string;
+  kiroToolSeq?: number;
+  kiroActiveToolRef?: string | null;
+  kiroActiveToolLabel?: string | null;
+  kiroLastVisibleAt?: number;
+  kiroHeartbeatSent?: boolean;
+  /** Formatted assistant preview text; raw CLI stdout may live separately in fullText. */
+  liveOutputText?: string;
   scheduleWakeup?: {
     delaySeconds: number;
     prompt: string;

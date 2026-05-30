@@ -26,6 +26,7 @@ export type CliEngine =
     | 'cursor'
     | 'gemini'
     | 'grok'
+    | 'kiro-code'
     | 'opencode';
 
 /**
@@ -46,6 +47,7 @@ export const CLI_ENGINES = [
     'cursor',
     'gemini',
     'grok',
+    'kiro-code',
     'opencode',
 ] as const satisfies readonly CliEngine[];
 
