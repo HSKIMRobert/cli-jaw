@@ -109,7 +109,7 @@ export function toErrorJson(err: WebAiError | { name?: string; errorCode?: strin
 // Map cli-jaw's existing structured errors into WebAiError codes. Used by
 // stageError replacements and toWebAiHttpError to preserve evidence
 // (expectedTargetId/actualTargetId, capabilityId, ownerPrd, etc.).
-export function fromCliJawStructuredError(err: unknown, fallbackStage = 'internal'): WebAiError | null {
+export function fromCliJawStructuredError(err: unknown, _fallbackStage = 'internal'): WebAiError | null {
     if (!err || typeof err !== 'object') return null;
     const name = (err as { name?: string }).name;
     if (name === 'WrongTargetError') {

@@ -130,7 +130,6 @@ async function readAssistantTexts(page: Page): Promise<string[]> {
 export async function captureAssistantResponse(page: Page, options: CaptureOptions): Promise<ResponseCaptureResult> {
     const transcript = new ActionTranscript();
     const resolverTrace = createTraceContext('chatgpt-response');
-    const stableWindowMs = Math.max(250, options.stableWindowMs ?? 1500);
     const pollIntervalMs = Math.max(100, options.pollIntervalMs ?? 500);
     const deadline = Date.now() + Math.max(1000, options.timeoutMs);
     let stableSince: number | null = null;

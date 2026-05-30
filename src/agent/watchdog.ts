@@ -27,7 +27,7 @@ export interface WatchdogHandle {
 
 export function attachWatchdog(
     child: ChildProcess,
-    label: string,
+    _label: string,
     onStall: (reason: string) => void,
     config?: Partial<WatchdogConfig>,
 ): WatchdogHandle {

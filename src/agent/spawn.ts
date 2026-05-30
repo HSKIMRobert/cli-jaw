@@ -17,17 +17,13 @@ import {
 } from '../core/db.js';
 import { getSystemPrompt, regenerateB } from '../prompt/builder.js';
 import { extractSessionId, extractFromEvent, extractFromAcpUpdate, extractOutputChunk, logEventSummary, flushClaudeBuffers, flushOpenCodeBuffers } from './events.js';
-import { detectSmokeResponse, buildContinuationPrompt } from './smoke-detector.js';
+import { detectSmokeResponse } from './smoke-detector.js';
 import { saveUpload as _saveUpload, buildMediaPrompt, buildMediaPromptMany, type SaveUploadOptions } from '../../lib/upload.js';
-import { getMemoryFlushFilePath, getMemoryStatus } from '../memory/runtime.js';
 import { resolveMainCli, consumePendingBootstrapPrompt } from '../core/main-session.js';
 import {
     getSessionOwnershipGeneration,
     persistMainSession,
 } from './session-persistence.js';
-import { shouldInvalidateResumeSession } from './resume-classifier.js';
-import { groupQueueKey } from '../messaging/session-key.js';
-import type { RuntimeOrigin, RemoteTarget } from '../messaging/types.js';
 import { isCompactMarkerRow } from '../core/compact.js';
 import { isRuntimeSettingsMutationInFlight, waitForRuntimeSettingsIdle } from '../core/runtime-settings-gate.js';
 import { hasBlockingWorkers, hasPendingWorkerReplays, getActiveWorkers, clearAllWorkers } from '../orchestrator/worker-registry.js';
@@ -40,7 +36,6 @@ import {
     memoryFlushCounter as _memoryFlushCounter,
     flushCycleCount as _flushCycleCount,
     setSpawnRef as setMemorySpawnRef,
-    triggerMemoryFlush,
 } from './memory-flush-controller.js';
 import { applyCliEnvDefaults, buildSessionResumeKey, ensureOpencodeAlwaysAllowPermissions } from './spawn-env.js';
 import { attachWatchdog } from './watchdog.js';
@@ -55,7 +50,7 @@ import { asCliEventRecord, discriminate, fieldString, type CliEventRecord } from
 import { isJawRuntimeEvent, handleJawRuntimeEvent } from './claude-e-runtime.js';
 import { appendTraceEvent, stampTraceTool, startTraceRun } from '../trace/store.js';
 import { extractAgyConversationId, formatAgyTimeoutMessage, isAgyStaleSessionOutput, isAgyTimeoutOutput } from './agy-runtime.js';
-import { appendAssistantTextSegment, appendPostToolAssistantLead } from './events/helpers.js';
+import { appendAssistantTextSegment } from './events/helpers.js';
 import { listKiroConversationIdsForCwd } from './kiro-auth.js';
 import {
     captureKiroSessionIdAfterExit,
@@ -305,10 +300,6 @@ const CLAUDE_E_STEER_KILL_ESCALATION_MS = 8_000;
 
 function getActiveMainCli(): string | null {
     return typeof currentMainMeta?.cli === 'string' ? currentMainMeta.cli : null;
-}
-
-function getActiveEffectiveProvider(): string | null {
-    return typeof currentMainMeta?.effectiveProvider === 'string' ? currentMainMeta.effectiveProvider : null;
 }
 
 function isActiveAiEPtyRuntime(): boolean {

@@ -1,5 +1,4 @@
 import { createHash } from 'node:crypto';
-import { join } from 'node:path';
 import { JAW_HOME } from '../../core/config.js';
 import { domHashAround, selectorMatchSummary, type PageWithLocator } from './dom-hash.js';
 import { listSessions } from './session.js';

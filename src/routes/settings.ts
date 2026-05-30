@@ -5,7 +5,7 @@ import os from 'os';
 import { join } from 'path';
 import { ok } from '../http/response.js';
 import { asyncHandler } from '../http/async-handler.js';
-import { settings, saveSettings, JAW_HOME, detectAllCli } from '../core/config.js';
+import { settings, JAW_HOME, detectAllCli } from '../core/config.js';
 import { readCodexContextWindow } from '../core/codex-config.js';
 import { regenerateB, A2_PATH, HEARTBEAT_PATH } from '../prompt/builder.js';
 import { clearTemplateCache, getTemplateDir } from '../prompt/template-loader.js';
@@ -19,7 +19,6 @@ import { fetchAgyUsage } from './quota-agy-reverse.js';
 import { fetchKiroUsage } from './quota-kiro-reverse.js';
 import { buildLiveCliRegistry } from '../cli/registry-live.js';
 import { fetchCopilotQuota, refreshCopilotFromKeychain } from '../../lib/quota-copilot.js';
-import { migrateLegacyClaudeValue } from '../cli/claude-models.js';
 import { extractOpenAiApiKey, hasInvalidOpenAiApiKeyInput } from '../jaw-ceo/openai-key.js';
 import { getSecurityAuditLog } from '../security/security-audit-log.js';
 
@@ -189,7 +188,7 @@ export function registerSettingsRoutes(
         res.json({ ok: true });
     });
 
-    app.get('/api/mcp', (req, res) => res.json(loadUnifiedMcp()));
+    app.get('/api/mcp', (_req, res) => res.json(loadUnifiedMcp()));
 
     app.put('/api/mcp', requireAuth, (req, res) => {
         const config = req.body;
@@ -201,13 +200,13 @@ export function registerSettingsRoutes(
         res.json({ ok: true, servers: Object.keys(config.servers) });
     });
 
-    app.post('/api/mcp/sync', requireAuth, (req, res) => {
+    app.post('/api/mcp/sync', requireAuth, (_req, res) => {
         const config = loadUnifiedMcp();
         const results = syncToAll(config);
         res.json({ ok: true, results });
     });
 
-    app.post('/api/mcp/install', requireAuth, async (req, res) => {
+    app.post('/api/mcp/install', requireAuth, async (_req, res) => {
         try {
             const config = loadUnifiedMcp();
             const { installMcpServers } = await import('../../lib/mcp-sync.js');
@@ -221,7 +220,7 @@ export function registerSettingsRoutes(
         }
     });
 
-    app.post('/api/mcp/reset', requireAuth, (req, res) => {
+    app.post('/api/mcp/reset', requireAuth, (_req, res) => {
         try {
             const mcpPath = join(JAW_HOME, 'mcp.json');
             if (fs.existsSync(mcpPath)) fs.unlinkSync(mcpPath);

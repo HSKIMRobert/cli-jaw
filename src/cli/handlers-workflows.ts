@@ -1,4 +1,3 @@
-import { t } from '../core/i18n.js';
 import { buildPlanCompatArtifact, formatPlanCompatText } from '../workflows/plan.js';
 import { buildDeliberateArtifact, formatDeliberateText } from '../workflows/deliberate.js';
 import { buildPlanAuditArtifact, formatPlanAuditText } from '../workflows/planaudit.js';
@@ -18,10 +17,7 @@ function blocked(text: string, code = 'workflow_not_ready'): SlashResult {
     return { ok: false, type: 'error', code, text };
 }
 
-function tr(key: string, locale: string, fallback: string): string {
-    const value = t(key, {}, locale);
-    return value === key ? fallback : value;
-}
+
 
 async function fireSteerForWebCli(
     ctx: CliCommandContext,
@@ -44,7 +40,7 @@ async function resolveSettings(ctx: CliCommandContext): Promise<Record<string, u
 
 export async function interviewWorkflowHandler(args: string[], ctx: CliCommandContext): Promise<SlashResult> {
     const request = joinArgs(args) || '<rough request>';
-    const { getState, setState, canTransition, getStatePrompt } = await import('../orchestrator/state-machine.js');
+    const { getState, setState, canTransition } = await import('../orchestrator/state-machine.js');
     const { resolveOrcScope } = await import('../orchestrator/scope.js');
     const settings = await resolveSettings(ctx);
     const origin = ctx?.interface || 'web';
@@ -131,7 +127,6 @@ export async function planAuditWorkflowHandler(args: string[], ctx: CliCommandCo
 }
 
 export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext): Promise<SlashResult> {
-    const locale = ctx.locale || 'ko';
     const { getActiveGoal, getGoalHistory, setGoal, updateGoal, completeGoal, cancelGoal, pauseGoal, resumeGoal, clearGoal, resetGoalStore } = await import('../goal/store.js');
     const sub = (args[0] || '').toLowerCase();
 

@@ -1,4 +1,3 @@
-import { settings } from '../core/config.js';
 import { getProjectDirs, setProjectDirs, clearProjectDirs } from '../core/config.js';
 import { resolveHomePath } from '../core/path-expand.js';
 import path from 'node:path';
