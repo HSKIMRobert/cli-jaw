@@ -495,8 +495,8 @@ select:focus-visible {
 /* Queue badge on send button */
 .queue-badge {
     position: absolute;
-    top: -6px;
-    right: -6px;
+    top: 6px;
+    right: 6px;
     background: var(--warning);
     color: var(--bg);
     border-radius: var(--radius-full);
