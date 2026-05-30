@@ -152,7 +152,7 @@ function archiveGoal(goal: GoalState): void {
     writeJson(HISTORY_PATH, history);
 }
 
-/** Completion-gate predicate: AI may complete only if the latest checkpoint carries verification evidence. */
+/** Completion-gate predicate: AI may complete only if the latest checkpoint carries at least one NON-BLANK verification evidence entry (blank/whitespace entries never satisfy the gate, regardless of how they were inserted). */
 export function goalHasCompletionEvidence(goal: GoalState | null): boolean {
-    return (goal?.lastCheckpoint?.evidencePaths?.length ?? 0) > 0;
+    return (goal?.lastCheckpoint?.evidencePaths ?? []).some(e => typeof e === 'string' && e.trim().length > 0);
 }

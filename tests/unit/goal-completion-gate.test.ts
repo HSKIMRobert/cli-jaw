@@ -29,3 +29,11 @@ test('gate rejects when there are zero checkpoints', () => {
 test('gate is false for a null goal', () => {
     assert.equal(goalHasCompletionEvidence(null), false);
 });
+
+test('gate rejects blank/whitespace-only evidence entries (no false satisfy via direct API)', () => {
+    resetGoalStore();
+    setGoal('gate test goal 4', { replace: true });
+    updateGoal('blank evidence', '', ['   ', '']);
+    assert.equal(goalHasCompletionEvidence(getActiveGoal()), false);
+    resetGoalStore();
+});
