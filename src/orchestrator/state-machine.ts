@@ -160,12 +160,8 @@ The user has answered. Before asking more questions:
 3. **Research if possible**: Can you verify anything in code before asking? Do it.
 4. **Steer toward the weakest dimension** — don't keep asking about what's already clear.
 
-Update the <interview_tracker>:
-- User confirmations → source: "user_statement", confidence: 1.0
-- Code-verified facts → source: "repo_fact", confidence: 0.9
-- Inferred conclusions → source: "inference", confidence: 0.5-0.8
-- Hedging or vague answers → source: "assumption", confidence: 0.3-0.5 (must confirm later)
-- Tag each with dimension: goal, constraint, success, or ontology
+Update the <interview_tracker> at the END of your response (hidden from user).
+⛔ Do NOT print known/unknown arrays in your visible text. No raw JSON in the response body.
 
 If all dimensions are covered and no blocking unknowns remain, suggest:
 "Ready for planning. Run \`cli-jaw orchestrate P\` to proceed."
@@ -281,7 +277,11 @@ Every interview must explore all four dimensions. Track which are weak and steer
 
 ## Interview Tracker
 
-At the end of every response, include this block (parsed and stripped from display):
+At the end of every response, include this block (parsed and stripped — the user will NEVER see it):
+
+⛔ IMPORTANT: Do NOT repeat known/unknown arrays in your visible response text.
+The tracker block below is machine-parsed and hidden from the user.
+Your visible response should contain questions and discussion only — never raw JSON arrays.
 
 <interview_tracker>
 known: [
