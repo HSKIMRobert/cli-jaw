@@ -232,6 +232,9 @@ export const getRecentMessagesAllWithTrace = db.prepare('SELECT * FROM messages 
 export const getLatestAssistantMessage = db.prepare("SELECT id, role, content, created_at FROM messages WHERE role = 'assistant' ORDER BY id DESC LIMIT 1");
 export const getLatestDashboardActivityMessage = db.prepare("SELECT id, role, substr(content, 1, 240) AS excerpt, created_at FROM messages WHERE role IN ('user', 'assistant') ORDER BY id DESC LIMIT 1");
 export const getRecentMessages = db.prepare('SELECT id, role, content, cli, model, trace, tool_log, created_at FROM messages WHERE working_dir = ? OR working_dir IS NULL ORDER BY id DESC LIMIT ?');
+// Lightweight variant for per-turn callers that only read {role, content}.
+// Avoids loading the heavy trace/tool_log blobs that getRecentMessages carries.
+export const getRecentMessagesLite = db.prepare('SELECT role, content FROM messages WHERE working_dir = ? OR working_dir IS NULL ORDER BY id DESC LIMIT ?');
 export const getRecentToolLogs = db.prepare('SELECT id, tool_log, created_at FROM messages WHERE (working_dir = ? OR working_dir IS NULL) AND tool_log IS NOT NULL AND tool_log != \'\' ORDER BY id DESC LIMIT ?');
 export const clearMessages = db.prepare('DELETE FROM messages');
 export const clearMessagesScoped = db.prepare('DELETE FROM messages WHERE working_dir = ?');
