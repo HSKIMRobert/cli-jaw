@@ -18,6 +18,7 @@ import { clearLiveRun, getLiveRun } from './live-run-state.js';
 import { sanitizeToolLogForDurableStorage, serializeSanitizedToolLog } from '../shared/tool-log-sanitize.js';
 import { finalizeTraceRun, linkTraceRunToMessage } from '../trace/store.js';
 import type { ToolEntry } from '../types/agent.js';
+import { resolveSpawnOutputText } from './events/helpers.js';
 import {
     incrementMemoryFlush,
     resetMemoryFlushCounter,
@@ -42,6 +43,35 @@ export function clearGoalTimers(): void {
         insertMessage.run('system', '[goal_boundary]', 'goal_boundary', '', settings['workingDir'] || null);
     } catch { /* DB may not be ready during early init */ }
 }
+
+export function kickGoalContinuation(): boolean {
+    if (!_spawnAgent) {
+        console.warn('[jaw:goal] kickGoalContinuation called but _spawnAgent is not registered');
+        return false;
+    }
+    const goalCont = buildGoalContinuation();
+    if (goalCont.shouldContinue && goalCont.prompt) {
+        const contGoal = getActiveGoal();
+        const contGoalId = contGoal?.id ?? '__none__';
+        _goalContAttempts = 1;
+        _goalContGoalId = contGoalId;
+        console.log(`[jaw:goal] kicking manual goal continuation`);
+        broadcast('goal_continuation', { reason: 'manual_kick', attempt: 1 });
+        const existingCont = _goalTimers.get(contGoalId);
+        if (existingCont) clearTimeout(existingCont);
+        const { promise: contP } = _spawnAgent(goalCont.prompt!, {
+            _isGoalContinuation: true,
+            _skipInsert: true,
+        });
+        contP.catch((err: Error) => {
+            console.warn('[jaw:goal] kicked goal continuation failed:', err.message);
+            broadcast('goal_continuation_failed', { error: err.message });
+        });
+        return true;
+    }
+    return false;
+}
+
 
 // Match /goal done|cancel or cli-jaw goal done|cancel at line start or after whitespace
 const GOAL_DONE_RE = /(?:^|\n)\s*(?:\/goal|cli-jaw\s+goal)\s+done\b/im;
@@ -129,6 +159,8 @@ export interface ExitContext {
     stderrBuf: string;
     liveScope?: string | null;
     traceRunId?: string | null;
+    liveOutputText?: string;
+    kiroDisplayedText?: string;
     cost?: { input?: number; output?: number } | number | null;
     turns?: number | null;
     duration?: number | null;
@@ -334,7 +366,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
     // Force a fresh session on next spawn to avoid stale resume.
     if (mainManaged && !opts.internal && code === 0 && !ctx.cliNativeCompactDetected) {
         const turns = ctx.turns ?? memoryFlushCounter;
-        if ((runtimeCli === 'codex' || runtimeCli === 'opencode' || runtimeCli === 'gemini' || runtimeCli === 'grok' || runtimeCli === 'agy') && turns > 15) {
+        if ((runtimeCli === 'codex' || runtimeCli === 'opencode' || runtimeCli === 'gemini' || runtimeCli === 'grok' || runtimeCli === 'agy' || runtimeCli === 'kiro-code') && turns > 15) {
             console.log(`[jaw:compact] ${cli} exited after ${turns} turns — clearing session bucket for fresh start`);
             try {
                 const bucket = resolveSessionBucket(cli, model, effectiveProvider);
@@ -360,8 +392,9 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
     }
 
     // ─── Output handling ───
-    if (ctx.fullText.trim()) {
-        const cleaned = ctx.fullText.trim()
+    const outputText = resolveSpawnOutputText(ctx);
+    if (outputText || (code === 0 && ctx.toolLog.length > 0)) {
+        const cleaned = (outputText || ctx.fullText.trim())
             .replace(/<\/?tool_call>/g, '')
             .replace(/<\/?tool_result>[\s\S]*?(?:<\/tool_result>|$)/g, '')
             // [#107] Strip inline thinking/reasoning blocks from any CLI
@@ -369,7 +402,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
             .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
             .replace(/\n{3,}/g, '\n\n')
             .trim();
-        const displayText = stripInterviewTracker(cleaned || ctx.fullText.trim());
+        const displayText = stripInterviewTracker(cleaned || outputText || ctx.fullText.trim());
         let finalContent = displayText + costLine;
         let traceText = ctx.traceLog.join('\n');
 
