@@ -4,7 +4,6 @@
 import { getActiveGoal } from './store.js';
 import { getState } from '../orchestrator/state-machine.js';
 import { getActiveWorkers, hasPendingWorkerReplays } from '../orchestrator/worker-registry.js';
-import type { GoalState } from './types.js';
 
 export interface GoalContinuationResult {
     shouldContinue: boolean;

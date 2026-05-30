@@ -3,24 +3,20 @@
 import https from 'node:https';
 import { Bot, type Context } from 'grammy';
 import { sequentialize } from '@grammyjs/runner';
-import { broadcast, addBroadcastListener, removeBroadcastListener } from '../core/bus.js';
-import { settings, detectAllCli, APP_VERSION } from '../core/config.js';
+import { addBroadcastListener, removeBroadcastListener } from '../core/bus.js';
+import { settings } from '../core/config.js';
 import { stripUndefined } from '../core/strip-undefined.js';
 import { t, normalizeLocale } from '../core/i18n.js';
-import { insertMessage } from '../core/db.js';
-import { orchestrate, orchestrateReset, isResetIntent } from '../orchestrator/pipeline.js';
+import { isResetIntent } from '../orchestrator/pipeline.js';
 import { submitMessage } from '../orchestrator/gateway.js';
 import { makeCommandCtx } from '../cli/command-context.js';
 import {
-    activeProcess, killActiveAgent, waitForProcessEnd,
-    saveUpload, buildMediaPrompt, messageQueue,
+    saveUpload, buildMediaPrompt,
     resetFallbackState,
 } from '../agent/spawn.js';
 import { bumpSessionOwnershipGeneration } from '../agent/session-persistence.js';
 import { parseCommand, executeCommand } from '../cli/commands.js';
 import { getTelegramMenuCommands } from '../command-contract/policy.js';
-import { getMergedSkills } from '../prompt/builder.js';
-import * as memory from '../memory/memory.js';
 import { downloadTelegramFile, TELEGRAM_DOWNLOAD_LIMITS } from '../../lib/upload.js';
 import { clearMainSessionState, resetSessionPreservingHistory } from '../core/main-session.js';
 import { applyRuntimeSettingsPatch } from '../core/runtime-settings.js';

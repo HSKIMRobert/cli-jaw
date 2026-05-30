@@ -8,10 +8,8 @@ export type DiscordSendClientResult =
     | { token: string; reason?: never; status?: never }
     | { token: null; reason: string; status: 400 | 503 };
 
-let cachedToken: string | null = null;
-
 export function invalidateDiscordSendClient(): void {
-    cachedToken = null;
+    // no-op: token is read fresh from settings each call
 }
 
 export function getDiscordSendClient(): DiscordSendClientResult {
@@ -23,7 +21,6 @@ export function getDiscordSendClient(): DiscordSendClientResult {
     if (!token) {
         return { token: null, reason: 'discord_token_missing', status: 503 };
     }
-    cachedToken = token;
     return { token };
 }
 

@@ -29,7 +29,7 @@ function sanitize(name: string): string {
     return name.replace(/[^a-zA-Z0-9:._-]/g, '-');
 }
 
-export function computeUnitName(port: number, home: string): string {
+export function computeUnitName(_port: number, home: string): string {
     const id = sanitize(instanceIdForHome(home));
     return `jaw-${id}`;
 }

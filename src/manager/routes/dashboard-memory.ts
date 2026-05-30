@@ -6,7 +6,7 @@ import { listSearchableInstancesFromScan } from '../memory/instance-discovery.js
 import type { ScanItemForFederation } from '../memory/types.js';
 import { resolveStructuredMemoryDir } from '../../memory/shared.js';
 import { isExpectedHostHeader, isAllowedOriginHeader } from '../security.js';
-import { VecStore, getVecDbPath, createProvider, syncAllInstances, VALID_PROVIDERS } from '../memory/embedding/index.js';
+import { VecStore, createProvider, syncAllInstances, VALID_PROVIDERS } from '../memory/embedding/index.js';
 import type { EmbeddingConfig } from '../memory/embedding/index.js';
 import { hybridMerge } from '../memory/embedding/hybrid-search.js';
 import { getEmbeddingState } from '../memory/embedding/state-machine.js';

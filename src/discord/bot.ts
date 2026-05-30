@@ -8,7 +8,7 @@ import { submitMessage } from '../orchestrator/gateway.js';
 import { orchestrateAndCollect } from '../orchestrator/collect.js';
 import { isResetIntent } from '../orchestrator/pipeline.js';
 import { addBroadcastListener, removeBroadcastListener, type BroadcastListener } from '../core/bus.js';
-import { saveUpload, buildMediaPromptMany, isAgentBusy } from '../agent/spawn.js';
+import { saveUpload, buildMediaPromptMany } from '../agent/spawn.js';
 import { registerTransport, setLastActiveTarget, setLatestSeenTarget, getLastActiveTarget } from '../messaging/runtime.js';
 import { registerSendTransport } from '../messaging/send.js';
 import { t, normalizeLocale } from '../core/i18n.js';

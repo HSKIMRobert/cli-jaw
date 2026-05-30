@@ -33,7 +33,7 @@ export function startWorkerMonitor(opts: WorkerMonitorOpts) {
     }, opts.maxDurationMs);
 
     return {
-        touch(source: 'stdout' | 'stderr' | 'acp' | 'heartbeat') {
+        touch(_source: 'stdout' | 'stderr' | 'acp' | 'heartbeat') {
             lastActivity = Date.now();
             if (stalled) {
                 stalled = false;

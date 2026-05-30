@@ -1,14 +1,9 @@
 import express, {
     type ErrorRequestHandler,
-    type NextFunction,
     type Request,
     type RequestHandler,
     type Response,
 } from 'express';
-import {
-    isAllowedOriginHeader,
-    isExpectedHostHeader,
-} from '../security.js';
 import { requireNotesAuth, notesCorsPreflight, getAuthStatus } from './auth.js';
 import { stripUndefined } from '../../core/strip-undefined.js';
 import type { DashboardPutNoteRequest } from '../types.js';
@@ -111,37 +106,6 @@ export function createNotesJsonErrorHandler(): ErrorRequestHandler {
             return;
         }
         next(error);
-    };
-}
-
-function requireManagerOrigin(managerPort: number): RequestHandler {
-    const allowedOrigins = [
-        `http://127.0.0.1:${managerPort}`,
-        `http://localhost:${managerPort}`,
-    ];
-    return (req, res, next) => {
-        if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
-            next();
-            return;
-        }
-        const validHost = isExpectedHostHeader(req.headers.host, {
-            host: '127.0.0.1',
-            port: managerPort,
-            allowLocalhostAlias: true,
-        });
-        const validOrigin = isAllowedOriginHeader(req.headers.origin, {
-            allowedOrigins,
-            allowMissing: true,
-        });
-        if (!validHost || !validOrigin) {
-            res.status(403).json({
-                ok: false,
-                code: 'notes_origin_forbidden',
-                error: 'Notes mutation must originate from the manager dashboard.',
-            });
-            return;
-        }
-        next();
     };
 }
 

@@ -32,7 +32,7 @@ export function instanceIdForHome(home: string): string {
     return `${base.replace(/^\./, '')}-${hash}`;
 }
 
-export function computeLaunchdLabel(port: number, home: string): string {
+export function computeLaunchdLabel(_port: number, home: string): string {
     const id = instanceIdForHome(home);
     return `com.cli-jaw.${id}`;
 }

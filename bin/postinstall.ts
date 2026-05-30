@@ -26,7 +26,6 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { execFileSync } from 'child_process';
-import { fileURLToPath } from 'node:url';
 import { ensureSharedHomeSkillsLinks, initMcpConfig, copyDefaultSkills, propagateSkillsToInstances, loadUnifiedMcp, saveUnifiedMcp } from '../lib/mcp-sync.js';
 import { resolveHomePath } from '../src/core/path-expand.js';
 import { buildServicePath } from '../src/core/runtime-path.js';
@@ -53,7 +52,6 @@ const JAW_HOME = (() => {
 const home = os.homedir();
 const jawHome = JAW_HOME;
 const PATH_LOOKUP_CMD = process.platform === 'win32' ? 'where' : 'which';
-const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
 const MCP_SERVERS_SKIP = process.env["CLI_JAW_SKIP_MCP_SERVERS"] === '1'
     || process.env["CLI_JAW_SKIP_MCP_SERVERS"] === 'true';
 const SKILL_DEPS_SKIP = process.env["CLI_JAW_SKIP_SKILL_DEPS"] === '1'

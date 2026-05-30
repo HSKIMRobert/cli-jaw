@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import { resolveHomePath } from '../core/path-expand.js';
 import { stripUndefined } from '../core/strip-undefined.js';

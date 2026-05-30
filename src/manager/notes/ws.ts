@@ -1,4 +1,4 @@
-import { WebSocketServer, type WebSocket } from 'ws';
+import { WebSocketServer } from 'ws';
 import type { Server } from 'node:http';
 import type { WatcherEvent, NotesWatcher } from './watcher.js';
 import { randomBytes } from 'node:crypto';

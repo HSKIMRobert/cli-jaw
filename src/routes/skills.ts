@@ -1,6 +1,6 @@
 import type { Express } from 'express';
 import type { AuthMiddleware } from './types.js';
-import { httpStatus, httpCode } from './_http-error.js';
+import { httpStatus } from './_http-error.js';
 import fs from 'fs';
 import { join } from 'path';
 import { assertSkillId } from '../security/path-guards.js';
