@@ -15,13 +15,14 @@ import {
 if (shouldShowHelp(process.argv)) printAndExit(`
   jaw dispatch — send task to an employee agent
 
-  Usage: jaw dispatch --agent "Name" --task "instruction"
+  Usage: jaw dispatch --agent "Name" --task "instruction" [--watch]
 
   Options:
     --agent <name>    Employee name (must match settings.json employees)
     --task <text>     Task instruction to send
     --mutable         Allow employee to write/modify files (default: read-only)
     --scope <path>    Restrict writes to a subdirectory (optional, requires --mutable)
+    --watch           Print live sanitized employee progress until completion
     --json            JSON output
 
   Result is returned via stdout. Employee names are case-sensitive.
@@ -60,6 +61,7 @@ const agent = getFlag('--agent');
 const task = getFlag('--task');
 const mutable = process.argv.includes('--mutable');
 const scope = getFlag('--scope');
+const watch = process.argv.includes('--watch');
 
 if (!agent || !task) {
     console.error('Usage: jaw dispatch --agent <name> --task <task>');
@@ -74,9 +76,10 @@ interface DispatchResultBody {
     state?: string;
     result?: { status?: string; text?: string; tools?: DispatchToolEntry[] } | string;
     tools?: DispatchToolEntry[];
+    progress?: WorkerProgressSnapshotBody | null;
     progressUpdatedAt?: number | null;
     error?: string;
-    worker?: { agentId?: string };
+    worker?: { agentId?: string; employeeName?: string; startedAt?: number };
     existing?: { agentId?: string };
     orchestration?: {
         verdict?: string;
@@ -85,6 +88,22 @@ interface DispatchResultBody {
         currentState?: string;
         ctxPresent?: boolean;
     };
+}
+
+interface WorkerProgressRunBody {
+    state?: string;
+    tools?: DispatchToolEntry[];
+}
+
+interface WorkerProgressSnapshotBody {
+    current?: WorkerProgressRunBody | null;
+    previous?: WorkerProgressRunBody | null;
+}
+
+interface WorkerProgressResponseBody {
+    ok?: boolean;
+    progress?: WorkerProgressSnapshotBody | null;
+    error?: string;
 }
 
 interface DispatchToolEntry {
@@ -139,6 +158,23 @@ async function pollWorkerResult(agentId: string, agentName = ''): Promise<Dispat
     throw new DispatchPollError(`timed out after 10 minutes (last state: ${lastState})`, agentId, agentName);
 }
 
+async function fetchWorkerProgress(agentId: string, agentName = ''): Promise<WorkerProgressSnapshotBody | null> {
+    let res: Response;
+    try {
+        res = await cliFetch(`${BASE}/api/orchestrate/worker-progress/${encodeURIComponent(agentId)}`);
+    } catch (fetchErr) {
+        throw new DispatchPollError(
+            `worker progress fetch failed: ${errString(fetchErr)}`,
+            agentId,
+            agentName,
+        );
+    }
+    const body = await res.json() as WorkerProgressResponseBody;
+    if (res.status === 404) return null;
+    if (!res.ok) throw new DispatchPollError(body.error || `progress fetch failed: ${res.status}`, agentId, agentName);
+    return body.progress || null;
+}
+
 function resultStatus(body: DispatchResultBody): string {
     if (typeof body.result === 'object' && typeof body.result?.status === 'string') return body.result.status;
     if (typeof body.state === 'string') return body.state;
@@ -152,6 +188,8 @@ function resultText(body: DispatchResultBody): string | undefined {
 }
 
 function resultTools(body: DispatchResultBody): DispatchToolEntry[] {
+    const progressTools = progressRun(body.progress)?.tools;
+    if (Array.isArray(progressTools)) return progressTools;
     if (typeof body.result === 'object' && Array.isArray(body.result?.tools)) return body.result.tools;
     if (Array.isArray(body.tools)) return body.tools;
     return [];
@@ -186,9 +224,68 @@ function printEmployeeProcess(body: DispatchResultBody): void {
     });
 }
 
-function printDispatchResult(agentName: string, body: DispatchResultBody): void {
+function progressRun(progress: WorkerProgressSnapshotBody | null | undefined): WorkerProgressRunBody | null {
+    return progress?.current || progress?.previous || null;
+}
+
+function progressToolKey(tool: DispatchToolEntry, index: number): string {
+    return tool.stepRef || `${index}:${tool.label || ''}:${tool.status || ''}:${tool.detail || ''}`;
+}
+
+function printProgressSnapshot(progress: WorkerProgressSnapshotBody | null | undefined, printed: Set<string>): void {
+    const run = progressRun(progress);
+    const tools = run?.tools || [];
+    if (tools.length === 0) return;
+    let printedHeader = printed.has('__header__');
+    if (!printedHeader) {
+        console.log('\n--- Employee Process (live) ---');
+        printed.add('__header__');
+        printedHeader = true;
+    }
+    void printedHeader;
+    tools.forEach((tool, index) => {
+        const key = progressToolKey(tool, index);
+        if (printed.has(key)) return;
+        printed.add(key);
+        console.log(formatToolLine(tool, index + 1));
+    });
+}
+
+async function pollAndPrintWorker(agentId: string, agentName: string): Promise<DispatchResultBody> {
+    const deadline = Date.now() + 600_000;
+    const printed = new Set<string>();
+    let lastState = 'unknown';
+    while (Date.now() < deadline) {
+        const progress = await fetchWorkerProgress(agentId, agentName);
+        printProgressSnapshot(progress, printed);
+        const body = await pollWorkerResultOnce(agentId, agentName);
+        lastState = body.state || lastState;
+        printProgressSnapshot(body.progress, printed);
+        if (body.state !== 'running') return body;
+        await sleep(2_000);
+    }
+    throw new DispatchPollError(`timed out after 10 minutes (last state: ${lastState})`, agentId, agentName);
+}
+
+async function pollWorkerResultOnce(agentId: string, agentName = ''): Promise<DispatchResultBody> {
+    let res: Response;
+    try {
+        res = await cliFetch(`${BASE}/api/orchestrate/worker/${encodeURIComponent(agentId)}/result`);
+    } catch (fetchErr) {
+        throw new DispatchPollError(
+            `dispatch poll failed: ${errString(fetchErr)}`,
+            agentId,
+            agentName,
+        );
+    }
+    const body = await res.json() as DispatchResultBody;
+    if (!res.ok) throw new DispatchPollError(body.error || `poll failed: ${res.status}`, agentId, agentName);
+    return body;
+}
+
+function printDispatchResult(agentName: string, body: DispatchResultBody, opts: { skipProcess?: boolean } = {}): void {
     console.log(`✅ ${agentName} completed (${resultStatus(body)})`);
-    printEmployeeProcess(body);
+    if (!opts.skipProcess) printEmployeeProcess(body);
     const text = resultText(body);
     if (text !== undefined) {
         console.log('\n--- Employee Response ---');
@@ -219,7 +316,7 @@ try {
                     'Content-Type': 'application/json',
                     'X-Jaw-Boss-Token': bossToken,
                 },
-                body: JSON.stringify({ agent, task, mutable, scope }),
+                body: JSON.stringify({ agent, task, mutable, scope, ...(watch ? { wait: false } : {}) }),
             });
             break;
         } catch (e: unknown) {
@@ -243,6 +340,16 @@ try {
     }
 
     const body = await res.json() as DispatchResultBody;
+    if (watch && res.status === 202) {
+        const pollAgentId = body?.worker?.agentId || await resolveAgentId(agent);
+        if (!pollAgentId) {
+            console.error('❌ dispatch started but worker id was not returned');
+            process.exit(1);
+        }
+        const watched = await pollAndPrintWorker(pollAgentId, agent);
+        printDispatchResult(agent, watched, { skipProcess: true });
+        process.exit(dispatchExitCode(watched));
+    }
     if (!res.ok) {
         if (res.status === 409) {
             const pollAgentId = body?.worker?.agentId || body?.existing?.agentId || await resolveAgentId(agent);
@@ -251,8 +358,10 @@ try {
                 process.exit(1);
             }
             console.error(`⏳ ${agent} is already running (agentId: ${pollAgentId}), polling worker result...`);
-            const polled = await pollWorkerResult(pollAgentId, agent);
-            printDispatchResult(agent, polled);
+            const polled = watch
+                ? await pollAndPrintWorker(pollAgentId, agent)
+                : await pollWorkerResult(pollAgentId, agent);
+            printDispatchResult(agent, polled, watch ? { skipProcess: true } : {});
             process.exit(dispatchExitCode(polled));
         }
         console.error(`❌ ${body.error || `Failed: ${res.status}`}`);

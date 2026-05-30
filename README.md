@@ -308,6 +308,8 @@ Boss (Claude) thinks...
 ```bash
 # Under the hood, it's one command:
 jaw dispatch --agent "Frontend" --task "Fix the CSS grid layout in dashboard.tsx"
+jaw dispatch --agent "Backend" --task "Run read-only verification" --watch
+jaw worker status Backend
 ```
 
 Employees are other AI CLIs configured in your settings. Each has its own session, its own model, its own context. The Boss reviews their output before presenting it to you.
@@ -493,6 +495,8 @@ jaw service install               # auto-start on boot
 
 # AI & Orchestration
 jaw dispatch --agent "Backend" --task "..."  # dispatch employee
+jaw dispatch --agent "Backend" --task "..." --watch  # dispatch and stream safe progress
+jaw worker status Backend            # inspect current/previous employee progress
 jaw orchestrate                   # enter/control PABCD workflow
 # in chat: /continue               # explicit worklog/PABCD resume
 

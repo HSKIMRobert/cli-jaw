@@ -37,7 +37,7 @@ const _homeEqArg = process.argv.find(a => a.startsWith('--home='));
 if (_homeIdx !== -1 && process.argv[_homeIdx + 1]) {
     const _homeVal = process.argv[_homeIdx + 1]!;
     // Guard: if the "value" looks like a known subcommand, user forgot the path
-    const _knownCmds = ['serve', 'init', 'doctor', 'chat', 'employee', 'reset', 'mcp', 'skill', 'status', 'browser', 'memory', 'launchd', 'clone', 'service', 'dashboard', 'connector', 'reminders', 'orchestrate', 'dispatch', 'project', 'goal'];
+    const _knownCmds = ['serve', 'init', 'doctor', 'chat', 'employee', 'reset', 'mcp', 'skill', 'status', 'browser', 'memory', 'launchd', 'clone', 'service', 'dashboard', 'connector', 'reminders', 'orchestrate', 'dispatch', 'worker', 'project', 'goal'];
     if (_knownCmds.includes(_homeVal)) {
         console.error(`  ❌ --home requires a path argument (got subcommand '${_homeVal}')`);
         console.error(`  Usage: jaw --home <path> ${_homeVal}`);
@@ -100,6 +100,7 @@ ${c.cyan}  🦈 jaw${c.reset} — AI agent orchestration platform  ${c.dim}v${pk
   ${c.bold}Orchestration:${c.reset}
     chat                                Terminal REPL
     dispatch --agent "N" --task "..."   Dispatch employee (pipe-compatible)
+    worker status|watch [agent]         Inspect employee progress
     employee [list|reset]               Employee management
     orchestrate [P|A|B|C|D|reset]       PABCD state machine
     goal <set|status|done|cancel|...>   Persistent goal lifecycle
@@ -173,6 +174,9 @@ switch (command) {
         break;
     case 'dispatch':
         await import('./commands/dispatch.js');
+        break;
+    case 'worker':
+        await import('./commands/worker.js');
         break;
     case 'service':
         await import('./commands/service.js');

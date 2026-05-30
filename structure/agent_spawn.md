@@ -158,14 +158,15 @@ Limits are intentionally bounded (`MAX_TOOL_LOG_ENTRIES`, per-detail cap, total-
 | File | Line count | Role |
 | --- | ---: | --- |
 | `src/orchestrator/collect.ts` | 65L | orchestrate 결과 수집 |
-| `src/orchestrator/distribute.ts` | 576L | employee dispatch + parallel safety |
+| `src/orchestrator/distribute.ts` | 583L | employee dispatch + parallel safety |
 | `src/orchestrator/gateway.ts` | 155L | queue / intent gateway |
 | `src/orchestrator/parser.ts` | 176L | legacy subtask JSON 파서 + intent matcher + numeric reference + verdict 파서 |
 | `src/orchestrator/pipeline.ts` | 523L | PABCD sole entry point + interview first-turn init + `<interview_tracker>` 추출 |
 | `src/orchestrator/scope.ts` | 17L | scope stub — 항상 `'default'` 반환 |
-| `src/orchestrator/state-machine.ts` | 427L | IPABCD state (I=Interview pre-plan) + prompts (1–3 questions/round) + `<interview_tracker>` known/unknown → OrcContext.interview + audit/verification verdict |
+| `src/orchestrator/state-machine.ts` | 432L | IPABCD state (I=Interview pre-plan) + prompts (1–3 questions/round) + `<interview_tracker>` known/unknown → OrcContext.interview + audit/verification verdict |
 | `src/orchestrator/worker-monitor.ts` | 58L | stall/disconnect/timeout monitor |
-| `src/orchestrator/worker-registry.ts` | 171L | worker ownership + replay registry |
+| `src/orchestrator/worker-progress.ts` | 58L | worker progress safe-summary sanitizer + snapshot types |
+| `src/orchestrator/worker-registry.ts` | 241L | worker ownership + replay registry + sanitized progress snapshots |
 | `src/orchestrator/workspace-context.ts` | 95L | task에서 repo path hint 추출, project root resolve |
 
 ### `pipeline.ts` 실제 흐름
@@ -194,6 +195,7 @@ orchestrate(prompt, meta)
 ### Worker registry / monitor
 
 - `claimWorker()`는 worker 슬롯을 `running` 상태로 등록하고, `finishWorker()`는 `done + pendingReplay=true`로 바꾼다.
+- worker registry는 현재 실행 중 run과 직원별 직전 완료 run을 메모리에서 유지하며, `worker-progress.ts`를 통해 thinking/detail을 제거한 안전 요약만 `worker-progress` API와 CLI watch/status에 노출한다.
 - `claimWorkerReplay()` / `markWorkerReplayed()` / `releaseWorkerReplay()`로 replay를 관리한다. replay 실패는 3회까지 재시도한다.
 - `startWorkerMonitor()`는 `stallThresholdMs: 120_000`, `maxDurationMs: 600_000` 기준으로 stall / disconnect / timeout 콜백을 쏜다.
 - `touch()`는 `stdout | stderr | acp | heartbeat` 이벤트마다 호출되고, stall 상태를 해제한다.

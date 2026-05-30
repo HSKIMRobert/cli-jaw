@@ -31,6 +31,7 @@ import type { RuntimeOrigin, RemoteTarget } from '../messaging/types.js';
 import { isCompactMarkerRow } from '../core/compact.js';
 import { isRuntimeSettingsMutationInFlight, waitForRuntimeSettingsIdle } from '../core/runtime-settings-gate.js';
 import { hasBlockingWorkers, hasPendingWorkerReplays, getActiveWorkers, clearAllWorkers } from '../orchestrator/worker-registry.js';
+import { sanitizeWorkerProgressTools } from '../orchestrator/worker-progress.js';
 import { handleAgentExit, setSpawnAgent, setMainMetaHandler } from './lifecycle-handler.js';
 import { buildServicePath } from '../core/runtime-path.js';
 import { resolveOrcScope } from '../orchestrator/scope.js';
@@ -133,6 +134,13 @@ interface CopilotSpawnContext extends SpawnContext {
 }
 
 import { killProcessTree } from './spawn/process-kill.js';
+
+function appendParentLiveRunTool(ctx: SpawnContext, tool: ToolEntry): void {
+    if (!ctx.parentLiveScope) return;
+    const [safeTool] = sanitizeWorkerProgressTools([{ ...tool, isEmployee: true }]);
+    if (!safeTool) return;
+    appendLiveRunTool(ctx.parentLiveScope, { ...safeTool, isEmployee: true });
+}
 
 export function killAgentById(agentId: string): boolean {
     const proc = activeProcesses.get(agentId);
@@ -945,7 +953,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 stampTraceTool(tool, ctx, 'thinking');
                 ctx.toolLog.push(tool);
                 if (ctx.liveScope) replaceLiveRunTools(ctx.liveScope, ctx.toolLog);
-                if (ctx.parentLiveScope) appendLiveRunTool(ctx.parentLiveScope, { ...tool, isEmployee: true });
+                appendParentLiveRunTool(ctx, tool);
                 broadcast('agent_tool', { agentId: agentLabel, ...tool, ...empTag }, traceAudience);
             }
             ctx.thinkingBuf = '';
@@ -979,7 +987,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                     stampTraceTool(parsedTool, ctx, parsedTool.toolType || 'tool');
                     ctx.toolLog.push(parsedTool);
                     if (ctx.liveScope) replaceLiveRunTools(ctx.liveScope, ctx.toolLog);
-                    if (ctx.parentLiveScope) appendLiveRunTool(ctx.parentLiveScope, { ...parsedTool, isEmployee: true });
+                    appendParentLiveRunTool(ctx, parsedTool);
                     broadcast('agent_tool', { agentId: agentLabel, ...parsedTool, ...empTag }, traceAudience);
                     // Reset heartbeat gate on actually visible broadcast (not 💭)
                     lastVisibleBroadcastTs = Date.now();
@@ -1005,7 +1013,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 stampTraceTool(parsed.tool, ctx, parsed.tool.toolType || 'tool');
                 ctx.toolLog.push(parsed.tool);
                 if (ctx.liveScope) replaceLiveRunTools(ctx.liveScope, ctx.toolLog);
-                if (ctx.parentLiveScope) appendLiveRunTool(ctx.parentLiveScope, { ...parsed.tool, isEmployee: true });
+                appendParentLiveRunTool(ctx, parsed.tool);
                 broadcast('agent_tool', { agentId: agentLabel, ...parsed.tool, ...empTag }, traceAudience);
             }
         });
@@ -1020,7 +1028,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 stampTraceTool(parsed.tool, ctx, parsed.tool.toolType || 'tool');
                 ctx.toolLog.push(parsed.tool);
                 if (ctx.liveScope) replaceLiveRunTools(ctx.liveScope, ctx.toolLog);
-                if (ctx.parentLiveScope) appendLiveRunTool(ctx.parentLiveScope, { ...parsed.tool, isEmployee: true });
+                appendParentLiveRunTool(ctx, parsed.tool);
                 broadcast('agent_tool', { agentId: agentLabel, ...parsed.tool, ...empTag }, traceAudience);
             }
         });
@@ -1233,7 +1241,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 stampTraceTool(tool, ctx, 'thinking');
                 ctx.toolLog.push(tool);
                 if (ctx.liveScope) replaceLiveRunTools(ctx.liveScope, ctx.toolLog);
-                if (ctx.parentLiveScope) appendLiveRunTool(ctx.parentLiveScope, { ...tool, isEmployee: true });
+                appendParentLiveRunTool(ctx, tool);
                 broadcast('agent_tool', { agentId: agentLabel, ...tool, ...empTag }, traceAudience);
             }
             ctx.thinkingBuf = '';
@@ -1266,7 +1274,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                     stampTraceTool(parsedTool, ctx, parsedTool.toolType || 'tool');
                     ctx.toolLog.push(parsedTool);
                     if (ctx.liveScope) replaceLiveRunTools(ctx.liveScope, ctx.toolLog);
-                    if (ctx.parentLiveScope) appendLiveRunTool(ctx.parentLiveScope, { ...parsedTool, isEmployee: true });
+                    appendParentLiveRunTool(ctx, parsedTool);
                     broadcast('agent_tool', { agentId: agentLabel, ...parsedTool, ...empTag }, traceAudience);
                     lastVisibleBroadcastTs = Date.now();
                     heartbeatSent = false;

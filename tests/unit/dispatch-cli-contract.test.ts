@@ -27,15 +27,23 @@ test('dispatch helper returns an empty list for malformed employee payloads', ()
     assert.deepEqual(unwrapEmployeeSummaries(null), []);
 });
 
-test('dispatch CLI only resolves agent id from /api/employees for worker-busy polling', () => {
-    const nonOkIdx = dispatchSrc.indexOf('if (!res.ok)');
+test('dispatch CLI resolves agent id from /api/employees only for watch or worker-busy polling', () => {
+    const watchIdx = dispatchSrc.indexOf('if (watch && res.status === 202)');
+    assert.ok(watchIdx >= 0, 'watch path should handle async 202 response');
+
+    const nonOkIdx = dispatchSrc.indexOf('if (!res.ok)', watchIdx);
     assert.ok(nonOkIdx >= 0, 'dispatch.ts should handle non-ok dispatch responses');
-    const nonOkBlock = dispatchSrc.slice(nonOkIdx, dispatchSrc.indexOf('printDispatchResult(agent, body)', nonOkIdx));
+    const nonOkBlock = dispatchSrc.slice(nonOkIdx, nonOkIdx + 2000);
 
     const status409Idx = nonOkBlock.indexOf('if (res.status === 409)');
     const resolveIdx = nonOkBlock.indexOf('await resolveAgentId(agent)');
     assert.ok(status409Idx >= 0, 'non-ok path should branch on HTTP 409 before polling');
     assert.ok(resolveIdx > status409Idx, 'resolveAgentId should only run inside the 409 branch');
+    const watchBlock = dispatchSrc.slice(watchIdx, dispatchSrc.indexOf('if (!res.ok)', watchIdx));
+    assert.ok(
+        watchBlock.includes('body?.worker?.agentId || await resolveAgentId(agent)'),
+        'watch 202 path should resolve agent id only if the server omits worker metadata',
+    );
     assert.ok(
         dispatchSrc.includes('unwrapEmployeeSummaries(await res.json() as unknown)'),
         'resolveAgentId should unwrap /api/employees envelope safely',
