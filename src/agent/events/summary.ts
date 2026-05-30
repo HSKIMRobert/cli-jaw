@@ -2,6 +2,7 @@
 
 import type { SpawnContext, CliEventRecord } from './types.js';
 import { isClaudeLikeCli } from '../cli-helpers.js';
+import { displayShellCommand } from '../../shared/shell-command-display.js';
 import {
     logLine,
     toSingleLine,
@@ -21,7 +22,7 @@ export function logEventSummary(agentLabel: string, cli: string, event: CliEvent
 
     if (cli === 'codex') {
         if (event.type === 'item.started' && item.type === 'command_execution') {
-            logLine(`[${agentLabel}] cmd: ${(item.command || '').slice(0, 160)}`, ctx);
+            logLine(`[${agentLabel}] cmd: ${displayShellCommand(String(item.command || '')).slice(0, 160)}`, ctx);
             return;
         }
         if (event.type === 'item.completed') {
@@ -34,7 +35,7 @@ export function logEventSummary(agentLabel: string, cli: string, event: CliEvent
                 return;
             }
             if (item.type === 'command_execution') {
-                const cmd = (item.command || '').slice(0, 120);
+                const cmd = displayShellCommand(String(item.command || '')).slice(0, 120);
                 const exitCode = item.exit_code ?? '?';
                 logLine(`[${agentLabel}] cmd: ${cmd} → exit ${exitCode}`, ctx);
                 const outPreview = toIndentedPreview(item.aggregated_output, 260);

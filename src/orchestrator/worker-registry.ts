@@ -2,6 +2,10 @@
 // In-memory registry tracking worker ownership and result handoff.
 
 import { stripUndefined } from '../core/strip-undefined.js';
+import {
+    sanitizeToolLogForDurableStorage,
+    type SanitizedToolLogEntry,
+} from '../shared/tool-log-sanitize.js';
 
 const workers = new Map<string, WorkerSlot>();
 
@@ -31,6 +35,8 @@ export interface WorkerSlot {
     replayClaimed: boolean;
     replayAttempts: number;
     result: string | null;
+    tools: SanitizedToolLogEntry[];
+    progressUpdatedAt: number | null;
     /** Origin/target/chatId of the Boss session that dispatched this worker. */
     replayMeta?: WorkerReplayMeta;
 }
@@ -67,6 +73,8 @@ export function claimWorker(emp: WorkerEmployeeRef, task: string, replayMeta?: W
         replayClaimed: false,
         replayAttempts: 0,
         result: null,
+        tools: [],
+        progressUpdatedAt: null,
         replayMeta: replayMeta && Object.keys(replayMeta).length ? { ...replayMeta } : undefined,
     });
     workers.set(emp.id, slot);
@@ -84,12 +92,20 @@ export function updateWorkerPhase(agentId: string, phase: string, phaseLabel: st
     slot.phaseLabel = phaseLabel;
 }
 
-export function finishWorker(agentId: string, result: string): void {
+export function updateWorkerTools(agentId: string, tools: unknown[]): void {
+    const slot = workers.get(agentId);
+    if (!slot) return;
+    slot.tools = sanitizeToolLogForDurableStorage(tools);
+    slot.progressUpdatedAt = Date.now();
+}
+
+export function finishWorker(agentId: string, result: string, tools: unknown[] = []): void {
     const slot = workers.get(agentId);
     if (!slot) return;
     slot.state = 'done';
     slot.completedAt = Date.now();
     slot.result = result;
+    if (tools.length > 0) updateWorkerTools(agentId, tools);
     slot.pendingReplay = true;
 }
 
@@ -129,11 +145,16 @@ export function hasPendingWorkerReplays(): boolean {
     return false;
 }
 
-export function listPendingWorkerResults(): Array<{ agentId: string; text: string; meta?: WorkerReplayMeta }> {
-    const results: Array<{ agentId: string; text: string; meta?: WorkerReplayMeta }> = [];
+export function listPendingWorkerResults(): Array<{ agentId: string; text: string; tools?: SanitizedToolLogEntry[]; meta?: WorkerReplayMeta }> {
+    const results: Array<{ agentId: string; text: string; tools?: SanitizedToolLogEntry[]; meta?: WorkerReplayMeta }> = [];
     for (const slot of workers.values()) {
         if (slot.state === 'done' && slot.pendingReplay && !slot.replayClaimed && slot.result !== null) {
-            results.push(stripUndefined({ agentId: slot.agentId, text: slot.result, meta: slot.replayMeta }));
+            results.push(stripUndefined({
+                agentId: slot.agentId,
+                text: slot.result,
+                tools: slot.tools.length > 0 ? slot.tools : undefined,
+                meta: slot.replayMeta,
+            }));
         }
     }
     return results;

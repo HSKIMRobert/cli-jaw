@@ -7,6 +7,10 @@ import { cliFetch, getCliAuthToken } from '../../src/cli/api-auth.js';
 import { shouldShowHelp, printAndExit } from '../helpers/help.js';
 import { errString, isConnRefused } from '../_http-client.js';
 import { unwrapEmployeeSummaries } from './dispatch-helpers.js';
+import {
+    displayShellCommand,
+    displayShellCommandDetail,
+} from '../../src/shared/shell-command-display.js';
 
 if (shouldShowHelp(process.argv)) printAndExit(`
   jaw dispatch — send task to an employee agent
@@ -68,7 +72,9 @@ const STARTUP_RETRY_DELAYS_MS = [500, 1000, 1500, 2000, 3000];
 
 interface DispatchResultBody {
     state?: string;
-    result?: { status?: string; text?: string } | string;
+    result?: { status?: string; text?: string; tools?: DispatchToolEntry[] } | string;
+    tools?: DispatchToolEntry[];
+    progressUpdatedAt?: number | null;
     error?: string;
     worker?: { agentId?: string };
     existing?: { agentId?: string };
@@ -79,6 +85,16 @@ interface DispatchResultBody {
         currentState?: string;
         ctxPresent?: boolean;
     };
+}
+
+interface DispatchToolEntry {
+    icon?: string;
+    label?: string;
+    detail?: string;
+    toolType?: string;
+    status?: string;
+    stepRef?: string;
+    isEmployee?: boolean;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -135,13 +151,44 @@ function resultText(body: DispatchResultBody): string | undefined {
     return undefined;
 }
 
+function resultTools(body: DispatchResultBody): DispatchToolEntry[] {
+    if (typeof body.result === 'object' && Array.isArray(body.result?.tools)) return body.result.tools;
+    if (Array.isArray(body.tools)) return body.tools;
+    return [];
+}
+
 function dispatchExitCode(body: DispatchResultBody): number {
     const status = resultStatus(body);
     return status === 'error' || status === 'failed' || status === 'cancelled' ? 1 : 0;
 }
 
+function formatToolLine(tool: DispatchToolEntry, index: number): string {
+    const icon = tool.icon || '';
+    const status = tool.status ? ` [${tool.status}]` : '';
+    const label = displayShellCommand(tool.label || tool.toolType || 'tool');
+    const detail = displayShellCommandDetail(tool.detail || '');
+    const detailPreview = detail && detail.trim() !== label.trim()
+        ? ` — ${detail.replace(/\s+/g, ' ').trim().slice(0, 120)}`
+        : '';
+    return `${index}. ${icon} ${label}${status}${detailPreview}`.replace(/\s+/g, ' ').trim();
+}
+
+function printEmployeeProcess(body: DispatchResultBody): void {
+    const tools = resultTools(body);
+    if (tools.length === 0) return;
+    const max = 20;
+    const omitted = Math.max(0, tools.length - max);
+    const visible = tools.slice(-max);
+    console.log('\n--- Employee Process ---');
+    if (omitted > 0) console.log(`(${omitted} earlier step${omitted === 1 ? '' : 's'} omitted)`);
+    visible.forEach((tool, idx) => {
+        console.log(formatToolLine(tool, omitted + idx + 1));
+    });
+}
+
 function printDispatchResult(agentName: string, body: DispatchResultBody): void {
     console.log(`✅ ${agentName} completed (${resultStatus(body)})`);
+    printEmployeeProcess(body);
     const text = resultText(body);
     if (text !== undefined) {
         console.log('\n--- Employee Response ---');

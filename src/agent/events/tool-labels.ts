@@ -1,6 +1,7 @@
 // Tool label extraction for CLI events
 
 import { stripUndefined } from '../../core/strip-undefined.js';
+import { displayShellCommand, displayShellCommandDetail } from '../../shared/shell-command-display.js';
 import type { SpawnContext, ToolEntry, CliEventRecord } from './types.js';
 import {
     asCliEventRecord,
@@ -73,11 +74,12 @@ export function extractToolLabels(cli: string, event: CliEventRecord, ctx: Spawn
             labels.push({ icon: '💭', label: buildPreview(detail, 60) || 'thinking...', toolType: 'thinking', detail });
         }
         if (event.type === 'item.completed' && item.type === 'command_execution') {
-            const command = String(item.command || 'exec');
+            const rawCommand = String(item.command || 'exec');
+            const command = displayShellCommand(rawCommand);
             const output = item.aggregated_output ? String(item.aggregated_output) : '';
-            const detail = output ? `$ ${command}\n${output}` : command;
+            const detail = displayShellCommandDetail(output ? `$ ${rawCommand}\n${output}` : rawCommand);
             // [P0-1.4] Use item.id for unique stepRef (not command string)
-            const ref = `codex:item:${item.id || command}`;
+            const ref = `codex:item:${item.id || rawCommand}`;
             // [P1-2.4] Include exit_code in label status
             const exitCode = item.exit_code;
             const failed = exitCode != null && exitCode !== 0;
@@ -116,8 +118,9 @@ export function extractToolLabels(cli: string, event: CliEventRecord, ctx: Spawn
     // [P0-1.3] Codex item.started: emit running label (paired with 1.4 stepRef)
     if (cli === 'codex' && event.type === 'item.started' && item) {
         if (item.type === 'command_execution') {
-            const command = String(item.command || 'exec');
-            const ref = `codex:item:${item.id || command}`;
+            const rawCommand = String(item.command || 'exec');
+            const command = displayShellCommand(rawCommand);
+            const ref = `codex:item:${item.id || rawCommand}`;
             labels.push({ icon: '🔧', label: buildPreview(command, 40) || 'exec', toolType: 'tool', stepRef: ref, status: 'running' });
         }
     }

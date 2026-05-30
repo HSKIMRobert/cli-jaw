@@ -8,7 +8,7 @@ import { insertMessage } from '../core/db.js';
 import { getState, getCtx, setState, resetState, canTransition, resetAllStaleStates, parseWorkerVerdict } from '../orchestrator/state-machine.js';
 import type { OrcStateName } from '../orchestrator/state-machine.js';
 import { resolveOrcScope } from '../orchestrator/scope.js';
-import { getActiveWorkers, claimWorker, finishWorker, failWorker, markWorkerReplayed, getWorkerSlot, WorkerBusyError } from '../orchestrator/worker-registry.js';
+import { getActiveWorkers, claimWorker, finishWorker, failWorker, markWorkerReplayed, getWorkerSlot, updateWorkerTools, WorkerBusyError } from '../orchestrator/worker-registry.js';
 import { findEmployee, runSingleAgent } from '../orchestrator/distribute.js';
 import { getEmployees } from '../core/db.js';
 import { settings, clearProjectDirs } from '../core/config.js';
@@ -346,7 +346,9 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
             // Phase 57: Pass worklog path so the worker can append progress entries.
             const worklog = dispatchCtx?.worklogPath ? { path: dispatchCtx.worklogPath } : {};
             const result = await runSingleAgent(ap, emp, worklog, 1, { origin: 'api', projectDirs: dispatchCtx?.projectDirs }, []);
-            finishWorker(slot.agentId, String(result["text"] || ''));
+            const resultTools = Array.isArray(result["tools"]) ? result["tools"] : [];
+            updateWorkerTools(slot.agentId, resultTools);
+            finishWorker(slot.agentId, String(result["text"] || ''), resultTools);
 
             // Post-dispatch scope violation check
             if (allowWrite && scope) {
@@ -437,14 +439,21 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
         const slot = getWorkerSlot(agentId);
         if (!slot) return fail(res, 404, 'worker not found');
         if (slot.state === 'running') {
-            res.json({ ok: true, state: 'running', startedAt: slot.startedAt, task: slot.task });
+            res.json({
+                ok: true,
+                state: 'running',
+                startedAt: slot.startedAt,
+                task: slot.task,
+                tools: slot.tools,
+                progressUpdatedAt: slot.progressUpdatedAt,
+            });
             return;
         }
         // Consume pending replay — subsequent polls will return 404.
         if (slot.state === 'done' && slot.pendingReplay) {
             markWorkerReplayed(slot.agentId);
         }
-        res.json({ ok: true, state: slot.state, result: slot.result });
+        res.json({ ok: true, state: slot.state, result: slot.result, tools: slot.tools });
     });
 
     app.put('/api/orchestrate/state', requireAuth, (req, res) => {

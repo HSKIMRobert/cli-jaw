@@ -38,3 +38,43 @@ test('persisted tool log can render as a lazy ProcessBlock before msg-content', 
     assert.equal(body.querySelector('.process-step')?.getAttribute('data-type'), 'subagent');
     assert.match(body.textContent || '', /<done & quoted>/);
 });
+
+test('process block renders shell wrapper commands as the inner command', async () => {
+    setupWebUiDom();
+    const { buildProcessBlockHtml } = await import('../../public/js/features/process-block.ts');
+
+    const html = buildProcessBlockHtml([{
+        id: 'step-shell',
+        type: 'tool',
+        icon: 'tool',
+        label: "/bin/zsh -lc 'git status --short'",
+        detail: "$ /bin/zsh -lc 'git status --short'\n M README.md",
+        status: 'done',
+        startTime: Date.now(),
+    }], true);
+
+    const host = document.createElement('div');
+    host.innerHTML = html;
+
+    assert.match(host.textContent || '', /git status --short/);
+    assert.doesNotMatch(host.textContent || '', /\/bin\/zsh -lc/);
+});
+
+test('legacy tool group renders shell wrapper commands as the inner command', async () => {
+    setupWebUiDom();
+    const { buildToolGroupHtml } = await import('../../public/js/features/tool-ui.ts');
+
+    const html = buildToolGroupHtml([{
+        icon: '🔧',
+        label: "/bin/zsh -lc 'git status --short'",
+        detail: "$ /bin/zsh -lc 'git status --short'\n M README.md",
+        toolType: 'tool',
+        status: 'done',
+    }]);
+
+    const host = document.createElement('div');
+    host.innerHTML = html;
+
+    assert.match(host.textContent || '', /git status --short/);
+    assert.doesNotMatch(host.textContent || '', /\/bin\/zsh -lc/);
+});

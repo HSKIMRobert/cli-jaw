@@ -1,5 +1,9 @@
 import { escapeHtml } from '../render.js';
 import { ICONS } from '../icons.js';
+import {
+    displayShellCommand,
+    displayShellCommandDetail,
+} from '../../../src/shared/shell-command-display.js';
 
 declare global {
     interface Window {
@@ -107,36 +111,47 @@ export function getStoredProcessStepDetail(stepId: string): string {
     return processDetailStore.get(stepId)?.detail || '';
 }
 
+function normalizeProcessStepForDisplay(step: ProcessStep): ProcessStep {
+    if (step.type !== 'tool') return step;
+    return {
+        ...step,
+        label: displayShellCommand(step.label || ''),
+        detail: displayShellCommandDetail(step.detail || ''),
+        detailPreview: step.detailPreview ? displayShellCommandDetail(step.detailPreview) : step.detailPreview,
+    };
+}
+
 export function compactProcessStepForStorage(step: ProcessStep): ProcessStep {
-    const storedDetail = getStoredProcessStepDetail(step.id);
-    const fullDetail = storedDetail || step.detail || '';
+    const displayStep = normalizeProcessStepForDisplay(step);
+    const storedDetail = displayShellCommandDetail(getStoredProcessStepDetail(displayStep.id));
+    const fullDetail = storedDetail || displayStep.detail || '';
     const retained = retainedDetail(fullDetail);
-    const preview = step.detailPreview || previewText(fullDetail, PROCESS_DETAIL_PREVIEW_CHARS);
+    const preview = displayStep.detailPreview || previewText(fullDetail, PROCESS_DETAIL_PREVIEW_CHARS);
     if (fullDetail) {
-        processDetailStore.set(step.id, {
+        processDetailStore.set(displayStep.id, {
             detail: retained.detail,
             originalLength: fullDetail.length,
             truncated: retained.truncated,
         });
     }
-    processStepMetaStore.set(step.id, {
-        id: step.id,
-        type: step.type,
-        icon: step.icon,
-        rawIcon: step.rawIcon,
-        label: step.label,
-        isEmployee: step.isEmployee,
-        stepRef: step.stepRef,
-        traceRunId: step.traceRunId, traceSeq: step.traceSeq, detailAvailable: step.detailAvailable,
-        detailBytes: step.detailBytes, rawRetentionStatus: step.rawRetentionStatus,
-        status: step.status,
-        startTime: step.startTime,
+    processStepMetaStore.set(displayStep.id, {
+        id: displayStep.id,
+        type: displayStep.type,
+        icon: displayStep.icon,
+        rawIcon: displayStep.rawIcon,
+        label: displayStep.label,
+        isEmployee: displayStep.isEmployee,
+        stepRef: displayStep.stepRef,
+        traceRunId: displayStep.traceRunId, traceSeq: displayStep.traceSeq, detailAvailable: displayStep.detailAvailable,
+        detailBytes: displayStep.detailBytes, rawRetentionStatus: displayStep.rawRetentionStatus,
+        status: displayStep.status,
+        startTime: displayStep.startTime,
         preview,
         detailLength: fullDetail.length,
         detailTruncated: retained.truncated,
     });
     return {
-        ...step,
+        ...displayStep,
         detail: preview,
         detailPreview: preview,
         detailLength: fullDetail.length,

@@ -30,14 +30,14 @@ const FALLBACK_CLI_REGISTRY: CliRegistry = {
         efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
         models: [
             'opus', 'sonnet', 'haiku',
-            'gpt-5.4', 'gpt-5.4-mini',
+            'gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini',
             'gemini-3-flash-preview',
             'grok-build',
             'gpt-5-mini',
         ],
         modelsByProvider: {
-            claude: ['opus', 'sonnet', 'haiku'],
-            codex: ['gpt-5.4', 'gpt-5.4-mini'],
+            claude: ['claude-opus-4-8', 'opus', 'sonnet', 'haiku'],
+            codex: ['gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini'],
             gemini: ['gemini-3-flash-preview'],
             grok: ['grok-build'],
             copilot: ['gpt-5-mini'],
@@ -55,8 +55,8 @@ const FALLBACK_CLI_REGISTRY: CliRegistry = {
         efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
         // Mirrors getDefaultClaudeChoices() in src/cli/claude-models.ts —
         // aliases first, then verified pinned full IDs (hyphen form). The
-        // [1m] suffix activates Claude Code's 1M-context window (Opus 4.7,
-        // Opus 4.6, Sonnet 4.6 only).
+        // [1m] suffix activates Claude Code's 1M-context window (Opus 4.8,
+        // Opus 4.7, Opus 4.6, Sonnet 4.6).
         models: [
             'opus',
             'sonnet',

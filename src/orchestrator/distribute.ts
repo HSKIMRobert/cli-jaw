@@ -11,6 +11,7 @@ import { startWorkerMonitor } from './worker-monitor.js';
 import { isSessionPersistingCli } from '../agent/cli-helpers.js';
 import { buildWorkspaceContextBlock } from './workspace-context.js';
 import { updateWorkerPhase } from './worker-registry.js';
+import { sanitizeToolLogForDurableStorage } from '../shared/tool-log-sanitize.js';
 
 // ─── Phase Constants (shared with pipeline.ts) ───────
 
@@ -84,6 +85,7 @@ type AgentRunResult = {
     text?: unknown;
     sessionId?: unknown;
     diagnostic?: unknown;
+    tools?: unknown;
     [key: string]: unknown;
 };
 
@@ -517,6 +519,7 @@ ${worklogBlock}`.trim();
         throw err;
     }
     const resultText = text(r["text"]);
+    const resultTools = Array.isArray(r["tools"]) ? sanitizeToolLogForDurableStorage(r["tools"]) : [];
     const isSuccess = r["code"] === 0 || (r["code"] == null && resultText.trim().length > 0);
     if (isSuccess && r["sessionId"] && isSessionPersistingCli(String(emp["cli"] || ''))) {
         const empOutputLen = typeof r["outputLen"] === 'number' ? r["outputLen"] : 0;
@@ -530,6 +533,7 @@ ${worklogBlock}`.trim();
         phase: currentPhase, phaseLabel,
         status: isSuccess ? 'done' : 'error',
         text: diagnosticText,
+        tools: resultTools,
     };
 
     // Parse phases_completed from agent output (supports both plain-text and legacy JSON)

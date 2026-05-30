@@ -5,6 +5,10 @@ import {
     sanitizeToolLogForDurableStorage,
     serializeSanitizedToolLog,
 } from '../../../src/shared/tool-log-sanitize.js';
+import {
+    displayShellCommand,
+    displayShellCommandDetail,
+} from '../../../src/shared/shell-command-display.js';
 import type { ProcessStep } from './process-block.js';
 import type { ToolLogEntry } from './tool-ui.js';
 
@@ -28,6 +32,11 @@ function fallbackToolLabel(tool: ToolLogEntry): string {
     return typeof named.name === 'string' && named.name ? named.name : 'tool';
 }
 
+function displayToolLabel(tool: ToolLogEntry): string {
+    const label = fallbackToolLabel(tool);
+    return tool.toolType === 'tool' ? displayShellCommand(label) : label;
+}
+
 export function parseToolLog(toolLog?: string | null): ToolLogEntry[] {
     return parseToolLogBounded(toolLog) as ToolLogEntry[];
 }
@@ -47,10 +56,10 @@ export function toProcessSteps(tools: ToolLogEntry[], runStartedAt?: number): Pr
         id: generateId(),
         icon: tool.icon ? emojiToIcon(tool.icon) : ICONS.tool,
         rawIcon: tool.rawIcon || tool.icon || '',
-        label: fallbackToolLabel(tool),
+        label: displayToolLabel(tool),
         isEmployee: tool.isEmployee === true,
         type: processStepType(tool.toolType),
-        detail: tool.detail || '',
+        detail: tool.toolType === 'tool' ? displayShellCommandDetail(tool.detail || '') : tool.detail || '',
         stepRef: tool.stepRef || '',
         traceRunId: tool.traceRunId || '',
         traceSeq: tool.traceSeq,

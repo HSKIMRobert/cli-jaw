@@ -4,6 +4,10 @@
 
 import { escapeHtml } from '../render.js';
 import { ICONS } from '../icons.js';
+import {
+    displayShellCommand,
+    displayShellCommandDetail,
+} from '../../../src/shared/shell-command-display.js';
 
 export interface ToolLogEntry {
     icon: string;
@@ -33,13 +37,23 @@ function previewText(text: string, max = 100): string {
     return singleLine.length > max ? `${singleLine.slice(0, max - 1)}…` : singleLine;
 }
 
+function normalizeToolEntryForDisplay(tl: ToolLogEntry): ToolLogEntry {
+    if (tl.toolType && tl.toolType !== 'tool') return tl;
+    return {
+        ...tl,
+        label: displayShellCommand(tl.label || ''),
+        detail: displayShellCommandDetail(tl.detail || ''),
+    };
+}
+
 function renderToolItem(tl: ToolLogEntry, idx: number): string {
-    const icon = escapeHtml(tl.icon);
-    const label = escapeHtml(tl.label);
-    const detail = tl.detail || '';
+    const displayTool = normalizeToolEntryForDisplay(tl);
+    const icon = escapeHtml(displayTool.icon);
+    const label = escapeHtml(displayTool.label);
+    const detail = displayTool.detail || '';
     const detailId = `tool-detail-${Date.now()}-${idx}`;
 
-    if (hasExpandableDetail(tl)) {
+    if (hasExpandableDetail(displayTool)) {
         const snippet = previewText(detail);
         const snippetHtml = snippet
             ? `<span class="tool-item-snippet">${escapeHtml(snippet)}</span>`
