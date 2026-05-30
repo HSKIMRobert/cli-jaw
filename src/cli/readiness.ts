@@ -71,6 +71,21 @@ export function getCliReadiness(): CliReadiness[] {
                 }
                 break;
             }
+            case 'kiro-code': {
+                try {
+                    const out = execFileSync(info.path || 'kiro-cli', ['whoami'], {
+                        encoding: 'utf8',
+                        timeout: 5000,
+                        stdio: ['ignore', 'pipe', 'pipe'],
+                    });
+                    authenticated = /logged in|email:/i.test(out);
+                    source = authenticated ? 'kiro-cli whoami' : 'none';
+                } catch {
+                    authenticated = false;
+                    source = 'none';
+                }
+                break;
+            }
             case 'gemini': {
                 const gem = readGeminiAccount();
                 authenticated = !!gem?.account?.email;
@@ -129,7 +144,7 @@ export function getCliReadiness(): CliReadiness[] {
     return results;
 }
 
-const DEFAULT_ORDER: readonly CliEngine[] = ['claude', 'claude-e', 'agy', 'codex', 'codex-app', 'cursor', 'copilot', 'gemini', 'grok', 'opencode', 'ai-e'];
+const DEFAULT_ORDER: readonly CliEngine[] = ['claude', 'claude-e', 'agy', 'codex', 'codex-app', 'cursor', 'kiro-code', 'copilot', 'gemini', 'grok', 'opencode', 'ai-e'];
 
 export function pickFirstReadyCli(order: readonly CliEngine[] = DEFAULT_ORDER): CliEngine {
     const readiness = getCliReadiness();

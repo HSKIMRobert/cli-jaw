@@ -21,11 +21,23 @@ function getProjectDir(): string {
 
 export function detectCli(name: string): CliDetection {
     const binary = (CLI_REGISTRY as Record<string, any>)[name]?.binary || name;
+    if (name === 'kiro-code') return detectKiroCode();
     if (name === 'ai-e' || binary === 'ai-e') return detectAiE();
     if (name !== 'claude-e' && binary !== 'claude-e' && binary !== 'claude-exec') {
         return detectCliBinary(binary);
     }
     return detectClaudeE();
+}
+
+function detectKiroCode(): CliDetection {
+    const explicit = process.env["KIRO_CODE_BIN"];
+    if (explicit) {
+        const explicitDetected = detectCliBinary(explicit);
+        if (explicitDetected.available) return explicitDetected;
+    }
+    const aliasDetected = detectCliBinary('kiro-code');
+    if (aliasDetected.available) return aliasDetected;
+    return detectCliBinary('kiro-cli');
 }
 
 function detectAiE(): CliDetection {

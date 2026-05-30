@@ -16,8 +16,8 @@ const __dirname = dirname(__filename);
 
 // ─── Structure validation ────────────────────────────
 
-test('CLI_KEYS contains exactly 11 known entries', () => {
-    assert.deepEqual(CLI_KEYS.sort(), ['agy', 'ai-e', 'claude', 'claude-e', 'codex', 'codex-app', 'copilot', 'cursor', 'gemini', 'grok', 'opencode']);
+test('CLI_KEYS contains exactly 12 known entries', () => {
+    assert.deepEqual(CLI_KEYS.sort(), ['agy', 'ai-e', 'claude', 'claude-e', 'codex', 'codex-app', 'copilot', 'cursor', 'gemini', 'grok', 'kiro-code', 'opencode']);
 });
 
 test('DEFAULT_CLI is claude', () => {
@@ -61,6 +61,15 @@ test('Antigravity registry exposes AGY as a top-level runtime, not an ai-e provi
     assert.deepEqual(CLI_REGISTRY.agy.models, []);
     assert.match(CLI_REGISTRY.agy.effortNote || '', /Change at TUI/);
     assert.equal(CLI_REGISTRY['ai-e'].providers.includes('agy'), false);
+});
+
+test('Kiro registry exposes kiro-code as a top-level runtime', () => {
+    assert.equal(CLI_REGISTRY['kiro-code'].label, 'Kiro');
+    assert.equal(CLI_REGISTRY['kiro-code'].binary, 'kiro-cli');
+    assert.equal(CLI_REGISTRY['kiro-code'].defaultModel, 'auto');
+    assert.ok(CLI_REGISTRY['kiro-code'].models.includes('claude-sonnet-4.6'));
+    assert.deepEqual(CLI_REGISTRY['kiro-code'].efforts, []);
+    assert.equal(CLI_REGISTRY['ai-e'].providers.includes('kiro-code'), false);
 });
 
 test('Cursor registry exposes Cursor as a top-level runtime, not an ai-e provider', () => {
