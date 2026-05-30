@@ -51,6 +51,7 @@ import {
     onPerCliAiEProviderChange, saveActiveCliSettings, savePerCli, openPromptModal,
     onFlushCliChange, loadFlushAgentSidebar,
     closePromptModal, savePromptFromModal, syncMcpServers, installMcpGlobal,
+    openMcpModal, initMcpModal,
     loadCliStatus, scheduleCliStatusRefresh, setCliStatusInterval,
     initCliStatusToggle, initCliStatusPreviewHooks, isCliStatusExpanded, expandCliStatus, isEmbeddedPreviewFrame,
     setTelegram, setForwardAll, setTelegramMentionOnly, saveTelegramSettings,
@@ -367,8 +368,10 @@ function bindPerCliControlEvents(): void {
 }
 
 // MCP
+document.querySelector('[data-action="openMcpModal"]')?.addEventListener('click', openMcpModal);
 document.querySelector('[data-action="syncMcp"]')?.addEventListener('click', syncMcpServers);
 document.querySelector('[data-action="installMcp"]')?.addEventListener('click', installMcpGlobal);
+initMcpModal();
 document.querySelector('[data-action="refreshCli"]')?.addEventListener('click', () => {
     if (!isCliStatusExpanded()) expandCliStatus();
     else loadCliStatus(true);

@@ -461,3 +461,82 @@
 .hb-add:hover {
     opacity: .9;
 }
+
+/* ── MCP Modal overrides ── */
+.mcp-modal-overlay {
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+}
+
+.mcp-modal-box {
+    background: var(--surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    width: 620px;
+    max-height: 85vh;
+}
+
+.mcp-modal-box .modal-header {
+    font-size: 14px;
+}
+
+.mcp-active-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.mcp-active-name {
+    font-weight: 600;
+    min-width: 80px;
+}
+
+.mcp-active-detail {
+    flex: 1;
+    opacity: 0.6;
+    font-size: 0.9em;
+    word-break: break-all;
+}
+
+.mcp-active-tag {
+    opacity: 0.5;
+    font-size: 0.85em;
+    white-space: nowrap;
+}
+
+.mcp-active-remove {
+    color: var(--color-error);
+    font-size: 0.85em;
+    white-space: nowrap;
+}
+
+.mcp-help-inner {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    padding: 16px;
+    max-width: 460px;
+    max-height: 70vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    position: relative;
+    z-index: 1001;
+}
+
+.mcp-help-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mcp-help-inner h4 { margin: 0 0 8px; font-size: 13px; }
+.mcp-help-inner p { margin: 4px 0; font-size: 12px; opacity: 0.85; }
+.mcp-help-inner code { background: var(--bg); padding: 1px 4px; border-radius: 3px; font-size: 11px; }
+.mcp-help-inner pre { background: var(--bg); padding: 8px; border-radius: 6px; font-size: 11px; overflow-x: auto; margin: 6px 0; }

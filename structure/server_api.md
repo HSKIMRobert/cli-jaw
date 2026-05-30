@@ -24,7 +24,7 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 | `src/routes/memory.ts` | 185L | 13 | memory runtime + KV memory + memory files |
 | `src/routes/browser.ts` | 475L | 41 | browser primitive/tab/debug/doctor/cleanup routes + adaptive fetch + web-ai render/send/poll/watch/sessions/capabilities/context routes |
 | `src/routes/jaw-memory.ts` | 239L | 11 | jaw memory search/read/save/list/init/reflect/flush/soul/soul-activate/bootstrap |
-| `src/routes/orchestrate.ts` | 578L | 13 | reset/state/workers/worker-progress/snapshot/queue cancel/hold/queue steer/dispatch/worker result/state PUT |
+| `src/routes/orchestrate.ts` | 583L | 13 | reset/state/workers/worker-progress/snapshot/queue cancel/hold/queue steer async accept/dispatch/worker result/state PUT |
 | `src/routes/goal.ts` | 89L | 3 | durable goal state get/history/set-update-complete-cancel-pause-resume |
 | `src/routes/goal-run.ts` | 81L | 3 | bounded goal-run state/preflight/start-pause-resume-stop |
 | `src/routes/messaging.ts` | 222L | 6 | upload/file-open/voice/telegram/channel/discord send |
@@ -189,7 +189,7 @@ ensureDirs()
 - `jaw-memory`는 이제 `flush`, `soul` read/write, `soul/activate`, `POST /api/soul/bootstrap`까지 포함한 11개 route다.
 - avatar API가 `registerAvatarRoutes()`로 연결되어 agent/user custom image를 관리한다.
 - `/api/session/reset`이 base route로 추가되어 `/clear`와 의미가 분리됐다.
-- orchestrate API는 queue cancel / queue hold / queue steer / worker progress 조회 / worker result 조회까지 포함한 13개 route이며, 이전 `continue` route는 현재 코드 표면에 없다.
+- orchestrate API는 queue cancel / queue hold / queue steer async accept / worker progress 조회 / worker result 조회까지 포함한 13개 route이며, 이전 `continue` route는 현재 코드 표면에 없다.
 - goal API는 durable goal state와 bounded goal-run state/preflight/start control 6개 route를 노출한다.
 - browser API는 primitive/tab/debug/doctor/runtime-cleanup, adaptive URL fetch, web-ai provider automation 라우트를 합쳐 41개 route로 확장됐다.
 - trace API는 public trace summary와 bounded event page/read를 `GET /api/traces/:runId*` 3개 route로 노출한다.
@@ -217,6 +217,14 @@ ensureDirs()
 - `GET`은 live `settings`를 반환하되 STT secrets(`geminiApiKey`, `openaiApiKey`)를 비우고 `*KeySet`/`*KeyLast4` 메타만 노출한다.
 - `PUT`은 `applyRuntimeSettingsPatch()`를 거치며 `perCli`, `activeOverrides`, `telegram`, `discord`, `memory`, `stt`, `tui`, `messaging`, `network` 같은 nested object는 merge semantics를 따른다.
 - `showReasoning`은 top-level scalar setting이며 `/thought` command와 Gemini thought visibility가 이 값을 공유한다.
+
+### `/api/orchestrate/queue/:id/steer`
+
+- Web UI pending queue의 "Run now (steer)" button 전용 route다. typed `/steer` slash command와 별도 surface다.
+- 클릭 시 selected queued item을 즉시 accept/remove하고 `new_message`(`fromQueue:true`)와 `steer_started`를 broadcast한 뒤 응답한다.
+- old `claude-e`/`ai-e` process interrupt, provider-specific `waitForProcessEnd()`, 새 orchestration dispatch는 response 이후 background task에서 수행한다.
+- `steerInProgress` 동안 gateway busy check가 새 입력을 queue로 보내며, concurrent queued steer 요청은 selected row를 보존하고 `409`로 거절된다.
+- queue metadata `target`/`chatId`/`requestId`는 orchestration branch와 background error `orchestrate_done`까지 전달된다.
 
 ### `/api/cli-registry` / `/api/cli-status`
 
@@ -279,7 +287,7 @@ ensureDirs()
 | `new_message` | Telegram/Discord inbound message |
 | `orc_state` | PABCD 상태 변경 + `taskAnchor`/`resolvedSelection`/`interview`(known/unknown/round 트래커) 컨텍스트 |
 | `orchestrate_done` | orchestration 완료/실패 |
-| `steer_started` | `/steer` 또는 goal/workflow 재지시가 실행 중 agent를 kill 후 새 프롬프트로 재시작 (`prompt`/`origin`) |
+| `steer_started` | `/steer` 또는 pending queue steer가 새 프롬프트를 accepted 상태로 전환 (`prompt`/`origin`, queue route는 `target`/`chatId`/`requestId`/`scope` 포함 가능) |
 | `agent_added` / `agent_updated` / `agent_deleted` | employee CRUD 반영 |
 | `agent:claude-e:runtime_started` / `agent:claude-e:spawned` / `agent:claude-e:session` / `agent:claude-e:prompt_injected` / `agent:claude-e:stop` / `agent:claude-e:stop_failure` / `agent:claude-e:interrupted` / `agent:claude-e:cleanup` / `agent:claude-e:error` | Claude E native helper lifecycle bridge |
 | `settings_change` | project/workspace settings 변경 신호 |

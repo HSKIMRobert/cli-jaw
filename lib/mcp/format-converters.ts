@@ -139,7 +139,7 @@ function patchJsonFile(filePath: string, patchObj: Record<string, unknown>) {
  * @param {Object} config - Unified MCP config { servers: {...} }
  */
 export function syncToAll(config: UnifiedMcpConfig) {
-    const results = { claude: false, codex: false, gemini: false, opencode: false, copilot: false, antigravity: false };
+    const results = { claude: false, codex: false, gemini: false, opencode: false, copilot: false, antigravity: false, cursor: false };
 
     // 1. Claude Code: ~/.mcp.json (global)
     try {
@@ -208,7 +208,21 @@ export function syncToAll(config: UnifiedMcpConfig) {
         console.log(`[mcp-sync] ✅ Copilot: ${copilotPath}`);
     } catch (e: unknown) { console.error(`[mcp-sync] ❌ Copilot:`, (e as Error).message); }
 
-    // 6. Antigravity: ~/.gemini/antigravity/mcp_config.json
+    // 6. Cursor: ~/.cursor/mcp.json
+    try {
+        const cursorDir = join(os.homedir(), '.cursor');
+        const cursorPath = join(cursorDir, 'mcp.json');
+        const cursorData = toClaudeMcp(config);
+        fs.mkdirSync(cursorDir, { recursive: true });
+        let existing: Record<string, unknown> = {};
+        try { existing = JSON.parse(fs.readFileSync(cursorPath, 'utf8')) as Record<string, unknown>; } catch { }
+        existing["mcpServers"] = cursorData.mcpServers;
+        fs.writeFileSync(cursorPath, JSON.stringify(existing, null, 4) + '\n');
+        results.cursor = true;
+        console.log(`[mcp-sync] ✅ Cursor: ${cursorPath}`);
+    } catch (e: unknown) { console.error(`[mcp-sync] ❌ Cursor:`, (e as Error).message); }
+
+    // 7. Antigravity: ~/.gemini/antigravity/mcp_config.json
     try {
         const antigravityPath = join(os.homedir(), '.gemini', 'antigravity', 'mcp_config.json');
         const antigravityData = toClaudeMcp(config); // same mcpServers format

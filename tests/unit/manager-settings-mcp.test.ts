@@ -26,6 +26,8 @@ import {
     parseEnvText,
     toPersistShape,
     validateServer,
+    getServerTag,
+    countInstallBundleCandidates,
     type McpConfig,
 } from '../../public/manager/src/settings/pages/mcp-helpers';
 
@@ -157,7 +159,7 @@ test('toPersistShape: strips empty optional fields, keeps autostart=false', () =
         env: { TOKEN: 'abc' },
         autostart: true,
     });
-    assert.deepEqual(persisted.servers.min, { command: '' });
+    assert.deepEqual(persisted.servers.min, {});
     assert.deepEqual(persisted.servers.offSwitch, { command: 'x', autostart: false });
 });
 
@@ -185,10 +187,13 @@ test('isValidServerName: rejects whitespace/slash/empty', () => {
     assert.equal(isValidServerName('a'.repeat(65)), false);
 });
 
-test('validateServer: missing command → invalid', () => {
+test('validateServer: command or URL required', () => {
+    assert.equal(validateServer('ok', {}).kind, 'invalid');
     assert.equal(validateServer('ok', { command: '' }).kind, 'invalid');
     assert.equal(validateServer('ok', { command: '   ' }).kind, 'invalid');
     assert.equal(validateServer('ok', { command: 'npx' }).kind, 'ok');
+    assert.equal(validateServer('ok', { url: 'https://example.com/mcp' }).kind, 'ok');
+    assert.equal(validateServer('ok', { command: 'npx', url: 'https://…' }).kind, 'ok');
     assert.equal(validateServer('bad name', { command: 'npx' }).kind, 'invalid');
 });
 
@@ -237,4 +242,50 @@ test('reverting mcp.config to original clears dirty', () => {
     assert.equal(store.isDirty(), true);
     store.set('mcp.config', { value: o, original: o, valid: true });
     assert.equal(store.isDirty(), false);
+});
+
+// ─── getServerTag ─────────────────────────────────────────────────────
+
+test('getServerTag: identifies npx/uvx/docker/remote/binary', () => {
+    assert.equal(getServerTag({ command: 'npx', args: ['-y', 'pkg'] }), 'npx');
+    assert.equal(getServerTag({ command: '/usr/local/bin/npx' }), 'npx');
+    assert.equal(getServerTag({ command: 'uvx', args: ['mcp-server'] }), 'uvx');
+    assert.equal(getServerTag({ command: 'uv' }), 'uvx');
+    assert.equal(getServerTag({ command: 'docker', args: ['run', 'img'] }), 'docker');
+    assert.equal(getServerTag({ url: 'https://mcp.example.com/sse' }), 'remote');
+    assert.equal(getServerTag({ command: '/usr/local/bin/my-mcp' }), null);
+    assert.equal(getServerTag({}), null);
+});
+
+// ─── countInstallBundleCandidates ─────────────────────────────────────
+
+test('countInstallBundleCandidates: counts only npx/uv/uvx', () => {
+    const servers = {
+        a: { command: 'npx', args: ['-y', 'pkg-a'] },
+        b: { command: 'uvx', args: ['pkg-b'] },
+        c: { command: 'uv', args: ['tool', 'run', 'pkg-c'] },
+        d: { command: 'docker', args: ['run', 'img'] },
+        e: { url: 'https://example.com/mcp' },
+        f: { command: '/usr/local/bin/my-mcp' },
+    };
+    assert.equal(countInstallBundleCandidates(servers), 3);
+});
+
+// ─── remote server normalization ──────────────────────────────────────
+
+test('normalizeServer: preserves url/headers for remote servers', () => {
+    const remote = normalizeServer({ url: 'https://mcp.example.com', headers: { 'X-Key': 'val' } });
+    assert.equal(remote.url, 'https://mcp.example.com');
+    assert.deepEqual(remote.headers, { 'X-Key': 'val' });
+    assert.equal(remote.command, undefined);
+});
+
+test('toPersistShape: remote server persists url, not empty command', () => {
+    const cfg: McpConfig = {
+        servers: { remote: { url: 'https://mcp.example.com', headers: { Auth: 'tok' } } },
+    };
+    const persisted = toPersistShape(cfg);
+    assert.equal(persisted.servers.remote.url, 'https://mcp.example.com');
+    assert.deepEqual(persisted.servers.remote.headers, { Auth: 'tok' });
+    assert.equal(persisted.servers.remote.command, undefined);
 });

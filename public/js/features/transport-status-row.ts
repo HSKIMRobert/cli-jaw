@@ -82,10 +82,13 @@ export async function refreshTransportStatusRow(): Promise<void> {
         const health = parseChannelHealth(payload);
         if (!health) {
             container.innerHTML = '';
+            container.style.display = 'none';
             return;
         }
         renderTransportStatusRow(container, health);
+        container.style.display = '';
     } catch {
         container.innerHTML = '';
+        container.style.display = 'none';
     }
 }

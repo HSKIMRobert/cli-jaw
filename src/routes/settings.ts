@@ -1,6 +1,7 @@
 import type { Express } from 'express';
 import type { AuthMiddleware } from './types.js';
 import fs from 'fs';
+import os from 'os';
 import { join } from 'path';
 import { ok } from '../http/response.js';
 import { asyncHandler } from '../http/async-handler.js';
@@ -233,6 +234,25 @@ export function registerSettingsRoutes(
         } catch (e: unknown) {
             console.error('[mcp:reset]', e);
             res.status(500).json({ error: (e as Error).message });
+        }
+    });
+
+    app.get('/api/mcp/registry', async (_, res) => {
+        try {
+            const { fetchMcpRegistry, fetchMcpRegistryLocal } = await import('../../lib/mcp/mcp-registry.js');
+            const localCandidates = [
+                join(JAW_HOME, 'mcp-ref', 'registry.json'),
+                join(os.homedir(), 'Developer', 'new', '700_projects', 'mcp-ref', 'registry.json'),
+            ];
+            let result: Awaited<ReturnType<typeof fetchMcpRegistry>> = { entries: [], builtins: [] };
+            for (const p of localCandidates) {
+                result = fetchMcpRegistryLocal(p);
+                if (result.entries.length) break;
+            }
+            if (!result.entries.length) result = await fetchMcpRegistry();
+            res.json({ ok: true, ...result });
+        } catch (e: unknown) {
+            res.status(500).json({ ok: false, error: (e as Error).message, entries: [], builtins: [] });
         }
     });
 

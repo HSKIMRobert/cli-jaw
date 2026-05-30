@@ -436,4 +436,42 @@ function renderCliStatus(data: { cliStatus: Record<string, { available: boolean 
             setTimeout(() => { btn.innerHTML = ICONS.key; btn.disabled = false; }, 2000);
         });
     }
+
+    // Bind CLI setup help ? buttons (rendered as data-cli-help)
+    if (el) {
+        el.querySelectorAll<HTMLButtonElement>('[data-cli-help]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const text = btn.getAttribute('data-cli-help') || '';
+                showCliHelpPopup(text);
+            });
+        });
+    }
+}
+
+function showCliHelpPopup(text: string): void {
+    const existing = document.getElementById('cliHelpOverlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'cliHelpOverlay';
+    overlay.className = 'mcp-help-overlay';
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+    const inner = document.createElement('div');
+    inner.className = 'mcp-help-inner';
+    const lines = text.split('\n').filter(Boolean);
+    inner.innerHTML = `
+        <h4>CLI Setup</h4>
+        ${lines.map(l => `<p><code>${l.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</code></p>`).join('')}
+        <div style="text-align:right;margin-top:12px">
+            <button type="button" class="btn-save" id="cliHelpClose">OK</button>
+        </div>
+    `;
+    overlay.append(inner);
+    document.body.append(overlay);
+    inner.querySelector('#cliHelpClose')?.addEventListener('click', () => overlay.remove());
+    document.addEventListener('keydown', function esc(e) {
+        if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', esc, true); }
+    }, true);
 }

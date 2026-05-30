@@ -125,7 +125,8 @@ export function renderSetupHelpMark(cliName: string, q: QuotaEntry, extraTooltip
         ...(hint?.note ? [hint.note] : []),
     ].filter(Boolean);
     if (!tooltipParts.length) return '';
-    return `<span style="cursor:help;opacity:0.55;margin-left:4px;font-weight:400" title="${escapeHtml(tooltipParts.join('\n'))}">?</span>`;
+    const tooltip = escapeHtml(tooltipParts.join('\n'));
+    return `<button type="button" class="help-trigger" style="margin-left:4px" data-cli-help="${tooltip}" aria-label="Setup help">?</button>`;
 }
 
 export function renderQuotaSetupBox(cliName: string, q: QuotaEntry): string {
