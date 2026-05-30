@@ -56,6 +56,11 @@ const interruptStaleStmt = db.prepare(`
     UPDATE trace_runs SET status = 'interrupted', finished_at = ?, error = COALESCE(error, 'process exited before finalization')
     WHERE status = 'running'
 `);
+const pruneEventsStmt = db.prepare('DELETE FROM trace_events WHERE created_at < ?');
+const pruneRunsStmt = db.prepare('DELETE FROM trace_runs WHERE started_at < ?');
+const countAllEventsStmt = db.prepare('SELECT COUNT(*) AS c FROM trace_events');
+const trimEventsStmt = db.prepare('DELETE FROM trace_events WHERE rowid IN (SELECT rowid FROM trace_events ORDER BY created_at ASC LIMIT ?)');
+const liveRunIdsStmt = db.prepare('SELECT id FROM trace_runs');
 const seqCache = new Map<string, number>();
 
 function createTraceId(): string { return `tr_${crypto.randomUUID().replace(/-/g, '')}`; }
@@ -140,6 +145,31 @@ export function linkTraceRunToMessage(runId: string | null | undefined, messageI
     linkRunStmt.run(messageId, runId);
 }
 export function markStaleTraceRunsInterrupted(): void { interruptStaleStmt.run(Date.now()); }
+
+// Remove on-disk spill dirs whose run no longer exists in trace_runs.
+function pruneOrphanTraceDirs(): void {
+    if (!fs.existsSync(TRACE_DIR)) return;
+    const live = new Set((liveRunIdsStmt.all() as { id: string }[]).map((r) => r.id));
+    for (const name of fs.readdirSync(TRACE_DIR)) {
+        if (TRACE_ID_RE.test(name) && !live.has(name)) fs.rmSync(join(TRACE_DIR, name), { recursive: true, force: true });
+    }
+}
+
+// Delete trace data older than retentionDays, then trim to maxRows, then sweep orphan spill dirs.
+export function pruneTraceEvents(retentionDays = 7, maxRows = 50_000): { deletedEvents: number; deletedRuns: number } {
+    try {
+        const cutoff = Date.now() - retentionDays * 86_400_000;
+        let deletedEvents = pruneEventsStmt.run(cutoff).changes;
+        const deletedRuns = pruneRunsStmt.run(cutoff).changes;
+        const total = Number((countAllEventsStmt.get() as { c: number }).c);
+        if (total > maxRows) deletedEvents += trimEventsStmt.run(total - maxRows).changes;
+        pruneOrphanTraceDirs();
+        return { deletedEvents, deletedRuns };
+    } catch (error) {
+        console.error('[trace] prune failed:', error instanceof Error ? error.message : String(error));
+        return { deletedEvents: 0, deletedRuns: 0 };
+    }
+}
 export function getTraceRun(runId: string): TraceRunRow | null {
     if (!TRACE_ID_RE.test(runId)) return null;
     return (getRunStmt.get(runId) as TraceRunRow | undefined) || null;

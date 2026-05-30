@@ -99,7 +99,7 @@ import { applyRuntimeSettingsPatch } from './src/core/runtime-settings.js';
 
 import { seedDefaultEmployees } from './src/core/employees.js';
 import { buildServicePath } from './src/core/instance.js';
-import { markStaleTraceRunsInterrupted } from './src/trace/store.js';
+import { markStaleTraceRunsInterrupted, pruneTraceEvents } from './src/trace/store.js';
 
 // ─── Resolve paths ───────────────────────────────────
 
@@ -191,6 +191,12 @@ regenerateB();
 // Reset stale orchestration state left by unclean shutdown (single-scope: default only)
 resetAllStaleStates();
 markStaleTraceRunsInterrupted();
+
+// Trace retention: prune on boot + every 6h to keep jaw.db from growing unbounded.
+const traceRetentionDays = settings["trace"]?.retentionDays ?? 7;
+const traceMaxRows = settings["trace"]?.maxRows ?? 50000;
+pruneTraceEvents(traceRetentionDays, traceMaxRows);
+setInterval(() => pruneTraceEvents(traceRetentionDays, traceMaxRows), 6 * 60 * 60 * 1000).unref();
 
 // ─── Express + WebSocket ─────────────────────────────
 

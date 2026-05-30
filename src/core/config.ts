@@ -214,6 +214,10 @@ function createDefaultSettings() {
             autoReflectAfterFlush: false,
             flushMessageWindow: 0,
         },
+        trace: {
+            retentionDays: 7,
+            maxRows: 50000,
+        },
         tui: {
             pasteCollapseLines: 2,
             pasteCollapseChars: 160,
@@ -404,6 +408,7 @@ export function loadSettings() {
             telegram: { ...defaults.telegram, ...(raw.telegram || {}) },
             discord: { ...defaults.discord, ...(raw.discord || {}) },
             memory: { ...defaults.memory, ...(raw.memory || {}) },
+            trace: { ...defaults.trace, ...(raw.trace || {}) },
             avatar: {
                 agent: { ...defaults.avatar.agent, ...(raw.avatar?.agent || {}) },
                 user: { ...defaults.avatar.user, ...(raw.avatar?.user || {}) },
