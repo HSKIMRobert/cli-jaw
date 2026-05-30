@@ -88,7 +88,10 @@ function appendFileLink(
     if (vaultRel) span.setAttribute('data-vault-rel', vaultRel);
     span.setAttribute('role', 'button');
     span.setAttribute('tabindex', '0');
-    span.textContent = clean;
+    const basename = clean.split('/').pop() || clean;
+    const hasExt = /\.\w{1,10}$/.test(basename);
+    span.textContent = hasExt ? basename : clean;
+    if (hasExt) span.title = clean;
     frag.appendChild(span);
 }
 
