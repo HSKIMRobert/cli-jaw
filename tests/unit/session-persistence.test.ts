@@ -89,9 +89,9 @@ test('session persistence treats ai-e exit code 2 as graceful only for Claude pr
         provider: 'codex',
         model: 'gpt-5.4',
         effort: 'medium',
-        sessionId: 'ai-e-codex-failed',
+        sessionId: 'ai-e-codex-interrupted',
         code: 2,
-    }), false);
+    }), true);
 });
 
 test('session persistence skips ai-e headless provider session ids', () => {

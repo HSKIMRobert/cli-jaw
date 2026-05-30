@@ -58,6 +58,7 @@ import {
     flushKiroStdoutContext,
     isKiroPlainTextCli,
     isKiroStaleSessionOutput,
+    parseAiESessionIdFromStderr,
     processKiroStdoutChunk,
     type KiroStreamEvent,
 } from './kiro-runtime.js';
@@ -773,7 +774,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     const bucketResumeKey = typeof bucketRow?.resume_key === 'string' ? bucketRow.resume_key : null;
     const bucketUpdatedAt = bucketRow?.updated_at ?? null;
     const resumeKey = buildSessionResumeKey(cli, spawnEnv);
-    const providerSupportsResume = !(cli === 'ai-e' && effectiveProvider !== 'claude' && effectiveProvider !== 'kiro');
+    const providerSupportsResume = !(cli === 'ai-e' && effectiveProvider !== 'claude' && effectiveProvider !== 'kiro' && effectiveProvider !== 'codex' && effectiveProvider !== 'grok');
     const canResumeBucketSession = !bucketSessionId || shouldResumeBucketSession(
         cli,
         runtimeModel,
@@ -1927,6 +1928,14 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 .sort((a, b) => b.length - a.length)[0];
             if (best) ctx.fullText = best;
             else if (parsed) ctx.fullText = parsed;
+        }
+        // ai-e codex/grok: capture session ID from stderr footer
+        if (cli === 'ai-e' && !kiroPlainText && effectiveProvider !== 'claude' && !ctx.sessionId) {
+            const fromStderr = parseAiESessionIdFromStderr(ctx.stderrBuf);
+            if (fromStderr) {
+                ctx.sessionId = fromStderr;
+                console.log(`[jaw:ai-e:${effectiveProvider}] session capture id=${fromStderr.slice(0, 16)}...`);
+            }
         }
         const agyTimedOut = cli === 'agy' && isAgyTimeoutOutput(ctx.fullText);
         const effectiveExitCode = agyTimedOut ? 124 : code;
