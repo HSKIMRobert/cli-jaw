@@ -43,3 +43,10 @@ export function postPreviewOpenDoc(absolutePath: string): boolean {
     window.parent.postMessage({ type: 'jaw-preview-open-doc', path: absolutePath }, targetOrigin);
     return true;
 }
+
+export function postPreviewInvalidate(topics: string[], reason: string): boolean {
+    const targetOrigin = previewParentOrigin();
+    if (!targetOrigin || topics.length === 0) return false;
+    window.parent.postMessage({ type: 'dashboard.invalidate', topics, reason }, targetOrigin);
+    return true;
+}
