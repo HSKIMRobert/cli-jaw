@@ -1,10 +1,6 @@
-// @ts-nocheck
 // Mirrored from agbrowse adaptive-fetch v2; keep runtime behavior aligned while cli-jaw mirror remains experimental.
 
-/**
- * @param {string} html
- */
-export function htmlToReadableText(html = '') {
+export function htmlToReadableText(html: string = ''): string {
     return decodeHtmlEntities(html)
         .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
         .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
@@ -19,21 +15,14 @@ export function htmlToReadableText(html = '') {
         .join('\n');
 }
 
-/**
- * @param {string} html
- */
-export function extractTitleFromHtml(html = '') {
+export function extractTitleFromHtml(html: string = ''): string {
     const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
     return match ? normalizeWhitespace(decodeHtmlEntities(match[1])) : '';
 }
 
-/**
- * @param {string[]} urls
- */
-export function dedupeCandidateUrls(urls = []) {
-    const seen = new Set();
-    /** @type {string[]} */
-    const out = [];
+export function dedupeCandidateUrls(urls: string[] = []): string[] {
+    const seen = new Set<string>();
+    const out: string[] = [];
     for (const raw of urls) {
         try {
             const href = new URL(raw).href;
@@ -48,33 +37,21 @@ export function dedupeCandidateUrls(urls = []) {
     return out;
 }
 
-/**
- * @param {string} text
- */
-export function normalizeWhitespace(text = '') {
+export function normalizeWhitespace(text: string = ''): string {
     return text.replace(/\s+/g, ' ').trim();
 }
 
-/**
- * @param {string} contentType
- */
-export function isHtmlContentType(contentType = '') {
+export function isHtmlContentType(contentType: string = ''): boolean {
     return /\btext\/html\b/i.test(contentType);
 }
 
-/**
- * @param {string} contentType
- */
-export function isTextualContentType(contentType = '') {
+export function isTextualContentType(contentType: string = ''): boolean {
     if (!contentType) return true;
     return /^text\//i.test(contentType)
         || /\b(application|.+)\/(json|xml|rss\+xml|atom\+xml|xhtml\+xml|javascript)\b/i.test(contentType);
 }
 
-/**
- * @param {string} text
- */
-export function decodeHtmlEntities(text = '') {
+export function decodeHtmlEntities(text: string = ''): string {
     return text
         .replace(/&nbsp;/gi, ' ')
         .replace(/&amp;/gi, '&')

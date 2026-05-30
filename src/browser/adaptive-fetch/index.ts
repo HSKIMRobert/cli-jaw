@@ -1,6 +1,6 @@
-// @ts-nocheck
 // Mirrored from agbrowse adaptive-fetch v2; keep runtime behavior aligned while cli-jaw mirror remains experimental.
 
+import type { AdaptiveFetchOptions, BrowserMode, IdentityMode, CandidateUrl, ReaderCandidate, ChallengeInfo, AttemptTrace } from './types.js';
 import { parseArgs } from 'node:util';
 import { validateFetchUrl, DEFAULT_MAX_BYTES, DEFAULT_TIMEOUT_MS } from './safety.js';
 import { appendAttempt, createAttemptTrace, summarizeAttempts } from './trace.js';
@@ -17,63 +17,51 @@ import { shouldTryUserSession, navigateInUserSession } from './browser-session.j
 import { humanResolve } from './human-loop.js';
 import { compactAdaptiveFetchResult, writeStdoutLine } from './output.js';
 
-/**
- * @typedef {'strong_ok'|'weak_ok'|'blocked'|'auth_required'|'challenge'|'paywall'|'browser_required'|'unsupported'|'error'} AdaptiveFetchVerdict
- * @typedef {'public_endpoint'|'fetch'|'reader'|'metadata'|'third_party_reader'|'browser'|'browser_user'|'human_resolved'|'network_api'|'validation'} AdaptiveFetchSource
- * @typedef {'auto'|'never'|'required'} BrowserMode
- * @typedef {'none'|'isolated'|'existing'|'user'|'interactive'} BrowserSessionMode
- * @typedef {'auto'|'minimal'|'chrome'} IdentityMode
- */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ScoredResult = any;
 
 const BROWSER_MODES = new Set(['auto', 'never', 'required']);
 const BROWSER_SESSIONS = new Set(['none', 'isolated', 'existing', 'user', 'interactive']);
 const IDENTITY_MODES = new Set(['auto', 'minimal', 'chrome']);
 
-/**
- * @param {Record<string, unknown>} raw
- */
-export function normalizeAdaptiveFetchOptions(raw = {}) {
-    const browserMode = normalizeEnum(raw.browserMode || raw.browser, BROWSER_MODES, 'auto', 'browser');
-    const rawSession = raw.browserSession;
+export function normalizeAdaptiveFetchOptions(raw: Record<string, unknown> = {}): AdaptiveFetchOptions {
+    const browserMode = normalizeEnum(raw['browserMode'] || raw['browser'], BROWSER_MODES, 'auto', 'browser') as BrowserMode;
+    const rawSession = raw['browserSession'];
     const browserSession = normalizeEnum(rawSession, BROWSER_SESSIONS, browserMode === 'never' ? 'none' : 'isolated', 'browserSession');
-    const identity = normalizeEnum(raw.identity, IDENTITY_MODES, 'auto', 'identity');
+    const identity = normalizeEnum(raw['identity'], IDENTITY_MODES, 'auto', 'identity') as IdentityMode;
     const userSessionExplicit = browserSession === 'user' || browserSession === 'interactive';
     const humanLoop = browserSession === 'interactive';
     return {
-        url: typeof raw.url === 'string' ? raw.url : '',
-        json: Boolean(raw.json),
-        trace: Boolean(raw.trace),
+        url: typeof raw['url'] === 'string' ? raw['url'] : '',
+        json: Boolean(raw['json']),
+        trace: Boolean(raw['trace']),
         browserMode,
         browserSession: userSessionExplicit ? 'existing' : browserSession,
         identity,
         userSessionExplicit,
         humanLoop,
         browserSessionRaw: browserSession,
-        maxBytes: positiveInteger(raw.maxBytes, DEFAULT_MAX_BYTES),
-        timeoutMs: positiveInteger(raw.timeoutMs, DEFAULT_TIMEOUT_MS),
-        selector: typeof raw.selector === 'string' ? raw.selector : null,
-        publicEndpoints: raw.publicEndpoints !== false,
-        allowPrivateNetwork: Boolean(raw.allowPrivateNetwork),
-        allowThirdPartyReader: Boolean(raw.allowThirdPartyReader),
-        allowArchive: Boolean(raw.allowArchive),
-        interactive: Boolean(raw.interactive),
-        optionWarnings: raw.allowArchive ? ['archive-fallback-deferred'] : [],
+        maxBytes: positiveInteger(raw['maxBytes'], DEFAULT_MAX_BYTES),
+        timeoutMs: positiveInteger(raw['timeoutMs'], DEFAULT_TIMEOUT_MS),
+        selector: typeof raw['selector'] === 'string' ? raw['selector'] : null,
+        publicEndpoints: raw['publicEndpoints'] !== false,
+        allowPrivateNetwork: Boolean(raw['allowPrivateNetwork']),
+        allowThirdPartyReader: Boolean(raw['allowThirdPartyReader']),
+        allowArchive: Boolean(raw['allowArchive']),
+        interactive: Boolean(raw['interactive']),
+        optionWarnings: raw['allowArchive'] ? ['archive-fallback-deferred'] : [],
     };
 }
 
-/**
- * @param {Record<string, unknown>} input
- * @param {Record<string, unknown>} [deps]
- */
-export async function runAdaptiveFetch(input, deps = {}) {
+export async function runAdaptiveFetch(input: Record<string, unknown>, deps: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
     const options = normalizeAdaptiveFetchOptions(input);
     const trace = createAttemptTrace({
         url: options.url,
         browserMode: options.browserMode,
         browserSession: options.browserSessionRaw || options.browserSession,
-        identity: options.identity,
     });
-    const fetchImpl = /** @type {typeof fetch | undefined} */ (deps.fetch || input.fetchImpl);
+    const fetchImpl = (deps['fetch'] || input['fetchImpl']) as typeof fetch | undefined;
+    const fetchOpt = fetchImpl ? { fetchImpl } : {};
     const parsed = validateFetchUrl(options.url, { allowPrivateNetwork: options.allowPrivateNetwork });
     appendAttempt(trace, {
         source: 'validation',
@@ -82,8 +70,7 @@ export async function runAdaptiveFetch(input, deps = {}) {
         reason: 'url-valid',
     });
 
-    /** @type {any[]} */
-    const candidateUrls = [];
+    const candidateUrls: CandidateUrl[] = [];
     if (options.browserMode !== 'required' && options.publicEndpoints) {
         candidateUrls.push(...resolvePublicEndpointCandidates(parsed).map(candidate => ({
             ...candidate,
@@ -94,52 +81,47 @@ export async function runAdaptiveFetch(input, deps = {}) {
         candidateUrls.push({ label: 'direct-fetch', url: parsed.href, source: 'fetch' });
     }
 
-    /** @type {any[]} */
-    const readerCandidates = [];
-    const fetchedUrls = new Set();
-    /** @type {string[]} */
-    const discoveredFeedUrls = [];
-    /** @type {string[]} */
-    const discoveredOembedUrls = [];
-    /** @type {any} */
-    let detectedChallenge = null;
+    const readerCandidates: ReaderCandidate[] = [];
+    const fetchedUrls = new Set<string>();
+    const discoveredFeedUrls: string[] = [];
+    const discoveredOembedUrls: string[] = [];
+    let detectedChallenge: ChallengeInfo | null = null;
 
     for (const candidate of candidateUrls) {
-        let fetched;
+        let fetched: Record<string, unknown>;
         try {
             fetched = await fetchTextCandidate(candidate.url, {
                 maxBytes: options.maxBytes,
                 timeoutMs: options.timeoutMs,
                 allowPrivateNetwork: options.allowPrivateNetwork,
                 identity: options.identity,
-                fetchImpl,
-            });
-        } catch (error) {
+                ...fetchOpt,
+            }) as unknown as Record<string, unknown>;
+        } catch (error: unknown) {
             appendAttempt(trace, {
                 source: candidate.source,
                 verdict: 'error',
                 url: candidate.url,
-                reason: (/** @type {any} */ (error)).message || 'fetch-candidate-error',
+                reason: (error as Error).message || 'fetch-candidate-error',
             });
             continue;
         }
-        fetchedUrls.add(fetched.finalUrl || candidate.url);
+        fetchedUrls.add((fetched['finalUrl'] as string) || candidate.url);
 
-        if (candidate.source === 'fetch' && !fetched.ok) {
+        if (candidate.source === 'fetch' && !fetched['ok']) {
             const challengeResult = classifyChallengeType({
-                status: fetched.status,
-                headers: fetched.headers,
-                body: fetched.text,
+                status: fetched['status'] as number,
+                headers: fetched['headers'] as Record<string, string>,
+                body: fetched['text'] as string,
             });
             if (challengeResult.type) {
-                detectedChallenge = challengeResult;
+                detectedChallenge = challengeResult as unknown as ChallengeInfo;
                 appendAttempt(trace, {
                     source: candidate.source,
                     verdict: challengeResult.type,
-                    url: fetched.finalUrl,
-                    status: fetched.status,
+                    url: fetched['finalUrl'] as string,
+                    status: fetched['status'] as number,
                     reason: `challenge:${challengeResult.type}`,
-                    waf: challengeResult.primary?.profile?.id,
                 });
             }
         }
@@ -151,21 +133,20 @@ export async function runAdaptiveFetch(input, deps = {}) {
         if (detectedChallenge && candidate.source === 'fetch') {
             readerCandidate.challenge = detectedChallenge;
         }
-        for (const feedUrl of readerCandidate.metadata?.feedUrls || []) {
+        const metadata = readerCandidate.metadata;
+        for (const feedUrl of ((metadata as Record<string, unknown> | null)?.['feedUrls'] as string[]) || []) {
             if (!fetchedUrls.has(feedUrl) && !discoveredFeedUrls.includes(feedUrl)) discoveredFeedUrls.push(feedUrl);
         }
-        for (const oEmbedUrl of readerCandidate.metadata?.oEmbedUrls || []) {
+        for (const oEmbedUrl of ((metadata as Record<string, unknown> | null)?.['oEmbedUrls'] as string[]) || []) {
             if (!fetchedUrls.has(oEmbedUrl) && !discoveredOembedUrls.includes(oEmbedUrl)) discoveredOembedUrls.push(oEmbedUrl);
         }
         const scored = scoreReaderCandidate(readerCandidate);
         appendAttempt(trace, {
             source: readerCandidate.source,
             verdict: scored.verdict,
-            url: fetched.finalUrl,
-            status: fetched.status,
+            url: fetched['finalUrl'] as string,
+            status: fetched['status'] as number,
             reason: `score:${scored.score}`,
-            evidence: scored.evidence,
-            warnings: readerCandidate.warnings,
         });
         if (readerCandidate.text || readerCandidate.title) readerCandidates.push(readerCandidate);
     }
@@ -175,25 +156,25 @@ export async function runAdaptiveFetch(input, deps = {}) {
             ...discoveredFeedUrls.map(url => ({ url, label: 'rss-atom-discovered' })),
             ...discoveredOembedUrls.map(url => ({ url, label: 'oembed-discovered' })),
         ]) {
-            let fetched;
+            let fetched: Record<string, unknown>;
             try {
                 fetched = await fetchTextCandidate(discovered.url, {
                     maxBytes: options.maxBytes,
                     timeoutMs: options.timeoutMs,
                     allowPrivateNetwork: options.allowPrivateNetwork,
                     identity: options.identity,
-                    fetchImpl,
-                });
-            } catch (error) {
+                    ...fetchOpt,
+                }) as unknown as Record<string, unknown>;
+            } catch (error: unknown) {
                 appendAttempt(trace, {
                     source: 'public_endpoint',
                     verdict: 'error',
                     url: discovered.url,
-                    reason: (/** @type {any} */ (error)).message || `${discovered.label}-error`,
+                    reason: (error as Error).message || `${discovered.label}-error`,
                 });
                 continue;
             }
-            fetchedUrls.add(fetched.finalUrl || discovered.url);
+            fetchedUrls.add((fetched['finalUrl'] as string) || discovered.url);
             const readerCandidate = fromFetchResult(fetched, {
                 source: 'public_endpoint',
                 label: discovered.label,
@@ -202,35 +183,33 @@ export async function runAdaptiveFetch(input, deps = {}) {
             appendAttempt(trace, {
                 source: readerCandidate.source,
                 verdict: scored.verdict,
-                url: fetched.finalUrl,
-                status: fetched.status,
+                url: fetched['finalUrl'] as string,
+                status: fetched['status'] as number,
                 reason: `score:${scored.score}`,
-                evidence: scored.evidence,
-                warnings: readerCandidate.warnings,
             });
             if (readerCandidate.text || readerCandidate.title) readerCandidates.push(readerCandidate);
         }
     }
 
     if (options.allowThirdPartyReader) {
-        let fetched = null;
+        let fetched: ReaderCandidate | null = null;
         try {
             fetched = await fetchThirdPartyReaderCandidate(parsed.href, {
                 allowThirdPartyReader: true,
                 maxBytes: options.maxBytes,
                 timeoutMs: options.timeoutMs,
-                fetchImpl,
+                ...fetchOpt,
             });
-        } catch (error) {
+        } catch (error: unknown) {
             appendAttempt(trace, {
                 source: 'third_party_reader',
                 verdict: 'error',
                 url: parsed.href,
-                reason: (/** @type {any} */ (error)).message || 'third-party-reader-error',
+                reason: (error as Error).message || 'third-party-reader-error',
             });
         }
         if (fetched) {
-            const readerCandidate = fromFetchResult(fetched, {
+            const readerCandidate = fromFetchResult(fetched as unknown as Record<string, unknown>, {
                 source: 'third_party_reader',
                 label: 'jina-reader',
             });
@@ -238,17 +217,15 @@ export async function runAdaptiveFetch(input, deps = {}) {
             appendAttempt(trace, {
                 source: readerCandidate.source,
                 verdict: scored.verdict,
-                url: fetched.readerUrl || fetched.finalUrl,
+                url: (fetched as unknown as Record<string, unknown>)['readerUrl'] as string || fetched.finalUrl,
                 status: fetched.status,
                 reason: `score:${scored.score}`,
-                evidence: scored.evidence,
-                warnings: readerCandidate.warnings,
             });
             if (readerCandidate.text || readerCandidate.title) readerCandidates.push(readerCandidate);
         }
     }
 
-    let best = chooseBestReaderCandidate(readerCandidates);
+    let best: ScoredResult = chooseBestReaderCandidate(readerCandidates);
     if (shouldReturnWithoutBrowser(best, options)) return finishResult(resultFromReaderCandidate(best), options, trace);
 
     const browserResult = await tryBrowserEscalation(parsed.href, options, deps, trace, detectedChallenge);
@@ -261,7 +238,7 @@ export async function runAdaptiveFetch(input, deps = {}) {
         if (best && best.verdict === 'strong_ok') {
             const result = resultFromReaderCandidate(best);
             if (options.userSessionExplicit) {
-                result.safetyFlags = [...(result.safetyFlags || []), 'user_session_used'];
+                result['safetyFlags'] = [...((result['safetyFlags'] as string[]) || []), 'user_session_used'];
             }
             return finishResult(result, options, trace, { chromeUsed: true });
         }
@@ -276,23 +253,23 @@ export async function runAdaptiveFetch(input, deps = {}) {
                 selector: options.selector,
                 allowPrivateNetwork: options.allowPrivateNetwork,
             });
-            readerCandidates.push(fromUserSessionResult(userResult));
+            readerCandidates.push(fromUserSessionResult(userResult as unknown as Record<string, unknown>));
             appendAttempt(trace, {
                 source: 'browser_user',
                 verdict: 'strong_ok',
-                url: userResult.finalUrl,
+                url: (userResult as unknown as Record<string, unknown>)['finalUrl'] as string,
                 reason: 'user-session-render',
             });
             best = chooseBestReaderCandidate(readerCandidates);
             if (best && best.verdict === 'strong_ok') {
                 return finishResult(resultFromReaderCandidate(best), options, trace, { chromeUsed: true });
             }
-        } catch (error) {
+        } catch (error: unknown) {
             appendAttempt(trace, {
                 source: 'browser_user',
                 verdict: 'error',
                 url: parsed.href,
-                reason: (/** @type {any} */ (error)).message || 'user-session-error',
+                reason: (error as Error).message || 'user-session-error',
             });
         }
     }
@@ -303,13 +280,13 @@ export async function runAdaptiveFetch(input, deps = {}) {
             const humanResult = await humanResolve(parsed.href, {
                 ...options,
                 browserDeps: deps,
-            }, challengeInfo);
-            if (humanResult.ok !== false) {
+            }, challengeInfo) as Record<string, unknown>;
+            if (humanResult['ok'] !== false) {
                 readerCandidates.push(fromHumanResolvedResult(humanResult));
                 appendAttempt(trace, {
                     source: 'human_resolved',
                     verdict: 'strong_ok',
-                    url: humanResult.finalUrl || parsed.href,
+                    url: (humanResult['finalUrl'] as string) || parsed.href,
                     reason: 'human-resolved',
                 });
                 best = chooseBestReaderCandidate(readerCandidates);
@@ -317,17 +294,17 @@ export async function runAdaptiveFetch(input, deps = {}) {
             } else {
                 appendAttempt(trace, {
                     source: 'human_resolved',
-                    verdict: humanResult.verdict || 'blocked',
+                    verdict: (humanResult['verdict'] as string) || 'blocked',
                     url: parsed.href,
-                    reason: humanResult.actionMessage || 'human-action-needed',
+                    reason: (humanResult['actionMessage'] as string) || 'human-action-needed',
                 });
             }
-        } catch (error) {
+        } catch (error: unknown) {
             appendAttempt(trace, {
                 source: 'human_resolved',
                 verdict: 'error',
                 url: parsed.href,
-                reason: (/** @type {any} */ (error)).message || 'human-loop-error',
+                reason: (error as Error).message || 'human-loop-error',
             });
         }
     }
@@ -347,11 +324,7 @@ export async function runAdaptiveFetch(input, deps = {}) {
     }, options, trace);
 }
 
-/**
- * @param {string[]} args
- * @param {Record<string, unknown>} [deps]
- */
-export async function runAdaptiveFetchCli(args, deps = {}) {
+export async function runAdaptiveFetchCli(args: string[], deps: Record<string, unknown> = {}): Promise<void> {
     const { values, positionals } = parseArgs({
         args,
         allowPositionals: true,
@@ -392,13 +365,13 @@ export async function runAdaptiveFetchCli(args, deps = {}) {
     }, deps);
     if (values.json) {
         const { _traceSummary, ...jsonResult } = result;
-        await writeStdoutLine(JSON.stringify(compactAdaptiveFetchResult(jsonResult), null, 2), /** @type {any} */ (deps.stdout));
+        await writeStdoutLine(JSON.stringify(compactAdaptiveFetchResult(jsonResult), null, 2), deps['stdout'] as { write: (chunk: string, cb?: (error?: Error | null) => void) => boolean } | undefined);
     } else {
-        await writeStdoutLine(formatAdaptiveFetchHuman(result), /** @type {any} */ (deps.stdout));
+        await writeStdoutLine(formatAdaptiveFetchHuman(result), deps['stdout'] as { write: (chunk: string, cb?: (error?: Error | null) => void) => boolean } | undefined);
     }
 }
 
-export function formatAdaptiveFetchHelp() {
+export function formatAdaptiveFetchHelp(): string {
     return `agbrowse fetch <url> [--json] [--trace] [--browser auto|never|required]
             [--browser-session none|isolated|existing|user|interactive]
             [--identity auto|minimal|chrome]
@@ -427,49 +400,33 @@ Options:
 `;
 }
 
-/**
- * @param {Record<string, any>} result
- */
-export function formatAdaptiveFetchHuman(result) {
+export function formatAdaptiveFetchHuman(result: Record<string, unknown>): string {
     return [
-        `ok: ${result.ok}`,
-        `verdict: ${result.verdict}`,
-        `source: ${result.source}`,
-        `final_url: ${result.finalUrl}`,
-        `browser: ${result.browserMode}/${result.browserSession} identity=${result.identity}`,
-        `summary: ${result.summary}`,
+        `ok: ${result['ok']}`,
+        `verdict: ${result['verdict']}`,
+        `source: ${result['source']}`,
+        `final_url: ${result['finalUrl']}`,
+        `browser: ${result['browserMode']}/${result['browserSession']} identity=${result['identity']}`,
+        `summary: ${result['summary']}`,
     ].join('\n');
 }
 
-/**
- * @param {unknown} value
- * @param {Set<string>} allowed
- * @param {string} fallback
- * @param {string} name
- */
-function normalizeEnum(value, allowed, fallback, name) {
+function normalizeEnum(value: unknown, allowed: Set<string>, fallback: string, name: string): string {
     if (value === undefined || value === null || value === '') return fallback;
     const text = String(value);
     if (!allowed.has(text)) throw new Error(`invalid ${name}: ${text}`);
     return text;
 }
 
-/**
- * @param {unknown} value
- * @param {number} fallback
- */
-function positiveInteger(value, fallback) {
+function positiveInteger(value: unknown, fallback: number): number {
     const n = Number(value);
     return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 }
 
-/**
- * @param {ReturnType<typeof scoreReaderCandidate>} scored
- */
-function resultFromReaderCandidate(scored) {
-    const candidate = scored.candidate;
+function resultFromReaderCandidate(scored: ScoredResult): Record<string, unknown> {
+    const candidate = scored.candidate as ReaderCandidate;
     return {
-        ok: candidate.ok !== false && ['strong_ok', 'weak_ok'].includes(scored.verdict),
+        ok: candidate.ok !== false && ['strong_ok', 'weak_ok'].includes(scored.verdict as string),
         verdict: scored.verdict,
         source: candidate.source,
         finalUrl: candidate.finalUrl,
@@ -484,58 +441,41 @@ function resultFromReaderCandidate(scored) {
     };
 }
 
-/**
- * @param {any} result
- * @param {any} options
- * @param {{ attempts: object[] }} trace
- * @param {{ chromeUsed?: boolean }} [runtime]
- */
-function finishResult(result, options, trace, runtime = {}) {
+function finishResult(result: Record<string, unknown>, options: AdaptiveFetchOptions, trace: AttemptTrace, runtime: { chromeUsed?: boolean } = {}): Record<string, unknown> {
     return {
-        ok: result.ok,
-        verdict: result.verdict,
-        source: result.source,
-        finalUrl: result.finalUrl,
+        ok: result['ok'],
+        verdict: result['verdict'],
+        source: result['source'],
+        finalUrl: result['finalUrl'],
         browserMode: options.browserMode,
         browserSession: options.browserSessionRaw || options.browserSession,
         identity: options.identity || 'auto',
         chromeUsed: Boolean(runtime.chromeUsed),
-        chromeRequired: result.verdict === 'browser_required' || (options.browserMode === 'required' && !result.ok),
-        title: result.title,
-        content: result.content,
-        summary: result.summary,
+        chromeRequired: result['verdict'] === 'browser_required' || (options.browserMode === 'required' && !result['ok']),
+        title: result['title'],
+        content: result['content'],
+        summary: result['summary'],
         attempts: options.trace ? trace.attempts : [],
-        safetyFlags: Array.isArray(result.safetyFlags) ? result.safetyFlags : [],
-        evidence: result.evidence || [],
-        warnings: [...(options.optionWarnings || []), ...(result.warnings || [])],
-        metadata: result.metadata || null,
+        safetyFlags: Array.isArray(result['safetyFlags']) ? result['safetyFlags'] : [],
+        evidence: (result['evidence'] as unknown[]) || [],
+        warnings: [...(options.optionWarnings || []), ...((result['warnings'] as string[]) || [])],
+        metadata: result['metadata'] || null,
         _traceSummary: summarizeAttempts(trace.attempts),
     };
 }
 
-/**
- * @param {ReturnType<typeof chooseBestReaderCandidate>|null} best
- * @param {any} options
- */
-function shouldReturnWithoutBrowser(best, options) {
+function shouldReturnWithoutBrowser(best: ScoredResult | null, options: AdaptiveFetchOptions): boolean {
     if (options.browserMode === 'required') return false;
     if (options.browserMode === 'never') return Boolean(best);
     return Boolean(best && best.verdict === 'strong_ok');
 }
 
-/**
- * @param {string} url
- * @param {any} options
- * @param {Record<string, unknown>} deps
- * @param {{ attempts: object[] }} trace
- * @param {any} [challengeInfo]
- */
-async function tryBrowserEscalation(url, options, deps, trace, challengeInfo) {
+async function tryBrowserEscalation(url: string, options: AdaptiveFetchOptions, deps: Record<string, unknown>, trace: AttemptTrace, challengeInfo: ChallengeInfo | null): Promise<Record<string, unknown> | null> {
     if (options.browserMode === 'never') return null;
     try {
         const result = await collectBrowserCandidate(url, {
             browserDeps: deps,
-            browserSession: options.browserSession,
+            browserSession: options.browserSession as 'none' | 'isolated' | 'existing',
             timeoutMs: options.timeoutMs,
             selector: options.selector,
             allowPrivateNetwork: options.allowPrivateNetwork,
@@ -545,32 +485,28 @@ async function tryBrowserEscalation(url, options, deps, trace, challengeInfo) {
         appendAttempt(trace, {
             source: 'browser',
             verdict: scored.verdict,
-            url: result.finalUrl,
-            status: result.status,
+            url: result['finalUrl'] as string,
+            status: result['status'] as number,
             reason: `score:${scored.score}`,
-            evidence: scored.evidence,
-            warnings: result.warnings,
         });
         for (const networkCandidate of collectNetworkJsonCandidates(result)) {
             const scoredNetwork = scoreReaderCandidate(fromNetworkCandidate(networkCandidate));
             appendAttempt(trace, {
                 source: 'network_api',
                 verdict: scoredNetwork.verdict,
-                url: networkCandidate.finalUrl,
-                status: networkCandidate.status,
+                url: networkCandidate['finalUrl'] as string,
+                status: networkCandidate['status'] as number,
                 reason: `score:${scoredNetwork.score}`,
-                evidence: scoredNetwork.evidence,
-                warnings: networkCandidate.warnings || [],
             });
         }
         return result;
-    } catch (error) {
-        if (error instanceof BrowserRequiredError || (/** @type {any} */ (error))?.code === 'browser_required') {
+    } catch (error: unknown) {
+        if (error instanceof BrowserRequiredError || (error as Record<string, unknown>)?.['code'] === 'browser_required') {
             appendAttempt(trace, {
                 source: 'browser',
                 verdict: 'browser_required',
                 url,
-                reason: (/** @type {any} */ (error)).message,
+                reason: (error as Error).message,
             });
             return null;
         }
@@ -578,15 +514,11 @@ async function tryBrowserEscalation(url, options, deps, trace, challengeInfo) {
     }
 }
 
-/**
- * @param {any[]} candidates
- * @param {any} best
- */
-function hasUnresolvedChallenge(candidates, best) {
+function hasUnresolvedChallenge(candidates: ReaderCandidate[], best: ScoredResult | null): boolean {
     if (best && best.verdict === 'strong_ok') return false;
     return candidates.some(c =>
         c.challenge?.type === 'challenge' ||
         c.challenge?.type === 'auth_required' ||
         c.challenge?.type === 'paywall'
-    ) || (best && ['challenge', 'auth_required', 'paywall', 'blocked'].includes(best.verdict));
+    ) || (best != null && ['challenge', 'auth_required', 'paywall', 'blocked'].includes(best.verdict as string));
 }

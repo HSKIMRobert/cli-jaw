@@ -1,7 +1,6 @@
-// @ts-nocheck
 // Mirrored from agbrowse adaptive-fetch v2; keep runtime behavior aligned while cli-jaw mirror remains experimental.
 
-const CHALLENGE_PATTERNS = [
+const CHALLENGE_PATTERNS: RegExp[] = [
     /\bcaptcha\b/i,
     /checking your browser/i,
     /verify you are human/i,
@@ -11,24 +10,40 @@ const CHALLENGE_PATTERNS = [
     /security check/i,
 ];
 
-const LOGIN_PATTERNS = [
+const LOGIN_PATTERNS: RegExp[] = [
     /\bsign in\b/i,
     /\blog in\b/i,
     /create an account/i,
     /authentication required/i,
 ];
 
-const PAYWALL_PATTERNS = [
+const PAYWALL_PATTERNS: RegExp[] = [
     /\bsubscribe\b/i,
     /\bsubscription\b/i,
     /continue reading/i,
     /members only/i,
 ];
 
-/**
- * @param {{ html?: string, text?: string, title?: string, positiveProof?: string[] }} input
- */
-export function classifyHtmlStrength(input = {}) {
+interface ClassifyHtmlInput {
+    html?: string;
+    text?: string;
+    title?: string;
+    positiveProof?: string[];
+}
+
+interface BoundaryMarker {
+    kind: 'challenge' | 'auth' | 'paywall';
+    pattern: string;
+}
+
+interface ClassifyBoundaryInput {
+    status?: number;
+    headers?: Record<string, unknown>;
+    text?: string;
+    url?: string;
+}
+
+export function classifyHtmlStrength(input: ClassifyHtmlInput = {}) {
     const text = normalizeText(input.text || stripHtml(input.html || ''));
     const title = normalizeText(input.title || '');
     const markers = findBoundaryMarkers(`${title}\n${text}`);
@@ -51,10 +66,7 @@ export function classifyHtmlStrength(input = {}) {
     return { ok: false, verdict: 'blocked', reason: 'empty-or-too-short', markers, textLength };
 }
 
-/**
- * @param {{ status?: number, headers?: Record<string, unknown>, text?: string, url?: string }} input
- */
-export function classifyBoundarySignals(input = {}) {
+export function classifyBoundarySignals(input: ClassifyBoundaryInput = {}) {
     const status = Number(input.status || 0);
     const markers = findBoundaryMarkers(input.text || '');
     if (status === 401) return { verdict: 'auth_required', markers, reason: 'http-401' };
@@ -67,12 +79,8 @@ export function classifyBoundarySignals(input = {}) {
     return { verdict: null, markers, reason: null };
 }
 
-/**
- * @param {string} text
- */
-export function findBoundaryMarkers(text) {
-    /** @type {{ kind: 'challenge'|'auth'|'paywall', pattern: string }[]} */
-    const markers = [];
+export function findBoundaryMarkers(text: string): BoundaryMarker[] {
+    const markers: BoundaryMarker[] = [];
     for (const pattern of CHALLENGE_PATTERNS) {
         if (pattern.test(text)) markers.push({ kind: 'challenge', pattern: pattern.source });
     }
@@ -85,19 +93,13 @@ export function findBoundaryMarkers(text) {
     return markers;
 }
 
-/**
- * @param {string} html
- */
-function stripHtml(html) {
+function stripHtml(html: string): string {
     return html
         .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
         .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
         .replace(/<[^>]+>/g, ' ');
 }
 
-/**
- * @param {string} text
- */
-function normalizeText(text) {
+function normalizeText(text: string): string {
     return text.replace(/\s+/g, ' ').trim();
 }

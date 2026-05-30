@@ -1,13 +1,8 @@
-// @ts-nocheck
 // Mirrored from agbrowse adaptive-fetch v2; keep runtime behavior aligned while cli-jaw mirror remains experimental.
 
 import { extractTitleFromHtml, htmlToReadableText, normalizeWhitespace } from './transforms.js';
 
-/**
- * @param {string} html
- * @param {string} finalUrl
- */
-export function extractMetadataFromHtml(html = '', finalUrl = '') {
+export function extractMetadataFromHtml(html: string = '', finalUrl: string = '') {
     const title = firstNonEmpty(
         getMetaContent(html, 'property', 'og:title'),
         getMetaContent(html, 'name', 'twitter:title'),
@@ -44,19 +39,16 @@ export function extractMetadataFromHtml(html = '', finalUrl = '') {
             oEmbedUrls.length > 0 ? 'oembed-link' : null,
             jsonLd.length > 0 ? 'json-ld' : null,
         ].filter(Boolean),
-        warnings: [],
+        warnings: [] as string[],
     };
 }
 
-/**
- * @param {string} html
- */
-export function extractJsonLdBlocks(html = '') {
-    const blocks = [];
+export function extractJsonLdBlocks(html: string = ''): unknown[] {
+    const blocks: unknown[] = [];
     const re = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
-    let match;
+    let match: RegExpExecArray | null;
     while ((match = re.exec(html))) {
-        const raw = match[1].trim();
+        const raw = match[1]!.trim();
         if (!raw) continue;
         try {
             blocks.push(JSON.parse(raw));
@@ -67,26 +59,18 @@ export function extractJsonLdBlocks(html = '') {
     return blocks;
 }
 
-/**
- * @param {string} html
- */
-function extractOpenGraph(html) {
-    /** @type {Record<string, string>} */
-    const og = {};
+function extractOpenGraph(html: string): Record<string, string> {
+    const og: Record<string, string> = {};
     const re = /<meta\s+[^>]*property=["']og:([^"']+)["'][^>]*content=["']([^"']*)["'][^>]*>/gi;
-    let match;
-    while ((match = re.exec(html))) og[match[1]] = normalizeWhitespace(match[2]);
+    let match: RegExpExecArray | null;
+    while ((match = re.exec(html))) og[match[1]!] = normalizeWhitespace(match[2]!);
     return og;
 }
 
-/**
- * @param {string} html
- * @param {string} base
- */
-export function extractFeedUrls(html = '', base = '') {
-    const urls = [];
+export function extractFeedUrls(html: string = '', base: string = ''): string[] {
+    const urls: string[] = [];
     const re = /<link\b[^>]*>/gi;
-    let match;
+    let match: RegExpExecArray | null;
     while ((match = re.exec(html))) {
         const tag = match[0];
         const rel = getTagAttr(tag, 'rel').toLowerCase();
@@ -100,14 +84,10 @@ export function extractFeedUrls(html = '', base = '') {
     return urls;
 }
 
-/**
- * @param {string} html
- * @param {string} base
- */
-export function extractOembedUrls(html = '', base = '') {
-    const urls = [];
+export function extractOembedUrls(html: string = '', base: string = ''): string[] {
+    const urls: string[] = [];
     const re = /<link\b[^>]*>/gi;
-    let match;
+    let match: RegExpExecArray | null;
     while ((match = re.exec(html))) {
         const tag = match[0];
         const rel = getTagAttr(tag, 'rel').toLowerCase();
@@ -121,42 +101,25 @@ export function extractOembedUrls(html = '', base = '') {
     return urls;
 }
 
-/**
- * @param {string} html
- * @param {'name'|'property'} attr
- * @param {string} key
- */
-function getMetaContent(html, attr, key) {
-    const re = new RegExp(`<meta\\s+[^>]*${attr}=["']${escapeRegExp(key)}["'][^>]*content=["']([^"']*)["'][^>]*>`, 'i');
+function getMetaContent(html: string, attr: string, key: string): string {
+    const re = new RegExp(`<meta\\s+[^>]*${escapeRegExp(attr)}=["']${escapeRegExp(key)}["'][^>]*content=["']([^"']*)["'][^>]*>`, 'i');
     const match = html.match(re);
-    return match ? normalizeWhitespace(match[1]) : '';
+    return match ? normalizeWhitespace(match[1]!) : '';
 }
 
-/**
- * @param {string} html
- * @param {string} rel
- */
-function getLinkHref(html, rel) {
+function getLinkHref(html: string, rel: string): string {
     const re = new RegExp(`<link\\s+[^>]*rel=["']${escapeRegExp(rel)}["'][^>]*href=["']([^"']*)["'][^>]*>`, 'i');
     const match = html.match(re);
-    return match ? normalizeWhitespace(match[1]) : '';
+    return match ? normalizeWhitespace(match[1]!) : '';
 }
 
-/**
- * @param {string} tag
- * @param {string} attr
- */
-function getTagAttr(tag, attr) {
+function getTagAttr(tag: string, attr: string): string {
     const re = new RegExp(`\\b${escapeRegExp(attr)}=["']([^"']*)["']`, 'i');
     const match = tag.match(re);
-    return match ? normalizeWhitespace(match[1]) : '';
+    return match ? normalizeWhitespace(match[1]!) : '';
 }
 
-/**
- * @param {string} raw
- * @param {string} base
- */
-function resolveMaybeUrl(raw, base) {
+function resolveMaybeUrl(raw: string, base: string): string {
     if (!raw) return '';
     try {
         return new URL(raw, base || undefined).href;
@@ -165,13 +128,10 @@ function resolveMaybeUrl(raw, base) {
     }
 }
 
-function firstNonEmpty(...values) {
+function firstNonEmpty(...values: string[]): string {
     return values.find(v => typeof v === 'string' && v.trim()) || '';
 }
 
-/**
- * @param {string} text
- */
-function escapeRegExp(text) {
+function escapeRegExp(text: string): string {
     return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

@@ -1,9 +1,9 @@
-// @ts-nocheck
 // Mirrored from agbrowse adaptive-fetch v2; keep runtime behavior aligned while cli-jaw mirror remains experimental.
 
+import type { ReaderCandidate } from './types.js';
 import { classifyBoundarySignals, findBoundaryMarkers } from './validators.js';
 
-const SOURCE_TRUST = {
+const SOURCE_TRUST: Record<string, number> = {
     public_endpoint: 20,
     network_api: 16,
     fetch: 12,
@@ -13,11 +13,22 @@ const SOURCE_TRUST = {
     reader: 4,
 };
 
-/**
- * @param {any} candidate
- * @param {{ minStrongScore?: number, minWeakScore?: number }} [options]
- */
-export function scoreReaderCandidate(candidate, options = {}) {
+interface ScoreOptions {
+    minStrongScore?: number;
+    minWeakScore?: number;
+}
+
+interface ScoredResult {
+    candidate: ReaderCandidate;
+    score: number;
+    verdict: string;
+    markers: { kind: string; pattern: string }[];
+    textLength: number;
+    density: number;
+    evidence: string[];
+}
+
+export function scoreReaderCandidate(candidate: ReaderCandidate, options: ScoreOptions = {}): ScoredResult {
     const text = String(candidate.text || '');
     const title = String(candidate.title || '');
     const metadata = candidate.metadata || {};
@@ -73,21 +84,19 @@ export function scoreReaderCandidate(candidate, options = {}) {
     };
 }
 
-/**
- * @param {any[]} candidates
- * @param {Record<string, unknown>} [options]
- */
-export function chooseBestReaderCandidate(candidates = [], options = {}) {
+export function chooseBestReaderCandidate(candidates: ReaderCandidate[] = [], options: ScoreOptions = {}): ScoredResult | null {
     const scored = candidates.map(candidate => scoreReaderCandidate(candidate, options));
     scored.sort((a, b) => b.score - a.score);
     return scored[0] || null;
 }
 
-/**
- * @param {{ score: number, markers?: any[], textLength?: number }} scored
- * @param {{ minStrongScore?: number, minWeakScore?: number }} [options]
- */
-export function verdictFromScore(scored, options = {}) {
+interface ScoredInput {
+    score: number;
+    markers?: { kind: string; pattern: string }[];
+    textLength?: number;
+}
+
+export function verdictFromScore(scored: ScoredInput, options: ScoreOptions = {}): string {
     const minStrongScore = Number(options.minStrongScore || 50);
     const minWeakScore = Number(options.minWeakScore || 20);
     const markers = scored.markers || [];
@@ -100,32 +109,30 @@ export function verdictFromScore(scored, options = {}) {
     return 'blocked';
 }
 
-/**
- * @param {string} text
- * @param {number} rawLength
- */
-function computeTextDensity(text, rawLength) {
+function computeTextDensity(text: string, rawLength: number): number {
     if (!rawLength || rawLength <= 0) return text.length > 0 ? 1 : 0;
     return Math.max(0, Math.min(1, text.length / rawLength));
 }
 
-/**
- * @param {any} metadata
- */
-function countMetadataEvidence(metadata) {
+function countMetadataEvidence(metadata: Record<string, unknown>): number {
     let count = 0;
-    if (metadata.canonicalUrl) count += 1;
-    if (metadata.description) count += 1;
-    if (metadata.openGraph && Object.keys(metadata.openGraph).length > 0) count += 1;
-    if (Array.isArray(metadata.jsonLd) && metadata.jsonLd.length > 0) count += 1;
+    if (metadata['canonicalUrl']) count += 1;
+    if (metadata['description']) count += 1;
+    if (metadata['openGraph'] && typeof metadata['openGraph'] === 'object' && Object.keys(metadata['openGraph'] as object).length > 0) count += 1;
+    if (Array.isArray(metadata['jsonLd']) && metadata['jsonLd'].length > 0) count += 1;
     return count;
 }
 
-/**
- * @param {any} candidate
- * @param {{ score: number, textLength: number, density: number, metadataEvidence: number, markers: any[], extra?: any[] }} scored
- */
-function buildScoreEvidence(candidate, scored) {
+interface ScoreEvidenceInput {
+    score: number;
+    textLength: number;
+    density: number;
+    metadataEvidence: number;
+    markers: { kind: string; pattern: string }[];
+    extra?: (string | null | undefined)[];
+}
+
+function buildScoreEvidence(candidate: ReaderCandidate, scored: ScoreEvidenceInput): string[] {
     return [
         `score:${scored.score}`,
         `source:${candidate.source}`,
@@ -135,5 +142,5 @@ function buildScoreEvidence(candidate, scored) {
         ...scored.markers.map(marker => `marker:${marker.kind}`),
         ...(scored.extra || []),
         ...(candidate.evidence || []),
-    ].filter(Boolean);
+    ].filter((v): v is string => v != null);
 }

@@ -1,38 +1,29 @@
-// @ts-nocheck
 // Mirrored from agbrowse adaptive-fetch v2; keep runtime behavior aligned while cli-jaw mirror remains experimental.
 
 export class BrowserRequiredError extends Error {
-    /**
-     * @param {string} message
-     */
-    constructor(message) {
+    code: string;
+    constructor(message: string) {
         super(message);
         this.name = 'BrowserRequiredError';
         this.code = 'browser_required';
     }
 }
 
-/**
- * @param {{ browserDeps?: any, browserSession?: 'none'|'isolated'|'existing' }} [options]
- */
-export async function getFetchBrowserPage(options = {}) {
+export async function getFetchBrowserPage(options: { browserDeps?: Record<string, unknown>; browserSession?: 'none' | 'isolated' | 'existing' } = {}): Promise<{ page: unknown; cleanup: () => Promise<void>; isolated: boolean }> {
     const deps = options.browserDeps || {};
     if (options.browserSession === 'none') {
         throw new BrowserRequiredError('browser session mode is none');
     }
     if (options.browserSession === 'existing') {
-        if (typeof deps.getPage !== 'function') throw new BrowserRequiredError('browser getPage dependency is unavailable');
-        return { page: await deps.getPage(), cleanup: async () => undefined, isolated: false };
+        if (typeof deps['getPage'] !== 'function') throw new BrowserRequiredError('browser getPage dependency is unavailable');
+        return { page: await (deps['getPage'] as () => Promise<unknown>)(), cleanup: async () => undefined, isolated: false };
     }
-    if (typeof deps.createIsolatedPage === 'function') {
-        return deps.createIsolatedPage();
+    if (typeof deps['createIsolatedPage'] === 'function') {
+        return (deps['createIsolatedPage'] as () => Promise<{ page: unknown; cleanup: () => Promise<void>; isolated: boolean }>)();
     }
     throw new BrowserRequiredError('isolated browser page dependency is unavailable');
 }
 
-/**
- * @param {{ cleanup?: () => Promise<void>|void }} pageRef
- */
-export async function closeFetchBrowserPage(pageRef) {
+export async function closeFetchBrowserPage(pageRef: { cleanup?: () => Promise<void> | void }): Promise<void> {
     if (typeof pageRef?.cleanup === 'function') await pageRef.cleanup();
 }
