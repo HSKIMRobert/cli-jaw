@@ -43,6 +43,7 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
         const msg = JSON.parse(raw);
         switch (msg.type) {
             case 'agent_chunk':
+            case 'agent_output':
                 if (ov.helpOpen || ov.paletteOpen) dismissOverlay(ctx);
                 if (ctx.isRaw) {
                     console.log(`  ${c.dim}${raw}${c.reset}`);

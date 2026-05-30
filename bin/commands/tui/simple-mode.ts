@@ -49,7 +49,7 @@ export async function runSimpleMode(ctx: TuiContext): Promise<void> {
     ws.on('message', (data: WebSocket.RawData) => {
         try {
             const msg = JSON.parse(data.toString());
-            if (msg.type === 'agent_chunk') { if (!streaming) streaming = true; process.stdout.write(msg.text || ''); }
+            if (msg.type === 'agent_chunk' || msg.type === 'agent_output') { if (!streaming) streaming = true; process.stdout.write(msg.text || ''); }
             else if (msg.type === 'agent_fallback') {
                 console.log(`  \u26A1 ${msg.from} \uC2E4\uD328 \u2192 ${msg.to}\uB85C \uC7AC\uC2DC\uB3C4`);
             }
