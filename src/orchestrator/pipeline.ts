@@ -392,9 +392,10 @@ export async function orchestrate(
             let cleaned = originalText.replace(
                 /<interview_tracker>[\s\S]*?<\/interview_tracker>/g, ''
             );
-            // P0-1b: also strip any raw tracker arrays LLM printed outside the XML block
+            // P0-1b: strip raw tracker data LLM printed outside XML block
+            // Match "known: [...]" or "unknown: [...]" with balanced brackets
             cleaned = cleaned.replace(
-                /\n*(?:known|unknown):\s*\[[\s\S]*?\]\s*(?=\n|$)/g, ''
+                /\n*(?:known|unknown)\s*:\s*\[(?:[^\[\]]*|\[(?:[^\[\]]*|\[[^\[\]]*\])*\])*\]/g, ''
             );
             result["text"] = cleaned.trim();
 
