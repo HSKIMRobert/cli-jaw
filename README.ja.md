@@ -116,8 +116,8 @@ copilot login        # GitHub Copilot（無料枠あり）
 opencode             # OpenCode — 無料モデルあり
 
 # 有料（すでに支払い中の月額サブスクリプション）
-claude auth login    # Anthropic Claude Max
-codex login          # OpenAI ChatGPT Pro
+claude auth login    # Anthropic Claude Pro 以上
+codex login          # OpenAI ChatGPT Pro 以上
 cursor-agent login   # Cursor
 gemini               # Google Gemini Advanced
 grok login --oauth   # xAI Grok / Grok Heavy
@@ -247,17 +247,19 @@ Employee は「Frontend は CSS、Backend は API」用。サブエージェン�
 
 | CLI | デフォルトモデル | 認証 | コスト |
 |---|---|---|---|
-| **Claude** | `opus-4-6` | `claude auth login` | Claude Max サブスクリプション |
-| **Claude E** | `opus-4-6` | underlying `claude auth login` | 実験的なインタラクティブ Claude wrapper |
+| **Claude** | `claude-opus-4-8` | `claude auth login` | Claude Pro サブスクリプション以上 |
+| **Claude E** | `claude-opus-4-8` | underlying `claude auth login` | Claude Pro サブスクリプション以上。6月のサブスク付与枠では推奨 runtime |
 | **AI-E** | provider-selected | 選択 provider の認証 | マルチ provider runtime wrapper |
 | **Antigravity** | AGY-selected | `agy` 実行時に確認 | `--conversation` resume 対応の実験的な AGY print-mode runtime。モデル変更は native AGY UI 側 |
-| **Codex** | `gpt-5.5` | `codex login` | ChatGPT Pro サブスクリプション |
-| **Codex App** | `gpt-5.4` | `codex login` | ChatGPT Pro サブスクリプション |
+| **Codex** | `gpt-5.5` | `codex login` | ChatGPT Pro サブスクリプション以上 |
+| **Codex App** | `gpt-5.5` | `codex login` | ChatGPT Pro サブスクリプション以上 |
 | **Cursor** | `composer-2.5-fast` | `cursor-agent login` または `CURSOR_API_KEY` | Cursor サブスクリプション。quota は auth/status-only |
 | **Gemini** | `gemini-3.1-pro-preview` | `gemini` | Gemini Advanced サブスクリプション |
 | **Grok** | `grok-build` | `grok login --oauth` | Grok サブスクリプション；クォータは認証/ステータスのみ |
 | **OpenCode** | `minimax-m2.7` | `opencode` | 無料モデルあり |
 | **Copilot** | `gpt-5-mini` | `copilot login` | 無料枠あり |
+
+GPT 5.5 と Claude Opus 4.8 は Pro 以上のサブスクリプションで利用できます。6月からサブスクに含まれる Claude 利用枠を使う場合は、`claude-e` runtime を選択してください。
 
 クォータ/ステータスパネルは registry と同じ runtime キーセットを維持します。Wrapper runtime（`ai-e`, `claude-e`, `codex-app`）は underlying provider に委譲し、AGY/Cursor/Grok/OpenCode のように CLI が quota window を公開しない場合は auth/status-only として表示します。
 

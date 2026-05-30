@@ -37,8 +37,8 @@ test('FCC-002: employees normalizeEmployeeModel is trim-only (passthrough policy
         'render call site must still use the helper');
 });
 
-test('FCC-003: employees use sonnet alias as Claude default on CLI switch', () => {
+test('FCC-003: employees use Opus 4.8 as Claude default on CLI switch', () => {
     assert.ok(employeesSrc.includes('function getDefaultEmployeeModel'));
-    assert.ok(employeesSrc.includes("if (models.includes('sonnet')) return 'sonnet';"));
+    assert.ok(employeesSrc.includes("if (models.includes('claude-opus-4-8')) return 'claude-opus-4-8';"));
     assert.ok(employeesSrc.includes('updateEmployee(id, { cli, model: nextModel });'));
 });

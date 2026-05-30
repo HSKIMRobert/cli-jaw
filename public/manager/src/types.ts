@@ -7,7 +7,7 @@ export type DashboardInstanceStatus =
 
 export type DashboardServiceMode = 'unknown' | 'ad-hoc' | 'service' | 'manager';
 export type DashboardLifecycleAction = 'start' | 'stop' | 'restart' | 'perm' | 'unperm';
-export type DashboardLifecycleOwner = 'none' | 'external' | 'manager' | 'service';
+export type DashboardLifecycleOwner = 'none' | 'external' | 'manager' | 'service' | 'peer';
 export type DashboardDetailTab = 'overview' | 'preview' | 'logs' | 'settings';
 export type DashboardUiTheme = 'auto' | 'dark' | 'light';
 export type DashboardLocale = 'ko' | 'en' | 'zh' | 'ja';

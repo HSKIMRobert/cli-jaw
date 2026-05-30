@@ -71,8 +71,23 @@ export function buildCapability(args: {
     serviceState?: DashboardServiceState | null;
     defaultHome: string;
     commandPreview: string[];
+    isPeer?: boolean;
 }): DashboardLifecycleCapability {
     const { instance, managed, serviceState, defaultHome, commandPreview } = args;
+    if (args.isPeer && instance.status === 'online') {
+        return {
+            owner: 'peer',
+            canStart: false,
+            canStop: true,
+            canRestart: false,
+            canPerm: false,
+            canUnperm: false,
+            reason: 'peer dashboard',
+            defaultHome,
+            commandPreview,
+            pid: null,
+        };
+    }
     if (managed) {
         const hasRegistration = serviceState?.registered ?? false;
         return {

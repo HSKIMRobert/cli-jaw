@@ -116,8 +116,8 @@ copilot login        # GitHub Copilot (무료 티어 있음)
 opencode             # OpenCode — 무료 모델 사용 가능
 
 # 유료 (이미 결제 중인 월 구독)
-claude auth login    # Anthropic Claude Max
-codex login          # OpenAI ChatGPT Pro
+claude auth login    # Anthropic Claude Pro 이상
+codex login          # OpenAI ChatGPT Pro 이상
 cursor-agent login   # Cursor
 gemini               # Google Gemini Advanced
 grok login --oauth   # xAI Grok / Grok Heavy
@@ -247,17 +247,19 @@ jaw dispatch --agent "Frontend" --task "dashboard.tsx의 CSS 그리드 레이아
 
 | CLI | 기본 모델 | 인증 | 비용 |
 |---|---|---|---|
-| **Claude** | `opus-4-6` | `claude auth login` | Claude Max 구독 |
-| **Claude E** | `opus-4-6` | underlying `claude auth login` | 실험적 인터랙티브 Claude wrapper |
+| **Claude** | `claude-opus-4-8` | `claude auth login` | Claude Pro 구독 이상 |
+| **Claude E** | `claude-opus-4-8` | underlying `claude auth login` | Claude Pro 구독 이상; 6월 구독 포함 사용량 권장 런타임 |
 | **AI-E** | provider-selected | 선택 provider 인증 | 다중 provider runtime wrapper |
 | **Antigravity** | AGY-selected | `agy` 실행 시 확인 | `--conversation` resume을 쓰는 실험적 AGY print-mode runtime; 모델 변경은 native AGY UI 표면 |
-| **Codex** | `gpt-5.5` | `codex login` | ChatGPT Pro 구독 |
-| **Codex App** | `gpt-5.4` | `codex login` | ChatGPT Pro 구독 |
+| **Codex** | `gpt-5.5` | `codex login` | ChatGPT Pro 구독 이상 |
+| **Codex App** | `gpt-5.5` | `codex login` | ChatGPT Pro 구독 이상 |
 | **Cursor** | `composer-2.5-fast` | `cursor-agent login` 또는 `CURSOR_API_KEY` | Cursor 구독; 쿼터는 인증/상태 전용 |
 | **Gemini** | `gemini-3.1-pro-preview` | `gemini` | Gemini Advanced 구독 |
 | **Grok** | `grok-build` | `grok login --oauth` | Grok 구독; 쿼터는 인증/상태 전용 |
 | **OpenCode** | `minimax-m2.7` | `opencode` | 무료 모델 사용 가능 |
 | **Copilot** | `gpt-5-mini` | `copilot login` | 무료 티어 사용 가능 |
+
+GPT 5.5와 Claude Opus 4.8은 Pro 구독 이상부터 허용됩니다. 6월부터 구독제에 포함된 Claude 사용량을 쓰려면 `claude-e` 런타임을 선택하세요.
 
 쿼터/상태 패널은 registry와 같은 runtime 키셋을 유지합니다. Wrapper runtime(`ai-e`, `claude-e`, `codex-app`)은 underlying provider로 위임하고, AGY/Cursor/Grok/OpenCode처럼 CLI가 quota window를 노출하지 않는 경우 auth/status-only로 표시합니다.
 

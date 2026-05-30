@@ -10,7 +10,7 @@ import {
     MANAGED_INSTANCE_PORT_FROM,
 } from './constants.js';
 import { defaultPreviewFromForManagerPort } from './preview-ports.js';
-import { scanDashboardInstances, scanSinglePort } from './scan.js';
+import { scanDashboardInstances, scanSinglePort, scanPeerDashboards } from './scan.js';
 import { installDashboardProxy } from './proxy.js';
 import { createPreviewOriginProxyController } from './preview-origin-proxy.js';
 import { DashboardLifecycleManager } from './lifecycle.js';
@@ -402,6 +402,15 @@ app.get('/api/dashboard/instances', async (req, res) => {
         );
         const serviceStates = await serviceDetect({ from, to: from + count - 1 });
         const decorated = lifecycle.decorateScanResult(result, serviceStates);
+
+        // Merge peer dashboard instances (stop-only)
+        try {
+            const peers = await scanPeerDashboards(port);
+            for (const peer of peers) {
+                decorated.instances.push(lifecycle.decorateInstance(peer, null, true));
+            }
+        } catch { /* peer scan is best-effort */ }
+
         const applied = applyDashboardRegistry(attachPreviewSnapshot(decorated), loaded.registry, loaded.status, { showHidden });
         res.json({ ...applied, platform: process.platform });
     } catch (error) {
@@ -412,11 +421,22 @@ app.get('/api/dashboard/instances', async (req, res) => {
 
 app.get('/api/dashboard/instances/:port', async (req, res) => {
     const portValue = Number(req.params.port);
-    if (!Number.isInteger(portValue) || portValue < scanFrom || portValue >= scanFrom + scanCount) {
+    const isPeerDashboard = lifecycle.isDashboardPort(portValue) && portValue !== port;
+    if (!isPeerDashboard && (!Number.isInteger(portValue) || portValue < scanFrom || portValue >= scanFrom + scanCount)) {
         res.status(400).json({ ok: false, error: 'port out of configured scan range' });
         return;
     }
     try {
+        if (isPeerDashboard) {
+            const peers = await scanPeerDashboards(port);
+            const peer = peers.find(p => p.port === portValue);
+            if (!peer) {
+                res.json({ ok: true, instance: lifecycle.decorateInstance({ port: portValue, status: 'offline', ok: false, lastCheckedAt: new Date().toISOString() } as DashboardInstance, null, true), platform: process.platform });
+                return;
+            }
+            res.json({ ok: true, instance: lifecycle.decorateInstance(peer, null, true), platform: process.platform });
+            return;
+        }
         const loaded = loadDashboardRegistry({ from: scanFrom, count: scanCount });
         const instance = await scanSinglePort(portValue);
         if (instance.ok) await previewProxy.ensureTarget(instance.port);
