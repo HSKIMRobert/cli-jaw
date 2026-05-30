@@ -389,9 +389,14 @@ export async function orchestrate(
             const originalText = result["text"] as string || '';
 
             // P0-1: strip unconditionally — never leak tracker XML to user
-            result["text"] = originalText.replace(
+            let cleaned = originalText.replace(
                 /<interview_tracker>[\s\S]*?<\/interview_tracker>/g, ''
-            ).trim();
+            );
+            // P0-1b: also strip any raw tracker arrays LLM printed outside the XML block
+            cleaned = cleaned.replace(
+                /\n*(?:known|unknown):\s*\[[\s\S]*?\]\s*(?=\n|$)/g, ''
+            );
+            result["text"] = cleaned.trim();
 
             // P0-2 + P1-1: parse Evidence-Ref or legacy string format
             const block = originalText.match(/<interview_tracker>([\s\S]*?)<\/interview_tracker>/);
