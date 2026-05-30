@@ -70,7 +70,7 @@ import {
 
 import {
     isAgentBusy, killAllAgents,
-    messageQueue, resetFallbackState,
+    messageQueue, resetFallbackState, getQueuedMessageSnapshotForScope,
 } from './src/agent/spawn.js';
 import { bumpSessionOwnershipGeneration } from './src/agent/session-persistence.js';
 import { parseCommand, executeCommand } from './src/cli/commands.js';
@@ -327,7 +327,11 @@ wss.on('connection', (ws) => {
         ws.send(JSON.stringify({ type: 'agent_status', status: 'running', agentId: 'active' }));
     }
     if (messageQueue.length > 0) {
-        ws.send(JSON.stringify({ type: 'queue_update', pending: messageQueue.length }));
+        ws.send(JSON.stringify({
+            type: 'queue_update',
+            pending: messageQueue.length,
+            queued: getQueuedMessageSnapshotForScope('default'),
+        }));
     }
     // Send current PABCD state so page refresh preserves glow
     const webScope = resolveOrcScope({ origin: 'web', workingDir: settings["workingDir"] || null });

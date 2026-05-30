@@ -51,6 +51,7 @@ interface WsMessage {
     phase?: string;
     phaseLabel?: string;
     pending?: number;
+    queued?: Array<{ id: string; prompt: string; source?: string; ts?: number }>;
     path?: string;
     round?: number;
     agentPhases?: { agent?: string; name?: string }[];
@@ -503,6 +504,9 @@ export function connect(): void {
             }
         } else if (msg.type === 'queue_update') {
             updateQueueBadge(msg.pending || 0);
+            if (Array.isArray(msg.queued)) {
+                renderPendingQueue(msg.queued);
+            }
             syncOrchestrateSnapshot('queue_update').catch(() => { /* snapshot not critical — UI recovers on next event */ });
         } else if (msg.type === 'worklog_created') {
             addSystemMsg(`${ICONS.clipboard} Worklog: ${escapeHtml(msg.path || '')}`);

@@ -92,7 +92,7 @@ export function showProcessStep(step: ProcessStep): void {
         state.currentProcessBlock = null;
     }
     const agentDiv = state.currentAgentDiv;
-    normalizeAgentToolBlocks(agentDiv);
+    normalizeAgentToolBlocks(agentDiv, 'after-content');
     if (!state.currentProcessBlock) {
         const body = agentDiv.querySelector('.agent-body') as HTMLElement;
         if (body) {
@@ -100,7 +100,7 @@ export function showProcessStep(step: ProcessStep): void {
         }
         if (!state.currentProcessBlock && body) {
             removeAgentToolBlocks(agentDiv);
-            state.currentProcessBlock = createProcessBlock(body);
+            state.currentProcessBlock = createProcessBlock(body, 'after-content');
         }
     }
     if (state.currentProcessBlock) {
@@ -237,13 +237,13 @@ export function hydrateActiveRun(snapshot?: ActiveRunSnapshot | null): void {
     const body = state.currentAgentDiv.querySelector('.agent-body') as HTMLElement | null;
     const snapshotToolLog = sanitizedToolLogEntries(snapshot.toolLog || []);
     if (body && snapshotToolLog.length) {
-        normalizeAgentToolBlocks(state.currentAgentDiv);
+        normalizeAgentToolBlocks(state.currentAgentDiv, 'after-content');
         removeAgentToolBlocks(state.currentAgentDiv);
-        const pb = createProcessBlock(body);
+        const pb = createProcessBlock(body, 'after-content');
         for (const tool of toProcessSteps(snapshotToolLog, snapshot.startedAt)) addStep(pb, tool);
         state.currentProcessBlock = pb;
     } else {
-        normalizeAgentToolBlocks(state.currentAgentDiv);
+        normalizeAgentToolBlocks(state.currentAgentDiv, 'after-content');
         state.currentProcessBlock = currentProcessBlockFromDom(state.currentAgentDiv);
     }
     const content = state.currentAgentDiv.querySelector('.msg-content') as HTMLElement | null;

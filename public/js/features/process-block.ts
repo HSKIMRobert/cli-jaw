@@ -439,13 +439,14 @@ function updateSummary(pb: ProcessBlockState): void {
     else if (_tickerBlock === pb) stopBlockTicker();
 }
 
-export function createProcessBlock(parentEl: HTMLElement): ProcessBlockState {
+export function createProcessBlock(parentEl: HTMLElement, placement: 'before-content' | 'after-content' = 'before-content'): ProcessBlockState {
     const host = document.createElement('div');
     host.innerHTML = blockShell('', true);
     const el = host.firstElementChild as HTMLElement;
 
     const content = parentEl.querySelector('.msg-content');
-    if (content) content.before(el);
+    if (content && placement === 'after-content') content.after(el);
+    else if (content) content.before(el);
     else parentEl.appendChild(el);
 
     return { element: el, steps: [], collapsed: true };

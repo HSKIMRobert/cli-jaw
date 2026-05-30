@@ -187,6 +187,13 @@ export function createQueueController(deps: QueueDeps): QueueController {
             }));
     }
 
+    function queueUpdatePayload(): { pending: number; queued: ReturnType<typeof getQueuedMessageSnapshotForScope> } {
+        return {
+            pending: messageQueue.length,
+            queued: getQueuedMessageSnapshotForScope('default'),
+        };
+    }
+
     function removeQueuedMessage(id: string): { removed: QueueItem | null; pending: number } {
         const idx = messageQueue.findIndex(item => item.id === id);
         if (idx === -1) return { removed: null, pending: messageQueue.length };
@@ -195,7 +202,7 @@ export function createQueueController(deps: QueueDeps): QueueController {
             console.warn(`[queue] DB delete failed for ${id}:`, (err as Error).message);
         }
         console.log(`[queue] -1 (${messageQueue.length} pending) removed=${id}`);
-        deps.broadcast('queue_update', { pending: messageQueue.length });
+        deps.broadcast('queue_update', queueUpdatePayload());
         return { removed: removed!, pending: messageQueue.length };
     }
 
@@ -213,7 +220,7 @@ export function createQueueController(deps: QueueDeps): QueueController {
         deps.insertQueuedMessage.run(item.id, JSON.stringify(item));
         messageQueue.push(item);
         console.log(`[queue] +1 (${messageQueue.length} pending)`);
-        deps.broadcast('queue_update', { pending: messageQueue.length });
+        deps.broadcast('queue_update', queueUpdatePayload());
         processQueue();
         return item.id;
     }
@@ -275,7 +282,7 @@ export function createQueueController(deps: QueueDeps): QueueController {
             deps.deleteQueuedMessage.run(item.id);
             inserted = true;
             deps.broadcast('new_message', { role: 'user', content: combined, source, fromQueue: true });
-            deps.broadcast('queue_update', { pending: messageQueue.length });
+            deps.broadcast('queue_update', queueUpdatePayload());
 
             const { orchestrate, orchestrateContinue, orchestrateReset, isContinueIntent, isResetIntent } = await deps.importPipeline();
             const task = isResetIntent(combined)
@@ -311,7 +318,7 @@ export function createQueueController(deps: QueueDeps): QueueController {
             try { deps.deleteQueuedMessage.run(item.id); } catch { /* best-effort */ }
         }
         console.log(`[jaw:stop] cleared ${dropped} pending message(s) (reason=${reason})`);
-        deps.broadcast('queue_update', { pending: 0 });
+        deps.broadcast('queue_update', queueUpdatePayload());
     }
 
     return {
