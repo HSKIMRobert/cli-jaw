@@ -485,8 +485,15 @@ export async function orchestrate(
         }
     }
 
+    // Final safety strip: remove any tracker remnants regardless of state
+    if (typeof result["text"] === 'string') {
+        result["text"] = result["text"]
+            .replace(/<interview_tracker>[\s\S]*?<\/interview_tracker>/g, '')
+            .replace(/\n*(?:known|unknown)\s*:\s*\[(?:[^\[\]]*|\[(?:[^\[\]]*|\[[^\[\]]*\])*\])*\]/g, '')
+            .trim();
+    }
+
     // Normal response → broadcast
-    // (Worker JSON dispatch removed in patch3 — Boss calls `cli-jaw dispatch` directly)
     broadcast('orchestrate_done', {
         text: result["text"] || '',
         origin,
