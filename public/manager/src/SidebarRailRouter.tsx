@@ -243,7 +243,7 @@ export function SidebarRailRouter(props: Props) {
                     <div className="workspace-surface-layer">
                         <WorkspaceSurface active={props.sidebarMode === 'instances'}>
                             <Workbench mode={props.activeDetailTab} onModeChange={props.onDetailTabChange} header={props.workbenchHeader} modeActions={props.jawCeoWorkbenchButton} overview={props.detailContent('overview')} preview={(
-                                <InstancePreview instance={props.selectedInstance} data={props.data} enabled={props.previewEnabled} active={props.sidebarMode === 'instances' && props.activeDetailTab === 'preview'} refreshKey={props.previewRefreshKey} theme={props.previewTheme} {...(props.onOpenNotesFromPreview ? { onOpenNotesFromPreview: props.onOpenNotesFromPreview } : {})} />
+                                <InstancePreview instance={props.selectedInstance} data={props.data} enabled={props.previewEnabled} active={props.sidebarMode === 'instances' && props.activeDetailTab === 'preview'} refreshKey={props.previewRefreshKey} theme={props.previewTheme} {...(props.onOpenNotesFromPreview ? { onOpenNotesFromPreview: props.onOpenNotesFromPreview } : {})} onOpenDocFromPreview={handleRightPreviewFile} />
                             )} logs={props.detailContent('logs')} settings={props.detailContent('settings')} />
                         </WorkspaceSurface>
                         <WorkspaceSurface active={props.sidebarMode === 'notes'}>

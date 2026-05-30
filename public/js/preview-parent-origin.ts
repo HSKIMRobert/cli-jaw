@@ -36,3 +36,10 @@ export function postPreviewOpenNotes(path: string): boolean {
     window.parent.postMessage({ type: 'jaw-preview-open-notes', path }, targetOrigin);
     return true;
 }
+
+export function postPreviewOpenDoc(absolutePath: string): boolean {
+    const targetOrigin = previewParentOrigin();
+    if (!targetOrigin || !absolutePath.trim()) return false;
+    window.parent.postMessage({ type: 'jaw-preview-open-doc', path: absolutePath }, targetOrigin);
+    return true;
+}

@@ -12,6 +12,7 @@ type InstancePreviewProps = {
     refreshKey: number;
     theme: PreviewTheme;
     onOpenNotesFromPreview?: (path: string) => void;
+    onOpenDocFromPreview?: (absolutePath: string) => void;
 };
 
 type PreviewOpenNotesMessage = {
@@ -198,11 +199,22 @@ export function InstancePreview(props: InstancePreviewProps) {
             props.onOpenNotesFromPreview?.(path);
         }
         window.addEventListener('message', onPreviewOpenNotes);
+        function onPreviewOpenDoc(event: MessageEvent): void {
+            if (event.source !== iframeRef.current?.contentWindow) return;
+            if (!state.src || !previewFrameOriginMatches(event.origin, state.src, iframeRef.current)) return;
+            const data = event.data as { type?: unknown; path?: unknown } | null;
+            if (!data || data.type !== 'jaw-preview-open-doc') return;
+            const path = typeof data.path === 'string' ? data.path.trim() : '';
+            if (!path) return;
+            props.onOpenDocFromPreview?.(path);
+        }
+        window.addEventListener('message', onPreviewOpenDoc);
         return () => {
             window.removeEventListener('message', onPreviewSend);
             window.removeEventListener('message', onPreviewOpenNotes);
+            window.removeEventListener('message', onPreviewOpenDoc);
         };
-    }, [props.enabled, props.instance, props.onOpenNotesFromPreview, state.canPreview, state.src]);
+    }, [props.enabled, props.instance, props.onOpenNotesFromPreview, props.onOpenDocFromPreview, state.canPreview, state.src]);
 
     useEffect(() => {
         if (!props.active || !props.enabled || !state.canPreview || !state.src) return undefined;

@@ -1,6 +1,6 @@
 // ── File path linkification and click-to-open delegation ──
 import { apiJson } from '../api.js';
-import { postPreviewOpenNotes, previewParentOrigin } from '../preview-parent-origin.js';
+import { postPreviewOpenNotes, postPreviewOpenDoc, previewParentOrigin } from '../preview-parent-origin.js';
 import { normalizeNotesVaultPath } from './notes-vault-path.js';
 
 const FILE_PATH_RE_G = /(?:~\/[^\s)`\]"'<>]+|\/(?:Users|home|tmp|var|opt|private)\/[^\s)`\]"'<>]+)/g;
@@ -202,6 +202,11 @@ async function handleFilePathClick(path: string, link: HTMLElement): Promise<voi
     const vaultRel = link.getAttribute('data-vault-rel')
         || normalizeNotesVaultPath(path, notesRoot);
     if (vaultRel && previewParentOrigin() && postPreviewOpenNotes(vaultRel)) {
+        link.classList.add('opened');
+        setTimeout(() => link.classList.remove('opened'), 1500);
+        return;
+    }
+    if (/\.(md|mdx)$/i.test(path) && previewParentOrigin() && postPreviewOpenDoc(path)) {
         link.classList.add('opened');
         setTimeout(() => link.classList.remove('opened'), 1500);
         return;

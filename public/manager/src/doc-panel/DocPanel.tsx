@@ -103,7 +103,20 @@ export function DocPanel(props: { filePath?: string | undefined }) {
     return (
         <div className="doc-panel">
             <div className="doc-toolbar">
-                <span className="doc-file-name">{props.filePath.split('/').pop()}</span>
+                <span className="doc-file-name" title={props.filePath}>{props.filePath.split('/').pop()}</span>
+                <button
+                    type="button"
+                    className="doc-copy-path"
+                    title="Copy full path"
+                    onClick={() => {
+                        void navigator.clipboard.writeText(props.filePath!).then(() => {
+                            const btn = document.querySelector('.doc-copy-path');
+                            if (btn) { btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = 'Path'; }, 1200); }
+                        });
+                    }}
+                >
+                    Path
+                </button>
             </div>
             <div className="doc-content">
                 <DocContent filePath={props.filePath} content={content} />

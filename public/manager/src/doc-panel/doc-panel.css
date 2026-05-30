@@ -30,6 +30,22 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    flex: 1;
+}
+.doc-copy-path {
+    font-size: 10px;
+    padding: 1px 6px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 3px;
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-left: 6px;
+}
+.doc-copy-path:hover {
+    background: var(--border-subtle);
+    color: var(--text-base);
 }
 .doc-content {
     flex: 1;
