@@ -61,13 +61,13 @@ export function setGoal(objective: string, opts?: { repoRoot?: string | undefine
     return goal;
 }
 
-export function updateGoal(summary: string, nextAction = ''): GoalState | null {
+export function updateGoal(summary: string, nextAction = '', evidence: string[] = []): GoalState | null {
     const goal = getActiveGoal();
     if (!goal || goal.status !== 'active') return null;
     const cp: GoalCheckpoint = {
         summary,
         nextAction,
-        evidencePaths: [],
+        evidencePaths: evidence,
         timestamp: new Date().toISOString(),
     };
     goal.checkpoints.push(cp);
@@ -150,4 +150,9 @@ function archiveGoal(goal: GoalState): void {
     history.goals.unshift(goal);
     if (history.goals.length > 50) history.goals.length = 50;
     writeJson(HISTORY_PATH, history);
+}
+
+/** Completion-gate predicate: AI may complete only if the latest checkpoint carries verification evidence. */
+export function goalHasCompletionEvidence(goal: GoalState | null): boolean {
+    return (goal?.lastCheckpoint?.evidencePaths?.length ?? 0) > 0;
 }
