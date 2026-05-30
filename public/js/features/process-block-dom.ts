@@ -8,8 +8,6 @@ import {
 } from './process-block.js';
 import type { ToolLogEntry } from './tool-ui.js';
 
-type ToolBlockPlacement = 'before-content' | 'after-content';
-
 const TOOL_BLOCK_SELECTOR =
     ':scope > .process-block, :scope > .tool-group, ' +
     ':scope > .msg-content > .process-block, :scope > .msg-content > .tool-group';
@@ -32,27 +30,14 @@ function preferredAgentToolBlock(body: HTMLElement): HTMLElement | null {
         ?? null;
 }
 
-function placeAgentToolBlock(body: HTMLElement, content: HTMLElement | null, block: HTMLElement, placement: ToolBlockPlacement): void {
-    if (!content) return;
-    if (placement === 'after-content') {
-        if (content.nextElementSibling !== block) {
-            body.insertBefore(block, content.nextSibling);
-        }
-        return;
-    }
-    if (block.nextElementSibling !== content) {
-        body.insertBefore(block, content);
-    }
-}
-
-export function normalizeAgentToolBlocks(agentMsg: HTMLElement, placement: ToolBlockPlacement = 'before-content'): void {
+export function normalizeAgentToolBlocks(agentMsg: HTMLElement): void {
     const body = agentBody(agentMsg);
     if (!body) return;
     const content = body.querySelector('.msg-content') as HTMLElement | null;
     const blocks = agentToolBlocks(agentMsg);
     if (blocks.length === 0) return;
     const keep = preferredAgentToolBlock(body) ?? blocks[0];
-    if (content) placeAgentToolBlock(body, content, keep, placement);
+    if (content && keep.parentElement !== body) body.insertBefore(keep, content);
     for (const block of blocks) {
         if (block !== keep) {
             releaseProcessBlockDetails(block);

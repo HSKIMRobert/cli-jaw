@@ -72,7 +72,7 @@ test('WRS-003: hydrateActiveRun keeps live process block collapsed by default', 
     const end = uiSrc.indexOf('export function appendAgentText');
     const hydrateBlock = uiSrc.slice(start, end);
     assert.ok(hydrateBlock.includes('hydrateStreamRenderer'), 'hydrateActiveRun should seed stream renderer state');
-    assert.ok(hydrateBlock.includes('createProcessBlock(body'), 'hydrateActiveRun should use the shared process block constructor');
+    assert.ok(hydrateBlock.includes('createProcessBlock(body)'), 'hydrateActiveRun should use the shared process block constructor');
     assert.ok(!hydrateBlock.includes('blockShell'), 'hydrateActiveRun should not bypass the shared constructor');
     assert.ok(!uiSrc.includes('keeps live process block expanded'), 'old expanded-by-default contract should be removed');
 });

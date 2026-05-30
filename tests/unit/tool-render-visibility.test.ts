@@ -9,17 +9,19 @@ const uiSrc = readFileSync(join(__dirname, '../../public/js/ui.ts'), 'utf8');
 const processBlockSrc = readFileSync(join(__dirname, '../../public/js/features/process-block.ts'), 'utf8');
 const processBlockDomSrc = readFileSync(join(__dirname, '../../public/js/features/process-block-dom.ts'), 'utf8');
 
-test('live process blocks are placed after message content so bottom-follow keeps tools visible', () => {
+test('live process blocks stay before message content so the tool window does not move below the answer', () => {
     const showIdx = uiSrc.indexOf('export function showProcessStep');
     const hydrateIdx = uiSrc.indexOf('export function hydrateActiveRun');
     const appendIdx = uiSrc.indexOf('export function appendAgentText');
     const showBlock = uiSrc.slice(showIdx, hydrateIdx);
     const hydrateBlock = uiSrc.slice(hydrateIdx, appendIdx);
 
-    assert.ok(showBlock.includes("normalizeAgentToolBlocks(agentDiv, 'after-content')"), 'live agent_tool events should preserve bottom-visible tool placement');
-    assert.ok(showBlock.includes("createProcessBlock(body, 'after-content')"), 'new live process blocks should mount below streamed content');
-    assert.ok(hydrateBlock.includes("normalizeAgentToolBlocks(state.currentAgentDiv, 'after-content')"), 'active-run hydration should preserve bottom-visible placement');
-    assert.ok(hydrateBlock.includes("createProcessBlock(body, 'after-content')"), 'rehydrated active-run tools should mount below streamed content');
+    assert.ok(showBlock.includes('normalizeAgentToolBlocks(agentDiv)'), 'live agent_tool events should keep canonical tool placement');
+    assert.ok(showBlock.includes('createProcessBlock(body)'), 'new live process blocks should mount before streamed content');
+    assert.ok(hydrateBlock.includes('normalizeAgentToolBlocks(state.currentAgentDiv)'), 'active-run hydration should keep canonical tool placement');
+    assert.ok(hydrateBlock.includes('createProcessBlock(body)'), 'rehydrated active-run tools should mount before streamed content');
+    assert.ok(!showBlock.includes('after-content'), 'live tool placement must not move below the answer');
+    assert.ok(!hydrateBlock.includes('after-content'), 'rehydrated tool placement must not move below the answer');
 });
 
 test('finalized process blocks still normalize before content for historical messages', () => {
@@ -27,15 +29,13 @@ test('finalized process blocks still normalize before content for historical mes
     const finalizeBlock = uiSrc.slice(finalizeIdx, finalizeIdx + 1800);
 
     assert.ok(finalizeBlock.includes('normalizeAgentToolBlocks(state.currentAgentDiv)'), 'finalize should use the default historical placement');
-    assert.ok(!finalizeBlock.includes("normalizeAgentToolBlocks(state.currentAgentDiv, 'after-content')"), 'finalized messages should not keep live-only placement');
+    assert.ok(!finalizeBlock.includes('after-content'), 'finalized messages should not use bottom placement');
 });
 
-test('process block helpers support explicit before/after content placement', () => {
-    assert.ok(processBlockSrc.includes("placement: 'before-content' | 'after-content' = 'before-content'"), 'createProcessBlock should expose explicit placement');
-    assert.ok(processBlockSrc.includes("content && placement === 'after-content'"), 'createProcessBlock should support mounting after content');
-    assert.ok(processBlockSrc.includes('content.after(el)'), 'after-content placement should put the tool block after message content');
+test('process block helpers keep the canonical before-content placement', () => {
+    assert.ok(processBlockSrc.includes('if (content) content.before(el);'), 'createProcessBlock should put the tool block before message content');
+    assert.ok(!processBlockSrc.includes('content.after(el)'), 'createProcessBlock should not put the tool block below message content');
 
-    assert.ok(processBlockDomSrc.includes("type ToolBlockPlacement = 'before-content' | 'after-content'"), 'DOM normalizer should model both placements');
-    assert.ok(processBlockDomSrc.includes("placement: ToolBlockPlacement = 'before-content'"), 'DOM normalizer should default to historical placement');
-    assert.ok(processBlockDomSrc.includes("placement === 'after-content'"), 'DOM normalizer should preserve live after-content placement');
+    assert.ok(processBlockDomSrc.includes('body.insertBefore(keep, content)'), 'DOM normalizer should move stray tool blocks before message content');
+    assert.ok(!processBlockDomSrc.includes('after-content'), 'DOM normalizer should not preserve bottom placement');
 });
