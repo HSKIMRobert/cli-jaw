@@ -6,15 +6,19 @@ import {
     clearComposer, flattenComposerForSubmit, getComposerDisplayText,
     getPlainCommandDraft, getTrailingTextSegment, setBracketedPaste,
     moveCursorLeft, moveCursorRight, moveCursorWordLeft, moveCursorWordRight,
-    moveCursorHome, moveCursorEnd,
+    moveCursorHome, moveCursorEnd, deleteForwardComposer,
+    killToStartComposer, killWordComposer, yankComposer, undoComposer,
+    insertAtMention, setComposerText,
 } from '../../../src/cli/tui/composer.js';
 import { classifyKeyAction } from '../../../src/cli/tui/keymap.js';
+import { findAtMentionMatch } from '../../../src/cli/tui/file-mention.js';
+import { openExternalEditor } from '../../../src/cli/tui/editor.js';
 import {
-    closeAutocomplete, renderAutocomplete,
-    renderHelpOverlay, renderCommandPalette, renderChoiceSelector,
-    filterSelectorItems,
+    renderAutocomplete,
+    filterSelectorItems, syncAutocompleteWindow,
 } from '../../../src/cli/tui/overlay.js';
 import { clipTextToCols } from '../../../src/cli/tui/renderers.js';
+import { tuiWrite } from './tui-io.js';
 import { cleanupScrollRegion, resolveShellLayout } from '../../../src/cli/tui/shell.js';
 import { parseCommand } from '../../../src/cli/commands.js';
 import { getCompletionItems } from '../../../src/cli/commands.js';
@@ -23,8 +27,47 @@ import { captureFileSet } from '../../../src/ide/diff.js';
 import fs from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
 import { c, getRows, ESC_WAIT_MS, type TuiContext } from './types.js';
-import { openPromptBlock, reopenPromptLine, redrawPromptLine, renderBlockSeparator } from './renderer.js';
-import { dismissOverlay, redrawInputWithAutocomplete, runSlashCommand } from './overlays.js';
+import { openPromptBlock, reopenPromptLine, redrawPromptLine, renderBlockSeparator, clearPromptBlock, computeComposerVisualRows } from './renderer.js';
+import { dismissOverlay, redrawInputWithAutocomplete, runSlashCommand, openHelpOverlay, openCommandPalette, refreshCommandPalette, refreshChoiceSelector, closeAutocompleteForCtx } from './overlays.js';
+
+function refreshAutocompleteNav(ctx: TuiContext): void {
+    const ac = ctx.store.autocomplete;
+    syncAutocompleteWindow(ac);
+    if (ctx.displayMode === 'fullscreen') {
+        ctx.requestFrame?.();
+        return;
+    }
+    renderAutocomplete(ac, {
+        write: (chunk) => tuiWrite(ctx, chunk),
+        columns: process.stdout.columns || 80,
+        dimCode: c.dim, resetCode: c.reset, clipTextToCols,
+    });
+}
+
+function applyFileMentionPick(ctx: TuiContext, relPath: string): void {
+    const composer = ctx.store.composer;
+    const trailing = getTrailingTextSegment(composer);
+    const mention = findAtMentionMatch(trailing.text, composer.cursor);
+    if (!mention) return;
+    insertAtMention(composer, mention.replaceStart, relPath);
+    closeAutocompleteForCtx(ctx);
+    redrawPromptLine(ctx);
+}
+
+async function openComposerInExternalEditor(ctx: TuiContext): Promise<void> {
+    const composer = ctx.store.composer;
+    const draft = flattenComposerForSubmit(composer);
+    closeAutocompleteForCtx(ctx);
+    setBracketedPaste(false);
+    process.stdin.setRawMode(false);
+    process.stdout.write('\n');
+    const edited = openExternalEditor(draft);
+    process.stdin.setRawMode(true);
+    setBracketedPaste(true);
+    clearComposer(composer);
+    if (edited) setComposerText(composer, edited);
+    redrawInputWithAutocomplete(ctx);
+}
 
 export function flushPendingEscape(ctx: TuiContext): void {
     ctx.escPending = false;
@@ -36,7 +79,7 @@ export function flushPendingEscape(ctx: TuiContext): void {
     }
     const ac = ctx.store.autocomplete;
     if (ac.open) {
-        closeAutocomplete(ac, (chunk) => process.stdout.write(chunk));
+        closeAutocompleteForCtx(ctx);
         redrawPromptLine(ctx);
         return;
     }
@@ -90,16 +133,7 @@ export function handleKeyInput(ctx: TuiContext, rawKey: string): void {
                 dismissOverlay(ctx);
                 return;
             }
-            ov.helpOpen = true;
-            closeAutocomplete(ac, (chunk) => process.stdout.write(chunk));
-            const cmds = getCompletionItems('/', 'cli');
-            ctx.overlayBoxHeight = renderHelpOverlay(
-                (chunk) => process.stdout.write(chunk),
-                process.stdout.columns || 80,
-                getRows(),
-                c.dim, c.reset,
-                cmds,
-            );
+            openHelpOverlay(ctx);
             return;
         }
     }
@@ -115,18 +149,7 @@ export function handleKeyInput(ctx: TuiContext, rawKey: string): void {
             dismissOverlay(ctx);
             return;
         }
-        ov.paletteOpen = true;
-        ov.paletteFilter = '';
-        ov.paletteSelected = 0;
-        ov.paletteItems = getCompletionItems('/', 'cli');
-        closeAutocomplete(ac, (chunk) => process.stdout.write(chunk));
-        ctx.overlayBoxHeight = renderCommandPalette({
-            write: (chunk) => process.stdout.write(chunk),
-            cols: process.stdout.columns || 80,
-            rows: getRows(),
-            dimCode: c.dim, resetCode: c.reset,
-            filter: ov.paletteFilter, items: ov.paletteItems, selected: ov.paletteSelected,
-        });
+        openCommandPalette(ctx);
         return;
     }
 
@@ -156,13 +179,7 @@ export function handleKeyInput(ctx: TuiContext, rawKey: string): void {
         } else {
             return;
         }
-        ctx.overlayBoxHeight = renderCommandPalette({
-            write: (chunk) => process.stdout.write(chunk),
-            cols: process.stdout.columns || 80,
-            rows: getRows(),
-            dimCode: c.dim, resetCode: c.reset,
-            filter: ov.paletteFilter, items: ov.paletteItems, selected: ov.paletteSelected,
-        });
+        refreshCommandPalette(ctx);
         return;
     }
 
@@ -196,28 +213,15 @@ export function handleKeyInput(ctx: TuiContext, rawKey: string): void {
         } else {
             return;
         }
-        ctx.overlayBoxHeight = renderChoiceSelector({
-            write: (chunk) => process.stdout.write(chunk),
-            cols: process.stdout.columns || 80,
-            rows: getRows(),
-            dimCode: c.dim, resetCode: c.reset,
-            title: sel.title, subtitle: sel.subtitle,
-            filter: sel.filter, items: sel.filteredItems, selected: sel.selected,
-        });
+        refreshChoiceSelector(ctx);
         return;
     }
 
     // ─── Autocomplete navigation ─────────────
-    const acRenderOpts = {
-        write: (chunk: string) => process.stdout.write(chunk),
-        columns: process.stdout.columns || 80,
-        dimCode: c.dim, resetCode: c.reset, clipTextToCols,
-    };
-
     if (ac.open && action === 'arrow-up') {
         ac.selected = Math.max(0, ac.selected - 1);
         if (ac.selected < ac.windowStart) ac.windowStart = ac.selected;
-        renderAutocomplete(ac, acRenderOpts);
+        refreshAutocompleteNav(ctx);
         return;
     }
     if (ac.open && action === 'arrow-down') {
@@ -226,14 +230,14 @@ export function handleKeyInput(ctx: TuiContext, rawKey: string): void {
         if (ac.selected >= ac.windowStart + ac.visibleRows) {
             ac.windowStart = ac.selected - ac.visibleRows + 1;
         }
-        renderAutocomplete(ac, acRenderOpts);
+        refreshAutocompleteNav(ctx);
         return;
     }
     if (ac.open && action === 'page-up') {
         const step = Math.max(1, ac.visibleRows);
         ac.selected = Math.max(0, ac.selected - step);
         if (ac.selected < ac.windowStart) ac.windowStart = ac.selected;
-        renderAutocomplete(ac, acRenderOpts);
+        refreshAutocompleteNav(ctx);
         return;
     }
     if (ac.open && action === 'page-down') {
@@ -243,13 +247,13 @@ export function handleKeyInput(ctx: TuiContext, rawKey: string): void {
         if (ac.selected >= ac.windowStart + ac.visibleRows) {
             ac.windowStart = ac.selected - ac.visibleRows + 1;
         }
-        renderAutocomplete(ac, acRenderOpts);
+        refreshAutocompleteNav(ctx);
         return;
     }
     if (ac.open && action === 'home') {
         ac.selected = 0;
         ac.windowStart = 0;
-        renderAutocomplete(ac, acRenderOpts);
+        refreshAutocompleteNav(ctx);
         return;
     }
     if (ac.open && action === 'end') {
@@ -257,20 +261,24 @@ export function handleKeyInput(ctx: TuiContext, rawKey: string): void {
         if (ac.selected >= ac.windowStart + ac.visibleRows) {
             ac.windowStart = ac.selected - ac.visibleRows + 1;
         }
-        renderAutocomplete(ac, acRenderOpts);
+        refreshAutocompleteNav(ctx);
         return;
     }
     if (ac.open && action === 'tab') {
         const picked = ac.items[ac.selected];
         const pickedStage = ac.stage;
         if (picked) {
+            if (pickedStage === 'argument' && picked.kind === 'file-mention') {
+                applyFileMentionPick(ctx, picked.name);
+                return;
+            }
             clearComposer(composer);
             if (pickedStage === 'argument') {
                 appendTextToComposer(composer, picked.insertText || `/${picked.command || ''} ${picked.name}`.trim());
             } else {
                 appendTextToComposer(composer, `/${picked.name}${picked.args ? ' ' : ''}`);
             }
-            closeAutocomplete(ac, (chunk) => process.stdout.write(chunk));
+            closeAutocompleteForCtx(ctx);
             redrawPromptLine(ctx);
         }
         return;
@@ -281,8 +289,12 @@ export function handleKeyInput(ctx: TuiContext, rawKey: string): void {
         if (ac.open) {
             const picked = ac.items[ac.selected];
             const pickedStage = ac.stage;
-            closeAutocomplete(ac, (chunk) => process.stdout.write(chunk));
+            closeAutocompleteForCtx(ctx);
             if (picked) {
+                if (pickedStage === 'argument' && picked.kind === 'file-mention') {
+                    applyFileMentionPick(ctx, picked.name);
+                    return;
+                }
                 clearComposer(composer);
                 if (pickedStage === 'argument') {
                     appendTextToComposer(composer, picked.insertText || `/${picked.command || ''} ${picked.name}`.trim());
@@ -308,9 +320,14 @@ export function handleKeyInput(ctx: TuiContext, rawKey: string): void {
         const draft = getPlainCommandDraft(composer);
         const displayText = getComposerDisplayText(composer);
         const text = flattenComposerForSubmit(composer).trim();
+        const visualRows = computeComposerVisualRows(
+            displayText,
+            process.stdout.columns || 80,
+            ctx.promptPrefix,
+        );
         clearComposer(composer);
-        closeAutocomplete(ac, (chunk) => process.stdout.write(chunk));
-        ctx.prevLineCount = 1;
+        closeAutocompleteForCtx(ctx);
+        clearPromptBlock(ctx, Math.max(ctx.prevLineCount, visualRows));
 
         if (!text) { reopenPromptLine(ctx); return; }
         renderBlockSeparator();
@@ -364,8 +381,31 @@ export function handleKeyInput(ctx: TuiContext, rawKey: string): void {
             process.exit(0);
         }
     } else if (action === 'ctrl-u') {
-        clearComposer(composer);
+        if (getTrailingTextSegment(composer).text.length > 0) {
+            killToStartComposer(composer);
+        } else {
+            clearComposer(composer);
+        }
         redrawInputWithAutocomplete(ctx);
+    } else if (action === 'ctrl-w') {
+        killWordComposer(composer);
+        redrawInputWithAutocomplete(ctx);
+    } else if (action === 'ctrl-y') {
+        yankComposer(composer);
+        redrawInputWithAutocomplete(ctx);
+    } else if (action === 'ctrl-_') {
+        undoComposer(composer);
+        redrawInputWithAutocomplete(ctx);
+    } else if (action === 'delete') {
+        if (ctx.inputActive) { deleteForwardComposer(composer); redrawPromptLine(ctx); }
+    } else if (action === 'ctrl-x') {
+        ctx.editorChordPending = true;
+    } else if (ctx.editorChordPending) {
+        ctx.editorChordPending = false;
+        if (action === 'ctrl-e') {
+            void openComposerInExternalEditor(ctx);
+            return;
+        }
     } else if (action === 'arrow-left') {
         if (ctx.inputActive) { moveCursorLeft(composer); redrawPromptLine(ctx); }
     } else if (action === 'arrow-right') {

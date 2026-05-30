@@ -31,6 +31,9 @@ if (shouldShowHelp(process.argv)) printAndExit(`
 
   Options:
     --port <N>   Server port (default: 3457)
+    --theme <name>  TUI color theme: dark | light (default: dark, or settings tui.theme)
+    --fullscreen    Alt-screen TUI (modern full-screen mode)
+    --classic       Force line-mode TUI (default when fullscreen off)
 `);
 import { APP_VERSION, getServerUrl, getWsUrl } from '../../src/core/config.js';
 import { c, cliColor, cliLabel, hrLine, getRows, ESC_WAIT_MS, formatFooter, type TuiContext } from './tui/types.js';
@@ -39,6 +42,8 @@ import { initHighlight } from '../../src/cli/tui/highlight.js';
 import { openPromptBlock } from './tui/renderer.js';
 import { redrawInputWithAutocomplete, handleResize } from './tui/overlays.js';
 import { handleKeyInput, flushPendingEscape } from './tui/input-handler.js';
+import { runFullscreenMode } from './tui/fullscreen-mode.js';
+import { resolveTuiDisplayMode } from '../../src/cli/tui/mode.js';
 import { handleWsMessage } from './tui/ws-handler.js';
 import { asRecord, fieldString } from '../_http-client.js';
 
@@ -65,6 +70,9 @@ const { values } = parseArgs({
         port: { type: 'string', default: process.env["PORT"] || '3457' },
         raw: { type: 'boolean', default: false },
         simple: { type: 'boolean', default: false },
+        theme: { type: 'string' },
+        fullscreen: { type: 'boolean', default: false },
+        classic: { type: 'boolean', default: false },
     },
     strict: false,
 });
@@ -110,6 +118,21 @@ try {
     }
 } catch { /* keep defaults */ }
 
+const themeFromSettings = typeof (tuiConfig as Record<string, unknown>)['theme'] === 'string'
+    ? (tuiConfig as Record<string, unknown>)['theme'] as string
+    : undefined;
+const themeArg = typeof values.theme === 'string' ? values.theme : undefined;
+const resolvedTheme = themeArg || themeFromSettings || 'dark';
+if (resolvedTheme === 'light' || resolvedTheme === 'dark') {
+    process.env['JAW_TUI_THEME'] = resolvedTheme;
+}
+
+const displayMode = resolveTuiDisplayMode({
+    fullscreenFlag: values.fullscreen ? true : undefined,
+    classicFlag: values.classic ? true : undefined,
+    settingsFullscreen: (tuiConfig as Record<string, unknown>)['fullscreen'] === true,
+});
+
 const chatCwd = process.cwd();
 const isGit = isGitRepo(chatCwd);
 const detectedIde = detectIde();
@@ -135,6 +158,8 @@ const ctx: TuiContext = {
     commandRunning: false,
     escPending: false,
     escTimer: null,
+    footerTimer: null,
+    editorChordPending: false,
     prevLineCount: 1,
     promptCursorRow: 0,
     resizeTimer: null,
@@ -146,6 +171,8 @@ const ctx: TuiContext = {
     detectedIde,
     promptPrefix: '',
     footer: '',
+    displayMode,
+    requestFrame: null,
 };
 ctx.footer = formatFooter(ctx.label, ctx.accent, 'idle');
 ctx.promptPrefix = `  ${ctx.accent}\u276F${c.reset} `;
@@ -182,6 +209,13 @@ if (values.simple) {
     console.log('');
     console.log(`  ${c.dim}/quit to exit, /clear to clear screen, /reset confirm to factory reset${c.reset}`);
     console.log(`  ${c.dim}/file <path> to attach${c.reset}`);
+    if (displayMode === 'fullscreen') {
+        console.log(`  ${c.dim}(fullscreen alt-screen mode)${c.reset}`);
+    }
+
+    if (displayMode === 'fullscreen') {
+        await runFullscreenMode(ctx);
+    } else {
 
     // ─── Raw stdin ───────────────────────────
     process.stdin.setRawMode(true);
@@ -240,6 +274,7 @@ if (values.simple) {
 
     setupScrollRegion(ctx.footer, `  ${c.dim}${hrLine()}${c.reset}`, resolveShellLayout(process.stdout.columns || 80, getRows(), ctx.store.panes));
     openPromptBlock(ctx);
+    }
 }
 
 // ─── Utilities (kept for external use) ───────

@@ -197,6 +197,27 @@ export function formatAutocompleteLine(
     return selected ? `\x1b[7m${line}${options.resetCode}` : `${options.dimCode}${line}${options.resetCode}`;
 }
 
+/** Frame-safe autocomplete lines (no cursor motion escapes). */
+export function composeAutocompleteLines(
+    state: AutocompleteState,
+    options: Pick<RenderAutocompleteOptions, 'columns' | 'dimCode' | 'resetCode' | 'clipTextToCols'>,
+): string[] {
+    if (!state.open || state.items.length === 0 || state.visibleRows <= 0) return [];
+    syncAutocompleteWindow(state);
+    const lines: string[] = [];
+    if (state.contextHeader) {
+        lines.push(options.clipTextToCols(`  ${state.contextHeader}`, options.columns - 2));
+    }
+    const start = state.windowStart;
+    const end = Math.min(state.items.length, start + state.visibleRows);
+    for (let i = start; i < end; i++) {
+        const item = state.items[i];
+        if (!item) continue;
+        lines.push(formatAutocompleteLine(item, i === state.selected, state.stage, options));
+    }
+    return lines;
+}
+
 export function renderAutocomplete(state: AutocompleteState, options: RenderAutocompleteOptions): void {
     clearAutocomplete(state, options.write);
     if (!state.open || state.items.length === 0 || state.visibleRows <= 0) return;
@@ -227,6 +248,92 @@ export function renderAutocomplete(state: AutocompleteState, options: RenderAuto
     options.write('\x1b[u');
 }
 
+// ─── Centered box (shared line + frame painters) ───
+
+export interface CenteredBoxLayout {
+    boxWidth: number;
+    boxHeight: number;
+    startRow: number;
+    startCol: number;
+    innerW: number;
+}
+
+export function layoutCenteredBox(
+    cols: number,
+    rows: number,
+    innerLineCount: number,
+    boxWidthCap: number,
+    verticalMargin = 4,
+): CenteredBoxLayout {
+    const boxWidth = Math.min(boxWidthCap, cols - 4);
+    const innerW = boxWidth - 2;
+    const boxHeight = Math.min(innerLineCount + 2, rows - verticalMargin);
+    const startRow = Math.max(1, Math.floor((rows - boxHeight) / 2));
+    const startCol = Math.max(1, Math.floor((cols - boxWidth) / 2));
+    return { boxWidth, boxHeight, startRow, startCol, innerW };
+}
+
+function padInner(text: string, innerW: number): string {
+    if (text.length >= innerW) return text.slice(0, innerW);
+    return text + ' '.repeat(innerW - text.length);
+}
+
+/** Paint a bordered box into alt-screen frame rows (no cursor motion). */
+export function paintCenteredBox(
+    frameRows: string[],
+    cols: number,
+    rows: number,
+    topInner: string,
+    innerLines: string[],
+    boxWidthCap: number,
+): CenteredBoxLayout {
+    const spec = layoutCenteredBox(cols, rows, innerLines.length, boxWidthCap);
+    const hLine = '─'.repeat(spec.innerW);
+
+    const setRow = (relRow: number, segment: string) => {
+        const absRow = spec.startRow + relRow - 1;
+        if (absRow < 1 || absRow > rows) return;
+        const leftPad = ' '.repeat(spec.startCol - 1);
+        frameRows[absRow - 1] = (leftPad + segment).slice(0, cols);
+    };
+
+    setRow(1, `┌${topInner}${'─'.repeat(Math.max(0, spec.innerW - topInner.length))}┐`);
+
+    const visibleInner = Math.min(innerLines.length, spec.boxHeight - 2);
+    for (let i = 0; i < visibleInner; i++) {
+        const text = innerLines[i] ?? '';
+        setRow(2 + i, `│${padInner(text, spec.innerW)}│`);
+    }
+    setRow(spec.boxHeight, `└${hLine}┘`);
+    return spec;
+}
+
+function writeCenteredBox(
+    write: (chunk: string) => void,
+    cols: number,
+    rows: number,
+    topInner: string,
+    innerLines: string[],
+    boxWidthCap: number,
+): number {
+    const spec = layoutCenteredBox(cols, rows, innerLines.length, boxWidthCap);
+    const hLine = '─'.repeat(spec.innerW);
+
+    write('\x1b[?25l');
+    write(`\x1b[${spec.startRow};${spec.startCol}H┌${topInner}${'─'.repeat(Math.max(0, spec.innerW - topInner.length))}┐`);
+
+    const visibleInner = Math.min(innerLines.length, spec.boxHeight - 2);
+    for (let i = 0; i < visibleInner; i++) {
+        const r = spec.startRow + 1 + i;
+        const text = innerLines[i] ?? '';
+        write(`\x1b[${r};${spec.startCol}H│${padInner(text, spec.innerW)}│`);
+    }
+
+    write(`\x1b[${spec.startRow + spec.boxHeight - 1};${spec.startCol}H└${hLine}┘`);
+    write('\x1b[?25h');
+    return spec.boxHeight;
+}
+
 // ─── Help overlay ────────────────────────────
 
 export interface HelpEntry {
@@ -247,14 +354,11 @@ const HELP_ENTRIES: HelpEntry[] = [
     { key: 'Esc',          desc: 'close popup / stop' },
 ];
 
-export function renderHelpOverlay(
-    write: (chunk: string) => void,
-    cols: number,
-    rows: number,
+export function buildHelpInnerLines(
     dimCode: string,
     resetCode: string,
     extraCommands?: { name: string; desc: string }[],
-): number {
+): string[] {
     const keyCol = 16;
     const lines: string[] = [];
 
@@ -275,31 +379,31 @@ export function renderHelpOverlay(
 
     lines.push('');
     lines.push(`  ${dimCode}Press Escape to close${resetCode}`);
+    return lines;
+}
 
-    const boxWidth = Math.min(52, cols - 4);
-    const boxHeight = Math.min(lines.length + 2, rows - 4);
-    const startRow = Math.max(1, Math.floor((rows - boxHeight) / 2));
-    const startCol = Math.max(1, Math.floor((cols - boxWidth) / 2));
+export function composeHelpOntoFrame(
+    frameRows: string[],
+    cols: number,
+    rows: number,
+    dimCode: string,
+    resetCode: string,
+    extraCommands?: { name: string; desc: string }[],
+): void {
+    const inner = buildHelpInnerLines(dimCode, resetCode, extraCommands);
+    paintCenteredBox(frameRows, cols, rows, '─ Help ', inner, 52);
+}
 
-    const hLine = '─'.repeat(boxWidth - 2);
-
-    write('\x1b[?25l');
-    write(`\x1b[${startRow};${startCol}H┌─ Help ${hLine.slice(7)}┐`);
-
-    const contentRows = boxHeight - 2;
-    for (let i = 0; i < contentRows; i++) {
-        const r = startRow + 1 + i;
-        const text = lines[i] ?? '';
-        const padded = text.length < boxWidth - 2
-            ? text + ' '.repeat(boxWidth - 2 - text.length)
-            : text.slice(0, boxWidth - 2);
-        write(`\x1b[${r};${startCol}H│${padded}│`);
-    }
-
-    write(`\x1b[${startRow + boxHeight - 1};${startCol}H└${hLine}┘`);
-    write('\x1b[?25h');
-
-    return boxHeight;
+export function renderHelpOverlay(
+    write: (chunk: string) => void,
+    cols: number,
+    rows: number,
+    dimCode: string,
+    resetCode: string,
+    extraCommands?: { name: string; desc: string }[],
+): number {
+    const inner = buildHelpInnerLines(dimCode, resetCode, extraCommands);
+    return writeCenteredBox(write, cols, rows, '─ Help ', inner, 52);
 }
 
 export function clearOverlayBox(
@@ -330,60 +434,60 @@ export interface PaletteRenderOptions {
     selected: number;
 }
 
-export function renderCommandPalette(opts: PaletteRenderOptions): number {
-    const { write, cols, rows, dimCode, resetCode, filter, items, selected } = opts;
-
-    const boxWidth = Math.min(52, cols - 4);
-    const maxItems = Math.min(items.length, rows - 8, 12);
-    const boxHeight = maxItems + 5;
-    const startRow = Math.max(1, Math.floor((rows - boxHeight) / 2));
-    const startCol = Math.max(1, Math.floor((cols - boxWidth) / 2));
-
-    const hLine = '─'.repeat(boxWidth - 2);
-    const innerW = boxWidth - 2;
-
-    write('\x1b[?25l');
-
-    write(`\x1b[${startRow};${startCol}H┌─ Commands ${hLine.slice(11)}┐`);
-
-    const filterText = `  > ${filter}`;
-    const filterPad = filterText.length < innerW
-        ? filterText + ' '.repeat(innerW - filterText.length)
-        : filterText.slice(0, innerW);
-    write(`\x1b[${startRow + 1};${startCol}H│${filterPad}│`);
-
-    write(`\x1b[${startRow + 2};${startCol}H│${' '.repeat(innerW)}│`);
+export function buildPaletteInnerLines(
+    dimCode: string,
+    resetCode: string,
+    filter: string,
+    items: { name: string; desc: string }[],
+    selected: number,
+    maxItems: number,
+): string[] {
+    const lines: string[] = [];
+    lines.push(`  > ${filter}`);
+    lines.push('');
 
     for (let i = 0; i < maxItems; i++) {
-        const r = startRow + 3 + i;
         const item = items[i];
         if (!item) {
-            write(`\x1b[${r};${startCol}H│${' '.repeat(innerW)}│`);
+            lines.push('');
             continue;
         }
         const nameStr = ('  /' + item.name).padEnd(16);
         const descStr = item.desc || '';
         let line = `${nameStr}${descStr}`;
-        if (line.length > innerW) line = line.slice(0, innerW);
-        else line = line + ' '.repeat(innerW - line.length);
-
         if (i === selected) {
-            write(`\x1b[${r};${startCol}H│\x1b[7m${line}${resetCode}│`);
+            line = `\x1b[7m${line}${resetCode}`;
         } else {
-            write(`\x1b[${r};${startCol}H│${dimCode}${line}${resetCode}│`);
+            line = `${dimCode}${line}${resetCode}`;
         }
+        lines.push(line);
     }
 
-    const footer = ' ↑↓ navigate  Enter select  Esc close';
-    const footerPad = footer.length < innerW
-        ? footer + ' '.repeat(innerW - footer.length)
-        : footer.slice(0, innerW);
-    write(`\x1b[${startRow + 3 + maxItems};${startCol}H│${dimCode}${footerPad}${resetCode}│`);
+    lines.push(`${dimCode} ↑↓ navigate  Enter select  Esc close${resetCode}`);
+    return lines;
+}
 
-    write(`\x1b[${startRow + boxHeight - 1};${startCol}H└${hLine}┘`);
+export function composePaletteOntoFrame(
+    frameRows: string[],
+    cols: number,
+    rows: number,
+    dimCode: string,
+    resetCode: string,
+    filter: string,
+    items: { name: string; desc: string }[],
+    selected: number,
+): void {
+    const maxItems = Math.min(items.length, rows - 8, 12);
+    const inner = buildPaletteInnerLines(dimCode, resetCode, filter, items, selected, maxItems);
+    paintCenteredBox(frameRows, cols, rows, '─ Commands ', inner, 52);
+}
 
-    write('\x1b[?25h');
-    return boxHeight;
+export function renderCommandPalette(opts: PaletteRenderOptions): number {
+    const { write, cols, rows, dimCode, resetCode, filter, items, selected } = opts;
+
+    const maxItems = Math.min(items.length, rows - 8, 12);
+    const inner = buildPaletteInnerLines(dimCode, resetCode, filter, items, selected, maxItems);
+    return writeCenteredBox(write, cols, rows, '─ Commands ', inner, 52);
 }
 
 // ─── Choice selector overlay ─────────────────
@@ -415,70 +519,63 @@ export function filterSelectorItems(items: ChoiceSelectorItem[], filter: string)
     );
 }
 
-export function renderChoiceSelector(opts: ChoiceSelectorRenderOptions): number {
-    const { write, cols, rows, dimCode, resetCode, title, subtitle, filter, items, selected } = opts;
+export function buildSelectorInnerLines(
+    dimCode: string,
+    resetCode: string,
+    subtitle: string,
+    filter: string,
+    items: ChoiceSelectorItem[],
+    selected: number,
+    maxItems: number,
+): string[] {
+    const lines: string[] = [];
+    lines.push(`  ${dimCode}${subtitle}${resetCode}`);
+    lines.push(`  > ${filter}█`);
+    lines.push(`  ${dimCode}${'─'.repeat(20)}${resetCode}`);
 
-    const boxWidth = Math.min(60, cols - 4);
-    const maxItems = Math.min(items.length, rows - 10, 14);
-    // title(1) + subtitle(1) + filter(1) + separator(1) + items + footer(1) + border(2) = items + 7
-    const boxHeight = maxItems + 7;
-    const startRow = Math.max(1, Math.floor((rows - boxHeight) / 2));
-    const startCol = Math.max(1, Math.floor((cols - boxWidth) / 2));
-
-    const hLine = '─'.repeat(boxWidth - 2);
-    const innerW = boxWidth - 2;
-
-    const pad = (text: string) => {
-        if (text.length >= innerW) return text.slice(0, innerW);
-        return text + ' '.repeat(innerW - text.length);
-    };
-
-    write('\x1b[?25l');
-
-    // Top border with title
-    const titleStr = ` ${title} `;
-    write(`\x1b[${startRow};${startCol}H┌─${titleStr}${hLine.slice(titleStr.length + 1)}┐`);
-
-    // Subtitle (current state)
-    write(`\x1b[${startRow + 1};${startCol}H│${pad(`  ${dimCode}${subtitle}${resetCode}`)}│`);
-
-    // Filter input
-    const filterText = `  > ${filter}█`;
-    write(`\x1b[${startRow + 2};${startCol}H│${pad(filterText)}│`);
-
-    // Separator
-    write(`\x1b[${startRow + 3};${startCol}H│${pad(`  ${dimCode}${'─'.repeat(innerW - 4)}${resetCode}`)}│`);
-
-    // Items
     for (let i = 0; i < maxItems; i++) {
-        const r = startRow + 4 + i;
         const item = items[i];
         if (!item) {
-            write(`\x1b[${r};${startCol}H│${' '.repeat(innerW)}│`);
+            lines.push('');
             continue;
         }
         const marker = item.current ? '●' : ' ';
         const valueStr = item.value;
         const labelStr = item.label ? `  ${dimCode}${item.label}${resetCode}` : '';
         let line = `  ${marker} ${valueStr}${labelStr}`;
-        // Pad or truncate to innerW
-        if (line.length >= innerW) line = line.slice(0, innerW);
-        else line = line + ' '.repeat(innerW - line.length);
-
         if (i === selected) {
-            write(`\x1b[${r};${startCol}H│\x1b[7m${line}${resetCode}│`);
-        } else {
-            write(`\x1b[${r};${startCol}H│${line}│`);
+            line = `\x1b[7m${line}${resetCode}`;
         }
+        lines.push(line);
     }
 
-    // Footer
-    const footerText = ' ↑↓ navigate  Enter select  Esc cancel';
-    write(`\x1b[${startRow + 4 + maxItems};${startCol}H│${dimCode}${pad(footerText)}${resetCode}│`);
+    lines.push(`${dimCode} ↑↓ navigate  Enter select  Esc cancel${resetCode}`);
+    return lines;
+}
 
-    // Bottom border
-    write(`\x1b[${startRow + boxHeight - 1};${startCol}H└${hLine}┘`);
+export function composeSelectorOntoFrame(
+    frameRows: string[],
+    cols: number,
+    rows: number,
+    dimCode: string,
+    resetCode: string,
+    title: string,
+    subtitle: string,
+    filter: string,
+    items: ChoiceSelectorItem[],
+    selected: number,
+): void {
+    const maxItems = Math.min(items.length, rows - 10, 14);
+    const inner = buildSelectorInnerLines(dimCode, resetCode, subtitle, filter, items, selected, maxItems);
+    const titleStr = ` ${title} `;
+    paintCenteredBox(frameRows, cols, rows, `─${titleStr}`, inner, 60);
+}
 
-    write('\x1b[?25h');
-    return boxHeight;
+export function renderChoiceSelector(opts: ChoiceSelectorRenderOptions): number {
+    const { write, cols, rows, dimCode, resetCode, title, subtitle, filter, items, selected } = opts;
+
+    const maxItems = Math.min(items.length, rows - 10, 14);
+    const inner = buildSelectorInnerLines(dimCode, resetCode, subtitle, filter, items, selected, maxItems);
+    const titleStr = ` ${title} `;
+    return writeCenteredBox(write, cols, rows, `─${titleStr}`, inner, 60);
 }

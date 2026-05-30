@@ -1,4 +1,4 @@
-import { toGraphemes } from './text-buffer.js';
+import { createTextBuffer, toGraphemes, type TextBuffer } from './text-buffer.js';
 
 const BRACKETED_PASTE_START = '\x1b[200~';
 const BRACKETED_PASTE_END = '\x1b[201~';
@@ -24,6 +24,8 @@ export interface ComposerState {
     nextPasteOrdinal: number;
     /** Cursor as a grapheme index within the trailing text segment (the active edit area). */
     cursor: number;
+    /** Grapheme edit buffer for the trailing text (kill-ring, undo, mid-line edits). */
+    editBuffer: TextBuffer;
 }
 
 export interface PasteCaptureState {
@@ -37,7 +39,21 @@ export function createComposerState(): ComposerState {
         segments: [{ kind: 'text', text: '' }],
         nextPasteOrdinal: 1,
         cursor: 0,
+        editBuffer: createTextBuffer(),
     };
+}
+
+function loadEditBuffer(state: ComposerState): void {
+    const trailing = getTrailingTextSegment(state);
+    if (state.editBuffer.text() !== trailing.text || state.editBuffer.cursor() !== state.cursor) {
+        state.editBuffer.setText(trailing.text, state.cursor);
+    }
+}
+
+function flushEditBuffer(state: ComposerState): void {
+    const trailing = getTrailingTextSegment(state);
+    trailing.text = state.editBuffer.text();
+    state.cursor = state.editBuffer.cursor();
 }
 
 /** Grapheme count of the trailing text segment (the cursor's domain). */
@@ -94,13 +110,9 @@ function normalizeComposerState(state: ComposerState): void {
 
 export function appendTextToComposer(state: ComposerState, text: string): void {
     if (!text) return;
-    const seg = getTrailingTextSegment(state);
-    const g = toGraphemes(seg.text);
-    const ins = toGraphemes(text);
-    const at = Math.max(0, Math.min(state.cursor, g.length));
-    g.splice(at, 0, ...ins);
-    seg.text = g.join('');
-    state.cursor = at + ins.length; // insert at cursor; cursor defaults to end so typing appends
+    loadEditBuffer(state);
+    state.editBuffer.insert(text);
+    flushEditBuffer(state);
 }
 
 export function appendNewlineToComposer(state: ComposerState): void {
@@ -150,16 +162,14 @@ export function appendPasteToComposer(state: ComposerState, rawText: string, con
     }
     normalizeComposerState(state);
     state.cursor = trailingLen(state); // continue typing after the paste
+    state.editBuffer.setText(getTrailingTextSegment(state).text, state.cursor);
 }
 
 export function backspaceComposer(state: ComposerState): void {
-    const trailing = getTrailingTextSegment(state);
-    const g = toGraphemes(trailing.text);
-    if (state.cursor > 0 && g.length > 0) {
-        const at = Math.min(state.cursor, g.length);
-        g.splice(at - 1, 1);
-        trailing.text = g.join('');
-        state.cursor = at - 1;
+    loadEditBuffer(state);
+    if (state.editBuffer.cursor() > 0) {
+        state.editBuffer.backspace();
+        flushEditBuffer(state);
         return;
     }
     // cursor at start of trailing text → remove the preceding paste/char (legacy behavior)
@@ -173,36 +183,101 @@ export function backspaceComposer(state: ComposerState): void {
     }
     normalizeComposerState(state);
     clampCursor(state);
+    loadEditBuffer(state);
 }
 
 /** Delete the grapheme at the cursor (Delete key). */
 export function deleteForwardComposer(state: ComposerState): void {
-    const seg = getTrailingTextSegment(state);
-    const g = toGraphemes(seg.text);
-    if (state.cursor < g.length) {
-        g.splice(state.cursor, 1);
-        seg.text = g.join('');
-    }
+    loadEditBuffer(state);
+    state.editBuffer.delete();
+    flushEditBuffer(state);
+}
+
+export function killToEndComposer(state: ComposerState): void {
+    loadEditBuffer(state);
+    state.editBuffer.killToEnd();
+    flushEditBuffer(state);
+}
+
+export function killToStartComposer(state: ComposerState): void {
+    loadEditBuffer(state);
+    state.editBuffer.killToStart();
+    flushEditBuffer(state);
+}
+
+export function killWordComposer(state: ComposerState): void {
+    loadEditBuffer(state);
+    state.editBuffer.killWord();
+    flushEditBuffer(state);
+}
+
+export function yankComposer(state: ComposerState): void {
+    loadEditBuffer(state);
+    state.editBuffer.yank();
+    flushEditBuffer(state);
+}
+
+export function undoComposer(state: ComposerState): void {
+    loadEditBuffer(state);
+    state.editBuffer.undo();
+    flushEditBuffer(state);
+}
+
+export function redoComposer(state: ComposerState): void {
+    loadEditBuffer(state);
+    state.editBuffer.redo();
+    flushEditBuffer(state);
+}
+
+/** Replace the active `@`-mention token with `@path ` at the cursor. */
+export function insertAtMention(state: ComposerState, replaceStart: number, relPath: string): void {
+    loadEditBuffer(state);
+    const text = state.editBuffer.text();
+    const cursor = state.editBuffer.cursor();
+    const before = text.slice(0, replaceStart);
+    const after = text.slice(cursor);
+    const inserted = `@${relPath} `;
+    state.editBuffer.setText(before + inserted + after, before.length + inserted.length);
+    flushEditBuffer(state);
+}
+
+export function setComposerText(state: ComposerState, text: string, cursor?: number): void {
+    const trailing = getTrailingTextSegment(state);
+    trailing.text = text;
+    state.cursor = cursor ?? text.length;
+    state.editBuffer.setText(text, state.cursor);
 }
 
 // ─── Cursor movement (within the trailing text segment) ──────────────
-export function moveCursorLeft(state: ComposerState): void { if (state.cursor > 0) state.cursor -= 1; }
-export function moveCursorRight(state: ComposerState): void { if (state.cursor < trailingLen(state)) state.cursor += 1; }
-export function moveCursorHome(state: ComposerState): void { state.cursor = 0; }
-export function moveCursorEnd(state: ComposerState): void { state.cursor = trailingLen(state); }
+export function moveCursorLeft(state: ComposerState): void {
+    loadEditBuffer(state);
+    state.editBuffer.left();
+    flushEditBuffer(state);
+}
+export function moveCursorRight(state: ComposerState): void {
+    loadEditBuffer(state);
+    state.editBuffer.right();
+    flushEditBuffer(state);
+}
+export function moveCursorHome(state: ComposerState): void {
+    loadEditBuffer(state);
+    state.editBuffer.home();
+    flushEditBuffer(state);
+}
+export function moveCursorEnd(state: ComposerState): void {
+    loadEditBuffer(state);
+    state.editBuffer.end();
+    flushEditBuffer(state);
+}
 export function moveCursorWordLeft(state: ComposerState): void {
-    const g = toGraphemes(getTrailingTextSegment(state).text);
-    let i = Math.min(state.cursor, g.length);
-    while (i > 0 && /\s/.test(g[i - 1] ?? '')) i -= 1;
-    while (i > 0 && !/\s/.test(g[i - 1] ?? '')) i -= 1;
-    state.cursor = i;
+    loadEditBuffer(state);
+    state.editBuffer.wordLeft();
+    flushEditBuffer(state);
 }
 export function moveCursorWordRight(state: ComposerState): void {
-    const g = toGraphemes(getTrailingTextSegment(state).text);
-    let i = Math.min(state.cursor, g.length);
-    while (i < g.length && /\s/.test(g[i] ?? '')) i += 1;
-    while (i < g.length && !/\s/.test(g[i] ?? '')) i += 1;
-    state.cursor = i;
+    loadEditBuffer(state);
+    state.editBuffer.wordRight();
+    flushEditBuffer(state);
 }
 
 /** Cursor's grapheme offset within the full display text (getComposerDisplayText). */
@@ -220,6 +295,7 @@ export function clearComposer(state: ComposerState): void {
     state.segments = [{ kind: 'text', text: '' }];
     state.nextPasteOrdinal = 1;
     state.cursor = 0;
+    state.editBuffer.clear();
 }
 
 export function getComposerDisplayText(state: ComposerState): string {

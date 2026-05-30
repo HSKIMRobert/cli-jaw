@@ -20,6 +20,7 @@ import {
     waitForPortFree,
     type ProcessVerifyImpl,
 } from './process-verify.js';
+import { DASHBOARD_DEFAULT_PORT, DASHBOARD_FALLBACK_PORT_END } from './constants.js';
 import {
     DETACHED_EXIT_POLL_MS,
     PORT_FREE_TIMEOUT_MS,
@@ -121,12 +122,12 @@ export class DashboardLifecycleManager {
         return { ...result, instances: decorated };
     }
 
-    decorateInstance(instance: DashboardInstance, serviceState?: DashboardServiceState | null): DashboardInstance {
+    decorateInstance(instance: DashboardInstance, serviceState?: DashboardServiceState | null, isPeer = false): DashboardInstance {
         const managed = this.activeEntry(instance.port);
         return {
             ...instance,
-            serviceMode: managed ? 'manager' : (serviceState?.loaded ? 'service' : instance.serviceMode),
-            lifecycle: this.capabilityFor(instance, managed, serviceState),
+            serviceMode: isPeer ? 'manager' : (managed ? 'manager' : (serviceState?.loaded ? 'service' : instance.serviceMode)),
+            lifecycle: this.capabilityFor(instance, managed, serviceState, isPeer),
         };
     }
 
@@ -353,6 +354,9 @@ export class DashboardLifecycleManager {
             const result = await unpermInstance(port, home);
             return { ...result, action: 'stop', status: result.ok ? 'stopped' : result.status, port, home, expectedStateAfter: 'offline' };
         }
+        if (!entry && this.isDashboardPort(port)) {
+            return this.stopPeerDashboard(port, home, command);
+        }
         if (!entry) {
             return rejectResult(action, port, home, command, 'Only dashboard-owned instances can be stopped.');
         }
@@ -485,6 +489,7 @@ export class DashboardLifecycleManager {
         instance: DashboardInstance,
         managed: ManagedProcess | null,
         serviceState?: DashboardServiceState | null,
+        isPeer = false,
     ): DashboardLifecycleCapability {
         return buildCapability(stripUndefined({
             instance,
@@ -492,6 +497,7 @@ export class DashboardLifecycleManager {
             serviceState,
             defaultHome: this.defaultHome(instance.port),
             commandPreview: this.buildStartCommand(instance.port, this.defaultHome(instance.port)),
+            isPeer,
         }));
     }
 
@@ -513,6 +519,11 @@ export class DashboardLifecycleManager {
         await this.store.save(entries);
     }
 
+    isDashboardPort(port: number): boolean {
+        const dashDefault = Number(DASHBOARD_DEFAULT_PORT);
+        return port >= dashDefault && port <= DASHBOARD_FALLBACK_PORT_END;
+    }
+
     private validatePort(
         action: DashboardLifecycleAction,
         port: number,
@@ -520,6 +531,13 @@ export class DashboardLifecycleManager {
         command: string[],
     ): DashboardLifecycleResult | null {
         if (!isPositivePort(port)) return rejectResult(action, port, home, command, 'Invalid port.');
+        if (port === this.managerPort) {
+            return rejectResult(action, port, home, command, 'Cannot perform lifecycle action on self.');
+        }
+        // Allow stop on peer dashboard ports (24576-24590)
+        if (action === 'stop' && this.isDashboardPort(port)) {
+            return null;
+        }
         if (port < this.from || port > this.to) {
             return rejectResult(
                 action, port, home, command,
@@ -527,5 +545,34 @@ export class DashboardLifecycleManager {
             );
         }
         return null;
+    }
+
+    private async stopPeerDashboard(port: number, home: string, command: string[]): Promise<DashboardLifecycleResult> {
+        const action: DashboardLifecycleAction = 'stop';
+        const pid = await this.verify.resolveListeningPid(port);
+        if (!pid) {
+            return rejectResult(action, port, home, command, 'Peer dashboard is not running or PID not found.');
+        }
+        try {
+            this.verify.killPid(pid, 'SIGTERM');
+            const freed = await waitForPortFree(port, STOP_WAIT_TIMEOUT_MS, this.verify);
+            if (!freed && this.verify.isPidAlive(pid)) {
+                this.verify.killPid(pid, 'SIGKILL');
+                await waitForPortFree(port, STOP_WAIT_TIMEOUT_MS, this.verify);
+            }
+            return {
+                ok: true,
+                action,
+                status: 'stopped',
+                port,
+                home,
+                command,
+                pid,
+                message: `Peer dashboard on port ${port} stopped (pid ${pid}).`,
+                expectedStateAfter: 'offline',
+            };
+        } catch (error) {
+            return errorResultBuilder(action, port, home, command, error);
+        }
     }
 }
