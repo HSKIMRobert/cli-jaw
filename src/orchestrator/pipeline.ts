@@ -33,7 +33,9 @@ import {
     getCtx,
     type OrcStateName,
     type OrcContext,
+    type BuildBudget,
 } from './state-machine.js';
+import { recordFriction, resetFriction, getFrictionSummary } from './friction.js';
 // scope is globally 'default' — resolveOrcScope/findActiveScope no longer needed here
 import { buildTaskSnapshot, getMemoryStatus } from '../memory/runtime.js';
 import { buildMemoryInjection } from '../memory/injection.js';
@@ -391,7 +393,7 @@ export async function orchestrate(
                 /<interview_tracker>[\s\S]*?<\/interview_tracker>/g, ''
             ).trim();
 
-            // P0-2: parse opportunistically — extract tracker block, then JSON.parse each array
+            // P0-2 + P1-1: parse Evidence-Ref or legacy string format
             const block = originalText.match(/<interview_tracker>([\s\S]*?)<\/interview_tracker>/);
             if (block) {
                 try {
@@ -402,13 +404,44 @@ export async function orchestrate(
 
                     const rawKnown = knownMatch ? JSON.parse(knownMatch[1]!) : [];
                     const rawUnknown = unknownMatch ? JSON.parse(unknownMatch[1]!) : [];
-                    const known = Array.isArray(rawKnown) ? rawKnown.filter((v): v is string => typeof v === 'string' && v.trim().length > 0) : [];
-                    const unknown = Array.isArray(rawUnknown) ? rawUnknown.filter((v): v is string => typeof v === 'string' && v.trim().length > 0) : [];
+
+                    const nextRound = ivCtx.interview!.round + 1;
+                    const VALID_SOURCES = ['user_statement','repo_fact','inference','assumption','default'];
+                    const VALID_DIMS = ['goal','constraint','success','ontology'];
+
+                    // P1-1: parse known as Evidence[] (with string fallback)
+                    const known: import('./state-machine.js').InterviewEvidence[] = Array.isArray(rawKnown)
+                        ? rawKnown.map((v: unknown) => {
+                            if (typeof v === 'string' && v.trim().length > 0) {
+                                return { fact: v.trim(), source: 'inference' as const, confidence: 0.5, turnNumber: nextRound };
+                            }
+                            if (typeof v === 'object' && v && 'fact' in v) {
+                                const ev = v as Record<string, unknown>;
+                                const eFact = String(ev['fact'] || '').trim();
+                                const eSrc = String(ev['source'] || 'inference');
+                                const eConf = ev['confidence'];
+                                const eTurn = ev['turnNumber'];
+                                const eDim = String(ev['dimension'] || '');
+                                return {
+                                    fact: eFact,
+                                    source: (VALID_SOURCES.includes(eSrc) ? eSrc : 'inference') as import('./state-machine.js').EvidenceSource,
+                                    confidence: typeof eConf === 'number' ? eConf : 0.5,
+                                    turnNumber: typeof eTurn === 'number' ? eTurn : nextRound,
+                                    ...(VALID_DIMS.includes(eDim) ? { dimension: eDim as import('./state-machine.js').EvidenceDimension } : {}),
+                                };
+                            }
+                            return null;
+                        }).filter((v): v is import('./state-machine.js').InterviewEvidence => v !== null && v.fact.length > 0)
+                        : [];
+
+                    const unknown = Array.isArray(rawUnknown)
+                        ? rawUnknown.filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+                        : [];
 
                     if (known.length || unknown.length) {
                         setState('I', {
                             ...ivCtx,
-                            interview: { ...ivCtx.interview, round: ivCtx.interview.round + 1, known, unknown },
+                            interview: { ...ivCtx.interview, round: nextRound, known, unknown },
                         }, scope, 'Interview');
                     }
                 } catch { /* parse failed — state unchanged, tracker already stripped */ }
@@ -503,6 +536,7 @@ export async function orchestrateReset(
     }
     clearAllWorkers();
     clearAllEmployeeSessions.run();
+    resetFriction();
     const scope = 'default';
     resetState(scope);
     try {

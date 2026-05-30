@@ -1,11 +1,12 @@
 import type { Express } from 'express';
 import type { AuthMiddleware } from './types.js';
 import { ok, fail } from '../http/response.js';
-import { isAgentBusy, messageQueue, getQueuedMessageSnapshotForScope, removeQueuedMessage, killActiveAgent, waitForProcessEnd, getCurrentMainMeta, getSteerWaitMsForActiveAgent, setQueueHold, clearQueueHold, setSteerInProgress } from '../agent/spawn.js';
+import { isAgentBusy, messageQueue, getQueuedMessageSnapshotForScope, removeQueuedMessage, killActiveAgent, waitForProcessEnd, getCurrentMainMeta, getSteerWaitMsForActiveAgent, setQueueHold, clearQueueHold, setSteerInProgress, isSteerInProgress } from '../agent/spawn.js';
 import { getLiveRun } from '../agent/live-run-state.js';
 import { orchestrate, orchestrateContinue, orchestrateReset, isResetIntent, isContinueIntent, drainPendingReplays } from '../orchestrator/pipeline.js';
 import { insertMessage } from '../core/db.js';
 import { getState, getCtx, setState, resetState, canTransition, resetAllStaleStates, parseWorkerVerdict } from '../orchestrator/state-machine.js';
+import { resetFriction } from '../orchestrator/friction.js';
 import type { OrcStateName } from '../orchestrator/state-machine.js';
 import { resolveOrcScope } from '../orchestrator/scope.js';
 import {
@@ -167,19 +168,19 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
         }
         const prompt = peek.prompt;
         const origin = peek.source || 'web';
+        const target = peek.target;
+        const chatId = peek.chatId;
+        const requestId = peek.requestId;
+        const scope = peek.scope || 'default';
+        const steerMeta = stripUndefined({ origin, target, chatId, requestId });
+        if (isSteerInProgress()) {
+            clearQueueHold(id, { resume: false });
+            return fail(res, 409, 'steer already in progress');
+        }
         const steerWaitMs = getSteerWaitMsForActiveAgent();
+        const wasBusyBeforeSteer = isAgentBusy();
         setQueueHold(id, Math.max(10_000, steerWaitMs + 5_000));
         setSteerInProgress(true);
-        try {
-            if (isAgentBusy()) {
-                killActiveAgent('steer');
-                await waitForProcessEnd(steerWaitMs);
-            }
-        } catch (err) {
-            setSteerInProgress(false);
-            clearQueueHold(id);
-            return fail(res, 500, `steer stop failed: ${(err as Error).message}`);
-        }
         const result = removeQueuedMessage(id);
         clearQueueHold(id, { resume: false });
         if (!result.removed) {
@@ -191,20 +192,25 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
         } catch (err) {
             console.warn('[steer:insert]', (err as Error).message);
         }
-        broadcast('new_message', { role: 'user', content: prompt, source: origin, fromQueue: true });
-        broadcast('steer_started', { prompt, origin });
+        broadcast('new_message', stripUndefined({ role: 'user', content: prompt, source: origin, fromQueue: true, target, chatId, requestId }));
+        broadcast('steer_started', stripUndefined({ prompt, ...steerMeta, scope }));
         res.json({ ok: true, pending: result.pending });
-        // Orchestrate async — response already sent after queue removal is committed.
-        (async () => {
+        void (async () => {
             try {
+                if (wasBusyBeforeSteer) {
+                    const stopped = killActiveAgent('steer');
+                    if (stopped) await waitForProcessEnd(steerWaitMs);
+                }
                 const task = isResetIntent(prompt)
-                    ? orchestrateReset({ origin, _skipInsert: true })
+                    ? orchestrateReset({ ...steerMeta, _skipInsert: true })
                     : isContinueIntent(prompt)
-                        ? orchestrateContinue({ origin, _skipInsert: true })
-                        : orchestrate(prompt, { origin, _skipInsert: true, _skipReplayDrain: true });
+                        ? orchestrateContinue({ ...steerMeta, _skipInsert: true })
+                        : orchestrate(prompt, { ...steerMeta, _skipInsert: true, _skipReplayDrain: true });
                 await task;
             } catch (err) {
-                console.error('[steer:orchestrate]', (err as Error).message);
+                const message = (err as Error).message;
+                console.error('[steer:orchestrate]', message);
+                broadcast('orchestrate_done', stripUndefined({ text: `[error] ${message}`, error: true, ...steerMeta }));
             } finally {
                 setSteerInProgress(false);
             }
@@ -554,18 +560,48 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
             let initCtx;
             if (t === 'P') {
                 const existingCtx = getCtx(scope);
-                initCtx = existingCtx?.plan
+                let baseCtx = existingCtx?.plan
                     ? { ...existingCtx, origin: 'api' as const }
                     : { originalPrompt: '', workingDir: settings["workingDir"] || null, projectDirs: settings["projectDirs"] || null, plan: null, workerResults: [], origin: 'api' as const };
+
+                // P1-1: carry interview evidence into P-phase
+                if (current === 'I' && existingCtx?.interview?.known?.length) {
+                    const evidenceLines = existingCtx.interview.known.map((e: { fact: string; source?: string }) => {
+                        const tag = e.source === 'assumption' ? '⚠️' : '✅';
+                        return `${tag} [${e.source || 'unknown'}] ${e.fact}`;
+                    });
+                    const unknownLines = (existingCtx.interview.unknown || []).map((u: string) => `- ${u}`);
+                    baseCtx = {
+                        ...baseCtx,
+                        interview: existingCtx.interview,
+                        researchReport: `## Interview Results\n\n${evidenceLines.join('\n')}\n\n### Remaining Unknowns\n${unknownLines.join('\n') || 'None'}`,
+                    };
+                }
+                initCtx = baseCtx;
             } else if (t === 'I') {
                 // non-IDLE → I: preserve existing context (plan, auditStatus, etc.)
                 const existingCtx = getCtx(scope);
                 initCtx = current !== 'IDLE' && existingCtx
                     ? undefined
                     : { originalPrompt: req.body?.ctx?.originalPrompt || '', workingDir: settings["workingDir"] || null, projectDirs: settings["projectDirs"] || null, plan: null, workerResults: [], origin: 'api' as const };
+            } else if (t === 'B') {
+                // P1-2: initialize build budget on B entry
+                const existingCtx = getCtx(scope);
+                if (existingCtx) {
+                    initCtx = {
+                        ...existingCtx,
+                        buildBudget: {
+                            maxWorkerDispatches: 5,
+                            maxSelfHealRetries: 2,
+                            maxVerificationRounds: 3,
+                            spent: { workerDispatches: 0, selfHealRetries: 0, verificationRounds: 0 },
+                        },
+                    };
+                }
             } else {
                 initCtx = undefined;
             }
+            if (t === 'B') resetFriction();
             setState(
                 t,
                 initCtx,
