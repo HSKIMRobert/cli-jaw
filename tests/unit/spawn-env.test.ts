@@ -92,6 +92,13 @@ test('preserves explicit agy NO_COLOR override', () => {
     );
 });
 
+test('sets NO_COLOR for kiro-code plain text output by default', () => {
+    assert.deepEqual(
+        applyCliEnvDefaults('kiro-code', {}, {}),
+        { NO_COLOR: '1' },
+    );
+});
+
 test('builds opencode resume key from effective Exa env', () => {
     assert.equal(buildSessionResumeKey('opencode', { OPENCODE_ENABLE_EXA: 'true' }), 'exa=1');
     assert.equal(buildSessionResumeKey('opencode', { OPENCODE_ENABLE_EXA: '1' }), 'exa=1');

@@ -38,6 +38,9 @@ export function detectSmokeResponse(
     if (cli === 'agy') {
         return { isSmoke: false, confidence: 'low', matchedPattern: null, reason: 'agy: no tool log in -p mode' };
     }
+    if (cli === 'kiro-code') {
+        return { isSmoke: false, confidence: 'low', matchedPattern: null, reason: 'kiro-code: plain-text chat mode' };
+    }
 
     const trimmed = (text || '').trim();
 

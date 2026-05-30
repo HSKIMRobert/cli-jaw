@@ -242,6 +242,11 @@ export function buildArgs(cli: string, model: string, effort: string, prompt: st
                 ...(autoPerm ? ['--force'] : []),
                 prompt || ''];
         }
+        case 'kiro-code':
+            return ['chat', '--no-interactive',
+                ...(autoPerm ? ['--trust-all-tools'] : []),
+                ...(model && model !== 'default' ? ['--model', model] : []),
+                prompt || ''];
         case 'gemini':
             return ['-p', prompt || '',
                 ...(model && model !== 'default' ? ['-m', model] : []),
@@ -351,6 +356,12 @@ export function buildResumeArgs(cli: string, model: string, effort: string, sess
                 ...(autoPerm ? ['--force'] : []),
                 prompt || ''];
         }
+        case 'kiro-code':
+            return ['chat', '--no-interactive',
+                '--resume-id', sessionId,
+                ...(autoPerm ? ['--trust-all-tools'] : []),
+                ...(model && model !== 'default' ? ['--model', model] : []),
+                prompt || ''];
         case 'gemini':
             return ['--resume', sessionId,
                 '-p', prompt || '',
