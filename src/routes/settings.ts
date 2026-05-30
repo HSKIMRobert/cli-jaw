@@ -16,6 +16,8 @@ import { CLI_REGISTRY, CLI_KEYS } from '../cli/registry.js';
 import { readClaudeCreds, readCodexTokens, fetchClaudeUsage, fetchCodexUsage, readGeminiAccount, fetchGeminiUsage, readGrokStatus } from './quota.js';
 import { fetchCursorUsage } from './quota-cursor-dashboard.js';
 import { fetchAgyUsage } from './quota-agy-reverse.js';
+import { fetchKiroUsage } from './quota-kiro-reverse.js';
+import { buildLiveCliRegistry } from '../cli/registry-live.js';
 import { fetchCopilotQuota, refreshCopilotFromKeychain } from '../../lib/quota-copilot.js';
 import { migrateLegacyClaudeValue } from '../cli/claude-models.js';
 import { extractOpenAiApiKey, hasInvalidOpenAiApiKeyInput } from '../jaw-ceo/openai-key.js';
@@ -256,20 +258,23 @@ export function registerSettingsRoutes(
         }
     });
 
-    app.get('/api/cli-registry', (_, res) => res.json(CLI_REGISTRY));
+    app.get('/api/cli-registry', asyncHandler(async (_, res) => {
+        ok(res, await buildLiveCliRegistry());
+    }));
     app.get('/api/cli-status', (_, res) => res.json(detectAllCli()));
 
     app.get('/api/quota', async (_, res) => {
         const claudeCreds = readClaudeCreds();
         const codexTokens = readCodexTokens();
         const geminiAccount = readGeminiAccount();
-        const [claudeResult, codexResult, geminiResult, copilotResult, cursorQuota, agyQuota] = await Promise.all([
+        const [claudeResult, codexResult, geminiResult, copilotResult, cursorQuota, agyQuota, kiroQuota] = await Promise.all([
             fetchClaudeUsage(claudeCreds),
             fetchCodexUsage(codexTokens),
             fetchGeminiUsage(geminiAccount),
             fetchCopilotQuota(),
             fetchCursorUsage(),
             fetchAgyUsage(),
+            fetchKiroUsage(),
         ]);
 
         const classify = (result: unknown, hasCreds: boolean) =>
@@ -317,6 +322,7 @@ export function registerSettingsRoutes(
                 delegatedProvider: 'codex',
             }),
             cursor: cursorQuota,
+            'kiro-code': kiroQuota,
             gemini: geminiQuota,
             grok: grokQuota,
             opencode: opencodeQuota,
