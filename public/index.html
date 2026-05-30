@@ -289,6 +289,7 @@
                     <option value="codex">Codex</option>
                     <option value="codex-app">Codex App</option>
                     <option value="cursor">Cursor</option>
+                    <option value="kiro-code">Kiro</option>
                     <option value="gemini">Gemini</option>
                     <option value="grok">Grok</option>
                     <option value="opencode">OpenCode</option>
@@ -362,6 +363,7 @@
                             <option value="codex">Codex</option>
                             <option value="codex-app">Codex App</option>
                             <option value="cursor">Cursor</option>
+                    <option value="kiro-code">Kiro</option>
                             <option value="gemini">Gemini</option>
                             <option value="grok">Grok</option>
                             <option value="opencode">OpenCode</option>
@@ -769,6 +771,22 @@
                 <div class="settings-row sub-row">
                     <label>Effort</label>
                     <select id="effortCursor"></select>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <h4><span data-provider="kiro-code"></span> Kiro</h4>
+                <div class="settings-row">
+                    <label>Model</label>
+                    <select id="modelKiroCode"></select>
+                    <input type="text" id="customModelKiroCode" class="custom-model-input"
+                        data-i18n-placeholder="model.placeholder" placeholder="model ID 입력" style="display:none">
+                </div>
+                <div class="settings-row sub-row">
+                    <label>Effort</label>
+                    <select id="effortKiroCode">
+                        <option value="" selected>— none</option>
+                    </select>
                 </div>
             </div>
 

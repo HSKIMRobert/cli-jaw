@@ -9,6 +9,7 @@ import antigravitySvg from '../assets/providers/antigravity-color.svg?raw';
 import grokSvg from '../assets/providers/grok-color.svg?raw';
 import copilotSvg from '../assets/providers/copilot-color.svg?raw';
 import cursorSvg from '../assets/providers/cursor-color.svg?raw';
+import kiroSvg from '../assets/providers/kiro-color.svg?raw';
 
 // Mono variants for dark/light mode flexibility
 import claudeMonoSvg from '../assets/providers/claude.svg?raw';
@@ -17,13 +18,14 @@ import antigravityMonoSvg from '../assets/providers/antigravity.svg?raw';
 import grokMonoSvg from '../assets/providers/grok.svg?raw';
 import copilotMonoSvg from '../assets/providers/copilot.svg?raw';
 import cursorMonoSvg from '../assets/providers/cursor.svg?raw';
+import kiroMonoSvg from '../assets/providers/kiro.svg?raw';
 
 // Service icons (Discord, Telegram)
 import discordSvg from '../assets/providers/discord.svg?raw';
 import telegramSvg from '../assets/providers/telegram.svg?raw';
 import opencodeSvg from '../assets/providers/opencode.svg?raw';
 
-export type ProviderSlug = 'ai-e' | 'claude' | 'openai' | 'gemini' | 'antigravity' | 'grok' | 'copilot' | 'cursor' | 'codex' | 'codex-app' | 'opencode' | 'discord' | 'telegram';
+export type ProviderSlug = 'ai-e' | 'claude' | 'openai' | 'gemini' | 'antigravity' | 'grok' | 'copilot' | 'cursor' | 'kiro-code' | 'codex' | 'codex-app' | 'opencode' | 'discord' | 'telegram';
 
 interface ProviderIcon {
     color: string;
@@ -42,6 +44,7 @@ const PROVIDER_ICONS: Record<ProviderSlug, ProviderIcon> = {
     grok:     { color: grokSvg,    mono: grokMonoSvg,     label: 'Grok' },
     copilot:  { color: copilotSvg, mono: copilotMonoSvg,  label: 'Copilot' },
     cursor:   { color: cursorSvg,  mono: cursorMonoSvg,   label: 'Cursor' },
+    'kiro-code': { color: kiroSvg, mono: kiroMonoSvg, label: 'Kiro' },
     codex:    { color: openaiSvg, mono: openaiSvg,  label: 'Codex' },
     'codex-app': { color: openaiColorSvg, mono: openaiSvg, label: 'Codex App' },
     opencode: { color: opencodeSvg, mono: opencodeSvg,   label: 'OpenCode' },
@@ -57,6 +60,7 @@ const PROVIDER_LABEL_ALIASES: Record<string, string> = {
     'claude-i': 'Claude E',
     'agy': 'Antigravity',
     cursor: 'Cursor',
+    'kiro-code': 'Kiro',
 };
 
 function resolveProviderSlug(slug: string): ProviderSlug | null {
@@ -68,6 +72,7 @@ function resolveProviderSlug(slug: string): ProviderSlug | null {
     if (normalized === 'grok' || normalized.startsWith('grok')) return 'grok';
     if (normalized.startsWith('copilot') || normalized === 'githubcopilot') return 'copilot';
     if (normalized === 'cursor' || normalized.startsWith('cursor')) return 'cursor';
+    if (normalized === 'kirocode' || normalized === 'kiro') return 'kiro-code';
     if (normalized === 'codexapp' || normalized === 'codexappserver') return 'codex-app';
     if (normalized === 'codex') return 'codex';
     if (normalized === 'opencode') return 'opencode';

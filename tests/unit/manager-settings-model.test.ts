@@ -122,6 +122,9 @@ test('Model defaults imports canonical CLI metadata from agent-meta', () => {
     assert.equal(metaFor('cursor').efforts.includes('medium-fast'), true);
     assert.equal(PRIMARY_CLIS.includes('agy'), true);
     assert.equal(PRIMARY_CLIS.includes('cursor'), true);
+    assert.equal(metaFor('kiro-code').label, 'Kiro');
+    assert.equal(metaFor('kiro-code').models.includes('auto'), true);
+    assert.equal(PRIMARY_CLIS.includes('kiro-code'), true);
 });
 
 test('active runtime override wins over per-CLI defaults', () => {

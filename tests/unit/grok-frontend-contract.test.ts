@@ -20,6 +20,21 @@ test('GROK-FE-001: provider icons include local Grok SVG assets and aliases', ()
     }
 });
 
+test('KIRO-FE-001: provider icons include local Kiro SVG assets and aliases', () => {
+    const icons = src('public/js/provider-icons.ts');
+    const colorSvg = src('public/assets/providers/kiro-color.svg');
+    const monoSvg = src('public/assets/providers/kiro.svg');
+    assert.match(icons, /kiro-color\.svg\?raw/);
+    assert.match(colorSvg, /viewBox="0 0 24 24"/);
+    assert.match(icons, /kiro\.svg\?raw/);
+    assert.match(icons, /normalized === 'kirocode'/);
+    assert.match(icons, /'kiro-code':\s*\{[\s\S]*label:\s*'Kiro'/);
+    for (const svg of [colorSvg, monoSvg]) {
+        assert.match(svg, /<svg[^>]+viewBox=/);
+        assert.doesNotMatch(svg, /<script|<style|(?:href|src)=["']https?:\/\//);
+    }
+});
+
 test('CURSOR-FE-001: provider icons use official local Cursor SVG assets', () => {
     const icons = src('public/js/provider-icons.ts');
     const colorSvg = src('public/assets/providers/cursor-color.svg');
@@ -70,6 +85,9 @@ test('GROK-FE-002: legacy settings fallback registry exposes grok-build without 
     assert.match(constants, /models:\s*\['grok-build'\]/);
     assert.match(constants, /efforts:\s*\[\]/);
     assert.match(constants, /unsupported by grok-build/);
+    assert.match(constants, /'kiro-code':\s*\{/);
+    assert.match(constants, /label:\s*'Kiro'/);
+    assert.match(constants, /models:\s*\[\s*'auto'/);
 });
 
 test('LEGACY-FE-001: legacy settings sidebar exposes every canonical CLI row', () => {
@@ -84,6 +102,7 @@ test('LEGACY-FE-001: legacy settings sidebar exposes every canonical CLI row', (
         ['codex', 'Codex'],
         ['codex-app', 'CodexApp'],
         ['cursor', 'Cursor'],
+        ['kiro-code', 'KiroCode'],
         ['gemini', 'Gemini'],
         ['grok', 'Grok'],
         ['opencode', 'Opencode'],
@@ -134,7 +153,7 @@ test('LEGACY-FE-002: fallback CLI surfaces include every canonical CLI', () => {
     const heartbeat = src('public/manager/src/settings/pages/components/heartbeat-helpers.ts');
     const status = src('public/js/features/settings-cli-status.ts');
     const freshInstallSmoke = src('scripts/fresh-install-smoke.ts');
-    for (const cli of ['ai-e', 'claude', 'claude-e', 'codex', 'codex-app', 'copilot', 'cursor', 'gemini', 'grok', 'opencode']) {
+    for (const cli of ['ai-e', 'claude', 'claude-e', 'codex', 'codex-app', 'copilot', 'cursor', 'kiro-code', 'gemini', 'grok', 'opencode']) {
         assert.match(employees, new RegExp(`'${cli}'`), `manager employee fallback must include ${cli}`);
         assert.match(heartbeat, new RegExp(`'${cli}'`), `manager heartbeat fallback must include ${cli}`);
         assert.match(status, new RegExp(`'${cli}'|${cli}:`), `legacy CLI status hints must include ${cli}`);

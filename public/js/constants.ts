@@ -113,6 +113,27 @@ const FALLBACK_CLI_REGISTRY: CliRegistry = {
             'grok-4.3', 'grok-build-0.1', 'gpt-5-mini', 'kimi-k2.5',
         ],
     },
+    'kiro-code': {
+        label: 'Kiro',
+        efforts: [],
+        effortNote: 'Kiro CLI has no separate effort flag',
+        models: [
+            'auto',
+            'claude-opus-4.8',
+            'claude-opus-4.7',
+            'claude-opus-4.6',
+            'claude-sonnet-4.6',
+            'claude-opus-4.5',
+            'claude-sonnet-4.5',
+            'claude-sonnet-4',
+            'claude-haiku-4.5',
+            'deepseek-3.2',
+            'minimax-m2.5',
+            'minimax-m2.1',
+            'glm-5',
+            'qwen3-coder-next',
+        ],
+    },
     gemini: {
         label: 'Gemini',
         efforts: [],
@@ -237,7 +258,7 @@ export function getCliMeta(cli: string): CliEntry | null {
     return CLI_REGISTRY[cli] || null;
 }
 
-export const PRIMARY_CLIS: readonly string[] = ['claude', 'claude-e', 'agy', 'codex', 'cursor', 'gemini'];
+export const PRIMARY_CLIS: readonly string[] = ['claude', 'claude-e', 'agy', 'codex', 'cursor', 'kiro-code', 'gemini'];
 
 export interface RolePreset {
     value: string;

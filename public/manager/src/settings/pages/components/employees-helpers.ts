@@ -19,6 +19,7 @@ export const DEFAULT_CLI_OPTIONS = [
     'codex-app',
     'copilot',
     'cursor',
+    'kiro-code',
     'gemini',
     'grok',
     'opencode',
