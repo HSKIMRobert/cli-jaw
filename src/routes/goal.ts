@@ -4,7 +4,7 @@ import {
     setGoal, updateGoal, completeGoal, cancelGoal,
     pauseGoal, resumeGoal, clearGoal, resetGoalStore,
 } from '../goal/store.js';
-import { clearGoalTimers } from '../agent/lifecycle-handler.js';
+import { clearGoalTimers, kickGoalContinuation } from '../agent/lifecycle-handler.js';
 
 export function registerGoalRoutes(app: Router, requireAuth: RequestHandler): void {
     app.get('/api/goal', requireAuth, (_req, res) => {
@@ -84,6 +84,7 @@ export function registerGoalRoutes(app: Router, requireAuth: RequestHandler): vo
                     }
                     const goal = resumeGoal();
                     if (!goal) { res.status(400).json({ ok: false, error: 'No active or paused goal to resume' }); return; }
+                    kickGoalContinuation();
                     res.json({ ok: true, goal });
                     return;
                 }
