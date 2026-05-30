@@ -8,6 +8,7 @@ import { broadcast } from '../core/bus.js';
 import { readLatestWorklog } from '../memory/worklog.js';
 import type { RemoteTarget } from '../messaging/types.js';
 import type { ResolvedSelection } from './parser.js';
+import type { Seed } from './seed.js';
 
 // ─── Types ──────────────────────────────────────────
 
@@ -26,6 +27,15 @@ export interface InterviewEvidence {
   confidence: number;
   turnNumber: number;
   dimension?: EvidenceDimension;
+}
+
+// ─── P2-2: Dimension Assessment ────────────────────
+export type ClarityLevel = 'high' | 'medium' | 'low';
+export interface DimensionAssessment {
+  goal: ClarityLevel;
+  constraint: ClarityLevel;
+  success: ClarityLevel;
+  ontology: ClarityLevel;
 }
 
 // ─── P1-2: Build Budget Gate ───────────────────────
@@ -66,9 +76,17 @@ export interface OrcContext {
     round: number;
     known: InterviewEvidence[];
     unknown: string[];
+    assessment?: DimensionAssessment;
+    history?: Array<{ round: number; question: string; answer: string }>;
   };
+  // ─── Seed (P2-1) ────────────────────────────────
+  seedSpec?: Seed;
   // ─── Build budget (P1-2) ─────────────────────────
   buildBudget?: BuildBudget;
+  // ─── Reject cycles (P2-4) ───────────────────────
+  rejectCycles?: { codeToB: number; planToP: number; specToI: number };
+  // ─── Delivery (P3-5) ───────────────────────────
+  delivery?: { filesChanged: string[]; acsMet: string[]; acsNotMet: string[] };
   researchReport?: string | null;
 }
 
@@ -125,6 +143,7 @@ export function setState(
     taskAnchor: ctx?.taskAnchor || null,
     resolvedSelection: ctx?.resolvedSelection || null,
     interview: ctx?.interview || null,
+    seedSpec: ctx?.seedSpec || null,
     buildBudget: ctx?.buildBudget || null,
   });
 }
@@ -217,10 +236,23 @@ Do NOT paste the full employee output verbatim.
 Employee results:`,
 };
 
-export function getPrefix(state: OrcStateName, source: 'user' | 'worker' = 'user'): string | null {
-  if (state === 'I') return PREFIXES["Ip"]!;
+export function getPrefix(state: OrcStateName, source: 'user' | 'worker' = 'user', ctx?: OrcContext | null): string | null {
+  if (state === 'I') {
+    let prefix = PREFIXES["Ip"]!;
+    // P3-2: Perspective Rotation based on round + assessment
+    const round = ctx?.interview?.round || 1;
+    const assessment = ctx?.interview?.assessment;
+    if (round <= 2) {
+      prefix += '\n[Perspective: RESEARCHER + SIMPLIFIER — gather facts, reduce complexity]';
+    } else {
+      prefix += '\n[Perspective: ARCHITECT + BREADTH_KEEPER — structural concerns, check blind spots]';
+    }
+    if (assessment && !Object.values(assessment).includes('low')) {
+      prefix += '\n[Perspective: SEED_CLOSER — drive toward closure, confirm all assumptions]';
+    }
+    return prefix;
+  }
   if (state === 'P') return PREFIXES["Pb2"]!;
-  // Phase 59: distinguish first-entry user message (Ap) from worker verdict (Ab2).
   if (state === 'A') return source === 'worker' ? PREFIXES["Ab2"]! : PREFIXES["Ap"]!;
   if (state === 'B' && source === 'worker') return PREFIXES["Bb2"]!;
   return null;
@@ -454,7 +486,7 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
   P: ['I', 'A'],
   A: ['I', 'B'],
   B: ['I', 'C'],
-  C: ['I', 'D'],
+  C: ['I', 'D', 'B', 'P'],   // P2-4: 3-way reject routing
   D: ['I', 'IDLE'],
 };
 

@@ -37,6 +37,8 @@ import {
 } from './state-machine.js';
 import { recordFriction, resetFriction, getFrictionSummary } from './friction.js';
 import { stripInterviewTracker } from './sanitize.js';
+import { buildSeedFromEvidence, renderSeedBlock } from './seed.js';
+import type { DimensionAssessment, ClarityLevel } from './state-machine.js';
 // scope is globally 'default' — resolveOrcScope/findActiveScope no longer needed here
 import { buildTaskSnapshot, getMemoryStatus } from '../memory/runtime.js';
 import { buildMemoryInjection } from '../memory/injection.js';
@@ -348,7 +350,7 @@ export async function orchestrate(
     }
 
     const source = meta["_workerResult"] ? 'worker' : 'user';
-    const prefix = getPrefix(state, source as 'user' | 'worker');
+    const prefix = getPrefix(state, source as 'user' | 'worker', getCtx(scope));
     if (prefix && !skipPrefix) {
         prompt = prefix + '\n' + prompt;
     }
@@ -440,10 +442,29 @@ export async function orchestrate(
                         ? rawUnknown.filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
                         : [];
 
+                    // P2-2: parse assessment if present
+                    let assessment: DimensionAssessment | undefined;
+                    const assessMatch = body.match(/assessment:\s*(\{[^}]+\})/);
+                    if (assessMatch) {
+                        try {
+                            const raw = JSON.parse(assessMatch[1]!);
+                            const VALID_LEVELS: ClarityLevel[] = ['high', 'medium', 'low'];
+                            if (raw && VALID_LEVELS.includes(raw['goal']) && VALID_LEVELS.includes(raw['constraint'])) {
+                                assessment = {
+                                    goal: raw['goal'], constraint: raw['constraint'],
+                                    success: raw['success'] || 'low', ontology: raw['ontology'] || 'low',
+                                };
+                            }
+                        } catch { /* skip */ }
+                    }
+
                     if (known.length || unknown.length) {
                         setState('I', {
                             ...ivCtx,
-                            interview: { ...ivCtx.interview, round: nextRound, known, unknown },
+                            interview: {
+                                ...ivCtx.interview, round: nextRound, known, unknown,
+                                ...(assessment ? { assessment } : {}),
+                            },
                         }, scope, 'Interview');
                     }
                 } catch { /* parse failed — state unchanged, tracker already stripped */ }

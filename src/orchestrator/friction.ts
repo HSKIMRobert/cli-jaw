@@ -56,3 +56,21 @@ export function getFrictionSummary(): FrictionSignature[] {
     .filter(s => s.count >= 2)
     .sort((a, b) => b.count - a.count);
 }
+
+// P3-3: Oscillation detection (done→needs_fix→done→needs_fix)
+const verdictHistory: string[] = [];
+
+export function recordVerdict(verdict: string): void {
+  verdictHistory.push(verdict);
+  if (verdictHistory.length > 10) verdictHistory.shift();
+}
+
+export function detectOscillation(): boolean {
+  if (verdictHistory.length < 4) return false;
+  const last4 = verdictHistory.slice(-4);
+  return last4[0] === last4[2] && last4[1] === last4[3] && last4[0] !== last4[1];
+}
+
+export function resetVerdictHistory(): void {
+  verdictHistory.length = 0;
+}

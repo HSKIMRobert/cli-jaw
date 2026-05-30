@@ -7,6 +7,7 @@ import { orchestrate, orchestrateContinue, orchestrateReset, isResetIntent, isCo
 import { insertMessage } from '../core/db.js';
 import { getState, getCtx, setState, resetState, canTransition, resetAllStaleStates, parseWorkerVerdict } from '../orchestrator/state-machine.js';
 import { resetFriction } from '../orchestrator/friction.js';
+import { buildSeedFromEvidence, renderSeedBlock } from '../orchestrator/seed.js';
 import type { OrcStateName } from '../orchestrator/state-machine.js';
 import { resolveOrcScope } from '../orchestrator/scope.js';
 import {
@@ -114,7 +115,10 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
             resolvedSelection: ctx.resolvedSelection,
             projectDirs: ctx.projectDirs,
             interview: ctx.interview,
+            seedSpec: ctx.seedSpec,
             buildBudget: ctx.buildBudget,
+            rejectCycles: ctx.rejectCycles,
+            delivery: ctx.delivery,
             researchReport: ctx.researchReport,
         } : null;
         res.json({
@@ -567,8 +571,13 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
                     ? { ...existingCtx, origin: 'api' as const }
                     : { originalPrompt: '', workingDir: settings["workingDir"] || null, projectDirs: settings["projectDirs"] || null, plan: null, workerResults: [], origin: 'api' as const };
 
-                // P1-1: carry interview evidence into P-phase
+                // P1-1 + P2-1: carry interview + generate Seed on I→P
                 if (current === 'I' && existingCtx?.interview?.known?.length) {
+                    const seed = buildSeedFromEvidence(
+                        existingCtx.interview.request,
+                        existingCtx.interview.known,
+                        existingCtx.interview.round,
+                    );
                     const evidenceLines = existingCtx.interview.known.map((e: { fact: string; source?: string }) => {
                         const tag = e.source === 'assumption' ? '⚠️' : '✅';
                         return `${tag} [${e.source || 'unknown'}] ${e.fact}`;
@@ -577,8 +586,17 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
                     baseCtx = {
                         ...baseCtx,
                         interview: existingCtx.interview,
-                        researchReport: `## Interview Results\n\n${evidenceLines.join('\n')}\n\n### Remaining Unknowns\n${unknownLines.join('\n') || 'None'}`,
+                        seedSpec: seed,
+                        researchReport: `## Interview Results\n\n${evidenceLines.join('\n')}\n\n### Remaining Unknowns\n${unknownLines.join('\n') || 'None'}\n${renderSeedBlock(seed)}`,
                     };
+
+                    // P2-2: warn if assessment shows low dimensions
+                    const assessment = existingCtx.interview.assessment;
+                    if (assessment && (assessment.goal === 'low' || assessment.success === 'low')) {
+                        broadcast('orchestrate_warning', {
+                            message: `⚠️ Interview clarity warning: goal=${assessment.goal}, success=${assessment.success}. Plan quality may be affected.`,
+                        });
+                    }
                 }
                 initCtx = baseCtx;
             } else if (t === 'I') {
