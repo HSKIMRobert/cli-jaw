@@ -15,7 +15,7 @@ export const DISCORD_LIMITS = {
     voice: 10 * 1024 * 1024,
 };
 
-export function validateDiscordFileSize(filePath: string, size: number) {
+export function validateDiscordFileSize(_filePath: string, size: number) {
     if (size > DISCORD_LIMITS.document) {
         throw Object.assign(
             new Error(`File exceeds Discord 10 MiB limit: ${(size / 1024 / 1024).toFixed(1)} MiB`),

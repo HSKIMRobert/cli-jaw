@@ -7,9 +7,7 @@ import { resolve } from 'node:path';
 import { broadcast } from '../core/bus.js';
 import { settings } from '../core/config.js';
 import {
-    insertMessage, getEmployees,
     clearAllEmployeeSessions,
-    upsertEmployeeSession,
     getRecentMessagesLite,
     getLatestUnconsumedAnchor,
 } from '../core/db.js';
@@ -21,9 +19,7 @@ import {
     readLatestWorklog,
     appendToWorklog, upsertWorklogSection, updateWorklogStatus,
 } from '../memory/worklog.js';
-import { findEmployee, runSingleAgent, validateParallelSafety } from './distribute.js';
 import {
-    claimWorker, finishWorker, failWorker,
     listPendingWorkerResults, claimWorkerReplay, markWorkerReplayed, releaseWorkerReplay,
     getActiveWorkers, cancelWorker, clearAllWorkers,
 } from './worker-registry.js';
@@ -33,14 +29,12 @@ import {
     getCtx,
     type OrcStateName,
     type OrcContext,
-    type BuildBudget,
+    type DimensionAssessment,
+    type ClarityLevel,
 } from './state-machine.js';
-import { recordFriction, resetFriction, getFrictionSummary } from './friction.js';
+import { resetFriction } from './friction.js';
 import { stripInterviewTracker } from './sanitize.js';
-import { buildSeedFromEvidence, renderSeedBlock } from './seed.js';
-import type { DimensionAssessment, ClarityLevel } from './state-machine.js';
 // scope is globally 'default' — resolveOrcScope/findActiveScope no longer needed here
-import { buildTaskSnapshot, getMemoryStatus } from '../memory/runtime.js';
 import { buildMemoryInjection } from '../memory/injection.js';
 
 // ─── Parser re-exports ─────────────────────────────
@@ -101,63 +95,6 @@ export function buildApprovedPlanPromptBlock(
     ].filter(Boolean).join('\n');
 }
 
-type WorkerTaskLike = Record<string, any>;
-type RunSingleAgentLike = typeof runSingleAgent;
-type FindEmployeeLike = typeof findEmployee;
-
-interface PreparedWorkerTask {
-    task: WorkerTaskLike;
-    emp: Record<string, any>;
-    workerPhase: number;
-}
-
-async function executePreparedWorkerTask(
-    prepared: PreparedWorkerTask,
-    args: {
-        worklogPath: string;
-        origin: string;
-        priorResults?: Record<string, any>[];
-        parallelPeers?: Record<string, any>[];
-        runSingle: RunSingleAgentLike;
-    },
-) {
-    const { task, emp, workerPhase } = prepared;
-    upsertEmployeeSession.run(emp["id"], null, emp["cli"], String(emp["model"] || ''), 0);
-    claimWorker(emp as { id: string; name?: string }, task["task"]);
-
-    try {
-        const result = await args.runSingle(
-            {
-                ...task,
-                phaseProfile: [workerPhase],
-                currentPhaseIdx: 0,
-                currentPhase: workerPhase,
-                completed: false,
-                history: [],
-            },
-            emp,
-            { path: args.worklogPath },
-            1,
-            { origin: args.origin },
-            args.priorResults || [],
-            args.parallelPeers || [],
-        );
-
-        if (result["status"] === 'done') {
-            finishWorker(emp["id"], String(result["text"] || ''));
-        } else {
-            failWorker(emp["id"], String(result["text"] || `[worker error] ${emp["id"]}`));
-        }
-
-        return { emp, result, dispatched: true, ran: true };
-    } catch (err) {
-        failWorker(emp["id"], (err as Error).message || String(err));
-        console.error(`[jaw:pabcd] worker ${emp["id"]} failed:`, (err as Error).message);
-        return { emp, result: null, dispatched: true, ran: false };
-    }
-}
-
-const ACTIVE_PABCD_DISPATCH_STATES = new Set<OrcStateName>(['P', 'A', 'B', 'C']);
 
 // ─── drainPendingReplays ─────────────────────────────
 // Feed completed-but-unreceived worker results back to Boss. Safe to call
