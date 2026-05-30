@@ -455,23 +455,69 @@ Review the stdout result:
 ⛔ STOP after reporting. WAIT for user approval.
 ⛔ When user approves, run: \`cli-jaw orchestrate C\``,
 
-  C: `[PABCD — C: CHECK]
+  C: `[PABCD — C: CHECK + SCRUTINY]
 
-You are now in Check mode. Perform final verification:
-1. Verify all files saved and consistent.
-2. Run \`npx tsc --noEmit\` for build verification (if TypeScript project).
-3. Update project structure documentation if applicable.
-4. Report completion summary to the user.
+You are now in Check mode. Perform verification in order:
 
-Once verified, call \`cli-jaw orchestrate D\` to finalize.
-If shell command unavailable, report completion and ask user to finalize.`,
+**Stage 1: Mechanical ($0)**
+1. Run \`npx tsc --noEmit\` (TypeScript) or equivalent build check.
+2. Run tests if they exist.
+3. Verify all files saved and consistent.
+If Stage 1 fails → report and suggest \`cli-jaw orchestrate B\` (code fix).
 
-  D: `[PABCD — D: DONE]
-All phases finished. Returning to idle.
-Summarize what was accomplished:
-- What was planned (P), audited (A), implemented (B), verified (C).
-- List of files changed.
-- Any follow-up items.`,
+**Stage 2: Scrutiny (based on change scope)**
+
+IF 1-2 files changed:
+  Quick checklist:
+  - Does this change do what was asked?
+  - Any obvious regressions?
+  - Edge cases handled?
+
+IF 3+ files changed:
+  Adversarial review:
+  - What does "just" or "simply" hide in this implementation?
+  - What happens under concurrent access or race conditions?
+  - Are there hardcoded outputs or placeholder logic that passes tests
+    but misses the actual intent?
+  - What environmental assumptions could break in production?
+  - ⚠️ If you cannot identify a concrete risk, silence is valid.
+    Do not manufacture issues to fill the checklist.
+
+IF Seed exists:
+  For each acceptance criterion in the Seed:
+  - Is it implemented? Show evidence (file:line or function).
+  - Empty evidence = NOT MET.
+
+**Stage 3: Verdict**
+- All passed → \`cli-jaw orchestrate D\`
+- Code issue → suggest \`cli-jaw orchestrate B\`
+- Plan issue (AC not met) → suggest \`cli-jaw orchestrate P\`
+- Spec issue (wrong requirements) → suggest \`cli-jaw orchestrate I\``,
+
+  D: `[PABCD — D: DONE + WONDER/REFLECT]
+
+All phases finished. Summarize what was accomplished:
+1. Files changed (list)
+2. Which acceptance criteria were met (if Seed exists)
+
+Then perform two reflections:
+
+**WONDER** ("What's still missing?"):
+- What edge cases were NOT covered by acceptance criteria?
+- What assumptions turned out wrong during build?
+- Are there integration risks the plan didn't anticipate?
+- What could break in production that tests don't catch?
+
+**REFLECT** ("How would we improve the spec?"):
+- Which acceptance criteria need sharpening?
+- Which constraints were missing?
+- What would change if we revised the ontology?
+
+Present findings to user. Then:
+- If significant issues: "Seed를 개선하려면: \`cli-jaw orchestrate I\`"
+- Otherwise: "완료. \`cli-jaw orchestrate D\`로 마무리하세요."
+
+Returning to idle after D.`,
 };
 
 export function getStatePrompt(target: string): string {
