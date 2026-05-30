@@ -61,3 +61,23 @@ test('resume classifier preserves session when no stale signal is present', () =
     );
     assert.equal(invalid, false);
 });
+
+test('resume classifier invalidates kiro stale output even on exit 0', () => {
+    const invalid = shouldInvalidateResumeSession(
+        'kiro-code',
+        0,
+        '',
+        'No saved chat sessions for this directory.',
+    );
+    assert.equal(invalid, true);
+});
+
+test('resume classifier preserves kiro exit 0 with normal assistant body', () => {
+    const invalid = shouldInvalidateResumeSession(
+        'kiro-code',
+        0,
+        '',
+        '> Here is the answer you asked for.',
+    );
+    assert.equal(invalid, false);
+});

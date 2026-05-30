@@ -1,3 +1,5 @@
+import { isKiroStaleSessionOutput } from './kiro-runtime.js';
+
 type MatcherMap = Record<string, RegExp[]>;
 
 const GENERIC_STALE_MATCHERS = [
@@ -42,6 +44,18 @@ const CLI_STALE_MATCHERS: MatcherMap = {
         /\bsession\b.*\bnot found\b/i,
         /\bloadsession\b.*\bfailed\b/i,
     ],
+    'kiro-code': [
+        /\bno saved chat sessions\b/i,
+        /\bconversation\b.*\bnot found\b/i,
+        /\bsession\b.*\bnot found\b/i,
+        /\binvalid\b.*\bresume\b/i,
+    ],
+    kiro: [
+        /\bno saved chat sessions\b/i,
+        /\bconversation\b.*\bnot found\b/i,
+        /\bsession\b.*\bnot found\b/i,
+        /\binvalid\b.*\bresume\b/i,
+    ],
 };
 
 export function shouldInvalidateResumeSession(
@@ -50,7 +64,12 @@ export function shouldInvalidateResumeSession(
     stderr = '',
     resultText = '',
 ): boolean {
-    if (code === 0) return false;
+    if (code === 0) {
+        if (cli === 'kiro-code' || cli === 'kiro') {
+            return isKiroStaleSessionOutput(`${stderr}\n${resultText}`);
+        }
+        return false;
+    }
     const haystack = `${stderr}\n${resultText}`.trim();
     if (!haystack) return false;
 

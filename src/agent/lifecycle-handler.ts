@@ -19,6 +19,7 @@ import { sanitizeToolLogForDurableStorage, serializeSanitizedToolLog } from '../
 import { finalizeTraceRun, linkTraceRunToMessage } from '../trace/store.js';
 import type { ToolEntry } from '../types/agent.js';
 import { resolveSpawnOutputText } from './events/helpers.js';
+import { isKiroPlainTextCli, isKiroResumeDegradedOutput } from './kiro-runtime.js';
 import {
     incrementMemoryFlush,
     resetMemoryFlushCounter,
@@ -87,6 +88,7 @@ type LifecycleSpawnOptions = {
     _skipInsert?: boolean;
     _skipResume?: boolean;
     _skipSessionPersist?: boolean;
+    _kiroFreshRetry?: boolean;
     agentId?: string;
     cli?: string;
     model?: string;
@@ -366,7 +368,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
     // Force a fresh session on next spawn to avoid stale resume.
     if (mainManaged && !opts.internal && code === 0 && !ctx.cliNativeCompactDetected) {
         const turns = ctx.turns ?? memoryFlushCounter;
-        if ((runtimeCli === 'codex' || runtimeCli === 'opencode' || runtimeCli === 'gemini' || runtimeCli === 'grok' || runtimeCli === 'agy' || runtimeCli === 'kiro-code' || (runtimeCli === 'ai-e' && effectiveProvider === 'kiro')) && turns > 15) {
+        if ((runtimeCli === 'codex' || runtimeCli === 'opencode' || runtimeCli === 'gemini' || runtimeCli === 'grok' || runtimeCli === 'agy') && turns > 15) {
             console.log(`[jaw:compact] ${cli} exited after ${turns} turns — clearing session bucket for fresh start`);
             try {
                 const bucket = resolveSessionBucket(cli, model, effectiveProvider);
@@ -389,6 +391,57 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
         if (recovered > 0) {
             console.log(`[jaw:grok] recovered ${recovered} tool event(s) from Grok trace export`);
         }
+    }
+
+    // ─── Kiro stale resume on exit 0 (stdout carries "no saved chat sessions", etc.) ───
+    // Only inspect the CLI diagnostic channels (stderr + assistant body) — never tool
+    // output (ctx.traceLog), which is arbitrary content that can quote stale phrases.
+    // A genuine stale resume does ZERO work, so require an empty toolLog: a turn that
+    // actually ran tools must never be reclassified as stale and silently discarded.
+    const kiroDiagnosticText = `${ctx.stderrBuf}\n${ctx.fullText}`;
+    if (
+        isKiroPlainTextCli(cli, effectiveProvider)
+        && isResume
+        && mainManaged
+        && !opts.internal
+        && !opts._isFallback
+        && !opts._skipResume
+        && !opts._kiroFreshRetry
+        && !wasKilled
+        && !wasSteer
+        && (code === 0 || code === null)
+        && ctx.toolLog.length === 0
+        && shouldInvalidateResumeSession(runtimeCli, code, ctx.stderrBuf, kiroDiagnosticText)
+    ) {
+        const bucket = resolveSessionBucket(cli, model, effectiveProvider);
+        if (bucket) {
+            try { clearSessionBucket.run(bucket); } catch { /* ignore */ }
+        }
+        console.log('[jaw:kiro] stale resume detected on success exit — retrying fresh with history');
+        broadcast('agent_retry', {
+            cli,
+            delay: 0,
+            reason: 'kiro stale resume — fresh with history',
+            ...empTag,
+        }, isEmployee ? 'internal' : 'public');
+        finalizeTraceRun(ctx.traceRunId, 'error', 'kiro stale resume');
+        const { promise: retryP } = _spawnAgent(prompt, {
+            ...opts,
+            _skipResume: true,
+            _kiroFreshRetry: true,
+            _skipInsert: true,
+        });
+        retryP.then(resolve).catch(() => {
+            broadcast('agent_done', {
+                text: '❌ kiro stale resume and fresh retry failed',
+                error: true,
+                origin,
+                ...empTag,
+            }, isEmployee ? 'internal' : 'public');
+            resolve({ text: '', code: 1 });
+            if (mainManaged && !opts.internal) processQueue();
+        });
+        return;
     }
 
     // ─── Output handling ───
@@ -476,6 +529,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
             && !opts.internal
             && !opts._isFallback
             && !opts._skipResume
+            && !opts._kiroFreshRetry
         ) {
             console.log(`[jaw:resume] ${cli} stale resume invalidated — retrying current request without resume`);
             broadcast('agent_retry', {
@@ -666,6 +720,52 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
             return;
         }
         // non-retryable employee error → fall through to Final resolve below
+    }
+
+    // ─── Kiro resume degraded (empty body) → fresh spawn with history fallback ───
+    const kiroOutputText = resolveSpawnOutputText(ctx);
+    if (
+        isKiroPlainTextCli(cli, effectiveProvider)
+        && isResume
+        && mainManaged
+        && !opts.internal
+        && !opts._isFallback
+        && !opts._kiroFreshRetry
+        && !wasKilled
+        && !wasSteer
+        && (code === 0 || code === null)
+        && isKiroResumeDegradedOutput(kiroOutputText, ctx.toolLog.length, isResume)
+    ) {
+        const bucket = resolveSessionBucket(cli, model, effectiveProvider);
+        if (bucket) {
+            try { clearSessionBucket.run(bucket); } catch { /* ignore */ }
+        }
+        console.log('[jaw:kiro] resume returned empty output — retrying fresh with history (original logic)');
+        broadcast('agent_retry', {
+            cli,
+            delay: 0,
+            reason: 'kiro resume empty — fresh with history',
+            ...empTag,
+        }, isEmployee ? 'internal' : 'public');
+        finalizeTraceRun(ctx.traceRunId, 'error', 'kiro resume empty');
+        const { promise: retryP } = _spawnAgent(prompt, {
+            ...opts,
+            _skipResume: true,
+            _kiroFreshRetry: true,
+            _skipInsert: true,
+            _skipSessionPersist: true,
+        });
+        retryP.then(resolve).catch(() => {
+            broadcast('agent_done', {
+                text: '❌ kiro resume empty and fresh retry failed',
+                error: true,
+                origin,
+                ...empTag,
+            }, isEmployee ? 'internal' : 'public');
+            resolve({ text: '', code: 1 });
+            if (mainManaged && !opts.internal) processQueue();
+        });
+        return;
     }
 
     // ─── Final resolve ───

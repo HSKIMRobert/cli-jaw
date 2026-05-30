@@ -8,10 +8,13 @@ import { buildArgs, buildResumeArgs } from '../../src/agent/args.ts';
 import { listKiroConversationIdsForCwd, resolveKiroDataPath } from '../../src/agent/kiro-auth.ts';
 import {
     appendKiroStdoutChunk,
+    captureKiroSessionIdAfterExit,
     extractKiroSessionIdFromStore,
     finalizeKiroFullText,
     flushKiroStdoutContext,
     isKiroPlainTextCli,
+    isKiroResumeDegradedOutput,
+    isKiroStaleSessionOutput,
     parseKiroAssistantText,
     parseKiroSessionIdFromStdout,
     parseAiESessionIdFromStderr,
@@ -247,4 +250,23 @@ test('parseKiroSessionIdFromStdout reads TUI session hint lines', () => {
     const raw = '● Session ID: 24b53e9c-e117-479e-8d9e-191688be7dd5\nResume with: kiro-cli --resume-id 24b53e9c-e117-479e-8d9e-191688be7dd5';
     assert.equal(parseKiroSessionIdFromStdout(raw), '24b53e9c-e117-479e-8d9e-191688be7dd5');
     assert.equal(parseKiroSessionIdFromStdout('> OK\n'), null);
+});
+
+test('isKiroStaleSessionOutput detects no-saved-sessions and not-found phrases', () => {
+    assert.equal(isKiroStaleSessionOutput('No saved chat sessions for this directory.'), true);
+    assert.equal(isKiroStaleSessionOutput('> all good\n'), false);
+    assert.equal(isKiroResumeDegradedOutput('', 0, true), true);
+    assert.equal(isKiroResumeDegradedOutput('hello', 0, true), false);
+    assert.equal(isKiroResumeDegradedOutput('', 0, false), false);
+
+    const carry = captureKiroSessionIdAfterExit({
+        cwd: '/tmp',
+        spawnStartedAt: 0,
+        beforeIds: null,
+        stdout: '',
+        stderr: '',
+        resumeSessionId: 'abc-123',
+        isResume: true,
+    });
+    assert.deepEqual(carry, { id: 'abc-123', source: 'resume-carry' });
 });
