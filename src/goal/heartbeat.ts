@@ -63,6 +63,14 @@ export function buildGoalContinuation(): GoalContinuationResult {
         'If the goal is complete, run `cli-jaw goal done`.',
         'If blocked, explain what is needed.',
         '',
+        '--- Goal-mode autonomy override ---',
+        'You are in autonomous goal mode. Drive the objective forward without pausing for routine user confirmation.',
+        ...(pabcdActive
+            ? ['At PABCD gates (P/A/B), do NOT wait for user approval — self-advance with `cli-jaw orchestrate A|B|C|D` once the phase work is done.']
+            : []),
+        'For important or high-risk decisions, get sign-off from an employee or sub-agent (via `cli-jaw dispatch`) instead of waiting for the user.',
+        'EXCEPTION (soul boundary): destructive or irreversible actions — git push/reset/clean, deleting files or data, dropping tables, production or infra changes — STILL require explicit user approval before proceeding.',
+        '',
         'RULE: If you need to wait for an external event (CI, deploy, build), use ScheduleWakeup to schedule a delayed check. The server intercepts ScheduleWakeup and resumes this session after the delay. NEVER say "will report when done" and exit.',
     ].join('\n');
 
