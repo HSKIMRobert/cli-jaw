@@ -19,10 +19,18 @@ export function buildVirtualHistoryItems(msgs: MessageItem[]): VirtualItem[] {
     return msgs.map((m, index) => buildLazyVirtualMessageItem(normalizeMessageToolLog(m), index));
 }
 
-// Boot/instance-switch fetches only the most recent N messages. Full history
-// stays in the DB and remains reachable via `/api/messages/search`. This bounds
-// the per-(re)mount payload (previously the entire all-time history, ~tens of MB).
+// Only the embedded dashboard preview frame remounts on every instance switch,
+// so it fetches a bounded recent-N window to keep the per-remount payload small
+// (the full all-time history was ~tens of MB). The standalone chat tab loads
+// once and never remounts, so it keeps the full scrollable history — bounding it
+// would silently drop access to older messages (no load-older mechanism exists).
 export const BOOT_MESSAGE_LIMIT = 300;
+
+export function bootMessageQuery(): string {
+    let embedded = true;
+    try { embedded = window.parent !== window; } catch { embedded = true; }
+    return embedded ? `?limit=${BOOT_MESSAGE_LIMIT}` : '';
+}
 
 function normalizeMessageScopePart(value: string | null | undefined): string {
     return String(value || '').trim() || 'unknown';
@@ -132,7 +140,7 @@ export async function loadMessages(): Promise<void> {
     const nextScope = buildMessageScopeIdentity({ locationKey, workingDir });
     setMessageScope(nextScope);
     const scopeChanged = nextScope !== previousScope;
-    const msgs = await api<MessageItem[]>(`/api/messages?limit=${BOOT_MESSAGE_LIMIT}`);
+    const msgs = await api<MessageItem[]>(`/api/messages${bootMessageQuery()}`);
     if (msgs !== null) {
         const safeMsgs = msgs.map(normalizeMessageToolLog);
         const hadRenderedHistory = Boolean(chatEl?.querySelector('.msg')) || vs.active;
