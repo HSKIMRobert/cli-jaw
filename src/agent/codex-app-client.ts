@@ -38,7 +38,7 @@ export class CodexAppClient extends EventEmitter {
         this.binary = options.binary || 'codex';
         this.workDir = options.workDir || process.cwd();
         this.spawnEnv = options.env || process.env;
-        this.model = options.model || 'gpt-5.4';
+        this.model = options.model || 'gpt-5.5';
         this.effort = options.effort || 'medium';
         this.fastMode = options.fastMode ?? false;
     }

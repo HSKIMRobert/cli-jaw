@@ -12,7 +12,7 @@ export interface GoalContinuationResult {
     prompt?: string;
 }
 
-const STALE_GOAL_MS = 24 * 60 * 60 * 1000;
+const STALE_GOAL_MS = 3 * 24 * 60 * 60 * 1000;
 
 export function buildGoalContinuation(): GoalContinuationResult {
     const goal = getActiveGoal();

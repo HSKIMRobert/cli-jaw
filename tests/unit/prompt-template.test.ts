@@ -72,3 +72,10 @@ test('P37-PROMPT-008: control-system.md exists with Control-specific rules', () 
     assert.match(text, /path=cdp|path=computer-use/);
     assert.match(text, /get_app_state/);
 });
+
+test('P37-PROMPT-009: Computer Use tool surface includes text selection', () => {
+    const a1 = readA1();
+    const control = fs.readFileSync(CONTROL_SYS_PATH, 'utf8');
+    assert.match(a1, /select_text/);
+    assert.match(control, /select_text/);
+});

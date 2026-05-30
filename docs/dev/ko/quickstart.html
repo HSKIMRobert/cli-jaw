@@ -71,7 +71,7 @@
 <ul>
 <li><strong>Node.js 20+</strong> — <a href="https://nodejs.org">nodejs.org</a></li>
 <li><strong>npm</strong> (Node.js에 포함)</li>
-<li>최소 하나의 AI CLI 구독 (예: Claude Code는 Claude Max/Pro, Codex는 ChatGPT Pro, Gemini CLI는 Google AI)</li>
+<li>최소 하나의 AI CLI 구독 (예: Claude Code는 Claude Pro 이상, Codex는 ChatGPT Pro 이상, Gemini CLI는 Google AI)</li>
 </ul>
 
 <h2>설치</h2>
@@ -95,14 +95,15 @@ npm install -g cli-jaw</code></pre>
 
 <h2>CLI 인증</h2>
 <p>각 CLI는 자체 구독으로 인증합니다. 별도 터미널에서 로그인하세요:</p>
-<pre><code># Claude Code (Claude Max/Pro 구독 필요)
+<pre><code># Claude Code (Claude Pro 구독 이상 필요)
 claude
 
-# Codex (ChatGPT Pro 구독 필요)
+# Codex (ChatGPT Pro 구독 이상 필요)
 codex
 
 # Gemini CLI (Google AI 구독 필요)
 gemini</code></pre>
+<div class="callout callout-info">기본 프리미엄 모델은 Claude <code>claude-opus-4-8</code>, Codex <code>gpt-5.5</code>입니다. 6월부터 구독제에 포함된 Claude 사용량을 쓰려면 <code>claude-e</code>를 선택하세요.</div>
 <p>그 다음 jaw에서 사용할 CLI를 설정하세요:</p>
 <pre><code>jaw init   # 또는 채팅에서 /cli claude</code></pre>
 <div class="callout callout-info"><code>settings.json</code>의 API 키는 음성인식(Gemini API)이나 이미지 생성(OpenAI API) 같은 선택 기능에만 필요합니다. 메인 CLI 인증은 각 도구의 로그인으로 처리됩니다.</div>

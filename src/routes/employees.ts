@@ -5,7 +5,7 @@ import { ok } from '../http/response.js';
 import { broadcast } from '../core/bus.js';
 import { clearEmployeeSession, db, getEmployees, insertEmployee, deleteEmployee } from '../core/db.js';
 import { regenerateB } from '../prompt/builder.js';
-import { getDefaultClaudeModel } from '../cli/claude-models.js';
+import { CLI_REGISTRY } from '../cli/registry.js';
 import { seedDefaultEmployees, listEmployees, findStaticEmployee } from '../core/employees.js';
 import { settings, saveSettings } from '../core/config.js';
 
@@ -24,8 +24,8 @@ export function registerEmployeeRoutes(app: Express, requireAuth: AuthMiddleware
     app.post('/api/employees', requireAuth, (req, res) => {
         const id = crypto.randomUUID();
         const { name = 'New Agent', cli = 'claude', model = 'default', role = '' } = req.body || {};
-        const nextModel = (cli === 'claude' || cli === 'claude-e') && (!model || model === 'default')
-            ? getDefaultClaudeModel()
+        const nextModel = (!model || model === 'default')
+            ? (CLI_REGISTRY[cli as keyof typeof CLI_REGISTRY]?.defaultModel || 'default')
             : model;
         insertEmployee.run(id, name, cli, nextModel, role);
         const emp = db.prepare('SELECT * FROM employees WHERE id = ?').get(id) as Record<string, any>;

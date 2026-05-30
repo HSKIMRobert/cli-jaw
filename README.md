@@ -187,8 +187,8 @@ copilot login        # GitHub Copilot (free tier available)
 opencode             # OpenCode — free models available
 
 # Paid (monthly subscription you already pay for)
-claude auth login    # Anthropic Claude Max
-codex login          # OpenAI ChatGPT Pro
+claude auth login    # Anthropic Claude Pro or higher
+codex login          # OpenAI ChatGPT Pro or higher
 cursor-agent login   # Cursor
 gemini               # Google Gemini Advanced
 grok login --oauth   # xAI Grok / Grok Heavy
@@ -332,17 +332,19 @@ No per-token API billing. Route through subscriptions you already pay for.
 
 | CLI | Default Model | Auth | Cost |
 |---|---|---|---|
-| **Claude** | `sonnet` | `claude auth login` | Claude Max subscription |
-| **Claude E** | `sonnet` | underlying `claude auth login` | Experimental interactive Claude wrapper |
+| **Claude** | `claude-opus-4-8` | `claude auth login` | Claude Pro subscription or higher |
+| **Claude E** | `claude-opus-4-8` | underlying `claude auth login` | Claude Pro subscription or higher; preferred for June subscription allowance |
 | **AI-E** | provider-selected | selected provider auth | Multi-provider runtime wrapper |
 | **Antigravity** | AGY-selected | checked by `agy` at run time | Experimental AGY print-mode runtime with `--conversation` resume; model switching stays in native AGY UI |
-| **Codex** | `gpt-5.4` | `codex login` | ChatGPT Pro subscription |
-| **Codex App** | `gpt-5.4` | `codex login` | ChatGPT Pro subscription |
+| **Codex** | `gpt-5.5` | `codex login` | ChatGPT Pro subscription or higher |
+| **Codex App** | `gpt-5.5` | `codex login` | ChatGPT Pro subscription or higher |
 | **Cursor** | `composer-2.5` | `cursor-agent login` or `CURSOR_API_KEY` | Cursor subscription; quota is auth/status-only |
 | **Gemini** | `gemini-3-flash-preview` | `gemini` | Gemini Advanced subscription |
 | **Grok** | `grok-build` | `grok login --oauth` | Grok subscription; quota is auth/status-only |
 | **OpenCode** | `opencode-go/kimi-k2.6` | `opencode` | Free models available |
 | **Copilot** | `claude-sonnet-4.6` | `copilot login` | Free tier available |
+
+GPT 5.5 and Claude Opus 4.8 are enabled from Pro-tier subscriptions and higher. Starting in June, select `claude-e` when you want CLI-JAW to use the Claude allowance bundled with the subscription plan.
 
 The quota/status panel keeps the same runtime keyset as the registry. Wrapper runtimes (`ai-e`, `claude-e`, `codex-app`) delegate to their underlying provider, while AGY/Cursor/Grok/OpenCode are shown as auth/status-only when their CLIs do not expose quota windows.
 

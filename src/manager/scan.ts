@@ -1,5 +1,7 @@
 import {
     DASHBOARD_DEFAULT_PORT,
+    DASHBOARD_FALLBACK_PORT_START,
+    DASHBOARD_FALLBACK_PORT_END,
     DASHBOARD_SCAN_TIMEOUT_MS,
     MANAGED_INSTANCE_HOST,
     MANAGED_INSTANCE_PORT_COUNT,
@@ -147,4 +149,36 @@ export async function scanDashboardInstances(options: DashboardScanOptions = {})
         },
         instances,
     };
+}
+
+export async function scanPeerDashboards(managerPort: number, options: { fetchImpl?: FetchLike; timeoutMs?: number } = {}): Promise<DashboardInstance[]> {
+    const checkedAt = new Date().toISOString();
+    const timeoutMs = options.timeoutMs || DASHBOARD_SCAN_TIMEOUT_MS;
+    const fetchImpl = options.fetchImpl || fetch;
+    const dashDefault = Number(DASHBOARD_DEFAULT_PORT);
+    const ports = [dashDefault];
+    for (let p = DASHBOARD_FALLBACK_PORT_START; p <= DASHBOARD_FALLBACK_PORT_END; p++) {
+        ports.push(p);
+    }
+    const peers: DashboardInstance[] = [];
+    for (const port of ports) {
+        if (port === managerPort) continue;
+        const baseUrl = `http://${MANAGED_INSTANCE_HOST}:${port}`;
+        try {
+            const health = await readJson(fetchImpl, `${baseUrl}/api/dashboard/health`, timeoutMs);
+            if (health["service"] !== 'manager-dashboard') continue;
+            const row = buildBaseRow(port, 'online', checkedAt, null);
+            row.version = readString(health, 'version');
+            row.uptime = readNumber(health, 'uptime');
+            try {
+                const settings = await readJson(fetchImpl, `${baseUrl}/api/settings`, timeoutMs);
+                const metadata = normalizeSettingsMetadata(settings);
+                row.homeDisplay = metadata.homeDisplay;
+                row.workingDir = metadata.workingDir;
+                row.instanceId = deriveDashboardInstanceId(metadata.homeDisplay);
+            } catch { /* metadata optional */ }
+            peers.push(row);
+        } catch { /* not running or not a dashboard */ }
+    }
+    return peers;
 }

@@ -74,7 +74,7 @@ Key rules:
 5. Your CLI's sub-agent features (Task tool, etc.) are separate from jaw employees.
 6. **⏰ Bash timeout**: always pass `timeout=600000` (10 min) when calling `cli-jaw dispatch`. Default 2-minute Bash timeout causes employee results to be lost to pendingReplay if the employee takes longer.
 7. **`$computer-use` / Computer Use routing** (full rule: anchor:desktop-control §0 + dispatch template):
-   - Your CLI is codex → self-serve via Computer Use tools (`get_app_state`, `click`, `set_value`, `press_key`, `scroll`, `drag`, `list_apps`; exposed in Codex CLI as `mcp__computer_use__.*`).
+   - Your CLI is codex → self-serve via Computer Use tools (`get_app_state`, `click`, `set_value`, `select_text`, `type_text`, `press_key`, `scroll`, `drag`, `list_apps`, `perform_secondary_action`; exposed in Codex CLI as `mcp__computer_use__.*`).
    - Not codex → dispatch to `Control` (or any codex-family employee). Forward the task **verbatim** with the `$computer-use` token preserved.
    - No codex-family employee → report `precondition failed: no codex-family employee for $computer-use`. Never fall back to CDP.
 8. **Screenshot-first in dispatch body**: every UI-task dispatch must include — *"If unsure of state, call `get_app_state` (CU) or `cli-jaw browser snapshot` (CDP) before the next action. Never chain actions through uncertainty."*
@@ -138,7 +138,7 @@ For desktop apps and non-DOM UI. Operates native UI through accessibility, keybo
 **Workflow:** `get_app_state(app)` before the first interaction in a turn → action → re-read state after UI/focus changes, stale warnings, or uncertainty → verify.
 - Use `list_apps()` first when the app name is unknown.
 - Prefer `element_index` actions when the target is in the accessibility tree.
-- Prefer `set_value(element_index, value)` over focus-only typing. Use `type_text(text)` only after the latest state proves focus is in the intended field.
+- Prefer `set_value(element_index, value)` over focus-only typing. Use `select_text(element_index, text, selection?)` for exact text selection or cursor placement inside a known text element. Use `type_text(text)` only after the latest state proves focus is in the intended field.
 - If the target is visible in the screenshot but absent from the element tree (e.g. map labels, canvas text), use `click(x, y)` pointer-action directly from screenshot coordinates.
 - `stale_warning` is a signal to re-read state, not a failure.
 - Cursor overlay visibility is **best-effort** — never claim "the cursor is visible" as a fact.

@@ -95,7 +95,7 @@
 <ul>
 <li><strong>Node.js 20+</strong> — <a href="https://nodejs.org">nodejs.org</a></li>
 <li><strong>npm</strong> (comes with Node.js)</li>
-<li>An active subscription to at least one AI CLI (e.g., Claude Max/Pro for Claude Code, ChatGPT Pro for Codex, Google AI for Gemini CLI)</li>
+<li>An active subscription to at least one AI CLI (e.g., Claude Pro or higher for Claude Code, ChatGPT Pro or higher for Codex, Google AI for Gemini CLI)</li>
 </ul>
 
 <h2>Installation</h2>
@@ -119,14 +119,15 @@ npm install -g cli-jaw</code></pre>
 
 <h2>CLI Authentication</h2>
 <p>Each CLI authenticates through its own subscription. Run the CLI login command in a separate terminal:</p>
-<pre><code># Claude Code (requires Claude Max/Pro subscription)
+<pre><code># Claude Code (requires Claude Pro subscription or higher)
 claude
 
-# Codex (requires ChatGPT Pro subscription)
+# Codex (requires ChatGPT Pro subscription or higher)
 codex
 
 # Gemini CLI (requires Google AI subscription)
 gemini</code></pre>
+<div class="callout callout-info">Default premium models are <code>claude-opus-4-8</code> for Claude and <code>gpt-5.5</code> for Codex. Starting in June, choose <code>claude-e</code> when you want to use the Claude allowance bundled with your subscription.</div>
 <p>Then set your preferred CLI in jaw:</p>
 <pre><code>jaw init   # or /cli claude in chat</code></pre>
 <div class="callout callout-info">API keys in <code>settings.json</code> are only needed for advanced features like voice (Gemini API) or image generation (OpenAI API). The main CLI auth is handled by each tool's own login.</div>

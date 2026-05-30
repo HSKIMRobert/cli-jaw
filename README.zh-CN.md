@@ -116,8 +116,8 @@ copilot login        # GitHub Copilot（有免费层）
 opencode             # OpenCode — 有免费模型
 
 # 付费（你已经在付的月订阅）
-claude auth login    # Anthropic Claude Max
-codex login          # OpenAI ChatGPT Pro
+claude auth login    # Anthropic Claude Pro 或更高
+codex login          # OpenAI ChatGPT Pro 或更高
 cursor-agent login   # Cursor
 gemini               # Google Gemini Advanced
 grok login --oauth   # xAI Grok / Grok Heavy
@@ -247,17 +247,19 @@ jaw dispatch --agent "Frontend" --task "修复 dashboard.tsx 中的 CSS grid 布
 
 | CLI | 默认模型 | 认证 | 费用 |
 |---|---|---|---|
-| **Claude** | `opus-4-6` | `claude auth login` | Claude Max 订阅 |
-| **Claude E** | `opus-4-6` | underlying `claude auth login` | 实验性互动 Claude wrapper |
+| **Claude** | `claude-opus-4-8` | `claude auth login` | Claude Pro 或更高订阅 |
+| **Claude E** | `claude-opus-4-8` | underlying `claude auth login` | Claude Pro 或更高订阅；6 月订阅赠送额度的推荐 runtime |
 | **AI-E** | provider-selected | 所选 provider 认证 | 多 provider runtime wrapper |
 | **Antigravity** | AGY-selected | 由 `agy` 在运行时检查 | 支持 `--conversation` resume 的实验性 AGY print-mode runtime；模型切换保留在 native AGY UI |
-| **Codex** | `gpt-5.5` | `codex login` | ChatGPT Pro 订阅 |
-| **Codex App** | `gpt-5.4` | `codex login` | ChatGPT Pro 订阅 |
+| **Codex** | `gpt-5.5` | `codex login` | ChatGPT Pro 或更高订阅 |
+| **Codex App** | `gpt-5.5` | `codex login` | ChatGPT Pro 或更高订阅 |
 | **Cursor** | `composer-2.5-fast` | `cursor-agent login` 或 `CURSOR_API_KEY` | Cursor 订阅；quota 为 auth/status-only |
 | **Gemini** | `gemini-3.1-pro-preview` | `gemini` | Gemini Advanced 订阅 |
 | **Grok** | `grok-build` | `grok login --oauth` | Grok 订阅；配额仅限认证/状态 |
 | **OpenCode** | `minimax-m2.7` | `opencode` | 有免费模型 |
 | **Copilot** | `gpt-5-mini` | `copilot login` | 有免费层 |
+
+GPT 5.5 和 Claude Opus 4.8 从 Pro 订阅及以上开放。自 6 月起，如果要使用订阅计划赠送的 Claude 用量，请选择 `claude-e` runtime。
 
 配额/状态面板保持与 registry 相同的 runtime keyset。Wrapper runtime（`ai-e`, `claude-e`, `codex-app`）委托给 underlying provider；AGY/Cursor/Grok/OpenCode 这类 CLI 不暴露 quota window 时，会以 auth/status-only 显示。
 

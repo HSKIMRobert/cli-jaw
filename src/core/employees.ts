@@ -6,7 +6,7 @@ import { getEmployees, deleteEmployee, insertEmployee, db } from './db.js';
 import { settings } from './config.js';
 import { stripUndefined } from './strip-undefined.js';
 import { broadcast } from './bus.js';
-import { getDefaultClaudeModel } from '../cli/claude-models.js';
+import { CLI_REGISTRY } from '../cli/registry.js';
 import { regenerateB } from '../prompt/builder.js';
 import type { CliEngine } from '../types/cli-engine.js';
 
@@ -255,7 +255,7 @@ export function seedDefaultEmployees({ reset = false, notify = false } = {}) {
     }
 
     const cli = settings["cli"];
-    const defaultModel = (cli === 'claude' || cli === 'claude-e') ? getDefaultClaudeModel() : 'default';
+    const defaultModel = CLI_REGISTRY[cli as keyof typeof CLI_REGISTRY]?.defaultModel || 'default';
     for (const emp of DEFAULT_EMPLOYEES) {
         insertEmployee.run(crypto.randomUUID(), emp.name, cli, defaultModel, emp.role);
     }

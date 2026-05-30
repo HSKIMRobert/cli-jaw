@@ -118,18 +118,20 @@
 <h3>Supported Models (examples)</h3>
 <table>
 <tr><th>Provider</th><th>Model Identifiers</th></tr>
-<tr><td>Claude</td><td><code>claude-opus-4-6</code>, <code>claude-sonnet-4-6</code>, <code>claude-sonnet-4-5</code>, <code>claude-haiku-3-5</code></td></tr>
+<tr><td>Claude</td><td><code>claude-opus-4-8</code>, <code>claude-opus-4-8[1m]</code>, <code>claude-sonnet-4-6</code>, <code>claude-haiku-4-5</code></td></tr>
 <tr><td>Gemini</td><td><code>gemini-2.5-pro</code>, <code>gemini-2.5-flash</code>, <code>gemini-2.0-flash</code></td></tr>
-<tr><td>OpenAI</td><td><code>gpt-4.1</code>, <code>o3</code>, <code>o4-mini</code>, <code>codex-mini</code></td></tr>
+<tr><td>OpenAI</td><td><code>gpt-5.5</code>, <code>gpt-5.4</code>, <code>gpt-5.4-mini</code>, <code>gpt-5.3-codex</code></td></tr>
 <tr><td>Grok</td><td><code>grok-3</code>, <code>grok-3-mini</code></td></tr>
 </table>
+
+<div class="callout callout-info"><strong>Subscription note:</strong> GPT 5.5 and Claude Opus 4.8 require a Pro-tier subscription or higher. Starting in June, choose <code>claude-e</code> when you want to use the Claude allowance bundled with the subscription plan.</div>
 
 <h3>Usage Examples</h3>
 <pre><code># Show current model
 /model
 
-# Switch to Claude Opus 4.6
-/model claude-opus-4-6
+# Switch to Claude Opus 4.8
+/model claude-opus-4-8
 
 # Switch to Sonnet for lighter tasks
 /model claude-sonnet-4-6
@@ -152,8 +154,10 @@
 <h3>Supported CLIs</h3>
 <table>
 <tr><th>CLI Name</th><th>Provider</th><th>Default Model</th></tr>
-<tr><td><code>claude</code></td><td>Anthropic Claude Code</td><td><code>claude-sonnet-4-6</code></td></tr>
-<tr><td><code>codex</code></td><td>OpenAI Codex CLI</td><td><code>codex-mini</code></td></tr>
+<tr><td><code>claude</code></td><td>Anthropic Claude Code</td><td><code>claude-opus-4-8</code></td></tr>
+<tr><td><code>claude-e</code></td><td>Claude E interactive wrapper</td><td><code>claude-opus-4-8</code></td></tr>
+<tr><td><code>codex</code></td><td>OpenAI Codex CLI</td><td><code>gpt-5.5</code></td></tr>
+<tr><td><code>codex-app</code></td><td>OpenAI Codex app server</td><td><code>gpt-5.5</code></td></tr>
 <tr><td><code>gemini</code></td><td>Google Gemini CLI</td><td><code>gemini-2.5-pro</code></td></tr>
 <tr><td><code>grok</code></td><td>xAI Grok</td><td><code>grok-3</code></td></tr>
 <tr><td><code>opencode</code></td><td>OpenCode (multi-provider)</td><td>Varies</td></tr>
@@ -294,8 +298,8 @@
 </table>
 
 <h3>Usage Examples</h3>
-<pre><code># Pin Claude to always use Opus 4.6
-/flush claude claude-opus-4-6
+<pre><code># Pin Claude to always use Opus 4.8
+/flush claude claude-opus-4-8
 
 # Pin Gemini to always use 2.5 Pro
 /flush gemini gemini-2.5-pro
@@ -312,9 +316,9 @@
 <h3>How Flush Pins Work</h3>
 <p>Flush pins are stored in the session and persist until explicitly cleared or the session ends. They override the provider's default model selection:</p>
 <ol>
-<li>You set <code>/flush claude claude-opus-4-6</code></li>
+<li>You set <code>/flush claude claude-opus-4-8</code></li>
 <li>Later, you switch to Gemini with <code>/cli gemini</code></li>
-<li>When you switch back with <code>/cli claude</code>, it automatically uses <code>claude-opus-4-6</code> instead of the default <code>claude-sonnet-4-6</code></li>
+<li>When you switch back with <code>/cli claude</code>, it automatically uses <code>claude-opus-4-8</code>.</li>
 </ol>
 
 <div class="callout callout-info"><strong>"~해줘" tip:</strong> Say "클로드는 항상 오퍼스 써줘" to pin Opus to Claude, or "플러시 초기화해줘" to clear all pins. You can also say "제미나이 모델 고정해줘 프로로" to pin Gemini to Pro.</div>
@@ -327,7 +331,7 @@
 <tr><th>Natural Language</th><th>Mapped Command</th></tr>
 <tr><td>"클로드로 바꿔줘"</td><td><code>/cli claude</code></td></tr>
 <tr><td>"제미나이로 전환해줘"</td><td><code>/cli gemini</code></td></tr>
-<tr><td>"오퍼스 모델로 바꿔줘"</td><td><code>/model claude-opus-4-6</code></td></tr>
+<tr><td>"오퍼스 모델로 바꿔줘"</td><td><code>/model claude-opus-4-8</code></td></tr>
 <tr><td>"소넷으로 내려줘"</td><td><code>/model claude-sonnet-4-6</code></td></tr>
 <tr><td>"더 똑똑한 모델 써줘"</td><td><code>/model</code> (upgrades to strongest available)</td></tr>
 <tr><td>"더 빠른 모델로"</td><td><code>/model</code> (downgrades to fastest available)</td></tr>
@@ -336,7 +340,7 @@
 <tr><td>"포워딩 켜줘"</td><td><code>/forward on</code></td></tr>
 <tr><td>"생각 모드 켜줘"</td><td><code>/thought on</code></td></tr>
 <tr><td>"빠르게 답해줘"</td><td><code>/thought off</code></td></tr>
-<tr><td>"클로드는 항상 오퍼스 써줘"</td><td><code>/flush claude claude-opus-4-6</code></td></tr>
+<tr><td>"클로드는 항상 오퍼스 써줘"</td><td><code>/flush claude claude-opus-4-8</code></td></tr>
 <tr><td>"플러시 초기화해줘"</td><td><code>/flush off</code></td></tr>
 <tr><td>"Switch to Claude"</td><td><code>/cli claude</code></td></tr>
 <tr><td>"Use the smartest model"</td><td><code>/model</code> (upgrades to strongest)</td></tr>
@@ -348,11 +352,11 @@
 
 <h3>Cost-Optimized Setup</h3>
 <p>Use a lightweight model for routine tasks and pin a powerful model for when you need it:</p>
-<pre><code># Default to Sonnet for everyday work
-/model claude-sonnet-4-6
+<pre><code># Default to Opus 4.8 for strongest Claude work
+/model claude-opus-4-8
 
 # Pin Opus for when you switch to heavy tasks
-/flush claude claude-opus-4-6
+/flush claude claude-opus-4-8
 
 # Set Gemini Flash as fallback for rate limits
 /fallback gemini</code></pre>
@@ -364,7 +368,7 @@
 /fallback gemini grok codex
 
 # Pin each provider to its best model
-/flush claude claude-opus-4-6
+/flush claude claude-opus-4-8
 /flush gemini gemini-2.5-pro
 /flush grok grok-3</code></pre>
 

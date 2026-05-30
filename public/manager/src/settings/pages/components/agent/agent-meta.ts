@@ -38,11 +38,11 @@ export const CLI_META: Record<string, CliMeta> = {
         label: 'AI-E',
         defaultProvider: 'claude',
         providers: ['claude', 'codex', 'gemini', 'grok', 'copilot'],
-        models: ['opus', 'sonnet', 'haiku', 'gpt-5.4', 'gpt-5.4-mini', 'gemini-3-flash-preview', 'grok-build', 'gpt-5-mini'],
+        models: ['opus', 'sonnet', 'haiku', 'gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gemini-3-flash-preview', 'grok-build', 'gpt-5-mini'],
         efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
         modelsByProvider: {
-            claude: ['opus', 'sonnet', 'haiku'],
-            codex: ['gpt-5.4', 'gpt-5.4-mini'],
+            claude: ['claude-opus-4-8', 'opus', 'sonnet', 'haiku'],
+            codex: ['gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini'],
             gemini: ['gemini-3-flash-preview'],
             grok: ['grok-build'],
             copilot: ['gpt-5-mini'],
@@ -62,7 +62,7 @@ export const CLI_META: Record<string, CliMeta> = {
         // firstPartyNameToCanonical resolution; pinned IDs reach the API
         // verbatim for stable prompt-cache prefixes. The `[1m]` suffix is
         // parsed by Claude Code (stripped before send, enables 1M context
-        // on Opus 4.7/4.6 + Sonnet 4.6). Mirrors getDefaultClaudeChoices()
+        // on Opus 4.8/4.7/4.6 + Sonnet 4.6). Mirrors getDefaultClaudeChoices()
         // in src/cli/claude-models.ts. Verified via Grok web research
         // 2026-05-01 (devlog/_plan/260501_claude_model_passthrough/).
         models: [

@@ -116,18 +116,20 @@
 <h3>支持的模型（示例）</h3>
 <table>
 <tr><th>提供商</th><th>模型标识符</th></tr>
-<tr><td>Claude</td><td><code>claude-opus-4-6</code>, <code>claude-sonnet-4-6</code>, <code>claude-sonnet-4-5</code>, <code>claude-haiku-3-5</code></td></tr>
+<tr><td>Claude</td><td><code>claude-opus-4-8</code>, <code>claude-opus-4-8[1m]</code>, <code>claude-sonnet-4-6</code>, <code>claude-haiku-4-5</code></td></tr>
 <tr><td>Gemini</td><td><code>gemini-2.5-pro</code>, <code>gemini-2.5-flash</code>, <code>gemini-2.0-flash</code></td></tr>
-<tr><td>OpenAI</td><td><code>gpt-4.1</code>, <code>o3</code>, <code>o4-mini</code>, <code>codex-mini</code></td></tr>
+<tr><td>OpenAI</td><td><code>gpt-5.5</code>, <code>gpt-5.4</code>, <code>gpt-5.4-mini</code>, <code>gpt-5.3-codex</code></td></tr>
 <tr><td>Grok</td><td><code>grok-3</code>, <code>grok-3-mini</code></td></tr>
 </table>
+
+<div class="callout callout-info"><strong>订阅说明：</strong>GPT 5.5 和 Claude Opus 4.8 需要 Pro 或更高订阅。自 6 月起，如果要使用订阅计划赠送的 Claude 用量，请选择 <code>claude-e</code>。</div>
 
 <h3>使用示例</h3>
 <pre><code># Show current model
 /model
 
-# Switch to Claude Opus 4.6
-/model claude-opus-4-6
+# Switch to Claude Opus 4.8
+/model claude-opus-4-8
 
 # Switch to Sonnet for lighter tasks
 /model claude-sonnet-4-6
@@ -150,8 +152,10 @@
 <h3>支持的 CLI</h3>
 <table>
 <tr><th>CLI 名称</th><th>提供商</th><th>默认模型</th></tr>
-<tr><td><code>claude</code></td><td>Anthropic Claude Code</td><td><code>claude-sonnet-4-6</code></td></tr>
-<tr><td><code>codex</code></td><td>OpenAI Codex CLI</td><td><code>codex-mini</code></td></tr>
+<tr><td><code>claude</code></td><td>Anthropic Claude Code</td><td><code>claude-opus-4-8</code></td></tr>
+<tr><td><code>claude-e</code></td><td>Claude E interactive wrapper</td><td><code>claude-opus-4-8</code></td></tr>
+<tr><td><code>codex</code></td><td>OpenAI Codex CLI</td><td><code>gpt-5.5</code></td></tr>
+<tr><td><code>codex-app</code></td><td>OpenAI Codex app server</td><td><code>gpt-5.5</code></td></tr>
 <tr><td><code>gemini</code></td><td>Google Gemini CLI</td><td><code>gemini-2.5-pro</code></td></tr>
 <tr><td><code>grok</code></td><td>xAI Grok</td><td><code>grok-3</code></td></tr>
 <tr><td><code>opencode</code></td><td>OpenCode（多提供商）</td><td>视情况而定</td></tr>
@@ -292,8 +296,8 @@
 </table>
 
 <h3>使用示例</h3>
-<pre><code># Pin Claude to always use Opus 4.6
-/flush claude claude-opus-4-6
+<pre><code># Pin Claude to always use Opus 4.8
+/flush claude claude-opus-4-8
 
 # Pin Gemini to always use 2.5 Pro
 /flush gemini gemini-2.5-pro
@@ -310,9 +314,9 @@
 <h3>Flush 固定的工作原理</h3>
 <p>Flush 固定存储在会话中，在显式清除或会话结束之前持续有效。它们会覆盖提供商的默认模型选择：</p>
 <ol>
-<li>您设置了 <code>/flush claude claude-opus-4-6</code></li>
+<li>您设置了 <code>/flush claude claude-opus-4-8</code></li>
 <li>之后，您使用 <code>/cli gemini</code> 切换到 Gemini</li>
-<li>当您使用 <code>/cli claude</code> 切换回来时，会自动使用 <code>claude-opus-4-6</code>，而不是默认的 <code>claude-sonnet-4-6</code></li>
+<li>当您使用 <code>/cli claude</code> 切换回来时，会自动使用 <code>claude-opus-4-8</code></li>
 </ol>
 
 <div class="callout callout-info"><strong>"~해줘" 提示：</strong>说"클로드는 항상 오퍼스 써줘"将 Opus 固定到 Claude，或"플러시 초기화해줘"清除所有固定。您也可以说"제미나이 모델 고정해줘 프로로"将 Gemini 固定到 Pro。</div>
@@ -325,7 +329,7 @@
 <tr><th>自然语言</th><th>映射的命令</th></tr>
 <tr><td>"클로드로 바꿔줘"</td><td><code>/cli claude</code></td></tr>
 <tr><td>"제미나이로 전환해줘"</td><td><code>/cli gemini</code></td></tr>
-<tr><td>"오퍼스 모델로 바꿔줘"</td><td><code>/model claude-opus-4-6</code></td></tr>
+<tr><td>"오퍼스 모델로 바꿔줘"</td><td><code>/model claude-opus-4-8</code></td></tr>
 <tr><td>"소넷으로 내려줘"</td><td><code>/model claude-sonnet-4-6</code></td></tr>
 <tr><td>"더 똑똑한 모델 써줘"</td><td><code>/model</code>（升级到最强的可用模型）</td></tr>
 <tr><td>"더 빠른 모델로"</td><td><code>/model</code>（降级到最快的可用模型）</td></tr>
@@ -334,7 +338,7 @@
 <tr><td>"포워딩 켜줘"</td><td><code>/forward on</code></td></tr>
 <tr><td>"생각 모드 켜줘"</td><td><code>/thought on</code></td></tr>
 <tr><td>"빠르게 답해줘"</td><td><code>/thought off</code></td></tr>
-<tr><td>"클로드는 항상 오퍼스 써줘"</td><td><code>/flush claude claude-opus-4-6</code></td></tr>
+<tr><td>"클로드는 항상 오퍼스 써줘"</td><td><code>/flush claude claude-opus-4-8</code></td></tr>
 <tr><td>"플러시 초기화해줘"</td><td><code>/flush off</code></td></tr>
 <tr><td>"Switch to Claude"</td><td><code>/cli claude</code></td></tr>
 <tr><td>"Use the smartest model"</td><td><code>/model</code>（升级到最强模型）</td></tr>
@@ -346,11 +350,11 @@
 
 <h3>成本优化设置</h3>
 <p>为日常任务使用轻量模型，并固定一个强力模型以备需要时使用：</p>
-<pre><code># Default to Sonnet for everyday work
-/model claude-sonnet-4-6
+<pre><code># Default to Opus 4.8 for strongest Claude work
+/model claude-opus-4-8
 
 # Pin Opus for when you switch to heavy tasks
-/flush claude claude-opus-4-6
+/flush claude claude-opus-4-8
 
 # Set Gemini Flash as fallback for rate limits
 /fallback gemini</code></pre>
@@ -362,7 +366,7 @@
 /fallback gemini grok codex
 
 # Pin each provider to its best model
-/flush claude claude-opus-4-6
+/flush claude claude-opus-4-8
 /flush gemini gemini-2.5-pro
 /flush grok grok-3</code></pre>
 
