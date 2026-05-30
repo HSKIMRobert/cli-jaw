@@ -6,9 +6,9 @@ import { settings, JAW_HOME, PROMPTS_DIR, SKILLS_DIR, SKILLS_REF_DIR, loadHeartb
 import { expandHomePath } from '../core/path-expand.js';
 import { stripUndefined } from '../core/strip-undefined.js';
 import { getEmployees } from '../core/db.js';
-import { memoryFlushCounter, flushCycleCount } from '../agent/spawn.js';
+import { memoryFlushCounter } from '../agent/spawn.js';
 import { describeHeartbeatSchedule, normalizeHeartbeatSchedule } from '../memory/heartbeat-schedule.js';
-import { buildTaskSnapshot, getMemoryStatus, loadProfileSummary } from '../memory/runtime.js';
+import { buildTaskSnapshot, loadProfileSummary } from '../memory/runtime.js';
 import { buildMemoryInjection } from '../memory/injection.js';
 import { loadAndRender, loadTemplate, renderTemplate, parseWorkerContexts, clearTemplateCache } from './template-loader.js';
 import { findStaticEmployee } from '../core/employees.js';
@@ -185,15 +185,6 @@ function appendAnchorIfMissing(
     if (!block) return null;
     const sep = fileContent.endsWith('\n') ? '\n' : '\n\n';
     return fileContent + sep + block + '\n';
-}
-
-/**
- * Extract the Desktop/Browser Control anchor block from the rendered A1
- * template. Returns null when the template lacks the anchor pair (keeps
- * future refactors from silently producing empty appends).
- */
-function extractDesktopControlAnchor(rendered: string): string | null {
-    return extractAnchorBlock(rendered, DESKTOP_CONTROL_ANCHOR_OPEN, DESKTOP_CONTROL_ANCHOR_CLOSE);
 }
 
 /**
@@ -379,22 +370,6 @@ function appendLegacyMemoryContext(prompt: string) {
     return next;
 }
 
-function appendAdvancedMemoryContext(prompt: string, currentPrompt: string, providedSnapshot = '') {
-    let next = prompt;
-    const profile = loadProfileSummary(800);
-    const snapshot = providedSnapshot || buildTaskSnapshot(currentPrompt, 2800);
-    next += '\n\n---\n## Memory Runtime\n';
-    next += '- indexed memory context is active\n';
-    next += '- use task snapshot and profile context before assuming missing memory\n';
-    if (profile) {
-        next += '\n\n## Profile Context\n' + profile;
-    }
-    if (snapshot) {
-        next += '\n\n' + snapshot;
-    }
-    return next;
-}
-
 export function shouldIncludeVisionClickHint(activeCli?: string | null): boolean {
     return activeCli === 'codex';
 }
@@ -406,7 +381,6 @@ export function getSystemPrompt(opts: { currentPrompt?: string; forDisk?: boolea
     let prompt = `${a1}\n\n${a2}`;
     const currentPrompt = String(opts.currentPrompt || '').trim();
     const forDisk = opts.forDisk === true;
-    const mem = getMemoryStatus();
 
     // Phase 15: Telegram guidance is now part of A1_CONTENT (hardcoded)
     // No dynamic injection needed — Bot-First policy with curl examples included
