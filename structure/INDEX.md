@@ -63,10 +63,10 @@ graph LR
 | [agent_spawn.md](agent_spawn.md) | CLI spawn + ACP 분기 + AGY print-mode + Cursor stream-json runtime + Claude Interactive helper + Gemini full-access flags + Grok streaming-json runtime + 오케스트레이션 | spawn, ACP, AGY, Cursor, claude-e, Gemini, Grok, 멀티에이전트 |
 | [memory_architecture.md](memory_architecture.md) | History Block + Flush + Advanced Runtime + Task Snapshot | 메모리, flush, runtime, snapshot |
 | [infra.md](infra.md) | config, db, bus, security 등 코어 모듈 | 인프라, SQLite, EventBus |
-| [commands.md](commands.md) | 31개 슬래시 커맨드 + workflow category(`/interview`, `/deliberate`, `/planaudit`, `/goal`, `/team`; 자동 실행은 `/goal run ...`) + root CLI 20개 user-facing command + 11개 CLI registry runtime | 커맨드, 디스패처, 레지스트리 |
-| [server_api.md](server_api.md) | `server.ts` 글루 + `src/routes/` API 141 handlers / 140 endpoints + 41 WebSocket events | REST, WebSocket, 라우트 |
+| [commands.md](commands.md) | 31개 슬래시 커맨드 + workflow category(`/interview`, `/deliberate`, `/planaudit`, `/goal`, `/team`; 자동 실행은 `/goal run ...`) + root CLI 22개 user-facing command + 11개 CLI registry runtime | 커맨드, 디스패처, 레지스트리 |
+| [server_api.md](server_api.md) | `server.ts` 글루 + `src/routes/` API 143 handlers / 142 endpoints + 41 WebSocket events | REST, WebSocket, 라우트 |
 | [stream-events.md](stream-events.md) | CLI NDJSON 이벤트 트레이스 + Grok streaming-json + ProcessBlock 매핑 | NDJSON, stepRef, ProcessBlock, Grok |
-| [🎨 frontend.md](frontend.md) | `public/` 소스/자산 549개(`dist` 제외) + `public/dist/` 생성물 482개, slash workflow chips, Manager notes/search/settings/reminders/WYSIWYG, interview tracker panel, ProcessBlock 렌더링 | 프론트엔드, Vite 8, PWA, ProcessBlock |
+| [🎨 frontend.md](frontend.md) | `public/` 소스/자산 551개(`dist` 제외) + `public/dist/` 생성물 482개, slash workflow chips, Manager notes/search/settings/reminders/WYSIWYG, interview tracker panel, ProcessBlock 렌더링 | 프론트엔드, Vite 8, PWA, ProcessBlock |
 | [frontend_modernization_analysis.md](frontend_modernization_analysis.md) | 8개 현대화 제안의 비용-편익 분석 | 리팩터링, 비용분석, 마이그레이션 |
 | [telegram.md](telegram.md) | Telegram 봇 + heartbeat + 음성 STT | 텔레그램, 하트비트, STT |
 | [prompt_basic_A1.md](prompt_basic_A1.md) | 시스템 프롬프트 기본값 (A-1.md) | 시스템규칙, 기본값 |
@@ -170,4 +170,4 @@ Support labels must stay aligned with agbrowse:
 
 ---
 
-*마지막 갱신: 2026-05-29 (`server.ts` 882L, `src/routes/` 22 files, `src/routes/browser.ts` 475L, `src/manager/` 77 TS/TSX files / 12352L, `src/browser/web-ai/` 68 TS files / 12616L, `src/browser/adaptive-fetch/` 18 TS mirror files, `src/agent/` 37 TS files, `native/jaw-claude-i/` 15 Rust source files / 1956L, `bin/commands/` 23 top-level ts files + `tui/` 7 helper, `public/js/` 80 .ts, tests 447 .test.ts / unit 418 .test.ts 기준)*
+*마지막 갱신: 2026-05-30 (`server.ts` 882L, `src/routes/` 22 files, `src/routes/browser.ts` 475L, `src/manager/` 77 TS/TSX files / 12352L, `src/browser/web-ai/` 68 TS files / 12616L, `src/browser/adaptive-fetch/` 18 TS mirror files, `src/agent/` 37 TS files, `native/jaw-claude-i/` 15 Rust source files / 1956L, `bin/commands/` 25 top-level ts files + `tui/` 7 helper, `public/js/` 80 .ts, tests 476 .test.ts / unit 447 .test.ts 기준)*

@@ -13,21 +13,34 @@ test('dispatch route clears pending replay only after response is flushed (phase
     assert.ok(routeStart >= 0, 'dispatch route should exist');
 
     // Window must cover both POST dispatch body + GET result polling route.
-    const routeBlock = orchestrateSrc.slice(routeStart, routeStart + 12000);
+    const routeBlock = orchestrateSrc.slice(routeStart, routeStart + 14000);
     const finishIdx = routeBlock.search(/finishWorker\(slot\.agentId,\s*(?:String\()?result\.text \|\| ''/);
     const finishHookIdx = routeBlock.indexOf("res.on('finish', () => markWorkerReplayed(slot.agentId))", finishIdx);
-    const responseIdx = routeBlock.indexOf("res.json({ ok: true, result, orchestration });");
+    const responseIdx = routeBlock.indexOf('res.json({', finishHookIdx);
 
     assert.ok(finishIdx >= 0, 'dispatch route should call finishWorker on success');
     assert.ok(finishHookIdx > finishIdx, 'markWorkerReplayed should appear after finishWorker');
     assert.ok(responseIdx > finishIdx, 'dispatch route should respond after finishWorker');
     assert.ok(routeBlock.includes('statusPersisted'), 'dispatch response should include verdict persistence diagnostics');
     assert.ok(routeBlock.includes('persistedField'), 'dispatch response should name the persisted verdict field');
+    assert.ok(routeBlock.includes('progress: getWorkerProgressSnapshot(slot.agentId)'), 'dispatch response should include worker progress diagnostics');
 
     // Phase 7: markWorkerReplayed must be scheduled via res.on('finish') so that
     // a client disconnecting before the flush keeps pendingReplay=true.
     assert.ok(finishHookIdx >= 0,
         'markWorkerReplayed must be wrapped in res.on(\'finish\') in the dispatch success path');
+});
+
+test('dispatch route supports async wait:false progress start', () => {
+    const routeStart = orchestrateSrc.indexOf("app.post('/api/orchestrate/dispatch'");
+    assert.ok(routeStart >= 0, 'dispatch route should exist');
+    const routeBlock = orchestrateSrc.slice(routeStart, routeStart + 16000);
+
+    assert.ok(routeBlock.includes('const wait = req.body?.wait !== false'), 'dispatch route should parse wait:false');
+    assert.ok(routeBlock.includes('void runDispatch(false)'), 'wait:false should start worker asynchronously');
+    assert.ok(routeBlock.includes('res.status(202).json'), 'wait:false should return 202');
+    assert.ok(routeBlock.includes('worker: {'), 'wait:false should include worker metadata');
+    assert.ok(routeBlock.includes('progress: getWorkerProgressSnapshot(slot.agentId)'), 'wait:false should include progress snapshot');
 });
 
 test('dispatch route reports verdict persistence diagnostics', () => {

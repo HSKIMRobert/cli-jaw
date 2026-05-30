@@ -13,6 +13,7 @@ import type { SpawnContext, ToolEntry } from '../../types/agent.js';
 import { replaceLiveRunTools, appendLiveRunTool } from '../live-run-state.js';
 import { stampTraceToolEntries } from '../../trace/store.js';
 import { updateWorkerTools } from '../../orchestrator/worker-registry.js';
+import { sanitizeWorkerProgressTools } from '../../orchestrator/worker-progress.js';
 
 // ─── Core utilities (used by ALL adapters) ───────────
 
@@ -27,8 +28,9 @@ export function syncLiveTools(ctx: SpawnContext): void {
     if (ctx.parentLiveScope) {
         const synced = ctx._parentSyncedCount || 0;
         const total = ctx.toolLog.length;
-        for (let i = synced; i < total; i++) {
-            appendLiveRunTool(ctx.parentLiveScope, { ...ctx.toolLog[i], isEmployee: true });
+        const parentTools = sanitizeWorkerProgressTools(ctx.toolLog.slice(synced, total));
+        for (const tool of parentTools) {
+            appendLiveRunTool(ctx.parentLiveScope, { ...tool, isEmployee: true });
         }
         ctx._parentSyncedCount = total;
     }
@@ -49,9 +51,6 @@ export function emitAgentTool(
         payload,
         ctx.traceAudience === 'internal' ? 'internal' : 'public',
     );
-    if (ctx.parentLiveScope && ctx.traceAudience === 'internal' && empTag["isEmployee"] === true) {
-        broadcast('agent_tool', payload, 'public');
-    }
 }
 
 export function pushTrace(ctx: SpawnContext | null | undefined, line: string) {

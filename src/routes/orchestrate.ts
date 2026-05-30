@@ -8,7 +8,18 @@ import { insertMessage } from '../core/db.js';
 import { getState, getCtx, setState, resetState, canTransition, resetAllStaleStates, parseWorkerVerdict } from '../orchestrator/state-machine.js';
 import type { OrcStateName } from '../orchestrator/state-machine.js';
 import { resolveOrcScope } from '../orchestrator/scope.js';
-import { getActiveWorkers, claimWorker, finishWorker, failWorker, markWorkerReplayed, getWorkerSlot, updateWorkerTools, WorkerBusyError } from '../orchestrator/worker-registry.js';
+import {
+    getActiveWorkers,
+    claimWorker,
+    finishWorker,
+    failWorker,
+    markWorkerReplayed,
+    getWorkerSlot,
+    updateWorkerTools,
+    WorkerBusyError,
+    getWorkerProgressSnapshot,
+    listWorkerProgressSnapshots,
+} from '../orchestrator/worker-registry.js';
 import { findEmployee, runSingleAgent } from '../orchestrator/distribute.js';
 import { getEmployees } from '../core/db.js';
 import { settings, clearProjectDirs } from '../core/config.js';
@@ -63,6 +74,18 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
 
     app.get('/api/orchestrate/workers', requireAuth, (_req, res) => {
         res.json(getActiveWorkers());
+    });
+
+    app.get('/api/orchestrate/worker-progress', requireAuth, (_req, res) => {
+        res.json({ ok: true, workers: listWorkerProgressSnapshots() });
+    });
+
+    app.get('/api/orchestrate/worker-progress/:agentId', requireAuth, (req, res) => {
+        const agentId = String(req.params["agentId"] || '');
+        if (!agentId) return fail(res, 400, 'missing agentId');
+        const progress = getWorkerProgressSnapshot(agentId);
+        if (!progress) return fail(res, 404, 'worker progress not found');
+        res.json({ ok: true, progress });
     });
 
     app.get('/api/orchestrate/snapshot', requireAuth, (_req, res) => {
@@ -197,6 +220,7 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
             return fail(res, 403, 'Dispatch requires boss-scoped token. Employees cannot dispatch.');
         }
         const { agent: agentName, task: rawTask, phase, mutable, scope } = req.body || {};
+        const wait = req.body?.wait !== false;
         const task = typeof rawTask === 'string' ? rawTask.trim() : '';
         if (!agentName || !task) return fail(res, 400, 'Missing agent or task');
         const allowWrite = mutable === true;
@@ -334,7 +358,8 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
             if (!res.writableFinished) clientDisconnected = true;
         });
 
-        try {
+        const runDispatch = async (reply: boolean): Promise<void> => {
+            try {
             const ap = {
                 agent: emp.name, role: emp.role || 'general developer',
                 task: enrichedTask, parallel: false,
@@ -423,13 +448,38 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
                 return;
             }
             // Only clear replay flag after response is actually flushed to client.
-            res.on('finish', () => markWorkerReplayed(slot.agentId));
-            res.json({ ok: true, result, orchestration });
-        } catch (err: unknown) {
-            const msg = (err as Error)?.message || String(err);
-            failWorker(slot.agentId, msg);
-            if (!res.writableEnded) res.status(500).json({ ok: false, error: msg });
+            if (reply) {
+                res.on('finish', () => markWorkerReplayed(slot.agentId));
+                res.json({
+                    ok: true,
+                    result,
+                    orchestration,
+                    progress: getWorkerProgressSnapshot(slot.agentId),
+                });
+            }
+            } catch (err: unknown) {
+                const msg = (err as Error)?.message || String(err);
+                failWorker(slot.agentId, msg);
+                if (reply && !res.writableEnded) res.status(500).json({ ok: false, error: msg });
+            }
+        };
+
+        if (!wait) {
+            void runDispatch(false);
+            res.status(202).json({
+                ok: true,
+                state: 'running',
+                worker: {
+                    agentId: slot.agentId,
+                    employeeName: slot.employeeName,
+                    startedAt: slot.startedAt,
+                },
+                progress: getWorkerProgressSnapshot(slot.agentId),
+            });
+            return;
         }
+
+        await runDispatch(true);
     });
 
     // Phase 7-4: explicit result polling for 409 retries and reconnects.
@@ -446,6 +496,7 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
                 task: slot.task,
                 tools: slot.tools,
                 progressUpdatedAt: slot.progressUpdatedAt,
+                progress: getWorkerProgressSnapshot(slot.agentId),
             });
             return;
         }
@@ -453,7 +504,13 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
         if (slot.state === 'done' && slot.pendingReplay) {
             markWorkerReplayed(slot.agentId);
         }
-        res.json({ ok: true, state: slot.state, result: slot.result, tools: slot.tools });
+        res.json({
+            ok: true,
+            state: slot.state,
+            result: slot.result,
+            tools: slot.tools,
+            progress: getWorkerProgressSnapshot(slot.agentId),
+        });
     });
 
     app.put('/api/orchestrate/state', requireAuth, (req, res) => {

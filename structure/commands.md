@@ -9,7 +9,7 @@ aliases: [CLI-JAW Commands, slash commands registry, commands.md]
 # src/cli/ — Slash Command Registry & Dispatcher
 
 > `commands.ts`(400L) + `handlers.ts`(397L) + `handlers-runtime.ts`(499L) + `handlers-completions.ts`(97L) + `handlers-workflows.ts`(95L) + `api-auth.ts`(45L) + `command-context.ts`(140L) + `registry.ts`(160L) + `acp-client.ts`(382L) + `claude-models.ts`(78L) + `compact.ts`(139L) + `src/workflows/{artifacts,plan}.ts`(260L)
-> slash registry는 31개 커맨드, 4개 실행 인터페이스. root CLI는 `bin/cli-jaw.ts` + `bin/commands/*.ts` 기준 20개 user-facing command이며, helper까지 포함한 `bin/commands/*.ts` top-level 파일은 23개다. `browser web-ai`는 `browser-web-ai.ts`, `dashboard memory`는 `dashboard-memory.ts`, dispatch unwrap 보조는 `dispatch-helpers.ts`로 분리되어 있다. visible 기준 CLI 29 / Web 27 / Telegram 27 / Discord 27. `cmdline` capability는 contract 전용이며 11개가 보인다.
+> slash registry는 31개 커맨드, 4개 실행 인터페이스. root CLI는 `bin/cli-jaw.ts` + `bin/commands/*.ts` 기준 22개 user-facing command이며, helper까지 포함한 `bin/commands/*.ts` top-level 파일은 25개다. `browser web-ai`는 `browser-web-ai.ts`, `dashboard memory`는 `dashboard-memory.ts`, dispatch unwrap 보조는 `dispatch-helpers.ts`로 분리되어 있다. visible 기준 CLI 29 / Web 27 / Telegram 27 / Discord 27. `cmdline` capability는 contract 전용이며 11개가 보인다.
 > 모델/CLI 선택은 `registry.ts` 단일 소스를 따른다. 현재 registry 런타임은 `agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `cursor`, `gemini`, `grok`, `opencode`, `copilot` 11개이며, `claude-e`는 experimental native interactive wrapper(`jaw-claude-i`)를 통해 Claude CLI를 PTY로 구동하고 legacy session/event bucket은 `claude-i`를 유지한다. Web/CLI/Telegram/Discord는 모두 `makeCommandCtx()`로 통합된 command context를 사용한다.
 > 최근 구조 변화 핵심은 네 가지다: `handlers.ts` 분해(`handlers-runtime.ts`, `handlers-completions.ts`), workflow command handler 분리(`handlers-workflows.ts`), CLI→server 인증 bootstrap 공통화(`api-auth.ts`), 그리고 Claude Interactive native helper build/test/doctor surface 추가다.
 
@@ -63,7 +63,7 @@ ide, orchestrate, project
 
 ## Root CLI Surface (`bin/cli-jaw.ts` + `bin/commands/*.ts`)
 
-소스 기준 entrypoint는 `bin/cli-jaw.ts`(202L)다. `package.json`의 published bin은 build 산출물 `dist/bin/cli-jaw.js` / `jaw`를 가리킨다. 현재 소스 트리에는 `bin/cli-jaw.js`가 없고, root command router는 아래 20개 user-facing command를 동적 import 한다. 파일 수 기준으로는 `browser-web-ai.ts`, `dashboard-memory.ts`, `dispatch-helpers.ts` helper가 추가되어 `bin/commands/*.ts` top-level은 23개다.
+소스 기준 entrypoint는 `bin/cli-jaw.ts`(213L)다. `package.json`의 published bin은 build 산출물 `dist/bin/cli-jaw.js` / `jaw`를 가리킨다. 현재 소스 트리에는 `bin/cli-jaw.js`가 없고, root command router는 아래 22개 user-facing command를 동적 import 한다. 파일 수 기준으로는 `browser-web-ai.ts`, `dashboard-memory.ts`, `dispatch-helpers.ts` helper가 추가되어 `bin/commands/*.ts` top-level은 25개다.
 
 ### Global options
 
@@ -92,7 +92,8 @@ ide, orchestrate, project
 | `launchd` | `bin/commands/launchd.ts` | `[--port PORT] [status\|unset\|cleanup]` |
 | `clone` | `bin/commands/clone.ts` | `<target-dir> [--from <source>] [--with-memory] [--link-ref]` |
 | `orchestrate` | `bin/commands/orchestrate.ts` | `[P\|A\|B\|C\|D\|status\|reset] [--force] [--json] [--port <port>]` |
-| `dispatch` | `bin/commands/dispatch.ts` | `--agent <name> --task <task> [--port <port>]` |
+| `dispatch` | `bin/commands/dispatch.ts` | `--agent <name> --task <task> [--port <port>] [--watch]` |
+| `worker` | `bin/commands/worker.ts` | `status [agent]`, `watch [agent]`, `--json`, `--port <port>` |
 | `service` | `bin/commands/service.ts` | `[--port PORT] [--backend launchd\|systemd\|docker] [status\|unset\|logs]` |
 | `dashboard` | `bin/commands/dashboard.ts` | `serve [--port 24576] [--from 3457] [--count 50] [--no-open]`, `memory {search\|instances\|read\|config\|state\|estimate\|reindex\|help} [--instance <ids>] [--limit N] [--json] [--port <port>]` |
 | `connector` | `bin/commands/connector.ts` | `board add/update/list`, `notes write/list`, `reminders add/list/done`, `audit [--limit N] [--json]` |
@@ -394,6 +395,7 @@ CLI/TUI command client가 server token bootstrap을 공통으로 사용한다.
 - `bin/commands/browser.ts`
 - `bin/commands/memory.ts`
 - `bin/commands/dispatch.ts`
+- `bin/commands/worker.ts`
 - `bin/commands/reset.ts`
 - `bin/commands/orchestrate.ts`
 - `bin/commands/employee.ts`

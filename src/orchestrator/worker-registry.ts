@@ -2,12 +2,16 @@
 // In-memory registry tracking worker ownership and result handoff.
 
 import { stripUndefined } from '../core/strip-undefined.js';
+import type { SanitizedToolLogEntry } from '../shared/tool-log-sanitize.js';
 import {
-    sanitizeToolLogForDurableStorage,
-    type SanitizedToolLogEntry,
-} from '../shared/tool-log-sanitize.js';
+    previewText,
+    sanitizeWorkerProgressTools,
+    type WorkerProgressRun,
+    type WorkerProgressSnapshot,
+} from './worker-progress.js';
 
 const workers = new Map<string, WorkerSlot>();
+const previousRuns = new Map<string, WorkerProgressRun>();
 
 // Replay metadata captured when Boss dispatches the worker. Used by
 // drainPendingReplays so that when a disconnected employee's result is later
@@ -92,10 +96,30 @@ export function updateWorkerPhase(agentId: string, phase: string, phaseLabel: st
     slot.phaseLabel = phaseLabel;
 }
 
+function toProgressRun(slot: WorkerSlot): WorkerProgressRun {
+    const resultPreview = previewText(slot.result, 240);
+    return {
+        agentId: slot.agentId,
+        employeeName: slot.employeeName,
+        state: slot.state,
+        taskPreview: previewText(slot.task, 200) || '',
+        startedAt: slot.startedAt,
+        completedAt: slot.completedAt,
+        progressUpdatedAt: slot.progressUpdatedAt,
+        ...(resultPreview ? { resultPreview } : {}),
+        tools: slot.tools,
+    };
+}
+
+function rememberCompletedRun(slot: WorkerSlot): void {
+    if (slot.state === 'running') return;
+    previousRuns.set(slot.agentId, toProgressRun(slot));
+}
+
 export function updateWorkerTools(agentId: string, tools: unknown[]): void {
     const slot = workers.get(agentId);
     if (!slot) return;
-    slot.tools = sanitizeToolLogForDurableStorage(tools);
+    slot.tools = sanitizeWorkerProgressTools(tools);
     slot.progressUpdatedAt = Date.now();
 }
 
@@ -106,6 +130,7 @@ export function finishWorker(agentId: string, result: string, tools: unknown[] =
     slot.completedAt = Date.now();
     slot.result = result;
     if (tools.length > 0) updateWorkerTools(agentId, tools);
+    rememberCompletedRun(slot);
     slot.pendingReplay = true;
 }
 
@@ -115,6 +140,7 @@ export function failWorker(agentId: string, result: string): void {
     slot.state = 'failed';
     slot.completedAt = Date.now();
     slot.result = result;
+    rememberCompletedRun(slot);
     slot.pendingReplay = false;  // Failed workers don't need replay — no result to feed back to Boss
 }
 
@@ -124,7 +150,28 @@ export function cancelWorker(agentId: string): void {
     slot.state = 'cancelled';
     slot.completedAt = Date.now();
     slot.pendingReplay = false;
+    rememberCompletedRun(slot);
     workers.delete(agentId);
+}
+
+export function getWorkerProgressSnapshot(agentId: string): WorkerProgressSnapshot | null {
+    const slot = workers.get(agentId);
+    const previous = previousRuns.get(agentId) || null;
+    if (!slot && !previous) return null;
+    return {
+        agentId,
+        employeeName: slot?.employeeName || previous?.employeeName || agentId,
+        current: slot?.state === 'running' ? toProgressRun(slot) : null,
+        previous: slot && slot.state !== 'running' ? toProgressRun(slot) : previous,
+        generatedAt: Date.now(),
+    };
+}
+
+export function listWorkerProgressSnapshots(): WorkerProgressSnapshot[] {
+    const ids = new Set([...workers.keys(), ...previousRuns.keys()]);
+    return [...ids]
+        .map(getWorkerProgressSnapshot)
+        .filter((value): value is WorkerProgressSnapshot => Boolean(value));
 }
 
 export function getActiveWorkers(): WorkerSlot[] {
@@ -184,9 +231,11 @@ export function releaseWorkerReplay(agentId: string): void {
         console.error(`[worker-registry] ${agentId} replay failed 3 times — marking as failed`);
         slot.state = 'failed';
         slot.pendingReplay = false;
+        rememberCompletedRun(slot);
     }
 }
 
 export function clearAllWorkers(): void {
     workers.clear();
+    previousRuns.clear();
 }

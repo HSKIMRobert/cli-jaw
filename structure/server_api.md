@@ -9,7 +9,7 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 # server.ts — Glue + Route Registration (876L)
 
 > Express/WS bootstrap + localhost/LAN opt-in 보안 가드 + base route 14개 + `src/routes/*` 15개 registrar 등록.
-> 현재 라이브 surface는 총 141개 route handler이며, 이 중 `/`를 제외한 API 엔드포인트는 140개다.
+> 현재 라이브 surface는 총 143개 route handler이며, 이 중 `/`를 제외한 API 엔드포인트는 142개다.
 > mutation route(`POST`/`PUT`/`DELETE`)는 총 71개고 모두 `requireAuth`를 거친다. 단, `requireAuth()`는 loopback 요청을 토큰 없이 통과시키고, `lanAllowed()`가 true일 때 private IP도 LAN bypass로 통과시킨다.
 > `GET /api/auth/token`은 Bearer bootstrap 전용이며 `Sec-Fetch-Site`가 `same-origin` 또는 `none`이 아닐 때 `403`을 반환한다.
 
@@ -24,7 +24,7 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 | `src/routes/memory.ts` | 185L | 13 | memory runtime + KV memory + memory files |
 | `src/routes/browser.ts` | 475L | 41 | browser primitive/tab/debug/doctor/cleanup routes + adaptive fetch + web-ai render/send/poll/watch/sessions/capabilities/context routes |
 | `src/routes/jaw-memory.ts` | 239L | 11 | jaw memory search/read/save/list/init/reflect/flush/soul/soul-activate/bootstrap |
-| `src/routes/orchestrate.ts` | 472L | 11 | reset/state/workers/snapshot/queue cancel/hold/queue steer/dispatch/worker result/state PUT |
+| `src/routes/orchestrate.ts` | 578L | 13 | reset/state/workers/worker-progress/snapshot/queue cancel/hold/queue steer/dispatch/worker result/state PUT |
 | `src/routes/goal.ts` | 89L | 3 | durable goal state get/history/set-update-complete-cancel-pause-resume |
 | `src/routes/goal-run.ts` | 81L | 3 | bounded goal-run state/preflight/start-pause-resume-stop |
 | `src/routes/messaging.ts` | 222L | 6 | upload/file-open/voice/telegram/channel/discord send |
@@ -170,7 +170,7 @@ ensureDirs()
 | MCP/CLI/Quota | `GET/PUT /api/mcp` `POST /api/mcp/sync` `POST /api/mcp/install` `POST /api/mcp/reset` `GET /api/cli-registry` `GET /api/cli-status` `GET /api/quota` `POST /api/copilot/refresh` |
 | Heartbeat | `GET/PUT /api/heartbeat` |
 | Browser | `POST /api/browser/start` `POST /api/browser/stop` `GET /api/browser/status` `GET /api/browser/doctor` `POST /api/browser/cleanup-runtimes` `GET /api/browser/snapshot` `POST /api/browser/screenshot` `POST /api/browser/act` `POST /api/browser/vision-click` `POST /api/browser/navigate` `POST /api/browser/reload` `POST /api/browser/resize` `GET /api/browser/tabs` `GET /api/browser/active-tab` `POST /api/browser/tab-switch` `POST /api/browser/tab-new` `POST /api/browser/tab-close` `POST /api/browser/tab-cleanup` `POST /api/browser/evaluate` `GET /api/browser/text` `GET /api/browser/dom` `GET /api/browser/console` `GET /api/browser/network` `POST /api/browser/fetch` `POST /api/browser/wait-for-selector` `POST /api/browser/wait-for-text` `POST /api/browser/web-ai/render` `POST /api/browser/web-ai/context-dry-run` `POST /api/browser/web-ai/context-render` `GET /api/browser/web-ai/status` `POST /api/browser/web-ai/send` `GET /api/browser/web-ai/poll` `GET /api/browser/web-ai/watch` `GET /api/browser/web-ai/watchers` `GET /api/browser/web-ai/sessions` `POST /api/browser/web-ai/sessions/prune` `GET /api/browser/web-ai/notifications` `GET /api/browser/web-ai/capabilities` `POST /api/browser/web-ai/query` `POST /api/browser/web-ai/stop` `GET /api/browser/web-ai/diagnose` |
-| Orchestrate | `POST /api/orchestrate/reset` `GET /api/orchestrate/state` `GET /api/orchestrate/workers` `GET /api/orchestrate/snapshot` `DELETE /api/orchestrate/queue/:id` `POST /api/orchestrate/queue/:id/hold` `DELETE /api/orchestrate/queue/:id/hold` `POST /api/orchestrate/queue/:id/steer` `POST /api/orchestrate/dispatch` `GET /api/orchestrate/worker/:agentId/result` `PUT /api/orchestrate/state` |
+| Orchestrate | `POST /api/orchestrate/reset` `GET /api/orchestrate/state` `GET /api/orchestrate/workers` `GET /api/orchestrate/worker-progress` `GET /api/orchestrate/worker-progress/:agentId` `GET /api/orchestrate/snapshot` `DELETE /api/orchestrate/queue/:id` `POST /api/orchestrate/queue/:id/hold` `DELETE /api/orchestrate/queue/:id/hold` `POST /api/orchestrate/queue/:id/steer` `POST /api/orchestrate/dispatch` `GET /api/orchestrate/worker/:agentId/result` `PUT /api/orchestrate/state` |
 | Goal | `GET /api/goal` `GET /api/goal/history` `POST /api/goal` |
 | Goal Run | `GET /api/goal-run` `GET /api/goal-run/preflight` `POST /api/goal-run` |
 | Employees | `GET /api/employees` `POST /api/employees` `PUT /api/employees/:id` `DELETE /api/employees/:id` `POST /api/employees/reset` |
@@ -182,14 +182,14 @@ ensureDirs()
 | Traces | `GET /api/traces/:runId` `GET /api/traces/:runId/events` `GET /api/traces/:runId/events/:seq` |
 | i18n | `GET /api/i18n/languages` `GET /api/i18n/:lang` |
 
-> 실제 코드(`server.ts` + `src/routes/*.ts`)에서 추출한 총 141개 route handler 기준이다. 이 중 API 엔드포인트는 140개이고, 나머지 1개는 `/` 엔트리이다. Browser API 41개는 `src/routes/browser.ts`에서 등록된다. 이 중 POST/PUT/DELETE mutation endpoint 74개는 모두 `requireAuth` 보호를 받고, `GET /api/auth/token`은 `Sec-Fetch-Site`가 `same-origin|none`이 아닐 때 `403`을 반환한다.
+> 실제 코드(`server.ts` + `src/routes/*.ts`)에서 추출한 총 143개 route handler 기준이다. 이 중 API 엔드포인트는 142개이고, 나머지 1개는 `/` 엔트리이다. Browser API 41개는 `src/routes/browser.ts`에서 등록된다. 이 중 POST/PUT/DELETE mutation endpoint 74개는 모두 `requireAuth` 보호를 받고, `GET /api/auth/token`은 `Sec-Fetch-Site`가 `same-origin|none`이 아닐 때 `403`을 반환한다.
 
 ### 최근 surface drift
 
 - `jaw-memory`는 이제 `flush`, `soul` read/write, `soul/activate`, `POST /api/soul/bootstrap`까지 포함한 11개 route다.
 - avatar API가 `registerAvatarRoutes()`로 연결되어 agent/user custom image를 관리한다.
 - `/api/session/reset`이 base route로 추가되어 `/clear`와 의미가 분리됐다.
-- orchestrate API는 queue cancel / queue hold / queue steer / worker result 조회까지 포함한 11개 route이며, 이전 `continue` route는 현재 코드 표면에 없다.
+- orchestrate API는 queue cancel / queue hold / queue steer / worker progress 조회 / worker result 조회까지 포함한 13개 route이며, 이전 `continue` route는 현재 코드 표면에 없다.
 - goal API는 durable goal state와 bounded goal-run state/preflight/start control 6개 route를 노출한다.
 - browser API는 primitive/tab/debug/doctor/runtime-cleanup, adaptive URL fetch, web-ai provider automation 라우트를 합쳐 41개 route로 확장됐다.
 - trace API는 public trace summary와 bounded event page/read를 `GET /api/traces/:runId*` 3개 route로 노출한다.
