@@ -19,7 +19,7 @@ aliases: [CLI-JAW Source Structure, str_func, source structure reference]
 
 ```text
 cli-jaw/
-├── server.ts                 ← Express 라우트 base + auth/CORS/rate-limit + WS bootstrap + `register*Routes()` glue + startup stale orc_state guard + graceful shutdown(closeDb) + employee migration + seed defaults + registerAvatarRoutes + async listen bootstrap (await initActiveMessagingRuntime) + orphaned jaw-emp-* cleanup + clearAllEmployeeSessions startup + no-store Vite index serving (903L)
+├── server.ts                 ← Express 라우트 base + auth/CORS/rate-limit + WS bootstrap + `register*Routes()` glue + startup stale orc_state guard + graceful shutdown(closeDb) + employee migration + seed defaults + registerAvatarRoutes + async listen bootstrap (await initActiveMessagingRuntime) + orphaned jaw-emp-* cleanup + clearAllEmployeeSessions startup + no-store Vite index serving (937L)
 ├── lib/                      ← 외부 통합/공용 헬퍼 (5 root files + mcp/ 8 files)
 │   ├── mcp-sync.ts           ← MCP 통합 + 스킬 복사 + softResetSkills + runSkillReset + trusted repair gate + clone cooldown (73L)
 │   ├── mcp/                  ← MCP 모듈 분리 (8 files)
@@ -31,7 +31,7 @@ cli-jaw/
 │   │   ├── skills-utils.ts   ← 스킬 유틸리티 (198L)
 │   │   ├── unified-config.ts ← 통합 MCP 설정 (99L)
 │   │   └── mcp-install.ts    ← MCP 설치 헬퍼 (99L)
-│   ├── upload.ts             ← 파일 업로드 + Telegram 다운로드 guards(status/timeout/maxBytes) + 유니코드 파일명 (200L)
+│   ├── upload.ts             ← 파일 업로드 + Telegram 다운로드 guards(status/timeout/maxBytes) + 유니코드 파일명 (205L)
 │   ├── stt.ts                ← 음성인식 엔진 (Gemini REST → Whisper fallback, settings.json 연동, mimeType 파라미터) (231L)
 │   ├── quota-copilot.ts      ← Copilot 할당량 조회 (env → file cache → gh auth token → keychain, execFileSync 보안, source 계정 바인딩) + refreshCopilotFromKeychain (328L)
 │   └── mime-detect.ts        ← MIME 타입 감지 헬퍼 (67L)
@@ -41,7 +41,7 @@ cli-jaw/
 │   │   ├── cli-detection.ts  ← CLI 탐지 + `kiro-code`(`kiro-cli` binary)/`claude-e`/`ai-e` helper `--idle-timeout-ms` compatibility probe + local package release/debug candidates (262L)
 │   │   ├── compact.ts        ← compact 헬퍼 (COMPACT_MARKER_CONTENT, managed summary builder, cutoff logic) (672L)
 │   │   ├── instance.ts       ← 인스턴스 ID, node/jaw 경로, 유닛명 sanitize (58L)
-│   │   ├── db.ts             ← SQLite 스키마 + prepared statements + trace + tool_log + working_dir migration + closeDb() WAL checkpoint + checkOrphanedWal + busy_timeout + clearMessagesScoped + queued_messages table + model-aware clearEmployeeSession + getRecentMessagesLite (343L)
+│   │   ├── db.ts             ← SQLite 스키마 + prepared statements + trace + tool_log + working_dir migration + closeDb() WAL checkpoint + checkOrphanedWal + busy_timeout + clearMessagesScoped + queued_messages table + model-aware clearEmployeeSession + getRecentMessagesLite (365L)
 │   │   ├── bus.ts            ← WS + 내부 리스너 broadcast (36L)
 │   │   ├── logger.ts         ← 로거 유틸 (27L)
 │   │   ├── i18n.ts           ← 서버사이드 번역 (90L)
@@ -64,7 +64,7 @@ cli-jaw/
 │   │   ├── tcc.ts            ← macOS TCC / screen-recording 권한 점검 (55L)
 │   │   └── settings-merge.ts ← perCli/activeOverrides deep merge (52L)
 │   ├── agent/                ← CLI 에이전트 런타임 (28 root files + events/ 12 files + spawn/ 3 files)
-│   │   ├── spawn.ts          ← CLI spawn + ACP/Codex App/AGY/Kiro plain text/log session capture/claude-e helper 분기 + v2 SQLite session resume + 큐 + 메모리 flush + 429 retry timer + isAgentBusy/isSteerInProgress + buildHistoryBlock compact cutoff + working_dir scoping + enqueue→processQueue race fix + QueueItem persistent DB queue + makeCleanEnv PATH augment (1990L)
+│   │   ├── spawn.ts          ← CLI spawn + ACP/Codex App/AGY/Kiro plain text/log session capture/claude-e helper 분기 + v2 SQLite session resume + 큐 + 메모리 flush + 429 retry timer + isAgentBusy/isSteerInProgress + buildHistoryBlock compact cutoff + working_dir scoping + enqueue→processQueue race fix + QueueItem persistent DB queue + makeCleanEnv PATH augment (2011L)
 │   │   ├── spawn/            ← spawn 서브모듈 (3 files)
 │   │   │   ├── queue.ts      ← QueueItem persistent DB queue + processQueue race fix + enqueue/dequeue (350L)
 │   │   │   ├── resume.ts     ← session resume logic + stale resume detection (84L)
@@ -83,7 +83,7 @@ cli-jaw/
 │   │   │   ├── tool-labels.ts ← tool name→label mapping (343L)
 │   │   │   └── types.ts      ← event type definitions (23L)
 │   │   ├── spawn-env.ts      ← spawn용 child env 빌더 (AGY NO_COLOR, OpenCode/Gemini permissions config 주입 등, 148L)
-│   │   ├── args.ts           ← CLI별 인자 빌더 + AGY print-mode/`--log-file`/`--conversation` resume args + `claude-e` helper run/resume args + session bucket 분리 (413L)
+│   │   ├── args.ts           ← CLI별 인자 빌더 + AGY print-mode/`--log-file`/`--conversation` resume args + `claude-e` helper run/resume args + session bucket 분리 (425L)
 │   │   ├── lifecycle-handler.ts ← child lifecycle + fallback/retry + queue resume orchestration + clearEmployeeSession on resume failure + stale resume fresh retry + kickGoalContinuation export + clearGoalTimers (951L)
 │   │   ├── kiro-auth.ts      ← Kiro CLI auth store reader (resolveKiroDataPath, readKiroAuthFromStore, resolveKiroProfileArn, regionFromProfileArn, listKiroConversationIdsForCwd, resolveKiroSessionIdAfterSpawn, extractKiroSessionIdFromV2Store) (230L)
 │   │   ├── kiro-models.ts    ← Kiro live model inventory (KiroModelEntry, KiroModelInventory, parseKiroModelListJson, fetchKiroModelInventory) (98L)
@@ -114,8 +114,8 @@ cli-jaw/
 │   │   ├── session-key.ts    ← 세션 키 헬퍼 (27L)
 │   │   └── types.ts          ← MessengerChannel, OutboundType, RemoteTarget 타입 (27L)
 │   ├── orchestrator/         ← 직원 오케스트레이션 + 인터페이스 통합 (14 files)
-│   │   ├── state-machine.ts ← IPABCD 상태 머신 (I=Interview pre-plan) + broadcast(state,title) + worklog 타이틀 파싱 + employee terminology + OrcContext.workingDir + OrcContext.interview + Project root dispatch contract (604L)
-│   │   ├── pipeline.ts       ← IPABCD orchestration (explicit entry only) + interview first-turn detection + plan context persistence + memorySnapshot injection + reset clears boss session + OrcContext workingDir init + Approved Plan Project root guard (535L)
+│   │   ├── state-machine.ts ← IPABCD 상태 머신 (I=Interview pre-plan) + broadcast(state,title) + worklog 타이틀 파싱 + employee terminology + OrcContext.workingDir + OrcContext.interview + Project root dispatch contract (611L)
+│   │   ├── pipeline.ts       ← IPABCD orchestration (explicit entry only) + interview first-turn detection + plan context persistence + memorySnapshot injection + reset clears boss session + OrcContext workingDir init + Approved Plan Project root guard (538L)
 │   │   ├── distribute.ts     ← runSingleAgent + buildPlanPrompt + parallel helpers + tiered findEmployee + employee resume diagnostics (583L)
 │   │   ├── parser.ts         ← triage + subtask JSON + verdict 파싱 + isResetIntent (176L)
 │   │   ├── gateway.ts        ← submitMessage 통합 진입점 (WebUI+CLI+TG+Discord 공통) + working_dir scoped insertMessage (155L)
@@ -135,11 +135,11 @@ cli-jaw/
 │   │   ├── template-loader.ts ← 프롬프트 템플릿 로더 (50L)
 │   │   └── templates/        ← 프롬프트 템플릿 (a1-system.md, a2-default.md, employee.md, orchestration.md, control-system.md, worker-context.md, vision-click.md, skills.md, heartbeat-*.md)
 │   ├── cli/                  ← 커맨드 시스템 (18 root files + tui/ 18 files)
-│   │   ├── commands.ts       ← 슬래시 커맨드 레지스트리 + workflow metadata + 디스패처 + 파일경로 필터 + /commands alias /cmd + /orchestrate alias /pabcd + /compact + /plan + artifact persistence (403L)
+│   │   ├── commands.ts       ← 슬래시 커맨드 레지스트리 + workflow metadata + 디스패처 + 파일경로 필터 + /commands alias /cmd + /orchestrate alias /pabcd + /compact + /plan + artifact persistence (411L)
 │   │   ├── handlers.ts       ← core command handlers + runtime/completion re-export hub + compact re-export + unknown command recovery payload (397L)
 │   │   ├── handlers-runtime.ts ← memory/browser/prompt/quit/file/steer/forward/fallback/flush/ide/orchestrate 핸들러 + `LEGACY_MODEL_CLI_HINTS` (499L)
 │   │   ├── handlers-completions.ts ← `/model` `/cli` `/skill` `/employee` `/browser` `/fallback` `/flush` 인자 자동완성 헬퍼 (97L)
-│   │   ├── handlers-workflows.ts ← `/plan` PABCD P 안내 + `/interview` `/deliberate` `/planaudit` prompt handlers + `/goal` gated stub + `/goal run` preflight gate (370L)
+│   │   ├── handlers-workflows.ts ← `/plan` PABCD P 안내 + `/interview` `/deliberate` `/planaudit` prompt handlers + `/goal` gated stub + `/goal run` preflight gate (365L)
 │   │   ├── handlers-project.ts ← `/project` 커맨드 핸들러 (projectDirs 관리) (57L) ✨
 │   │   ├── api-auth.ts       ← CLI→server Bearer token bootstrap (`getCliAuthToken`, `authHeaders`, `cliFetch`) (45L)
 │   │   ├── claude-models.ts  ← Claude 정규 모델셋 (CLAUDE_CANONICAL_MODELS, CLAUDE_LEGACY_VALUE_MAP) + migration/validation helpers (78L)
@@ -148,7 +148,7 @@ cli-jaw/
 │   │   ├── registry-live.ts  ← buildLiveCliRegistry — Kiro model inventory 동적 병합 (fetchKiroModelInventory → registry clone) (17L)
 │   │   ├── readiness.ts      ← CLI별 인증/설치 상태 점검 + AGY runtime auth hint + `claude-e` underlying Claude auth/readiness bridge (CliReadiness[]) (128L)
 │   │   ├── acp-client.ts     ← Copilot ACP JSON-RPC 클라이언트 (382L)
-│   │   ├── command-context.ts ← 공유 커맨드 컨텍스트 팩토리 + runSkillReset 위임 + regenerateB 유지 (140L)
+│   │   ├── command-context.ts ← 공유 커맨드 컨텍스트 팩토리 + runSkillReset 위임 + regenerateB 유지 (139L)
 │   │   ├── connector.ts      ← dashboard connector CLI API bridge (board/notes/reminders/audit) (73L)
 │   │   ├── reminders.ts      ← local reminders CLI action helpers (35L)
 │   │   ├── types.ts          ← CLI helper shared result/shape 타입 + workflow command/artifact/recovery metadata contract (202L)
@@ -187,7 +187,7 @@ cli-jaw/
 │   │   ├── synonyms.ts       ← keyword synonym expansion helper (67L) ✨
 │   │   └── worklog.ts        ← Worklog CRUD + phase matrix (200L)
 │   ├── telegram/             ← Telegram 인터페이스 (4 files)
-│   │   ├── bot.ts            ← Telegram 봇 + forwarder lifecycle + origin 필터링 + inbound download size hints + voice 핸들러 등록 (681L)
+│   │   ├── bot.ts            ← Telegram 봇 + forwarder lifecycle + origin 필터링 + inbound download size hints + voice 핸들러 등록 (677L)
 │   │   ├── voice.ts          ← 음성 메시지 → guarded download → STT → tgOrchestrate 파이프라인 (40L)
 │   │   ├── forwarder.ts      ← 포워딩 헬퍼 (escape, chunk, createForwarder) (123L)
 │   │   └── telegram-file.ts  ← Telegram 파일 전송 + 재시도 + 사이즈 검증 (133L)
@@ -201,7 +201,7 @@ cli-jaw/
 │   ├── browser/              ← Chrome CDP 제어 + web-ai 자동화 + adaptive-fetch
 │   │   ├── connection.ts     ← Chrome 탐지/launch/CDP 연결 + readiness polling + retry + headless + runtime diagnostics/orphan cleanup + activePort/active-tab 상태 관리 (817L)
 │   │   ├── launch-policy.ts  ← browser start mode 정규화 + agent/debug/manual launch policy (51L)
-│   │   ├── actions.ts        ← snapshot/click/type/navigate/screenshot + browser primitive actions (527L)
+│   │   ├── actions.ts        ← snapshot/click/type/navigate/screenshot + browser primitive actions (516L)
 │   │   ├── primitives.ts     ← low-level CDP primitives (264L)
 │   │   ├── vision.ts         ← vision-click 파이프라인 + Codex provider + guardrail options (204L)
 │   │   ├── runtime-diagnostics.ts ← runtime diagnostics helper (130L)
@@ -228,7 +228,7 @@ cli-jaw/
 │   │   ├── jaw-memory.ts     ← jaw memory search/read/list/save/init/reflect/flush/soul/soul-activate/bootstrap 라우트 (282L)
 │   │   ├── jaw-ceo.ts        ← Jaw CEO channel/session support routes (321L) ✨
 │   │   ├── i18n.ts           ← locale bundle 라우트 (35L)
-│   │   ├── orchestrate.ts    ← IPABCD reset/state/workers/snapshot/queue cancel/queue steer async accept/dispatch/worker result/state PUT 라우트 (637L)
+│   │   ├── orchestrate.ts    ← IPABCD reset/state/workers/snapshot/queue cancel/queue steer async accept/dispatch/worker result/state PUT 라우트 (638L)
 │   │   ├── memory.ts         ← memory status/KV/files/settings 라우트 (192L)
 │   │   ├── settings.ts       ← settings/prompt/heartbeat-md/MCP/registry/status/quota/copilot 라우트 + CLI_KEYS 기반 quota parity/status-only metadata (343L)
 │   │   ├── messaging.ts      ← upload/file-open/voice/telegram/channel/discord send 라우트 (249L)
@@ -318,7 +318,7 @@ cli-jaw/
 │       ├── checkpoint/       ← checkpoint store + types (2 files, 59L) ✨
 │       ├── permissions/      ← permission policy + types (2 files, 80L) ✨
 │       └── context-map/      ← context map builder (1 file, 71L) ✨
-├── public/                   ← Web UI (Vite 8 + ES Modules, ~80000L)
+├── public/                   ← Web UI (Vite 8 + ES Modules, ~80459L)
 │   ├── index.html            ← 뼈대 (1072L)
 │   ├── manifest.json         ← PWA 매니페스트
 │   ├── sw.js                 ← Service Worker 오프라인 캐시
@@ -339,7 +339,7 @@ cli-jaw/
 │   ├── cli-jaw.ts            ← 22개 user-facing 서브커맨드 라우팅 + --home flag (213L)
 │   ├── _http-client.ts       ← shared HTTP client helper (35L) ✨
 │   ├── star-prompt.ts        ← `gh` 기반 GitHub star 1회 프롬프트 (129L)
-│   ├── postinstall.ts        ← npm install 후 CLI 런타임 + OfficeCLI 자동설치 + MCP + 스킬 + safe 가드 (1038L)
+│   ├── postinstall.ts        ← npm install 후 CLI 런타임 + OfficeCLI 자동설치 + MCP + 스킬 + safe 가드 (1036L)
 │   ├── helpers/help.ts       ← CLI help text helper (10L)
 │   └── commands/             ← 26 top-level ts files + `tui/` 9 helper 모듈
 │       ├── serve.ts          ← 서버 시작 (--port/--host/--open) + SIGINT child.kill('SIGINT') orphan fix (121L)
