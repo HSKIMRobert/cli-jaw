@@ -15,6 +15,7 @@ import {
     flushArgumentCompletions,
 } from './handlers.js';
 import { projectHandler } from './handlers-project.js';
+import { newSessionHandler, switchSessionHandler, sessionsListHandler } from './handlers/session-handlers.js';
 import {
     planWorkflowHandler,
     interviewWorkflowHandler,
@@ -235,6 +236,9 @@ export const COMMANDS: SlashCommand[] = [
     { name: 'ide', descKey: 'cmd.ide.desc', desc: 'IDE diff view', args: '[pop|on|off]', category: 'tools', interfaces: ['cli'], handler: ideHandler },
     { name: 'orchestrate', aliases: ['pabcd'], descKey: '', desc: 'Enter PABCD orchestration', args: '[I|P|A|B|C|D|status|reset] [--force]', category: 'tools', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: orchestrateHandler },
     { name: 'project', aliases: ['proj'], descKey: '', desc: 'Manage project workspace directories', args: '[set|reset|clear|list] [paths...]', category: 'tools', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: projectHandler },
+    { name: 'new', descKey: '', desc: 'New chat session', args: '[label]', category: 'session', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: newSessionHandler },
+    { name: 'switch', aliases: ['sw'], descKey: '', desc: 'Switch session', args: '<seq>', category: 'session', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: switchSessionHandler },
+    { name: 'sessions', aliases: ['ss'], descKey: '', desc: 'List sessions', category: 'session', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: sessionsListHandler },
 ];
 
 // ─── Dispatch ────────────────────────────────────────
@@ -250,6 +254,11 @@ export function parseCommand(text: string): ParsedSlashCommand {
     // File paths like /users/junny/... or /tmp/foo — not commands
     const firstToken = body.split(/\s+/)[0] || '';
     if (firstToken.includes('/') || firstToken.includes('\\')) return null;
+    // Numeric shortcut: /N → switch to session #N
+    if (/^\d+$/.test(firstToken)) {
+        const switchCmd = findCommand('switch');
+        if (switchCmd) return { type: 'known', cmd: switchCmd, args: [firstToken], name: 'switch', rawText: text };
+    }
     const parts = body.split(/\s+/);
     const name = (parts.shift() || '').toLowerCase();
     const cmd = findCommand(name);
