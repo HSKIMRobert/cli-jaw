@@ -364,10 +364,10 @@ export function killActiveAgent(reason = 'user') {
     setTimeout(() => {
         try { if (proc && !proc.killed) proc.kill('SIGKILL'); } catch (e: unknown) { console.warn('[agent:kill] SIGKILL failed', { pid: proc?.pid, error: (e as Error).message }); }
     }, policy.escalationMs);
-    // Fix C1: 사용자 stop 시 isAgentBusy()가 즉시 false가 되도록 참조를 동기 해제.
+    // Fix C1: 사용자 stop/steer 시 isAgentBusy()가 즉시 false가 되도록 참조를 동기 해제.
     // 실제 child 종료는 위 setTimeout SIGKILL이 백그라운드에서 마무리.
     // exit handler의 setActiveProcess(null) / activeProcesses.delete 는 idempotent.
-    if (reason === 'api' || reason === 'user') {
+    if (reason === 'api' || reason === 'user' || reason === 'steer') {
         activeProcess = null;
     }
     return true;
