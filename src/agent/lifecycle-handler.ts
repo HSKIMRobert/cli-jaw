@@ -478,7 +478,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
             );
             const messageId = Number(info.lastInsertRowid || 0);
             if (ctx.traceRunId && Number.isInteger(messageId) && messageId > 0) linkTraceRunToMessage(ctx.traceRunId, messageId);
-            broadcast('agent_done', { text: finalContent, toolLog: sanitizedToolLog, origin, ...empTag });
+            broadcast('agent_done', { text: finalContent, toolLog: sanitizedToolLog, origin, ...empTag, ...(wasSteer ? { steered: true } : {}) });
 
             if (opts._heartbeatAnchorId) {
                 try {
@@ -545,7 +545,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
                 _skipInsert: true,
             }) as { promise: Promise<{ text: string; code: number }> };
             retryP.then(resolve).catch(() => {
-                broadcast('agent_done', { text: `❌ ${errMsg} (fresh-session retry failed)`, error: true, origin, ...empTag }, isEmployee ? 'internal' : 'public');
+                broadcast('agent_done', { text: `❌ ${errMsg} (fresh-session retry failed)`, error: true, origin, ...empTag, ...(wasSteer ? { steered: true } : {}) }, isEmployee ? 'internal' : 'public');
                 resolve({ text: '', code: 1 });
                 if (mainManaged && !opts.internal) processQueue();
             });
@@ -554,7 +554,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
 
         // ─── Stall kills: do NOT retry — escalate immediately ───
         if (isStall) {
-            broadcast('agent_done', { text: `❌ ${errMsg}`, error: true, origin, ...empTag }, isEmployee ? 'internal' : 'public');
+            broadcast('agent_done', { text: `❌ ${errMsg}`, error: true, origin, ...empTag, ...(wasSteer ? { steered: true } : {}) }, isEmployee ? 'internal' : 'public');
             finalizeTraceRun(ctx.traceRunId, 'error', errMsg);
             resolve({ text: '', code: 1 });
             if (mainManaged && !opts.internal) processQueue();
