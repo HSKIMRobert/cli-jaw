@@ -8,6 +8,7 @@ import { getAppName } from './appname.js';
 import { getAgentAvatarMarkup, getUserAvatarMarkup } from './avatar.js';
 import { t } from './i18n.js';
 import { renderMessageActionsHtml } from './message-actions.js';
+import { API_BASE } from '../api.js';
 import { normalizeAgentToolBlocks } from './process-block-dom.js';
 import { scrollToBottom } from './chat-scroll.js';
 
@@ -67,13 +68,23 @@ export function formatUserPrompt(text: string): string {
         const userMsg = userMsgMatch ? ' ' + userMsgMatch[1].trim() : '';
         return `📎 [${count} files]${userMsg}`;
     }
-    const fileMatch = text.match(/^\[(?:사용자가 파일을 보냈습니다|User sent a file): ([^\]]+)\]/);
+    const fileMatch = text.match(/^\[(?:사용자가 파일을 보냈습니다|사용자가 이미지를 보냈습니다|사용자가 동영상을 보냈습니다|User sent a file|User sent an image|User sent a video): ([^\]]+)\]/);
     if (fileMatch) {
-        const fileName = fileMatch[1].split('/').pop() || fileMatch[1];
+        const fullPath = fileMatch[1];
+        const fileName = fullPath.split('/').pop() || fullPath;
         const voiceMatch = text.match(/🎤\s*(.{0,80})/);
         const voicePart = voiceMatch ? `${t('chat.voice.label')} ` : '';
         const userMsgMatch = text.match(/(?:사용자 메시지|User message): (.+)$/s);
         const userMsg = userMsgMatch ? ' ' + userMsgMatch[1].trim() : '';
+        // Inline media rendering
+        const ext = (fileName.split('.').pop() || '').toLowerCase();
+        const mediaUrl = `${API_BASE}/media/${encodeURIComponent(fileName)}`;
+        if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)) {
+            return `${voicePart}<img src="${mediaUrl}" alt="${fileName}" class="chat-inline-img" loading="lazy" />${userMsg ? `<br>${userMsg}` : ''}`;
+        }
+        if (['mp4', 'webm', 'mov', 'ogg'].includes(ext)) {
+            return `${voicePart}<video src="${mediaUrl}" controls class="chat-inline-video" preload="metadata"></video>${userMsg ? `<br>${userMsg}` : ''}`;
+        }
         return `${voicePart}📎 [${fileName}]${userMsg}`;
     }
     return text;
@@ -110,7 +121,11 @@ export function addMessage(role: string, text: string, cli?: string | null): HTM
         if (div.classList.contains('msg-agent')) normalizeAgentToolBlocks(div);
         vs.appendLiveItem(div);
     } else {
-        container?.appendChild(div);
+        if (container && role === 'user' && state.currentAgentDiv?.isConnected && container.contains(state.currentAgentDiv)) {
+            container.insertBefore(div, state.currentAgentDiv);
+        } else {
+            container?.appendChild(div);
+        }
         activateWidgets(div);
         if (!vs.active && !isStreamingPlaceholder && container) {
             const msgCount = container.querySelectorAll('.msg').length;
