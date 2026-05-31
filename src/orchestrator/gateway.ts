@@ -137,7 +137,6 @@ export function submitMessage(
     // documented in devlog/_plan/260417_message_duplication/02_*.
     if (isAgentBusy() || hasBlockingWorkers()) {
         const queuedId = enqueueMessage(trimmed, meta.origin, stripUndefined({ target: meta.target, chatId: meta.chatId, requestId, scope }));
-        broadcast('new_message', { role: 'user', content: display, source: meta.origin });
         return { action: 'queued', pending: messageQueue.length, queued: true, requestId, queuedId };
     }
 
