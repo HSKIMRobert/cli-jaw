@@ -270,12 +270,12 @@ Output with empty subtasks and your answer in direct_answer:
 - false: 자동으로 done 처리
 
 #### Dev Skills Reference
-Each employee auto-receives role-matched dev skills:
+Each employee receives a compact role contract and absolute skill paths:
 - frontend → dev-frontend SKILL.md (UI/component guide)
 - backend → dev-backend SKILL.md (API/server guide)
 - data → dev-data SKILL.md (data pipeline guide)
 - docs → documentation SKILL.md
-These include coding conventions, project structure, and testing rules.
+Skill bodies are read on demand instead of preloaded into every employee prompt.
 
 ### ⚡ Parallel Execution (Tier 1-2 only)
 When 2+ subtasks modify **completely independent file sets**, mark them \`"parallel": true\`.

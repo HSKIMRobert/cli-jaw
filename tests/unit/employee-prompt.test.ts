@@ -57,11 +57,15 @@ test('EMP-007: getEmployeePrompt defaults role to general developer', () => {
 
 // ─── getEmployeePromptV2: phase-aware ────────────────
 
-test('EMP-008: getEmployeePromptV2 returns longer string than base', () => {
+test('EMP-008: getEmployeePromptV2 adds compact skill and role contracts', () => {
     const emp = { name: 'Frontend', cli: 'claude', role: 'frontend' };
     const base = getEmployeePrompt(emp);
     const v2 = getEmployeePromptV2(emp, 'frontend', 1);
-    assert.ok(v2.length > base.length, 'v2 should include additional skill content');
+    assert.ok(v2.length > base.length, 'v2 should include compact employee context');
+    assert.ok(v2.includes('Skill Loading Contract'), 'v2 should include on-demand skill loading guidance');
+    assert.ok(v2.includes('Role Contract'), 'v2 should include role contract');
+    assert.ok(v2.includes('dev-frontend'), 'frontend role guide should be named');
+    assert.ok(!v2.includes('## Development Guide (Common)'), 'dev guide body should not be inlined');
 });
 
 test('EMP-009: getEmployeePromptV2 includes phase gate', () => {
@@ -73,17 +77,21 @@ test('EMP-009: getEmployeePromptV2 includes phase gate', () => {
 
 // ─── Phase 2: dev-code-reviewer injection ─────────────
 
-test('EMP-020: Phase 2 injects dev-code-reviewer content', { skip: !hasSkillsRef && 'skills_ref submodule not checked out' }, () => {
+test('EMP-020: Phase 2 references dev-code-reviewer without inlining content', { skip: !hasSkillsRef && 'skills_ref submodule not checked out' }, () => {
     const emp = { name: 'Data', cli: 'claude', role: 'data' };
     const v2 = getEmployeePromptV2(emp, 'data', 2);
-    assert.ok(v2.includes('Code Review Guide (Phase 2'), 'Phase 2 should inject code-reviewer guide');
+    assert.ok(v2.includes('Phase 2 audit'), 'Phase 2 should include compact audit guidance');
+    assert.ok(v2.includes('dev-code-reviewer'), 'Phase 2 should reference code-reviewer guide path');
+    assert.ok(!v2.includes('Code Review Guide (Phase 2'), 'Phase 2 should not inline code-reviewer guide body');
     assert.ok(v2.includes('PLAN AUDIT employee'), 'Phase 2 should have PLAN AUDIT employee context');
 });
 
-test('EMP-021: Phase 4 injects dev-testing, NOT dev-code-reviewer', { skip: !hasSkillsRef && 'skills_ref submodule not checked out' }, () => {
+test('EMP-021: Phase 4 references dev-testing, NOT dev-code-reviewer body', { skip: !hasSkillsRef && 'skills_ref submodule not checked out' }, () => {
     const emp = { name: 'Backend', cli: 'claude', role: 'backend' };
     const v2 = getEmployeePromptV2(emp, 'backend', 4);
-    assert.ok(v2.includes('Testing Guide (Phase 4)'), 'Phase 4 should inject testing guide');
+    assert.ok(v2.includes('Phase 4 check'), 'Phase 4 should include compact testing guidance');
+    assert.ok(v2.includes('dev-testing'), 'Phase 4 should reference testing guide path');
+    assert.ok(!v2.includes('Testing Guide (Phase 4)'), 'Phase 4 should not inline testing guide body');
     assert.ok(!v2.includes('Code Review Guide (Phase 2'), 'Phase 4 should NOT inject code-reviewer');
     assert.ok(v2.includes('CHECK employee'), 'Phase 4 should have CHECK employee context');
 });
@@ -102,9 +110,9 @@ test('EMP-023: String phase "2" works same as number 2 (type coercion safety)', 
     const v2str = getEmployeePromptV2(emp, 'data', '2' as any);
     clearPromptCache();
     const v2num = getEmployeePromptV2(emp, 'data', 2);
-    // Both should inject code-reviewer (Number() normalization)
-    assert.ok(v2str.includes('Code Review Guide (Phase 2'), 'String "2" must also inject reviewer');
-    assert.ok(v2num.includes('Code Review Guide (Phase 2'), 'Number 2 must inject reviewer');
+    // Both should reference code-reviewer (Number() normalization)
+    assert.ok(v2str.includes('Phase 2 audit'), 'String "2" must also reference reviewer guidance');
+    assert.ok(v2num.includes('Phase 2 audit'), 'Number 2 must reference reviewer guidance');
 });
 
 test('EMP-025: employee prompt uses employee naming and dispatch prohibition', () => {

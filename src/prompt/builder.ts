@@ -25,6 +25,19 @@ function findFirstExistingPath(paths: string[]): string | null {
     return paths.find(p => fs.existsSync(p)) || null;
 }
 
+function findSkillPath(skillName: string): string | null {
+    return findFirstExistingPath([
+        join(SKILLS_DIR, skillName, 'SKILL.md'),
+        join(SKILLS_REF_DIR, skillName, 'SKILL.md'),
+        getRepoBundledSkillPath('skills', skillName, 'SKILL.md'),
+        getRepoBundledSkillPath('skills_ref', skillName, 'SKILL.md'),
+    ]);
+}
+
+function formatSkillPath(skillName: string, skillPath: string | null): string {
+    return skillPath ? `${skillName}: ${skillPath}` : `${skillName}: unavailable`;
+}
+
 // ─── Legacy A1 Source Hashes ─────────────────────────
 // MD5 hashes of source templates (unrendered) for every historical pre-hash version.
 // Used to identify known stock files during pre-hash migration.
@@ -582,96 +595,49 @@ export function getEmployeePromptV2(
         }
     }
 
-    // Static-employee declared skills are injected INLINE so the employee never
-    // needs to read skill files from disk. Previously `skills: [...]` was metadata
-    // only — employees tried `sed`/`cat` on absolute paths (often wrong), wasting
-    // a turn and sometimes failing entirely. The skill content now lives in the
-    // system prompt; reference files (`reference/*.md`) stay on disk for deep
-    // lookups the employee can do with `cli-jaw skill read <name> <ref>`.
-    if (staticSpec?.skills?.length) {
-        for (const skillName of staticSpec.skills) {
-            const skillPath = findFirstExistingPath([
-                join(SKILLS_DIR, skillName, 'SKILL.md'),
-                join(SKILLS_REF_DIR, skillName, 'SKILL.md'),
-                getRepoBundledSkillPath('skills', skillName, 'SKILL.md'),
-                getRepoBundledSkillPath('skills_ref', skillName, 'SKILL.md'),
-            ]);
-            if (skillPath && fs.existsSync(skillPath)) {
-                prompt += `\n\n## Skill: ${skillName} (inlined — do NOT read from disk)\n${fs.readFileSync(skillPath, 'utf8')}`;
-            } else {
-                console.warn(`[prompt] ${staticSpec.name}: skill '${skillName}' not found on disk — check SKILLS_DIR/SKILLS_REF_DIR`);
-            }
-        }
-    }
+    // Skill bodies are intentionally not inlined. Each employee receives a
+    // compact path contract and reads only the guide needed for the task.
+    const devCommonPath = findSkillPath('dev');
+    const scaffoldingPath = findSkillPath('dev-scaffolding');
 
-    // ─── 1. Common dev skill (always injected)
-    const devCommonPath = findFirstExistingPath([
-        join(SKILLS_DIR, 'dev', 'SKILL.md'),
-        getRepoBundledSkillPath('skills', 'dev', 'SKILL.md'),
-    ]);
-    if (devCommonPath) {
-        prompt += `\n\n## Development Guide (Common)\n${fs.readFileSync(devCommonPath, 'utf8')}`;
-    }
-
-    // ─── 1b. Scaffolding guide (always injected)
-    const scaffoldingPath = findFirstExistingPath([
-        join(SKILLS_DIR, 'dev-scaffolding', 'SKILL.md'),
-        getRepoBundledSkillPath('skills', 'dev-scaffolding', 'SKILL.md'),
-    ]);
-    if (scaffoldingPath) {
-        prompt += `\n\n## Project Scaffolding Guide\n${fs.readFileSync(scaffoldingPath, 'utf8')}`;
-    }
-
-    // ─── 2. Role-based dev skill injection
-    const ROLE_SKILL_MAP = {
-        frontend: findFirstExistingPath([
-            join(SKILLS_DIR, 'dev-frontend', 'SKILL.md'),
-            getRepoBundledSkillPath('skills', 'dev-frontend', 'SKILL.md'),
-        ]),
-        backend: findFirstExistingPath([
-            join(SKILLS_DIR, 'dev-backend', 'SKILL.md'),
-            getRepoBundledSkillPath('skills', 'dev-backend', 'SKILL.md'),
-        ]),
-        data: findFirstExistingPath([
-            join(SKILLS_DIR, 'dev-data', 'SKILL.md'),
-            getRepoBundledSkillPath('skills', 'dev-data', 'SKILL.md'),
-        ]),
-        docs: findFirstExistingPath([
-            join(SKILLS_DIR, 'documentation', 'SKILL.md'),
-            getRepoBundledSkillPath('skills', 'documentation', 'SKILL.md'),
-        ]),
+    const ROLE_SKILL_NAME_MAP = {
+        frontend: 'dev-frontend',
+        backend: 'dev-backend',
+        data: 'dev-data',
+        docs: 'documentation',
         custom: null,
     };
 
-    const skillPath = (ROLE_SKILL_MAP as Record<string, any>)[role];
-    if (skillPath && fs.existsSync(skillPath)) {
-        prompt += `\n\n## Development Guide (${role})\n${fs.readFileSync(skillPath, 'utf8')}`;
+    const roleSkillName = (ROLE_SKILL_NAME_MAP as Record<string, string | null>)[role] ?? null;
+    const roleSkillPath = roleSkillName ? findSkillPath(roleSkillName) : null;
+    const pabcdPath = findSkillPath('dev-pabcd');
+    const reviewerPath = findSkillPath('dev-code-reviewer');
+    const testingPath = findSkillPath('dev-testing');
+
+    prompt += `\n\n## Skill Loading Contract`;
+    prompt += `\nSkill bodies are not preloaded. Read each guide once, only when the task requires it.`;
+    prompt += `\n- Common dev guide: ${formatSkillPath('dev', devCommonPath)}`;
+    prompt += `\n- Scaffolding guide: ${formatSkillPath('dev-scaffolding', scaffoldingPath)} (read only for new projects, new modules, or structure audits)`;
+    if (staticSpec?.skills?.length) {
+        prompt += `\n- Static employee skills:`;
+        for (const skillName of staticSpec.skills) {
+            prompt += `\n  - ${formatSkillPath(skillName, findSkillPath(skillName))}`;
+        }
     }
 
-    // ─── 3a. Plan audit phase(2) → inject dev-code-reviewer
+    prompt += `\n\n## Role Contract`;
+    prompt += `\n- Role: ${role}`;
+    prompt += `\n- Role guide: ${roleSkillName ? formatSkillPath(roleSkillName, roleSkillPath) : 'none'}`;
+    prompt += `\n- Apply this role on every assigned task. Before role-specific implementation or review, read the role guide once if it is available.`;
+    prompt += `\n- Also read the common dev guide before modifying code.`;
+
+    prompt += `\n\n## Phase Guide`;
+    prompt += `\n- Use the phase context below as the source of truth for what this employee should do now.`;
+    prompt += `\n- Full PABCD guide: ${formatSkillPath('dev-pabcd', pabcdPath)} (read only if phase rules are unclear).`;
     if (phase === 2) {
-        const reviewerPath = findFirstExistingPath([
-            join(SKILLS_DIR, 'dev-code-reviewer', 'SKILL.md'),
-            join(SKILLS_REF_DIR, 'dev-code-reviewer', 'SKILL.md'),
-            getRepoBundledSkillPath('skills', 'dev-code-reviewer', 'SKILL.md'),
-            getRepoBundledSkillPath('skills_ref', 'dev-code-reviewer', 'SKILL.md'),
-        ]);
-        if (reviewerPath) {
-            prompt += `\n\n## Code Review Guide (Phase 2 — Strict Audit)\n${fs.readFileSync(reviewerPath, 'utf8')}`;
-        }
-    }
-
-    // ─── 3b. Debug/check phase(4) → inject dev-testing
-    if (phase === 4) {
-        const testingPath = findFirstExistingPath([
-            join(SKILLS_DIR, 'dev-testing', 'SKILL.md'),
-            join(SKILLS_REF_DIR, 'dev-testing', 'SKILL.md'),
-            getRepoBundledSkillPath('skills', 'dev-testing', 'SKILL.md'),
-            getRepoBundledSkillPath('skills_ref', 'dev-testing', 'SKILL.md'),
-        ]);
-        if (testingPath) {
-            prompt += `\n\n## Testing Guide (Phase 4)\n${fs.readFileSync(testingPath, 'utf8')}`;
-        }
+        prompt += `\n- Phase 2 audit: read ${formatSkillPath('dev-code-reviewer', reviewerPath)} before reviewing plans or code.`;
+    } else if (phase === 4) {
+        prompt += `\n- Phase 4 check: read ${formatSkillPath('dev-testing', testingPath)} before designing or running verification.`;
     }
 
     // ─── 4. Employee context (PABCD-aware)
