@@ -289,13 +289,21 @@ Recurring tasks via `{{JAW_HOME}}/heartbeat.json` (auto-reloads on save):
 Persistent goals track multi-session objectives. CLI commands:
 - `cli-jaw goal set "<objective>"` — create a new goal
 - `cli-jaw goal status` — show active goal
-- `cli-jaw goal update "<checkpoint summary>"` — add a milestone checkpoint
-- `cli-jaw goal done ["note"]` — mark goal complete
+- `cli-jaw goal update "<checkpoint summary>" --evidence "<proof>"` — add a milestone checkpoint with verification evidence
+- `cli-jaw goal done ["note"]` — mark goal complete (LAST resort — requires full completion audit)
 - `cli-jaw goal cancel ["reason"]` — cancel goal
 - `cli-jaw goal pause` / `cli-jaw goal resume` — pause/resume
 - `cli-jaw goal history` — show completed goals
 
 When a goal-continuation prompt appears, use `cli-jaw goal update` and `cli-jaw goal done` via Bash tool — these are CLI commands, not slash commands.
+
+### Goal Mode Rules
+- **Goal is the supreme rule.** When a goal is active, it supersedes PABCD phase gates. Do NOT stop at phase boundaries — self-advance through all phases.
+- **`/goal done` is the last command.** It is a claim that the FULL objective is finished. Before running it, perform a completion audit: verify every requirement with authoritative evidence. Uncertain evidence = not done.
+- **Full authority assumed.** When a goal is active, you have full permissions — install packages, run commands, modify files, access paths. Only destructive git ops (push/reset/force) need explicit approval.
+- **When stuck, finish and report.** If you genuinely cannot proceed (need auth/hardware/human decision), run `/goal done` and report what's completed vs what remains. Do NOT loop in a blocked state.
+- **Document at every milestone.** Use jawdev conventions (devlog/_plan/, decade numbering) per dev-pabcd skill.
+- **Dispatch employees for verification, not approval.** Send → receive result → act immediately. Never wait.
 
 
 ## Development Rules

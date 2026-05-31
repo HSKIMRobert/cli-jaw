@@ -240,7 +240,7 @@ body[data-orc-state].orc-pulse #chatMessages {
 }
 
 /* ─── Interview Panel ─── */
-.interview-panel { margin: 0 auto 8px; max-width: 600px; font-size: 0.82rem; }
+.interview-panel { margin: 0 auto 8px; max-width: 100%; font-size: 0.82rem; }
 .interview-panel[hidden] { display: none; }
 
 /* One-line toggle header — sits right under the IPABCD bar */
@@ -248,21 +248,25 @@ body[data-orc-state].orc-pulse #chatMessages {
     display: flex; align-items: center; gap: 6px; width: 100%;
     background: var(--bg-secondary, rgba(255,255,255,0.04));
     border: 1px solid var(--border-color, rgba(255,255,255,0.08));
-    border-radius: 8px; padding: 4px 10px; cursor: pointer;
-    color: var(--text-secondary, inherit); font: inherit; font-size: 0.78rem;
+    border-radius: 8px; padding: 8px 14px; cursor: pointer;
+    color: var(--text-secondary, inherit); font: inherit; font-size: 0.82rem;
     text-align: left;
 }
 .iv-toggle:hover { background: var(--bg-hover, rgba(255,255,255,0.08)); }
-.iv-chevron { display: inline-block; opacity: 0.65; transition: transform 0.15s ease; }
+.iv-chevron { display: inline-block; opacity: 0.65; transition: transform 0.15s ease; font-size: 1.1em; }
 .interview-panel:not(.collapsed) .iv-chevron { transform: rotate(90deg); }
 .iv-summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .iv-known-count { color: var(--accent-green, #4caf50); }
 .iv-unknown-count { color: var(--accent-yellow, #ff9800); }
 
 /* Expandable body — capped height so it never buries the chat */
-.iv-body { display: flex; gap: 16px; margin-top: 6px; max-height: 220px; overflow-y: auto; }
+.iv-body { display: flex; gap: 12px; margin-top: 6px; max-height: 280px; overflow-y: auto; }
 .interview-panel.collapsed .iv-body { display: none; }
-.iv-section { flex: 1; }
+.iv-section { min-width: 0; }
+.iv-section-ambiguity { flex: 0 0 160px; }
+.iv-section-known { flex: 3 1 0; }
+.iv-section-unknown { flex: 2 1 0; }
+.iv-section-unknown:empty { flex: 0; display: none; }
 .iv-section ul { list-style: none; padding: 0; margin: 4px 0; }
 .iv-known::before { content: '✓ '; color: var(--accent-green, #4caf50); }
 .iv-unknown::before { content: '? '; color: var(--accent-yellow, #ff9800); }

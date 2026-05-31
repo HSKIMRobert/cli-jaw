@@ -5,6 +5,7 @@ import fs from 'fs';
 import { join } from 'path';
 import { settings, JAW_HOME } from '../core/config.js';
 import { getRecentMessages } from '../core/db.js';
+import { getActiveChatSession } from '../core/chat-sessions.js';
 import { getMemoryFlushFilePath } from '../memory/runtime.js';
 import { maybeAutoReflect } from '../memory/reflect.js';
 import { resolveDashboardHome } from '../manager/dashboard-home.js';
@@ -88,7 +89,7 @@ export async function triggerMemoryFlush(): Promise<void> {
     }
 
     const threshold = settings["memory"]?.flushEvery ?? 10;
-    const recent = (getRecentMessages.all(settings["workingDir"] || null, threshold) as any[])
+    const recent = (getRecentMessages.all(settings["workingDir"] || null, getActiveChatSession(), threshold) as any[])
         .filter((m: any) => !_lastFlushedMessageId || m.id > _lastFlushedMessageId)
         .reverse();
     if (recent.length < 4) return;

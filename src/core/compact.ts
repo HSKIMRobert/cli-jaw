@@ -89,6 +89,7 @@ export function buildManagedCompactSummaryForTest(rows: MessageRow[], instructio
 import { execFileSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import { getRecentMessages, getRecentToolLogs } from './db.js';
+import { getActiveChatSession } from './chat-sessions.js';
 import { expandHomePath } from './path-expand.js';
 import { searchMemoryWithPolicy } from '../memory/injection.js';
 import { buildTaskSnapshot } from '../memory/runtime.js';
@@ -344,7 +345,7 @@ function harvestRecentTurns(rows: MessageRow[], goalText: string): string {
 function harvestToolContext(workingDir: string | null): string {
     try {
         type ToolLogRow = { id: number; tool_log: string; created_at: string };
-        const rows = (getRecentToolLogs.all(workingDir, 20) as ToolLogRow[]) || [];
+        const rows = (getRecentToolLogs.all(workingDir, getActiveChatSession(), 20) as ToolLogRow[]) || [];
         if (!rows.length) return '';
 
         const lines: string[] = [];
@@ -461,7 +462,7 @@ function harvestTaskSnapshot(goal: string): string {
 export function harvestBootstrapSlots(input: HarvestInput): BootstrapSlots {
     const t0 = performance.now();
     const wd = normalizeWorkingDir(input.workingDir);
-    const rows = (getRecentMessages.all(wd, 50) as MessageRow[]) || [];
+    const rows = (getRecentMessages.all(wd, getActiveChatSession(), 50) as MessageRow[]) || [];
     const goal = harvestGoal(rows, input.instructions);
     const recent_turns = harvestRecentTurns(rows, goal);
     const tool_context = harvestToolContext(wd);
@@ -507,7 +508,7 @@ export async function cliSwitchRefresh(opts: {
         if (hasAnyContent) {
             insertMessageWithTrace.run(
                 'assistant', COMPACT_MARKER_CONTENT,
-                opts.toCli, opts.toModel, trace, null, opts.targetWorkDir,
+                opts.toCli, opts.toModel, trace, null, opts.targetWorkDir, getActiveChatSession(),
             );
             setPendingBootstrapPromptStrict(bootstrap);
         }
@@ -570,7 +571,7 @@ export async function autoCompactRefresh(opts: {
     const { broadcast } = await import('./bus.js');
     const bucket = resolveSessionBucket(opts.cli, opts.model);
 
-    insertMessageWithTrace.run('assistant', COMPACT_MARKER_CONTENT, opts.cli, opts.model, trace, null, opts.workDir);
+    insertMessageWithTrace.run('assistant', COMPACT_MARKER_CONTENT, opts.cli, opts.model, trace, null, opts.workDir, getActiveChatSession());
     setPendingBootstrapPrompt(bootstrap);
     bumpSessionOwnershipGeneration();
     clearBossSessionOnly();

@@ -161,7 +161,7 @@ aliases: [CLI-JAW Infra, infrastructure modules, core runtime]
 
 | Export | 역할 |
 | --- | --- |
-| `CLI_REGISTRY` | 11개 CLI 정의 (`agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `cursor`, `gemini`, `grok`, `opencode`, `copilot`; `label`, `binary`, `defaultModel`, `defaultEffort`, `efforts`, `models`, optional `effortNote`/provider metadata) |
+| `CLI_REGISTRY` | 12개 CLI 정의 (`agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `cursor`, `gemini`, `grok`, `kiro-code`, `opencode`, `copilot`; `label`, `binary`, `defaultModel`, `defaultEffort`, `efforts`, `models`, optional `effortNote`/provider metadata) |
 | `CLI_KEYS` | `Object.keys(CLI_REGISTRY)` — 순서 보장 배열 |
 | `DEFAULT_CLI` | 기본 CLI (`claude` 우선, 없으면 첫 항목) |
 | `buildDefaultPerCli()` | registry에서 기본 `perCli` 객체 빌드 |

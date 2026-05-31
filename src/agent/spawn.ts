@@ -15,6 +15,7 @@ import {
     listQueuedMessages, insertQueuedMessage, deleteQueuedMessage,
     getSessionBucket, clearSessionBucket,
 } from '../core/db.js';
+import { getActiveChatSession } from '../core/chat-sessions.js';
 import { getSystemPrompt, regenerateB } from '../prompt/builder.js';
 import { extractSessionId, extractFromEvent, extractFromAcpUpdate, extractOutputChunk, logEventSummary, flushClaudeBuffers, flushOpenCodeBuffers } from './events.js';
 import { detectSmokeResponse } from './smoke-detector.js';
@@ -250,6 +251,7 @@ const queueCtrl = createQueueController({
     hasBlockingWorkers,
     hasPendingWorkerReplays,
     insertMessage,
+    getActiveChatSession,
     insertQueuedMessage,
     deleteQueuedMessage,
     listQueuedMessages: listQueuedMessages as unknown as { all(): Array<{ id: string; payload: string }> },
@@ -453,7 +455,7 @@ export async function steerAgent(newPrompt: string, source: string) {
     const steerWaitMs = getSteerWaitMsForActiveAgent();
     const wasRunning = killActiveAgent('steer');
     if (wasRunning) await waitForProcessEnd(steerWaitMs);
-    insertMessage.run('user', newPrompt, source, '', settings["workingDir"] || null);
+    insertMessage.run('user', newPrompt, source, '', settings["workingDir"] || null, getActiveChatSession());
     broadcast('new_message', { role: 'user', content: newPrompt, source });
     broadcast('steer_started', { prompt: newPrompt, origin: source || 'web' });
     const { orchestrate, orchestrateContinue, orchestrateReset, isContinueIntent, isResetIntent } = await import('../orchestrator/pipeline.js');
@@ -505,7 +507,7 @@ function formatCliUnavailableMessage(cli: string, detected: ReturnType<typeof de
 }
 
 function buildHistoryBlock(currentPrompt: string, workingDir?: string | null, maxSessions = 10, maxTotalChars = 8000) {
-    const recent = getRecentMessages.all(workingDir || null, Math.max(1, maxSessions * 2)) as RecentMessageRow[];
+    const recent = getRecentMessages.all(workingDir || null, getActiveChatSession(), Math.max(1, maxSessions * 2)) as RecentMessageRow[];
     if (!recent.length) return '';
 
     const promptText = String(currentPrompt || '').trim();
@@ -1020,7 +1022,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         });
 
         if (mainManaged && !opts.internal && !opts._skipInsert) {
-            insertMessage.run('user', prompt, cli, model, settings["workingDir"] || null);
+            insertMessage.run('user', prompt, cli, model, settings["workingDir"] || null, getActiveChatSession());
         }
         if (!opts.internal) broadcast('agent_status', { status: 'running', cli, agentId: agentLabel, ...empTag }, traceAudience);
 
@@ -1318,7 +1320,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         });
 
         if (mainManaged && !opts.internal && !opts._skipInsert) {
-            insertMessage.run('user', prompt, cli, model, settings["workingDir"] || null);
+            insertMessage.run('user', prompt, cli, model, settings["workingDir"] || null, getActiveChatSession());
         }
         if (!opts.internal) broadcast('agent_status', { status: 'running', cli, agentId: agentLabel, ...empTag }, traceAudience);
 
@@ -1621,7 +1623,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     });
 
     if (mainManaged && !opts.internal && !opts._skipInsert) {
-        insertMessage.run('user', prompt, cli, runtimeModel, settings["workingDir"] || null);
+        insertMessage.run('user', prompt, cli, runtimeModel, settings["workingDir"] || null, getActiveChatSession());
     }
 
     if (cli === 'claude') {

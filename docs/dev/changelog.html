@@ -9,6 +9,14 @@
 <h1>Changelog</h1>
 <p class="lead">Release history since CLI-JAW 2.0.0 GA.</p>
 
+<h2>Unreleased <span style="color:var(--text-dim);font-size:14px;">— 2026-05-31</span></h2>
+<h3>Features</h3>
+<ul>
+<li><strong>Inline media rendering</strong> — Images and videos in chat messages now render inline. Agent responses with image/video paths display directly. User attachments show thumbnails. Click any image for a lightbox modal; double-click or button to open in browser. <code>/media/:filename</code> Express route serves uploads.</li>
+<li><strong>Goal continuation hardening</strong> — Goal mode now overrides PABCD phase gates (no more stopping at each phase). Codex-style completion audit (requirement-by-requirement scrutiny) before <code>/goal done</code>. Blocked audit requires 3 consecutive turns of same blocker. PABCD P/A/B phases have "Goal mode EXCEPTION — IGNORE STOP" directives.</li>
+<li><strong>Interview negativity bias</strong> — Interview mode now pressure-tests every answer. Vague/hedging responses cause clarity scores to drop. Stays on same dimension until concrete detail is provided.</li>
+<li><strong>Interview panel UI</strong> — Ambiguity bars fixed-width, Known/Unknown sections dynamically sized, larger toggle button, full-width expansion.</li>
+</ul>
 <h2>v2.0.17 <span style="color:var(--text-dim);font-size:14px;">— 2026-05-29</span></h2>
 <h4>Features</h4>
 <ul>

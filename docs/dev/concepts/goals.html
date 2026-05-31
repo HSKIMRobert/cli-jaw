@@ -135,6 +135,14 @@ jaw goal reset</code></pre>
 <p>The <code>/goal run start</code> command begins a bounded auto-continuation session. The agent works toward the goal objective, automatically continuing after each response until the goal is marked done or the run is stopped.</p>
 <div class="callout callout-info">Budget enforcement is currently tracking-only. The system tracks run duration and continuation count but does not yet enforce hard budget limits.</div>
 
+<h3>Goal Mode Rules</h3>
+<ul>
+<li><strong>Goal is the supreme rule.</strong> When a goal is active, it supersedes PABCD phase gates. The agent self-advances through all phases without waiting for user approval.</li>
+<li><strong>Completion audit.</strong> Before <code>/goal done</code>, the agent must perform a requirement-by-requirement verification. Uncertain or indirect evidence is treated as "not achieved."</li>
+<li><strong>Blocked audit.</strong> The agent can only declare "blocked" after the same blocking condition repeats for 3 consecutive goal turns. Hard/slow/uncertain work is never a valid reason to block.</li>
+<li><strong>Documentation.</strong> Progress is documented in jawdev style (devlog/_plan/ with decade numbering) at each milestone.</li>
+</ul>
+
 <h2>API Endpoints</h2>
 <table>
 <tr><th>Method</th><th>Path</th><th>Description</th></tr>

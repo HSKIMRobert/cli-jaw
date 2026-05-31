@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { isAgentBusy, enqueueMessage, messageQueue } from '../agent/spawn.js';
 import { hasBlockingWorkers } from './worker-registry.js';
 import { insertMessage } from '../core/db.js';
+import { getActiveChatSession } from '../core/chat-sessions.js';
 import { settings } from '../core/config.js';
 import { stripUndefined } from '../core/strip-undefined.js';
 import { broadcast } from '../core/bus.js';
@@ -102,7 +103,7 @@ export function submitMessage(
     const scope = resolveOrcScope(stripUndefined({ origin: meta.origin, chatId: meta.chatId, workingDir: settings["workingDir"] || null }));
     if (getState(scope) === 'IDLE' && isContinueIntent(trimmed)) {
         if (isAgentBusy()) return { action: 'rejected', reason: 'busy' };
-        insertMessage.run('user', display, meta.origin, '', settings["workingDir"] || null);
+        insertMessage.run('user', display, meta.origin, '', settings["workingDir"] || null, getActiveChatSession());
         broadcast('new_message', { role: 'user', content: display, source: meta.origin });
         if (!meta.skipOrchestrate) {
             runDetached(
@@ -116,7 +117,7 @@ export function submitMessage(
 
     // ── reset intent ──
     if (isResetIntent(trimmed)) {
-        insertMessage.run('user', display, meta.origin, '', settings["workingDir"] || null);
+        insertMessage.run('user', display, meta.origin, '', settings["workingDir"] || null, getActiveChatSession());
         broadcast('new_message', { role: 'user', content: display, source: meta.origin });
         if (!meta.skipOrchestrate) {
             runDetached(
@@ -141,7 +142,7 @@ export function submitMessage(
     }
 
     // ── idle → start immediately ──
-    insertMessage.run('user', display, meta.origin, '', settings["workingDir"] || null);
+    insertMessage.run('user', display, meta.origin, '', settings["workingDir"] || null, getActiveChatSession());
     broadcast('new_message', { role: 'user', content: display, source: meta.origin });
     if (!meta.skipOrchestrate) {
         runDetached(

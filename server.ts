@@ -775,6 +775,9 @@ const shutdown = async (sig: string) => {
 
 process.once('SIGTERM', () => shutdown('SIGTERM'));
 process.once('SIGINT', () => shutdown('SIGINT'));
+process.on('unhandledRejection', (reason) => {
+    console.error('[server] unhandledRejection:', reason);
+});
 
 const cfgBind = settings["network"]?.bindHost || '127.0.0.1';
 const isLoopbackBind = cfgBind === '127.0.0.1' || cfgBind === '::1' || cfgBind === 'localhost';

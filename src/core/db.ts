@@ -88,6 +88,15 @@ db.exec(`
     );
     INSERT OR IGNORE INTO orc_state (id) VALUES ('default');
 
+    CREATE TABLE IF NOT EXISTS chat_sessions (
+        id          TEXT PRIMARY KEY,
+        seq         INTEGER NOT NULL UNIQUE,
+        label       TEXT DEFAULT NULL,
+        created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    INSERT OR IGNORE INTO chat_sessions (id, seq) VALUES ('default', 0);
+
     CREATE TABLE IF NOT EXISTS queued_messages (
         id         TEXT PRIMARY KEY,
         payload    TEXT NOT NULL,
@@ -189,6 +198,18 @@ if (!(messageCols as Record<string, unknown>[]).some(c => c["name"] === 'trace_r
 db.exec('CREATE INDEX IF NOT EXISTS idx_messages_wd ON messages(working_dir)');
 db.exec('CREATE INDEX IF NOT EXISTS idx_messages_trace_run ON messages(trace_run_id)');
 
+// Migration: add session_id column for multi-session message isolation
+if (!(messageCols as Record<string, unknown>[]).some(c => c["name"] === 'session_id')) {
+    db.exec("ALTER TABLE messages ADD COLUMN session_id TEXT DEFAULT 'default'");
+}
+db.exec('CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id)');
+
+// Migration: add active_chat_session to session table
+const sessionCols = db.prepare('PRAGMA table_info(session)').all();
+if (!(sessionCols as Record<string, unknown>[]).some(c => c["name"] === 'active_chat_session')) {
+    db.exec("ALTER TABLE session ADD COLUMN active_chat_session TEXT DEFAULT 'default'");
+}
+
 const employeeSessionCols = db.prepare('PRAGMA table_info(employee_sessions)').all();
 if (!(employeeSessionCols as Record<string, unknown>[]).some(c => c["name"] === 'model')) {
     db.exec("ALTER TABLE employee_sessions ADD COLUMN model TEXT DEFAULT ''");
@@ -212,32 +233,33 @@ export const updateSession = db.prepare(`
     UPDATE session SET active_cli=?, session_id=?, model=?, permissions=?, working_dir=?, effort=?, updated_at=CURRENT_TIMESTAMP
     WHERE id='default'
 `);
-export const insertMessage = db.prepare('INSERT INTO messages (role, content, cli, model, trace, working_dir) VALUES (?, ?, ?, ?, NULL, ?)');
-export const insertMessageWithTrace = db.prepare('INSERT INTO messages (role, content, cli, model, trace, tool_log, working_dir) VALUES (?, ?, ?, ?, ?, ?, ?)');
-export const insertMessageWithTraceRun = db.prepare('INSERT INTO messages (role, content, cli, model, trace, tool_log, working_dir, trace_run_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-export const getMessages = db.prepare('SELECT id, role, content, cli, model, tool_log, trace_run_id, cost_usd, duration_ms, working_dir, created_at FROM messages ORDER BY id ASC');
+export const insertMessage = db.prepare('INSERT INTO messages (role, content, cli, model, trace, working_dir, session_id) VALUES (?, ?, ?, ?, NULL, ?, ?)');
+export const insertMessageWithTrace = db.prepare('INSERT INTO messages (role, content, cli, model, trace, tool_log, working_dir, session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+export const insertMessageWithTraceRun = db.prepare('INSERT INTO messages (role, content, cli, model, trace, tool_log, working_dir, trace_run_id, session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+export const getMessages = db.prepare('SELECT id, role, content, cli, model, tool_log, trace_run_id, cost_usd, duration_ms, working_dir, created_at FROM messages WHERE session_id = ? ORDER BY id ASC');
 export const searchMessages = db.prepare(`
     SELECT id, role, content, cli, tool_log, created_at,
            CASE WHEN content LIKE '%' || $q || '%' THEN 'content' ELSE 'tool_log' END AS match_field
     FROM messages
-    WHERE content LIKE '%' || $q || '%' OR tool_log LIKE '%' || $q || '%'
+    WHERE (content LIKE '%' || $q || '%' OR tool_log LIKE '%' || $q || '%') AND session_id = $session_id
     ORDER BY id DESC
     LIMIT $limit
 `);
-export const getMessagesWithTrace = db.prepare('SELECT * FROM messages ORDER BY id ASC');
+export const getMessagesWithTrace = db.prepare('SELECT * FROM messages WHERE session_id = ? ORDER BY id ASC');
 // Recent-window variants: fetch the most recent N rows (DESC + LIMIT) to keep the
 // chat boot payload bounded. Callers reverse the result back to ascending order.
-export const getRecentMessagesAll = db.prepare('SELECT id, role, content, cli, model, tool_log, trace_run_id, cost_usd, duration_ms, working_dir, created_at FROM messages ORDER BY id DESC LIMIT ?');
-export const getRecentMessagesAllWithTrace = db.prepare('SELECT * FROM messages ORDER BY id DESC LIMIT ?');
-export const getLatestAssistantMessage = db.prepare("SELECT id, role, content, created_at FROM messages WHERE role = 'assistant' ORDER BY id DESC LIMIT 1");
-export const getLatestDashboardActivityMessage = db.prepare("SELECT id, role, substr(content, 1, 240) AS excerpt, created_at FROM messages WHERE role IN ('user', 'assistant') ORDER BY id DESC LIMIT 1");
-export const getRecentMessages = db.prepare('SELECT id, role, content, cli, model, trace, tool_log, created_at FROM messages WHERE working_dir = ? OR working_dir IS NULL ORDER BY id DESC LIMIT ?');
+export const getRecentMessagesAll = db.prepare('SELECT id, role, content, cli, model, tool_log, trace_run_id, cost_usd, duration_ms, working_dir, created_at FROM messages WHERE session_id = ? ORDER BY id DESC LIMIT ?');
+export const getRecentMessagesAllWithTrace = db.prepare('SELECT * FROM messages WHERE session_id = ? ORDER BY id DESC LIMIT ?');
+export const getLatestAssistantMessage = db.prepare("SELECT id, role, content, created_at FROM messages WHERE role = 'assistant' AND session_id = ? ORDER BY id DESC LIMIT 1");
+export const getLatestDashboardActivityMessage = db.prepare("SELECT id, role, substr(content, 1, 240) AS excerpt, created_at FROM messages WHERE role IN ('user', 'assistant') AND session_id = ? ORDER BY id DESC LIMIT 1");
+export const getRecentMessages = db.prepare('SELECT id, role, content, cli, model, trace, tool_log, created_at FROM messages WHERE (working_dir = ? OR working_dir IS NULL) AND session_id = ? ORDER BY id DESC LIMIT ?');
 // Lightweight variant for per-turn callers that only read {role, content}.
 // Avoids loading the heavy trace/tool_log blobs that getRecentMessages carries.
-export const getRecentMessagesLite = db.prepare('SELECT role, content FROM messages WHERE working_dir = ? OR working_dir IS NULL ORDER BY id DESC LIMIT ?');
-export const getRecentToolLogs = db.prepare('SELECT id, tool_log, created_at FROM messages WHERE (working_dir = ? OR working_dir IS NULL) AND tool_log IS NOT NULL AND tool_log != \'\' ORDER BY id DESC LIMIT ?');
-export const clearMessages = db.prepare('DELETE FROM messages');
-export const clearMessagesScoped = db.prepare('DELETE FROM messages WHERE working_dir = ?');
+export const getRecentMessagesLite = db.prepare('SELECT role, content FROM messages WHERE (working_dir = ? OR working_dir IS NULL) AND session_id = ? ORDER BY id DESC LIMIT ?');
+export const getRecentToolLogs = db.prepare('SELECT id, tool_log, created_at FROM messages WHERE (working_dir = ? OR working_dir IS NULL) AND session_id = ? AND tool_log IS NOT NULL AND tool_log != \'\' ORDER BY id DESC LIMIT ?');
+export const clearMessages = db.prepare('DELETE FROM messages WHERE session_id = ?');
+export const clearMessagesBySession = db.prepare('DELETE FROM messages WHERE session_id = ?');
+export const clearMessagesScoped = db.prepare('DELETE FROM messages WHERE working_dir = ? AND session_id = ?');
 export const insertJawCeoTranscript = db.prepare('INSERT OR REPLACE INTO jaw_ceo_transcript (id, at, role, text, source) VALUES (?, ?, ?, ?, ?)');
 export const getJawCeoTranscript = db.prepare('SELECT id, at, role, text, source FROM jaw_ceo_transcript ORDER BY at DESC, created_at DESC LIMIT ?');
 export const pruneJawCeoTranscript = db.prepare('DELETE FROM jaw_ceo_transcript WHERE id NOT IN (SELECT id FROM jaw_ceo_transcript ORDER BY at DESC, created_at DESC LIMIT ?)');

@@ -1,6 +1,7 @@
 import { broadcast } from './bus.js';
 import { settings } from './config.js';
 import { db, clearMessages, clearMessagesScoped, getSession, updateSession } from './db.js';
+import { getActiveChatSession } from './chat-sessions.js';
 
 export type MainSessionRecord = {
     active_cli?: string | null;
@@ -94,9 +95,9 @@ export function syncMainSessionToSettings(prevCli: string | null = null): MainSe
 // Atomic: delete messages + update session in one transaction
 const clearMainTx = db.transaction((row: MainSessionRow) => {
     if (row.workingDir && row.workingDir !== '~') {
-        clearMessagesScoped.run(row.workingDir);
+        clearMessagesScoped.run(row.workingDir, getActiveChatSession());
     } else {
-        clearMessages.run();
+        clearMessages.run(getActiveChatSession());
     }
     writeMainSessionRow(row);
 });

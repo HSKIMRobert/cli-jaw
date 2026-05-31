@@ -124,7 +124,7 @@ graph LR
 | `heartbeat.ts` | ~107 | Heartbeat job scheduling |
 | `memory.ts` | ~128 | Persistent memory (grep-based) |
 | `worklog.ts` | ~153 | Worklog CRUD + phase matrix |
-| `cli-registry.ts` | ~159 | 10 CLI/runtime + model single source |
+| `cli-registry.ts` | ~159 | 12 CLI/runtime + model single source |
 | `acp-client.ts` | ~315 | Copilot ACP JSON-RPC client |
 | `settings-merge.ts` | ~46 | Deep merge for perCli/activeOverrides |
 
