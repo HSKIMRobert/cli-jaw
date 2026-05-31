@@ -1,7 +1,7 @@
 // ── WebSocket Connection ──
 import { state } from './state.js';
 import { API_BASE } from './api.js';
-import { setStatus, updateQueueBadge, addSystemMsg, appendAgentText, finalizeAgent, addMessage, showProcessStep, cleanupToolActivity, showLiveToolActivity, applyQueuedOverlay, hydrateActiveRun, reconcileChatBottomAfterRestore, showChatRestoreIndicator } from './ui.js';
+import { setStatus, updateQueueBadge, addSystemMsg, appendAgentText, finalizeAgent, addMessage, showProcessStep, cleanupToolActivity, showLiveToolActivity, applyQueuedOverlay, hydrateActiveRun, reconcileChatBottomAfterRestore, showChatRestoreIndicator, markSteered, isRecentSteer } from './ui.js';
 import { renderPendingQueue } from './features/pending-queue.js';
 import { t, getLang } from './features/i18n.js';
 import { getVirtualScroll } from './virtual-scroll.js';
@@ -667,8 +667,12 @@ export function connect(): void {
             const evt = msg.event;
             if (evt) applyWorkflowEvent(evt);
         } else if (msg.type === 'agent_done') {
-            finalizeAgent(msg.text || '', msg.toolLog);
-            notifyUnreadResponse();
+            if (!state.currentAgentDiv && isRecentSteer()) {
+                // Suppress late agent_done from killed process after steer
+            } else {
+                finalizeAgent(msg.text || '', msg.toolLog);
+                notifyUnreadResponse();
+            }
         } else if (msg.type === 'orchestrate_done') {
             finalizeAgent(msg.text || '');
             notifyUnreadResponse();
@@ -706,6 +710,7 @@ export function connect(): void {
         } else if (msg.type === 'memory_status') {
             import('./features/memory.js').then(m => m.refreshMemorySidebar());
         } else if (msg.type === 'steer_started') {
+            markSteered();
             finalizeAgent('');
             setStatus('running');
         } else if (msg.type === 'new_message' && (msg.source === 'telegram' || msg.source === 'discord' || msg.fromQueue === true)) {

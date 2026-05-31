@@ -76,6 +76,11 @@ export function cleanupToolActivity(): void {
     currentStream = null;
 }
 
+/** Timestamp of last steer — used to suppress late agent_done after steer. */
+let lastSteerTs = 0;
+export function markSteered(): void { lastSteerTs = Date.now(); }
+export function isRecentSteer(): boolean { return Date.now() - lastSteerTs < 8000; }
+
 export function showLiveToolActivity(label: string): void {
     removeSkeleton();
     if (!state.currentAgentDiv || !state.currentAgentDiv.isConnected) {
