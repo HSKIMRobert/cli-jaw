@@ -13,6 +13,7 @@ const pipelineSrc = readSource(join(__dirname, '../../src/orchestrator/pipeline.
 const spawnSrc = readSource(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
 const queueSrc = readSource(join(__dirname, '../../src/agent/spawn/queue.ts'), 'utf8');
 const stateMachineSrc = readSource(join(__dirname, '../../src/orchestrator/state-machine.ts'), 'utf8');
+const routeSrc = readSource(join(__dirname, '../../src/routes/orchestrate.ts'), 'utf8');
 
 // ─── VR: PABCD State Machine 구조 검증 ───────────────
 
@@ -24,10 +25,13 @@ test('VR-001: pipeline imports getState from state-machine', () => {
     );
 });
 
-test('VR-002: pipeline defines PABCD dispatch states', () => {
+test('VR-002: state machine defines PABCD dispatch phases', () => {
     assert.ok(
-        pipelineSrc.includes("ACTIVE_PABCD_DISPATCH_STATES = new Set<OrcStateName>(['P', 'A', 'B', 'C'])"),
-        'pipeline should define active PABCD states P/A/B/C',
+        stateMachineSrc.includes('P: `') &&
+        stateMachineSrc.includes('A: `') &&
+        stateMachineSrc.includes('B: `') &&
+        stateMachineSrc.includes('C: `'),
+        'state machine should define active PABCD prompt states P/A/B/C',
     );
 });
 
@@ -36,8 +40,8 @@ test('VR-003: pipeline drains pending worker results via recursive orchestrate',
     assert.ok(pipelineSrc.includes('_skipReplayDrain'), 'recursive calls should skip re-draining');
 });
 
-test('VR-004: pipeline handles worker failure gracefully', () => {
-    assert.ok(pipelineSrc.includes('failWorker(emp.id'), 'should call failWorker on error');
+test('VR-004: dispatch route handles worker failure gracefully', () => {
+    assert.ok(routeSrc.includes('failWorker(slot.agentId'), 'should call failWorker on error');
     assert.ok(pipelineSrc.includes('failed:'), 'should log worker failure');
 });
 

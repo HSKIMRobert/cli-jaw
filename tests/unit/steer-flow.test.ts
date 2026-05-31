@@ -80,7 +80,7 @@ test('SF-003: buildHistoryBlock uses trace for assistant messages, preserving in
     const fnIdx = src.indexOf('function buildHistoryBlock');
     assert.ok(fnIdx > 0, 'buildHistoryBlock function should exist');
 
-    const fnBlock = src.slice(fnIdx, fnIdx + 1500);
+    const fnBlock = src.slice(fnIdx, src.indexOf('if (!blocks.length)', fnIdx));
 
     // It should prefer row.trace over row.content for assistant messages
     assert.ok(
@@ -92,6 +92,10 @@ test('SF-003: buildHistoryBlock uses trace for assistant messages, preserving in
     assert.ok(
         fnBlock.includes('row.trace'),
         'should use row.trace for assistant messages',
+    );
+    assert.ok(
+        fnBlock.indexOf("role === 'assistant' && row.trace") < fnBlock.indexOf('content &&'),
+        'assistant trace should be preferred before content fallback',
     );
 
     // content fallback for non-assistant or no-trace

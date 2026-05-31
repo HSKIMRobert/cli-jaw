@@ -13,9 +13,11 @@ function readSrc(rel: string): string {
 
 test('spawn.ts imports smoke-detector helpers', () => {
     const src = readSrc('../../src/agent/spawn.ts');
+    const lifecycleSrc = readSrc('../../src/agent/lifecycle-handler.ts');
     assert.ok(src.includes("from './smoke-detector.js'"));
     assert.ok(src.includes('detectSmokeResponse'));
-    assert.ok(src.includes('buildContinuationPrompt'));
+    assert.ok(lifecycleSrc.includes("from './smoke-detector.js'"));
+    assert.ok(lifecycleSrc.includes('buildContinuationPrompt'));
 });
 
 test('smoke detection runs before exit handler delegation in both spawn paths', () => {

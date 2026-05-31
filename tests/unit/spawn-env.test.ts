@@ -99,6 +99,13 @@ test('sets NO_COLOR for kiro-code plain text output by default', () => {
     );
 });
 
+test('sets NO_COLOR for grok streaming-json output by default', () => {
+    assert.deepEqual(
+        applyCliEnvDefaults('grok', {}, {}),
+        { NO_COLOR: '1' },
+    );
+});
+
 test('builds opencode resume key from effective Exa env', () => {
     assert.equal(buildSessionResumeKey('opencode', { OPENCODE_ENABLE_EXA: 'true' }), 'exa=1');
     assert.equal(buildSessionResumeKey('opencode', { OPENCODE_ENABLE_EXA: '1' }), 'exa=1');

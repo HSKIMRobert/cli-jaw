@@ -329,7 +329,7 @@ export function processKiroStdoutChunk(
 
     // Filter out jaw_runtime JSON lines before accumulating into fullText
     const filteredParts = parts.filter(line => !isJawRuntimeLine(line.trim()));
-    const completeText = filteredParts.join('\n');
+    const completeText = filteredParts.map(line => stripKiroAnsi(line)).join('\n');
     if (completeText) {
         const prefix = ctx.fullText.length > 0 && !ctx.fullText.endsWith('\n') ? '\n' : '';
         const addition = `${prefix}${completeText}\n`;

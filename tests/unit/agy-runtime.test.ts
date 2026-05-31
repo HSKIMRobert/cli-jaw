@@ -70,3 +70,11 @@ test('AGY-RT-006: AGY print-mode log file is used when stdout omits resume hints
     assert.match(spawnSrc, /fs\.readFileSync\(agyLogFile,\s*'utf8'\)/);
     assert.match(spawnSrc, /fs\.rmSync\(agyLogFile,\s*\{\s*force:\s*true\s*\}\)/);
 });
+
+test('AGY-RT-007: AGY stdout strips ANSI before persistence and trace append', () => {
+    const spawnSrc = readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
+    assert.match(spawnSrc, /rawText\s*=\s*agyUtf8!\.write\(chunk\)/);
+    assert.match(spawnSrc, /rawText\.replace\(\/\\x1B/);
+    assert.match(spawnSrc, /ctx\.fullText\s*\+=\s*text/);
+    assert.match(spawnSrc, /appendTraceEvent\(\{[\s\S]*raw:\s*text/);
+});
