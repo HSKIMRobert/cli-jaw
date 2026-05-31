@@ -107,6 +107,7 @@ interface WsMessage {
     exitCode?: number;
     error?: string;
     message?: string;
+    steered?: boolean;
 }
 
 // Agent phase state (populated by agent_status events from orchestrator)
@@ -379,9 +380,9 @@ function renderInterviewPanel(interview: { known: (string | InterviewEvidenceVie
             <span class="iv-summary">Interview · <span class="iv-known-count">Known ${interview.known.length}</span> · <span class="iv-unknown-count">Unknown ${interview.unknown.length}</span>${interview.known.filter(k => typeof k === 'object' && k && 'source' in k && (k as InterviewEvidenceView).source === 'assumption').length > 0 ? ` · <span class="iv-assumption-count">⚠️ ${interview.known.filter(k => typeof k === 'object' && k && 'source' in k && (k as InterviewEvidenceView).source === 'assumption').length} assumptions</span>` : ''} · Round ${interview.round}</span>
         </button>
         <div class="iv-body" id="interviewBody">
-            ${interview.assessment ? renderDimensionBars(interview.assessment) : ''}
-            <div class="iv-section"><strong>Known (${interview.known.length})</strong><ul>${knownHtml}</ul></div>
-            <div class="iv-section"><strong>Unknown (${interview.unknown.length})</strong><ul>${unknownHtml}</ul></div>
+            ${interview.assessment ? `<div class="iv-section iv-section-ambiguity">${renderDimensionBars(interview.assessment)}</div>` : ''}
+            <div class="iv-section iv-section-known"><strong>Known (${interview.known.length})</strong><ul>${knownHtml}</ul></div>
+            <div class="iv-section iv-section-unknown"><strong>Unknown (${interview.unknown.length})</strong><ul>${unknownHtml}</ul></div>
         </div>
     `;
     if (!panel.dataset['toggleBound']) {
@@ -667,11 +668,9 @@ export function connect(): void {
             const evt = msg.event;
             if (evt) applyWorkflowEvent(evt);
         } else if (msg.type === 'agent_done') {
-            if (isRecentSteer()) {
-                // Suppress late agent_done from killed process after steer.
-                // The interrupted output is already saved server-side; don't
-                // render it (it would either create a ghost bubble or corrupt
-                // the new agent's in-progress div).
+            if (msg.steered || isRecentSteer()) {
+                // Suppress agent_done from steered (killed) process.
+                // Server sets steered:true; isRecentSteer is fallback for edge cases.
             } else {
                 finalizeAgent(msg.text || '', msg.toolLog);
                 notifyUnreadResponse();
