@@ -61,6 +61,7 @@ import {
     db, getSession, getMessages, getMessagesWithTrace, getRecentMessagesAll, getRecentMessagesAllWithTrace, searchMessages, getLatestAssistantMessage, getLatestDashboardActivityMessage, closeDb,
     clearAllEmployeeSessions,
 } from './src/core/db.js';
+import { getActiveChatSession, listChatSessions, createChatSession, setActiveChatSession, getChatSessionBySeq } from './src/core/chat-sessions.js';
 import { dashboardActivityTitleFromExcerpt } from './src/core/message-summary.js';
 import { openUrlInBrowser } from './src/core/browser-open.js';
 import { sanitizeSerializedToolLog } from './src/shared/tool-log-sanitize.js';
@@ -460,11 +461,12 @@ app.get('/api/messages', (req, res) => {
     // Absent/invalid limit preserves the legacy full-history behavior.
     const limitRaw = Number(req.query["limit"]);
     const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(Math.floor(limitRaw), 5000) : 0;
+    const sessionId = getActiveChatSession();
     let rows: unknown[];
     if (limit > 0) {
-        rows = (includeTrace ? getRecentMessagesAllWithTrace.all(limit) : getRecentMessagesAll.all(limit)).reverse();
+        rows = (includeTrace ? getRecentMessagesAllWithTrace.all(sessionId, limit) : getRecentMessagesAll.all(sessionId, limit)).reverse();
     } else {
-        rows = includeTrace ? getMessagesWithTrace.all() : getMessages.all();
+        rows = includeTrace ? getMessagesWithTrace.all(sessionId) : getMessages.all(sessionId);
     }
     const safeRows = (rows as Record<string, unknown>[]).map(row => ({
         ...row,
@@ -476,7 +478,8 @@ app.get('/api/messages/search', (req, res) => {
     const q = String(req.query['q'] || '').trim();
     if (!q) return ok(res, []);
     const limit = Math.min(Math.max(Number(req.query['limit']) || 20, 1), 50);
-    const rows = searchMessages.all({ q, limit }) as Record<string, unknown>[];
+    const session_id = getActiveChatSession();
+    const rows = searchMessages.all({ q, limit, session_id }) as Record<string, unknown>[];
     const results = rows.map(row => ({
         id: row['id'],
         role: row['role'],
@@ -490,13 +493,13 @@ app.get('/api/messages/search', (req, res) => {
 });
 app.get('/api/messages/latest', (_req, res) => {
     const includeContent = ['1', 'true', 'yes'].includes(String(_req.query["includeContent"] || '').toLowerCase());
-    const latestRow = getLatestAssistantMessage.get() as {
+    const latestRow = getLatestAssistantMessage.get(getActiveChatSession()) as {
         id?: number;
         role?: string;
         content?: string | null;
         created_at?: string;
     } | null;
-    const activityRow = getLatestDashboardActivityMessage.get() as {
+    const activityRow = getLatestDashboardActivityMessage.get(getActiveChatSession()) as {
         id?: number;
         role?: string;
         excerpt?: string | null;
@@ -519,6 +522,25 @@ app.get('/api/messages/latest', (_req, res) => {
         processBusy: isAgentBusy(),
     });
 });
+
+// ─── Chat Sessions API ───────────────────────────────
+app.get('/api/chat-sessions', (_req, res) => {
+    ok(res, { sessions: listChatSessions(), active: getActiveChatSession() });
+});
+app.post('/api/chat-sessions', (req, res) => {
+    const label = typeof req.body?.label === 'string' ? req.body.label.trim() || undefined : undefined;
+    const session = createChatSession(label);
+    ok(res, session);
+});
+app.post('/api/chat-sessions/:id/switch', (req, res): void => {
+    const id = req.params["id"];
+    const seq = parseInt(id, 10);
+    const target = isNaN(seq) ? null : getChatSessionBySeq(seq);
+    if (!target) { res.status(404).json({ error: `Session not found: ${id}` }); return; }
+    setActiveChatSession(target.id);
+    ok(res, { switched: target.id, seq: target.seq });
+});
+
 app.get('/api/runtime', (req, res) => {
     if (req.query["logs"] === 'tail') {
         const lines = drainLogRing();
