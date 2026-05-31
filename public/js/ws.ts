@@ -706,6 +706,7 @@ export function connect(): void {
         } else if (msg.type === 'memory_status') {
             import('./features/memory.js').then(m => m.refreshMemorySidebar());
         } else if (msg.type === 'steer_started') {
+            finalizeAgent('');
             setStatus('running');
         } else if (msg.type === 'new_message' && (msg.source === 'telegram' || msg.source === 'discord' || msg.fromQueue === true)) {
             addMessage(msg.role === 'assistant' ? 'agent' : (msg.role || 'user'), msg.content || '', msg.cli);

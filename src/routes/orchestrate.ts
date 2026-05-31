@@ -199,6 +199,7 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
             console.warn('[steer:insert]', (err as Error).message);
         }
         broadcast('steer_started', stripUndefined({ prompt, ...steerMeta, scope }));
+        broadcast('new_message', stripUndefined({ role: 'user', content: prompt, source: origin, fromQueue: true, target, chatId, requestId }));
         res.json({ ok: true, pending: result.pending });
         void (async () => {
             try {
@@ -206,7 +207,6 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
                     const stopped = killActiveAgent('steer');
                     if (stopped) await waitForProcessEnd(steerWaitMs);
                 }
-                broadcast('new_message', stripUndefined({ role: 'user', content: prompt, source: origin, fromQueue: true, target, chatId, requestId }));
                 setSteerInProgress(false);
                 const task = isResetIntent(prompt)
                     ? orchestrateReset({ ...steerMeta, _skipInsert: true })
