@@ -267,6 +267,7 @@
     "btn.attach": "Attach file",
     "input.placeholder": "Type a message...",
     "queue.pendingTitle": "Pending",
+    "queue.copy": "Copy prompt",
     "queue.delete": "Remove",
     "queue.steer": "Run now (steer)",
     "queue.cancelArm": "Click again to cancel",

@@ -12,6 +12,7 @@ import { apiJson } from '../api.js';
 import { t } from './i18n.js';
 import { setStatus } from './ui-status.js';
 import { syncOrchestrateSnapshot } from '../ws.js';
+import { copyText } from './copy-text.js';
 
 export interface PendingItem {
     id: string;
@@ -57,11 +58,13 @@ function renderRow(item: PendingItem): string {
     const preview = (item.prompt || '').replace(/\s+/g, ' ').trim();
     const truncated = preview.length > 140 ? preview.slice(0, 140) + '…' : preview;
     const source = item.source ? `<span class="pending-row-source">${escapeHtml(item.source)}</span>` : '';
+    const copyLabel = escapeHtml(t('queue.copy'));
     const steerLabel = escapeHtml(t('queue.steer'));
     const deleteLabel = escapeHtml(t('queue.delete'));
     return `<div class="pending-row" data-pending-id="${escapeHtml(item.id)}" title="${escapeHtml(preview)}">
         <span class="pending-row-text">${escapeHtml(truncated)}</span>
         ${source}
+        <button class="pending-row-btn pending-row-copy" data-pending-action="copy" title="${copyLabel}" aria-label="${copyLabel}"><span class="pending-btn-content">${ICONS.copy}</span></button>
         <button class="pending-row-btn pending-row-steer" data-pending-action="steer" data-i18n-title="queue.steer" title="${steerLabel}" aria-label="${steerLabel}"><span class="pending-arm-fill" aria-hidden="true"></span><span class="pending-btn-content"><span class="pending-steer-arrow" aria-hidden="true">↳</span><span class="pending-steer-label">${steerLabel}</span></span></button>
         <button class="pending-row-btn pending-row-delete" data-pending-action="delete" data-i18n-title="queue.delete" title="${deleteLabel}" aria-label="${deleteLabel}"><span class="pending-arm-fill" aria-hidden="true"></span><span class="pending-btn-content">${ICONS.trash}</span></button>
     </div>`;
@@ -169,13 +172,28 @@ function handleClick(id: string, action: Action): void {
 export function initPendingQueue(): void {
     const host = document.getElementById('pendingQueue');
     if (!host) return;
-    host.addEventListener('click', (e) => {
+    host.addEventListener('click', async (e) => {
         const btn = (e.target as HTMLElement)?.closest('[data-pending-action]') as HTMLElement | null;
         if (!btn) return;
         const row = btn.closest('.pending-row') as HTMLElement | null;
         const id = row?.dataset['pendingId'];
         if (!id) return;
-        const action: Action = btn.dataset['pendingAction'] === 'steer' ? 'steer' : 'delete';
+        const actionStr = btn.dataset['pendingAction'];
+        if (actionStr === 'copy') {
+            const item = lastItems.find(it => it.id === id);
+            if (item?.prompt) {
+                const result = await copyText(item.prompt);
+                if (result.ok) {
+                    const content = btn.querySelector('.pending-btn-content');
+                    if (content) {
+                        content.innerHTML = ICONS.checkSimple;
+                        setTimeout(() => { content.innerHTML = ICONS.copy; }, 600);
+                    }
+                }
+            }
+            return;
+        }
+        const action: Action = actionStr === 'steer' ? 'steer' : 'delete';
         handleClick(id, action);
     });
 }

@@ -256,6 +256,7 @@
     "btn.attach": "附加文件",
     "input.placeholder": "输入消息...",
     "queue.pendingTitle": "待处理",
+    "queue.copy": "复制",
     "queue.delete": "移除",
     "queue.steer": "立即运行（steer）",
     "queue.cancelArm": "再次点击取消",

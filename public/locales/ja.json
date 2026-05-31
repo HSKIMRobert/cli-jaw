@@ -256,6 +256,7 @@
     "btn.attach": "ファイルを添付",
     "input.placeholder": "メッセージを入力...",
     "queue.pendingTitle": "待機中",
+    "queue.copy": "コピー",
     "queue.delete": "削除",
     "queue.steer": "今すぐ実行（steer）",
     "queue.cancelArm": "もう一度クリックしてキャンセル",
