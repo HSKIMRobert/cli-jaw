@@ -108,6 +108,7 @@ interface WsMessage {
     error?: string;
     message?: string;
     steered?: boolean;
+    steerWaitMs?: number;
 }
 
 // Agent phase state (populated by agent_status events from orchestrator)
@@ -715,6 +716,9 @@ export function connect(): void {
             markSteered();
             finalizeAgent('');
             setStatus('running');
+            if (msg.steerWaitMs && msg.steerWaitMs > 5000) {
+                addSystemMsg(`⏹️ Interrupting agent...`, 'tool-activity');
+            }
         } else if (msg.type === 'new_message' && (msg.source === 'telegram' || msg.source === 'discord' || msg.fromQueue === true)) {
             addMessage(msg.role === 'assistant' ? 'agent' : (msg.role || 'user'), msg.content || '', msg.cli);
         } else if (msg.type === 'system_notice') {
