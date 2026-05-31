@@ -667,8 +667,11 @@ export function connect(): void {
             const evt = msg.event;
             if (evt) applyWorkflowEvent(evt);
         } else if (msg.type === 'agent_done') {
-            if (!state.currentAgentDiv && isRecentSteer()) {
-                // Suppress late agent_done from killed process after steer
+            if (isRecentSteer()) {
+                // Suppress late agent_done from killed process after steer.
+                // The interrupted output is already saved server-side; don't
+                // render it (it would either create a ghost bubble or corrupt
+                // the new agent's in-progress div).
             } else {
                 finalizeAgent(msg.text || '', msg.toolLog);
                 notifyUnreadResponse();
