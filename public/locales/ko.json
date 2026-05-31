@@ -267,6 +267,7 @@
     "btn.attach": "파일 첨부",
     "input.placeholder": "메시지 입력...",
     "queue.pendingTitle": "대기 중",
+    "queue.copy": "복사",
     "queue.delete": "삭제",
     "queue.steer": "지금 실행 (steer)",
     "queue.cancelArm": "취소 (3초 안에 한 번 더 누르면 취소)",
