@@ -9,6 +9,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(__dirname, '..', '..');
 const pipelineSrc = readSource(join(projectRoot, 'src/orchestrator/pipeline.ts'), 'utf8');
 const distributeSrc = readSource(join(projectRoot, 'src/orchestrator/distribute.ts'), 'utf8');
+const routeSrc = readSource(join(projectRoot, 'src/routes/orchestrate.ts'), 'utf8');
 
 test('OWC-001: pipeline imports createWorklog and resolves worklog seed', () => {
     assert.ok(pipelineSrc.includes('createWorklog'));
@@ -27,8 +28,9 @@ test('OWC-002: initial planning turn creates worklog before setState', () => {
     assert.ok(createIdx < setStateIdx, 'worklog should be created before setState');
 });
 
-test('OWC-003: worker handoff keeps object-shaped worklog contract', () => {
-    assert.ok(pipelineSrc.includes("{ path: args.worklogPath }"));
+test('OWC-003: dispatch route keeps object-shaped worklog contract', () => {
+    assert.ok(routeSrc.includes('dispatchCtx?.worklogPath ? { path: dispatchCtx.worklogPath } : {}'));
+    assert.ok(routeSrc.includes('runSingleAgent(ap, emp, worklog'));
 });
 
 test('OWC-004: distribute gates worklog prompt on truthy path', () => {

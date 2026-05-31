@@ -82,6 +82,13 @@ test('processKiroStdoutChunk emits tool start and done events from shell output'
     );
 });
 
+test('processKiroStdoutChunk strips ANSI before accumulating fullText', () => {
+    const ctx = { fullText: '', kiroDisplayedText: '' };
+    processKiroStdoutChunk(ctx, '\x1b[32m> clean response\x1b[0m\n');
+    assert.equal(ctx.fullText.includes('\x1b'), false);
+    assert.equal(finalizeKiroFullText(ctx.fullText, ctx.kiroLineBuffer), 'clean response');
+});
+
 test('processKiroStdoutChunk emits read tool events', () => {
     const ctx = { fullText: '', kiroDisplayedText: '' };
     const readChunk = [

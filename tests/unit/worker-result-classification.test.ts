@@ -9,13 +9,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const pipelineSrc = readSource(join(__dirname, '../../src/orchestrator/pipeline.ts'), 'utf8');
+const routeSrc = readSource(join(__dirname, '../../src/routes/orchestrate.ts'), 'utf8');
 const registrySrc = readSource(join(__dirname, '../../src/orchestrator/worker-registry.ts'), 'utf8');
 
-test('worker classification: pipeline marks non-done worker results as failures', () => {
+test('worker classification: dispatch route marks non-done worker results as failures', () => {
     assert.ok(
-        pipelineSrc.includes("if (result.status === 'done')") &&
-        pipelineSrc.includes('failWorker(emp.id'),
-        'pipeline should branch done vs error before recording worker outcome',
+        routeSrc.includes('finishWorker(slot.agentId') &&
+        routeSrc.includes('failWorker(slot.agentId'),
+        'dispatch route should record success and failure worker outcomes separately',
     );
 });
 

@@ -538,10 +538,10 @@ function buildHistoryBlock(currentPrompt: string, workingDir?: string | null, ma
         }
 
         let entry: string;
-        if (content && !isStaleWorklogHistoryArtifact(content)) {
-            entry = `[${role || 'user'}] ${content}`;
-        } else if (role === 'assistant' && row.trace && !isStaleWorklogHistoryArtifact(String(row.trace))) {
+        if (role === 'assistant' && row.trace && !isStaleWorklogHistoryArtifact(String(row.trace))) {
             entry = `[assistant trace] ${String(row.trace).slice(0, 2000)}`;
+        } else if (content && !isStaleWorklogHistoryArtifact(content)) {
+            entry = `[${role || 'user'}] ${content}`;
         } else {
             entry = '';
         }
@@ -1794,8 +1794,10 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         opts.lifecycle?.onActivity?.('stdout');
         lastOpencodeIoAt = Date.now();
         if (cli === 'agy') {
-            const text = agyUtf8!.write(chunk);
-            if (!text) return;
+            const rawText = agyUtf8!.write(chunk);
+            if (!rawText) return;
+            // Defensive ANSI strip (belt-and-suspenders with NO_COLOR=1)
+            const text = rawText.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, '');
             if (ctx.fullText.length < 102_400) ctx.fullText += text;
             else if (ctx.fullText.length < 102_500) ctx.fullText += text.slice(0, 102_400 - ctx.fullText.length);
             if (!ctx.sessionId) ctx.sessionId = extractAgyConversationId(ctx.fullText);

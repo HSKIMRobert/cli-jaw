@@ -10,6 +10,7 @@ import { normalizeEnvelope } from '../../src/browser/web-ai/question.ts';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const chatgptSrc = fs.readFileSync(join(root, 'src/browser/web-ai/chatgpt.ts'), 'utf8');
 const chatgptModelSrc = fs.readFileSync(join(root, 'src/browser/web-ai/chatgpt-model.ts'), 'utf8');
+const chatgptResponseSrc = fs.readFileSync(join(root, 'src/browser/web-ai/chatgpt-response.ts'), 'utf8');
 
 test('BWAC-001: ChatGPT URL allowlist is narrow', () => {
     assert.equal(isChatGptUrl('https://chatgpt.com/'), true);
@@ -46,12 +47,12 @@ test('BWAC-004: baseline uses promptHash and targetId only', () => {
 });
 
 test('BWAC-005: placeholder answers are filtered', () => {
-    assert.match(chatgptSrc, /PLACEHOLDER_PATTERNS/);
-    assert.match(chatgptSrc, /Answer now/i);
-    assert.match(chatgptSrc, /Pro thinking/i);
-    assert.match(chatgptSrc, /finalizing answer/i);
-    assert.match(chatgptSrc, /cleanAssistantText/);
-    assert.match(chatgptSrc, /Thought for\\s\+\\d\+s/);
+    assert.match(chatgptResponseSrc, /PLACEHOLDER_PATTERNS/);
+    assert.match(chatgptResponseSrc, /answer now/i);
+    assert.match(chatgptResponseSrc, /pro thinking/i);
+    assert.match(chatgptResponseSrc, /finalizing answer/i);
+    assert.match(chatgptResponseSrc, /normalizeAssistantText/);
+    assert.match(chatgptResponseSrc, /Thought for\\s\+\\d\+s/);
 });
 
 test('BWAC-006: ChatGPT selector drift is surfaced as warnings instead of blocking send', () => {
