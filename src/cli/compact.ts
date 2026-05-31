@@ -9,6 +9,7 @@ import {
     renderBootstrapPrompt,
     normalizeWorkingDir,
 } from '../core/compact.js';
+import { getActiveChatSession } from '../core/chat-sessions.js';
 import type { CliCommandContext } from './command-context.js';
 import type { SlashResult } from './types.js';
 
@@ -114,6 +115,7 @@ export async function compactHandler(args: string[], ctx: CliCommandContext): Pr
         trace,
         null,
         workingDir,
+        getActiveChatSession(),
     );
     setPendingBootstrapPrompt(bootstrap);
     bumpSessionOwnershipGeneration();

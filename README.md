@@ -2,7 +2,7 @@
 
 # CLI-JAW
 
-### Your personal AI agent. 2 lines to install. 11 AI runtime surfaces in one dashboard.
+### Your personal AI agent. 2 lines to install. 12 AI runtime surfaces in one dashboard.
 
 [![npm](https://img.shields.io/npm/v/cli-jaw)](https://npmjs.com/package/cli-jaw)
 [![Version](https://img.shields.io/badge/v2.0.16-GA-brightgreen)](https://github.com/lidge-jun/cli-jaw/releases)
@@ -161,7 +161,7 @@ docker compose up -d       # → http://localhost:3457
 
 ## What is CLI-JAW?
 
-CLI-JAW is an open-source platform that unifies the AI coding CLIs you already use — Claude, Claude E, AI-E, Antigravity, Codex, Codex App, Cursor, Gemini, Grok, OpenCode, and Copilot — into **one assistant with one memory and one dashboard**.
+CLI-JAW is an open-source platform that unifies the AI coding CLIs you already use — Claude, Claude E, AI-E, Antigravity, Codex, Codex App, Cursor, Gemini, Grok, Kiro, OpenCode, and Copilot — into **one assistant with one memory and one dashboard**.
 
 Your main CLI (the “Boss”) calls the others as “employees.” You stop copy-pasting between apps and start giving orders from a single place.
 
@@ -185,6 +185,7 @@ You only need **one**. Pick whichever subscription you already have:
 # Free options (no credit card needed)
 copilot login        # GitHub Copilot (free tier available)
 opencode             # OpenCode — free models available
+kiro                 # AWS Kiro (free tier with AWS account)
 
 # Paid (monthly subscription you already pay for)
 claude auth login    # Anthropic Claude Pro or higher
@@ -468,7 +469,7 @@ Voice input works on Web (mic button), Telegram (voice messages), and Discord. P
 
 ```bash
 jaw mcp install @anthropic/context7
-# → syncs to Claude, Codex, Gemini, OpenCode, Copilot, and Antigravity config files simultaneously
+# → syncs to Claude, Codex, Gemini, Kiro, OpenCode, Copilot, and Antigravity config files simultaneously
 ```
 
 No more editing several different JSON files. Install once, every MCP-aware engine gets it. Grok CLI is a standard runtime here, but it is not counted as MCP-sync capable until Grok exposes a compatible config surface. Antigravity MCP sync is a separate config target from the `agy` runtime registry entry.
@@ -544,7 +545,7 @@ npm test               # native Node.js test runner
 npm run gate:all       # named release/docs parity gates
 ```
 
-Architecture details: [ARCHITECTURE.md](docs/ARCHITECTURE.md) · Test coverage: [TESTS.md](TESTS.md) · Internal structure docs: [structure/](structure/)
+Architecture details: [ARCHITECTURE.md](docs/ARCHITECTURE.md) · Internal structure docs: [structure/](structure/)
 
 ---
 
@@ -552,7 +553,7 @@ Architecture details: [ARCHITECTURE.md](docs/ARCHITECTURE.md) · Test coverage: 
 
 | | CLI-JAW 2.0 | Hermes Agent | Claude Code |
 |---|---|---|---|
-| **Model access** | Antigravity, AI-E, Claude, Claude E, Codex, Codex App, Cursor, Gemini, Grok, OpenCode, and Copilot through vendor/native auth where supported | API keys (OpenRouter 200+, Nous Portal) | Anthropic only |
+| **Model access** | Antigravity, AI-E, Claude, Claude E, Codex, Codex App, Cursor, Gemini, Grok, Kiro, OpenCode, and Copilot through vendor/native auth where supported | API keys (OpenRouter 200+, Nous Portal) | Anthropic only |
 | **Cost model** | Monthly subscriptions you already pay for | Per-token API billing | Anthropic subscription |
 | **Primary UI** | Manager dashboard + Web app + Mac app + terminal UI | Terminal only | CLI + IDE plugins |
 | **Dashboard** | Multi-instance manager, Kanban, Notes workspace | None | None |

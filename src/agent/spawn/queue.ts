@@ -21,6 +21,7 @@ export interface QueueDeps {
     hasBlockingWorkers(): boolean;
     hasPendingWorkerReplays(): boolean;
     insertMessage: { run(...args: any[]): any };
+    getActiveChatSession(): string;
     insertQueuedMessage: { run(...args: any[]): any };
     deleteQueuedMessage: { run(...args: any[]): any };
     listQueuedMessages: { all(): Array<{ id: string; payload: string }> };
@@ -278,7 +279,7 @@ export function createQueueController(deps: QueueDeps): QueueController {
 
         let inserted = false;
         try {
-            deps.insertMessage.run('user', combined, source, '', deps.getWorkingDir());
+            deps.insertMessage.run('user', combined, source, '', deps.getWorkingDir(), deps.getActiveChatSession());
             deps.deleteQueuedMessage.run(item.id);
             inserted = true;
             deps.broadcast('new_message', { role: 'user', content: combined, source, fromQueue: true });

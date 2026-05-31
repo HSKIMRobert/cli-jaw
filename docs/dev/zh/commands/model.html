@@ -117,7 +117,7 @@
 <table>
 <tr><th>提供商</th><th>模型标识符</th></tr>
 <tr><td>Claude</td><td><code>claude-opus-4-8</code>, <code>claude-opus-4-8[1m]</code>, <code>claude-sonnet-4-6</code>, <code>claude-haiku-4-5</code></td></tr>
-<tr><td>Gemini</td><td><code>gemini-2.5-pro</code>, <code>gemini-2.5-flash</code>, <code>gemini-2.0-flash</code></td></tr>
+<tr><td>Gemini</td><td><code>gemini-3-flash-preview</code>, <code>gemini-2.5-flash</code>, <code>gemini-2.0-flash</code></td></tr>
 <tr><td>OpenAI</td><td><code>gpt-5.5</code>, <code>gpt-5.4</code>, <code>gpt-5.4-mini</code>, <code>gpt-5.3-codex</code></td></tr>
 <tr><td>Grok</td><td><code>grok-3</code>, <code>grok-3-mini</code></td></tr>
 </table>
@@ -135,7 +135,7 @@
 /model claude-sonnet-4-6
 
 # Switch to Gemini 2.5 Pro
-/model gemini-2.5-pro</code></pre>
+/model gemini-3-flash-preview</code></pre>
 
 <div class="callout callout-info"><strong>"~해줘" 提示：</strong>说"오퍼스로 바꿔줘"或"소넷으로 전환해줘"，CLI-JAW 会将其映射到正确的 <code>/model</code> 调用。您也可以说"더 똑똑한 모델로 바꿔줘"，编排器会选择最强的可用模型。</div>
 
@@ -156,7 +156,7 @@
 <tr><td><code>claude-e</code></td><td>Claude E interactive wrapper</td><td><code>claude-opus-4-8</code></td></tr>
 <tr><td><code>codex</code></td><td>OpenAI Codex CLI</td><td><code>gpt-5.5</code></td></tr>
 <tr><td><code>codex-app</code></td><td>OpenAI Codex app server</td><td><code>gpt-5.5</code></td></tr>
-<tr><td><code>gemini</code></td><td>Google Gemini CLI</td><td><code>gemini-2.5-pro</code></td></tr>
+<tr><td><code>gemini</code></td><td>Google Gemini CLI</td><td><code>gemini-3-flash-preview</code></td></tr>
 <tr><td><code>grok</code></td><td>xAI Grok</td><td><code>grok-3</code></td></tr>
 <tr><td><code>opencode</code></td><td>OpenCode（多提供商）</td><td>视情况而定</td></tr>
 <tr><td><code>copilot</code></td><td>GitHub Copilot</td><td>视情况而定</td></tr>
@@ -300,7 +300,7 @@
 /flush claude claude-opus-4-8
 
 # Pin Gemini to always use 2.5 Pro
-/flush gemini gemini-2.5-pro
+/flush gemini gemini-3-flash-preview
 
 # Clear the Claude pin (reverts to default model on next switch)
 /flush claude off
@@ -367,14 +367,14 @@
 
 # Pin each provider to its best model
 /flush claude claude-opus-4-8
-/flush gemini gemini-2.5-pro
+/flush gemini gemini-3-flash-preview
 /flush grok grok-3</code></pre>
 
 <h3>Gemini 深度推理会话</h3>
 <p>切换到启用思考模式的 Gemini 进行复杂分析：</p>
 <pre><code># Switch to Gemini Pro with thinking
 /cli gemini
-/model gemini-2.5-pro
+/model gemini-3-flash-preview
 /thought on
 
 # When done, switch back to Claude

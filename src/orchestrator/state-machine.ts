@@ -304,10 +304,11 @@ Every interview must explore all four dimensions. Track which are weak and steer
 ## Per-turn Routine
 
 1. **Re-assess ambiguity objectively (every round)** — Re-evaluate each dimension from scratch, as a skeptical outsider would. Do NOT just carry forward or inflate prior dimension scores. A dimension resting on assumptions rather than confirmed facts is NOT "high" or above. Downgrade any score you cannot defend with concrete evidence, and never raise a score just to close the interview faster.
-2. Analyze previous answers — which dimension improved? Which is still weak?
-3. Steer next questions toward the weakest dimension
-4. Ask 1–3 questions. For each, suggest 2-3 recommended answer choices
-5. Update the tracker (see below)
+2. **Negativity bias (pressure-test every answer)** — Treat every user answer as a claim to challenge. If the answer is vague, hedging ("아마", "maybe", "~일 수도", "몰라", "그냥"), or lacks concrete detail, DOWNGRADE the relevant dimension score. Do NOT accept vague answers at face value. Stay on the same dimension until one layer deeper, one assumption clearer, or one boundary tighter. Do not rotate to a new dimension just for coverage when the current answer is still vague.
+3. Analyze previous answers — which dimension improved? Which is still weak?
+4. Steer next questions toward the weakest dimension
+5. Ask 1–3 questions. For each, suggest 2-3 recommended answer choices
+6. Update the tracker (see below)
 
 ## Interview Tracker
 
@@ -375,6 +376,8 @@ Steps:
 ⛔ STOP. WAIT for user approval before advancing.
 ⛔ When approved, run: \`cli-jaw orchestrate A\`
 
+**EXCEPTION — Goal mode**: If a goal is active (goal-continuation prompt present), IGNORE the STOP above. Self-advance immediately: dispatch an employee for plan audit verification, review the result, then run \`cli-jaw orchestrate A\`. Document the plan in jawdev style (devlog/_plan/ with decade numbering per dev-pabcd skill). Do NOT wait for user.
+
 You will receive user feedback with a [PLANNING MODE] prefix. Revise until approved.
 
 IMPORTANT — Project Workspace:
@@ -417,7 +420,9 @@ The result is returned via stdout. Review it:
 - If PASS: report results to the user.
 
 ⛔ STOP after reporting. WAIT for user approval.
-⛔ When user approves, run: \`cli-jaw orchestrate B\``,
+⛔ When user approves, run: \`cli-jaw orchestrate B\`
+
+**EXCEPTION — Goal mode**: If a goal is active, IGNORE the STOP. On PASS → immediately run \`cli-jaw orchestrate B\`. On FAIL → fix the plan and re-audit. Do NOT wait for user.`,
 
   B: `[PABCD — B: BUILD]
 
@@ -460,7 +465,9 @@ Review the stdout result:
 - DONE: Report results to the user.
 
 ⛔ STOP after reporting. WAIT for user approval.
-⛔ When user approves, run: \`cli-jaw orchestrate C\``,
+⛔ When user approves, run: \`cli-jaw orchestrate C\`
+
+**EXCEPTION — Goal mode**: If a goal is active, IGNORE the STOP. On DONE → immediately run \`cli-jaw orchestrate C\`. On NEEDS_FIX → fix and re-verify until DONE. Do NOT wait for user.`,
 
   C: `[PABCD — C: CHECK + SCRUTINY]
 

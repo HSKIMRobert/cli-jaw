@@ -6,6 +6,7 @@ import type { ChildProcess } from 'child_process';
 import { broadcast } from '../core/bus.js';
 import { settings, detectCli } from '../core/config.js';
 import { clearEmployeeSession, insertMessage, insertMessageWithTraceRun, updateSession, clearSessionBucket, markAnchorConsumed } from '../core/db.js';
+import { getActiveChatSession } from '../core/chat-sessions.js';
 import { persistMainSession } from './session-persistence.js';
 import { resolveSessionBucket } from './args.js';
 import { buildContinuationPrompt, type SmokeDetectionResult } from './smoke-detector.js';
@@ -41,7 +42,7 @@ export function clearGoalTimers(): void {
     _goalContAttempts = 0;
     _goalContGoalId = null;
     try {
-        insertMessage.run('system', '[goal_boundary]', 'goal_boundary', '', settings['workingDir'] || null);
+        insertMessage.run('system', '[goal_boundary]', 'goal_boundary', '', settings['workingDir'] || null, getActiveChatSession());
     } catch { /* DB may not be ready during early init */ }
 }
 
@@ -474,7 +475,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
             const info = insertMessageWithTraceRun.run(
                 'assistant', finalContent, cli, model,
                 traceText || null, toolLogJson, settings["workingDir"] || null,
-                ctx.traceRunId || null,
+                ctx.traceRunId || null, getActiveChatSession(),
             );
             const messageId = Number(info.lastInsertRowid || 0);
             if (ctx.traceRunId && Number.isInteger(messageId) && messageId > 0) linkTraceRunToMessage(ctx.traceRunId, messageId);

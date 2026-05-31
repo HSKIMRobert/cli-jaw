@@ -5,6 +5,7 @@ import { isAgentBusy, messageQueue, getQueuedMessageSnapshotForScope, removeQueu
 import { getLiveRun } from '../agent/live-run-state.js';
 import { orchestrate, orchestrateContinue, orchestrateReset, isResetIntent, isContinueIntent, drainPendingReplays } from '../orchestrator/pipeline.js';
 import { insertMessage } from '../core/db.js';
+import { getActiveChatSession } from '../core/chat-sessions.js';
 import { getState, getCtx, setState, resetState, canTransition, resetAllStaleStates, parseWorkerVerdict } from '../orchestrator/state-machine.js';
 import { resetFriction } from '../orchestrator/friction.js';
 import { buildSeedFromEvidence, renderSeedBlock } from '../orchestrator/seed.js';
@@ -194,7 +195,7 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
             return fail(res, 404, 'queued item disappeared during steer');
         }
         try {
-            insertMessage.run('user', prompt, origin, '', settings["workingDir"] || null);
+            insertMessage.run('user', prompt, origin, '', settings["workingDir"] || null, getActiveChatSession());
         } catch (err) {
             console.warn('[steer:insert]', (err as Error).message);
         }

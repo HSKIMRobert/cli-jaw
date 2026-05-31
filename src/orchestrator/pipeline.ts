@@ -11,6 +11,7 @@ import {
     getRecentMessagesLite,
     getLatestUnconsumedAnchor,
 } from '../core/db.js';
+import { getActiveChatSession } from '../core/chat-sessions.js';
 
 import { clearPromptCache } from '../prompt/builder.js';
 import { spawnAgent, killAgentById } from '../agent/spawn.js';
@@ -169,7 +170,7 @@ export async function orchestrate(
     const numericResolution = state === 'P' && !ctx?.plan
         ? resolveNumericReference(
             userText,
-            getRecentMessagesLite.all(settings["workingDir"] || null, 20) as Array<{ role?: string; content?: string }>,
+            getRecentMessagesLite.all(settings["workingDir"] || null, getActiveChatSession(), 20) as Array<{ role?: string; content?: string }>,
         )
         : null;
     if (numericResolution?.needsConfirmation) {
