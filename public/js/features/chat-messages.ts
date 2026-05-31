@@ -121,11 +121,7 @@ export function addMessage(role: string, text: string, cli?: string | null): HTM
         if (div.classList.contains('msg-agent')) normalizeAgentToolBlocks(div);
         vs.appendLiveItem(div);
     } else {
-        if (container && role === 'user' && state.currentAgentDiv?.isConnected && container.contains(state.currentAgentDiv)) {
-            container.insertBefore(div, state.currentAgentDiv);
-        } else {
-            container?.appendChild(div);
-        }
+        container?.appendChild(div);
         activateWidgets(div);
         if (!vs.active && !isStreamingPlaceholder && container) {
             const msgCount = container.querySelectorAll('.msg').length;
