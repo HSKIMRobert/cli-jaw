@@ -198,7 +198,7 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
         } catch (err) {
             console.warn('[steer:insert]', (err as Error).message);
         }
-        broadcast('steer_started', stripUndefined({ prompt, ...steerMeta, scope }));
+        broadcast('steer_started', stripUndefined({ prompt, steerWaitMs, ...steerMeta, scope }));
         broadcast('new_message', stripUndefined({ role: 'user', content: prompt, source: origin, fromQueue: true, target, chatId, requestId }));
         res.json({ ok: true, pending: result.pending });
         void (async () => {
