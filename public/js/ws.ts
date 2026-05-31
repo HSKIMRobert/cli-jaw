@@ -737,6 +737,9 @@ export function connect(): void {
             addSystemMsg(`⚠️ Goal continuation failed: ${escapeHtml(msg.error || '')}`, 'tool-activity');
         } else if (msg.type === 'settings_change') {
             syncOrchestrateSnapshot('settings_change').catch(() => {});
+        } else if (msg.type === 'session_switched' || msg.type === 'session_created') {
+            // Reload messages for the new active session
+            window.location.reload();
         }
     };
     state.ws.onopen = () => {
