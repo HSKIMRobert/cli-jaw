@@ -68,6 +68,11 @@ export function saveUpload(uploadsDir: string, buffer: Buffer, originalName: str
  * @returns {string} Prompt string
  */
 export function buildMediaPrompt(filePath: string, caption?: string) {
+    const ext = extname(filePath).toLowerCase();
+    const isImage = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'].includes(ext);
+    const isVideo = ['.mp4', '.webm', '.mov', '.ogg'].includes(ext);
+    if (isImage) return `[사용자가 이미지를 보냈습니다: ${filePath}]\n이 이미지를 분석해주세요.${caption ? `\n\n사용자 메시지: ${caption}` : ''}`;
+    if (isVideo) return `[사용자가 동영상을 보냈습니다: ${filePath}]\n이 동영상 파일을 확인해주세요.${caption ? `\n\n사용자 메시지: ${caption}` : ''}`;
     return `[사용자가 파일을 보냈습니다: ${filePath}]\n이 파일을 Read 도구로 읽고 분석해주세요.${caption ? `\n\n사용자 메시지: ${caption}` : ''}`;
 }
 

@@ -90,6 +90,7 @@ import { initPendingQueue } from './features/pending-queue.js';
 import { initAttentionBadge } from './features/attention-badge.js';
 import { initHelpDialog } from './features/help-dialog.js';
 import { initChatSearch, toggleChatSearch, closeChatSearch } from './features/chat-search.js';
+import { initMediaLightbox } from './features/media-lightbox.js';
 
 function isLocalPreviewOrigin(origin: string): boolean {
     if (origin === window.location.origin) return true;
@@ -519,6 +520,7 @@ async function bootstrap(): Promise<void> {
     bindPerCliControlEvents();
     initHelpDialog();
     initChatSearch();
+    initMediaLightbox();
     document.getElementById('chatSearchTrigger')?.addEventListener('click', toggleChatSearch);
     initAttentionBadge();
     connect();

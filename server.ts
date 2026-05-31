@@ -7,7 +7,7 @@ import { log, drainLogRing } from './src/core/logger.js';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { dirname, join, basename } from 'path';
 import crypto from 'crypto';
 import fs from 'fs';
 
@@ -52,7 +52,7 @@ import { ensureMemoryRuntimeReady, hasSoulFile } from './src/memory/runtime.js';
 
 import { loadLocales, t, normalizeLocale } from './src/core/i18n.js';
 import {
-    PROMPTS_DIR, DB_PATH,
+    PROMPTS_DIR, DB_PATH, UPLOADS_DIR,
     settings, loadSettings, saveSettings,
     ensureDirs, runMigration,
     APP_VERSION,
@@ -326,6 +326,15 @@ app.get('/', (_req, res, next) => {
 });
 
 app.use(express.static(join(projectRoot, 'public')));
+
+// Serve uploaded media files (images/videos) for inline rendering
+app.get('/media/:filename', requireAuth, (req, res) => {
+    const filename = basename(String(req.params['filename'] || ''));
+    if (!filename || filename.includes('..')) { res.status(400).end(); return; }
+    const filePath = join(UPLOADS_DIR, filename);
+    if (!fs.existsSync(filePath)) { res.status(404).end(); return; }
+    res.sendFile(filename, { root: UPLOADS_DIR });
+});
 
 // WebSocket incoming messages
 wss.on('connection', (ws) => {
