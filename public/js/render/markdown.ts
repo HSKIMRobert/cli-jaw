@@ -10,6 +10,7 @@ import { unshieldSvgBlocks } from './svg-actions.js';
 import { highlightCode, ensureHighlightLanguages } from './highlight.js';
 import { schedulePostRender } from './post-render.js';
 import { ensureRenderDelegations } from './delegations.js';
+import { API_BASE } from '../api.js';
 
 // ── marked.js configuration (ES module — always available) ──
 let markedReady = false;
@@ -44,6 +45,21 @@ function ensureMarked(): boolean {
         const langDisplay = lang ? escapeHtml(lang) : '';
         const copyLabel = t('code.copy') || 'Copy';
         return `<div class="code-block"><div class="code-header"><span class="code-lang">${langDisplay}</span><button class="code-copy-btn" type="button" aria-label="${escapeHtml(copyLabel)}">${escapeHtml(copyLabel)}</button></div><pre><code class="hljs${lang ? ` language-${escapeHtml(lang)}` : ''}">${highlighted}</code></pre></div>`;
+    };
+
+    // Inline media: rewrite absolute paths to /media/ URL, detect video
+    renderer.image = function ({ href, title, text }: { href: string; title?: string | null; text: string }) {
+        if (!href) return '';
+        const src = (href.startsWith('/') || href.includes('/uploads/'))
+            ? `${API_BASE}/media/${encodeURIComponent(href.split('/').pop()!)}`
+            : escapeHtml(href);
+        const alt = escapeHtml(text || '');
+        const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
+        const ext = (src.split('.').pop() || '').toLowerCase().split('?')[0] || '';
+        if (['mp4', 'webm', 'mov', 'ogg'].includes(ext)) {
+            return `<video src="${src}" controls class="chat-inline-video" preload="metadata"${titleAttr}></video>`;
+        }
+        return `<img src="${src}" alt="${alt}" class="chat-inline-img" loading="lazy"${titleAttr} />`;
     };
 
     renderer.link = function ({ href, title, text }: { href: string; title?: string | null; text: string }) {
