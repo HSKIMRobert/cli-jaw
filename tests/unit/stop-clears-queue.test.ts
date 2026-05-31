@@ -113,7 +113,7 @@ test('Fix B: queued steer preserves routing metadata and rejects concurrent stee
 
 test('Fix C1: killActiveAgent nullifies activeProcess synchronously when stopped by user', () => {
     const fnIdx = spawnSrc.indexOf('export function killActiveAgent');
-    const body = spawnSrc.slice(fnIdx, fnIdx + 2000);
+    const body = spawnSrc.slice(fnIdx, fnIdx + 2500);
     assert.ok(
         /reason === 'api'\s*\|\|\s*reason === 'user'[\s\S]*activeProcess\s*=\s*null/.test(body),
         "killActiveAgent must set activeProcess = null synchronously when reason is 'api' or 'user' so isAgentBusy() flips immediately",

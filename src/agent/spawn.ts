@@ -359,10 +359,27 @@ export function killActiveAgent(reason = 'user') {
     const policy = getKillPolicy(reason);
     console.log(`[jaw:kill] reason=${reason} cli=${getActiveMainCli() || 'unknown'} signal=${policy.signal} escalationMs=${policy.escalationMs}`);
     if (activeProcess.pid) killReasons.set(activeProcess.pid, reason);
-    try { activeProcess.kill(policy.signal); } catch (e: unknown) { console.warn(`[agent:kill] ${policy.signal} failed`, { pid: activeProcess?.pid, error: (e as Error).message }); }
+    try {
+        if (activeProcess.pid) {
+            killProcessTree(activeProcess.pid, policy.signal);
+        } else {
+            activeProcess.kill(policy.signal);
+        }
+    } catch (e: unknown) { console.warn(`[agent:kill] ${policy.signal} failed`, { pid: activeProcess?.pid, error: (e as Error).message }); }
     const proc = activeProcess;
+    // Immediately sever stdio to stop late output from reaching broadcast handlers
+    proc.stdout?.removeAllListeners('data');
+    proc.stderr?.removeAllListeners('data');
     setTimeout(() => {
-        try { if (proc && !proc.killed) proc.kill('SIGKILL'); } catch (e: unknown) { console.warn('[agent:kill] SIGKILL failed', { pid: proc?.pid, error: (e as Error).message }); }
+        try {
+            if (proc && !proc.killed) {
+                if (proc.pid) killProcessTree(proc.pid, 'SIGKILL');
+                else proc.kill('SIGKILL');
+            }
+        } catch (e: unknown) { console.warn('[agent:kill] SIGKILL failed', { pid: proc?.pid, error: (e as Error).message }); }
+        proc.stdin?.destroy();
+        proc.stdout?.destroy();
+        proc.stderr?.destroy();
     }, policy.escalationMs);
     // Fix C1: 사용자 stop/steer 시 isAgentBusy()가 즉시 false가 되도록 참조를 동기 해제.
     // 실제 child 종료는 위 setTimeout SIGKILL이 백그라운드에서 마무리.
