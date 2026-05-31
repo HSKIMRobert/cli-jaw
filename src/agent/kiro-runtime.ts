@@ -75,7 +75,13 @@ function isKiroIgnoredLine(line: string): boolean {
         || KIRO_RISK_BANNER_RE.test(line)
         || KIRO_LEARN_MORE_RE.test(line)
         || KIRO_CREDITS_FOOTER_RE.test(line)
-        || KIRO_TERMINAL_MODE_RE.test(line);
+        || KIRO_TERMINAL_MODE_RE.test(line)
+        || isJawRuntimeLine(line);
+}
+
+/** Detect jaw_runtime JSON lines that leak into kiro plain-text stdout */
+function isJawRuntimeLine(line: string): boolean {
+    return line.startsWith('{"type":"jaw_runtime"') || line.includes('"type":"jaw_runtime"');
 }
 
 export function extractKiroSessionIdFromStore(
@@ -321,7 +327,9 @@ export function processKiroStdoutChunk(
     const parts = pending.split(/\r?\n/);
     ctx.kiroLineBuffer = parts.pop() ?? '';
 
-    const completeText = parts.join('\n');
+    // Filter out jaw_runtime JSON lines before accumulating into fullText
+    const filteredParts = parts.filter(line => !isJawRuntimeLine(line.trim()));
+    const completeText = filteredParts.join('\n');
     if (completeText) {
         const prefix = ctx.fullText.length > 0 && !ctx.fullText.endsWith('\n') ? '\n' : '';
         const addition = `${prefix}${completeText}\n`;
