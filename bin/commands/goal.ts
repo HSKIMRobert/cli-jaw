@@ -11,7 +11,7 @@ if (shouldShowHelp(process.argv)) printAndExit(`
   Usage: jaw goal <subcommand> [args...]
 
   Subcommands:
-    set <objective>     Set a new goal
+    set <objective>     Set a new goal (up to 10000 characters)
     status              Show active goal
     update <summary>    Add a checkpoint  (add --evidence <note>[,<...>] to record verification)
     done [note]         Mark goal complete (add --force to skip the evidence gate)

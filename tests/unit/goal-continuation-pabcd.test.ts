@@ -80,3 +80,19 @@ test('goal continuation prompt uses cli-jaw goal pause instead of inducing done'
         cleanup();
     }
 });
+
+test('goal continuation prompt requires executing PABCD transition commands through D', () => {
+    cleanup();
+    try {
+        setGoal('contract: execute pabcd transition commands');
+        setState('C');
+        const res = buildGoalContinuation();
+        assert.equal(res.shouldContinue, true);
+        assert.match(res.prompt ?? '', /Phase-transition commands are mandatory actions/);
+        assert.match(res.prompt ?? '', /Run the exact `cli-jaw orchestrate \.\.\.` command/);
+        assert.match(res.prompt ?? '', /C passed → `cli-jaw orchestrate D` immediately/);
+        assert.match(res.prompt ?? '', /do NOT only say "run D"/);
+    } finally {
+        cleanup();
+    }
+});

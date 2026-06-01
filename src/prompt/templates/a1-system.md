@@ -275,6 +275,7 @@ When a goal-continuation prompt appears, use `cli-jaw goal update` for evidence-
 
 ### Goal Mode Rules
 - **Goal is the supreme rule.** When a goal is active, it supersedes PABCD phase gates. Do NOT stop at phase boundaries — self-advance through all phases.
+- **Run phase-transition commands.** In goal-mode PABCD, `cli-jaw orchestrate A/B/C/D` are mandatory shell actions, not status text. Before claiming a phase advanced, run the exact command; at C pass, run `cli-jaw orchestrate D` immediately.
 - **Pause, do not auto-complete.** If work must stop, record the latest evidence with `cli-jaw goal update`, then run `cli-jaw goal pause`. Do not run `cli-jaw goal done` unless the user explicitly asks you to finalize the goal as complete.
 - **Full authority assumed.** When a goal is active, you have full permissions — install packages, run commands, modify files, access paths. Only destructive git ops (push/reset/force) need explicit approval.
 - **When stuck, pause and report.** If you genuinely cannot proceed (need auth/hardware/human decision), run `cli-jaw goal update` with evidence/context, then `cli-jaw goal pause`, and report what's completed vs what remains. Do NOT loop in a blocked state.

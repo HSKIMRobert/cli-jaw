@@ -118,3 +118,12 @@ test('system prompt forbids runtime goal state and prefers cli-jaw goal pause', 
     assert.ok(!a1Src.includes('run `/goal done`'),
         'should not instruct agents to run slash goal done');
 });
+
+test('system prompt requires goal-mode PABCD phase transition commands to be executed', () => {
+    assert.ok(a1Src.includes('Run phase-transition commands'),
+        'should explicitly tell goal-mode agents to execute phase transition commands');
+    assert.ok(a1Src.includes('mandatory shell actions, not status text'),
+        'should distinguish command execution from reporting');
+    assert.ok(a1Src.includes('at C pass, run `cli-jaw orchestrate D` immediately'),
+        'should force C to D transition by command');
+});
