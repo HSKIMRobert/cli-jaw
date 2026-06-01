@@ -52,7 +52,7 @@ test('internal status and tool broadcasts are guarded from public WebSocket clie
         'second-phase running status must be suppressed for internal runs',
     );
     assert.ok(
-        lifecycleSrc.includes('if (!opts.internal)') && lifecycleSrc.includes("broadcast('agent_status'"),
+        lifecycleSrc.includes('if (!opts.internal') && lifecycleSrc.includes("broadcast('agent_status'"),
         'final done/error status must be suppressed for internal runs',
     );
     assert.ok(

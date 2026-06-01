@@ -1,7 +1,7 @@
 // ── WebSocket Connection ──
 import { state } from './state.js';
 import { API_BASE } from './api.js';
-import { setStatus, updateQueueBadge, addSystemMsg, appendAgentText, finalizeAgent, addMessage, showProcessStep, cleanupToolActivity, showLiveToolActivity, applyQueuedOverlay, hydrateActiveRun, reconcileChatBottomAfterRestore, showChatRestoreIndicator, markSteered, isRecentSteer } from './ui.js';
+import { setStatus, updateQueueBadge, addSystemMsg, appendAgentText, finalizeAgent, addMessage, showProcessStep, cleanupToolActivity, showLiveToolActivity, applyQueuedOverlay, hydrateActiveRun, reconcileChatBottomAfterRestore, showChatRestoreIndicator, markSteered, clearSteer, isRecentSteer } from './ui.js';
 import { renderPendingQueue } from './features/pending-queue.js';
 import { t, getLang } from './features/i18n.js';
 import { getVirtualScroll } from './virtual-scroll.js';
@@ -136,7 +136,11 @@ async function refreshRuntimeSnapshot(options: { hydrateRun?: boolean } = {}): P
     renderPendingQueue(snap.queued || []);
     if (options.hydrateRun) hydrateActiveRun(snap.activeRun);
     hydrateGoalState();
-    setStatus(snap.runtime.busy ? 'running' : 'idle');
+    if (snap.runtime.busy) {
+        setStatus('running');
+    } else if (!isRecentSteer()) {
+        setStatus('idle');
+    }
     if (snap.runtime.busy && (snap.activeRun?.cli === 'agy' || snap.activeRun?.cli === 'kiro-code')) {
         showLiveToolActivity(`${providerLabel(snap.activeRun.cli)} working...`);
     }
@@ -583,6 +587,7 @@ export function connect(): void {
         }
         if (msg.type === 'agent_status') {
             if (!msg.running && isRecentSteer()) return;
+            if (msg.running && isRecentSteer()) clearSteer();
             if (msg.running !== undefined) {
                 setStatus(msg.running ? 'running' : 'idle');
                 if (msg.running && (msg.cli === 'agy' || msg.cli === 'kiro-code')) {
@@ -620,6 +625,7 @@ export function connect(): void {
                 addSystemMsg(t('ws.roundRetry', { round: msg.round || 0 }));
             }
         } else if (msg.type === 'agent_tool') {
+            if (isRecentSteer()) return;
             const stepType = msg.toolType === 'thinking' ? 'thinking'
                 : msg.toolType === 'search' ? 'search'
                     : msg.toolType === 'subagent' ? 'subagent' : 'tool';
@@ -641,6 +647,7 @@ export function connect(): void {
                 startTime: Date.now(),
             });
         } else if (msg.type === 'agent_output' || msg.type === 'agent_chunk') {
+            if (isRecentSteer()) return;
             appendAgentText(msg.text || '');
         } else if (msg.type === 'agent_retry') {
             const retryDelay = Number(msg.delay ?? 0);
