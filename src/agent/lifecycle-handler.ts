@@ -781,7 +781,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
         traceStatus,
         traceStatus === 'error' ? classifyExitError(runtimeCli, resolvedCode ?? 1, ctx.stderrBuf).message : null,
     );
-    if (mainManaged) clearLiveRun(liveScope);
+    if (mainManaged && !wasSteer) clearLiveRun(liveScope);
     if (!opts.internal && !wasSteer) {
         broadcast('agent_status', {
             status: (resolvedCode === 0 || resolvedCode === null) ? 'done' : 'error',
@@ -935,7 +935,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
         }
     }
 
-    if (mainManaged) processQueue();
+    if (mainManaged && !wasSteer) processQueue();
 }
 
 // ─── Post-flush reindex (3-C) ────────────────────────

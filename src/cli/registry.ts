@@ -102,7 +102,7 @@ export const CLI_REGISTRY = {
         binary: 'cursor-agent',
         experimental: true,
         defaultModel: 'composer-2.5',
-        defaultEffort: 'medium-fast',
+        defaultEffort: 'medium',
         efforts: [...CURSOR_EFFORT_CHOICES],
         effortNote: 'Cursor effort resolves to model IDs; cli-jaw never passes --effort',
         models: [...CURSOR_REGISTRY_MODELS],
