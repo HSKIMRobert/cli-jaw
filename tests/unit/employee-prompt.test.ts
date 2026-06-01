@@ -79,6 +79,18 @@ test('EMP-008b: skill list items include metadata descriptions', () => {
     assert.equal(line, '- dev-backend — Backend engineering guide for orchestrated sub-agents.');
 });
 
+test('EMP-008c: employee prompt reinforces skill metadata matching', () => {
+    const emp = { name: 'Backend', cli: 'claude', role: 'backend' };
+    clearPromptCache();
+    const v2 = getEmployeePromptV2(emp, 'backend', 1);
+    assert.ok(v2.includes('Match by intent, not exact words'),
+        'employee prompt should route skills by semantic task intent');
+    assert.ok(v2.includes('against skill names, descriptions, metadata, keywords, and triggers'),
+        'employee prompt should name metadata fields used for skill matching');
+    assert.ok(v2.includes('read that SKILL.md once before deciding it does not apply'),
+        'employee prompt should inspect plausible skill candidates before rejecting them');
+});
+
 test('EMP-009: getEmployeePromptV2 includes phase gate', () => {
     const emp = { name: 'Backend', cli: 'claude', role: 'backend' };
     const v2 = getEmployeePromptV2(emp, 'backend', 3);
