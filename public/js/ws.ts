@@ -582,6 +582,7 @@ export function connect(): void {
             return;
         }
         if (msg.type === 'agent_status') {
+            if (!msg.running && isRecentSteer()) return;
             if (msg.running !== undefined) {
                 setStatus(msg.running ? 'running' : 'idle');
                 if (msg.running && (msg.cli === 'agy' || msg.cli === 'kiro-code')) {
@@ -715,10 +716,7 @@ export function connect(): void {
         } else if (msg.type === 'steer_started') {
             markSteered();
             finalizeAgent('');
-            setStatus('running');
-            if (msg.steerWaitMs && msg.steerWaitMs > 5000) {
-                addSystemMsg(`⏹️ Interrupting agent...`, 'tool-activity');
-            }
+            setStatus('steering');
         } else if (msg.type === 'new_message' && (msg.source === 'telegram' || msg.source === 'discord' || msg.fromQueue === true)) {
             addMessage(msg.role === 'assistant' ? 'agent' : (msg.role || 'user'), msg.content || '', msg.cli);
         } else if (msg.type === 'system_notice') {

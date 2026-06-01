@@ -1397,6 +1397,21 @@ div.math-placeholder {
     opacity: 0.7;
 }
 
+.status-badge.status-steering {
+    animation: none;
+}
+
+.status-badge.status-steering::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--status-steering-color, var(--primary));
+    animation: dotPing 1s ease-in-out infinite;
+    margin-right: 4px;
+}
+
 /* ── View Transitions (same-document panel switching) ── */
 ::view-transition-old(root),
 ::view-transition-new(root) {

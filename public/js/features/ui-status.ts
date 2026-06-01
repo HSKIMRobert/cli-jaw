@@ -9,13 +9,17 @@ export function setStatus(s: string): void {
     const badge = document.getElementById('statusBadge');
     const btn = document.getElementById('btnSend');
     const label = document.getElementById('typingIndicator')?.querySelector('.label') as HTMLElement | null;
-    state.agentBusy = s === 'running';
+    state.agentBusy = s === 'running' || s === 'steering';
     document.getElementById('typingIndicator')?.classList.toggle('active', state.agentBusy);
     if (s === 'running') {
         if (badge) { badge.className = 'status-badge status-running'; badge.textContent = 'running'; }
         if (btn) { btn.innerHTML = ICONS.stop; btn.title = t('btn.stop'); btn.classList.add('stop-mode'); }
         if (label) label.textContent = t('status.responding');
         showSkeleton();
+    } else if (s === 'steering') {
+        if (badge) { badge.className = 'status-badge status-steering'; badge.textContent = 'steering'; }
+        if (btn) { btn.innerHTML = ICONS.stop; btn.title = 'Steering...'; btn.classList.add('stop-mode'); }
+        if (label) label.textContent = 'Steering...';
     } else {
         if (badge) { badge.className = 'status-badge status-idle'; badge.textContent = 'idle'; }
         if (btn) { btn.innerHTML = ICONS.send; btn.title = 'Send'; btn.classList.remove('stop-mode'); }
