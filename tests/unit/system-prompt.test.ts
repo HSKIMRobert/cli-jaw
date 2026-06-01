@@ -9,6 +9,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(__dirname, '..', '..');
 const a1Src = readFileSync(join(projectRoot, 'src/prompt/templates/a1-system.md'), 'utf8');
 const empSrc = readFileSync(join(projectRoot, 'src/prompt/templates/employee.md'), 'utf8');
+const skillsSrc = readFileSync(join(projectRoot, 'src/prompt/templates/skills.md'), 'utf8');
 
 // ─── Canonical send endpoint ─────────────────────────
 
@@ -57,6 +58,17 @@ test('system prompt mentions jaw doctor for Discord diagnosis', () => {
 test('employee prompt describes channel-generic delivery', () => {
     assert.ok(empSrc.includes('active channel'),
         'should mention active channel for channel-generic delivery');
+});
+
+// ─── Skill metadata matching ─────────────────────────
+
+test('system skills prompt reinforces metadata-based skill matching', () => {
+    assert.ok(skillsSrc.includes('Match by intent, not exact words'),
+        'Boss skills prompt should route skills by semantic task intent');
+    assert.ok(skillsSrc.includes('against skill names, descriptions, metadata, keywords, and triggers'),
+        'Boss skills prompt should name metadata fields used for skill matching');
+    assert.ok(skillsSrc.includes('read that SKILL.md once before deciding the skill does not apply'),
+        'Boss skills prompt should inspect plausible skill candidates before rejecting them');
 });
 
 // ─── Active channel auto-selection ───────────────────

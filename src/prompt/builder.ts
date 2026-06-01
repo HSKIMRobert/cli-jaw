@@ -593,6 +593,8 @@ export function getEmployeePrompt(emp: { name: string; role?: string; id?: strin
         if (activeSkills.length > 0) {
             let section = `\n## Active Skills (${activeSkills.length})\n`;
             section += `Installed skills — automatically triggered by the CLI. Use each description to decide whether to read its SKILL.md.\n`;
+            section += `Match by intent, not exact words: compare the request, files, domain nouns, output, and task verbs against skill names, descriptions, metadata, keywords, and triggers.\n`;
+            section += `When uncertain, inspect the best candidate: if metadata suggests a plausible match, read that SKILL.md once before deciding it does not apply.\n`;
             for (const s of activeSkills) {
                 section += `${formatSkillListItem({
                     id: s!.id,
@@ -662,6 +664,8 @@ export function getEmployeePromptV2(
 
     prompt += `\n\n## Skill Loading Contract`;
     prompt += `\nSkill bodies are not preloaded. Read each guide once, only when the task requires it.`;
+    prompt += `\n- Match by intent, not exact words: compare the task, files, domain nouns, output, and task verbs against skill names, descriptions, metadata, keywords, and triggers.`;
+    prompt += `\n- When uncertain, inspect the best candidate: if metadata suggests a plausible match, read that SKILL.md once before deciding it does not apply.`;
     prompt += `\n- Common dev guide: ${formatSkillPath('dev', devCommonPath)}`;
     prompt += `\n- Scaffolding guide: ${formatSkillPath('dev-scaffolding', scaffoldingPath)} (read only for new projects, new modules, or structure audits)`;
     if (staticSpec?.skills?.length) {
