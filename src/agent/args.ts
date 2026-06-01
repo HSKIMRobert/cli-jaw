@@ -247,7 +247,7 @@ export function buildArgs(cli: string, model: string, effort: string, prompt: st
                 ...(model && model !== 'default' ? ['-m', model] : []),
                 ...reasoningArgs,
                 ...sparkContextArgs,
-                ...(options.fastMode ? ['-c', 'service_tier="fast"'] : []),
+                '-c', `service_tier="${options.fastMode ? 'fast' : 'default'}"`,
                 ...(autoPerm ? ['--dangerously-bypass-approvals-and-sandbox'] : []),
                 '--skip-git-repo-check', '--json'];
         }
@@ -374,7 +374,7 @@ export function buildResumeArgs(cli: string, model: string, effort: string, sess
                 ...(spark ? [] : ['-c', 'show_raw_agent_reasoning=true']),
                 ...(spark ? ['-c', 'model_context_window=128000'] : []),
                 ...(spark ? ['-c', 'model_auto_compact_token_limit=110000'] : []),
-                ...(options.fastMode ? ['-c', 'service_tier="fast"'] : []),
+                '-c', `service_tier="${options.fastMode ? 'fast' : 'default'}"`,
                 ...(autoPerm ? ['--dangerously-bypass-approvals-and-sandbox'] : []),
                 '--skip-git-repo-check',
                 sessionId, prompt || '', '--json'];
