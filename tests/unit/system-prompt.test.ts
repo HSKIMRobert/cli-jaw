@@ -1,9 +1,11 @@
 // System prompt alignment tests — Phase 7 Bundle D
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { JAW_HOME, SKILLS_DIR, SKILLS_REF_DIR } from '../../src/core/config.ts';
+import { getSystemPrompt } from '../../src/prompt/builder.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(__dirname, '..', '..');
@@ -65,10 +67,34 @@ test('employee prompt describes channel-generic delivery', () => {
 test('system skills prompt reinforces metadata-based skill matching', () => {
     assert.ok(skillsSrc.includes('Match by intent, not exact words'),
         'Boss skills prompt should route skills by semantic task intent');
-    assert.ok(skillsSrc.includes('against skill names, descriptions, metadata, keywords, and triggers'),
+    assert.ok(skillsSrc.includes('against visible skill names, descriptions, and any listed metadata, keywords, or triggers'),
         'Boss skills prompt should name metadata fields used for skill matching');
     assert.ok(skillsSrc.includes('read that SKILL.md once before deciding the skill does not apply'),
         'Boss skills prompt should inspect plausible skill candidates before rejecting them');
+});
+
+test('rendered Boss prompt keeps skill matching guidance when only ref skills exist', () => {
+    rmSync(SKILLS_DIR, { recursive: true, force: true });
+    mkdirSync(SKILLS_REF_DIR, { recursive: true });
+    writeFileSync(join(SKILLS_REF_DIR, 'registry.json'), JSON.stringify({
+        skills: {
+            diagram: {
+                name: 'diagram',
+                description: 'SVG diagrams, charts, and interactive visualizations for chat UI',
+            },
+        },
+    }));
+
+    const prompt = getSystemPrompt({ forDisk: false });
+
+    assert.ok(prompt.includes('### Skill Matching'),
+        'ref-only Boss prompt should still include the skill matching prelude');
+    assert.ok(prompt.includes('Match by intent, not exact words'),
+        'ref-only Boss prompt should preserve semantic skill routing');
+    assert.ok(prompt.includes('diagram — SVG diagrams, charts, and interactive visualizations for chat UI'),
+        'ref-only Boss prompt should include skill metadata descriptions');
+    assert.ok(prompt.includes(JAW_HOME),
+        'rendered prompt should still use the configured test JAW_HOME');
 });
 
 // ─── Active channel auto-selection ───────────────────

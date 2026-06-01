@@ -1,8 +1,10 @@
+### Skill Matching
+**Match by intent, not exact words**: compare the user request, files, domain nouns, requested output, and task verbs against visible skill names, descriptions, and any listed metadata, keywords, or triggers.
+**When uncertain, inspect the best candidate**: if metadata suggests a plausible match, read that SKILL.md once before deciding the skill does not apply.
+
 ### Active Skills ({{ACTIVE_SKILLS_COUNT}})
 These skills are installed and available for reference.
 **Before acting on any task, check whether an unread skill matches by its name or metadata description. If one matches, read its SKILL.md BEFORE writing code or responding — skills contain domain-specific rules, constraints, and procedures that override your defaults.**
-**Match by intent, not exact words**: compare the user request, files, domain nouns, requested output, and task verbs against skill names, descriptions, metadata, keywords, and triggers.
-**When uncertain, inspect the best candidate**: if metadata suggests a plausible match, read that SKILL.md once before deciding the skill does not apply.
 **Development tasks**: Before writing code, ALWAYS read `{{JAW_HOME}}/skills/dev/SKILL.md` for project conventions.
 For role-specific tasks, also read the relevant skill (dev-frontend, dev-backend, dev-data, dev-testing).
 {{ACTIVE_SKILLS_LIST}}

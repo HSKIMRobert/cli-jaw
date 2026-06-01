@@ -6,6 +6,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getEmployeePrompt, getEmployeePromptV2, clearPromptCache, formatSkillListItem } from '../../src/prompt/builder.ts';
 import { parseSubtasks } from '../../src/orchestrator/parser.ts';
+import { SKILLS_DIR } from '../../src/core/config.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const reviewerPath = join(__dirname, '../../skills_ref/dev-code-reviewer/SKILL.md');
@@ -75,8 +76,9 @@ test('EMP-008b: skill list items include metadata descriptions', () => {
         id: 'dev-backend',
         name: 'dev-backend',
         description: 'Backend engineering guide for orchestrated sub-agents.',
+        keywords: ['connector-api', 'audit-log'],
     });
-    assert.equal(line, '- dev-backend — Backend engineering guide for orchestrated sub-agents.');
+    assert.equal(line, '- dev-backend — Backend engineering guide for orchestrated sub-agents. [keywords: connector-api, audit-log]');
 });
 
 test('EMP-008c: employee prompt reinforces skill metadata matching', () => {
@@ -85,10 +87,41 @@ test('EMP-008c: employee prompt reinforces skill metadata matching', () => {
     const v2 = getEmployeePromptV2(emp, 'backend', 1);
     assert.ok(v2.includes('Match by intent, not exact words'),
         'employee prompt should route skills by semantic task intent');
-    assert.ok(v2.includes('against skill names, descriptions, metadata, keywords, and triggers'),
+    assert.ok(v2.includes('against visible skill names, descriptions, and any listed metadata, keywords, or triggers'),
         'employee prompt should name metadata fields used for skill matching');
     assert.ok(v2.includes('read that SKILL.md once before deciding it does not apply'),
         'employee prompt should inspect plausible skill candidates before rejecting them');
+});
+
+test('EMP-008c2: base employee active skill section names the SKILL.md path pattern', () => {
+    const skillDir = join(SKILLS_DIR, 'meta-test');
+    fs.mkdirSync(skillDir, { recursive: true });
+    fs.writeFileSync(join(skillDir, 'SKILL.md'), [
+        '---',
+        'name: meta-test',
+        'description: Test skill for active skill path rendering.',
+        'keywords: [path-render]',
+        '---',
+        '',
+        '# Meta Test',
+    ].join('\n'));
+
+    const emp = { name: 'Backend', cli: 'claude', role: 'backend' };
+    const prompt = getEmployeePrompt(emp);
+    assert.ok(prompt.includes(`Read active skills from ${SKILLS_DIR}/<skill-id>/SKILL.md`),
+        'base employee prompt should tell employees where to read active skill bodies');
+    assert.ok(prompt.includes('[keywords: path-render]'),
+        'base employee prompt should render active skill keyword metadata when present');
+});
+
+test('EMP-008d: docs role resolves to an available documentation skill', () => {
+    const emp = { name: 'Docs', cli: 'agy', role: 'docs' };
+    clearPromptCache();
+    const v2 = getEmployeePromptV2(emp, 'docs', 1);
+    assert.ok(v2.includes('doc-coauthoring'),
+        'docs role should map to the available doc-coauthoring skill');
+    assert.ok(!v2.includes('Role guide: documentation: unavailable'),
+        'docs role should not point to the removed documentation skill id');
 });
 
 test('EMP-009: getEmployeePromptV2 includes phase gate', () => {
