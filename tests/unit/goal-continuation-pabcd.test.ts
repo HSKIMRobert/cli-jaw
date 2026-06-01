@@ -76,6 +76,10 @@ test('goal continuation prompt uses cli-jaw goal pause instead of inducing done'
         assert.match(res.prompt ?? '', /independent objective reviewer/);
         assert.match(res.prompt ?? '', /Plain `cli-jaw goal pause` is for manual user commands only/);
         assert.match(res.prompt ?? '', /explicit user-requested final completion/);
+        assert.match(res.prompt ?? '', /--- Stop\/Pause Audit ---/);
+        assert.doesNotMatch(res.prompt ?? '', /METACOGNITIVE COMPLETION CHECK/);
+        assert.doesNotMatch(res.prompt ?? '', /--- Completion Audit/);
+        assert.doesNotMatch(res.prompt ?? '', /run `\/goal done`/);
         assert.doesNotMatch(res.prompt ?? '', /\/goal done/);
         assert.doesNotMatch(res.prompt ?? '', /cli-jaw goal done/);
     } finally {
