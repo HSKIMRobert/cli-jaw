@@ -1,12 +1,39 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parseCommand, executeCommand } from '../../src/cli/commands.ts';
 import { resetGoalStore, setGoal } from '../../src/goal/store.ts';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const handlersSrc = readFileSync(join(__dirname, '../../src/cli/handlers-workflows.ts'), 'utf8');
 
 async function runGoalCommand(command: string) {
     const parsed = parseCommand(command);
     return executeCommand(parsed, { interface: 'web', locale: 'en' });
 }
+
+function goalSubcommandBlock(subcommand: string): string {
+    const marker = `if (sub === '${subcommand}')`;
+    const start = handlersSrc.indexOf(marker);
+    assert.notEqual(start, -1, `missing goal subcommand block: ${subcommand}`);
+    const next = handlersSrc.indexOf('\n    if (sub === ', start + marker.length);
+    return handlersSrc.slice(start, next === -1 ? handlersSrc.length : next);
+}
+
+test('/goal terminal commands bypass fireSteerForWebCli submitMessage path', () => {
+    for (const subcommand of ['done', 'cancel', 'pause', 'clear']) {
+        const block = goalSubcommandBlock(subcommand);
+        assert.doesNotMatch(block, /fireSteerForWebCli/);
+        assert.doesNotMatch(block, /steerPrompt/);
+    }
+});
+
+test('/goal set and resume still use the steering path', () => {
+    assert.match(goalSubcommandBlock('set'), /fireSteerForWebCli/);
+    assert.match(goalSubcommandBlock('resume'), /fireSteerForWebCli/);
+});
 
 test('/goal done does not return a steerPrompt or spawn continuation text', async () => {
     resetGoalStore();
