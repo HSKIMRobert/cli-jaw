@@ -85,6 +85,24 @@ describe('Goal Store', () => {
         assert.equal(pauseGoal(), null);
     });
 
+    test('9b. pauseGoal can attach agent audit to an already paused goal', () => {
+        setGoal('Pause audit backfill test');
+        assert.ok(pauseGoal());
+
+        const pausedWithAudit = pauseGoal({
+            audit: {
+                actor: 'agent',
+                evidence: 'Independent reviewer found no viable remaining path after plain pause.',
+                timestamp: '2026-06-02T00:00:00.000Z',
+            },
+        });
+
+        assert.ok(pausedWithAudit);
+        assert.equal(pausedWithAudit!.status, 'paused');
+        assert.equal(pausedWithAudit!.pauseAudit?.actor, 'agent');
+        assert.match(pausedWithAudit!.pauseAudit?.evidence ?? '', /Independent reviewer/);
+    });
+
     test('10. resumeGoal fails with non-paused goal', () => {
         setGoal('Not paused');
         assert.equal(resumeGoal(), null);
