@@ -38,13 +38,13 @@ export const CLI_META: Record<string, CliMeta> = {
         label: 'AI-E',
         defaultProvider: 'claude',
         providers: ['claude', 'codex', 'gemini', 'grok', 'copilot', 'kiro'],
-        models: ['opus', 'sonnet', 'haiku', 'gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gemini-3-flash-preview', 'grok-build', 'gpt-5-mini'],
+        models: ['opus', 'sonnet', 'haiku', 'gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gemini-3-flash-preview', 'grok-build', 'grok-composer-2.5-fast', 'gpt-5-mini'],
         efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
         modelsByProvider: {
             claude: ['claude-opus-4-8', 'opus', 'sonnet', 'haiku'],
             codex: ['gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini'],
             gemini: ['gemini-3-flash-preview'],
-            grok: ['grok-build'],
+            grok: ['grok-build', 'grok-composer-2.5-fast'],
             copilot: ['gpt-5-mini'],
             kiro: ['auto', 'claude-sonnet-4.6', 'deepseek-3.2', 'minimax-m2.5', 'glm-5', 'qwen3-coder-next'],
         },
@@ -147,9 +147,9 @@ export const CLI_META: Record<string, CliMeta> = {
     },
     grok: {
         label: 'Grok',
-        models: ['grok-build'],
+        models: ['grok-build', 'grok-composer-2.5-fast'],
         efforts: [],
-        effortNote: 'unsupported by grok-build; do not pass --effort',
+        effortNote: 'unsupported by grok-build/composer; do not pass --effort',
     },
     opencode: {
         label: 'OpenCode',

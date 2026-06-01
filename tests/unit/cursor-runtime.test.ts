@@ -25,8 +25,9 @@ test('Cursor full model IDs stay unchanged', () => {
 });
 
 test('Cursor model inventory mirrors observed cursor-agent list-models support', () => {
-    assert.equal(CURSOR_MODEL_IDS.length, 131);
+    assert.equal(CURSOR_MODEL_IDS.length, 132);
     assert.ok(CURSOR_MODEL_IDS.includes('composer-2.5-fast'));
+    assert.ok(CURSOR_MODEL_IDS.includes('grok-composer-2.5-fast'));
     assert.ok(CURSOR_MODEL_IDS.includes('gpt-5.5-extra-high-fast'));
     assert.ok(CURSOR_MODEL_IDS.includes('claude-opus-4-7-thinking-max-fast'));
     assert.ok(CURSOR_MODEL_IDS.includes('claude-opus-4-8-thinking-max-fast'));

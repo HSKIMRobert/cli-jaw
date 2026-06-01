@@ -112,9 +112,9 @@ test('ai-e detection checks AI_E_BIN, local package candidates, then PATH', () =
     );
 });
 
-test('grok registry disables effort for grok-build', () => {
+test('grok registry includes build and composer models with effort disabled', () => {
     assert.equal(CLI_REGISTRY.grok.defaultModel, 'grok-build');
-    assert.deepEqual(CLI_REGISTRY.grok.models, ['grok-build']);
+    assert.deepEqual(CLI_REGISTRY.grok.models, ['grok-build', 'grok-composer-2.5-fast']);
     assert.equal(CLI_REGISTRY.grok.defaultEffort, '');
     assert.deepEqual(CLI_REGISTRY.grok.efforts, []);
     assert.match(CLI_REGISTRY.grok.effortNote || '', /unsupported by grok-build/);

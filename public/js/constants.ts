@@ -32,14 +32,14 @@ const FALLBACK_CLI_REGISTRY: CliRegistry = {
             'opus', 'sonnet', 'haiku',
             'gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini',
             'gemini-3-flash-preview',
-            'grok-build',
+            'grok-build', 'grok-composer-2.5-fast',
             'gpt-5-mini',
         ],
         modelsByProvider: {
             claude: ['claude-opus-4-8', 'opus', 'sonnet', 'haiku'],
             codex: ['gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini'],
             gemini: ['gemini-3-flash-preview'],
-            grok: ['grok-build'],
+            grok: ['grok-build', 'grok-composer-2.5-fast'],
             copilot: ['gpt-5-mini'],
             kiro: ['auto', 'claude-sonnet-4.6', 'deepseek-3.2', 'minimax-m2.5', 'glm-5', 'qwen3-coder-next'],
         },
@@ -144,8 +144,8 @@ const FALLBACK_CLI_REGISTRY: CliRegistry = {
     grok: {
         label: 'Grok',
         efforts: [],
-        effortNote: 'unsupported by grok-build; do not pass --effort',
-        models: ['grok-build'],
+        effortNote: 'unsupported by grok-build/composer; do not pass --effort',
+        models: ['grok-build', 'grok-composer-2.5-fast'],
     },
     opencode: {
         label: 'OpenCode',

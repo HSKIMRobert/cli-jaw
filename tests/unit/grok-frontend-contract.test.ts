@@ -82,7 +82,7 @@ test('GROK-FE-002: legacy settings fallback registry exposes grok-build without 
     const constants = src('public/js/constants.ts');
     assert.match(constants, /grok:\s*\{/);
     assert.match(constants, /label:\s*'Grok'/);
-    assert.match(constants, /models:\s*\['grok-build'\]/);
+    assert.match(constants, /models:\s*\['grok-build', 'grok-composer-2\.5-fast'\]/);
     assert.match(constants, /efforts:\s*\[\]/);
     assert.match(constants, /unsupported by grok-build/);
     assert.match(constants, /'kiro-code':\s*\{/);
@@ -142,7 +142,7 @@ test('GROK-FE-004: manager settings metadata treats Grok as normal CLI with disa
     const meta = src('public/manager/src/settings/pages/components/agent/agent-meta.ts');
     const employees = src('public/manager/src/settings/pages/components/employees-helpers.ts');
     assert.match(meta, /grok:\s*\{/);
-    assert.match(meta, /models:\s*\['grok-build'\]/);
+    assert.match(meta, /models:\s*\['grok-build', 'grok-composer-2\.5-fast'\]/);
     assert.match(meta, /efforts:\s*\[\]/);
     assert.match(employees, /'grok'/);
     assert.match(meta, /'codex-app':\s*\{/);
