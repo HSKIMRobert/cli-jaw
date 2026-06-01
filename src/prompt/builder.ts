@@ -41,8 +41,30 @@ function normalizeSkillDescription(description: unknown): string {
         .replace(/\s+/g, ' ');
 }
 
-function readSkillMetadata(skillName: string, skillPath: string | null): { name: string; description: string } {
-    if (!skillPath || !fs.existsSync(skillPath)) return { name: skillName, description: '' };
+function normalizeSkillMetadataList(value: unknown): string[] {
+    if (Array.isArray(value)) return value.map(v => String(v).trim()).filter(Boolean);
+    const raw = String(value || '').trim();
+    if (!raw) return [];
+    const unwrapped = raw.replace(/^\[/, '').replace(/\]$/, '');
+    return unwrapped.split(',').map(v => v.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
+}
+
+function parseSkillMetadataList(content: string, field: string): string[] {
+    const match = content.match(new RegExp(`^${field}:\\s*(.+)$`, 'm'));
+    return normalizeSkillMetadataList(match?.[1]);
+}
+
+function formatSkillRoutingMetadata(skill: { keywords?: unknown; triggers?: unknown }): string {
+    const keywords = normalizeSkillMetadataList(skill.keywords);
+    const triggers = normalizeSkillMetadataList(skill.triggers);
+    const parts = [];
+    if (keywords.length) parts.push(`keywords: ${keywords.join(', ')}`);
+    if (triggers.length) parts.push(`triggers: ${triggers.join(', ')}`);
+    return parts.length ? ` [${parts.join('; ')}]` : '';
+}
+
+function readSkillMetadata(skillName: string, skillPath: string | null): { name: string; description: string; keywords: string[]; triggers: string[] } {
+    if (!skillPath || !fs.existsSync(skillPath)) return { name: skillName, description: '', keywords: [], triggers: [] };
     try {
         const content = fs.readFileSync(skillPath, 'utf8');
         const nameMatch = content.match(/^name:\s*(.+)/m);
@@ -50,17 +72,20 @@ function readSkillMetadata(skillName: string, skillPath: string | null): { name:
         return {
             name: nameMatch?.[1]?.trim() || skillName,
             description: normalizeSkillDescription(descMatch?.[1]),
+            keywords: parseSkillMetadataList(content, 'keywords'),
+            triggers: parseSkillMetadataList(content, 'triggers'),
         };
     } catch {
-        return { name: skillName, description: '' };
+        return { name: skillName, description: '', keywords: [], triggers: [] };
     }
 }
 
-export function formatSkillListItem(skill: { id: string; name?: string; description?: string }): string {
+export function formatSkillListItem(skill: { id: string; name?: string; description?: string; keywords?: unknown; triggers?: unknown }): string {
     const name = String(skill.name || skill.id).trim();
     const label = name && name !== skill.id ? `${name} (${skill.id})` : skill.id;
     const description = normalizeSkillDescription(skill.description);
-    return description ? `- ${label} — ${description}` : `- ${label}`;
+    const routing = formatSkillRoutingMetadata(skill);
+    return description ? `- ${label} — ${description}${routing}` : `- ${label}${routing}`;
 }
 
 function formatSkillPath(skillName: string, skillPath: string | null): string {
@@ -68,8 +93,8 @@ function formatSkillPath(skillName: string, skillPath: string | null): string {
     const meta = readSkillMetadata(skillName, skillPath);
     const label = meta.name && meta.name !== skillName ? `${meta.name} (${skillName})` : skillName;
     return meta.description
-        ? `${label}: ${skillPath} — ${meta.description}`
-        : `${label}: ${skillPath}`;
+        ? `${label}: ${skillPath} — ${meta.description}${formatSkillRoutingMetadata(meta)}`
+        : `${label}: ${skillPath}${formatSkillRoutingMetadata(meta)}`;
 }
 
 // ─── Legacy A1 Source Hashes ─────────────────────────
@@ -122,6 +147,8 @@ export function loadActiveSkills() {
                     id: d.name,
                     name: nameMatch?.[1]?.trim() || d.name,
                     description: descMatch?.[1]?.trim() || '',
+                    keywords: parseSkillMetadataList(content, 'keywords'),
+                    triggers: parseSkillMetadataList(content, 'triggers'),
                     content,
                 };
             })
@@ -515,12 +542,16 @@ export function getSystemPrompt(opts: { currentPrompt?: string; forDisk?: boolea
                 id: s!.id,
                 name: s!.name,
                 description: s!.description,
+                keywords: s!.keywords,
+                triggers: s!.triggers,
             })).join('\n');
             vars["REF_SKILLS_COUNT"] = String(availableRef.length);
             vars["REF_SKILLS_LIST"] = availableRef.map(s => formatSkillListItem({
                 id: s.id,
                 name: s.name,
                 description: s.description,
+                keywords: s.keywords,
+                triggers: s.triggers,
             })).join('\n');
 
             // Only render sections that have content
@@ -535,8 +566,9 @@ export function getSystemPrompt(opts: { currentPrompt?: string; forDisk?: boolea
             } else {
                 // Only ref skills
                 const tmpl = loadTemplate('skills.md');
+                const matchingSection = tmpl.split('### Active Skills')[0];
                 const refSection = tmpl.substring(tmpl.indexOf('### Available Skills'));
-                prompt += renderTemplate(refSection, vars);
+                prompt += renderTemplate(matchingSection + refSection, vars);
             }
         }
     } catch { /* skills not ready */ }
@@ -593,13 +625,16 @@ export function getEmployeePrompt(emp: { name: string; role?: string; id?: strin
         if (activeSkills.length > 0) {
             let section = `\n## Active Skills (${activeSkills.length})\n`;
             section += `Installed skills — automatically triggered by the CLI. Use each description to decide whether to read its SKILL.md.\n`;
-            section += `Match by intent, not exact words: compare the request, files, domain nouns, output, and task verbs against skill names, descriptions, metadata, keywords, and triggers.\n`;
+            section += `Read active skills from ${SKILLS_DIR}/<skill-id>/SKILL.md.\n`;
+            section += `Match by intent, not exact words: compare the request, files, domain nouns, output, and task verbs against visible skill names, descriptions, and any listed metadata, keywords, or triggers.\n`;
             section += `When uncertain, inspect the best candidate: if metadata suggests a plausible match, read that SKILL.md once before deciding it does not apply.\n`;
             for (const s of activeSkills) {
                 section += `${formatSkillListItem({
                     id: s!.id,
                     name: s!.name,
                     description: s!.description,
+                    keywords: s!.keywords,
+                    triggers: s!.triggers,
                 })}\n`;
             }
             vars["ACTIVE_SKILLS_SECTION"] = section;
@@ -652,7 +687,7 @@ export function getEmployeePromptV2(
         frontend: 'dev-frontend',
         backend: 'dev-backend',
         data: 'dev-data',
-        docs: 'documentation',
+        docs: 'doc-coauthoring',
         custom: null,
     };
 
@@ -664,7 +699,7 @@ export function getEmployeePromptV2(
 
     prompt += `\n\n## Skill Loading Contract`;
     prompt += `\nSkill bodies are not preloaded. Read each guide once, only when the task requires it.`;
-    prompt += `\n- Match by intent, not exact words: compare the task, files, domain nouns, output, and task verbs against skill names, descriptions, metadata, keywords, and triggers.`;
+    prompt += `\n- Match by intent, not exact words: compare the task, files, domain nouns, output, and task verbs against visible skill names, descriptions, and any listed metadata, keywords, or triggers.`;
     prompt += `\n- When uncertain, inspect the best candidate: if metadata suggests a plausible match, read that SKILL.md once before deciding it does not apply.`;
     prompt += `\n- Common dev guide: ${formatSkillPath('dev', devCommonPath)}`;
     prompt += `\n- Scaffolding guide: ${formatSkillPath('dev-scaffolding', scaffoldingPath)} (read only for new projects, new modules, or structure audits)`;
