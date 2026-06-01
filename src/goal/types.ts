@@ -13,6 +13,12 @@ export interface GoalCheckpoint {
     timestamp: string;
 }
 
+export interface GoalPauseAudit {
+    actor: 'agent' | 'human';
+    evidence: string;
+    timestamp: string;
+}
+
 export interface GoalState {
     id: string;
     objective: string;
@@ -26,6 +32,7 @@ export interface GoalState {
     lastCheckpoint?: GoalCheckpoint | undefined;
     checkpoints: GoalCheckpoint[];
     pauseReason?: string | undefined;
+    pauseAudit?: GoalPauseAudit | undefined;
     cancelReason?: string | undefined;
     completionNote?: string | undefined;
 }

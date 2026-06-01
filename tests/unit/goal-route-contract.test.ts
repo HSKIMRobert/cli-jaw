@@ -10,6 +10,7 @@ const routeSrc = readSource(join(projectRoot, 'src/routes/goal.ts'), 'utf8');
 const serverSrc = readSource(join(projectRoot, 'server.ts'), 'utf8');
 const handlerSrc = readSource(join(projectRoot, 'src/cli/handlers-workflows.ts'), 'utf8');
 const storeSrc = readSource(join(projectRoot, 'src/goal/store.ts'), 'utf8');
+const goalCliSrc = readSource(join(projectRoot, 'bin/commands/goal.ts'), 'utf8');
 
 test('GR-001: goal route registers GET and POST /api/goal', () => {
     assert.ok(routeSrc.includes("'/api/goal'"), 'must register /api/goal');
@@ -61,4 +62,17 @@ test('GR-008: goal store uses atomic writes', () => {
 
 test('GR-009: goal store archives to history on clear/complete/cancel', () => {
     assert.ok(storeSrc.includes('archiveGoal'), 'store must have archive helper');
+});
+
+test('GR-010: agent pause requires independent audit evidence while manual pause remains available', () => {
+    assert.ok(routeSrc.includes("body?.actor === 'agent'"), 'route must distinguish explicit agent pause');
+    assert.ok(routeSrc.includes('Agent-initiated goal pause requires independent audit evidence'), 'agent pause must reject missing audit evidence');
+    assert.ok(routeSrc.includes('pauseGoal({'), 'route must pass pause metadata into the store');
+    assert.ok(storeSrc.includes('pauseAudit'), 'store must persist pause audit metadata');
+});
+
+test('GR-011: goal CLI exposes agent pause audit flags', () => {
+    assert.ok(goalCliSrc.includes('--agent --audit'), 'CLI help should document audited agent pause');
+    assert.ok(goalCliSrc.includes("payload.actor = 'agent'"), 'CLI should mark explicit agent pause');
+    assert.ok(goalCliSrc.includes('payload.audit'), 'CLI should send audit evidence');
 });

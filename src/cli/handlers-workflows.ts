@@ -127,7 +127,7 @@ export async function planAuditWorkflowHandler(args: string[], ctx: CliCommandCo
 }
 
 export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext): Promise<SlashResult> {
-    const { getActiveGoal, getGoalHistory, setGoal, updateGoal, completeGoal, cancelGoal, pauseGoal, resumeGoal, clearGoal, resetGoalStore } = await import('../goal/store.js');
+    const { getActiveGoal, getGoalHistory, setGoal, updateGoal, completeGoal, cancelGoal, pauseGoal, resumeGoal, clearGoal, resetGoalStore, goalHasCompletionEvidence } = await import('../goal/store.js');
     const sub = (args[0] || '').toLowerCase();
 
     if (sub === 'run') {
@@ -213,7 +213,11 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
     }
 
     if (sub === 'done') {
-        const note = args.slice(1).join(' ').trim() || undefined;
+        const force = args.includes('--force');
+        if (!force && !goalHasCompletionEvidence(getActiveGoal())) {
+            return blocked('Goal completion requires verification evidence on the latest checkpoint. Log it via `/goal update <summary> --evidence <test result / changed file>`, then retry — or pass --force for an explicit manual override.');
+        }
+        const note = args.slice(1).filter(a => a !== '--force').join(' ').trim() || undefined;
         clearGoalTimers();
         const goal = completeGoal(note);
         if (!goal) return blocked('No active goal to complete.');
@@ -229,8 +233,24 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
     }
 
     if (sub === 'pause') {
+        const pauseArgs = args.slice(1).filter(a => a !== '--agent');
+        const auditIdx = pauseArgs.indexOf('--audit');
+        const auditEvidence = auditIdx >= 0 ? pauseArgs.slice(auditIdx + 1).join(' ').trim() : '';
+        const reason = (auditIdx >= 0 ? pauseArgs.slice(0, auditIdx) : pauseArgs).join(' ').trim() || undefined;
+        if (args.includes('--agent') && !auditEvidence) {
+            return blocked('Agent-initiated goal pause requires independent audit evidence. Run an independent reviewer first, then retry with `cli-jaw goal pause --agent --audit "<review summary>"`.');
+        }
         clearGoalTimers();
-        const goal = pauseGoal();
+        const goal = pauseGoal({
+            ...(reason ? { reason } : {}),
+            ...(auditEvidence ? {
+                audit: {
+                    actor: args.includes('--agent') ? 'agent' : 'human',
+                    evidence: auditEvidence,
+                    timestamp: new Date().toISOString(),
+                },
+            } : {}),
+        });
         if (!goal) return blocked('No active goal to pause.');
         return info(`Goal paused: ${goal.objective}`);
     }

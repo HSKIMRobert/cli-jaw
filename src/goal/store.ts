@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { JAW_HOME } from '../core/config.js';
-import type { GoalState, GoalHistory, GoalCheckpoint, GoalBudget } from './types.js';
+import type { GoalState, GoalHistory, GoalCheckpoint, GoalBudget, GoalPauseAudit } from './types.js';
 
 const GOAL_DIR = path.join(JAW_HOME, 'goal');
 const ACTIVE_PATH = path.join(GOAL_DIR, 'active.json');
@@ -111,10 +111,12 @@ export function cancelGoal(reason?: string): GoalState | null {
     return goal;
 }
 
-export function pauseGoal(): GoalState | null {
+export function pauseGoal(opts?: { reason?: string | undefined; audit?: GoalPauseAudit | undefined }): GoalState | null {
     const goal = getActiveGoal();
     if (!goal || goal.status !== 'active') return null;
     goal.status = 'paused';
+    if (opts?.reason) goal.pauseReason = opts.reason;
+    if (opts?.audit) goal.pauseAudit = opts.audit;
     goal.updatedAt = new Date().toISOString();
     writeJson(ACTIVE_PATH, goal);
     return goal;

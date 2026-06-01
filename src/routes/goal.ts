@@ -83,7 +83,23 @@ export function registerGoalRoutes(app: Router, requireAuth: RequestHandler): vo
                     return;
                 }
                 case 'pause': {
-                    const goal = pauseGoal();
+                    const actor = body?.['actor'] === 'agent' ? 'agent' : 'human';
+                    const auditEvidence = String(body?.['audit'] || '').trim();
+                    if (actor === 'agent' && !auditEvidence) {
+                        res.status(409).json({ ok: false, error: 'Agent-initiated goal pause requires independent audit evidence. Run an independent reviewer first, then retry with `cli-jaw goal pause --agent --audit "<review summary>"`.' });
+                        return;
+                    }
+                    const reason = String(body?.['reason'] || '').trim();
+                    const goal = pauseGoal({
+                        ...(reason ? { reason } : {}),
+                        ...(auditEvidence ? {
+                            audit: {
+                                actor,
+                                evidence: auditEvidence,
+                                timestamp: new Date().toISOString(),
+                            },
+                        } : {}),
+                    });
                     if (!goal) { res.status(400).json({ ok: false, error: 'No active goal to pause' }); return; }
                     clearGoalTimers();
                     res.json({ ok: true, goal });

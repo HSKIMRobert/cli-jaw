@@ -61,9 +61,19 @@ describe('Goal Store', () => {
 
     test('8. pauseGoal and resumeGoal cycle', () => {
         setGoal('Pause test');
-        const paused = pauseGoal();
+        const paused = pauseGoal({
+            reason: 'Need external auth',
+            audit: {
+                actor: 'agent',
+                evidence: 'Independent reviewer confirmed no local auth path remains.',
+                timestamp: '2026-06-02T00:00:00.000Z',
+            },
+        });
         assert.ok(paused);
         assert.equal(paused!.status, 'paused');
+        assert.equal(paused!.pauseReason, 'Need external auth');
+        assert.equal(paused!.pauseAudit?.actor, 'agent');
+        assert.match(paused!.pauseAudit?.evidence ?? '', /Independent reviewer/);
         assert.equal(getActiveGoal()!.status, 'paused');
 
         const resumed = resumeGoal();
