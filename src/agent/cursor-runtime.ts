@@ -94,6 +94,7 @@ export const CURSOR_MODEL_IDS = [
     'claude-opus-4-8-thinking-max',
     'claude-opus-4-8-thinking-max-fast',
     'grok-build-0.1',
+    'grok-composer-2.5-fast',
     'gpt-5.4-low',
     'gpt-5.4-medium',
     'gpt-5.4-medium-fast',

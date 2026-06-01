@@ -28,7 +28,7 @@ export const CLI_REGISTRY = {
             ...getDefaultClaudeChoices(),
             'gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.3-codex',
             'gemini-3-flash-preview', 'gemini-2.5-pro',
-            'grok-build',
+            'grok-build', 'grok-composer-2.5-fast',
             'gpt-5-mini',
             'claude-sonnet-4.6',
         ],
@@ -36,7 +36,7 @@ export const CLI_REGISTRY = {
             claude: getDefaultClaudeChoices(),
             codex: ['gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.3-codex'],
             gemini: ['gemini-3-flash-preview', 'gemini-2.5-pro'],
-            grok: ['grok-build'],
+            grok: ['grok-build', 'grok-composer-2.5-fast'],
             copilot: ['gpt-5-mini', 'claude-sonnet-4.6', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.5'],
             kiro: [
                 'auto',
@@ -121,8 +121,8 @@ export const CLI_REGISTRY = {
         defaultModel: 'grok-build',
         defaultEffort: '',
         efforts: [],
-        effortNote: 'unsupported by grok-build; do not pass --effort',
-        models: ['grok-build'],
+        effortNote: 'unsupported by grok-build/composer; do not pass --effort',
+        models: ['grok-build', 'grok-composer-2.5-fast'],
     },
     'kiro-code': {
         label: 'Kiro',
