@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
     getActiveGoal, getGoalHistory, setGoal, updateGoal,
     completeGoal, cancelGoal, pauseGoal, resumeGoal,
-    clearGoal, resetGoalStore,
+    clearGoal, resetGoalStore, MAX_GOAL_OBJECTIVE_CHARS,
 } from '../../src/goal/store.ts';
 
 beforeEach(() => { resetGoalStore(); });
@@ -125,5 +125,16 @@ describe('Goal Store', () => {
             completeGoal();
         }
         assert.equal(getGoalHistory().goals.length, 50);
+    });
+
+    test('17. setGoal accepts objectives up to 10000 characters', () => {
+        const objective = 'x'.repeat(MAX_GOAL_OBJECTIVE_CHARS);
+        const goal = setGoal(objective);
+        assert.equal(goal.objective.length, MAX_GOAL_OBJECTIVE_CHARS);
+    });
+
+    test('18. setGoal rejects objectives over 10000 characters', () => {
+        const objective = 'x'.repeat(MAX_GOAL_OBJECTIVE_CHARS + 1);
+        assert.throws(() => setGoal(objective), /10000 characters/);
     });
 });

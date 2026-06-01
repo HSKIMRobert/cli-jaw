@@ -25,6 +25,12 @@ test('GR-003: goal route requires objective for set action', () => {
     assert.ok(routeSrc.includes("'objective is required'"), 'set action must validate objective');
 });
 
+test('GR-003b: goal route caps objective at 10000 characters', () => {
+    assert.ok(routeSrc.includes('MAX_GOAL_OBJECTIVE_CHARS'), 'route should import the goal objective limit');
+    assert.ok(routeSrc.includes('objective must be ${MAX_GOAL_OBJECTIVE_CHARS} characters or fewer'),
+        'route should reject objectives over the configured limit');
+});
+
 test('GR-004: goal route supports clear and reset without confirmation', () => {
     assert.ok(routeSrc.includes('clear') && !routeSrc.includes('confirm'), 'clear must not require confirm');
     assert.ok(routeSrc.includes('reset'), 'reset action must exist');

@@ -4,6 +4,7 @@ import {
     setGoal, updateGoal, completeGoal, cancelGoal,
     pauseGoal, resumeGoal, clearGoal, resetGoalStore,
     goalHasCompletionEvidence,
+    MAX_GOAL_OBJECTIVE_CHARS,
 } from '../goal/store.js';
 import { clearGoalTimers, kickGoalContinuation } from '../agent/lifecycle-handler.js';
 
@@ -28,6 +29,10 @@ export function registerGoalRoutes(app: Router, requireAuth: RequestHandler): vo
                     const objective = String(body?.['objective'] || '').trim();
                     if (!objective) {
                         res.status(400).json({ ok: false, error: 'objective is required' });
+                        return;
+                    }
+                    if (objective.length > MAX_GOAL_OBJECTIVE_CHARS) {
+                        res.status(400).json({ ok: false, error: `objective must be ${MAX_GOAL_OBJECTIVE_CHARS} characters or fewer` });
                         return;
                     }
                     const existing = getActiveGoal();

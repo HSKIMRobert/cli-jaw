@@ -7,6 +7,7 @@ import type { GoalState, GoalHistory, GoalCheckpoint, GoalBudget } from './types
 const GOAL_DIR = path.join(JAW_HOME, 'goal');
 const ACTIVE_PATH = path.join(GOAL_DIR, 'active.json');
 const HISTORY_PATH = path.join(GOAL_DIR, 'history.json');
+export const MAX_GOAL_OBJECTIVE_CHARS = 10000;
 
 function ensureDir(): void {
     fs.mkdirSync(GOAL_DIR, { recursive: true });
@@ -39,6 +40,11 @@ export function getGoalHistory(): GoalHistory {
 }
 
 export function setGoal(objective: string, opts?: { repoRoot?: string | undefined; budget?: GoalBudget | undefined; replace?: boolean }): GoalState {
+    const normalizedObjective = objective.trim();
+    if (!normalizedObjective) throw new Error('Goal objective is required.');
+    if (normalizedObjective.length > MAX_GOAL_OBJECTIVE_CHARS) {
+        throw new Error(`Goal objective exceeds ${MAX_GOAL_OBJECTIVE_CHARS} characters.`);
+    }
     const existing = getActiveGoal();
     if (existing && (existing.status === 'active' || existing.status === 'paused')) {
         if (!opts?.replace) {
@@ -49,7 +55,7 @@ export function setGoal(objective: string, opts?: { repoRoot?: string | undefine
     const now = new Date().toISOString();
     const goal: GoalState = {
         id: crypto.randomUUID().slice(0, 12),
-        objective,
+        objective: normalizedObjective,
         status: 'active',
         createdAt: now,
         updatedAt: now,

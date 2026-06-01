@@ -503,7 +503,7 @@ IF Seed exists:
   - Empty evidence = NOT MET.
 
 **Stage 3: Verdict**
-- All passed → \`cli-jaw orchestrate D\`
+- All passed → RUN \`cli-jaw orchestrate D\` now. Do not merely suggest it or write "C → D"; execute the command before claiming C is complete.
 - Code issue → suggest \`cli-jaw orchestrate B\`
 - Plan issue (AC not met) → suggest \`cli-jaw orchestrate P\`
 - Spec issue (wrong requirements) → suggest \`cli-jaw orchestrate I\``,
@@ -529,7 +529,7 @@ Then perform two reflections:
 
 Present findings to user. Then:
 - If significant issues: "Seed를 개선하려면: \`cli-jaw orchestrate I\`"
-- Otherwise: "완료. \`cli-jaw orchestrate D\`로 마무리하세요."
+- Otherwise: "완료. D 단계까지 실행했고 오케스트레이션을 마무리했습니다."
 
 Returning to idle after D.`,
 };
