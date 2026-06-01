@@ -65,3 +65,18 @@ test('system prompt documents channel omission defaults to active', () => {
     assert.ok(a1Src.includes('active channel'),
         'should document that omitting channel uses active channel');
 });
+
+// ─── Goal contract ───────────────────────────────────
+
+test('system prompt forbids runtime goal state and prefers cli-jaw goal pause', () => {
+    assert.ok(a1Src.includes('built-in/runtime goal feature'),
+        'should explicitly ban host/runtime goal state while inside cli-jaw');
+    assert.ok(a1Src.includes('Use only `cli-jaw goal ...`'),
+        'should direct agents to cli-jaw goal commands only');
+    assert.ok(a1Src.includes('cli-jaw goal pause'),
+        'should make pause the default stop command');
+    assert.ok(a1Src.includes('Do not run `cli-jaw goal done` unless the user explicitly asks'),
+        'should reserve done for explicit user-requested final completion');
+    assert.ok(!a1Src.includes('run `/goal done`'),
+        'should not instruct agents to run slash goal done');
+});
