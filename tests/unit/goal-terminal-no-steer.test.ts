@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseCommand, executeCommand } from '../../src/cli/commands.ts';
-import { resetGoalStore, setGoal } from '../../src/goal/store.ts';
+import { resetGoalStore, setGoal, updateGoal } from '../../src/goal/store.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const handlersSrc = readFileSync(join(__dirname, '../../src/cli/handlers-workflows.ts'), 'utf8');
@@ -35,14 +35,42 @@ test('/goal set and resume still use the steering path', () => {
     assert.match(goalSubcommandBlock('resume'), /fireSteerForWebCli/);
 });
 
-test('/goal done does not return a steerPrompt or spawn continuation text', async () => {
+test('/goal done requires checkpoint evidence without spawning continuation text', async () => {
     resetGoalStore();
     try {
         setGoal('terminal done contract');
         const result = await runGoalCommand('/goal done final note');
+        assert.equal(result?.ok, false);
+        assert.equal('steerPrompt' in result, false);
+        assert.match(result?.text ?? '', /requires verification evidence/);
+    } finally {
+        resetGoalStore();
+    }
+});
+
+test('/goal done succeeds with checkpoint evidence without spawning continuation text', async () => {
+    resetGoalStore();
+    try {
+        setGoal('terminal done evidence contract');
+        updateGoal('verified', '', ['npm test pass']);
+        const result = await runGoalCommand('/goal done final note');
         assert.equal(result?.ok, true);
         assert.equal('steerPrompt' in result, false);
         assert.match(result?.text ?? '', /Goal completed/);
+    } finally {
+        resetGoalStore();
+    }
+});
+
+test('/goal done --force remains a quiet explicit manual override', async () => {
+    resetGoalStore();
+    try {
+        setGoal('terminal done force contract');
+        const result = await runGoalCommand('/goal done final note --force');
+        assert.equal(result?.ok, true);
+        assert.equal('steerPrompt' in result, false);
+        assert.match(result?.text ?? '', /Goal completed/);
+        assert.match(result?.text ?? '', /final note/);
     } finally {
         resetGoalStore();
     }
@@ -53,6 +81,32 @@ test('/goal pause does not return a steerPrompt or spawn continuation text', asy
     try {
         setGoal('terminal pause contract');
         const result = await runGoalCommand('/goal pause');
+        assert.equal(result?.ok, true);
+        assert.equal('steerPrompt' in result, false);
+        assert.match(result?.text ?? '', /Goal paused/);
+    } finally {
+        resetGoalStore();
+    }
+});
+
+test('/goal pause --agent requires audit evidence without spawning continuation text', async () => {
+    resetGoalStore();
+    try {
+        setGoal('agent pause audit contract');
+        const result = await runGoalCommand('/goal pause --agent');
+        assert.equal(result?.ok, false);
+        assert.equal('steerPrompt' in result, false);
+        assert.match(result?.text ?? '', /requires independent audit evidence/);
+    } finally {
+        resetGoalStore();
+    }
+});
+
+test('/goal pause --agent --audit records audit evidence without spawning continuation text', async () => {
+    resetGoalStore();
+    try {
+        setGoal('agent pause audit success');
+        const result = await runGoalCommand('/goal pause --agent --audit reviewer found no viable remaining path');
         assert.equal(result?.ok, true);
         assert.equal('steerPrompt' in result, false);
         assert.match(result?.text ?? '', /Goal paused/);

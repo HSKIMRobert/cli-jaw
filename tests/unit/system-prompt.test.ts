@@ -111,8 +111,12 @@ test('system prompt forbids runtime goal state and prefers cli-jaw goal pause', 
         'should explicitly ban host/runtime goal state while inside cli-jaw');
     assert.ok(a1Src.includes('Use only `cli-jaw goal ...`'),
         'should direct agents to cli-jaw goal commands only');
-    assert.ok(a1Src.includes('cli-jaw goal pause'),
-        'should make pause the default stop command');
+    assert.ok(a1Src.includes('cli-jaw goal pause --agent --audit'),
+        'should make audited agent pause the AI stop command');
+    assert.ok(a1Src.includes('Independent pause audit'),
+        'should require an independent objective review before AI pause');
+    assert.ok(a1Src.includes('Plain `cli-jaw goal pause` is for human/manual use only'),
+        'should keep plain pause as a manual-user path');
     assert.ok(a1Src.includes('Do not run `cli-jaw goal done` unless the user explicitly asks'),
         'should reserve done for explicit user-requested final completion');
     assert.ok(!a1Src.includes('run `/goal done`'),

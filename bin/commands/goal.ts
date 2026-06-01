@@ -16,7 +16,8 @@ if (shouldShowHelp(process.argv)) printAndExit(`
     update <summary>    Add a checkpoint  (add --evidence <note>[,<...>] to record verification)
     done [note]         Mark goal complete (add --force to skip the evidence gate)
     cancel [reason]     Cancel goal
-    pause               Pause goal
+    pause [reason]      Pause goal
+                        AI/agent pause must add --agent --audit <independent-review-summary>
     resume              Resume paused goal
     clear               Clear active goal
     reset               Reset goal store
@@ -34,6 +35,16 @@ loadSettings();
 const args = process.argv.slice(3);
 const sub = (args[0] || 'status').toLowerCase();
 const rest = args.slice(1).join(' ').trim();
+
+function splitFlagValue(values: string[], flag: string): { before: string[]; value?: string | undefined; hasFlag: boolean } {
+    const idx = values.indexOf(flag);
+    if (idx < 0) return { before: values, hasFlag: false };
+    return {
+        before: values.slice(0, idx),
+        value: values.slice(idx + 1).join(' ').trim() || undefined,
+        hasFlag: true,
+    };
+}
 
 const PORT = undefined;
 const BASE = getServerUrl(PORT);
@@ -86,6 +97,13 @@ try {
     if (sub === 'done') {
         payload['note'] = args.slice(1).filter(a => a !== '--force').join(' ').trim() || undefined;
         if (args.includes('--force')) payload['force'] = true;
+    }
+    if (sub === 'pause') {
+        const pauseArgs = args.slice(1).filter(a => a !== '--agent');
+        const audit = splitFlagValue(pauseArgs, '--audit');
+        payload['reason'] = audit.before.join(' ').trim() || undefined;
+        if (args.includes('--agent')) payload['actor'] = 'agent';
+        if (audit.value) payload['audit'] = audit.value;
     }
     if (sub === 'update') {
         const u = args.slice(1);
