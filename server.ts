@@ -90,6 +90,8 @@ import { initActiveMessagingRuntime, shutdownMessagingRuntime, hydrateTargetsFro
 import { startHeartbeat, stopHeartbeat, watchHeartbeatFile } from './src/memory/heartbeat.js';
 import { initAlertDelivery } from './src/agent/alert-escalation.js';
 
+const WEB_COMMAND_TEXT_LIMIT = 30_000;
+
 import {
     clearMainSessionState,
     getCliModelAndEffort,
@@ -563,7 +565,7 @@ app.get('/api/auth/token', (req, res) => {
 
 app.post('/api/command', requireAuth, async (req, res) => {
     try {
-        const text = String(req.body?.text || '').trim().slice(0, 500);
+        const text = String(req.body?.text || '').trim().slice(0, WEB_COMMAND_TEXT_LIMIT);
         const parsed = parseCommand(text);
         const locale = resolveRequestLocale(req, req.body?.locale);
         res.vary('Accept-Language');
