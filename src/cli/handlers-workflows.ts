@@ -217,7 +217,7 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
         clearGoalTimers();
         const goal = completeGoal(note);
         if (!goal) return blocked('No active goal to complete.');
-        return fireSteerForWebCli(ctx, { ok: true, type: 'info', text: `Goal completed: ${goal.objective}${note ? ` — ${note}` : ''}`, steerPrompt: `[System] Goal completed: "${goal.objective}". No active goal remains.` });
+        return info(`Goal completed: ${goal.objective}${note ? ` — ${note}` : ''}`);
     }
 
     if (sub === 'cancel') {
@@ -225,14 +225,14 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
         clearGoalTimers();
         const goal = cancelGoal(reason);
         if (!goal) return blocked('No active goal to cancel.');
-        return fireSteerForWebCli(ctx, { ok: true, type: 'info', text: `Goal cancelled: ${goal.objective}`, steerPrompt: `[System] Goal cancelled: "${goal.objective}". No active goal remains.` });
+        return info(`Goal cancelled: ${goal.objective}`);
     }
 
     if (sub === 'pause') {
         clearGoalTimers();
         const goal = pauseGoal();
         if (!goal) return blocked('No active goal to pause.');
-        return fireSteerForWebCli(ctx, { ok: true, type: 'info', text: `Goal paused: ${goal.objective}`, steerPrompt: `[System] Goal paused: "${goal.objective}". Do not continue working on this goal until the user resumes it.` });
+        return info(`Goal paused: ${goal.objective}`);
     }
 
     if (sub === 'resume') {

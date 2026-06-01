@@ -63,3 +63,20 @@ test('a genuinely running worker still blocks continuation during PABCD', () => 
         cleanup();
     }
 });
+
+test('goal continuation prompt uses cli-jaw goal pause instead of inducing done', () => {
+    cleanup();
+    try {
+        setGoal('contract: pause instead of done');
+        const res = buildGoalContinuation();
+        assert.equal(res.shouldContinue, true);
+        assert.match(res.prompt ?? '', /built-in\/runtime goal feature/);
+        assert.match(res.prompt ?? '', /Use only `cli-jaw goal \.\.\.`/);
+        assert.match(res.prompt ?? '', /cli-jaw goal pause/);
+        assert.match(res.prompt ?? '', /explicit user-requested final completion/);
+        assert.doesNotMatch(res.prompt ?? '', /\/goal done/);
+        assert.doesNotMatch(res.prompt ?? '', /cli-jaw goal done/);
+    } finally {
+        cleanup();
+    }
+});
