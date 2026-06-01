@@ -1809,24 +1809,24 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 const newText = newStart > 0 ? text.slice(newStart) : text;
                 ctx.agyResumeOffset = 0;
                 if (!newText) return;
-                const segment = appendAssistantTextSegment(ctx, newText);
-                if (!segment) return;
-                if (ctx.liveScope) appendLiveRunText(ctx.liveScope, segment);
+                if (ctx.liveOutputText !== undefined) ctx.liveOutputText += newText;
+                ctx.outputTextStarted = true;
+                if (ctx.liveScope) appendLiveRunText(ctx.liveScope, newText);
                 broadcast('agent_output', {
                     agentId: agentLabel,
                     cli,
-                    text: segment,
+                    text: newText,
                     ...empTag,
                 }, traceAudience);
                 return;
             }
-            const segment = appendAssistantTextSegment(ctx, text);
-            if (!segment) return;
-            if (ctx.liveScope) appendLiveRunText(ctx.liveScope, segment);
+            if (ctx.liveOutputText !== undefined) ctx.liveOutputText += text;
+            ctx.outputTextStarted = true;
+            if (ctx.liveScope) appendLiveRunText(ctx.liveScope, text);
             broadcast('agent_output', {
                 agentId: agentLabel,
                 cli,
-                text: segment,
+                text,
                 ...empTag,
             }, traceAudience);
             return;
