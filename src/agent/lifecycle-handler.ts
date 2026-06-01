@@ -295,13 +295,18 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
     }
 
     // ─── Process cleanup ───
-    activeProcesses.delete(agentLabel);
+    // When wasSteer, killActiveAgent already cleared activeProcess synchronously
+    // and a replacement agent is being spawned. The stale exit handler must NOT
+    // overwrite the new agent's references in activeProcesses / activeProcess / meta.
     if (mainManaged) {
-        setActiveProcess(null);
-        _setCurrentMainMeta?.(null);
         if (!wasSteer) {
+            activeProcesses.delete(agentLabel);
+            setActiveProcess(null);
+            _setCurrentMainMeta?.(null);
             broadcast('agent_status', { running: false, agentId: agentLabel, ...empTag });
         }
+    } else {
+        activeProcesses.delete(agentLabel);
     }
 
     // ─── Post-flush reindex (3-C) ───
@@ -777,7 +782,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
         traceStatus === 'error' ? classifyExitError(runtimeCli, resolvedCode ?? 1, ctx.stderrBuf).message : null,
     );
     if (mainManaged) clearLiveRun(liveScope);
-    if (!opts.internal) {
+    if (!opts.internal && !wasSteer) {
         broadcast('agent_status', {
             status: (resolvedCode === 0 || resolvedCode === null) ? 'done' : 'error',
             agentId: agentLabel,
