@@ -113,7 +113,15 @@ export function cancelGoal(reason?: string): GoalState | null {
 
 export function pauseGoal(opts?: { reason?: string | undefined; audit?: GoalPauseAudit | undefined }): GoalState | null {
     const goal = getActiveGoal();
-    if (!goal || goal.status !== 'active') return null;
+    if (!goal) return null;
+    if (goal.status === 'paused' && opts?.audit) {
+        if (opts.reason) goal.pauseReason = opts.reason;
+        goal.pauseAudit = opts.audit;
+        goal.updatedAt = new Date().toISOString();
+        writeJson(ACTIVE_PATH, goal);
+        return goal;
+    }
+    if (goal.status !== 'active') return null;
     goal.status = 'paused';
     if (opts?.reason) goal.pauseReason = opts.reason;
     if (opts?.audit) goal.pauseAudit = opts.audit;

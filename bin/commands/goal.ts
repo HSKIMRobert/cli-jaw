@@ -99,10 +99,15 @@ try {
         if (args.includes('--force')) payload['force'] = true;
     }
     if (sub === 'pause') {
+        const agentRequested = args.includes('--agent');
         const pauseArgs = args.slice(1).filter(a => a !== '--agent');
         const audit = splitFlagValue(pauseArgs, '--audit');
+        if (!agentRequested && !process.stdin.isTTY) {
+            console.error('Non-interactive goal pause must use: cli-jaw goal pause --agent --audit "<independent-review-summary>". Plain `cli-jaw goal pause` is for manual interactive use.');
+            process.exit(1);
+        }
         payload['reason'] = audit.before.join(' ').trim() || undefined;
-        if (args.includes('--agent')) payload['actor'] = 'agent';
+        if (agentRequested) payload['actor'] = 'agent';
         if (audit.value) payload['audit'] = audit.value;
     }
     if (sub === 'update') {

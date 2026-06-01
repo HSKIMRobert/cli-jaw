@@ -75,4 +75,6 @@ test('GR-011: goal CLI exposes agent pause audit flags', () => {
     assert.ok(goalCliSrc.includes('--agent --audit'), 'CLI help should document audited agent pause');
     assert.ok(goalCliSrc.includes("payload.actor = 'agent'"), 'CLI should mark explicit agent pause');
     assert.ok(goalCliSrc.includes('payload.audit'), 'CLI should send audit evidence');
+    assert.ok(goalCliSrc.includes('!process.stdin.isTTY'), 'non-interactive CLI pause should not silently take the manual path');
+    assert.ok(goalCliSrc.includes('Non-interactive goal pause must use'), 'non-interactive pause should require agent audit wording');
 });
