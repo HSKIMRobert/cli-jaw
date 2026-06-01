@@ -213,7 +213,7 @@ export class CodexAppClient extends EventEmitter {
             model_reasoning_summary: 'detailed',
             hide_agent_reasoning: false,
             show_raw_agent_reasoning: true,
-            ...(this.fastMode ? { service_tier: 'fast' } : {}),
+            service_tier: this.fastMode ? 'fast' : 'default',
         };
     }
 

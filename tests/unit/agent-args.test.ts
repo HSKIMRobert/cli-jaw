@@ -668,3 +668,15 @@ test('AG-029: codex fastMode still maps to service_tier="fast" and never gets --
     assert.ok(cVals.includes('service_tier="fast"'));
     assert.ok(!args.includes('--settings'), 'codex must not receive the claude --settings flag');
 });
+
+test('AG-030: codex without fastMode explicitly sets service_tier="default"', () => {
+    const args = buildArgs('codex', 'gpt-5.4', 'high', 'x', '', 'auto', { fastMode: false });
+    const cVals = args.reduce<string[]>((acc, v, i) => (v === '-c' ? [...acc, args[i + 1]] : acc), []);
+    assert.ok(cVals.includes('service_tier="default"'), 'must explicitly pass default tier to prevent stale fast config');
+});
+
+test('AG-031: codex resume without fastMode explicitly sets service_tier="default"', () => {
+    const args = buildResumeArgs('codex', 'gpt-5.4', 'high', 'sess-1', 'go', 'auto', { fastMode: false });
+    const cVals = args.reduce<string[]>((acc, v, i) => (v === '-c' ? [...acc, args[i + 1]] : acc), []);
+    assert.ok(cVals.includes('service_tier="default"'), 'resume must override any persisted fast tier');
+});
