@@ -49,6 +49,16 @@ function getCommandTimeoutMs(text: string): number {
     return /^\/compact(?:\s|$)/i.test(String(text || '').trim()) ? 5 * 60 * 1000 : 10_000;
 }
 
+function buildAttachmentPrompt(paths: string[], text = ''): string {
+    const prompt = paths.map(p => t('chat.file.sent', { path: p })).join('\n');
+    return text ? `${prompt}${t('chat.file.sentWithMsg', { text })}` : prompt;
+}
+
+function buildSlashCommandAttachmentText(text: string, paths: string[]): string {
+    const fileContext = paths.map(p => t('chat.file.sent', { path: p })).join('\n');
+    return fileContext ? `${text}\n\n${fileContext}` : text;
+}
+
 function sendPreviewMessageViaParent(prompt: string): Promise<MessagePostResult | null> {
     const targetOrigin = previewParentOrigin();
     if (!targetOrigin) return Promise.resolve(null);
@@ -99,6 +109,63 @@ async function postChatMessage(prompt: string): Promise<MessagePostResult> {
         return { ok: res.ok, status: res.status, data };
     } catch (error) {
         return { ok: false, status: 0, data: { error: (error as Error).message } };
+    }
+}
+
+async function postSlashCommand(text: string): Promise<{ ok: boolean; status: number; result: CommandResult }> {
+    let signal: AbortSignal; let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeoutMs = getCommandTimeoutMs(text);
+    if (typeof AbortSignal?.timeout === 'function') {
+        signal = AbortSignal.timeout(timeoutMs);
+    } else {
+        const ac = new AbortController();
+        signal = ac.signal;
+        timer = setTimeout(() => ac.abort(), timeoutMs);
+    }
+    const locale = getPreferredLocale();
+    const token = await getAuthToken();
+    const res = await fetch(`${API_BASE}/api/command`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept-Language': locale,
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ text, locale }),
+        signal,
+    });
+    if (timer) clearTimeout(timer);
+    const result: CommandResult = await res.json().catch(() => ({}));
+    return { ok: res.ok, status: res.status, result };
+}
+
+async function handleSlashCommandResponse(
+    originalText: string,
+    response: { ok: boolean; status: number; result: CommandResult },
+    fallbackToMessage?: () => Promise<void>,
+): Promise<void> {
+    const result = response.result;
+    // not_command → fall through to normal chat
+    if (result?.code === 'not_command') {
+        if (fallbackToMessage) {
+            await fallbackToMessage();
+            return;
+        }
+        addMessage('user', originalText);
+        upsertMessage({ role: 'user', content: originalText, timestamp: Date.now() });
+        await apiJson('/api/message', 'POST', { prompt: originalText });
+        return;
+    }
+    if (!response.ok && !result?.text) throw new Error(`HTTP ${response.status}`);
+    if (result?.code === 'clear_screen') {
+        cancelPostRender();
+        getVirtualScroll().clear();
+        const chatEl = document.getElementById('chatMessages');
+        if (chatEl) chatEl.innerHTML = '';
+    }
+    if (result?.text || result?.recovery) addSystemMsg(renderCommandRecovery(result), '', result.type);
+    if (result?.steerPrompt) {
+        await apiJson('/api/message', 'POST', { prompt: result.steerPrompt });
     }
 }
 
@@ -194,53 +261,14 @@ export async function sendMessage(source: SendSource = 'enter'): Promise<void> {
         const afterSlash = text.slice(1).trim();
         const firstToken = afterSlash.split(/\s+/)[0] || '';
         const isFilePath = firstToken.includes('/') || firstToken.includes('\\');
+        const isSlashCommand = text.startsWith('/') && !isFilePath;
 
-        if (text.startsWith('/') && !state.attachedFiles.length && !isFilePath) {
+        if (isSlashCommand && !state.attachedFiles.length) {
             input.value = '';
             resetInputHeight();
             slashCmd.close();
             try {
-                let signal: AbortSignal; let timer: ReturnType<typeof setTimeout> | undefined;
-                const timeoutMs = getCommandTimeoutMs(text);
-                if (typeof AbortSignal?.timeout === 'function') {
-                    signal = AbortSignal.timeout(timeoutMs);
-                } else {
-                    const ac = new AbortController();
-                    signal = ac.signal;
-                    timer = setTimeout(() => ac.abort(), timeoutMs);
-                }
-                const locale = getPreferredLocale();
-                const token = await getAuthToken();
-                const res = await fetch(`${API_BASE}/api/command`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept-Language': locale,
-                        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-                    },
-                    body: JSON.stringify({ text, locale }),
-                    signal,
-                });
-                if (timer) clearTimeout(timer);
-                const result: CommandResult = await res.json().catch(() => ({}));
-                // not_command → fall through to normal chat
-                if (result?.code === 'not_command') {
-                    addMessage('user', text);
-                    upsertMessage({ role: 'user', content: text, timestamp: Date.now() });
-                    await apiJson('/api/message', 'POST', { prompt: text });
-                    return;
-                }
-                if (!res.ok && !result?.text) throw new Error(`HTTP ${res.status}`);
-                if (result?.code === 'clear_screen') {
-                    cancelPostRender();
-                    getVirtualScroll().clear();
-                    const chatEl = document.getElementById('chatMessages');
-                    if (chatEl) chatEl.innerHTML = '';
-                }
-                if (result?.text || result?.recovery) addSystemMsg(renderCommandRecovery(result), '', result.type);
-                if (result?.steerPrompt) {
-                    await apiJson('/api/message', 'POST', { prompt: result.steerPrompt });
-                }
+                await handleSlashCommandResponse(text, await postSlashCommand(text));
             } catch (err) {
                 addSystemMsg(t('chat.cmd.fail', { msg: (err as Error).message }), '', 'error');
             } finally {
@@ -259,9 +287,23 @@ export async function sendMessage(source: SendSource = 'enter'): Promise<void> {
             try {
                 // Upload all files in parallel
                 const paths = await Promise.all(state.attachedFiles.map((f: File) => uploadFile(f)));
-                let prompt = paths.map(p => t('chat.file.sent', { path: p })).join('\n');
-                if (text) prompt += t('chat.file.sentWithMsg', { text });
+                const prompt = buildAttachmentPrompt(paths, text);
                 clearAttachedFiles();
+                if (isSlashCommand) {
+                    slashCmd.close();
+                    try {
+                        const commandText = buildSlashCommandAttachmentText(text, paths);
+                        const commandResponse = await postSlashCommand(commandText);
+                        await handleSlashCommandResponse(commandText, commandResponse, async () => {
+                            await apiJson('/api/message', 'POST', { prompt });
+                        });
+                    } catch (err) {
+                        addSystemMsg(t('chat.cmd.fail', { msg: (err as Error).message }), '', 'error');
+                    } finally {
+                        syncOrchestrateSnapshot('command').catch(() => {});
+                    }
+                    return;
+                }
                 await apiJson('/api/message', 'POST', { prompt });
             } catch (err) {
                 addSystemMsg(t('chat.file.uploadFail', { msg: (err as Error).message }));
