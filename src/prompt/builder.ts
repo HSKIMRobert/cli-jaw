@@ -34,8 +34,42 @@ function findSkillPath(skillName: string): string | null {
     ]);
 }
 
+function normalizeSkillDescription(description: unknown): string {
+    return String(description || '')
+        .trim()
+        .replace(/^["']|["']$/g, '')
+        .replace(/\s+/g, ' ');
+}
+
+function readSkillMetadata(skillName: string, skillPath: string | null): { name: string; description: string } {
+    if (!skillPath || !fs.existsSync(skillPath)) return { name: skillName, description: '' };
+    try {
+        const content = fs.readFileSync(skillPath, 'utf8');
+        const nameMatch = content.match(/^name:\s*(.+)/m);
+        const descMatch = content.match(/^description:\s*"?(.+?)"?\s*$/m);
+        return {
+            name: nameMatch?.[1]?.trim() || skillName,
+            description: normalizeSkillDescription(descMatch?.[1]),
+        };
+    } catch {
+        return { name: skillName, description: '' };
+    }
+}
+
+export function formatSkillListItem(skill: { id: string; name?: string; description?: string }): string {
+    const name = String(skill.name || skill.id).trim();
+    const label = name && name !== skill.id ? `${name} (${skill.id})` : skill.id;
+    const description = normalizeSkillDescription(skill.description);
+    return description ? `- ${label} — ${description}` : `- ${label}`;
+}
+
 function formatSkillPath(skillName: string, skillPath: string | null): string {
-    return skillPath ? `${skillName}: ${skillPath}` : `${skillName}: unavailable`;
+    if (!skillPath) return `${skillName}: unavailable`;
+    const meta = readSkillMetadata(skillName, skillPath);
+    const label = meta.name && meta.name !== skillName ? `${meta.name} (${skillName})` : skillName;
+    return meta.description
+        ? `${label}: ${skillPath} — ${meta.description}`
+        : `${label}: ${skillPath}`;
 }
 
 // ─── Legacy A1 Source Hashes ─────────────────────────
@@ -477,9 +511,17 @@ export function getSystemPrompt(opts: { currentPrompt?: string; forDisk?: boolea
 
             const vars = getTemplateVars();
             vars["ACTIVE_SKILLS_COUNT"] = String(activeSkills.length);
-            vars["ACTIVE_SKILLS_LIST"] = activeSkills.map(s => `- ${s!.name} (${s!.id})`).join('\n');
+            vars["ACTIVE_SKILLS_LIST"] = activeSkills.map(s => formatSkillListItem({
+                id: s!.id,
+                name: s!.name,
+                description: s!.description,
+            })).join('\n');
             vars["REF_SKILLS_COUNT"] = String(availableRef.length);
-            vars["REF_SKILLS_LIST"] = availableRef.map(s => s.id).join(', ');
+            vars["REF_SKILLS_LIST"] = availableRef.map(s => formatSkillListItem({
+                id: s.id,
+                name: s.name,
+                description: s.description,
+            })).join('\n');
 
             // Only render sections that have content
             if (activeSkills.length > 0 && availableRef.length > 0) {
@@ -550,9 +592,13 @@ export function getEmployeePrompt(emp: { name: string; role?: string; id?: strin
         const activeSkills = loadActiveSkills();
         if (activeSkills.length > 0) {
             let section = `\n## Active Skills (${activeSkills.length})\n`;
-            section += `Installed skills — automatically triggered by the CLI.\n`;
+            section += `Installed skills — automatically triggered by the CLI. Use each description to decide whether to read its SKILL.md.\n`;
             for (const s of activeSkills) {
-                section += `- ${s!.name} (${s!.id})\n`;
+                section += `${formatSkillListItem({
+                    id: s!.id,
+                    name: s!.name,
+                    description: s!.description,
+                })}\n`;
             }
             vars["ACTIVE_SKILLS_SECTION"] = section;
         }

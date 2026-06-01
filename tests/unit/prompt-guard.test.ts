@@ -26,3 +26,14 @@ test('prompt guard: prohibition covers forDisk and employee prompt paths', () =>
     assert.ok(employeePromptSection.includes('Do NOT use Agent, subagent, or delegation tools. Do all work directly.'));
     assert.ok(src.includes('Delegation Rules'), 'builder should include Delegation Rules section');
 });
+
+test('prompt guard: Boss skills system renders skill descriptions, not bare ids only', () => {
+    const src = readSrc('../../src/prompt/builder.ts');
+    const systemPromptSection = src.slice(src.indexOf('function getSystemPrompt'));
+    assert.ok(systemPromptSection.includes('ACTIVE_SKILLS_LIST"] = activeSkills.map(s => formatSkillListItem'),
+        'active Boss skill list should use description-aware formatter');
+    assert.ok(systemPromptSection.includes('REF_SKILLS_LIST"] = availableRef.map(s => formatSkillListItem'),
+        'available Boss skill list should use description-aware formatter');
+    assert.ok(!systemPromptSection.includes('REF_SKILLS_LIST"] = availableRef.map(s => s.id).join'),
+        'available Boss skill list must not degrade to bare comma-separated ids');
+});

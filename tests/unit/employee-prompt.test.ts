@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getEmployeePrompt, getEmployeePromptV2, clearPromptCache } from '../../src/prompt/builder.ts';
+import { getEmployeePrompt, getEmployeePromptV2, clearPromptCache, formatSkillListItem } from '../../src/prompt/builder.ts';
 import { parseSubtasks } from '../../src/orchestrator/parser.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -65,7 +65,18 @@ test('EMP-008: getEmployeePromptV2 adds compact skill and role contracts', () =>
     assert.ok(v2.includes('Skill Loading Contract'), 'v2 should include on-demand skill loading guidance');
     assert.ok(v2.includes('Role Contract'), 'v2 should include role contract');
     assert.ok(v2.includes('dev-frontend'), 'frontend role guide should be named');
+    assert.match(v2, /dev-frontend.*Production-grade frontend/,
+        'role guide should include the skill metadata description, not only the path');
     assert.ok(!v2.includes('## Development Guide (Common)'), 'dev guide body should not be inlined');
+});
+
+test('EMP-008b: skill list items include metadata descriptions', () => {
+    const line = formatSkillListItem({
+        id: 'dev-backend',
+        name: 'dev-backend',
+        description: 'Backend engineering guide for orchestrated sub-agents.',
+    });
+    assert.equal(line, '- dev-backend — Backend engineering guide for orchestrated sub-agents.');
 });
 
 test('EMP-009: getEmployeePromptV2 includes phase gate', () => {
