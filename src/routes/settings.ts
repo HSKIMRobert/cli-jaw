@@ -13,7 +13,7 @@ import {
     loadUnifiedMcp, saveUnifiedMcp, syncToAll, initMcpConfig,
 } from '../../lib/mcp-sync.js';
 import { CLI_REGISTRY, CLI_KEYS } from '../cli/registry.js';
-import { readClaudeCreds, readCodexTokens, fetchClaudeUsage, fetchCodexUsage, readGeminiAccount, fetchGeminiUsage, readGrokStatus } from './quota.js';
+import { readClaudeCreds, readCodexTokens, fetchClaudeUsage, fetchCodexUsage, readGeminiAccount, fetchGeminiUsage, fetchGrokStatus } from './quota.js';
 import { fetchCursorUsage } from './quota-cursor-dashboard.js';
 import { fetchAgyUsage } from './quota-agy-reverse.js';
 import { fetchKiroUsage } from './quota-kiro-reverse.js';
@@ -282,7 +282,7 @@ export function registerSettingsRoutes(
         const claudeQuota = classify(claudeResult, !!claudeCreds);
         const codexQuota = classify(codexResult, !!codexTokens);
         const geminiQuota = classify(geminiResult, !!geminiAccount);
-        const grokQuota = readGrokStatus();
+        const grokQuota = await fetchGrokStatus();
         const copilotQuota = copilotResult ?? { authenticated: false };
         const opencodeQuota = buildStatusOnlyQuota({
             quotaSource: 'not-exposed-by-opencode-cli',

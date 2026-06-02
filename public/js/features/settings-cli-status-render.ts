@@ -31,12 +31,12 @@ export const QUOTA_SETUP_HINTS: Record<string, QuotaSetupHint> = {
         ],
     },
     grok: {
-        title: 'Grok Build auth (plan quota not in grok CLI)',
+        title: 'Grok auth + billing',
         commands: [
-            'grok login --oauth',
-            'grok models   # verify auth',
+            'progrok login   # or: ima2 grok login',
+            'progrok billing  # verify billing',
         ],
-        note: 'Subscription remaining quota: xAI console only. No official grok quota subcommand.',
+        note: 'Requires progrok auth (~/.progrok/auth.json) for billing bar.',
     },
     opencode: {
         title: 'OpenCode auth + optional plan quota plugin',
