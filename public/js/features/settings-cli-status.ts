@@ -391,12 +391,16 @@ function renderCliStatus(data: { cliStatus: Record<string, { available: boolean 
             ? renderSetupHelpMark(name, q)
             : '';
 
+        const billingLabel = q?.billing?.usedUsd != null && q?.billing?.limitUsd
+            ? `<span style="margin-left:auto;font-size:10px;color:var(--text-dim);white-space:nowrap">$${q.billing.usedUsd.toFixed(1)}/$${q.billing.limitUsd}</span>`
+            : '';
+
         html += `
             <div class="settings-group" style="margin-bottom:6px;padding:8px 10px">
-                <div class="cli-status-row">
+                <div class="cli-status-row" style="display:flex;align-items:center">
                     <span class="cli-dot ${dotClass}"></span>
                     <span class="cli-provider-icon" aria-hidden="true">${providerIcon(name) || ''}</span>
-                    <span class="cli-name" style="font-weight:600">${escapeHtml(providerLabel(name))}${quotaHelpMark}</span>${name === 'copilot' ? `<button id="copilotKeychainBtn" style="font-size:9px;margin-left:6px;padding:1px 5px;background:var(--border);color:var(--text-dim);border:1px solid var(--text-dim);border-radius:3px;cursor:pointer;vertical-align:middle;line-height:1" title="${t('copilot.keychainHint')}">${ICONS.key}</button>` : ''}
+                    <span class="cli-name" style="font-weight:600">${escapeHtml(providerLabel(name))}${quotaHelpMark}</span>${name === 'copilot' ? `<button id="copilotKeychainBtn" style="font-size:9px;margin-left:6px;padding:1px 5px;background:var(--border);color:var(--text-dim);border:1px solid var(--text-dim);border-radius:3px;cursor:pointer;vertical-align:middle;line-height:1" title="${t('copilot.keychainHint')}">${ICONS.key}</button>` : ''}${billingLabel}
                 </div>
                 ${accountLine}
                 ${authHint}

@@ -15,6 +15,7 @@ export interface QuotaEntry {
     sessionUsageCapable?: boolean;
     displayTier?: string;
     delegatedProvider?: string;
+    billing?: { usedUsd?: number; limitUsd?: number; percent?: number; periodEnd?: string };
     sessionUsage?: {
         contextTokensUsed?: number | null;
         contextWindowTokens?: number | null;
