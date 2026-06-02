@@ -241,9 +241,18 @@ export const searchMessages = db.prepare(`
     SELECT id, role, content, cli, tool_log, created_at,
            CASE WHEN content LIKE '%' || $q || '%' THEN 'content' ELSE 'tool_log' END AS match_field
     FROM messages
-    WHERE (content LIKE '%' || $q || '%' OR tool_log LIKE '%' || $q || '%') AND session_id = $session_id
+    WHERE (content LIKE '%' || $q || '%' OR tool_log LIKE '%' || $q || '%')
+      AND session_id = $session_id
+      AND ($days IS NULL OR created_at >= datetime('now', '-' || $days || ' days'))
     ORDER BY id DESC
     LIMIT $limit
+`);
+export const getMessageContext = db.prepare(`
+    SELECT id, role, content, cli, created_at
+    FROM messages
+    WHERE session_id = $session_id
+      AND id BETWEEN ($target_id - $range) AND ($target_id + $range)
+    ORDER BY id ASC
 `);
 export const getMessagesWithTrace = db.prepare('SELECT * FROM messages WHERE session_id = ? ORDER BY id ASC');
 // Recent-window variants: fetch the most recent N rows (DESC + LIMIT) to keep the

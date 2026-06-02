@@ -52,13 +52,13 @@ import { ensureMemoryRuntimeReady, hasSoulFile } from './src/memory/runtime.js';
 
 import { loadLocales, t, normalizeLocale } from './src/core/i18n.js';
 import {
-    PROMPTS_DIR, DB_PATH, UPLOADS_DIR,
+    PROMPTS_DIR, DB_PATH, UPLOADS_DIR, JAW_HOME,
     settings, loadSettings, saveSettings,
     ensureDirs, runMigration,
     APP_VERSION,
 } from './src/core/config.js';
 import {
-    db, getSession, getMessages, getMessagesWithTrace, getRecentMessagesAll, getRecentMessagesAllWithTrace, searchMessages, getLatestAssistantMessage, getLatestDashboardActivityMessage, closeDb,
+    db, getSession, getMessages, getMessagesWithTrace, getRecentMessagesAll, getRecentMessagesAllWithTrace, searchMessages, getMessageContext, getLatestAssistantMessage, getLatestDashboardActivityMessage, closeDb,
     clearAllEmployeeSessions,
 } from './src/core/db.js';
 import { getActiveChatSession, listChatSessions, createChatSession, setActiveChatSession, getChatSessionBySeq } from './src/core/chat-sessions.js';
@@ -456,6 +456,46 @@ app.get('/api/health', (_req, res) => res.json({
     channels: buildChannelHealthSnapshot(),
 }));
 app.get('/api/session', (_, res) => ok(res, getSession(), getSession() as Record<string, unknown> | undefined));
+
+// ─── Instance lock/unlock (process protection) ──────
+const LOCK_MARKER_FILENAME = '.dashboard-managed.json';
+app.get('/api/instance/lock', (_req, res) => {
+    const markerPath = join(JAW_HOME, LOCK_MARKER_FILENAME);
+    try {
+        if (fs.existsSync(markerPath)) {
+            const marker = JSON.parse(fs.readFileSync(markerPath, 'utf8'));
+            res.json({ ok: true, protected: !!marker.protected, marker });
+        } else {
+            res.json({ ok: true, protected: false, marker: null });
+        }
+    } catch { res.json({ ok: true, protected: false, marker: null }); }
+});
+app.post('/api/instance/lock', (_req, res) => {
+    const markerPath = join(JAW_HOME, LOCK_MARKER_FILENAME);
+    try {
+        if (fs.existsSync(markerPath)) {
+            const marker = JSON.parse(fs.readFileSync(markerPath, 'utf8'));
+            marker.protected = true;
+            fs.writeFileSync(markerPath, JSON.stringify(marker, null, 2));
+            res.json({ ok: true, protected: true });
+        } else {
+            res.json({ ok: false, error: 'No marker file — instance is not dashboard-managed.' });
+        }
+    } catch (err) { res.status(500).json({ ok: false, error: (err as Error).message }); }
+});
+app.delete('/api/instance/lock', (_req, res) => {
+    const markerPath = join(JAW_HOME, LOCK_MARKER_FILENAME);
+    try {
+        if (fs.existsSync(markerPath)) {
+            const marker = JSON.parse(fs.readFileSync(markerPath, 'utf8'));
+            delete marker.protected;
+            fs.writeFileSync(markerPath, JSON.stringify(marker, null, 2));
+            res.json({ ok: true, protected: false });
+        } else {
+            res.json({ ok: true, protected: false });
+        }
+    } catch (err) { res.status(500).json({ ok: false, error: (err as Error).message }); }
+});
 app.get('/api/messages', (req, res) => {
     const includeTrace = ['1', 'true', 'yes'].includes(String(req.query["includeTrace"] || '').toLowerCase());
     // Optional recent-window: `?limit=N` returns only the most recent N messages
@@ -480,17 +520,28 @@ app.get('/api/messages/search', (req, res) => {
     const q = String(req.query['q'] || '').trim();
     if (!q) return ok(res, []);
     const limit = Math.min(Math.max(Number(req.query['limit']) || 20, 1), 50);
+    const daysRaw = Number(req.query['days']);
+    const days = (daysRaw > 0 && daysRaw <= 365) ? daysRaw : null;
+    const contextRange = Math.min(Math.max(Number(req.query['context']) || 0, 0), 5);
     const session_id = getActiveChatSession();
-    const rows = searchMessages.all({ q, limit, session_id }) as Record<string, unknown>[];
-    const results = rows.map(row => ({
-        id: row['id'],
-        role: row['role'],
-        content: row['content'],
-        cli: row['cli'],
-        match_field: row['match_field'],
-        tool_log: sanitizeSerializedToolLog(row['tool_log'] as string | null | undefined),
-        created_at: row['created_at'],
-    }));
+    const rows = searchMessages.all({ q, limit, session_id, days }) as Record<string, unknown>[];
+    const results = rows.map(row => {
+        const entry: Record<string, unknown> = {
+            id: row['id'],
+            role: row['role'],
+            content: row['content'],
+            cli: row['cli'],
+            match_field: row['match_field'],
+            tool_log: sanitizeSerializedToolLog(row['tool_log'] as string | null | undefined),
+            created_at: row['created_at'],
+        };
+        if (contextRange > 0) {
+            entry['context'] = getMessageContext.all({
+                session_id, target_id: row['id'] as number, range: contextRange,
+            });
+        }
+        return entry;
+    });
     ok(res, results);
 });
 app.get('/api/messages/latest', (_req, res) => {
@@ -636,7 +687,10 @@ app.post('/api/message', requireAuth, async (req, res) => {
                 res.json({ ok: true, command: true, ...cmdResult });
                 return;
             } catch (err: unknown) {
-                console.error('[api/message:cmd]', (err as Error).message);
+                const error = (err as Error).message;
+                console.error('[api/message:cmd]', error);
+                res.status(500).json({ ok: false, command: true, error });
+                return;
             }
         }
     }

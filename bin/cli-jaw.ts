@@ -139,8 +139,12 @@ switch (command) {
         await import('./commands/doctor.js');
         break;
     case 'chat':
-        await maybePromptForStarOnLaunch();
-        await import('./commands/chat.js');
+        if (process.argv[3] === 'search') {
+            await import('./commands/chat-search.js');
+        } else {
+            await maybePromptForStarOnLaunch();
+            await import('./commands/chat.js');
+        }
         break;
     case 'employee':
         await import('./commands/employee.js');
@@ -195,6 +199,10 @@ switch (command) {
         break;
     case 'goal':
         await import('./commands/goal.js');
+        break;
+    case 'lock':
+    case 'unlock':
+        await import('./commands/lock.js');
         break;
     case 'history':
         await import('./commands/history.js');
