@@ -351,7 +351,67 @@ export function readLatestGrokSessionUsage(homeDir = os.homedir()): GrokSessionU
     }
 }
 
-export function readGrokStatus(binary = 'grok') {
+interface GrokBillingData {
+    tier: string;
+    limit: number;
+    used: number;
+    percent: number;
+    limitUsd: number;
+    usedUsd: number;
+    periodEnd: string;
+    email: string | null;
+}
+
+const GROK_BILLING_URL = 'https://cli-chat-proxy.grok.com/v1/billing';
+const GROK_USER_URL = 'https://cli-chat-proxy.grok.com/v1/user';
+
+function grokTierFromLimit(val: number): string {
+    if (val >= 150_000) return 'SuperGrok Heavy';
+    if (val >= 15_000) return 'SuperGrok';
+    return `SuperGrok (${val} val)`;
+}
+
+function readProgrokToken(): string | null {
+    try {
+        const authPath = join(os.homedir(), '.progrok', 'auth.json');
+        const data = JSON.parse(fs.readFileSync(authPath, 'utf8')) as { accessToken?: string };
+        return typeof data.accessToken === 'string' ? data.accessToken : null;
+    } catch { return null; }
+}
+
+async function fetchGrokBilling(): Promise<GrokBillingData | null> {
+    const token = readProgrokToken();
+    if (!token) return null;
+    try {
+        const headers = { Authorization: `Bearer ${token}` };
+        const [billingRes, userRes] = await Promise.allSettled([
+            fetch(GROK_BILLING_URL, { headers, signal: AbortSignal.timeout(8000) }),
+            fetch(GROK_USER_URL, { headers, signal: AbortSignal.timeout(5000) }),
+        ]);
+        if (billingRes.status !== 'fulfilled' || !billingRes.value.ok) return null;
+        const billing = (await billingRes.value.json() as {
+            config: { monthlyLimit: { val: number }; used: { val: number }; billingPeriodEnd: string };
+        }).config;
+        const limit = billing.monthlyLimit.val;
+        const used = billing.used.val;
+        let email: string | null = null;
+        if (userRes.status === 'fulfilled' && userRes.value.ok) {
+            const user = await userRes.value.json() as { email?: string };
+            email = user.email ?? null;
+        }
+        return {
+            tier: grokTierFromLimit(limit),
+            limit, used,
+            percent: limit > 0 ? Math.round((used / limit) * 100) : 0,
+            limitUsd: limit / 100,
+            usedUsd: used / 100,
+            periodEnd: billing.billingPeriodEnd,
+            email,
+        };
+    } catch { return null; }
+}
+
+export async function fetchGrokStatus(binary = 'grok') {
     let authenticated = false;
     let source = 'none';
     try {
@@ -363,17 +423,26 @@ export function readGrokStatus(binary = 'grok') {
         authenticated = out.includes('Available models') || out.includes('grok-build');
         source = authenticated ? 'grok models' : 'none';
     } catch { /* grok CLI may be missing or logged out */ }
+    const billing = await fetchGrokBilling();
+    const hasBilling = billing != null;
     return stripUndefined({
-        authenticated,
-        quotaCapable: false,
-        quotaSource: 'not-exposed-by-grok-cli',
+        authenticated: authenticated || hasBilling,
+        quotaCapable: hasBilling,
+        quotaSource: hasBilling ? 'progrok:billing-api' : 'not-exposed-by-grok-cli',
         sessionUsageCapable: true,
-        displayTier: 'Grok Heavy',
+        displayTier: billing?.tier || 'Grok',
         account: {
             type: 'grok.com',
-            tier: 'Grok Heavy',
+            tier: billing?.tier || null,
+            email: billing?.email || null,
         },
         source,
+        windows: hasBilling ? [{
+            label: 'monthly',
+            percent: billing!.percent,
+            resetsAt: billing!.periodEnd,
+        }] : [],
+        billing: billing ?? undefined,
         sessionUsage: readLatestGrokSessionUsage() ?? undefined,
     });
 }
