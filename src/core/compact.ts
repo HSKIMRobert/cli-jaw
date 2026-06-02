@@ -88,7 +88,7 @@ export function buildManagedCompactSummaryForTest(rows: MessageRow[], instructio
 
 import { execFileSync } from 'node:child_process';
 import { homedir } from 'node:os';
-import { getRecentMessages, getRecentToolLogs } from './db.js';
+import { getRecentMessages, getRecentToolLogs, searchMessages } from './db.js';
 import { getActiveChatSession } from './chat-sessions.js';
 import { expandHomePath } from './path-expand.js';
 import { searchMemoryWithPolicy } from '../memory/injection.js';
@@ -413,7 +413,7 @@ function harvestMemoryHits(goal: string, recentBody: string): string {
     }
 }
 
-function harvestGrepHits(goal: string, workingDir: string | null): string {
+function harvestGitGrep(goal: string, workingDir: string | null): string {
     if (!workingDir) return '';
     const keywords = extractKeywords(goal, 4);
     if (!keywords.length) return '';
@@ -440,12 +440,41 @@ function harvestGrepHits(goal: string, workingDir: string | null): string {
             // keyword miss or git not available
         }
     }
-    let joined = lines.join('\n');
-    while (joined.length > BOOTSTRAP_BUDGET.grep_hits && lines.length > 1) {
-        lines.pop();
-        joined = lines.join('\n');
+    return lines.join('\n');
+}
+
+function harvestChatGrep(goal: string): string {
+    try {
+        const keywords = extractKeywords(goal, 4);
+        if (!keywords.length) return '';
+        const session_id = getActiveChatSession();
+        const lines: string[] = [];
+        for (const kw of keywords) {
+            const rows = searchMessages.all({ q: kw, limit: 5, session_id, days: 7 }) as Array<Record<string, unknown>>;
+            for (const row of rows) {
+                const snippet = String(row['content'] || '').slice(0, 120);
+                lines.push(`- [${row['created_at']}] (${row['role']}) ${snippet}`);
+                if (lines.length >= 8) break;
+            }
+            if (lines.length >= 8) break;
+        }
+        return lines.join('\n');
+    } catch {
+        return '';
     }
-    return joined;
+}
+
+function harvestGrepHits(goal: string, workingDir: string | null): string {
+    const gitBudget = Math.floor(BOOTSTRAP_BUDGET.grep_hits / 2);
+    const chatBudget = BOOTSTRAP_BUDGET.grep_hits - gitBudget;
+
+    const gitPart = clipSlot(harvestGitGrep(goal, workingDir), gitBudget);
+    const chatPart = clipSlot(harvestChatGrep(goal), chatBudget);
+
+    const parts: string[] = [];
+    if (gitPart) parts.push('### Code\n' + gitPart);
+    if (chatPart) parts.push('### Chat History\n' + chatPart);
+    return parts.join('\n\n');
 }
 
 function harvestTaskSnapshot(goal: string): string {

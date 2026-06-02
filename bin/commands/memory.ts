@@ -31,10 +31,29 @@ async function api<T = JsonRecord>(method: string, path: string, body?: unknown)
 try {
     switch (sub) {
         case 'search': {
-            const query = process.argv.slice(4).join(' ');
-            if (!query) { console.error('Usage: cli-jaw memory search <query>'); process.exit(1); }
+            const hasChat = process.argv.includes('--chat');
+            const queryArgs = process.argv.slice(4).filter(a => a !== '--chat');
+            const query = queryArgs.join(' ');
+            if (!query) { console.error('Usage: cli-jaw memory search <query> [--chat]'); process.exit(1); }
             const r = await api<{ result?: string }>('GET', `/search?q=${encodeURIComponent(query)}`);
             console.log(r.result);
+            if (hasChat) {
+                try {
+                    const chatParams = new URLSearchParams({ q: query, days: '7', limit: '10' });
+                    const chatResp = await fetch(`${SERVER}/api/messages/search?${chatParams}`, {
+                        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+                    });
+                    if (chatResp.ok) {
+                        const chatData = await chatResp.json() as Array<Record<string, unknown>>;
+                        if (chatData.length > 0) {
+                            console.log('\n[chat history — last 7 days]');
+                            for (const m of chatData) {
+                                console.log(`  [${m['created_at']}] (${m['role']}) ${String(m['content'] || '').slice(0, 200)}`);
+                            }
+                        }
+                    }
+                } catch { /* chat search is best-effort */ }
+            }
             break;
         }
         case 'read': {
