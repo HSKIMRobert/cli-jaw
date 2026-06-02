@@ -31,12 +31,10 @@ export const QUOTA_SETUP_HINTS: Record<string, QuotaSetupHint> = {
         ],
     },
     grok: {
-        title: 'Grok auth + billing',
+        title: 'Grok login',
         commands: [
-            'progrok login   # or: ima2 grok login',
-            'progrok billing  # verify billing',
+            'progrok login',
         ],
-        note: 'Requires progrok auth (~/.progrok/auth.json) for billing bar.',
     },
     opencode: {
         title: 'OpenCode auth + optional plan quota plugin',
