@@ -44,7 +44,8 @@ try {
                         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
                     });
                     if (chatResp.ok) {
-                        const chatData = await chatResp.json() as Array<Record<string, unknown>>;
+                        const chatBody = await chatResp.json() as Record<string, unknown>;
+                        const chatData = (Array.isArray(chatBody) ? chatBody : Array.isArray(chatBody['data']) ? chatBody['data'] : []) as Array<Record<string, unknown>>;
                         if (chatData.length > 0) {
                             console.log('\n[chat history — last 7 days]');
                             for (const m of chatData) {

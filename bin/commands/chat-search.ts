@@ -43,7 +43,8 @@ try {
         console.error(`❌ Search failed: HTTP ${resp.status}`);
         process.exit(1);
     }
-    const data = await resp.json() as Array<Record<string, unknown>>;
+    const body = await resp.json() as Record<string, unknown>;
+    const data = (Array.isArray(body) ? body : Array.isArray(body['data']) ? body['data'] : []) as Array<Record<string, unknown>>;
     if (!data.length) {
         console.log('(no matches)');
         process.exit(0);
