@@ -252,6 +252,7 @@ After reading the handoff:
   - `cli-jaw memory save <file> <content>`
   - `cli-jaw chat search "<keywords>"` — search past conversation messages
   - `cli-jaw chat search "<keywords>" --days 3` — limit to recent N days
+  - `cli-jaw chat search "<keywords>" --recent 100` — limit to most recent N messages (~50 Q&A pairs)
   - `cli-jaw chat search "<keywords>" --context 2` — show ±N surrounding messages
   - `cli-jaw memory search "<keywords>" --chat` — search memory AND recent chat history together
 - Never call `cli-jaw memory save` without a destination file.

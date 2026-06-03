@@ -70,7 +70,7 @@ employees → heartbeat → skills → jaw-memory → orchestrate
 | `GET` | `/api/health` | `{ ok, version, uptime }` |
 | `GET` | `/api/session` | 현재 main session row 반환 |
 | `GET` | `/api/messages` | `includeTrace=1|true|yes`면 trace 포함 메시지 조회. `?limit=N`(1–5000)이면 최근 N개만 ascending 반환; 생략 시 전체 history |
-| `GET` | `/api/messages/search` | 메시지 본문 검색 결과 반환. `?q=`, `?days=N`(1-365), `?context=N`(0-5), `?limit=N`(1-50) |
+| `GET` | `/api/messages/search` | 메시지 본문 검색 결과 반환. `?q=`, `?days=N`(1-365), `?recent=N`(1-5000), `?context=N`(0-5), `?limit=N`(1-50) |
 | `GET` | `/api/messages/latest` | 가장 최근 메시지 스냅샷 반환 |
 | `GET` | `/api/runtime` | uptime, activeAgent, queuePending |
 | `GET` | `/api/auth/token` | same-origin/CLI용 Bearer token bootstrap |

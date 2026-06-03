@@ -16,17 +16,19 @@ const { values, positionals } = parseArgs({
         days: { type: 'string', short: 'd' },
         context: { type: 'string', short: 'c' },
         limit: { type: 'string', short: 'l' },
+        recent: { type: 'string', short: 'r' },
     },
     allowPositionals: true,
 });
 
 const query = positionals.join(' ');
 if (!query) {
-    console.error('Usage: cli-jaw chat search <query> [--days N] [--context N] [--limit N]');
+    console.error('Usage: cli-jaw chat search <query> [--days N] [--context N] [--limit N] [--recent N]');
     console.error('Examples:');
     console.error('  cli-jaw chat search "compact"');
     console.error('  cli-jaw chat search "compact" --days 3');
     console.error('  cli-jaw chat search "compact" --days 7 --context 2');
+    console.error('  cli-jaw chat search "compact" --recent 100');
     process.exit(1);
 }
 
@@ -34,6 +36,7 @@ const params = new URLSearchParams({ q: query });
 if (values.days) params.set('days', values.days);
 if (values.context) params.set('context', values.context);
 if (values.limit) params.set('limit', values.limit);
+if (values.recent) params.set('recent', values.recent);
 
 try {
     const resp = await fetch(`${SERVER}/api/messages/search?${params}`, {

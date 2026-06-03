@@ -522,9 +522,11 @@ app.get('/api/messages/search', (req, res) => {
     const limit = Math.min(Math.max(Number(req.query['limit']) || 20, 1), 50);
     const daysRaw = Number(req.query['days']);
     const days = (daysRaw > 0 && daysRaw <= 365) ? daysRaw : null;
+    const recentRaw = Number(req.query['recent']);
+    const recent = (recentRaw > 0 && recentRaw <= 5000) ? recentRaw : null;
     const contextRange = Math.min(Math.max(Number(req.query['context']) || 0, 0), 5);
     const session_id = getActiveChatSession();
-    const rows = searchMessages.all({ q, limit, session_id, days }) as Record<string, unknown>[];
+    const rows = searchMessages.all({ q, limit, session_id, days, recent }) as Record<string, unknown>[];
     const results = rows.map(row => {
         const entry: Record<string, unknown> = {
             id: row['id'],

@@ -244,6 +244,10 @@ export const searchMessages = db.prepare(`
     WHERE (content LIKE '%' || $q || '%' OR tool_log LIKE '%' || $q || '%')
       AND session_id = $session_id
       AND ($days IS NULL OR created_at >= datetime('now', '-' || $days || ' days'))
+      AND ($recent IS NULL OR id >= COALESCE(
+        (SELECT id FROM messages WHERE session_id = $session_id ORDER BY id DESC LIMIT 1 OFFSET $recent),
+        0
+      ))
     ORDER BY id DESC
     LIMIT $limit
 `);
