@@ -32,7 +32,7 @@ public/
 ├── img/                  ← shark sprite
 ├── js/                   ← 78 TypeScript modules
 │   ├── diagram/          ← 3 diagram pipeline modules
-│   ├── features/         ← 47 feature modules
+│   ├── features/         ← 48 feature modules
 │   └── render/           ← 13 markdown/diagram rendering modules
 ├── locales/              ← ko/en/ja/zh JSON bundles
 ├── manager/              ← React manager dashboard (297 files)
@@ -49,7 +49,7 @@ public/
 | `public/js/` root | 18 | TypeScript ES modules |
 | `public/js/diagram/` | 3 | SVG/iframe diagram pipeline |
 | `public/js/render/` | 13 | markdown/KaTeX/Mermaid/SVG/file-link/post-render 책임 분리 |
-| `public/js/features/` | 47 | settings 분해 + help/attention/orchestrate scope + process-step-match + preview shortcut/invalidate bridge + MCP registry + chat-search + workflow-event-adapter 포함 |
+| `public/js/features/` | 48 | settings 분해 + help/attention/orchestrate scope + process-step-match + preview shortcut/invalidate bridge + MCP registry + chat-search + workflow-event-adapter + media-lightbox 포함 |
 | `public/manager/src/` | 297 | React 19 manager dashboard |
 | `public/css/` | 12 | theme/layout/chat/markdown/tool UI/diagram/trace drawer/workflow cockpit/chat-search |
 | `public/locales/` | 4 | `ko.json`, `en.json`, `ja.json`, `zh.json` |

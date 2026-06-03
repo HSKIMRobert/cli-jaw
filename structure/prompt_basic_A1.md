@@ -9,7 +9,7 @@ aliases: [A1 system prompt, CLI-JAW A1, system prompt template]
 # prompt_basic_A1 — 시스템 프롬프트 기본값
 
 > 경로: `~/.cli-jaw/prompts/A-1.md`
-> 소스: `src/prompt/templates/a1-system.md` (387L)
+> 소스: `src/prompt/templates/a1-system.md` (388L)
 > 구현: `src/prompt/builder.ts` → `getA1Content()` / `initPromptFiles()` / `getSystemPrompt()`
 > 파일 우선: `A-1.md`가 있으면 사용자 편집본 사용, 없으면 템플릿 렌더 결과 사용
 > `A1_CONTENT` 상수는 더 이상 없음
@@ -42,9 +42,11 @@ aliases: [A1 system prompt, CLI-JAW A1, system prompt template]
 - `Channel File Delivery` (+ Discord notes): 로컬 채널 API, Telegram bot API curl 예시
 - `Long-term Memory (MANDATORY)`: `{{JAW_HOME}}/memory/structured/` 경로, L1 `cli-jaw memory ...` current-instance read/write, L2 `cli-jaw dashboard memory ...` cross-instance read-only 경계, 저장 가이드
   - **Compact Handoff Interpretation**: `/compact` 핸드오프 후 trust table(section별 High/Medium/Low) + decision tree(goal 검증 → memory search → file open 순서)
+- `Goal System` + `Goal Mode Rules`: goal CLI 명령어, autonomous phase advance, independent pause audit, evidence bundle 요구사항
 - `Heartbeat System`: `heartbeat.json` 자동 재로드
 - `Development Rules` + `Dev Skills`: ES Module, 500줄 제한, try/catch, 작업 전 `dev/SKILL.md` 읽기
 - `Diagrams (MANDATORY)`: 다이어그램·SVG·Mermaid를 위한 skill 우선 규칙과 인라인 전달 규칙
+- `Session-poll (anchor)`: turn 종료 금지 규칙 — 작업 중 exit 방지, stuck detection 15분 타이머
 
 ---
 

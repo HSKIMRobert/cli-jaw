@@ -9,7 +9,7 @@ aliases: [CLI-JAW Commands, slash commands registry, commands.md]
 # src/cli/ — Slash Command Registry & Dispatcher
 
 > `commands.ts`(403L) + `handlers.ts`(446L) + `handlers-runtime.ts`(501L) + `handlers-completions.ts`(97L) + `handlers-workflows.ts`(370L) + `api-auth.ts`(45L) + `command-context.ts`(140L) + `registry.ts`(213L) + `acp-client.ts`(382L) + `claude-models.ts`(81L) + `compact.ts`(141L)
-> slash registry는 33개 커맨드, 4개 실행 인터페이스. root CLI는 `bin/cli-jaw.ts` + `bin/commands/*.ts` 기준 24개 user-facing command이며, helper까지 포함한 `bin/commands/*.ts` top-level 파일은 28개다. `browser web-ai`는 `browser-web-ai.ts`, `dashboard memory`는 `dashboard-memory.ts`, dispatch unwrap 보조는 `dispatch-helpers.ts`로 분리되어 있다.
+> slash registry는 35개 커맨드, 4개 실행 인터페이스. root CLI는 `bin/cli-jaw.ts` + `bin/commands/*.ts` 기준 27개 user-facing command이며, helper까지 포함한 `bin/commands/*.ts` top-level 파일은 28개다. `browser web-ai`는 `browser-web-ai.ts`, `dashboard memory`는 `dashboard-memory.ts`, dispatch unwrap 보조는 `dispatch-helpers.ts`로 분리되어 있다.
 > 모델/CLI 선택은 `registry.ts` 단일 소스를 따른다. 현재 registry 런타임은 `agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `cursor`, `gemini`, `grok`, `kiro-code`, `opencode`, `copilot` 12개다.
 
 ---
@@ -29,11 +29,12 @@ aliases: [CLI-JAW Commands, slash commands registry, commands.md]
 
 ## Registry Snapshot
 
-### Command 목록 (33)
+### Command 목록 (35)
 
 ```text
-help, commands, status, clear, purge, compact, reset, plan, interview, deliberate,
-planaudit, goal, team, model, cli, fallback, forward, thought, flush,
+help, commands, status, clear, purge, compact, reset, new, switch, sessions,
+plan, interview, deliberate, planaudit, goal, team,
+model, cli, fallback, forward, thought, flush,
 version, skill, employee, mcp, memory, browser, prompt, quit, file, steer,
 ide, orchestrate, project
 ```
@@ -42,15 +43,15 @@ ide, orchestrate, project
 
 | Interface | Visible | 비고 |
 | --- | ---: | --- |
-| `cli` | 30 | `file` hidden, `steer` 미지원 |
-| `web` | 28 | `commands`, `quit`, `file`, `ide` 미지원 |
-| `telegram` | 28 | remote-safe command set |
-| `discord` | 28 | remote-safe command set |
+| `cli` | 33 | `file` hidden, `steer` 미지원 |
+| `web` | 31 | `commands`, `quit`, `file`, `ide` 미지원 |
+| `telegram` | 31 | remote-safe command set |
+| `discord` | 31 | remote-safe command set |
 | `cmdline` | 12 | 루트 CLI 서브커맨드용 contract-only capability 필터; workflow commands는 hidden |
 
 ### 카테고리
 
-- `session`: `help`, `commands`, `status`, `clear`, `purge`, `compact`, `reset`, `steer`
+- `session`: `help`, `commands`, `status`, `clear`, `purge`, `compact`, `reset`, `steer`, `new`, `switch`, `sessions`
 - `workflow`: `plan`, `interview`, `deliberate`, `planaudit`, `goal`, `team`
 - `model`: `model`, `cli`, `fallback`, `forward`, `thought`, `flush`
 - `tools`: `skill`, `employee`, `mcp`, `memory`, `browser`, `prompt`, `ide`, `orchestrate`, `project`
@@ -60,7 +61,7 @@ ide, orchestrate, project
 
 ## Root CLI Surface (`bin/cli-jaw.ts` + `bin/commands/*.ts`)
 
-소스 기준 entrypoint는 `bin/cli-jaw.ts`(213L)다. 현재 소스 트리에서 root command router는 아래 24개 user-facing command를 동적 import 한다. 파일 수 기준으로는 `browser-web-ai.ts`, `dashboard-memory.ts`, `dispatch-helpers.ts` helper가 추가되어 `bin/commands/*.ts` top-level은 27개다.
+소스 기준 entrypoint는 `bin/cli-jaw.ts`(213L)다. 현재 소스 트리에서 root command router는 아래 27개 user-facing command를 동적 import 한다. 파일 수 기준으로는 `browser-web-ai.ts`, `dashboard-memory.ts`, `dispatch-helpers.ts` helper가 추가되어 `bin/commands/*.ts` top-level은 28개다.
 
 ### Global options
 
@@ -98,6 +99,9 @@ ide, orchestrate, project
 | `connector` | `bin/commands/connector.ts` | `board add/update/list`, `notes write/list`, `reminders add/list/done`, `audit [--limit N] [--json]` |
 | `reminders` | `bin/commands/reminders.ts` | `list`, `add`, `done`; `--json`, `--priority`, `--due`, `--remind`, message/thread link flags |
 | `project` | `bin/commands/project.ts` | `set <path>[, <path>...]`, `reset`/`clear`, `list` (instance projectDirs 관리) |
+| `lock` | `bin/commands/lock.ts` | `[--port 3457]`; instance lock (stopAll 보호). `unlock`도 동일 파일 처리 |
+| `unlock` | `bin/commands/lock.ts` | `[--port 3457]`; instance unlock |
+| `history` | `bin/commands/history.ts` | `search "<query>" [--limit N]`; 채팅 히스토리 검색 (65L) |
 
 ---
 
