@@ -11,7 +11,7 @@ aliases: [B prompt cache, CLI-JAW B prompt, regenerated prompt]
 > B.md = `getSystemPrompt({ forDisk: true })` 결과 캐시
 > 경로: `~/.cli-jaw/prompts/B.md` + `{workDir}/AGENTS.md`
 > 구현: `src/prompt/builder.ts` → `getSystemPrompt()` + `regenerateB()`
-> 관련 템플릿: `a1-system.md` (283L), `a2-default.md` (25L), `orchestration.md` (95L), `heartbeat-jobs.md` (4L), `heartbeat-default.md` (4L), `skills.md` (18L), `employee.md` (86L), `worker-context.md` (11L), `control-system.md` (56L), `vision-click.md` (3L)
+> 관련 템플릿: `a1-system.md` (388L), `a2-default.md` (25L), `orchestration.md` (120L), `heartbeat-jobs.md` (4L), `heartbeat-default.md` (4L), `skills.md` (24L), `employee.md` (73L), `worker-context.md` (11L), `control-system.md` (56L), `vision-click.md` (3L)
 
 ---
 

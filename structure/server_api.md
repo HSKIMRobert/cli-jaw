@@ -6,10 +6,10 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 
 > 📚 [INDEX](INDEX.md) · [체크리스트 ↗](AGENTS.md) · [커맨드 ↗](commands.md) · **서버 API**
 
-# server.ts — Glue + Route Registration (903L)
+# server.ts — Glue + Route Registration (995L)
 
 > Express/WS bootstrap + localhost/LAN opt-in 보안 가드 + base route 14개 + `src/routes/*` 17개 registrar 등록.
-> 현재 라이브 surface는 총 180개 route handler이며, 이 중 `/`를 제외한 API 엔드포인트는 179개다.
+> 현재 라이브 surface는 총 191개 route handler이며, 이 중 `/`를 제외한 API 엔드포인트는 190개다.
 > mutation route(`POST`/`PUT`/`DELETE`)는 모두 `requireAuth`를 거친다. 단, `requireAuth()`는 loopback 요청을 토큰 없이 통과시키고, `lanAllowed()`가 true일 때 private IP도 LAN bypass로 통과시킨다.
 > `GET /api/auth/token`은 Bearer bootstrap 전용이며 `Sec-Fetch-Site`가 `same-origin` 또는 `none`이 아닐 때 `403`을 반환한다.
 
@@ -19,15 +19,15 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 
 | Module | Lines | Routes | 역할 |
 | --- | ---: | ---: | --- |
-| `server.ts` | 903L | 14 | Helmet/CORS/Host/rate-limit/WS/bootstrap + base routes + module registration |
+| `server.ts` | 995L | 21 | Helmet/CORS/Host/rate-limit/WS/bootstrap + base routes + instance lock + chat sessions + module registration |
 | `src/routes/settings.ts` | 343L | 19 | settings/prompt/heartbeat-md/MCP/CLI registry/quota/copilot |
 | `src/routes/memory.ts` | 191L | 13 | memory runtime + KV memory + memory files |
 | `src/routes/browser.ts` | 475L | 41 | browser primitive/tab/debug/doctor/cleanup routes + adaptive fetch + web-ai render/send/poll/watch/sessions/capabilities/context routes |
 | `src/routes/jaw-memory.ts` | 282L | 11 | jaw memory search/read/save/list/init/reflect/flush/soul/soul-activate/bootstrap |
 | `src/routes/orchestrate.ts` | 637L | 13 | reset/state/workers/worker-progress/snapshot/queue cancel/hold/queue steer async accept/dispatch/worker result/state PUT |
-| `src/routes/goal.ts` | 118L | 3 | durable goal state get/history/set-update-complete-cancel-pause-resume-clear-reset |
+| `src/routes/goal.ts` | 139L | 3 | durable goal state get/history/set-update-complete-cancel-pause-resume-clear-reset |
 | `src/routes/goal-run.ts` | 83L | 3 | bounded goal-run state/preflight/start-pause-resume-stop |
-| `src/routes/messaging.ts` | 254L | 6 | upload/file-open/voice/telegram/channel/discord send |
+| `src/routes/messaging.ts` | 259L | 6 | upload/file-open/voice/telegram/channel/discord send |
 | `src/routes/employees.ts` | 105L | 5 | employee CRUD + reset |
 | `src/routes/skills.ts` | 89L | 5 | skills list/read/enable/disable/reset |
 | `src/routes/avatar.ts` | 146L | 4 | avatar summary + agent/user image upload/delete/read |
@@ -37,9 +37,9 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 | `src/routes/runtime-context.ts` | 46L | 4 | runtime context entry CRUD (ephemeral prompt injection) |
 | `src/routes/security-audit.ts` | 18L | 2 | security audit log entries + verify |
 | `src/routes/i18n.ts` | 35L | 2 | language list + locale bundle |
-| `src/routes/quota.ts` | 459L | — | `settings.ts`가 호출하는 quota/auth/status reader helper |
+| `src/routes/quota.ts` | 528L | — | `settings.ts`가 호출하는 quota/auth/status reader helper |
 | `src/routes/quota-kiro-reverse.ts` | 239L | — | Kiro/CodeWhisperer reverse-engineered usage-limits reader (`fetchKiroUsage`) |
-| `src/routes/quota-agy-reverse.ts` | 154L | — | Antigravity quota snapshot reader (`fetchAgyUsage`) |
+| `src/routes/quota-agy-reverse.ts` | 158L | — | Antigravity quota snapshot reader (`fetchAgyUsage`) |
 | `src/routes/quota-cursor-dashboard.ts` | 203L | — | Cursor dashboard session/usage reader (`fetchCursorUsage`) |
 | `src/routes/types.ts` | 3L | — | shared `AuthMiddleware` type |
 
@@ -80,6 +80,13 @@ employees → heartbeat → skills → jaw-memory → orchestrate
 | `POST` | `/api/stop` | 현재 실행 중 agent 모두 종료 |
 | `POST` | `/api/clear` | UI-only clear broadcast, DB 메시지는 유지 |
 | `POST` | `/api/session/reset` | 메시지 삭제 + session reset |
+| `GET` | `/media/:filename` | 미디어 파일 서빙 |
+| `GET` | `/api/instance/lock` | 인스턴스 잠금 상태 조회 |
+| `POST` | `/api/instance/lock` | 인스턴스 잠금 (stopAll 보호) |
+| `DELETE` | `/api/instance/lock` | 인스턴스 잠금 해제 |
+| `GET` | `/api/chat-sessions` | 채팅 세션 목록 |
+| `POST` | `/api/chat-sessions` | 새 채팅 세션 생성 |
+| `POST` | `/api/chat-sessions/:id/switch` | 활성 세션 전환 |
 
 ---
 
