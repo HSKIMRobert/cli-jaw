@@ -51,6 +51,7 @@ import { asCliEventRecord, discriminate, fieldString, type CliEventRecord } from
 import { isJawRuntimeEvent, handleJawRuntimeEvent } from './claude-e-runtime.js';
 import { appendTraceEvent, stampTraceTool, startTraceRun } from '../trace/store.js';
 import { extractAgyConversationId, formatAgyTimeoutMessage, isAgyStaleSessionOutput, isAgyTimeoutOutput } from './agy-runtime.js';
+import { startAgyTranscriptWatcher, type AgyTranscriptWatcherHandle } from './agy-transcript-watcher.js';
 import { appendAssistantTextSegment } from './events/helpers.js';
 import { listKiroConversationIdsForCwd } from './kiro-auth.js';
 import {
@@ -1700,6 +1701,25 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     }, watchdogConfig);
     ctx.stallWatchdog = stallWatchdog;
 
+    let agyTranscriptWatcher: AgyTranscriptWatcherHandle | null = null;
+    if (cli === 'agy') {
+        agyTranscriptWatcher = startAgyTranscriptWatcher({
+            cwd: spawnCwd,
+            getSessionId: () => ctx.sessionId,
+            ctx,
+            agentLabel,
+            cli,
+            empTag,
+            traceAudience,
+            onEmit: (emitCtx, tool, label, _cliName, tag, audience) => {
+                stampTraceTool(tool, emitCtx, tool.toolType || 'tool');
+                if (emitCtx.liveScope) replaceLiveRunTools(emitCtx.liveScope, emitCtx.toolLog);
+                appendParentLiveRunTool(emitCtx, tool);
+                broadcast('agent_tool', { agentId: label, ...tool, ...tag }, audience);
+            },
+        });
+    }
+
     let buffer = '';
     const recordOpencodeEvent = (line: string, event: CliEventRecord) => {
         if (cli !== 'opencode') return;
@@ -1862,6 +1882,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     });
 
     child.on('close', (code) => {
+        agyTranscriptWatcher?.stop();
         clearOpencodeIdleTimer();
         stallWatchdog.stop();
         if (geminiWatchdog) { clearTimeout(geminiWatchdog); geminiWatchdog = null; }

@@ -14,6 +14,8 @@ export function formatAgyTimeoutMessage(text: string): string {
     return trimmed || AGY_TIMEOUT_PREFIX;
 }
 
+export { resolveAgyConversationIdFromCache, agyTranscriptPathForConversation } from './agy-transcript.js';
+
 export function extractAgyConversationId(text: string): string | null {
     const match = AGY_CONVERSATION_ID_RE.exec(text);
     return match?.[1] ?? match?.[2] ?? null;
