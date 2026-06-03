@@ -237,6 +237,7 @@ Prefers ES Module only, no CommonJS.
 - `src/cli/command-context.ts` 가 web/cli/telegram/discord 공통 memory ctx 를 제공한다.
 - `listMemory`, `searchMemory`, `getMemoryStatus`, `bootstrapMemory`, `reindexMemory`, `initMemoryRuntime` 가 연결된다.
 - `/memory status|bootstrap|reindex|adv ...` 는 `src/cli/handlers-runtime.ts` 에서 status / bootstrap / reindex / init / on / off 를 분기하고, `handlers.ts`는 이를 re-export한다.
+- `jaw memory search <query> --chat` 는 L1 memory 검색 후 `/api/messages/search`(최근 7일)도 best-effort로 조회해 chat history를 합쳐 표시한다.
 - `searchMemory()` 는 `src/memory/injection.ts` `searchMemoryWithPolicy()`를 탄다. 현재 이 함수는 전달받은 `role`과 무관하게 advanced index 준비 여부만 보고 indexed search vs legacy grep search를 고른다.
 - remote interface의 settings patch allowlist에는 `showReasoning`도 포함된다. 메모리 명령 자체와 직접 관련되지는 않지만 `/thought`와 같은 command-context 통합 경로를 공유한다.
 

@@ -19,7 +19,7 @@ aliases: [CLI-JAW Source Structure, str_func, source structure reference]
 
 ```text
 cli-jaw/
-├── server.ts                 ← Express 라우트 base + auth/CORS/rate-limit + WS bootstrap + `register*Routes()` glue + startup stale orc_state guard + graceful shutdown(closeDb) + employee migration + seed defaults + registerAvatarRoutes + async listen bootstrap (await initActiveMessagingRuntime) + orphaned jaw-emp-* cleanup + clearAllEmployeeSessions startup + no-store Vite index serving (939L)
+├── server.ts                 ← Express 라우트 base + auth/CORS/rate-limit + WS bootstrap + `register*Routes()` glue + startup stale orc_state guard + graceful shutdown(closeDb) + employee migration + seed defaults + registerAvatarRoutes + async listen bootstrap (await initActiveMessagingRuntime) + orphaned jaw-emp-* cleanup + clearAllEmployeeSessions startup + no-store Vite index serving (942L)
 ├── lib/                      ← 외부 통합/공용 헬퍼 (5 root files + mcp/ 8 files)
 │   ├── mcp-sync.ts           ← MCP 통합 + 스킬 복사 + softResetSkills + runSkillReset + trusted repair gate + clone cooldown (73L)
 │   ├── mcp/                  ← MCP 모듈 분리 (8 files)
@@ -37,11 +37,11 @@ cli-jaw/
 │   └── mime-detect.ts        ← MIME 타입 감지 헬퍼 (67L)
 ├── src/
 │   ├── core/                 ← 의존 0 인프라 계층 (26 files)
-│   │   ├── config.ts         ← JAW_HOME, settings, APP_VERSION + migrateSettings legacy Claude model normalization + avatar settings deep merge + corrupt settings backup + CLI 탐지 re-export hub (498L)
+│   │   ├── config.ts         ← JAW_HOME, settings, APP_VERSION + migrateSettings legacy Claude model normalization + avatar settings deep merge + corrupt settings backup + CLI 탐지 re-export hub (506L)
 │   │   ├── cli-detection.ts  ← CLI 탐지 + `kiro-code`(`kiro-cli` binary)/`claude-e`/`ai-e` helper `--idle-timeout-ms` compatibility probe + local package release/debug candidates (262L)
-│   │   ├── compact.ts        ← compact 헬퍼 (COMPACT_MARKER_CONTENT, managed summary builder, cutoff logic) (672L)
+│   │   ├── compact.ts        ← compact 헬퍼 (COMPACT_MARKER_CONTENT, managed summary builder, cutoff logic, harvestGitGrep + harvestChatGrep 1KB/1KB budget split) (702L)
 │   │   ├── instance.ts       ← 인스턴스 ID, node/jaw 경로, 유닛명 sanitize (58L)
-│   │   ├── db.ts             ← SQLite 스키마 + prepared statements + trace + tool_log + working_dir migration + closeDb() WAL checkpoint + checkOrphanedWal + busy_timeout + clearMessagesScoped + queued_messages table + model-aware clearEmployeeSession + getRecentMessagesLite (365L)
+│   │   ├── db.ts             ← SQLite 스키마 + prepared statements + trace + tool_log + working_dir migration + closeDb() WAL checkpoint + checkOrphanedWal + busy_timeout + clearMessagesScoped + queued_messages table + model-aware clearEmployeeSession + getRecentMessagesLite + searchMessages(days scope) + getMessageContext(±N range) (374L)
 │   │   ├── bus.ts            ← WS + 내부 리스너 broadcast (36L)
 │   │   ├── logger.ts         ← 로거 유틸 (27L)
 │   │   ├── i18n.ts           ← 서버사이드 번역 (90L)
@@ -129,7 +129,7 @@ cli-jaw/
 │   │   ├── seed.ts           ← Interview seed/ontology builder (107L)
 │   │   └── sanitize.ts       ← Interview tracker strip helper (18L)
 │   ├── prompt/               ← 프롬프트 조립 (4 files + templates/ 10 files)
-│   │   ├── builder.ts        ← A-1/A-2 + 스킬 + 직원 프롬프트 v2 + promptCache (4-segment key: emp:role:phase:workingDir) + on-demand dev skill path contract + advanced memory mode branch + task snapshot injection + dashboard-connector anchor preserve (778L)
+│   │   ├── builder.ts        ← A-1/A-2 + 스킬 + 직원 프롬프트 v2 + promptCache (4-segment key: emp:role:phase:workingDir) + on-demand dev skill path contract + advanced memory mode branch + task snapshot injection + dashboard-connector anchor preserve (806L)
 │   │   ├── runtime-context.ts ← 런타임 컨텍스트 주입 (RuntimeContextEntry, loadEntries, getActiveEntries, addEntry, removeEntry, clearAll, buildInjectionBlock) (80L)
 │   │   ├── soul-bootstrap-prompt.ts ← LLM 기반 soul.md 개인화 부트스트랩 프롬프트 빌더 (52L)
 │   │   ├── template-loader.ts ← 프롬프트 템플릿 로더 (50L)
@@ -242,9 +242,9 @@ cli-jaw/
 │   │   ├── runtime-context.ts ← runtime context route helpers (46L)
 │   │   ├── security-audit.ts ← security audit route registrar (18L)
 │   │   ├── traces.ts         ← public trace summary/events read routes (80L)
-│   │   └── browser.ts        ← 브라우저 API 라우트 + `cdpPort(req)` 포트 우선순위 + primitive/tab/debug/doctor/cleanup/web-ai routes (475L)
+│   │   └── browser.ts        ← 브라우저 API 라우트 + `cdpPort(req)` 포트 우선순위 + primitive/tab/debug/doctor/cleanup/web-ai routes (478L)
 │   ├── security/             ← 보안 입력 검증 (4 files)
-│   │   ├── path-guards.ts    ← assertSkillId, assertFilename, assertMemoryRelPath, assertSendFilePath, safeResolveUnder (129L)
+│   │   ├── path-guards.ts    ← assertSkillId, assertFilename, assertMemoryRelPath, assertSendFilePath, safeResolveUnder (126L)
 │   │   ├── decode.ts         ← decodeFilenameSafe (21L)
 │   │   ├── network-acl.ts    ← isPrivateIP, isAllowedHost, isAllowedOrigin, originMatchesHost, extractHost (131L)
 │   │   └── security-audit-log.ts ← SQLite-backed security audit event log (162L) ✨
@@ -345,6 +345,7 @@ cli-jaw/
 │       ├── serve.ts          ← 서버 시작 (--port/--host/--open) + SIGINT child.kill('SIGINT') orphan fix (121L)
 │       ├── dispatch.ts       ← 직원 호출 (pipe mode 호환) + route contract bridge + worker result polling + ECONNREFUSED retry (383L)
 │       ├── chat.ts           ← 터미널 채팅 TUI (3모드, locale bootstrap, refreshInfo, active model 표시, no-arg `/model`·`/cli` selector intercept, transcript 축적, overlay wiring, 292L)
+│       ├── chat-search.ts    ← 채팅 메시지 히스토리 검색 (--days/--context/--limit, 67L)
 │       ├── goal.ts           ← goal autonomy CLI (start/status/pause/resume/stop) (130L) ✨
 │       ├── project.ts        ← project directory management CLI (166L) ✨
 │       ├── init.ts           ← 초기화 마법사 + --safe/--dry-run + --help (256L)
@@ -356,7 +357,7 @@ cli-jaw/
 │       ├── worker.ts         ← 직원 progress status/watch CLI + employee name/id resolver + safe-summary printer (196L)
 │       ├── reset.ts          ← 전체 초기화 (MCP/스킬/직원/세션) (104L)
 │       ├── clone.ts          ← 인스턴스 복제 (--from, --with-memory, regenerateB) (180L)
-│       ├── memory.ts         ← 메모리 CLI (search/read/save/list/init) (146L)
+│       ├── memory.ts         ← 메모리 CLI (search/read/save/list/init, --chat 통합검색) (166L)
 │       ├── launchd.ts        ← macOS LaunchAgent 관리 (243L)
 │       ├── service.ts        ← 크로스 플랫폼 서비스 관리 (systemd/launchd/docker, 289L)
 │       ├── orchestrate.ts    ← IPABCD 상태 제어 CLI (jaw orchestrate [I|P|A|B|C|D|reset]) (154L)

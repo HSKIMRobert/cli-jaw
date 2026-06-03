@@ -70,7 +70,7 @@ employees → heartbeat → skills → jaw-memory → orchestrate
 | `GET` | `/api/health` | `{ ok, version, uptime }` |
 | `GET` | `/api/session` | 현재 main session row 반환 |
 | `GET` | `/api/messages` | `includeTrace=1|true|yes`면 trace 포함 메시지 조회. `?limit=N`(1–5000)이면 최근 N개만 ascending 반환; 생략 시 전체 history |
-| `GET` | `/api/messages/search` | 메시지 본문 검색 결과 반환 |
+| `GET` | `/api/messages/search` | 메시지 본문 검색 결과 반환. `?q=`, `?days=N`(1-365), `?context=N`(0-5), `?limit=N`(1-50) |
 | `GET` | `/api/messages/latest` | 가장 최근 메시지 스냅샷 반환 |
 | `GET` | `/api/runtime` | uptime, activeAgent, queuePending |
 | `GET` | `/api/auth/token` | same-origin/CLI용 Bearer token bootstrap |
@@ -180,6 +180,7 @@ employees → heartbeat → skills → jaw-memory → orchestrate
 
 - 응답 키: `agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `cursor`, `gemini`, `grok`, `opencode`, `copilot`, `kiro-code` (`CLI_KEYS` 순서).
 - `agy`는 `src/routes/quota-agy-reverse.ts`의 `fetchAgyUsage()`를 통해 Antigravity quota snapshot을 읽는다.
+- `antigravity-usage --json`이 `remainingPercentage`를 정밀 소수점 대신 `0`/`1`로만 반환하면 AGY window는 degraded fallback으로 `0 -> 100% used`, `1 -> 0% used`만 표시한다. upstream이 다시 정밀 퍼센트를 주면 기존 fractional path가 그대로 사용된다.
 - `cursor`는 `src/routes/quota-cursor-dashboard.ts`의 `fetchCursorUsage()`를 통해 dashboard session/usage를 읽는다.
 - `kiro-code`는 `src/routes/quota-kiro-reverse.ts`의 `fetchKiroUsage()`를 통해 CodeWhisperer `GetUsageLimits` API를 reverse-engineer 호출한다.
 
