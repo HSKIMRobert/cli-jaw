@@ -602,6 +602,26 @@ app.post('/api/dashboard/lifecycle/:action', async (req, res) => {
     }
 });
 
+app.post('/api/dashboard/lifecycle/lock', async (req, res) => {
+    const portValue = Number(req.body?.port);
+    if (!Number.isInteger(portValue)) {
+        res.status(400).json({ ok: false, error: 'port must be an integer' });
+        return;
+    }
+    const result = await lifecycle.protectInstance(portValue);
+    res.json({ ok: result, port: portValue, protected: result });
+});
+
+app.post('/api/dashboard/lifecycle/unlock', async (req, res) => {
+    const portValue = Number(req.body?.port);
+    if (!Number.isInteger(portValue)) {
+        res.status(400).json({ ok: false, error: 'port must be an integer' });
+        return;
+    }
+    const result = await lifecycle.unprotectInstance(portValue);
+    res.json({ ok: result, port: portValue, protected: false });
+});
+
 app.get('/api/dashboard/process-control', (_req, res) => {
     res.json({ ok: true, state: lifecycle.processControlState() });
 });
@@ -702,15 +722,15 @@ const shutdown = createDashboardShutdown({
     exit: code => process.exit(code),
 });
 
-async function shutdownDashboard(): Promise<void> {
+async function shutdownDashboard(mode?: 'full' | 'locked-skip'): Promise<void> {
     stopRemindersScheduler?.();
     noteWsServer.close();
     notesWatcher.close();
-    await shutdown();
+    await shutdown(mode ?? 'locked-skip');
 }
 
-process.once('SIGINT', () => void shutdownDashboard());
-process.once('SIGTERM', () => void shutdownDashboard());
+process.once('SIGINT', () => void shutdownDashboard('locked-skip'));
+process.once('SIGTERM', () => void shutdownDashboard('locked-skip'));
 
 async function main(): Promise<void> {
     previewProxy.validate();

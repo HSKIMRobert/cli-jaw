@@ -182,14 +182,55 @@ export class DashboardLifecycleManager {
         return unpermInstance(port, home || this.defaultHome(port));
     }
 
-    async stopAll(): Promise<DashboardLifecycleResult[]> {
+    async stopAll(mode: 'full' | 'locked-skip' = 'locked-skip'): Promise<DashboardLifecycleResult[]> {
         const ports = [...this.registry.keys()];
         const results: DashboardLifecycleResult[] = [];
         for (const port of ports) {
             if (!this.registry.has(port)) continue;
+            if (mode === 'locked-skip') {
+                const entry = this.registry.get(port)!;
+                try {
+                    const marker = await this.store.readMarker(entry.home);
+                    if (marker?.protected) {
+                        results.push({
+                            ok: true,
+                            action: 'stop',
+                            status: 'skipped',
+                            message: `Skipped port ${port}: instance is protected.`,
+                            port,
+                            home: entry.home,
+                            pid: entry.pid || null,
+                            command: entry.command,
+                            expectedStateAfter: 'online',
+                        });
+                        continue;
+                    }
+                } catch {
+                    // Marker read failed — treat as unprotected, proceed with stop.
+                }
+            }
             results.push(await this.stop(port));
         }
         return results;
+    }
+
+    async protectInstance(port: number): Promise<boolean> {
+        const entry = this.registry.get(port);
+        if (!entry || entry.exited) return false;
+        const marker = await this.store.readMarker(entry.home);
+        if (!marker) return false;
+        await this.store.writeMarker(entry.home, { ...marker, protected: true });
+        return true;
+    }
+
+    async unprotectInstance(port: number): Promise<boolean> {
+        const entry = this.registry.get(port);
+        if (!entry || entry.exited) return false;
+        const marker = await this.store.readMarker(entry.home);
+        if (!marker) return false;
+        const { protected: _p, ...rest } = marker;
+        await this.store.writeMarker(entry.home, rest as typeof marker);
+        return true;
     }
 
     processControlState(): DashboardProcessControlState {

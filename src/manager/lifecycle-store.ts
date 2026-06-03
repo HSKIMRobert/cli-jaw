@@ -18,6 +18,7 @@ export type PersistedEntry = {
     startedAt: string;
     command: string[];
     token: string;
+    protected?: boolean;
 };
 
 export type LifecycleRegistrySource = 'current' | 'legacy' | 'missing' | 'corrupt';
@@ -39,6 +40,7 @@ export type HomeMarker = {
     pid: number;
     token: string;
     startedAt: string;
+    protected?: boolean;
 };
 
 export type LifecycleStoreFs = {
