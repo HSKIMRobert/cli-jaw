@@ -200,25 +200,6 @@ function emitKiroStreamEvents(
     }
 }
 
-function maybeEmitKiroWorkingHeartbeat(
-    ctx: SpawnContext,
-    agentLabel: string,
-    empTag: Record<string, unknown>,
-    traceAudience: 'public' | 'internal',
-): void {
-    const lastVisible = ctx.kiroLastVisibleAt ?? Date.now();
-    if (!shouldEmitHeartbeat(lastVisible, ctx.kiroHeartbeatSent === true)) return;
-    ctx.kiroHeartbeatSent = true;
-    broadcast('agent_tool', {
-        agentId: agentLabel,
-        icon: '⏳',
-        label: 'Kiro working...',
-        toolType: 'tool',
-        status: 'running',
-        ...empTag,
-    }, traceAudience);
-}
-
 export function killAgentById(agentId: string): boolean {
     const proc = activeProcesses.get(agentId);
     if (!proc) return false;
@@ -1858,8 +1839,6 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             const events = processKiroStdoutChunk(ctx, text);
             if (events.length) {
                 emitKiroStreamEvents(events, ctx, agentLabel, cli, empTag, traceAudience);
-            } else {
-                maybeEmitKiroWorkingHeartbeat(ctx, agentLabel, empTag, traceAudience);
             }
             return;
         }

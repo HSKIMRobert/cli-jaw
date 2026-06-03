@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import type { SpawnContext, ToolEntry } from '../types/agent.js';
 import {
     agyTranscriptStepKey,
@@ -73,7 +74,8 @@ export function startAgyTranscriptWatcher(options: {
                 return;
             }
             transcriptPath = resolved.transcriptPath;
-            console.log(`[jaw:agy:transcript] tailing ${transcriptPath}`);
+            try { offset = fs.statSync(transcriptPath).size; } catch { /* start from 0 */ }
+            console.log(`[jaw:agy:transcript] tailing ${transcriptPath} (skip ${offset} bytes)`);
         }
         try {
             const delta = readTranscriptDelta(transcriptPath, offset);
