@@ -450,7 +450,7 @@ function harvestChatGrep(goal: string): string {
         const session_id = getActiveChatSession();
         const lines: string[] = [];
         for (const kw of keywords) {
-            const rows = searchMessages.all({ q: kw, limit: 5, session_id, days: 7 }) as Array<Record<string, unknown>>;
+            const rows = searchMessages.all({ q: kw, limit: 5, session_id, days: 7, recent: null }) as Array<Record<string, unknown>>;
             for (const row of rows) {
                 const snippet = String(row['content'] || '').slice(0, 120);
                 lines.push(`- [${row['created_at']}] (${row['role']}) ${snippet}`);
