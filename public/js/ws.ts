@@ -1,7 +1,7 @@
 // ── WebSocket Connection ──
 import { state } from './state.js';
 import { API_BASE } from './api.js';
-import { setStatus, updateQueueBadge, addSystemMsg, appendAgentText, finalizeAgent, addMessage, showProcessStep, cleanupToolActivity, showLiveToolActivity, applyQueuedOverlay, hydrateActiveRun, reconcileChatBottomAfterRestore, showChatRestoreIndicator, markSteered, clearSteer, isRecentSteer } from './ui.js';
+import { setStatus, updateQueueBadge, addSystemMsg, appendAgentText, finalizeAgent, addMessage, showProcessStep, cleanupToolActivity, applyQueuedOverlay, hydrateActiveRun, reconcileChatBottomAfterRestore, showChatRestoreIndicator, markSteered, clearSteer, isRecentSteer } from './ui.js';
 import { renderPendingQueue } from './features/pending-queue.js';
 import { t, getLang } from './features/i18n.js';
 import { getVirtualScroll } from './virtual-scroll.js';
@@ -140,9 +140,6 @@ async function refreshRuntimeSnapshot(options: { hydrateRun?: boolean } = {}): P
         setStatus('running');
     } else if (!isRecentSteer()) {
         setStatus('idle');
-    }
-    if (snap.runtime.busy && (snap.activeRun?.cli === 'agy' || snap.activeRun?.cli === 'kiro-code')) {
-        showLiveToolActivity(`${providerLabel(snap.activeRun.cli)} working...`);
     }
     import('./features/employees.js').then(m => {
         if (typeof m.renderEmployees === 'function') m.renderEmployees();
@@ -590,14 +587,8 @@ export function connect(): void {
             if (msg.running && isRecentSteer()) clearSteer();
             if (msg.running !== undefined) {
                 setStatus(msg.running ? 'running' : 'idle');
-                if (msg.running && (msg.cli === 'agy' || msg.cli === 'kiro-code')) {
-                    showLiveToolActivity(`${providerLabel(msg.cli)} working...`);
-                }
             } else {
                 setStatus(msg.status || 'idle');
-                if (msg.status === 'running' && (msg.cli === 'agy' || msg.cli === 'kiro-code')) {
-                    showLiveToolActivity(`${providerLabel(msg.cli)} working...`);
-                }
             }
             // Track per-agent phase for badge rendering
             if (msg.agentId && msg.phase) {
