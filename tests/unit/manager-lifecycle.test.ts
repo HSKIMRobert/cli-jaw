@@ -21,6 +21,8 @@ class FakeChild extends EventEmitter {
         queueMicrotask(() => this.emit('exit', 0, signal || null));
         return true;
     }
+
+    unref(): void {}
 }
 
 function setupTmpStorage(): { dir: string; cleanup: () => void } {

@@ -1,7 +1,9 @@
 import type { DashboardLifecycleResult } from './types.js';
 
+export type DashboardShutdownMode = 'full' | 'locked-skip';
+
 export interface DashboardShutdownLifecycle {
-    stopAll(): Promise<DashboardLifecycleResult[]>;
+    stopAll(mode?: DashboardShutdownMode): Promise<DashboardLifecycleResult[]>;
 }
 
 export interface DashboardShutdownPreviewProxy {
@@ -36,18 +38,22 @@ function warnLifecycleFailures(
     }
 }
 
-export function createDashboardShutdown(options: DashboardShutdownOptions): () => Promise<void> {
+export function createDashboardShutdown(options: DashboardShutdownOptions): (mode?: DashboardShutdownMode) => Promise<void> {
     const exit = options.exit || ((code: number): never => process.exit(code));
     const log = options.log || console;
     let shutdownPromise: Promise<void> | null = null;
 
-    return async (): Promise<void> => {
+    return async (mode?: DashboardShutdownMode): Promise<void> => {
         if (shutdownPromise) return shutdownPromise;
 
         shutdownPromise = (async () => {
             try {
-                const lifecycleResults = await options.lifecycle.stopAll();
-                warnLifecycleFailures(lifecycleResults, log);
+                if (process.env['CLI_JAW_TEST_MODE'] === '1') {
+                    log.warn('[dashboard] test mode: skipping stopAll() to protect running instances');
+                } else {
+                    const lifecycleResults = await options.lifecycle.stopAll(mode ?? 'locked-skip');
+                    warnLifecycleFailures(lifecycleResults, log);
+                }
             } catch (error) {
                 log.error(`[dashboard] failed to stop managed Jaw instances: ${(error as Error).message}`);
             }
