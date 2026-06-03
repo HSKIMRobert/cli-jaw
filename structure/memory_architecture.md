@@ -8,8 +8,8 @@ aliases: [CLI-JAW Memory Architecture, advanced memory runtime, memory architect
 
 # Memory Architecture — 통합 메모리 시스템
 
-> 최종 갱신: 2026-05-16
-> 소스: `src/memory/runtime.ts` 374L (사실상 facade), `src/memory/shared.ts` 256L, `src/memory/bootstrap.ts` 517L, `src/memory/indexing.ts` 417L, `src/memory/keyword-expand.ts` 268L, `src/memory/synonyms.ts` 60L, `src/memory/reflect.ts` 256L, `src/memory/identity.ts` 86L, `src/memory/injection.ts` 69L, `src/memory/memory.ts` 154L, `src/memory/worklog.ts` 200L, `src/memory/heartbeat.ts` 206L, `src/memory/heartbeat-schedule.ts` 410L, `src/memory/advanced.ts` 1L (re-export shim), `src/agent/memory-flush-controller.ts` 159L, `src/agent/spawn.ts` 1968L, `src/prompt/builder.ts` 715L, `src/orchestrator/pipeline.ts` 455L, `src/routes/memory.ts`, `src/routes/jaw-memory.ts`, `src/cli/command-context.ts`, `src/cli/handlers-runtime.ts`
+> 최종 갱신: 2026-06-03
+> 소스: `src/memory/runtime.ts` 375L (사실상 facade), `src/memory/shared.ts` 265L, `src/memory/bootstrap.ts` 524L, `src/memory/indexing.ts` 569L, `src/memory/keyword-expand.ts` 98L, `src/memory/synonyms.ts` 60L, `src/memory/reflect.ts` 379L, `src/memory/identity.ts` 86L, `src/memory/injection.ts` 69L, `src/memory/memory.ts` 154L, `src/memory/worklog.ts` 200L, `src/memory/heartbeat.ts` 209L, `src/memory/heartbeat-schedule.ts` 410L, `src/memory/advanced.ts` 1L (re-export shim), `src/agent/memory-flush-controller.ts` 185L, `src/agent/spawn.ts` 2011L, `src/prompt/builder.ts` 806L, `src/orchestrator/pipeline.ts` 538L, `src/routes/memory.ts`, `src/routes/jaw-memory.ts`, `src/cli/command-context.ts`, `src/cli/handlers-runtime.ts`
 > 임베딩: `src/manager/memory/embedding/` — `provider.ts`, `vec-store.ts`, `sync.ts`, `state-machine.ts`, `hybrid-search.ts`, `index.ts` + `src/manager/routes/dashboard-memory.ts`
 
 ---

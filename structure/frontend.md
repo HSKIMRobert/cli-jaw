@@ -121,6 +121,7 @@ public/
 | `features/chat-messages.ts` | — | message DOM append/finalization helpers |
 | `features/chat-scroll.ts` | — | bottom-follow/scroll intent helpers and initial settle |
 | `features/chat-search.ts` | 227L | in-chat message search UI |
+| `features/media-lightbox.ts` | — | 업로드 이미지/비디오 인라인 렌더링 + 라이트박스 |
 | `features/copy-text.ts` | 39L | clipboard copy utility |
 | `features/employees.ts` | — | employee CRUD + CLI/model/role 조정 |
 | `features/gesture.ts` | — | 모바일 edge swipe sidebar toggle |
