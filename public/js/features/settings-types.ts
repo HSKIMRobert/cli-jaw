@@ -24,6 +24,8 @@ export interface QuotaEntry {
         turnCount?: number | null;
     };
 }
+export interface PiProfileView { id: string; label: string; mode: string; endpoint: string; apiKind?: string; apiKeySet?: boolean; apiKeyLast4?: string; model: string; }
+export interface PiSettingsView { defaultProfileId: string; profiles: PiProfileView[]; discoveredModels?: Record<string, string[]>; }
 export interface SettingsData {
     cli: string; workingDir: string; permissions: string; locale?: string; showReasoning?: boolean;
     perCli?: Record<string, PerCliConfig>;
@@ -34,4 +36,5 @@ export interface SettingsData {
     fallbackOrder?: string[];
     memory?: { cli?: string };
     stt?: { engine?: string; geminiKeySet?: boolean; geminiKeyLast4?: string; geminiModel?: string; whisperModel?: string; openaiKeySet?: boolean; openaiKeyLast4?: string };
+    pi?: PiSettingsView;
 }

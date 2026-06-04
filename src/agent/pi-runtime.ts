@@ -169,7 +169,7 @@ export function redactPiSettings(input: unknown): Record<string, unknown> {
     };
 }
 
-export function buildPiModelsConfig(pi: PiSettings): Record<string, unknown> {
+export function buildPiModelsConfig(pi: PiSettings, effort = ''): Record<string, unknown> {
     const providers: Record<string, unknown> = {};
     for (const profile of pi.profiles) {
         const modelIds = [...new Set([profile.model, ...(pi.discoveredModels?.[profile.id] || [])].filter(Boolean))];
@@ -188,6 +188,7 @@ export function buildPiModelsConfig(pi: PiSettings): Record<string, unknown> {
                 input: ['text'],
                 contextWindow: modelId.includes('composer') ? 128000 : 1000000,
                 maxTokens: 4096,
+                ...(effort ? { defaultReasoningEffort: effort } : {}),
             })),
         };
     }
@@ -207,7 +208,7 @@ export function ensurePiRuntimeConfig(piInput: unknown, profileId: string, effor
     const profile = pi.profiles.find((entry) => entry.id === profileId) || pi.profiles[0] || DEFAULT_PI_PROFILE;
     const dir = join(root, profile.id);
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(join(dir, 'models.json'), JSON.stringify(buildPiModelsConfig(pi), null, 2));
+    fs.writeFileSync(join(dir, 'models.json'), JSON.stringify(buildPiModelsConfig(pi, effort), null, 2));
     fs.writeFileSync(join(dir, 'settings.json'), JSON.stringify(buildPiAgentSettings(profile, effort), null, 2));
     return dir;
 }
