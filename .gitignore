@@ -6,6 +6,7 @@ settings.json
 .DS_Store
 .env
 .artifacts/
+cache/
 public/dist/
 dist/
 native/**/target/
