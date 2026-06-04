@@ -128,16 +128,14 @@ test('Pi RPC parser extracts sessionId from get_state response data', () => {
     assert.equal(event.sessionId, 'abc-123');
 });
 
-test('Pi RPC parser extracts tool_execution events with toolName field', () => {
+test('Pi RPC parser: only tool_execution_end emits tool entry (1 per call)', () => {
     const start = parsePiRpcRecord({
         type: 'tool_execution_start',
         toolCallId: 'call-abc',
         toolName: 'bash',
         args: { command: 'ls /tmp' },
     });
-    assert.equal(start.tool?.label, 'bash');
-    assert.equal(start.tool?.status, 'running');
-    assert.ok(start.tool?.detail?.includes('ls /tmp'));
+    assert.deepEqual(start, {});
 
     const update = parsePiRpcRecord({
         type: 'tool_execution_update',
@@ -152,15 +150,17 @@ test('Pi RPC parser extracts tool_execution events with toolName field', () => {
         type: 'tool_execution_end',
         toolCallId: 'call-abc',
         toolName: 'bash',
+        args: { command: 'ls /tmp' },
         result: { content: [{ type: 'text', text: 'file1.txt\nfile2.txt' }] },
         isError: false,
     });
     assert.equal(end.tool?.label, 'bash');
     assert.equal(end.tool?.status, 'done');
+    assert.ok(end.tool?.detail?.includes('ls /tmp'));
     assert.ok(end.tool?.detail?.includes('file1.txt'));
 });
 
-test('Pi RPC parser routes toolcall_end as tool event, toolcall_start is dropped', () => {
+test('Pi RPC parser: toolcall_start/end both dropped (no tool entry)', () => {
     const start = parsePiRpcRecord({
         type: 'message_update',
         assistantMessageEvent: {
@@ -184,9 +184,7 @@ test('Pi RPC parser routes toolcall_end as tool event, toolcall_start is dropped
             toolCall: { type: 'toolCall', name: 'grep', arguments: { pattern: 'foo' } },
         },
     });
-    assert.equal(end.tool?.label, 'grep');
-    assert.equal(end.tool?.status, 'calling');
-    assert.ok(end.tool?.detail?.includes('foo'));
+    assert.deepEqual(end, {});
 });
 
 test('Pi RPC parser toolcall_delta returns empty (no text leak)', () => {
