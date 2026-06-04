@@ -58,11 +58,25 @@ function sanitizeSnippet(text: string, max: number): string {
     return `${oneLine.slice(0, max - 1)}…`;
 }
 
+function stripAgyMeta(raw: string): string {
+    const lines = raw.split('\n');
+    let start = 0;
+    for (let i = 0; i < lines.length; i++) {
+        const l = lines[i]!.trim();
+        if (l.startsWith('Output:')) { start = i + 1; break; }
+        if (l.startsWith('Task Description:')) { start = i; break; }
+    }
+    return lines.slice(start).join('\n').replace(/^\s+/, '');
+}
+
 function labelForStep(type: string, content: string): { label: string; detail: string; icon: string; toolType: string } {
     const snippet = sanitizeSnippet(content, DETAIL_MAX);
     switch (type) {
-        case 'RUN_COMMAND':
-            return { icon: '🔧', toolType: 'tool', label: sanitizeSnippet(snippet.split('\n')[0] || 'run command', LABEL_MAX), detail: snippet };
+        case 'RUN_COMMAND': {
+            const cleaned = stripAgyMeta(content);
+            const firstLine = cleaned.split('\n')[0]?.trim() || 'run command';
+            return { icon: '🔧', toolType: 'tool', label: sanitizeSnippet(firstLine, LABEL_MAX), detail: sanitizeSnippet(cleaned, DETAIL_MAX) };
+        }
         case 'VIEW_FILE':
             return { icon: '📄', toolType: 'tool', label: 'view file', detail: snippet };
         case 'LIST_DIRECTORY':
