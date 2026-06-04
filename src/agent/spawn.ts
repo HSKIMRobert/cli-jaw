@@ -1320,16 +1320,17 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 }
                 if (event.kind === 'text') {
                     flushPiThinking();
-                    const segment = appendAssistantTextSegment(ctx, event.text);
-                    if (segment) {
-                        if (ctx.liveScope) appendLiveRunText(ctx.liveScope, segment);
-                        broadcast('agent_output', {
-                            agentId: agentLabel,
-                            cli,
-                            text: segment,
-                            ...empTag,
-                        }, traceAudience);
-                    }
+                    const delta = String(event.text || '');
+                    if (!delta) return;
+                    ctx.fullText += delta;
+                    if (!ctx.outputTextStarted) ctx.outputTextStarted = true;
+                    if (ctx.liveScope) appendLiveRunText(ctx.liveScope, delta);
+                    broadcast('agent_output', {
+                        agentId: agentLabel,
+                        cli,
+                        text: delta,
+                        ...empTag,
+                    }, traceAudience);
                     return;
                 }
                 if (event.kind === 'tool') {
