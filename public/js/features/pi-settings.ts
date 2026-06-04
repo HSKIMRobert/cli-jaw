@@ -1,4 +1,4 @@
-import { api } from '../api.js';
+import { apiJson } from '../api.js';
 import type { PiSettingsView, SettingsData } from './settings-types.js';
 
 const DEFAULT_ENDPOINTS: Record<string, string> = {
@@ -31,14 +31,14 @@ export function piDiscoveredModels(pi: PiSettingsView | null | undefined, provid
     return [...new Set([profileModel, ...discovered].filter(Boolean))];
 }
 
-export function syncPiProviderDropdown(pi?: PiSettingsView | null): void {
+export function syncPiProviderDropdown(pi?: PiSettingsView | null, savedProvider?: string): void {
     const sel = document.getElementById('providerPi') as HTMLSelectElement | null;
     if (!sel) return;
     const ids = piProviderIds(pi);
     if (!ids.length) return;
-    const current = sel.value || '';
     sel.innerHTML = ids.map((id) => `<option value="${id}">${id}</option>`).join('');
-    if (ids.includes(current)) sel.value = current;
+    const target = savedProvider || sel.value || '';
+    if (ids.includes(target)) sel.value = target;
 }
 
 export function syncPiModelDropdown(provider: string, pi?: PiSettingsView | null): void {
@@ -101,7 +101,7 @@ export async function registerPiProfile(): Promise<void> {
     if (btn) btn.disabled = true;
     if (errEl) { errEl.style.display = 'none'; }
     try {
-        const result = await api<{ models?: string[]; settings?: SettingsData }>('/api/pi/profiles/register', 'POST', {
+        const result = await apiJson<{ models?: string[]; settings?: SettingsData }>('/api/pi/profiles/register', 'POST', {
             id, label: id, mode, endpoint, model, apiKey,
         });
         const nextPi = result?.settings?.pi;

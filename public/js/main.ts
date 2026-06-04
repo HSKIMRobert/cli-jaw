@@ -406,9 +406,13 @@ document.querySelector('#piSettingsModal .modal-box')?.addEventListener('click',
 document.querySelector('[data-action="closePiSettings"]')?.addEventListener('click', closePiSettingsModal);
 document.getElementById('btnPiRegister')?.addEventListener('click', () => void registerPiProfile());
 document.getElementById('piMode')?.addEventListener('change', onPiModeChange);
-document.getElementById('providerPi')?.addEventListener('change', () => {
+document.getElementById('providerPi')?.addEventListener('change', async () => {
     const sel = document.getElementById('providerPi') as HTMLSelectElement | null;
-    if (sel?.value) syncPiModelDropdown(sel.value, getCachedPi());
+    if (sel?.value) {
+        syncPiModelDropdown(sel.value, getCachedPi());
+        const { savePerCli } = await import('./features/settings-core.js');
+        await savePerCli();
+    }
 });
 
 // ── Heartbeat Modal ──

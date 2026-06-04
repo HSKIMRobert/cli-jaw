@@ -253,7 +253,7 @@ export async function loadSettings(): Promise<void> {
     syncStoredLocale(s.locale ?? '');
     syncCliOptionSelects(s);
     setCachedPi(s.pi);
-    syncPiProviderDropdown(s.pi);
+    syncPiProviderDropdown(s.pi, s.perCli?.['pi']?.provider);
     if (s.perCli?.['pi']?.provider) syncPiModelDropdown(s.perCli['pi'].provider, s.pi);
     syncAiEProviderControl(s, s.cli || '');
     syncPerCliModelAndEffortControls(s);
@@ -419,6 +419,10 @@ export async function savePerCli(): Promise<void> {
             effort: effortEl ? effortEl.value : '',
         };
         if (cli === 'ai-e') entry.provider = getPerCliAiEProvider();
+        if (cli === 'pi') {
+            const piProviderSel = document.getElementById('providerPi') as HTMLSelectElement | null;
+            if (piProviderSel?.value) entry.provider = piProviderSel.value;
+        }
         if (cli === 'codex') {
             const onBtn = document.getElementById('codexFastOn');
             entry.fastMode = onBtn?.classList.contains('active') ?? false;
