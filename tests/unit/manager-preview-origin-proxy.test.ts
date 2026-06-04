@@ -7,6 +7,7 @@ import {
     previewPortForTargetPort,
     validatePreviewOriginProxyOptions,
 } from '../../src/manager/preview-origin-proxy.js';
+import { injectPreviewLinkPolicy } from '../../src/manager/preview-link-policy.js';
 
 const usedTestPorts = new Set<number>();
 
@@ -209,6 +210,8 @@ test('preview proxy injects external-link escape policy into HTML responses', as
         const response = await requestText(previewFrom, '/links');
         assert.equal(response.status, 200);
         assert.match(response.body, /data-jaw-preview-link-policy/);
+        assert.match(response.body, /data-jaw-preview-drop-observer/);
+        assert.match(response.body, /jaw-preview-dropped-files/);
         assert.match(response.body, /window\.open/);
         assert.match(response.body, /href="\/local"/);
         assert.equal(response.headers['content-security-policy'], undefined);
@@ -218,6 +221,15 @@ test('preview proxy injects external-link escape policy into HTML responses', as
         await controller.close();
         await target.close();
     }
+});
+
+test('preview injection is idempotent for link policy and drop observer', () => {
+    const html = '<!doctype html><html><head><title>x</title></head><body></body></html>';
+    const once = injectPreviewLinkPolicy(html);
+    const twice = injectPreviewLinkPolicy(once);
+    assert.equal(twice, once);
+    assert.equal((twice.match(/data-jaw-preview-link-policy/g) ?? []).length, 1);
+    assert.equal((twice.match(/data-jaw-preview-drop-observer/g) ?? []).length, 1);
 });
 
 test('preview proxy accepts localhost alias for WSL-forwarded browser requests', async () => {

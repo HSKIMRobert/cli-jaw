@@ -5,6 +5,7 @@ import { homedir } from 'node:os';
 import { statSync, watch, type FSWatcher } from 'node:fs';
 import { isWithinHome, assertContained } from '../path-security.js';
 import { isAllowedSender } from '../ipc-origin-guard.js';
+import { resolveDroppedPaths } from './dropped-paths.js';
 
 const READ_CAP = 512 * 1024;
 const DEPTH_LIMIT = 5;
@@ -121,6 +122,24 @@ export function registerFolderIpc(getWindow: () => BrowserWindow | null): void {
             const buf = await readFile(resolved);
             if (isBinary(buf)) return { ok: true, content: '', binary: true };
             return { ok: true, content: buf.toString('utf-8'), truncated: false, binary: false };
+        } catch (err) {
+            return { ok: false, error: (err as Error).message };
+        }
+    });
+
+    ipcMain.handle('folder:resolveDroppedItems', async (event, rawPaths: string[]) => {
+        if (!isAllowedSender(event)) return { ok: false, error: 'unauthorized' };
+        if (!Array.isArray(rawPaths)) return { ok: false, error: 'paths must be an array' };
+        try {
+            const result = await resolveDroppedPaths(rawPaths, {
+                addRoot: root => pickedRoots.add(resolve(root)),
+            });
+            return {
+                ok: result.entries.length > 0,
+                entries: result.entries,
+                rejected: result.rejected,
+                ...(result.entries.length === 0 && result.rejected.length > 0 ? { error: result.rejected[0]?.reason } : {}),
+            };
         } catch (err) {
             return { ok: false, error: (err as Error).message };
         }

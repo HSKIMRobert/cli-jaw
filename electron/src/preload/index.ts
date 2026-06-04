@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import { getLatestMetrics, setupMetricsBridge } from './metrics.js';
 
 const DESKTOP_IDENTITY = {
@@ -81,6 +81,20 @@ contextBridge.exposeInMainWorld('cliJawDesktop', {
       const handler = (_e: unknown, dirPath: string) => cb(dirPath);
       ipcRenderer.on('folder:changed', handler);
       return () => { ipcRenderer.removeListener('folder:changed', handler); };
+    },
+  },
+  dragDrop: {
+    resolveDroppedItems: (files: File[]) => {
+      const paths = Array.from(files || [])
+        .map(file => {
+          try {
+            return webUtils.getPathForFile(file);
+          } catch {
+            return '';
+          }
+        })
+        .filter(path => path.trim().length > 0);
+      return ipcRenderer.invoke('folder:resolveDroppedItems', paths);
     },
   },
   clipboard: {

@@ -47,6 +47,16 @@ export type FolderBridgeApi = {
     onDirChange: (cb: (dirPath: string) => void) => () => void;
 };
 
+export type DroppedPathEntry = {
+    name: string;
+    path: string;
+    kind: 'file' | 'directory';
+};
+
+export type DragDropBridgeApi = {
+    resolveDroppedItems: (files: File[]) => Promise<{ ok: boolean; entries?: DroppedPathEntry[]; rejected?: Array<{ path: string; reason: string }>; error?: string }>;
+};
+
 export type ShortcutBridgeApi = {
     onAction: (cb: (action: DashboardShortcutAction) => void) => () => void;
 };
@@ -87,6 +97,7 @@ export type CliJawDesktopApi = {
     terminal?: TerminalBridgeApi | undefined;
     diff?: DiffBridgeApi | undefined;
     folder?: FolderBridgeApi | undefined;
+    dragDrop?: DragDropBridgeApi | undefined;
     clipboard?: ClipboardBridgeApi | undefined;
     permissions?: PermissionDiagnosticsBridgeApi | undefined;
     shortcuts?: ShortcutBridgeApi | undefined;

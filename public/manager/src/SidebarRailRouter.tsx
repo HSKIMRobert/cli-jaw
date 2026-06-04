@@ -1,4 +1,4 @@
-import { useState, type ReactNode, Suspense } from 'react';
+import { useCallback, useState, type ReactNode, Suspense } from 'react';
 import { ActivityDock } from './components/ActivityDock';
 import { InstanceDrawer } from './components/InstanceDrawer';
 import { InstanceNavigator } from './components/InstanceNavigator';
@@ -31,6 +31,12 @@ import { DashboardScheduleWorkspace } from './dashboard-schedule/DashboardSchedu
 import { DashboardRemindersSidebar, type RemindersView } from './dashboard-reminders/DashboardRemindersSidebar';
 import { DashboardRemindersWorkspace } from './dashboard-reminders/DashboardRemindersWorkspace';
 import { useRemindersFeed } from './dashboard-reminders/useRemindersFeed';
+import {
+    firstDirectory,
+    firstFile,
+    useElectronDroppedPaths,
+    type ElectronDroppedPathsEvent,
+} from './hooks/useElectronDroppedPaths';
 import type { HelpTopicId } from './help/helpContent';
 import { NotesCommandPalette } from './notes/NotesCommandPalette';
 import { NotesCommandProvider } from './notes/notes-command-registry';
@@ -140,6 +146,7 @@ type Props = {
 function renderRightPanelContent(
     mode: RightPanelMode,
     previewFilePath: string | null,
+    folderRootPath: string | null,
     onPreviewFile: (path: string) => void,
     selectedInstance: DashboardInstance | null,
     dashboardSettingsUi: DashboardRegistryUi,
@@ -149,7 +156,7 @@ function renderRightPanelContent(
     const fallback = <div style={{ padding: '12px', color: 'var(--text-dim)', fontSize: '12px' }}>Loading...</div>;
     switch (mode) {
         case 'diff': return <Suspense fallback={fallback}><DiffPanel selectedInstance={selectedInstance} settings={dashboardSettingsUi} onSettingsPatch={onDashboardSettingsPatch} /></Suspense>;
-        case 'folder': return <Suspense fallback={fallback}><FolderPanel selectedFilePath={previewFilePath} notesTree={notesModel.tree} notesRoot={notesModel.notesRoot} onPreviewFile={onPreviewFile} /></Suspense>;
+        case 'folder': return <Suspense fallback={fallback}><FolderPanel selectedFilePath={previewFilePath} externalRootPath={folderRootPath} notesTree={notesModel.tree} notesRoot={notesModel.notesRoot} onPreviewFile={onPreviewFile} /></Suspense>;
         case 'doc': return <Suspense fallback={fallback}><DocPanel filePath={previewFilePath ?? undefined} /></Suspense>;
         case 'browser': return <Suspense fallback={fallback}><BrowserPanel /></Suspense>;
         default: return null;
@@ -168,6 +175,8 @@ function renderBottomTabContent(tab: BottomPanelTab, controls: BottomPanelRender
 export function SidebarRailRouter(props: Props) {
     const panelLayout = usePanelLayout();
     const [rightPreviewFilePath, setRightPreviewFilePath] = useState<string | null>(null);
+    const [rightFolderRootPath, setRightFolderRootPath] = useState<string | null>(null);
+    const [, setRecentDroppedPaths] = useState<ElectronDroppedPathsEvent | null>(null);
     const [remindersView, setRemindersView] = useState<RemindersView>('matrix');
     const remindersFeed = useRemindersFeed({ active: props.sidebarMode === 'reminders' });
     const desktopPanelsAvailable = currentManagerSurface() === 'electron';
@@ -184,6 +193,25 @@ export function SidebarRailRouter(props: Props) {
         panelLayout.dispatch({ type: 'OPEN_RIGHT_PANEL', mode: 'doc', slot: 'bottom' });
     }
 
+    const handleDroppedPaths = useCallback((event: ElectronDroppedPathsEvent): void => {
+        setRecentDroppedPaths(event);
+        if (event.source === 'preview') return;
+        const directory = firstDirectory(event.entries);
+        if (directory) {
+            setRightFolderRootPath(directory.path);
+            panelLayout.dispatch({ type: 'OPEN_RIGHT_PANEL', mode: 'folder', slot: 'top' });
+            return;
+        }
+        const file = firstFile(event.entries);
+        if (file) handleRightPreviewFile(file.path);
+    }, [panelLayout]);
+
+    const electronDrop = useElectronDroppedPaths({ onDroppedPaths: handleDroppedPaths });
+
+    const handlePreviewDroppedFiles = useCallback((files: File[]): void => {
+        void electronDrop.resolveDroppedFiles(files, 'preview');
+    }, [electronDrop]);
+
     return (
         <NotesCommandProvider>
         {props.jawCeoVoiceOverlay}
@@ -195,7 +223,7 @@ export function SidebarRailRouter(props: Props) {
             onCloseDrawer={props.onCloseDrawer}
             rightPanelOpen={rightPanelOpen}
             rightPanelWidth={panelLayout.state.rightPanel.width}
-            rightPanelContent={rightPanelOpen ? <RightSidebar renderPanel={mode => renderRightPanelContent(mode, rightPreviewFilePath, handleRightPreviewFile, props.selectedInstance, props.dashboardSettingsUi, props.onDashboardSettingsPatch, props.notesModel)} /> : undefined}
+            rightPanelContent={rightPanelOpen ? <RightSidebar renderPanel={mode => renderRightPanelContent(mode, rightPreviewFilePath, rightFolderRootPath, handleRightPreviewFile, props.selectedInstance, props.dashboardSettingsUi, props.onDashboardSettingsPatch, props.notesModel)} /> : undefined}
             bottomPanelOpen={bottomPanelOpen}
             bottomPanelHeight={panelLayout.state.bottomPanel.height}
             bottomPanelContent={bottomPanelOpen && panelLayout.state.bottomPanel.tabs.length > 0 ? <BottomPanel renderTab={renderBottomTabContent} /> : undefined}
@@ -243,7 +271,7 @@ export function SidebarRailRouter(props: Props) {
                     <div className="workspace-surface-layer">
                         <WorkspaceSurface active={props.sidebarMode === 'instances'}>
                             <Workbench mode={props.activeDetailTab} onModeChange={props.onDetailTabChange} header={props.workbenchHeader} modeActions={props.jawCeoWorkbenchButton} overview={props.detailContent('overview')} preview={(
-                                <InstancePreview instance={props.selectedInstance} data={props.data} enabled={props.previewEnabled} active={props.sidebarMode === 'instances' && props.activeDetailTab === 'preview'} refreshKey={props.previewRefreshKey} theme={props.previewTheme} {...(props.onOpenNotesFromPreview ? { onOpenNotesFromPreview: props.onOpenNotesFromPreview } : {})} onOpenDocFromPreview={handleRightPreviewFile} />
+                                <InstancePreview instance={props.selectedInstance} data={props.data} enabled={props.previewEnabled} active={props.sidebarMode === 'instances' && props.activeDetailTab === 'preview'} refreshKey={props.previewRefreshKey} theme={props.previewTheme} {...(props.onOpenNotesFromPreview ? { onOpenNotesFromPreview: props.onOpenNotesFromPreview } : {})} onOpenDocFromPreview={handleRightPreviewFile} onPreviewDroppedFiles={handlePreviewDroppedFiles} />
                             )} logs={props.detailContent('logs')} settings={props.detailContent('settings')} />
                         </WorkspaceSurface>
                         <WorkspaceSurface active={props.sidebarMode === 'notes'}>

@@ -10,6 +10,7 @@ function getFolderBridge(): FolderBridgeApi | null {
 
 type FolderPanelProps = {
     selectedFilePath?: string | null | undefined;
+    externalRootPath?: string | null | undefined;
     notesTree?: NotesTreeEntry[] | undefined;
     notesRoot?: string | null | undefined;
     onPreviewFile?: ((path: string) => void) | undefined;
@@ -73,7 +74,7 @@ export function FolderPanel(props: FolderPanelProps) {
     }, [loadDir, rootPath, source]);
 
     useEffect(() => {
-        if (rootPath !== null) return;
+        if (rootPath !== null || props.externalRootPath) return;
         let cancelled = false;
         void (async () => {
             const nextRoot = await source.getDefaultRoot();
@@ -82,7 +83,17 @@ export function FolderPanel(props: FolderPanelProps) {
             await loadDir(nextRoot);
         })();
         return () => { cancelled = true; };
-    }, [loadDir, rootPath, source]);
+    }, [loadDir, props.externalRootPath, rootPath, source]);
+
+    useEffect(() => {
+        const externalRoot = props.externalRootPath;
+        if (!externalRoot || externalRoot === rootPath) return;
+        if (rootPath && source.unwatchDir) void source.unwatchDir(rootPath);
+        setRootPath(externalRoot);
+        setExpanded(new Set());
+        setChildrenCache(new Map());
+        void loadDir(externalRoot);
+    }, [loadDir, props.externalRootPath, rootPath, source]);
 
     useEffect(() => {
         if (!source.watchDir || !source.onDirChange || rootPath === null) return;
