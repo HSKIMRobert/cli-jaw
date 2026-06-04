@@ -398,6 +398,19 @@ document.querySelector('#templateModal .modal-box')?.addEventListener('click', (
 document.getElementById('templateBack')?.addEventListener('click', templateGoBack);
 document.getElementById('templateDevToggle')?.addEventListener('click', toggleDevMode);
 
+// ── Pi Settings Modal ──
+const { openPiSettingsModal, closePiSettingsModal, registerPiProfile, onPiModeChange, syncPiModelDropdown, getCachedPi } = await import('./features/pi-settings.js');
+document.getElementById('btnPiSettings')?.addEventListener('click', openPiSettingsModal);
+document.getElementById('piSettingsModal')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) closePiSettingsModal(); });
+document.querySelector('#piSettingsModal .modal-box')?.addEventListener('click', (e) => e.stopPropagation());
+document.querySelector('[data-action="closePiSettings"]')?.addEventListener('click', closePiSettingsModal);
+document.getElementById('btnPiRegister')?.addEventListener('click', () => void registerPiProfile());
+document.getElementById('piMode')?.addEventListener('change', onPiModeChange);
+document.getElementById('providerPi')?.addEventListener('change', () => {
+    const sel = document.getElementById('providerPi') as HTMLSelectElement | null;
+    if (sel?.value) syncPiModelDropdown(sel.value, getCachedPi());
+});
+
 // ── Heartbeat Modal ──
 document.getElementById('heartbeatModal')?.addEventListener('click', (e) => closeHeartbeatModal(e));
 document.querySelector('#heartbeatModal .modal-box')?.addEventListener('click', (e) => e.stopPropagation());

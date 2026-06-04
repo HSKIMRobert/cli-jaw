@@ -5,6 +5,7 @@ import { syncStoredLocale } from '../locale.js';
 import { t } from './i18n.js';
 import { api, apiJson, apiFire } from '../api.js';
 import type { PerCliConfig, SettingsData } from './settings-types.js';
+import { setCachedPi, syncPiProviderDropdown, syncPiModelDropdown, piDiscoveredModels } from './pi-settings.js';
 import { initSttSettings } from './settings-stt.js';
 import { loadTelegramSettings } from './settings-telegram.js';
 import { loadDiscordSettings } from './settings-discord.js';
@@ -145,7 +146,11 @@ function syncPerCliModelAndEffortControls(settings: SettingsData | null = null):
             } else {
                 const raw = settings?.perCli?.[cli]?.model || modelSel.value || '';
                 const selected = normalizeModelForDisplay(cli, raw);
-                const models = cli === 'ai-e'
+                const piProvider = cli === 'pi' ? (settings?.perCli?.['pi']?.provider || '') : '';
+                const piModels = cli === 'pi' && piProvider ? piDiscoveredModels(settings?.pi, piProvider) : [];
+                const models = cli === 'pi' && piModels.length
+                    ? piModels
+                    : cli === 'ai-e'
                     ? (meta?.modelsByProvider?.[aiEProvider] || MODEL_MAP[cli] || [])
                     : (MODEL_MAP[cli] || []);
                 setSelectOptions(modelSel, models, { includeCustom: true, selected });
@@ -247,6 +252,9 @@ export async function loadSettings(): Promise<void> {
     if (!s) return;
     syncStoredLocale(s.locale ?? '');
     syncCliOptionSelects(s);
+    setCachedPi(s.pi);
+    syncPiProviderDropdown(s.pi);
+    if (s.perCli?.['pi']?.provider) syncPiModelDropdown(s.perCli['pi'].provider, s.pi);
     syncAiEProviderControl(s, s.cli || '');
     syncPerCliModelAndEffortControls(s);
 
