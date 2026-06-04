@@ -1268,7 +1268,8 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         if (!profile) {
             throw new Error('Pi profile is not configured');
         }
-        const piPrompt = withHistoryPrompt(prompt, historyBlock);
+        const piSessionId = isResume && bucketSessionId ? bucketSessionId : '';
+        const piPrompt = piSessionId ? prompt : withHistoryPrompt(prompt, historyBlock);
         const traceRunId = startTraceRun({ cli, model: runtimeModel, workingDir: settings["workingDir"] || null, agentLabel, audience: traceAudience });
         const ctx: SpawnContext = {
             fullText: '',
@@ -1310,6 +1311,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         const { child, done } = spawnPiRpc(profile, pi, {
             prompt: piPrompt,
             model: runtimeModel,
+            ...(piSessionId ? { sessionId: piSessionId } : {}),
             effort,
             cwd: spawnCwd,
             sysPrompt,
