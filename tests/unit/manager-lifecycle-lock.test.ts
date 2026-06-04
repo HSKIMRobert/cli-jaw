@@ -26,6 +26,7 @@ test('stopAll("locked-skip") skips instances with protected marker', async () =>
         managerPort: 24576,
         from: 3457,
         count: 50,
+        jawPath: '/usr/bin/true',
         processVerify: {
             isPidAlive: () => true,
             resolveListeningPid: async () => null,
@@ -109,6 +110,7 @@ test('stopAll("full") kills even protected instances', async () => {
         managerPort: 24576,
         from: 3457,
         count: 50,
+        jawPath: '/usr/bin/true',
         processVerify: {
             isPidAlive: () => true,
             resolveListeningPid: async () => null,
@@ -158,6 +160,7 @@ test('protectInstance writes protected=true to marker', async () => {
         managerPort: 24576,
         from: 3457,
         count: 50,
+        jawPath: '/usr/bin/true',
     });
 
     // @ts-expect-error
@@ -200,6 +203,7 @@ test('unprotectInstance removes protected flag from marker', async () => {
         managerPort: 24576,
         from: 3457,
         count: 50,
+        jawPath: '/usr/bin/true',
     });
 
     // @ts-expect-error
@@ -243,6 +247,7 @@ test('protectInstance returns false for unknown port', async () => {
         managerPort: 24576,
         from: 3457,
         count: 50,
+        jawPath: '/usr/bin/true',
     });
 
     const result = await lifecycle.protectInstance(9999);
