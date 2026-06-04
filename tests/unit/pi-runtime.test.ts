@@ -72,6 +72,81 @@ test('Pi RPC parser treats prompt success as non-terminal and agent_end as done'
     }), { done: true, text: 'answer' });
 });
 
+test('Pi RPC parser extracts thinking_delta as thinking, not text', () => {
+    const event = parsePiRpcRecord({
+        type: 'message_update',
+        assistantMessageEvent: { type: 'thinking_delta', contentIndex: 0, delta: 'reasoning here' },
+    });
+    assert.deepEqual(event, { thinking: 'reasoning here' });
+    assert.equal(event.text, undefined);
+});
+
+test('Pi RPC parser extracts text_delta as text', () => {
+    const event = parsePiRpcRecord({
+        type: 'message_update',
+        assistantMessageEvent: { type: 'text_delta', contentIndex: 1, delta: 'Hello!' },
+    });
+    assert.deepEqual(event, { text: 'Hello!' });
+    assert.equal(event.thinking, undefined);
+});
+
+test('Pi RPC parser ignores thinking_start/end and text_start/end boundaries', () => {
+    assert.deepEqual(parsePiRpcRecord({
+        type: 'message_update',
+        assistantMessageEvent: { type: 'thinking_start', contentIndex: 0 },
+    }), {});
+    assert.deepEqual(parsePiRpcRecord({
+        type: 'message_update',
+        assistantMessageEvent: { type: 'text_end', contentIndex: 1, content: 'Hello!' },
+    }), {});
+});
+
+test('Pi RPC parser filters thinking from agent_end messages', () => {
+    const event = parsePiRpcRecord({
+        type: 'agent_end',
+        messages: [
+            { role: 'user', content: [{ type: 'text', text: 'hi' }] },
+            {
+                role: 'assistant',
+                content: [
+                    { type: 'thinking', thinking: 'internal reasoning', thinkingSignature: 'reasoning_content' },
+                    { type: 'text', text: 'Hello!' },
+                ],
+            },
+        ],
+    });
+    assert.equal(event.done, true);
+    assert.equal(event.text, 'Hello!');
+    assert.ok(!event.text?.includes('internal reasoning'));
+});
+
+test('Pi RPC parser extracts sessionId from get_state response data', () => {
+    const event = parsePiRpcRecord({
+        id: 1, type: 'response', command: 'get_state', success: true,
+        data: { sessionId: 'abc-123', model: { id: 'test' } },
+    });
+    assert.equal(event.sessionId, 'abc-123');
+});
+
+test('Pi RPC parser extracts tool_execution events from top-level fields', () => {
+    const start = parsePiRpcRecord({
+        type: 'tool_execution_start',
+        name: 'read_file',
+        input: { path: '/tmp/test.ts' },
+    });
+    assert.equal(start.tool?.label, 'read_file');
+    assert.equal(start.tool?.status, 'running');
+    assert.ok(start.tool?.detail?.includes('/tmp/test.ts'));
+
+    const end = parsePiRpcRecord({
+        type: 'tool_execution_end',
+        name: 'read_file',
+        result: 'file contents here',
+    });
+    assert.equal(end.tool?.label, 'read_file');
+    assert.equal(end.tool?.status, 'done');
+});
+
 test('Pi command fallback is command/baseArgs tuple, not a shell string', () => {
     const cmd = resolvePiCommand({ PATH: '' });
     assert.equal(cmd.command, 'npm');
