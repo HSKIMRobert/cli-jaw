@@ -1267,7 +1267,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         if (!profile) {
             throw new Error('Pi profile is not configured');
         }
-        const piPrompt = isResume ? prompt : withHistoryPrompt(prompt, historyBlock);
+        const piPrompt = withHistoryPrompt(prompt, historyBlock);
         const traceRunId = startTraceRun({ cli, model: runtimeModel, workingDir: settings["workingDir"] || null, agentLabel, audience: traceAudience });
         const ctx: SpawnContext = {
             fullText: '',
