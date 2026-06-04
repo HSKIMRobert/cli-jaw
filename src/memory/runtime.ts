@@ -147,6 +147,10 @@ export function hasSoulFile(): boolean {
     return fs.existsSync(join(getAdvancedMemoryDir(), 'shared', 'soul.md'));
 }
 
+function stripChunkMeta(raw: string): string {
+    return raw.replace(/^(Source: .+\n|Kind: .+\n|Header: .+\n)+\n?/m, '').trim();
+}
+
 function diversifyHits(
     hits: Array<{ kind: string; relpath: string; [k: string]: unknown }>,
     opts: { maxPerKind?: Record<string, number>; maxPerRelpath?: number } = {},
@@ -203,7 +207,7 @@ export function buildTaskSnapshot(query: string | string[], budget = 2800, expan
         const header = `### ${hit.relpath}:${hit["source_start_line"]}-${hit["source_end_line"]}`;
         const snippetBudget = Math.min(700, Math.max(0, remaining - header.length - 4));
         if (snippetBudget <= 0) break;
-        const snippet = String(hit["snippet"] ?? '').slice(0, snippetBudget).trim();
+        const snippet = stripChunkMeta(String(hit["snippet"] ?? '')).slice(0, snippetBudget).trim();
         const block = `${header}\n${snippet}`;
         out.push(block);
         remaining -= block.length + 2;
