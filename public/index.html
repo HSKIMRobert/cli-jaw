@@ -618,6 +618,22 @@
 
             <!-- Per-CLI Models -->
             <div class="settings-group">
+                <h4><span data-provider="pi"></span> Pi</h4>
+                <div class="settings-row">
+                    <label>Model</label>
+                    <select id="modelPi"></select>
+                    <input type="text" id="customModelPi" class="custom-model-input"
+                        data-i18n-placeholder="model.placeholder" placeholder="model ID 입력" style="display:none">
+                </div>
+                <div class="settings-row sub-row">
+                    <label>Effort</label>
+                    <select id="effortPi">
+                        <option value="" selected>— none</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="settings-group">
                 <h4><span data-provider="ai-e"></span> AI-E</h4>
                 <div class="settings-row">
                     <label>Provider</label>
