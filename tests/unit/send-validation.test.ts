@@ -31,6 +31,95 @@ test('validateTarget accepts matching channel with valid targetId', async () => 
     assert.equal(validateTarget(target, 'discord'), true);
 });
 
+test('sendChannelOutput rejects explicit chatId when allowlist is empty', async () => {
+    const { settings } = await import('../../src/core/config.js');
+    const { registerSendTransport, sendChannelOutput } = await import('../../src/messaging/send.js');
+    const previousDiscord = settings.discord;
+    try {
+        settings.discord = { ...(settings.discord || {}), channelIds: [] };
+        registerSendTransport('discord', async () => ({ ok: true }));
+        const result = await sendChannelOutput({
+            channel: 'discord',
+            type: 'text',
+            text: 'hello',
+            chatId: '123456',
+        });
+        assert.equal(result.ok, false);
+        assert.equal(result.status, 403);
+    } finally {
+        settings.discord = previousDiscord;
+    }
+});
+
+test('sendChannelOutput allows explicit chatId only when configured', async () => {
+    const { settings } = await import('../../src/core/config.js');
+    const { registerSendTransport, sendChannelOutput } = await import('../../src/messaging/send.js');
+    const previousDiscord = settings.discord;
+    try {
+        settings.discord = { ...(settings.discord || {}), channelIds: ['123456'] };
+        registerSendTransport('discord', async req => ({
+            ok: true,
+            targetId: req.target?.targetId,
+            chatId: req.chatId,
+        }));
+        const result = await sendChannelOutput({
+            channel: 'discord',
+            type: 'text',
+            text: 'hello',
+            chatId: '123456',
+        });
+        assert.equal(result.ok, true);
+        assert.equal(result.targetId, '123456');
+    } finally {
+        settings.discord = previousDiscord;
+    }
+});
+
+test('sendChannelOutput rejects disallowed explicit target with 403 status', async () => {
+    const { settings } = await import('../../src/core/config.js');
+    const { registerSendTransport, sendChannelOutput } = await import('../../src/messaging/send.js');
+    const previousDiscord = settings.discord;
+    try {
+        settings.discord = { ...(settings.discord || {}), channelIds: ['allowed-channel'] };
+        registerSendTransport('discord', async () => ({ ok: true }));
+        const result = await sendChannelOutput({
+            channel: 'discord',
+            type: 'text',
+            text: 'hello',
+            target: {
+                channel: 'discord',
+                targetKind: 'channel',
+                peerKind: 'channel',
+                targetId: 'not-allowed',
+            },
+        });
+        assert.equal(result.ok, false);
+        assert.equal(result.status, 403);
+    } finally {
+        settings.discord = previousDiscord;
+    }
+});
+
+test('normalizeChannelSendRequest rejects invalid outbound type and channel', async () => {
+    const { normalizeChannelSendRequest } = await import('../../src/messaging/send.js');
+    assert.throws(
+        () => normalizeChannelSendRequest({ channel: 'discord', type: 'sticker' }),
+        /invalid_outbound_type/,
+    );
+    assert.throws(
+        () => normalizeChannelSendRequest({ channel: 'slack', type: 'text' }),
+        /invalid_channel/,
+    );
+    assert.throws(
+        () => normalizeChannelSendRequest({ channel: false, type: 'text' }),
+        /invalid_channel/,
+    );
+    assert.throws(
+        () => normalizeChannelSendRequest({ channel: 'discord', type: false }),
+        /invalid_outbound_type/,
+    );
+});
+
 // ─── validateDiscordFileSize behavior ────────────────
 
 test('validateDiscordFileSize rejects 11 MiB', async () => {

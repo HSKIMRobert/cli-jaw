@@ -154,7 +154,7 @@ export type DashboardLifecycleResult = {
     ok: boolean;
     action: DashboardLifecycleAction;
     port: number;
-    status: 'started' | 'stopped' | 'restarted' | 'permed' | 'unpermed' | 'rejected' | 'error';
+    status: 'started' | 'stopped' | 'restarted' | 'permed' | 'unpermed' | 'rejected' | 'error' | 'skipped';
     message: string;
     home: string | null;
     pid: number | null;

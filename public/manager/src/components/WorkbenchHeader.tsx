@@ -11,27 +11,37 @@ type WorkbenchHeaderProps = {
     onOpenHelpTopic?: (topic: HelpTopicId) => void;
 };
 
+function compactPath(path: string): string {
+    const parts = path.split(/[/\\]/).filter(Boolean);
+    if (parts.length <= 2) return path;
+    return `…/${parts.slice(-2).join('/')}`;
+}
+
 export function WorkbenchHeader(props: WorkbenchHeaderProps) {
     const instance = props.instance;
     const canPreview = Boolean(instance?.ok);
     const previewLabel = props.previewEnabled ? 'Preview on' : 'Preview off';
     const hasActions = Boolean(instance || props.onOpenHelpTopic);
+    const projectDirs = instance?.projectDirs?.filter(Boolean) ?? [];
 
     return (
         <div className="detail-header">
             <div>
                 <p className="eyebrow">Selected instance</p>
                 <h2>{instance ? instanceLabel(instance) : 'No instance selected'}</h2>
-                <span>{instance?.workingDir || instance?.url || 'Select an online instance to inspect it.'}</span>
-                {instance?.projectDirs && instance.projectDirs.length > 0 && (
-                    <div className="project-dirs">
-                        <span className="label">Projects:</span>
-                        {instance.projectDirs.map((dir, i) => (
+                {instance ? (
+                    <div className={`project-dirs${projectDirs.length ? '' : ' is-empty'}`}>
+                        <span className="label">Project</span>
+                        {projectDirs.length ? projectDirs.map((dir, i) => (
                             <span key={i} className="project-dir" title={dir}>
-                                {dir.split(/[/\\]/).slice(-2).join('/')}
+                                {compactPath(dir)}
                             </span>
-                        ))}
+                        )) : (
+                            <span className="project-dir">Not set</span>
+                        )}
                     </div>
+                ) : (
+                    <span>Select an online instance to inspect it.</span>
                 )}
             </div>
             {hasActions && (

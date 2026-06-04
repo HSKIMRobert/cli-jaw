@@ -14,17 +14,32 @@ const PROTECTED_PATTERNS = [
     /pnpm-lock\.yaml$/,
 ];
 
+function isPathWithin(child: string, parent: string): boolean {
+    const relative = path.relative(parent, child);
+    return relative === '' || (!!relative && !relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+function listGitChangedFiles(projectRoot: string): string[] {
+    const outputs = [
+        execSync('git diff --name-only', { cwd: projectRoot }).toString(),
+        execSync('git diff --cached --name-only', { cwd: projectRoot }).toString(),
+        execSync('git ls-files --others --exclude-standard', { cwd: projectRoot }).toString(),
+    ];
+    return [...new Set(outputs.flatMap(output => output.split('\n').filter(Boolean)))];
+}
+
 export function normalizeScope(projectRoot: string, scopePath: string): string {
     const resolvedRoot = path.resolve(projectRoot);
     const resolvedScope = path.resolve(projectRoot, scopePath);
 
-    if (!resolvedScope.startsWith(resolvedRoot)) {
+    if (!isPathWithin(resolvedScope, resolvedRoot)) {
         throw new Error(`Security Error: Scope [${scopePath}] escapes project root.`);
     }
 
     if (fs.existsSync(resolvedScope)) {
+        const realRoot = fs.realpathSync(resolvedRoot);
         const realScope = fs.realpathSync(resolvedScope);
-        if (!realScope.startsWith(resolvedRoot)) {
+        if (!isPathWithin(realScope, realRoot)) {
             throw new Error(`Security Error: Realpath of scope is outside project root.`);
         }
     }
@@ -41,13 +56,12 @@ export function postDispatchDiffCheck(
 ): { ok: boolean; modifiedOutside: string[] } {
     if (!allowedScope) return { ok: true, modifiedOutside: [] };
 
-    const diffOutput = execSync('git diff --name-only', { cwd: projectRoot }).toString();
-    const modifiedFiles = diffOutput.split('\n').filter(Boolean);
+    const modifiedFiles = listGitChangedFiles(projectRoot);
 
     const absoluteAllowedScope = path.resolve(projectRoot, allowedScope);
     const outsideFiles = modifiedFiles.filter(file => {
         const absFile = path.resolve(projectRoot, file);
-        return !absFile.startsWith(absoluteAllowedScope) || isProtectedPath(file);
+        return !isPathWithin(absFile, absoluteAllowedScope) || isProtectedPath(file);
     });
 
     return {

@@ -5,7 +5,6 @@ import type { Express, Request, Response, NextFunction } from 'express';
 import * as browser from '../browser/index.js';
 import { cleanupPoolTabs } from '../browser/web-ai/tab-pool.js';
 import { stripUndefined } from '../core/strip-undefined.js';
-import { ok } from '../http/response.js';
 import { DEBUG_CONSOLE_ONLY_MESSAGE, normalizeBrowserStartMode, type BrowserStartMode } from '../browser/launch-policy.js';
 
 /** Port priority: req param > activePort > settings.browser.cdpPort > deriveCdpPort() */
@@ -191,7 +190,11 @@ export function registerBrowserRoutes(app: Express, requireAuth: (req: Request, 
             const tabs = await browser.listTabs(cdpPort(req));
             res.json({ ok: true, tabs, data: { tabs } });
         }
-        catch (e: unknown) { console.warn('[browser:tabs] failed', { error: (e as Error).message }); ok(res, { tabs: [] }); }
+        catch (e: unknown) {
+            const error = (e as Error).message;
+            console.warn('[browser:tabs] failed', { error });
+            res.status(500).json({ ok: false, error, tabs: [], data: { tabs: [] } });
+        }
     });
 
     app.get('/api/browser/active-tab', requireAuth, async (req: Request, res: Response) => {

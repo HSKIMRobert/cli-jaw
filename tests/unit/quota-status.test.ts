@@ -114,12 +114,12 @@ test('QS-004: readGeminiAccount has cross-platform documentation', () => {
 
 test('QS-004b: Grok quota contract is auth/status only with best-effort session usage', () => {
     assert.ok(
-        quotaSrc.includes("quotaSource: 'not-exposed-by-grok-cli'"),
-        'Grok quota must not claim a real quota source',
+        quotaSrc.includes("quotaSource: hasBilling ? 'progrok:billing-api' : 'not-exposed-by-grok-cli'"),
+        'Grok quota should use progrok billing when available and otherwise stay explicit status-only metadata',
     );
     assert.ok(
-        quotaSrc.includes("displayTier: 'Grok Heavy'"),
-        'Grok status should display Grok Heavy as tier copy',
+        quotaSrc.includes("displayTier: billing?.tier || 'Grok'"),
+        'Grok status should display billing tier when available and fall back to generic Grok copy',
     );
     assert.ok(
         quotaSrc.includes('readLatestGrokSessionUsage'),
@@ -170,7 +170,7 @@ test('QS-005: /api/quota classify separates no-creds from API failure', () => {
         'opencode should be explicit auth/status-only metadata',
     );
     assert.ok(
-        settingsRouteSrc.includes('const grokQuota = readGrokStatus()') && settingsRouteSrc.includes('grok: grokQuota'),
+        settingsRouteSrc.includes('const grokQuota = await fetchGrokStatus()') && settingsRouteSrc.includes('grok: grokQuota'),
         'Grok should be present in /api/quota as auth/status-only metadata',
     );
 });

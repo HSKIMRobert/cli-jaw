@@ -12,6 +12,7 @@ if (shouldShowHelp(process.argv)) printAndExit(`
 
   Subcommands:
     set <objective>     Set a new goal (up to 10000 characters)
+    plan [hint]         AI selects and executes a goal (hint is optional direction)
     status              Show active goal
     update <summary>    Add a checkpoint  (add --evidence <note>[,<...>] to record verification)
     done [note]         Mark goal complete (add --force to skip the evidence gate)
@@ -24,6 +25,8 @@ if (shouldShowHelp(process.argv)) printAndExit(`
     history [limit]     Show goal history
 
   Examples:
+    jaw goal plan                              # AI decides goal from context
+    jaw goal plan "improve auth"               # AI uses hint as direction
     jaw goal set "Implement keyboard shortcuts"
     jaw goal update "K0 done"
     jaw goal done "All phases complete"
@@ -78,6 +81,21 @@ try {
         process.exit(0);
     }
 
+    if (sub === 'plan') {
+        const hint = args.slice(1).join(' ').trim();
+        const objective = hint || '(AI-driven planning)';
+        const res = await cliFetch(`${BASE}/api/goal`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'set', objective, goalMode: 'plan' }),
+        });
+        const body = await res.json() as Record<string, unknown>;
+        if (!res.ok) { console.error((body['error'] as string) || `Failed: ${res.status}`); process.exit(1); }
+        const goal = body['goal'] as Record<string, unknown>;
+        console.log(`✅ Goal plan activated${hint ? `: ${hint}` : ''}\nID: ${goal?.['id']}\nMode: AI selects and executes goal`);
+        process.exit(0);
+    }
+
     const actionMap: Record<string, string> = {
         set: 'set', done: 'done', cancel: 'cancel',
         update: 'update', pause: 'pause', resume: 'resume',
@@ -87,7 +105,7 @@ try {
     const action = actionMap[sub];
     if (!action) {
         console.error(`Unknown subcommand: ${sub}`);
-        console.error('Use: set, status, update, done, cancel, pause, resume, clear, reset, history');
+        console.error('Use: set, plan, status, update, done, cancel, pause, resume, clear, reset, history');
         process.exit(1);
     }
 

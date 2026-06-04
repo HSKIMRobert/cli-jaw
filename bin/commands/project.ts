@@ -69,7 +69,10 @@ function parsePaths(input: string): string[] {
 }
 
 function readProjectDirsFromBody(body: Record<string, unknown>): string[] | null {
-    const raw = body["projectDirs"];
+    const data = body["data"] && typeof body["data"] === 'object'
+        ? body["data"] as Record<string, unknown>
+        : {};
+    const raw = body["projectDirs"] ?? data["projectDirs"];
     if (!Array.isArray(raw)) return null;
     const valid = raw.filter((d): d is string => typeof d === 'string' && d.trim().length > 0);
     return valid.length > 0 ? valid : null;

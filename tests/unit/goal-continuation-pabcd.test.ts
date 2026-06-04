@@ -102,3 +102,20 @@ test('goal continuation prompt requires executing PABCD transition commands thro
         cleanup();
     }
 });
+
+test('goal continuation prompt requires documentation implementation verification evidence bundle', () => {
+    cleanup();
+    try {
+        setGoal('contract: development evidence bundle');
+        setState('B');
+        const res = buildGoalContinuation();
+        assert.equal(res.shouldContinue, true);
+        assert.match(res.prompt ?? '', /documentation \+ implementation \+ verification evidence bundle/);
+        assert.match(res.prompt ?? '', /Documentation evidence = devlog\/structure\/update path/);
+        assert.match(res.prompt ?? '', /implementation evidence = changed source\/test paths or explicit no-code rationale/);
+        assert.match(res.prompt ?? '', /verification evidence = fresh command\/test output/);
+        assert.match(res.prompt ?? '', /Do not advance a development phase unless the documentation, implementation, and verification evidence bundle is present/);
+    } finally {
+        cleanup();
+    }
+});

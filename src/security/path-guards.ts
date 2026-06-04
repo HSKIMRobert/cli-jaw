@@ -122,8 +122,5 @@ export function assertSendFilePath(filePath: string, workingDir?: string, projec
         }
     }
 
-    const canonTmp = safeRealpath(path.resolve(os.tmpdir()));
-    if (canonTmp && isUnderRoot(canonical, canonTmp)) return canonical;
-
     throw forbidden('path_not_allowed');
 }

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getEmployeePrompt, getEmployeePromptV2, clearPromptCache, formatSkillListItem } from '../../src/prompt/builder.ts';
+import { getEmployeePrompt, getEmployeePromptV2, clearPromptCache, formatSkillListItem, loadActiveSkills } from '../../src/prompt/builder.ts';
 import { parseSubtasks } from '../../src/orchestrator/parser.ts';
 import { SKILLS_DIR } from '../../src/core/config.ts';
 
@@ -112,6 +112,35 @@ test('EMP-008c2: base employee active skill section names the SKILL.md path patt
         'base employee prompt should tell employees where to read active skill bodies');
     assert.ok(prompt.includes('[keywords: path-render]'),
         'base employee prompt should render active skill keyword metadata when present');
+});
+
+test('EMP-008c3: active skills render nested metadata triggers for routing', () => {
+    const skillDir = join(SKILLS_DIR, 'search-route-test');
+    fs.mkdirSync(skillDir, { recursive: true });
+    fs.writeFileSync(join(skillDir, 'SKILL.md'), [
+        '---',
+        'name: search-route-test',
+        'description: Search routing skill.',
+        'metadata:',
+        '  {',
+        '    "triggers": ["검색해", "찾아봐", "context7"],',
+        '    "keywords": ["web-search"]',
+        '  }',
+        '---',
+        '',
+        '# Search Route Test',
+    ].join('\n'));
+
+    const active = loadActiveSkills();
+    const skill = active.find(s => s?.id === 'search-route-test');
+    assert.deepEqual(skill?.triggers, ['검색해', '찾아봐', 'context7']);
+    assert.deepEqual(skill?.keywords, ['web-search']);
+
+    const prompt = getEmployeePrompt({ name: 'Backend', role: 'backend' });
+    assert.ok(prompt.includes('[keywords: web-search; triggers: 검색해, 찾아봐, context7]'),
+        'base employee prompt should expose nested metadata triggers for skill matching');
+    assert.ok(prompt.includes('Search intent override'),
+        'base employee prompt should tell workers to inspect active search skill before local grep');
 });
 
 test('EMP-008d: docs role resolves to an available documentation skill', () => {

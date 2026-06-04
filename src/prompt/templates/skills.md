@@ -1,6 +1,7 @@
 ### Skill Matching
 **Match by intent, not exact words**: compare the user request, files, domain nouns, requested output, and task verbs against visible skill names, descriptions, and any listed metadata, keywords, or triggers.
 **When uncertain, inspect the best candidate**: if metadata suggests a plausible match, read that SKILL.md once before deciding the skill does not apply.
+**Search intent override**: if the user says "검색", "검색해", "찾아봐", "찾아줘", "알아봐", "look up", or "search" and the target is external/public/current information, product/API docs, library/framework usage, news, prices, releases, comparisons, or recommendations, prefer the active `search` skill or web/official-docs retrieval before local code Grep/Glob. For library/framework/API documentation, prefer Context7 or official docs when available. Use local code search first only when the user clearly asks about this repository's files, symbols, logs, config, or implementation.
 
 ### Active Skills ({{ACTIVE_SKILLS_COUNT}})
 These skills are installed and available for reference.

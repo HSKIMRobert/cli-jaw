@@ -488,7 +488,15 @@ export interface HeartbeatFile { jobs: HeartbeatJob[] }
 export function loadHeartbeatFile(): HeartbeatFile {
     try {
         return JSON.parse(fs.readFileSync(HEARTBEAT_JOBS_PATH, 'utf8')) as HeartbeatFile;
-    } catch { /* expected: heartbeat.json may not exist yet */
+    } catch (error) {
+        const err = error as NodeJS.ErrnoException;
+        if (err?.code !== 'ENOENT') {
+            throw Object.assign(new Error(`heartbeat_load_failed: ${err?.message || String(error)}`), {
+                statusCode: 500,
+                code: 'heartbeat_load_failed',
+                cause: error,
+            });
+        }
         return { jobs: [] };
     }
 }

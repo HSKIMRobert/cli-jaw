@@ -133,6 +133,16 @@
     font-size: 12px;
 }
 
+.workbench-preview .project-dirs {
+    margin-top: 1px;
+    gap: 4px;
+}
+
+.workbench-preview .project-dir {
+    max-width: 180px;
+    padding: 1px 5px;
+}
+
 .workbench-preview .workbench-mode-tabs button {
     min-height: 24px;
     padding: 3px 8px;
