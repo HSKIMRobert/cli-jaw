@@ -28,6 +28,7 @@ test('AG-000a: agy uses print p-mode with timeout, permissions, and add-dir root
     });
     assert.deepEqual(args, [
         '-p', 'hi',
+        '--model', 'gemini-3.5-flash',
         '--print-timeout', '10m',
         '--dangerously-skip-permissions',
         '--add-dir', '/repo',
@@ -45,12 +46,12 @@ test('AG-000b: agy safe permissions omit dangerous skip flag', () => {
     assert.ok(args.includes('--print-timeout'));
 });
 
-test('AG-000c: agy never receives unsupported model/output/include-directory flags', () => {
+test('AG-000c: agy passes --model but never unsupported output/include-directory flags', () => {
     const args = buildArgs('agy', 'gemini-3.5-flash', 'high', 'hi', '', 'auto', {
         workingDir: '/repo',
         includeDirectories: ['/extra'],
     });
-    assert.ok(!args.includes('--model'));
+    assert.ok(args.includes('--model'));
     assert.ok(!args.includes('--output-format'));
     assert.ok(!args.includes('--include-directories'));
 });
@@ -68,11 +69,11 @@ test('AG-000e: agy resume uses exact native conversation id with print mode', ()
         workingDir: '/repo',
         homedir: '/home/jun',
     });
-    assert.deepEqual(args.slice(0, 6), ['--conversation', 'sess-1', '-p', 'hi', '--print-timeout', '10m']);
+    assert.deepEqual(args.slice(0, 8), ['--conversation', 'sess-1', '-p', 'hi', '--model', 'gemini-3.5-flash', '--print-timeout', '10m']);
     assert.ok(!args.includes('--resume'));
     assert.ok(!args.includes('--continue'));
     assert.ok(args.includes('--conversation'));
-    assert.ok(!args.includes('--model'));
+    assert.ok(args.includes('--model'));
     assert.ok(!args.includes('--output-format'));
 });
 
@@ -80,7 +81,7 @@ test('AG-000f: agy supports per-run log file capture for print-mode session ids'
     const freshArgs = buildArgs('agy', 'gemini-3.5-flash', '', 'hi', '', 'auto', {
         agyLogFile: '/tmp/jaw-agy-test.log',
     });
-    assert.deepEqual(freshArgs.slice(2, 6), ['--print-timeout', '10m', '--log-file', '/tmp/jaw-agy-test.log']);
+    assert.deepEqual(freshArgs.slice(4, 8), ['--print-timeout', '10m', '--log-file', '/tmp/jaw-agy-test.log']);
 
     const resumeArgs = buildResumeArgs('agy', 'gemini-3.5-flash', '', 'sess-1', 'hi', 'auto', {
         agyLogFile: '/tmp/jaw-agy-test.log',
