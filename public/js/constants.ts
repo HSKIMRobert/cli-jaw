@@ -260,7 +260,7 @@ export function getCliMeta(cli: string): CliEntry | null {
     return CLI_REGISTRY[cli] || null;
 }
 
-export const PRIMARY_CLIS: readonly string[] = ['claude', 'claude-e', 'agy', 'codex', 'cursor', 'kiro-code', 'gemini'];
+export const PRIMARY_CLIS: readonly string[] = ['pi', 'claude', 'claude-e', 'agy', 'codex', 'cursor', 'kiro-code', 'gemini'];
 
 export interface RolePreset {
     value: string;
