@@ -2,7 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import { createHash } from 'crypto';
 import { join } from 'path';
-import { settings, JAW_HOME, PROMPTS_DIR, SKILLS_DIR, SKILLS_REF_DIR, loadHeartbeatFile, deriveCdpPort } from '../core/config.js';
+import { settings, JAW_HOME, PROMPTS_DIR, SKILLS_DIR, SKILLS_REF_DIR, loadHeartbeatFile, deriveCdpPort, getProjectDirs } from '../core/config.js';
 import { expandHomePath } from '../core/path-expand.js';
 import { stripUndefined } from '../core/strip-undefined.js';
 import { getEmployees } from '../core/db.js';
@@ -476,6 +476,11 @@ export function getSystemPrompt(opts: { currentPrompt?: string; forDisk?: boolea
     const a1 = fs.existsSync(A1_PATH) ? fs.readFileSync(A1_PATH, 'utf8') : getA1Content();
     const a2 = fs.existsSync(A2_PATH) ? fs.readFileSync(A2_PATH, 'utf8') : '';
     let prompt = `${a1}\n\n${a2}`;
+    const projectDirs = getProjectDirs();
+    if (projectDirs && projectDirs.length > 0) {
+        const rootLines = projectDirs.map(d => `Project root: ${d}`).join('\n');
+        prompt = `${rootLines}\n\n${prompt}`;
+    }
     const currentPrompt = String(opts.currentPrompt || '').trim();
     const forDisk = opts.forDisk === true;
 
