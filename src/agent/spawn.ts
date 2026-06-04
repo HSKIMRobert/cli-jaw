@@ -831,7 +831,8 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     }
 
     const resumeSessionId = empSid || (isResume ? bucketSessionId : null);
-    const historyBlock = !isResume && !opts._skipHistory
+    const needsHistory = !opts._skipHistory && (!isResume || cli === 'pi');
+    const historyBlock = needsHistory
         ? buildHistoryBlock(
             prompt,
             settings["workingDir"],
