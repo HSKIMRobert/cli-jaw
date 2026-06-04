@@ -56,10 +56,10 @@ test('registry defaults for gemini and opencode are updated', () => {
 test('Antigravity registry exposes AGY as a top-level runtime, not an ai-e provider', () => {
     assert.equal(CLI_REGISTRY.agy.label, 'Antigravity');
     assert.equal(CLI_REGISTRY.agy.binary, 'agy');
-    assert.equal(CLI_REGISTRY.agy.defaultModel, '');
+    assert.equal(CLI_REGISTRY.agy.defaultModel, 'Gemini 3.5 Flash (Medium)');
     assert.deepEqual(CLI_REGISTRY.agy.efforts, []);
-    assert.deepEqual(CLI_REGISTRY.agy.models, []);
-    assert.match(CLI_REGISTRY.agy.effortNote || '', /Change at TUI/);
+    assert.ok(CLI_REGISTRY.agy.models.length >= 8);
+    assert.ok(CLI_REGISTRY.agy.models.includes('Gemini 3.5 Flash (Medium)'));
     assert.equal(CLI_REGISTRY['ai-e'].providers.includes('agy'), false);
 });
 
