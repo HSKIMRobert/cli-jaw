@@ -38,19 +38,6 @@ function statusClass(status: DashboardInstance['status']): string {
     return `instance-status status-${status}`;
 }
 
-function instanceSecondaryLine(instance: DashboardInstance, label: string, profile?: DashboardProfile): string {
-    if (profile) {
-        return [
-            label !== profile.label ? label : null,
-            instance.workingDir || instance.url,
-        ].filter(Boolean).join(' · ');
-    }
-    if (instance.group) {
-        return `${instance.group} · ${instance.workingDir || instance.url}`;
-    }
-    return instance.workingDir || instance.url;
-}
-
 const StopIcon = () => (
     <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" aria-hidden="true">
         <rect x="3" y="3" width="10" height="10" rx="1.5" />
@@ -80,10 +67,6 @@ export function InstanceRow(props: InstanceRowProps) {
     const transitionLabel = props.transitioning ? TRANSITION_LABELS[props.transitioning] : null;
     const dotClass = `${statusClass(props.instance.status)}${transitionLabel ? ' is-transitioning' : ''}${props.agentBusy ? ' is-busy' : ''}`;
     const primaryLabel = props.instance.label || props.profile?.label || props.label;
-    const secondaryLine = transitionLabel
-        ? null
-        : instanceSecondaryLine(props.instance, props.label, props.profile);
-
     async function submitLabel(event: FormEvent<HTMLFormElement>): Promise<void> {
         event.preventDefault();
         event.stopPropagation();
@@ -121,7 +104,6 @@ export function InstanceRow(props: InstanceRowProps) {
                             ) : null}
                         </div>
                         {transitionLabel && <span><em className="instance-row-transition">{transitionLabel}</em></span>}
-                        {secondaryLine && <span className="instance-row-secondary">{secondaryLine}</span>}
                     </div>
                     <div className="instance-row-quick" onClick={stopAction}>
                         <button

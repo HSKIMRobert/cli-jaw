@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { JAW_HOME } from '../core/config.js';
-import type { GoalState, GoalHistory, GoalCheckpoint, GoalBudget, GoalPauseAudit } from './types.js';
+import type { GoalState, GoalHistory, GoalCheckpoint, GoalBudget, GoalPauseAudit, GoalMode } from './types.js';
 
 const GOAL_DIR = path.join(JAW_HOME, 'goal');
 const ACTIVE_PATH = path.join(GOAL_DIR, 'active.json');
@@ -39,7 +39,7 @@ export function getGoalHistory(): GoalHistory {
     return readJson<GoalHistory>(HISTORY_PATH) ?? { goals: [] };
 }
 
-export function setGoal(objective: string, opts?: { repoRoot?: string | undefined; budget?: GoalBudget | undefined; replace?: boolean }): GoalState {
+export function setGoal(objective: string, opts?: { repoRoot?: string | undefined; budget?: GoalBudget | undefined; replace?: boolean; goalMode?: GoalMode }): GoalState {
     const normalizedObjective = objective.trim();
     if (!normalizedObjective) throw new Error('Goal objective is required.');
     if (normalizedObjective.length > MAX_GOAL_OBJECTIVE_CHARS) {
@@ -60,9 +60,22 @@ export function setGoal(objective: string, opts?: { repoRoot?: string | undefine
         createdAt: now,
         updatedAt: now,
         repoRoot: opts?.repoRoot,
+        goalMode: opts?.goalMode,
         budget: opts?.budget,
         checkpoints: [],
     };
+    writeJson(ACTIVE_PATH, goal);
+    return goal;
+}
+
+export function refineObjective(newObjective: string): GoalState | null {
+    const goal = getActiveGoal();
+    if (!goal || goal.status !== 'active') return null;
+    const trimmed = newObjective.trim();
+    if (!trimmed || trimmed.length > MAX_GOAL_OBJECTIVE_CHARS) return null;
+    goal.objective = trimmed;
+    goal.goalMode = 'direct';
+    goal.updatedAt = new Date().toISOString();
     writeJson(ACTIVE_PATH, goal);
     return goal;
 }

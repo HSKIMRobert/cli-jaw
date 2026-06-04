@@ -1,11 +1,12 @@
 import { Router, type RequestHandler } from 'express';
 import {
     getActiveGoal, getGoalHistory,
-    setGoal, updateGoal, completeGoal, cancelGoal,
+    setGoal, updateGoal, refineObjective, completeGoal, cancelGoal,
     pauseGoal, resumeGoal, clearGoal, resetGoalStore,
     goalHasCompletionEvidence,
     MAX_GOAL_OBJECTIVE_CHARS,
 } from '../goal/store.js';
+import type { GoalMode } from '../goal/types.js';
 import { clearGoalTimers, kickGoalContinuation } from '../agent/lifecycle-handler.js';
 
 export function registerGoalRoutes(app: Router, requireAuth: RequestHandler): void {
@@ -43,9 +44,11 @@ export function registerGoalRoutes(app: Router, requireAuth: RequestHandler): vo
                     clearGoalTimers();
                     const repoRoot = body?.['repoRoot'] as string | undefined;
                     const budget = body?.['budget'] as Record<string, number> | undefined;
+                    const goalMode = body?.['goalMode'] as GoalMode | undefined;
                     const goal = setGoal(objective, {
                         ...(repoRoot ? { repoRoot } : {}),
                         ...(budget ? { budget } : {}),
+                        ...(goalMode ? { goalMode } : {}),
                     });
                     res.json({ ok: true, goal });
                     return;
@@ -61,6 +64,17 @@ export function registerGoalRoutes(app: Router, requireAuth: RequestHandler): vo
                     const goal = updateGoal(summary, String(body?.['nextAction'] || ''), evidence);
                     if (!goal) { res.status(404).json({ ok: false, error: 'No active goal' }); return; }
                     res.json({ ok: true, goal });
+                    return;
+                }
+                case 'refine-objective': {
+                    const newObjective = String(body?.['objective'] || '').trim();
+                    if (!newObjective) {
+                        res.status(400).json({ ok: false, error: 'objective is required' });
+                        return;
+                    }
+                    const refined = refineObjective(newObjective);
+                    if (!refined) { res.status(404).json({ ok: false, error: 'No active goal to refine' }); return; }
+                    res.json({ ok: true, goal: refined });
                     return;
                 }
                 case 'done': {

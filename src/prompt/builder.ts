@@ -49,9 +49,32 @@ function normalizeSkillMetadataList(value: unknown): string[] {
     return unwrapped.split(',').map(v => v.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
 }
 
-function parseSkillMetadataList(content: string, field: string): string[] {
+function parseTopLevelSkillMetadataList(content: string, field: string): string[] {
     const match = content.match(new RegExp(`^${field}:\\s*(.+)$`, 'm'));
     return normalizeSkillMetadataList(match?.[1]);
+}
+
+function parseSkillMetadataObject(content: string): Record<string, unknown> {
+    const frontmatter = content.match(/^---\n([\s\S]*?)\n---/);
+    const source = frontmatter?.[1] || content;
+    const metadataMatch = source.match(/^metadata:\s*\n([\s\S]*)$/m);
+    if (!metadataMatch?.[1]) return {};
+    let raw = metadataMatch[1];
+    const nextTopLevelKey = raw.search(/\n[A-Za-z0-9_-]+:\s*/);
+    if (nextTopLevelKey >= 0) raw = raw.slice(0, nextTopLevelKey);
+    try {
+        const parsed = JSON.parse(raw.trim());
+        return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+    } catch {
+        return {};
+    }
+}
+
+function parseSkillMetadataList(content: string, field: string): string[] {
+    const topLevel = parseTopLevelSkillMetadataList(content, field);
+    const metadata = parseSkillMetadataObject(content);
+    const nested = normalizeSkillMetadataList(metadata[field]);
+    return [...new Set([...topLevel, ...nested])];
 }
 
 function formatSkillRoutingMetadata(skill: { keywords?: unknown; triggers?: unknown }): string {
@@ -525,7 +548,10 @@ export function getSystemPrompt(opts: { currentPrompt?: string; forDisk?: boolea
             vars["TOTAL_COUNT"] = String(hbData.jobs.length);
             prompt += '\n\n---\n' + renderTemplate(loadTemplate('heartbeat-jobs.md'), vars);
         }
-    } catch { /* heartbeat.json not ready */ }
+    } catch (error) {
+        prompt += '\n\n---\n## Heartbeat Jobs\n';
+        prompt += `Heartbeat file failed to load: ${(error as Error).message}\n`;
+    }
 
     try {
         const activeSkills = loadActiveSkills();
@@ -628,6 +654,7 @@ export function getEmployeePrompt(emp: { name: string; role?: string; id?: strin
             section += `Read active skills from ${SKILLS_DIR}/<skill-id>/SKILL.md.\n`;
             section += `Match by intent, not exact words: compare the request, files, domain nouns, output, and task verbs against visible skill names, descriptions, and any listed metadata, keywords, or triggers.\n`;
             section += `When uncertain, inspect the best candidate: if metadata suggests a plausible match, read that SKILL.md once before deciding it does not apply.\n`;
+            section += `Search intent override: for "검색", "검색해", "찾아봐", "알아봐", "look up", or "search" targeting external/current/docs/library information, inspect the active search skill before local Grep/Glob.\n`;
             for (const s of activeSkills) {
                 section += `${formatSkillListItem({
                     id: s!.id,
@@ -701,6 +728,7 @@ export function getEmployeePromptV2(
     prompt += `\nSkill bodies are not preloaded. Read each guide once, only when the task requires it.`;
     prompt += `\n- Match by intent, not exact words: compare the task, files, domain nouns, output, and task verbs against visible skill names, descriptions, and any listed metadata, keywords, or triggers.`;
     prompt += `\n- When uncertain, inspect the best candidate: if metadata suggests a plausible match, read that SKILL.md once before deciding it does not apply.`;
+    prompt += `\n- Search intent override: for "검색", "검색해", "찾아봐", "알아봐", "look up", or "search" targeting external/current/docs/library information, inspect the active search skill before local Grep/Glob.`;
     prompt += `\n- Common dev guide: ${formatSkillPath('dev', devCommonPath)}`;
     prompt += `\n- Scaffolding guide: ${formatSkillPath('dev-scaffolding', scaffoldingPath)} (read only for new projects, new modules, or structure audits)`;
     if (staticSpec?.skills?.length) {

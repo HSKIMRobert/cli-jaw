@@ -1,4 +1,5 @@
 export type GoalStatus = 'active' | 'paused' | 'blocked' | 'complete' | 'cancelled';
+export type GoalMode = 'direct' | 'plan';
 
 export interface GoalBudget {
     maxTurns?: number;
@@ -23,6 +24,7 @@ export interface GoalState {
     id: string;
     objective: string;
     status: GoalStatus;
+    goalMode?: GoalMode | undefined;
     createdAt: string;
     updatedAt: string;
     repoRoot?: string | undefined;

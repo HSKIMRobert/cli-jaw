@@ -13,7 +13,7 @@ import { getTelegramSendClient, getLatestTelegramChatId } from '../telegram/bot.
 import { validateFileSize, sendTelegramFile } from '../telegram/telegram-file.js';
 import { assertSendFilePath } from '../security/path-guards.js';
 import { decodeFilenameSafe } from '../security/decode.js';
-import { sendChannelOutput, normalizeChannelSendRequest } from '../messaging/send.js';
+import { sendChannelOutput, normalizeChannelSendRequest, validateExplicitChatId } from '../messaging/send.js';
 import { sendResultHttpStatus } from '../messaging/send-result.js';
 import { settings } from '../core/config.js';
 import { expandHomePath } from '../core/path-expand.js';
@@ -179,6 +179,11 @@ export function registerMessagingRoutes(app: Express, requireAuth: AuthMiddlewar
                 res.status(400).json({ error: 'chat_id required (or send a Telegram message first)' });
                 return;
             }
+            const explicitChatId = req.body?.chat_id ?? req.body?.chatId;
+            if (explicitChatId != null && String(explicitChatId).trim() && !validateExplicitChatId('telegram', explicitChatId as string | number)) {
+                res.status(403).json({ error: 'chat_id is not in the configured Telegram allowlist' });
+                return;
+            }
 
             if (type === 'text') {
                 const text = String(req.body?.text || '').trim();
@@ -234,7 +239,7 @@ export function registerMessagingRoutes(app: Express, requireAuth: AuthMiddlewar
             res.json(result);
         } catch (e: unknown) {
             console.error('[channel:send]', e);
-            res.status(500).json({ error: (e as Error).message });
+            res.status(httpStatus(e, 500)).json({ error: (e as Error).message, code: httpCode(e) });
         }
     });
 
@@ -248,7 +253,7 @@ export function registerMessagingRoutes(app: Express, requireAuth: AuthMiddlewar
             res.json(result);
         } catch (e: unknown) {
             console.error('[discord:send]', e);
-            res.status(500).json({ error: (e as Error).message });
+            res.status(httpStatus(e, 500)).json({ error: (e as Error).message, code: httpCode(e) });
         }
     });
 }

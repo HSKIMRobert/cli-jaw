@@ -88,3 +88,27 @@ test('normalizeAntigravityUsageSnapshot converts remaining percentage to used pe
     assert.equal(result.windows?.[1]?.percent, 0);
     assert.equal((result.account as { tier?: string })?.tier, 'Google AI Pro');
 });
+
+test('normalizeAntigravityUsageSnapshot degrades binary remaining values to 0/100 bars', () => {
+    const result = normalizeAntigravityUsageSnapshot({
+        method: 'google',
+        models: [
+            {
+                label: 'Gemini 3.1 Pro (Low)',
+                modelId: 'gemini-3.1-pro-low',
+                remainingPercentage: 0,
+                isExhausted: false,
+            },
+            {
+                label: 'Claude Sonnet 4.6 (Thinking)',
+                modelId: 'claude-sonnet-4-6-thinking',
+                remainingPercentage: 1,
+                isExhausted: false,
+            },
+        ],
+    });
+
+    assert.deepEqual(result.windows?.map((window) => window.label), ['Gem', 'Cla']);
+    assert.equal(result.windows?.[0]?.percent, 100);
+    assert.equal(result.windows?.[1]?.percent, 0);
+});

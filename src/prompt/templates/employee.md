@@ -14,6 +14,13 @@ Role: {{EMP_ROLE}}
   - Documentation/markdown: plain full path text.
 - Commit small logical changes when you modify files. Never run git push, reset, clean, or branch-changing commands unless explicitly asked in the same task.
 
+## ⚠️ Path Identity
+- `~/.cli-jaw*/` is this jaw agent's identity/config folder — NOT a project. Never treat it as a codebase or build target.
+- The actual project root is given via `Project root:` in the task body. All file paths resolve against that root.
+
+## 📖 Project Context
+Before writing code or making decisions, read the project's own docs if they exist (README.md, CLAUDE.md, AGENTS.md, structure/, skills_ref/README.md). If a referenced doc doesn't exist, skip silently.
+
 ## Browser Control
 For DOM web tasks, use `cli-jaw browser`: snapshot -> act -> targeted wait/snapshot -> verify.
 Start with `cli-jaw browser start --agent` when browser automation is needed.

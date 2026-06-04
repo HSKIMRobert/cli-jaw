@@ -73,6 +73,24 @@ test('system skills prompt reinforces metadata-based skill matching', () => {
         'Boss skills prompt should inspect plausible skill candidates before rejecting them');
 });
 
+test('system prompt routes ambiguous Korean search intent away from default code grep', () => {
+    assert.ok(a1Src.includes('Korean "검색" intent guard'),
+        'system prompt should include a Korean search intent guard');
+    assert.ok(a1Src.includes('Do **not** treat the bare Korean word "검색" as permission to start repository-wide Grep/Glob by default'),
+        'system prompt should prevent bare Korean search intent from defaulting to code search');
+    assert.ok(a1Src.includes('use Context7 or official docs search first when available'),
+        'system prompt should prefer Context7 or official docs for library/API documentation');
+});
+
+test('skills prompt prefers active search skill for external search intent', () => {
+    assert.ok(skillsSrc.includes('Search intent override'),
+        'skills prompt should include a search intent override');
+    assert.ok(skillsSrc.includes('prefer the active `search` skill or web/official-docs retrieval before local code Grep/Glob'),
+        'skills prompt should prefer active search/web retrieval before local grep');
+    assert.ok(skillsSrc.includes('Use local code search first only when the user clearly asks about this repository'),
+        'skills prompt should reserve local code search for explicit repository targets');
+});
+
 test('rendered Boss prompt keeps skill matching guidance when only ref skills exist', () => {
     rmSync(SKILLS_DIR, { recursive: true, force: true });
     mkdirSync(SKILLS_REF_DIR, { recursive: true });
@@ -130,4 +148,15 @@ test('system prompt requires goal-mode PABCD phase transition commands to be exe
         'should distinguish command execution from reporting');
     assert.ok(a1Src.includes('at C pass, run `cli-jaw orchestrate D` immediately'),
         'should force C to D transition by command');
+});
+
+test('system prompt requires development goal evidence bundle', () => {
+    assert.ok(a1Src.includes('Development completion evidence bundle'),
+        'goal mode should name the development evidence bundle');
+    assert.ok(a1Src.includes('documentation evidence'),
+        'goal mode should require documentation evidence');
+    assert.ok(a1Src.includes('implementation evidence'),
+        'goal mode should require implementation evidence');
+    assert.ok(a1Src.includes('verification evidence'),
+        'goal mode should require verification evidence');
 });

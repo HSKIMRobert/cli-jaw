@@ -24,12 +24,38 @@ export type ChannelSendRequest = {
 type TransportSendFn = (req: ChannelSendRequest) => Promise<{ ok: boolean; error?: string; [k: string]: unknown }>;
 
 const sendFns = new Map<MessengerChannel, TransportSendFn>();
+const OUTBOUND_TYPES = new Set<OutboundType>(['text', 'voice', 'photo', 'document']);
+const CHANNELS = new Set<MessengerChannel | 'active'>(['telegram', 'discord', 'active']);
 
 export function registerSendTransport(channel: MessengerChannel, fn: TransportSendFn) {
     sendFns.set(channel, fn);
 }
 
 // ─── Normalize ──────────────────────────────────────
+
+function badRequest(code: string): Error & { statusCode: number; code: string } {
+    return Object.assign(new Error(code), { statusCode: 400, code });
+}
+
+function normalizeOutboundType(value: unknown): OutboundType {
+    const type = value == null || value === ''
+        ? 'text'
+        : String(value).trim().toLowerCase();
+    if (!OUTBOUND_TYPES.has(type as OutboundType)) {
+        throw badRequest('invalid_outbound_type');
+    }
+    return type as OutboundType;
+}
+
+function normalizeChannel(value: unknown): MessengerChannel | 'active' {
+    const channel = value == null || value === ''
+        ? 'active'
+        : String(value).trim().toLowerCase();
+    if (!CHANNELS.has(channel as MessengerChannel | 'active')) {
+        throw badRequest('invalid_channel');
+    }
+    return channel as MessengerChannel | 'active';
+}
 
 export function normalizeChannelSendRequest(body: Record<string, any>): ChannelSendRequest {
     const rawPath = body["file_path"] || body["filePath"];
@@ -38,13 +64,13 @@ export function normalizeChannelSendRequest(body: Record<string, any>): ChannelS
         filePath = assertSendFilePath(String(rawPath), settings["workingDir"] || undefined, settings["projectDirs"] || null);
     }
     return stripUndefined({
-        channel: body["channel"] || 'active',
-        type: (body["type"] || 'text') as OutboundType,
+        channel: normalizeChannel(body["channel"]),
+        type: normalizeOutboundType(body["type"]),
         text: body["text"],
         filePath,
         caption: body["caption"],
         target: body["target"],
-        chatId: body["chat_id"] || body["chatId"],
+        chatId: body["chat_id"] ?? body["chatId"],
     });
 }
 
@@ -87,10 +113,14 @@ function getConfiguredFallbackTarget(channel: MessengerChannel): RemoteTarget | 
 }
 
 /**
- * Validate a cached target against the current channel's configured allowlist.
+ * Validate a target against the current channel's configured allowlist.
  * Returns true if the target is valid for the given channel.
  */
-export function validateTarget(target: RemoteTarget, channel: MessengerChannel): boolean {
+export function validateTarget(
+    target: RemoteTarget,
+    channel: MessengerChannel,
+    options: { requireConfiguredAllowlist?: boolean } = {},
+): boolean {
     if (!target || !target.targetId) return false;
     if (target.channel !== channel) return false;
     if (channel === 'discord') {
@@ -100,21 +130,59 @@ export function validateTarget(target: RemoteTarget, channel: MessengerChannel):
             const inAllowlist = allowed.includes(target.targetId)
                 || (target.parentTargetId && allowed.includes(target.parentTargetId));
             if (!inAllowlist) return false;
+        } else if (options.requireConfiguredAllowlist) {
+            return false;
         }
     } else if (channel === 'telegram') {
         const allowed = settings["telegram"]?.allowedChatIds;
         if (allowed?.length && !allowed.map(String).includes(String(target.targetId))) return false;
+        if (!allowed?.length && options.requireConfiguredAllowlist) return false;
     }
     return true;
+}
+
+function targetFromChatId(channel: MessengerChannel, chatId: string | number): RemoteTarget {
+    return channel === 'telegram'
+        ? {
+            channel: 'telegram',
+            targetKind: 'user',
+            peerKind: 'direct',
+            targetId: String(chatId),
+        }
+        : {
+            channel: 'discord',
+            targetKind: 'channel',
+            peerKind: 'channel',
+            targetId: String(chatId),
+        };
+}
+
+export function validateExplicitChatId(channel: MessengerChannel, chatId: string | number): boolean {
+    return validateTarget(targetFromChatId(channel, chatId), channel, { requireConfiguredAllowlist: true });
 }
 
 export async function sendChannelOutput(req: ChannelSendRequest): Promise<{ ok: boolean; error?: string; [k: string]: unknown }> {
     const channel = resolveChannel(req);
 
+    if (!OUTBOUND_TYPES.has(req.type)) {
+        return { ok: false, status: 400, error: `Invalid outbound type: ${String(req.type)}` };
+    }
+
+    if (req.chatId != null && String(req.chatId).trim()) {
+        const explicitTarget = targetFromChatId(channel, req.chatId);
+        if (!validateTarget(explicitTarget, channel, { requireConfiguredAllowlist: true })) {
+            return { ok: false, status: 403, error: `Explicit ${channel} chatId is not in the configured allowlist` };
+        }
+        if (req.target && (req.target.targetId !== explicitTarget.targetId || req.target.channel !== explicitTarget.channel)) {
+            return { ok: false, status: 400, error: 'chatId and target refer to different destinations' };
+        }
+        req.target = req.target || explicitTarget;
+    }
+
     // Validate explicit target (shape + allowlist)
     if (req.target) {
-        if (!validateTarget(req.target, channel)) {
-            return { ok: false, error: `Invalid or disallowed target for ${channel}: ${req.target.targetId || '(empty)'}` };
+        if (!validateTarget(req.target, channel, { requireConfiguredAllowlist: true })) {
+            return { ok: false, status: 403, error: `Invalid or disallowed target for ${channel}: ${req.target.targetId || '(empty)'}` };
         }
     }
 

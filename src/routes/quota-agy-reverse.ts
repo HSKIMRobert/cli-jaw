@@ -28,6 +28,10 @@ interface AntigravityQuotaSnapshot {
 function usedPercentFromRemaining(remaining?: number, exhausted?: boolean): number {
     if (exhausted) return 100;
     if (remaining == null || !Number.isFinite(remaining)) return 0;
+    // antigravity-usage can currently degrade to binary remaining values.
+    // Preserve precise fractions when available, but map binary 1/0 to 0%/100% used.
+    if (remaining === 1) return 0;
+    if (remaining === 0) return 100;
     return Math.max(0, Math.min(100, Math.round((1 - remaining) * 100)));
 }
 

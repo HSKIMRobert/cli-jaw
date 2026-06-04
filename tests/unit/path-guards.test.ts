@@ -120,3 +120,23 @@ test('PG-018: assertSendFilePath uses CLI_JAW_HOME/os.homedir instead of HOME-on
         fs.rmSync(testHome, { recursive: true, force: true });
     }
 });
+
+test('PG-019: assertSendFilePath rejects arbitrary tmp files outside allowed roots', () => {
+    const previousCliHome = process.env.CLI_JAW_HOME;
+    const previousJawHome = process.env.JAW_HOME;
+    const testHome = fs.mkdtempSync(path.join(os.tmpdir(), 'jaw-send-path-home-'));
+    const tmpFile = path.join(os.tmpdir(), `jaw-send-path-denied-${Date.now()}.txt`);
+    try {
+        fs.writeFileSync(tmpFile, 'secret');
+        process.env.CLI_JAW_HOME = testHome;
+        delete process.env.JAW_HOME;
+        assert.throws(() => assertSendFilePath(tmpFile), /path_not_allowed/);
+    } finally {
+        if (previousCliHome == null) delete process.env.CLI_JAW_HOME;
+        else process.env.CLI_JAW_HOME = previousCliHome;
+        if (previousJawHome == null) delete process.env.JAW_HOME;
+        else process.env.JAW_HOME = previousJawHome;
+        fs.rmSync(testHome, { recursive: true, force: true });
+        fs.rmSync(tmpFile, { force: true });
+    }
+});

@@ -403,16 +403,14 @@ app.get('/api/dashboard/instances', async (req, res) => {
         const serviceStates = await serviceDetect({ from, to: from + count - 1 });
         const decorated = lifecycle.decorateScanResult(result, serviceStates);
 
-        // Merge peer dashboard instances (stop-only)
+        let peerDashboards: DashboardInstance[] = [];
         try {
             const peers = await scanPeerDashboards(port);
-            for (const peer of peers) {
-                decorated.instances.push(lifecycle.decorateInstance(peer, null, true));
-            }
+            peerDashboards = peers.map(peer => lifecycle.decorateInstance(peer, null, true));
         } catch { /* peer scan is best-effort */ }
 
         const applied = applyDashboardRegistry(attachPreviewSnapshot(decorated), loaded.registry, loaded.status, { showHidden });
-        res.json({ ...applied, platform: process.platform });
+        res.json({ ...applied, peerDashboards, platform: process.platform });
     } catch (error) {
         observability.publish({ kind: 'scan-failed', reason: (error as Error).message, at: new Date().toISOString() });
         res.status(500).json({ ok: false, error: (error as Error).message });

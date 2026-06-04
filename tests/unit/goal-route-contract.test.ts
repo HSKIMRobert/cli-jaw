@@ -11,6 +11,7 @@ const serverSrc = readSource(join(projectRoot, 'server.ts'), 'utf8');
 const handlerSrc = readSource(join(projectRoot, 'src/cli/handlers-workflows.ts'), 'utf8');
 const storeSrc = readSource(join(projectRoot, 'src/goal/store.ts'), 'utf8');
 const goalCliSrc = readSource(join(projectRoot, 'bin/commands/goal.ts'), 'utf8');
+const typesSrc = readSource(join(projectRoot, 'src/goal/types.ts'), 'utf8');
 
 test('GR-001: goal route registers GET and POST /api/goal', () => {
     assert.ok(routeSrc.includes("'/api/goal'"), 'must register /api/goal');
@@ -42,7 +43,7 @@ test('GR-005: server.ts registers goal routes', () => {
 });
 
 test('GR-006: goal handler supports all subcommands', () => {
-    for (const sub of ['set', 'status', 'update', 'done', 'cancel', 'pause', 'resume', 'clear', 'reset', 'history']) {
+    for (const sub of ['set', 'plan', 'status', 'update', 'done', 'cancel', 'pause', 'resume', 'clear', 'reset', 'history']) {
         assert.ok(
             handlerSrc.includes(`sub === '${sub}'`),
             `handler must support /${sub} subcommand`,
@@ -77,4 +78,25 @@ test('GR-011: goal CLI exposes agent pause audit flags', () => {
     assert.ok(goalCliSrc.includes('payload.audit'), 'CLI should send audit evidence');
     assert.ok(goalCliSrc.includes('!process.stdin.isTTY'), 'non-interactive CLI pause should not silently take the manual path');
     assert.ok(goalCliSrc.includes('Non-interactive goal pause must use'), 'non-interactive pause should require agent audit wording');
+});
+
+test('GR-012: store exports refineObjective for plan-mode confirmation', () => {
+    assert.ok(storeSrc.includes('refineObjective'), 'store must export refineObjective');
+    assert.ok(storeSrc.includes("goal.goalMode = 'direct'"), 'refineObjective must transition goalMode to direct');
+});
+
+test('GR-013: route supports refine-objective action', () => {
+    assert.ok(routeSrc.includes("'refine-objective'"), 'route must handle refine-objective action');
+    assert.ok(routeSrc.includes('refineObjective'), 'route must call refineObjective from store');
+});
+
+test('GR-014: store and types support GoalMode', () => {
+    assert.ok(typesSrc.includes("'direct' | 'plan'"), 'types must define GoalMode union');
+    assert.ok(typesSrc.includes('goalMode?'), 'GoalState must have optional goalMode');
+    assert.ok(storeSrc.includes('goalMode: opts?.goalMode'), 'setGoal must persist goalMode');
+});
+
+test('GR-015: goal CLI supports plan subcommand', () => {
+    assert.ok(goalCliSrc.includes("sub === 'plan'"), 'CLI must handle plan subcommand');
+    assert.ok(goalCliSrc.includes("goalMode: 'plan'"), 'CLI plan must send goalMode plan');
 });

@@ -118,6 +118,12 @@ test('manager frontend exposes one-instance preview controls', () => {
     assert.ok(workbench.includes('{props.preview}'), 'persistent preview panel must render the preview slot');
     assert.ok(header.includes('role="switch"'), 'workbench header must expose a compact preview on/off switch');
     assert.ok(header.includes('onPreviewRefresh'), 'workbench header must expose iframe preview refresh');
+    assert.ok(header.includes('projectDirs'), 'workbench header must render selected instance project directories');
+    assert.ok(header.includes('compactPath(dir)'), 'workbench header must compact long project directory paths');
+    assert.equal(header.includes('instance?.workingDir'), false, 'workbench header must not show workingDir as the selected project path');
+    assert.ok(components.includes('.project-dirs'), 'project directory line must have explicit header styling');
+    assert.ok(components.includes('flex-wrap: wrap'), 'project directory chips must wrap instead of crowding header actions');
+    assert.ok(components.includes('overflow: hidden'), 'project directory row must clip overflow safely');
     assert.ok(app.includes('previewRefreshKey'), 'App must track a preview refresh key');
     assert.ok(router.includes('function WorkspaceSurface'), 'SidebarRailRouter must wrap top-level workspaces in persistent surfaces');
     assert.ok(router.includes('workspace-surface-stack'), 'SidebarRailRouter must keep the top-level workspace stack mounted across sidebar mode changes');

@@ -4,6 +4,7 @@ import { buildPlanAuditArtifact, formatPlanAuditText } from '../workflows/planau
 import type { CliCommandContext } from './command-context.js';
 import type { SlashResult } from './types.js';
 import { clearGoalTimers } from '../agent/lifecycle-handler.js';
+import type { GoalState } from '../goal/types.js';
 
 function joinArgs(args: string[]): string {
     return args.join(' ').trim();
@@ -126,6 +127,31 @@ export async function planAuditWorkflowHandler(args: string[], ctx: CliCommandCo
     });
 }
 
+function buildGoalPlanSteerPrompt(goal: GoalState): string {
+    const hint = goal.objective && goal.objective !== '(AI-driven planning)' ? goal.objective : '';
+    const hintLine = hint
+        ? `The user provided a hint: "${hint}". Use it as directional guidance, but you decide the actual goal.`
+        : 'No hint was provided. Determine the most appropriate goal from context.';
+    return [
+        `[System] User invoked /goal plan (ID: ${goal.id}). YOU must decide what goal to pursue.`,
+        hintLine,
+        '',
+        'Analyze the following sources to determine the right goal:',
+        '1. **Conversation history**: What has the user been working on or discussing?',
+        '2. **Memory**: Search cli-jaw memory for recent decisions, preferences, and project context',
+        '3. **Project state**: Check git status, recent commits, file structure, and open issues',
+        '',
+        'Based on your analysis, formulate a specific, actionable, long-term goal.',
+        'Then immediately:',
+        '1. Set the goal objective via `/api/goal` with action `refine-objective` and the goal you chose',
+        '2. Enter PABCD orchestration with `cli-jaw orchestrate P`',
+        '3. Execute the full goal autonomously',
+        '',
+        'Do NOT ask the user what goal to set. Do NOT wait for confirmation. YOU decide and execute.',
+        'Read the goal skill for detailed guidelines on verification, documentation, and commit discipline.',
+    ].join('\n');
+}
+
 export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext): Promise<SlashResult> {
     const { getActiveGoal, getGoalHistory, setGoal, updateGoal, completeGoal, cancelGoal, pauseGoal, resumeGoal, clearGoal, resetGoalStore, goalHasCompletionEvidence } = await import('../goal/store.js');
     const sub = (args[0] || '').toLowerCase();
@@ -181,6 +207,28 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
         const wd = (settings as Record<string, unknown>)['workingDir'] as string | undefined;
         const goal = setGoal(objective, wd ? { repoRoot: wd } : {});
         return fireSteerForWebCli(ctx, { ok: true, type: 'info', text: `Goal set: ${goal.objective}\nID: ${goal.id}`, steerPrompt: `[System] User set a new goal: "${goal.objective}" (ID: ${goal.id}). Acknowledge the goal and help the user achieve it.` });
+    }
+
+    if (sub === 'plan' || sub === 'goalplan') {
+        const hint = args.slice(sub === 'plan' ? 1 : 0).join(' ').trim();
+        const objective = hint || '(AI-driven planning)';
+        const existing = getActiveGoal();
+        if (existing && (existing.status === 'active' || existing.status === 'paused')) {
+            return blocked(`Active goal already exists: "${existing.objective}"\nUse /goal done, /goal cancel, or /goal clear first.`);
+        }
+        clearGoalTimers();
+        const settings = await resolveSettings(ctx);
+        const wd = (settings as Record<string, unknown>)['workingDir'] as string | undefined;
+        const goal = setGoal(objective, {
+            ...(wd ? { repoRoot: wd } : {}),
+            goalMode: 'plan' as const,
+        });
+        return fireSteerForWebCli(ctx, {
+            ok: true,
+            type: 'info',
+            text: `Goal plan activated${hint ? `: ${hint}` : ''}\nID: ${goal.id}\nMode: AI selects and executes goal`,
+            steerPrompt: buildGoalPlanSteerPrompt(goal),
+        });
     }
 
     if (sub === 'status' || sub === '--json') {
@@ -307,6 +355,11 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
         return info(`Active goal: ${goal.objective}\nStatus: ${goal.status}\nUse /goal status for details.`);
     }
     return info('No active goal. Use `/goal <objective>` to create one.\nSubcommands: status, update, done, cancel, pause, resume, clear, reset, history');
+}
+
+// ─── /goalplan handler (alias for /goal plan) ──────
+export async function goalplanHandler(args: string[], ctx: CliCommandContext): Promise<SlashResult> {
+    return goalWorkflowHandler(['plan', ...args], ctx);
 }
 
 // ─── /team handler ──────────────────────────────────
