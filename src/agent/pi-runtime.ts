@@ -312,6 +312,18 @@ export function parsePiRpcRecord(record: unknown): { done?: boolean; text?: stri
                 if (delta) return { text: delta };
                 return {};
             }
+            if (ameType === 'toolcall_start' || ameType === 'toolcall_end') {
+                const tc = (a['toolCall'] || extractToolCallFromPartial(a['partial'])) as Record<string, unknown> | undefined;
+                const name = tc ? trimString(tc['name']) : '';
+                const args = tc && tc['arguments'] ? JSON.stringify(tc['arguments']).slice(0, 2000) : '';
+                const label = name || 'Pi tool';
+                const tool: { label: string; status: string; detail?: string } = {
+                    label,
+                    status: ameType === 'toolcall_end' ? 'calling' : 'preparing',
+                };
+                if (args) tool.detail = args;
+                return { tool };
+            }
         }
         return {};
     }
@@ -323,12 +335,16 @@ export function parsePiRpcRecord(record: unknown): { done?: boolean; text?: stri
         return finalText ? { ...base, text: finalText } : base;
     }
 
-    if (/tool_execution_(start|end)/.test(type)) {
-        const name = trimString(obj['name'] || obj['tool_name'] || obj['label']) || 'Pi tool';
-        const input = obj['input'] != null ? JSON.stringify(obj['input']).slice(0, 2000) : '';
-        const resultStr = obj['result'] != null ? JSON.stringify(obj['result']).slice(0, 2000) : '';
-        const detail = [input, resultStr].filter(Boolean).join('\n');
-        const tool: { label: string; status: string; detail?: string } = { label: name, status: type.endsWith('end') ? 'done' : 'running' };
+    if (/^tool_execution_(start|update|end)$/.test(type)) {
+        const name = trimString(obj['toolName'] || obj['name'] || obj['tool_name']) || 'Pi tool';
+        const argsStr = obj['args'] != null ? JSON.stringify(obj['args']).slice(0, 2000) : '';
+        const resultObj = obj['result'] && typeof obj['result'] === 'object' ? obj['result'] as Record<string, unknown> : null;
+        const resultStr = resultObj
+            ? extractToolResultText(resultObj).slice(0, 2000)
+            : (obj['result'] != null ? JSON.stringify(obj['result']).slice(0, 2000) : '');
+        const status = type.endsWith('end') ? 'done' : 'running';
+        const detail = type.endsWith('start') ? argsStr : type.endsWith('end') ? resultStr : '';
+        const tool: { label: string; status: string; detail?: string } = { label: name, status };
         if (detail) tool.detail = detail;
         return { tool };
     }
@@ -343,6 +359,27 @@ export function parsePiRpcRecord(record: unknown): { done?: boolean; text?: stri
     }
 
     return {};
+}
+
+function extractToolCallFromPartial(partial: unknown): Record<string, unknown> | undefined {
+    if (!partial || typeof partial !== 'object') return undefined;
+    const content = (partial as Record<string, unknown>)['content'];
+    if (!Array.isArray(content)) return undefined;
+    for (const block of content) {
+        if (block && typeof block === 'object' && (block as Record<string, unknown>)['type'] === 'toolCall') {
+            return block as Record<string, unknown>;
+        }
+    }
+    return undefined;
+}
+
+function extractToolResultText(result: Record<string, unknown>): string {
+    const content = result['content'];
+    if (!Array.isArray(content)) return typeof result['text'] === 'string' ? result['text'] : '';
+    return content
+        .filter((b) => b && typeof b === 'object' && (b as Record<string, unknown>)['type'] === 'text')
+        .map((b) => String((b as Record<string, unknown>)['text'] || ''))
+        .join('\n');
 }
 
 function extractPiSessionId(obj: Record<string, unknown>): string {
