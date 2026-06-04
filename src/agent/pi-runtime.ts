@@ -394,6 +394,7 @@ export function spawnPiRpc(profile: PiProfile, pi: PiSettings, options: {
     effort?: string;
     cwd: string;
     sysPrompt?: string;
+    sessionId?: string;
     onEvent?: (event: PiRuntimeEvent) => void;
     root?: string;
 }): { child: ChildProcess; done: Promise<{ text: string; code: number; sessionId?: string | null; stderr: string }> } {
@@ -402,11 +403,11 @@ export function spawnPiRpc(profile: PiProfile, pi: PiSettings, options: {
     const args = [
         ...cmd.baseArgs,
         '--mode', 'rpc',
-        '--no-session',
         '--no-context-files',
         '--provider', profile.id,
         '--model', options.model || profile.model,
         '--api-key', profile.apiKey || 'dummy',
+        ...(options.sessionId ? ['--session-id', options.sessionId] : []),
     ];
     const child = spawn(cmd.command, args, {
         cwd: options.cwd,
