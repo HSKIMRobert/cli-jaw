@@ -448,7 +448,7 @@ export function spawnPiRpc(profile: PiProfile, pi: PiSettings, options: {
     if (options.effort) write('set_thinking_level', { level: options.effort });
     const fullPrompt = options.sysPrompt ? `${options.sysPrompt}\n\n${options.prompt}` : options.prompt;
     const hasHistory = fullPrompt.includes('[Recent Context]');
-    console.log(`[jaw:pi] prompt len=${fullPrompt.length}, hasHistory=${hasHistory}, effort=${options.effort || 'none'}`);
+    console.log(`[jaw:pi] prompt len=${fullPrompt.length}, hasHistory=${hasHistory}, effort=${options.effort || 'none'}, sessionId=${options.sessionId || 'new'}`);
     write('prompt', { message: fullPrompt });
     return { child, done };
 }
