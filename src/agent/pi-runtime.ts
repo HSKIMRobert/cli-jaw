@@ -34,6 +34,7 @@ export type PiCommand = {
 
 export type PiRuntimeEvent =
     | { kind: 'text'; text: string }
+    | { kind: 'thinking'; text: string }
     | { kind: 'tool'; label: string; status?: string; detail?: string }
     | { kind: 'session'; sessionId: string };
 
@@ -274,52 +275,82 @@ export function listPiModels(piInput: unknown, profileId: string, options: { eff
     });
 }
 
-function extractText(value: unknown): string {
+function extractTextOnly(value: unknown): string {
     if (typeof value === 'string') return value;
-    if (Array.isArray(value)) return value.map(extractText).join('');
+    if (Array.isArray(value)) return value.map(extractTextOnly).join('');
     if (!value || typeof value !== 'object') return '';
     const obj = value as Record<string, unknown>;
-    return extractText(obj['text']) || extractText(obj['delta']) || extractText(obj['content']) || extractText(obj['message']) || '';
+    if (obj['type'] === 'thinking') return '';
+    return extractTextOnly(obj['text']) || extractTextOnly(obj['delta']) || extractTextOnly(obj['content']) || extractTextOnly(obj['message']) || '';
 }
 
 function extractAssistantMessagesText(value: unknown): string {
-    if (!Array.isArray(value)) return extractText(value);
+    if (!Array.isArray(value)) return extractTextOnly(value);
     return value
         .filter((entry) => !!entry && typeof entry === 'object' && (entry as Record<string, unknown>)['role'] === 'assistant')
-        .map(extractText)
+        .map(extractTextOnly)
         .join('');
 }
 
-export function parsePiRpcRecord(record: unknown): { done?: boolean; text?: string; sessionId?: string; tool?: { label: string; status?: string; detail?: string } } {
+export function parsePiRpcRecord(record: unknown): { done?: boolean; text?: string; thinking?: string; sessionId?: string; tool?: { label: string; status?: string; detail?: string } } {
     if (!record || typeof record !== 'object') return {};
     const obj = record as Record<string, unknown>;
-    const method = typeof obj['method'] === 'string' ? obj['method'] : typeof obj['type'] === 'string' ? obj['type'] : '';
-    const result = obj['result'] && typeof obj['result'] === 'object' ? obj['result'] as Record<string, unknown> : {};
-    const data = obj['data'] && typeof obj['data'] === 'object' ? obj['data'] as Record<string, unknown> : {};
-    const params = obj['params'] && typeof obj['params'] === 'object' ? obj['params'] as Record<string, unknown> : {};
-    const payload = Object.keys(params).length ? params : Object.keys(data).length ? data : result;
-    const sessionId = trimString(
-        payload['session_id']
-        || payload['sessionId']
-        || result['session_id']
-        || result['sessionId']
-        || data['sessionId']
-        || obj['session_id']
-        || obj['sessionId']
-    );
-    if (method === 'agent_end') {
+    const type = typeof obj['type'] === 'string' ? obj['type'] : '';
+
+    if (type === 'message_update') {
+        const ame = obj['assistantMessageEvent'];
+        if (ame && typeof ame === 'object') {
+            const a = ame as Record<string, unknown>;
+            const ameType = typeof a['type'] === 'string' ? a['type'] : '';
+            if (ameType === 'thinking_delta') {
+                const delta = typeof a['delta'] === 'string' ? a['delta'] : '';
+                if (delta) return { thinking: delta };
+                return {};
+            }
+            if (ameType === 'text_delta') {
+                const delta = typeof a['delta'] === 'string' ? a['delta'] : '';
+                if (delta) return { text: delta };
+                return {};
+            }
+        }
+        return {};
+    }
+
+    if (type === 'agent_end') {
         const finalText = extractAssistantMessagesText(obj['messages']);
-        const base = sessionId ? { done: true, sessionId } : { done: true };
+        const sid = extractPiSessionId(obj);
+        const base = sid ? { done: true, sessionId: sid } : { done: true };
         return finalText ? { ...base, text: finalText } : base;
     }
-    if (sessionId) return { sessionId };
-    const text = extractText(payload['assistantMessageEvent']) || extractText(payload['message']) || extractText(payload);
-    if (text) return { text };
-    if (/tool_execution_(start|end)/.test(method) || /tool_execution_(start|end)/.test(String(obj['type'] || ''))) {
-        const name = trimString(payload['name'] || payload['tool_name'] || payload['label']) || 'Pi tool';
-        return { tool: { label: name, status: method.endsWith('end') ? 'done' : 'running', detail: JSON.stringify(payload).slice(0, 2000) } };
+
+    if (/tool_execution_(start|end)/.test(type)) {
+        const name = trimString(obj['name'] || obj['tool_name'] || obj['label']) || 'Pi tool';
+        const input = obj['input'] != null ? JSON.stringify(obj['input']).slice(0, 2000) : '';
+        const resultStr = obj['result'] != null ? JSON.stringify(obj['result']).slice(0, 2000) : '';
+        const detail = [input, resultStr].filter(Boolean).join('\n');
+        const tool: { label: string; status: string; detail?: string } = { label: name, status: type.endsWith('end') ? 'done' : 'running' };
+        if (detail) tool.detail = detail;
+        return { tool };
     }
+
+    const sid = extractPiSessionId(obj);
+    if (sid) return { sessionId: sid };
+
+    if (type === 'response') {
+        const data = obj['data'] && typeof obj['data'] === 'object' ? obj['data'] as Record<string, unknown> : {};
+        const dataSid = trimString(data['sessionId'] || data['session_id']);
+        if (dataSid) return { sessionId: dataSid };
+    }
+
     return {};
+}
+
+function extractPiSessionId(obj: Record<string, unknown>): string {
+    return trimString(
+        obj['session_id'] || obj['sessionId']
+        || ((obj['data'] && typeof obj['data'] === 'object') ? (obj['data'] as Record<string, unknown>)['sessionId'] : '')
+        || ((obj['result'] && typeof obj['result'] === 'object') ? (obj['result'] as Record<string, unknown>)['sessionId'] : '')
+    );
 }
 
 export function spawnPiRpc(profile: PiProfile, pi: PiSettings, options: {
@@ -374,6 +405,7 @@ export function spawnPiRpc(profile: PiProfile, pi: PiSettings, options: {
                 options.onEvent?.({ kind: 'session', sessionId });
             }
             if (event.tool) options.onEvent?.({ kind: 'tool', ...event.tool });
+            if (event.thinking) options.onEvent?.({ kind: 'thinking', text: event.thinking });
             if (event.text && !(event.done && text)) {
                 text += event.text;
                 options.onEvent?.({ kind: 'text', text: event.text });

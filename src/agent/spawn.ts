@@ -1285,11 +1285,27 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             showReasoning: settings["showReasoning"] === true,
             outputTextStarted: false,
             effectiveProvider: profile.id,
+            thinkingBuf: '',
             liveScope: effectiveLiveScope,
             parentLiveScope: parentLiveScopeForChild,
             traceRunId,
             traceAudience,
         };
+        function flushPiThinking() {
+            if (!ctx.thinkingBuf) return;
+            const merged = ctx.thinkingBuf.trim();
+            if (merged) {
+                const singleLine = merged.replace(/\s+/g, ' ').trim();
+                const label = singleLine.length > 120 ? `${singleLine.slice(0, 119)}…` : singleLine;
+                const tool = stripUndefined({ icon: '💭', label, toolType: 'thinking' as const, detail: merged }) as ToolEntry;
+                stampTraceTool(tool, ctx, 'thinking');
+                ctx.toolLog.push(tool);
+                if (ctx.liveScope) replaceLiveRunTools(ctx.liveScope, ctx.toolLog);
+                appendParentLiveRunTool(ctx, tool);
+                broadcast('agent_tool', { agentId: agentLabel, ...tool, ...empTag }, traceAudience);
+            }
+            ctx.thinkingBuf = '';
+        }
         const { child, done } = spawnPiRpc(profile, pi, {
             prompt: piPrompt,
             model: runtimeModel,
@@ -1298,7 +1314,12 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             sysPrompt,
             onEvent: (event) => {
                 opts.lifecycle?.onActivity?.('pi-rpc');
+                if (event.kind === 'thinking') {
+                    ctx.thinkingBuf = (ctx.thinkingBuf || '') + event.text;
+                    return;
+                }
                 if (event.kind === 'text') {
+                    flushPiThinking();
                     const segment = appendAssistantTextSegment(ctx, event.text);
                     if (segment) {
                         if (ctx.liveScope) appendLiveRunText(ctx.liveScope, segment);
@@ -1312,6 +1333,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                     return;
                 }
                 if (event.kind === 'tool') {
+                    flushPiThinking();
                     const tool = stripUndefined({ icon: '🔧', label: event.label, status: event.status, detail: event.detail, toolType: 'tool' as const }) as ToolEntry;
                     stampTraceTool(tool, ctx, 'tool');
                     ctx.toolLog.push(tool);
@@ -1338,6 +1360,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         if (!opts.internal) broadcast('agent_status', { status: 'running', cli, agentId: agentLabel, provider: profile.id, ...empTag }, traceAudience);
 
         done.then((result) => {
+            flushPiThinking();
             ctx.stderrBuf += result.stderr || '';
             if (result.sessionId) ctx.sessionId = result.sessionId;
             if (!ctx.fullText && result.text) ctx.fullText = result.text;
