@@ -158,6 +158,11 @@ try {
     people.md          People and teams
     projects/<name>.md Per-project notes
     daily/<date>.md    Auto-generated session logs
+
+  Cross-instance (L2):
+    cli-jaw dashboard memory search <query>   Search across all instances
+    cli-jaw dashboard memory read <file>      Read from a specific instance
+    cli-jaw dashboard memory instances        List available instances
 `);
     }
 } catch (e) {

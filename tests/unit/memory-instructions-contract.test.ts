@@ -77,3 +77,12 @@ test('memory CLI save usage includes actionable examples', () => {
     assert.ok(memory.includes('structured/semantic/cli-jaw.md'));
     assert.ok(memory.includes('structured/episodes/live/2026-04-26.md'));
 });
+
+test('memory CLI help text includes L2 cross-instance commands', () => {
+    const memory = read('bin/commands/memory.ts');
+
+    assert.ok(memory.includes('Cross-instance (L2)'));
+    assert.ok(memory.includes('cli-jaw dashboard memory search'));
+    assert.ok(memory.includes('cli-jaw dashboard memory read'));
+    assert.ok(memory.includes('cli-jaw dashboard memory instances'));
+});
