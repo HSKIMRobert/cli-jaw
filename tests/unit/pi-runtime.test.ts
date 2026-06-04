@@ -128,23 +128,80 @@ test('Pi RPC parser extracts sessionId from get_state response data', () => {
     assert.equal(event.sessionId, 'abc-123');
 });
 
-test('Pi RPC parser extracts tool_execution events from top-level fields', () => {
+test('Pi RPC parser extracts tool_execution events with toolName field', () => {
     const start = parsePiRpcRecord({
         type: 'tool_execution_start',
-        name: 'read_file',
-        input: { path: '/tmp/test.ts' },
+        toolCallId: 'call-abc',
+        toolName: 'bash',
+        args: { command: 'ls /tmp' },
     });
-    assert.equal(start.tool?.label, 'read_file');
+    assert.equal(start.tool?.label, 'bash');
     assert.equal(start.tool?.status, 'running');
-    assert.ok(start.tool?.detail?.includes('/tmp/test.ts'));
+    assert.ok(start.tool?.detail?.includes('ls /tmp'));
+
+    const update = parsePiRpcRecord({
+        type: 'tool_execution_update',
+        toolCallId: 'call-abc',
+        toolName: 'bash',
+        args: { command: 'ls /tmp' },
+        partialResult: { content: [] },
+    });
+    assert.equal(update.tool?.label, 'bash');
+    assert.equal(update.tool?.status, 'running');
 
     const end = parsePiRpcRecord({
         type: 'tool_execution_end',
-        name: 'read_file',
-        result: 'file contents here',
+        toolCallId: 'call-abc',
+        toolName: 'bash',
+        result: { content: [{ type: 'text', text: 'file1.txt\nfile2.txt' }] },
+        isError: false,
     });
-    assert.equal(end.tool?.label, 'read_file');
+    assert.equal(end.tool?.label, 'bash');
     assert.equal(end.tool?.status, 'done');
+    assert.ok(end.tool?.detail?.includes('file1.txt'));
+});
+
+test('Pi RPC parser routes toolcall_start/end as tool events with name', () => {
+    const start = parsePiRpcRecord({
+        type: 'message_update',
+        assistantMessageEvent: {
+            type: 'toolcall_start',
+            contentIndex: 1,
+            partial: {
+                role: 'assistant',
+                content: [
+                    { type: 'toolCall', name: 'bash', arguments: { command: 'echo hi' } },
+                ],
+            },
+        },
+    });
+    assert.equal(start.tool?.label, 'bash');
+
+    const end = parsePiRpcRecord({
+        type: 'message_update',
+        assistantMessageEvent: {
+            type: 'toolcall_end',
+            contentIndex: 1,
+            toolCall: { type: 'toolCall', name: 'grep', arguments: { pattern: 'foo' } },
+        },
+    });
+    assert.equal(end.tool?.label, 'grep');
+    assert.equal(end.tool?.status, 'calling');
+    assert.ok(end.tool?.detail?.includes('foo'));
+});
+
+test('Pi RPC parser toolcall_delta returns empty (no text leak)', () => {
+    const delta = parsePiRpcRecord({
+        type: 'message_update',
+        assistantMessageEvent: {
+            type: 'toolcall_delta',
+            contentIndex: 1,
+            delta: '{"command":"ls"}',
+        },
+    });
+    assert.deepEqual(delta, {});
+    assert.equal(delta.text, undefined);
+    assert.equal((delta as any).thinking, undefined);
 });
 
 test('Pi command fallback is command/baseArgs tuple, not a shell string', () => {
