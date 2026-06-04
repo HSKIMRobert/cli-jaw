@@ -90,7 +90,7 @@ docker compose up -d       # → http://localhost:3457
 
 ## CLI-JAW とは
 
-CLI-JAW は、すでに使っている AI コーディング CLI — Antigravity、AI-E、Claude、Claude E、Codex、Codex App、Cursor、Gemini、Grok、OpenCode、Copilot — を**ひとつのアシスタント、ひとつのメモリ、ひとつのダッシュボード**に統合するオープンソースプラットフォームです。
+CLI-JAW は、すでに使っている AI コーディング CLI — Pi、Antigravity、AI-E、Claude、Claude E、Codex、Codex App、Cursor、Gemini、Grok、Kiro、OpenCode、Copilot — を**ひとつのアシスタント、ひとつのメモリ、ひとつのダッシュボード**に統合するオープンソースプラットフォームです。
 
 メイン CLI（Boss）が他の CLI を「Employee（従業員）」として呼び出します。アプリを切り替える必要はなく、ひとつの場所から指示できます。
 
@@ -247,6 +247,7 @@ Employee は「Frontend は CSS、Backend は API」用。サブエージェン�
 
 | CLI | デフォルトモデル | 認証 | コスト |
 |---|---|---|---|
+| **Pi** | `grok-composer-2.5-fast` | Settings profile API key、local proxy、または `PI_CODING_AGENT_BIN` | isolated `PI_CODING_AGENT_DIR` で local/API endpoint を接続する first-class `pi --mode rpc` runtime |
 | **Claude** | `claude-opus-4-8` | `claude auth login` | Claude Pro サブスクリプション以上 |
 | **Claude E** | `claude-opus-4-8` | underlying `claude auth login` | Claude Pro サブスクリプション以上。6月のサブスク付与枠では推奨 runtime |
 | **AI-E** | provider-selected | 選択 provider の認証 | マルチ provider runtime wrapper |
@@ -261,7 +262,7 @@ Employee は「Frontend は CSS、Backend は API」用。サブエージェン�
 
 GPT 5.5 と Claude Opus 4.8 は Pro 以上のサブスクリプションで利用できます。6月からサブスクに含まれる Claude 利用枠を使う場合は、`claude-e` runtime を選択してください。
 
-クォータ/ステータスパネルは registry と同じ runtime キーセットを維持します。Wrapper runtime（`ai-e`, `claude-e`, `codex-app`）は underlying provider に委譲し、AGY/Cursor/Grok/OpenCode のように CLI が quota window を公開しない場合は auth/status-only として表示します。
+クォータ/ステータスパネルは registry と同じ runtime キーセットを維持します。Wrapper runtime（`ai-e`, `claude-e`, `codex-app`）は underlying provider に委譲し、Pi/AGY/Cursor/Grok/OpenCode のように CLI が quota window を公開しない場合は auth/status-only として表示します。
 
 **フォールバックチェーン**：あるエンジンがレートリミットされると、次のエンジンが自動で引き継ぎます。`/fallback [cli1 cli2...]` で設定。
 
@@ -462,7 +463,7 @@ npm run gate:all       # リリース/ドキュメント整合性ゲート
 
 | | CLI-JAW 2.0 | Hermes Agent | Claude Code |
 |---|---|---|---|
-| **モデルアクセス** | Antigravity、AI-E、Claude、Claude E、Codex、Codex App、Cursor、Gemini、Grok、OpenCode、Copilot — ベンダー/ネイティブ認証経由 | API キー（OpenRouter 200+、Nous Portal） | Anthropic のみ |
+| **モデルアクセス** | Pi、Antigravity、AI-E、Claude、Claude E、Codex、Codex App、Cursor、Gemini、Grok、Kiro、OpenCode、Copilot — ベンダー/ネイティブ認証経由 | API キー（OpenRouter 200+、Nous Portal） | Anthropic のみ |
 | **コストモデル** | 契約済みの月額サブスクリプション | トークン単位の API 課金 | Anthropic サブスクリプション |
 | **メイン UI** | マネージャーダッシュボード + Web アプリ + Mac アプリ + ターミナル UI | ターミナルのみ | CLI + IDE プラグイン |
 | **ダッシュボード** | マルチインスタンスマネージャー、カンバン、ノートワークスペース | なし | なし |

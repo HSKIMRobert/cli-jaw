@@ -22,11 +22,31 @@ function getProjectDir(): string {
 export function detectCli(name: string): CliDetection {
     const binary = (CLI_REGISTRY as Record<string, any>)[name]?.binary || name;
     if (name === 'kiro-code') return detectKiroCode();
+    if (name === 'pi') return detectPi();
     if (name === 'ai-e' || binary === 'ai-e') return detectAiE();
     if (name !== 'claude-e' && binary !== 'claude-e' && binary !== 'claude-exec') {
         return detectCliBinary(binary);
     }
     return detectClaudeE();
+}
+
+function detectPi(): CliDetection {
+    const explicit = process.env["PI_CODING_AGENT_BIN"];
+    if (explicit) {
+        const explicitDetected = detectCliBinary(explicit);
+        if (explicitDetected.available) return explicitDetected;
+    }
+    const pathDetected = detectCliBinary('pi');
+    if (pathDetected.available) return pathDetected;
+    const npmDetected = detectCliBinary('npm');
+    if (npmDetected.available) {
+        return mergeRejectedDetections({
+            available: true,
+            path: npmDetected.path,
+            rejected: [{ path: 'pi', reason: 'using npm-exec @earendil-works/pi-coding-agent fallback' }],
+        }, pathDetected);
+    }
+    return mergeRejectedDetections({ available: false, path: null }, pathDetected, npmDetected);
 }
 
 function detectKiroCode(): CliDetection {

@@ -8,8 +8,8 @@ aliases: [CLI-JAW Agent Spawn, agent runtime, ACP orchestration]
 
 # Agent Spawn — agent/ · orchestrator/ · cli/acp-client · goal/
 
-> CLI spawn + ACP 분기 + 스트림 + 큐 + 메모리 flush + PABCD 오케스트레이션 + goal-mode autonomy
-> 현재 기준: `src/agent/` 40개 TS 파일(이벤트/spawn 서브모듈 포함), `src/orchestrator/` 14개 파일, `src/goal/` 4개 파일, `src/cli/acp-client.ts`
+> CLI spawn + ACP 분기 + Pi RPC + 스트림 + 큐 + 메모리 flush + PABCD 오케스트레이션 + goal-mode autonomy
+> 현재 기준: `src/agent/` 43개 TS 파일(이벤트/spawn 서브모듈 포함), `src/orchestrator/` 14개 파일, `src/goal/` 4개 파일, `src/cli/acp-client.ts`
 
 ---
 
@@ -17,9 +17,10 @@ aliases: [CLI-JAW Agent Spawn, agent runtime, ACP orchestration]
 
 | File | Line count | Role |
 | --- | ---: | --- |
-| `src/agent/spawn.ts` | 1990L | spawn/ACP/stream/DB/broadcast + queue drain 핵심 |
+| `src/agent/spawn.ts` | 2138L | spawn/ACP/Pi RPC/stream/DB/broadcast + queue drain 핵심 |
 | `src/agent/lifecycle-handler.ts` | 951L | child lifecycle, fallback, retry, queue resume, goal continuation |
-| `src/agent/args.ts` | 413L | CLI별 신규/재개 인자 생성 |
+| `src/agent/args.ts` | 426L | CLI별 신규/재개 인자 생성 |
+| `src/agent/pi-runtime.ts` | 403L | Pi profile normalization, isolated `PI_CODING_AGENT_DIR` config generation, model discovery, JSONL RPC parser/spawner |
 | `src/agent/kiro-runtime.ts` | 377L | kiro-code plain-text stdout parser (tool lines, assistant blocks, parallel tool merge, tail-buffer flush) |
 | `src/agent/kiro-auth.ts` | 230L | Kiro CLI data path resolution, session ID extraction from v2 sqlite store, conversation listing |
 | `src/agent/kiro-models.ts` | 98L | `kiro-cli chat --list-models --format json` dynamic model inventory |
@@ -77,7 +78,7 @@ aliases: [CLI-JAW Agent Spawn, agent runtime, ACP orchestration]
 → resume면 buildResumeArgs, 아니면 buildArgs
 → history는 `working_dir` 스코프 + legacy `NULL` row fallback으로 조회
 → employee spawn이면 tmp cwd + AGENTS.md/CLAUDE.md/GEMINI.md/CONTEXT.md + .claude/CLAUDE.md 주입
-→ copilot면 ACP branch, `codex-app`면 app stdio branch, `kiro-code`면 plain stdout branch, 아니면 일반 stdio branch
+→ copilot면 ACP branch, `codex-app`면 app stdio branch, `pi`면 Pi RPC branch, `kiro-code`면 plain stdout branch, 아니면 일반 stdio branch
 → 종료 시 session 저장 / smoke auto-continue / goal continuation / fallback retry / processQueue
 ```
 
@@ -111,10 +112,20 @@ aliases: [CLI-JAW Agent Spawn, agent runtime, ACP orchestration]
 - Session ID는 stdout regex 또는 v2 sqlite store에서 추출 (`kiro-auth.ts`).
 - Resume은 `--resume <sessionId>` 또는 `--conversation <id>` 인자.
 
+### Pi RPC branch
+
+- `pi`는 top-level runtime이며 `ai-e` provider가 아니다.
+- `src/agent/pi-runtime.ts`가 `settings.pi` profile을 정규화하고, `JAW_HOME/pi/runtime/<profileId>` 아래 `models.json` + `settings.json`을 생성한다.
+- 실행은 `pi --mode rpc --no-session --no-context-files --provider <profileId> --model <model> --api-key <key>` 형태다.
+- binary resolution은 `PI_CODING_AGENT_BIN` → PATH `pi` → `npm exec --yes --package @earendil-works/pi-coding-agent pi --` 순서이며, npm fallback은 shell string이 아니라 command/baseArgs tuple로 spawn된다.
+- RPC stdin은 `get_state`, optional `set_thinking_level`, `prompt` JSONL 명령을 보내고, stdout JSONL 이벤트에서 `message_update`, `tool_execution_*`, `agent_end`를 파싱해 `agent_output`/`agent_tool`/completion으로 매핑한다.
+- 이 구현은 per-run RPC child다. `agent_end` 뒤 stdin을 닫고 grace window 이후 남은 child를 종료한다. persistent Pi RPC daemon은 후속 과제다.
+
 ### Standard CLI branches
 
 | CLI | 표면 | 특이사항 |
 | --- | --- | --- |
+| `pi` | `pi --mode rpc` | isolated `PI_CODING_AGENT_DIR`, profile/model from `settings.pi`, npm-exec fallback |
 | `claude` | stdin에 `withHistoryPrompt()` 직접 쓰기 | — |
 | `claude-e` | `claude-e run --jsonl --output-format stream-json --idle-timeout-ms 600000 --hard-timeout-ms 3600000` | `jaw_runtime` 이벤트 가로채기, resume `--resume <sessionId>` |
 | `agy` | `agy -p <prompt> --print-timeout 10m --log-file <tmp>` | plain text stdout, session id from stdout/log, resume `--conversation <id>` |

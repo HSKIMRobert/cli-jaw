@@ -2,7 +2,7 @@
 
 # CLI-JAW
 
-### Your personal AI agent. 2 lines to install. 12 AI runtime surfaces in one dashboard.
+### Your personal AI agent. 2 lines to install. 13 AI runtime surfaces in one dashboard.
 
 [![npm](https://img.shields.io/npm/v/cli-jaw)](https://npmjs.com/package/cli-jaw)
 [![Version](https://img.shields.io/badge/v2.0.16-GA-brightgreen)](https://github.com/lidge-jun/cli-jaw/releases)
@@ -161,7 +161,7 @@ docker compose up -d       # → http://localhost:3457
 
 ## What is CLI-JAW?
 
-CLI-JAW is an open-source platform that unifies the AI coding CLIs you already use — Claude, Claude E, AI-E, Antigravity, Codex, Codex App, Cursor, Gemini, Grok, Kiro, OpenCode, and Copilot — into **one assistant with one memory and one dashboard**.
+CLI-JAW is an open-source platform that unifies the AI coding CLIs you already use — Pi, Claude, Claude E, AI-E, Antigravity, Codex, Codex App, Cursor, Gemini, Grok, Kiro, OpenCode, and Copilot — into **one assistant with one memory and one dashboard**.
 
 Your main CLI (the “Boss”) calls the others as “employees.” You stop copy-pasting between apps and start giving orders from a single place.
 
@@ -335,6 +335,7 @@ No per-token API billing. Route through subscriptions you already pay for.
 
 | CLI | Default Model | Auth | Cost |
 |---|---|---|---|
+| **Pi** | `grok-composer-2.5-fast` | Settings profile API key, local proxy, or `PI_CODING_AGENT_BIN` | First-class `pi --mode rpc` runtime for local/API endpoints through an isolated `PI_CODING_AGENT_DIR` |
 | **Claude** | `claude-opus-4-8` | `claude auth login` | Claude Pro subscription or higher |
 | **Claude E** | `claude-opus-4-8` | underlying `claude auth login` | Claude Pro subscription or higher; preferred for June subscription allowance |
 | **AI-E** | provider-selected | selected provider auth | Multi-provider runtime wrapper |
@@ -349,7 +350,7 @@ No per-token API billing. Route through subscriptions you already pay for.
 
 GPT 5.5 and Claude Opus 4.8 are enabled from Pro-tier subscriptions and higher. Starting in June, select `claude-e` when you want CLI-JAW to use the Claude allowance bundled with the subscription plan.
 
-The quota/status panel keeps the same runtime keyset as the registry. Wrapper runtimes (`ai-e`, `claude-e`, `codex-app`) delegate to their underlying provider, while AGY/Cursor/Grok/OpenCode are shown as auth/status-only when their CLIs do not expose quota windows.
+The quota/status panel keeps the same runtime keyset as the registry. Wrapper runtimes (`ai-e`, `claude-e`, `codex-app`) delegate to their underlying provider, while Pi/AGY/Cursor/Grok/OpenCode are shown as auth/status-only when their CLIs do not expose quota windows.
 
 **Fallback chain**: if one engine is rate-limited, the next picks up. Configure with `/fallback [cli1 cli2...]`.
 
@@ -553,7 +554,7 @@ Architecture details: [ARCHITECTURE.md](docs/ARCHITECTURE.md) · Internal struct
 
 | | CLI-JAW 2.0 | Hermes Agent | Claude Code |
 |---|---|---|---|
-| **Model access** | Antigravity, AI-E, Claude, Claude E, Codex, Codex App, Cursor, Gemini, Grok, Kiro, OpenCode, and Copilot through vendor/native auth where supported | API keys (OpenRouter 200+, Nous Portal) | Anthropic only |
+| **Model access** | Pi, Antigravity, AI-E, Claude, Claude E, Codex, Codex App, Cursor, Gemini, Grok, Kiro, OpenCode, and Copilot through vendor/native auth where supported | API keys (OpenRouter 200+, Nous Portal) | Anthropic only |
 | **Cost model** | Monthly subscriptions you already pay for | Per-token API billing | Anthropic subscription |
 | **Primary UI** | Manager dashboard + Web app + Mac app + terminal UI | Terminal only | CLI + IDE plugins |
 | **Dashboard** | Multi-instance manager, Kanban, Notes workspace | None | None |

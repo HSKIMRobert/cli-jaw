@@ -11,8 +11,9 @@ import { test } from 'node:test';
 
 import { createDirtyStore } from '../../public/manager/src/settings/dirty-store';
 import { expandPatch } from '../../public/manager/src/settings/pages/path-utils';
-import { buildResetOverridesPatch } from '../../public/manager/src/settings/pages/ModelProvider';
+import { buildResetOverridesPatch, orderModelCliKeys } from '../../public/manager/src/settings/pages/ModelProvider';
 import { metaFor, PRIMARY_CLIS, runtimeModelFor } from '../../public/manager/src/settings/pages/components/agent/agent-meta';
+import { piModelOptions } from '../../public/manager/src/settings/pages/components/pi-profile';
 
 // ─── ChipListField / fallback order ──────────────────────────────────
 
@@ -125,6 +126,20 @@ test('Model defaults imports canonical CLI metadata from agent-meta', () => {
     assert.equal(metaFor('kiro-code').label, 'Kiro');
     assert.equal(metaFor('kiro-code').models.includes('auto'), true);
     assert.equal(PRIMARY_CLIS.includes('kiro-code'), true);
+    assert.equal(metaFor('pi').label, 'Pi');
+    assert.equal(PRIMARY_CLIS[0], 'pi');
+});
+
+test('Pi model defaults render first and use discovered models for dropdown options', () => {
+    assert.deepEqual(orderModelCliKeys(['agy', 'ai-e', 'claude', 'pi']), ['pi', 'ai-e', 'agy', 'claude']);
+    assert.deepEqual(piModelOptions({
+        defaultProfileId: 'progrok',
+        profiles: [{ id: 'progrok', label: 'Progrok', mode: 'basic', endpoint: 'http://127.0.0.1:18645/v1', model: 'grok-composer-2.5-fast' }],
+        discoveredModels: { progrok: ['grok-4.3', 'grok-composer-2.5-fast'] },
+    }, 'progrok', 'grok-4.3'), ['grok-4.3', 'grok-composer-2.5-fast']);
+    const rowSource = readFileSync('public/manager/src/settings/pages/components/PerCliRow.tsx', 'utf8');
+    assert.match(rowSource, /isPi[\s\S]*<SelectField[\s\S]*id=\{`percli-\$\{cli\}-model`\}/);
+    assert.match(rowSource, /PiProfileDialog/);
 });
 
 test('active runtime override wins over per-CLI defaults', () => {

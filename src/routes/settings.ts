@@ -21,6 +21,13 @@ import { buildLiveCliRegistry } from '../cli/registry-live.js';
 import { fetchCopilotQuota, refreshCopilotFromKeychain } from '../../lib/quota-copilot.js';
 import { extractOpenAiApiKey, hasInvalidOpenAiApiKeyInput } from '../jaw-ceo/openai-key.js';
 import { getSecurityAuditLog } from '../security/security-audit-log.js';
+import {
+    listPiModels,
+    normalizePiProfile,
+    normalizePiSettings,
+    redactPiSettings,
+    type PiProfile,
+} from '../agent/pi-runtime.js';
 
 function redactSttSettings(input: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
     if (!input) return input;
@@ -53,14 +60,32 @@ function redactJawCeoSettings(input: Record<string, unknown> | undefined): Recor
 }
 
 function redactRuntimeSettings<T extends Record<string, unknown>>(input: T): T {
-    const safe = { ...input } as T & { stt?: Record<string, unknown>; jawCeo?: Record<string, unknown> };
+    const safe = { ...input } as T & { stt?: Record<string, unknown>; jawCeo?: Record<string, unknown>; pi?: Record<string, unknown> };
     const stt = redactSttSettings(safe.stt);
     const jawCeo = redactJawCeoSettings(safe.jawCeo);
+    const pi = redactPiSettings(safe.pi);
     if (stt) safe.stt = stt;
     else delete safe.stt;
     if (jawCeo) safe.jawCeo = jawCeo;
     else delete safe.jawCeo;
+    if (pi) safe.pi = pi;
+    else delete safe.pi;
     return safe as T;
+}
+
+function mergePiProfile(piInput: unknown, profile: PiProfile, models: string[]) {
+    const pi = normalizePiSettings(piInput);
+    const profiles = pi.profiles.filter((entry) => entry.id !== profile.id);
+    profiles.push(profile);
+    return {
+        ...pi,
+        defaultProfileId: profile.id,
+        profiles,
+        discoveredModels: {
+            ...(pi.discoveredModels || {}),
+            [profile.id]: models,
+        },
+    };
 }
 
 type QuotaStatusEntry = Record<string, unknown>;
@@ -261,6 +286,39 @@ export function registerSettingsRoutes(
         ok(res, await buildLiveCliRegistry());
     }));
     app.get('/api/cli-status', (_, res) => res.json(detectAllCli()));
+
+    app.post('/api/pi/profiles/register', requireAuth, asyncHandler(async (req, res) => {
+        const profile = normalizePiProfile(req.body);
+        const nextPi = mergePiProfile(settings["pi"], profile, [profile.model]);
+        const models = await listPiModels(nextPi, profile.id);
+        if (!models.includes(profile.model)) {
+            res.status(400).json({ ok: false, error: `Pi model discovery did not include ${profile.model}`, models });
+            return;
+        }
+        const updated = await applySettings({
+            pi: mergePiProfile(settings["pi"], profile, models),
+            perCli: {
+                pi: {
+                    provider: profile.id,
+                    model: profile.model,
+                },
+            },
+        }) as Record<string, unknown>;
+        const redactedProfile = redactPiSettings({ defaultProfileId: profile.id, profiles: [profile] })['profiles'];
+        ok(res, {
+            profile: Array.isArray(redactedProfile) ? redactedProfile[0] : null,
+            models,
+            settings: redactRuntimeSettings(updated),
+        });
+    }));
+
+    app.get('/api/pi/models', requireAuth, asyncHandler(async (req, res) => {
+        const profile = typeof req.query['profile'] === 'string' && req.query['profile'].trim()
+            ? req.query['profile'].trim()
+            : normalizePiSettings(settings["pi"]).defaultProfileId;
+        const models = await listPiModels(settings["pi"], profile);
+        ok(res, { profile, models });
+    }));
 
     app.get('/api/quota', async (_, res) => {
         const claudeCreds = readClaudeCreds();

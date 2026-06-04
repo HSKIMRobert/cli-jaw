@@ -177,6 +177,24 @@ function createDefaultSettings() {
         permissions: 'auto',
         workingDir: JAW_HOME,
         perCli: buildDefaultPerCli(),
+        pi: {
+            defaultProfileId: 'progrok',
+            profiles: [{
+                id: 'progrok',
+                label: 'Progrok',
+                mode: 'basic',
+                endpoint: 'http://127.0.0.1:18645/v1',
+                apiKind: 'openai-completions',
+                apiKey: 'dummy',
+                model: 'grok-composer-2.5-fast',
+                reasoning: true,
+                supportsDeveloperRole: true,
+                supportsReasoningEffort: true,
+            }],
+            discoveredModels: {
+                progrok: ['grok-composer-2.5-fast', 'grok-4.3'],
+            },
+        },
         heartbeat: {
             enabled: false,
             every: '30m',
@@ -353,6 +371,9 @@ export function migrateSettings(s: Record<string, any>) {
     if (!s["jawCeo"]) {
         s["jawCeo"] = { openaiApiKey: '' };
     }
+    if (!s["pi"]) {
+        s["pi"] = createDefaultSettings().pi;
+    }
     return s;
 }
 
@@ -418,6 +439,7 @@ export function loadSettings() {
                 lastActive: { ...defaults.messaging.lastActive, ...(raw.messaging?.lastActive || {}) },
             },
             jawCeo: { ...defaults.jawCeo, ...(raw.jawCeo || {}) },
+            pi: { ...defaults.pi, ...(raw.pi || {}) },
             network: { ...defaults.network, ...(raw.network || {}) },
         });
         // #64 safety: auto-correct stale workingDir (e.g. copied instance)

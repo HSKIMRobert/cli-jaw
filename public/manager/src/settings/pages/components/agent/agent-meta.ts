@@ -25,7 +25,7 @@ export type ActiveOverride = {
     effort?: string;
 };
 
-export const PRIMARY_CLIS: ReadonlyArray<string> = ['claude', 'claude-e', 'agy', 'codex', 'cursor', 'kiro-code', 'gemini'];
+export const PRIMARY_CLIS: ReadonlyArray<string> = ['pi', 'claude', 'claude-e', 'agy', 'codex', 'cursor', 'kiro-code', 'gemini'];
 
 export const CLI_META: Record<string, CliMeta> = {
     agy: {
@@ -33,6 +33,14 @@ export const CLI_META: Record<string, CliMeta> = {
         models: ['gemini-3.5-flash'],
         efforts: [],
         effortNote: 'AGY print mode uses the current AGY-selected model; switch models in native AGY UI, no --model/--effort flags in agy 1.0.0',
+    },
+    pi: {
+        label: 'Pi',
+        defaultProvider: 'progrok',
+        providers: ['progrok'],
+        models: ['grok-composer-2.5-fast', 'grok-4.3'],
+        efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
+        effortNote: 'Pi runs through --mode rpc. grok-composer-2.5-fast is the verified default; bare grok-composer-2.5 currently has no team access.',
     },
     'ai-e': {
         label: 'AI-E',

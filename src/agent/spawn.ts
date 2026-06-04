@@ -65,6 +65,7 @@ import {
     type KiroStreamEvent,
 } from './kiro-runtime.js';
 import { resolveCursorModelVariant } from './cursor-runtime.js';
+import { normalizePiSettings, spawnPiRpc } from './pi-runtime.js';
 
 // ─── State ───────────────────────────────────────────
 
@@ -1252,6 +1253,132 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 processQueue,
             }).catch((err: Error) => {
                 console.error('[jaw:lifecycle] handleAgentExit failed (ACP):', err.message);
+            });
+        });
+
+        return { child, promise: resultPromise };
+    }
+
+    // ─── Pi RPC branch ─────────────────────────────
+    if (cli === 'pi') {
+        const pi = normalizePiSettings(settings["pi"]);
+        const profileId = cfg.provider || pi.defaultProfileId;
+        const profile = pi.profiles.find((entry) => entry.id === profileId) || pi.profiles[0];
+        if (!profile) {
+            throw new Error('Pi profile is not configured');
+        }
+        const piPrompt = isResume ? prompt : withHistoryPrompt(prompt, historyBlock);
+        const traceRunId = startTraceRun({ cli, model: runtimeModel, workingDir: settings["workingDir"] || null, agentLabel, audience: traceAudience });
+        const ctx: SpawnContext = {
+            fullText: '',
+            traceLog: [],
+            toolLog: [],
+            seenToolKeys: new Set<string>(),
+            hasClaudeStreamEvents: false,
+            sessionId: null,
+            cost: null,
+            turns: null,
+            duration: null,
+            tokens: null,
+            stderrBuf: '',
+            hasActiveSubAgent: false,
+            showReasoning: settings["showReasoning"] === true,
+            outputTextStarted: false,
+            effectiveProvider: profile.id,
+            liveScope: effectiveLiveScope,
+            parentLiveScope: parentLiveScopeForChild,
+            traceRunId,
+            traceAudience,
+        };
+        const { child, done } = spawnPiRpc(profile, pi, {
+            prompt: piPrompt,
+            model: runtimeModel,
+            effort,
+            cwd: spawnCwd,
+            sysPrompt,
+            onEvent: (event) => {
+                opts.lifecycle?.onActivity?.('pi-rpc');
+                if (event.kind === 'text') {
+                    const segment = appendAssistantTextSegment(ctx, event.text);
+                    if (segment) {
+                        if (ctx.liveScope) appendLiveRunText(ctx.liveScope, segment);
+                        broadcast('agent_output', {
+                            agentId: agentLabel,
+                            cli,
+                            text: segment,
+                            ...empTag,
+                        }, traceAudience);
+                    }
+                    return;
+                }
+                if (event.kind === 'tool') {
+                    const tool = stripUndefined({ icon: '🔧', label: event.label, status: event.status, detail: event.detail, toolType: 'tool' as const }) as ToolEntry;
+                    stampTraceTool(tool, ctx, 'tool');
+                    ctx.toolLog.push(tool);
+                    if (ctx.liveScope) replaceLiveRunTools(ctx.liveScope, ctx.toolLog);
+                    appendParentLiveRunTool(ctx, tool);
+                    broadcast('agent_tool', { agentId: agentLabel, ...tool, ...empTag }, traceAudience);
+                    return;
+                }
+                if (event.kind === 'session') {
+                    ctx.sessionId = event.sessionId;
+                }
+            },
+        });
+        if (mainManaged) activeProcess = child;
+        if (activeProcesses.has(agentLabel)) {
+            console.warn(`[spawn:dup] activeProcesses already has child for ${agentLabel} — orphaning previous reference`);
+        }
+        activeProcesses.set(agentLabel, child);
+        if (!opts.internal) broadcast('agent_status', { running: true, agentId: agentLabel, cli, provider: profile.id, ...empTag });
+        if (mainManaged && !opts.internal) beginLiveRun(liveScope, cli);
+        if (mainManaged && !opts.internal && !opts._skipInsert) {
+            insertMessage.run('user', prompt, cli, runtimeModel, settings["workingDir"] || null, getActiveChatSession());
+        }
+        if (!opts.internal) broadcast('agent_status', { status: 'running', cli, agentId: agentLabel, provider: profile.id, ...empTag }, traceAudience);
+
+        done.then((result) => {
+            ctx.stderrBuf += result.stderr || '';
+            if (result.sessionId) ctx.sessionId = result.sessionId;
+            if (!ctx.fullText && result.text) ctx.fullText = result.text;
+            cleanupEmployeeTmpDir(spawnCwd, settings["workingDir"], agentLabel);
+            opts.lifecycle?.onExit?.(result.code);
+            const killReason = consumeKillReason(child.pid);
+            const wasKilled = !!killReason;
+            const wasSteer = killReason === 'steer';
+            const smokeResult = detectSmokeResponse(ctx.fullText, ctx.toolLog, result.code, cli);
+            return handleAgentExit({
+                ctx, code: result.code, cli, model: runtimeModel, effectiveProvider: profile.id, agentLabel, mainManaged, origin,
+                resumeKey,
+                prompt, opts, cfg, ownerGeneration, forceNew, empSid,
+                isResume: false, wasKilled, wasSteer, smokeResult,
+                effortDefault: 'medium', costLine: '',
+                resolve: resolve!,
+                activeProcesses,
+                setActiveProcess: (v) => { activeProcess = v; },
+                retryState: queueCtrl.retryState,
+                fallbackState: queueCtrl.fallbackState,
+                fallbackMaxRetries: FALLBACK_MAX_RETRIES,
+                processQueue,
+            });
+        }).catch((err: Error) => {
+            ctx.stderrBuf += err.message;
+            console.error('[jaw:pi] runtime failed:', err.message);
+            handleAgentExit({
+                ctx, code: 1, cli, model: runtimeModel, effectiveProvider: profile.id, agentLabel, mainManaged, origin,
+                resumeKey,
+                prompt, opts, cfg, ownerGeneration, forceNew, empSid,
+                isResume: false, wasKilled: false, wasSteer: false, smokeResult: detectSmokeResponse('', [], 1, cli),
+                effortDefault: 'medium', costLine: '',
+                resolve: resolve!,
+                activeProcesses,
+                setActiveProcess: (v) => { activeProcess = v; },
+                retryState: queueCtrl.retryState,
+                fallbackState: queueCtrl.fallbackState,
+                fallbackMaxRetries: FALLBACK_MAX_RETRIES,
+                processQueue,
+            }).catch((handleErr: Error) => {
+                console.error('[jaw:lifecycle] handleAgentExit failed (Pi):', handleErr.message);
             });
         });
 

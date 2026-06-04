@@ -38,6 +38,13 @@ export function getCliReadiness(): CliReadiness[] {
                 source = 'provider-delegated';
                 break;
             }
+            case 'pi': {
+                authenticated = true; // Pi profiles validate endpoint/key during Settings registration.
+                source = info?.rejected?.some((entry: any) => String(entry.reason || '').includes('npm-exec'))
+                    ? 'npm-exec fallback; profile auth validated at registration'
+                    : 'profile auth validated at registration';
+                break;
+            }
             case 'claude': {
                 const creds = readClaudeCreds();
                 authenticated = !!creds?.token;
@@ -144,7 +151,7 @@ export function getCliReadiness(): CliReadiness[] {
     return results;
 }
 
-const DEFAULT_ORDER: readonly CliEngine[] = ['claude', 'claude-e', 'agy', 'codex', 'codex-app', 'cursor', 'kiro-code', 'copilot', 'gemini', 'grok', 'opencode', 'ai-e'];
+const DEFAULT_ORDER: readonly CliEngine[] = ['pi', 'claude', 'claude-e', 'agy', 'codex', 'codex-app', 'cursor', 'kiro-code', 'copilot', 'gemini', 'grok', 'opencode', 'ai-e'];
 
 export function pickFirstReadyCli(order: readonly CliEngine[] = DEFAULT_ORDER): CliEngine {
     const readiness = getCliReadiness();
