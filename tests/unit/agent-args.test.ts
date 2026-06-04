@@ -363,6 +363,7 @@ test('AG-009l: resolveSessionBucket — non-codex CLI returns cli unchanged', ()
     assert.equal(resolveSessionBucket('claude', 'sonnet-spark-fake'), 'claude', 'spark check is codex-scoped');
     assert.equal(resolveSessionBucket('gemini', 'gemini-3-flash'), 'gemini');
     assert.equal(resolveSessionBucket('grok', 'grok-build'), 'grok');
+    assert.equal(resolveSessionBucket('pi', 'grok-composer-2.5-fast'), 'pi');
     assert.equal(resolveSessionBucket('opencode', 'anything'), 'opencode');
 });
 

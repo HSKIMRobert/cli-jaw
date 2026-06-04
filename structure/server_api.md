@@ -9,7 +9,7 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 # server.ts — Glue + Route Registration (995L)
 
 > Express/WS bootstrap + localhost/LAN opt-in 보안 가드 + base route 14개 + `src/routes/*` 17개 registrar 등록.
-> 현재 라이브 surface는 총 191개 route handler이며, 이 중 `/`를 제외한 API 엔드포인트는 190개다.
+> 현재 라이브 surface는 총 193개 route handler이며, 이 중 `/`를 제외한 API 엔드포인트는 192개다.
 > mutation route(`POST`/`PUT`/`DELETE`)는 모두 `requireAuth`를 거친다. 단, `requireAuth()`는 loopback 요청을 토큰 없이 통과시키고, `lanAllowed()`가 true일 때 private IP도 LAN bypass로 통과시킨다.
 > `GET /api/auth/token`은 Bearer bootstrap 전용이며 `Sec-Fetch-Site`가 `same-origin` 또는 `none`이 아닐 때 `403`을 반환한다.
 
@@ -20,7 +20,7 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 | Module | Lines | Routes | 역할 |
 | --- | ---: | ---: | --- |
 | `server.ts` | 995L | 21 | Helmet/CORS/Host/rate-limit/WS/bootstrap + base routes + instance lock + chat sessions + module registration |
-| `src/routes/settings.ts` | 343L | 19 | settings/prompt/heartbeat-md/MCP/CLI registry/quota/copilot |
+| `src/routes/settings.ts` | 400L | 21 | settings/prompt/heartbeat-md/MCP/CLI registry/quota/copilot/Pi profile registration |
 | `src/routes/memory.ts` | 191L | 13 | memory runtime + KV memory + memory files |
 | `src/routes/browser.ts` | 475L | 41 | browser primitive/tab/debug/doctor/cleanup routes + adaptive fetch + web-ai render/send/poll/watch/sessions/capabilities/context routes |
 | `src/routes/jaw-memory.ts` | 282L | 11 | jaw memory search/read/save/list/init/reflect/flush/soul/soul-activate/bootstrap |
@@ -97,7 +97,7 @@ employees → heartbeat → skills → jaw-memory → orchestrate
 | Core/Auth | `GET /api/health` `GET /api/session` `GET /api/messages` `GET /api/messages/search` `GET /api/messages/latest` `GET /api/runtime` `GET /api/auth/token` `POST /api/message` `POST /api/stop` `POST /api/clear` `POST /api/session/reset` |
 | Commands | `POST /api/command` `GET /api/commands?interface=` |
 | Settings/Prompt | `GET/PUT /api/settings` `GET /api/codex-context` `GET/PUT /api/prompt` `GET /api/prompt-templates` `PUT /api/prompt-templates/:id` `GET/PUT /api/heartbeat-md` |
-| MCP/CLI/Quota | `GET/PUT /api/mcp` `POST /api/mcp/sync` `POST /api/mcp/install` `POST /api/mcp/reset` `GET /api/mcp/registry` `GET /api/cli-registry` `GET /api/cli-status` `GET /api/quota` `POST /api/copilot/refresh` |
+| MCP/CLI/Quota | `GET/PUT /api/mcp` `POST /api/mcp/sync` `POST /api/mcp/install` `POST /api/mcp/reset` `GET /api/mcp/registry` `GET /api/cli-registry` `GET /api/cli-status` `GET /api/quota` `POST /api/copilot/refresh` `POST /api/pi/profiles/register` `GET /api/pi/models` |
 | Runtime Context | `GET /api/runtime-context` `POST /api/runtime-context` `DELETE /api/runtime-context/:id` `DELETE /api/runtime-context` |
 | Security Audit | `GET /api/security-audit/entries` `GET /api/security-audit/verify` |
 | Heartbeat | `GET/PUT /api/heartbeat` |
@@ -117,7 +117,7 @@ employees → heartbeat → skills → jaw-memory → orchestrate
 | Dashboard Schedule | `GET /api/dashboard/schedule/work` `POST /api/dashboard/schedule/work` `PATCH /api/dashboard/schedule/work/:id` `DELETE /api/dashboard/schedule/work/:id` `POST /api/dashboard/schedule/work/:id/dispatch` |
 | i18n | `GET /api/i18n/languages` `GET /api/i18n/:lang` |
 
-> 실제 코드(`server.ts` + `src/routes/*.ts` + dashboard board/schedule)에서 추출한 총 180개 route handler 기준이다. 이 중 API 엔드포인트는 179개이고, 나머지 1개는 `/` 엔트리이다. Browser API 41개는 `src/routes/browser.ts`에서 등록된다. Jaw CEO 20개는 `src/routes/jaw-ceo.ts`에서 sub-router로 등록된다.
+> 실제 코드(`server.ts` + `src/routes/*.ts` + dashboard board/schedule)에서 추출한 총 193개 route handler 기준이다. 이 중 API 엔드포인트는 192개이고, 나머지 1개는 `/` 엔트리이다. Browser API 41개는 `src/routes/browser.ts`에서 등록된다. Jaw CEO 20개는 `src/routes/jaw-ceo.ts`에서 sub-router로 등록된다.
 
 ---
 
@@ -185,11 +185,18 @@ employees → heartbeat → skills → jaw-memory → orchestrate
 
 ### `/api/quota`
 
-- 응답 키: `agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `cursor`, `gemini`, `grok`, `opencode`, `copilot`, `kiro-code` (`CLI_KEYS` 순서).
+- 응답 키: `pi`, `agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `cursor`, `gemini`, `grok`, `opencode`, `copilot`, `kiro-code` (`CLI_KEYS` 순서).
+- `pi`는 Settings의 Pi profile registration을 통해 endpoint/model/key를 검증하고, quota 자체는 auth/status-only로 표시한다.
 - `agy`는 `src/routes/quota-agy-reverse.ts`의 `fetchAgyUsage()`를 통해 Antigravity quota snapshot을 읽는다.
 - `antigravity-usage --json`이 `remainingPercentage`를 정밀 소수점 대신 `0`/`1`로만 반환하면 AGY window는 degraded fallback으로 `0 -> 100% used`, `1 -> 0% used`만 표시한다. upstream이 다시 정밀 퍼센트를 주면 기존 fractional path가 그대로 사용된다.
 - `cursor`는 `src/routes/quota-cursor-dashboard.ts`의 `fetchCursorUsage()`를 통해 dashboard session/usage를 읽는다.
 - `kiro-code`는 `src/routes/quota-kiro-reverse.ts`의 `fetchKiroUsage()`를 통해 CodeWhisperer `GetUsageLimits` API를 reverse-engineer 호출한다.
+
+### `/api/pi/*`
+
+- `POST /api/pi/profiles/register` — body의 provider/endpoint/model/key/mode를 `normalizePiProfile()`로 정규화하고, isolated `PI_CODING_AGENT_DIR` 아래 `models.json` + `settings.json`을 만든 뒤 `pi --offline --list-models <profile>`로 등록 모델이 실제 Pi model list에 나타나는지 검증한다. 성공 시 `applySettings()`를 통해 `settings.pi`와 `perCli.pi.provider/model`을 함께 저장한다.
+- `GET /api/pi/models?profile=<id>` — 저장된 Pi profile 설정으로 모델 목록을 재발견하고, `settings.pi.discoveredModels[profile]` 및 Settings UI dropdown 갱신에 사용할 배열을 반환한다.
+- Pi 응답은 API key를 직접 반환하지 않고 `apiKeySet`, `apiKeyLast4`, `apiKeySource`만 노출한다.
 
 ### `/api/runtime-context`
 

@@ -90,7 +90,7 @@ docker compose up -d       # → http://localhost:3457
 
 ## CLI-JAW가 뭔가요?
 
-CLI-JAW는 여러분이 이미 사용하는 AI 코딩 CLI — Antigravity, AI-E, Claude, Claude E, Codex, Codex App, Cursor, Gemini, Grok, OpenCode, Copilot — 를 **하나의 비서, 하나의 메모리, 하나의 대시보드**로 통합하는 오픈소스 플랫폼입니다.
+CLI-JAW는 여러분이 이미 사용하는 AI 코딩 CLI — Pi, Antigravity, AI-E, Claude, Claude E, Codex, Codex App, Cursor, Gemini, Grok, Kiro, OpenCode, Copilot — 를 **하나의 비서, 하나의 메모리, 하나의 대시보드**로 통합하는 오픈소스 플랫폼입니다.
 
 메인 CLI(Boss)가 다른 CLI를 "직원"으로 부릅니다. 앱을 왔다 갔다 할 필요 없이 한 곳에서 지시하면 됩니다.
 
@@ -247,6 +247,7 @@ jaw dispatch --agent "Frontend" --task "dashboard.tsx의 CSS 그리드 레이아
 
 | CLI | 기본 모델 | 인증 | 비용 |
 |---|---|---|---|
+| **Pi** | `grok-composer-2.5-fast` | Settings profile API key, local proxy, 또는 `PI_CODING_AGENT_BIN` | 격리된 `PI_CODING_AGENT_DIR`로 로컬/API 엔드포인트를 연결하는 first-class `pi --mode rpc` 런타임 |
 | **Claude** | `claude-opus-4-8` | `claude auth login` | Claude Pro 구독 이상 |
 | **Claude E** | `claude-opus-4-8` | underlying `claude auth login` | Claude Pro 구독 이상; 6월 구독 포함 사용량 권장 런타임 |
 | **AI-E** | provider-selected | 선택 provider 인증 | 다중 provider runtime wrapper |
@@ -261,7 +262,7 @@ jaw dispatch --agent "Frontend" --task "dashboard.tsx의 CSS 그리드 레이아
 
 GPT 5.5와 Claude Opus 4.8은 Pro 구독 이상부터 허용됩니다. 6월부터 구독제에 포함된 Claude 사용량을 쓰려면 `claude-e` 런타임을 선택하세요.
 
-쿼터/상태 패널은 registry와 같은 runtime 키셋을 유지합니다. Wrapper runtime(`ai-e`, `claude-e`, `codex-app`)은 underlying provider로 위임하고, AGY/Cursor/Grok/OpenCode처럼 CLI가 quota window를 노출하지 않는 경우 auth/status-only로 표시합니다.
+쿼터/상태 패널은 registry와 같은 runtime 키셋을 유지합니다. Wrapper runtime(`ai-e`, `claude-e`, `codex-app`)은 underlying provider로 위임하고, Pi/AGY/Cursor/Grok/OpenCode처럼 CLI가 quota window를 노출하지 않는 경우 auth/status-only로 표시합니다.
 
 **Fallback 체인**: 한 엔진이 레이트 리밋되면 다음이 이어받습니다. `/fallback [cli1 cli2...]`로 설정.
 
@@ -462,7 +463,7 @@ npm run gate:all       # 릴리스/문서 정합성 게이트
 
 | | CLI-JAW 2.0 | Hermes Agent | Claude Code |
 |---|---|---|---|
-| **모델 접근** | Antigravity, AI-E, Claude, Claude E, Codex, Codex App, Cursor, Gemini, Grok, OpenCode, Copilot — 벤더/네이티브 인증으로 연결 | API 키 (OpenRouter 200+, Nous Portal) | Anthropic 전용 |
+| **모델 접근** | Pi, Antigravity, AI-E, Claude, Claude E, Codex, Codex App, Cursor, Gemini, Grok, Kiro, OpenCode, Copilot — 벤더/네이티브 인증으로 연결 | API 키 (OpenRouter 200+, Nous Portal) | Anthropic 전용 |
 | **비용 모델** | 이미 결제 중인 월 구독 그대로 | 토큰당 API 과금 | Anthropic 구독 |
 | **메인 UI** | 매니저 대시보드 + 웹앱 + Mac앱 + 터미널 UI | 터미널 전용 | CLI + IDE 플러그인 |
 | **대시보드** | 멀티 인스턴스 매니저, 칸반, 노트 워크스페이스 | 없음 | 없음 |

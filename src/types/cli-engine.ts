@@ -27,7 +27,8 @@ export type CliEngine =
     | 'gemini'
     | 'grok'
     | 'kiro-code'
-    | 'opencode';
+    | 'opencode'
+    | 'pi';
 
 /**
  * Runtime list of all engines, derived from the type via a `satisfies`
@@ -49,6 +50,7 @@ export const CLI_ENGINES = [
     'grok',
     'kiro-code',
     'opencode',
+    'pi',
 ] as const satisfies readonly CliEngine[];
 
 export function isCliEngine(value: unknown): value is CliEngine {

@@ -1,8 +1,12 @@
 // Phase 2 — single CLI row (model + effort + fastMode).
 
+import { useState } from 'react';
 import { TextField, SelectField, ToggleField } from '../../fields';
+import type { SettingsClient } from '../../types';
 import type { DirtyEntry } from '../../types';
 import type { CliMeta, PerCliEntry } from './agent/agent-meta';
+import { PiProfileDialog } from './PiProfileDialog';
+import { piModelOptions, piProfileOptions, type PiSettingsView } from './pi-profile';
 
 type Props = {
     cli: string;
@@ -11,17 +15,25 @@ type Props = {
     value: PerCliEntry;
     setValue: (next: PerCliEntry) => void;
     setEntry: (key: string, entry: DirtyEntry) => void;
+    client?: SettingsClient;
+    pi?: PiSettingsView | undefined;
+    setPi?: (next: PiSettingsView) => void;
 };
 
 function entryFor(value: unknown, original: unknown, valid = true): DirtyEntry {
     return { value, original, valid };
 }
 
-export function PerCliRow({ cli, meta, original, value, setValue, setEntry }: Props) {
+export function PerCliRow({ cli, meta, original, value, setValue, setEntry, client, pi, setPi }: Props) {
     const modelDatalistId = `percli-${cli}-models`;
     const isAiE = cli === 'ai-e';
+    const isPi = cli === 'pi';
+    const [piDialogOpen, setPiDialogOpen] = useState(false);
     const provider = value.provider || meta.defaultProvider || meta.providers?.[0] || 'claude';
-    const modelOptions = isAiE
+    const piModels = isPi ? piModelOptions(pi, provider, value.model || '') : [];
+    const modelOptions = isPi
+        ? piModels
+        : isAiE
         ? (meta.modelsByProvider?.[provider] ?? meta.models)
         : meta.models;
     const effortOptions = isAiE
@@ -32,7 +44,21 @@ export function PerCliRow({ cli, meta, original, value, setValue, setEntry }: Pr
         <div className="settings-percli-row" data-cli={cli}>
             <h3 className="settings-percli-title">{meta.label}</h3>
             <div className="settings-percli-grid">
-                {isAiE && meta.providers?.length ? (
+                {isPi && piProfileOptions(pi, provider).length ? (
+                    <SelectField
+                        id={`percli-${cli}-provider`}
+                        label="Provider"
+                        value={provider}
+                        options={piProfileOptions(pi, provider).map((p) => ({ value: p, label: p }))}
+                        onChange={(next) => {
+                            const nextModels = piModelOptions(pi, next);
+                            const nextModel = nextModels.includes(value.model || '') ? (value.model || '') : (nextModels[0] || '');
+                            setValue({ ...value, provider: next, model: nextModel });
+                            setEntry(`perCli.${cli}.provider`, entryFor(next, original.provider ?? 'progrok'));
+                            setEntry(`perCli.${cli}.model`, entryFor(nextModel, original.model ?? ''));
+                        }}
+                    />
+                ) : isAiE && meta.providers?.length ? (
                     <SelectField
                         id={`percli-${cli}-provider`}
                         label="Provider"
@@ -51,16 +77,29 @@ export function PerCliRow({ cli, meta, original, value, setValue, setEntry }: Pr
                     />
                 ) : null}
                 <div className="settings-percli-model">
-                    <TextField
-                        id={`percli-${cli}-model`}
-                        label="Model"
-                        value={value.model ?? ''}
-                        onChange={(next) => {
-                            setValue({ ...value, model: next });
-                            setEntry(`perCli.${cli}.model`, entryFor(next, original.model ?? ''));
-                        }}
-                        placeholder={modelOptions[0] ?? 'model id'}
-                    />
+                    {isPi && modelOptions.length > 0 ? (
+                        <SelectField
+                            id={`percli-${cli}-model`}
+                            label="Model"
+                            value={value.model ?? modelOptions[0] ?? ''}
+                            options={modelOptions.map((m) => ({ value: m, label: m }))}
+                            onChange={(next) => {
+                                setValue({ ...value, model: next });
+                                setEntry(`perCli.${cli}.model`, entryFor(next, original.model ?? ''));
+                            }}
+                        />
+                    ) : (
+                        <TextField
+                            id={`percli-${cli}-model`}
+                            label="Model"
+                            value={value.model ?? ''}
+                            onChange={(next) => {
+                                setValue({ ...value, model: next });
+                                setEntry(`perCli.${cli}.model`, entryFor(next, original.model ?? ''));
+                            }}
+                            placeholder={modelOptions[0] ?? 'model id'}
+                        />
+                    )}
                     {modelOptions.length > 0 ? (
                         <datalist id={modelDatalistId}>
                             {modelOptions.map((m) => (
@@ -93,7 +132,31 @@ export function PerCliRow({ cli, meta, original, value, setValue, setEntry }: Pr
                         setEntry(`perCli.${cli}.fastMode`, entryFor(next, Boolean(original.fastMode)));
                     }}
                 />
+                {isPi && client ? (
+                    <button
+                        type="button"
+                        className="settings-action"
+                        onClick={() => setPiDialogOpen(true)}
+                    >
+                        Settings
+                    </button>
+                ) : null}
             </div>
+            {isPi && client && piDialogOpen ? (
+                <PiProfileDialog
+                    client={client}
+                    pi={pi}
+                    provider={provider}
+                    model={value.model || 'grok-composer-2.5-fast'}
+                    onClose={() => setPiDialogOpen(false)}
+                    onRegistered={({ provider: nextProvider, model: nextModel, pi: nextPi }) => {
+                        if (nextPi && setPi) setPi(nextPi);
+                        setValue({ ...value, provider: nextProvider, model: nextModel });
+                        setEntry(`perCli.${cli}.provider`, entryFor(nextProvider, original.provider ?? 'progrok'));
+                        setEntry(`perCli.${cli}.model`, entryFor(nextModel, original.model ?? ''));
+                    }}
+                />
+            ) : null}
         </div>
     );
 }

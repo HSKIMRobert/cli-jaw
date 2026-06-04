@@ -50,7 +50,7 @@ public/
 | `public/js/diagram/` | 3 | SVG/iframe diagram pipeline |
 | `public/js/render/` | 13 | markdown/KaTeX/Mermaid/SVG/file-link/post-render 책임 분리 |
 | `public/js/features/` | 48 | settings 분해 + help/attention/orchestrate scope + process-step-match + preview shortcut/invalidate bridge + MCP registry + chat-search + workflow-event-adapter + media-lightbox 포함 |
-| `public/manager/src/` | 298 | React 19 manager dashboard |
+| `public/manager/src/` | 300 | React 19 manager dashboard |
 | `public/css/` | 12 | theme/layout/chat/markdown/tool UI/diagram/trace drawer/workflow cockpit/chat-search |
 | `public/locales/` | 4 | `ko.json`, `en.json`, `ja.json`, `zh.json` |
 | `public/assets/providers/` | 18 | provider SVG 세트 |
@@ -218,13 +218,25 @@ settings.ts (barrel)
 | `manager/src/terminal/` | Electron desktop terminal panel |
 | `manager/src/browser-panel/` | Electron desktop Browser panel (Google default, URL/search normalization) |
 | `manager/src/diff-panel/` | Electron desktop Git Diff panel (server-backed via `/api/dashboard/git/*`) |
-| `manager/src/settings/` | settings pages/components/field renderers, `pages/Mcp.tsx` (MCP server cards + registry) |
+| `manager/src/settings/` | settings pages/components/field renderers, `pages/Mcp.tsx` (MCP server cards + registry), Model defaults Pi profile popup |
 | `manager/src/api.ts` | Dashboard API wrapper |
 | `manager/src/components/` | `ManagerShell`, `WorkspaceLayout`, `Instance*`, `Command*`, `ActivityDock`, `MobileNav`, `DesktopPanelControls` 등 |
 | `manager/src/dashboard-board/` | Kanban board UI (backlog/ready/active/review/done lanes) |
 | `manager/src/dashboard-schedule/` | schedule/heartbeat dashboard UI |
 | `manager/src/dashboard-reminders/` | reminders matrix/sidebar/workspace UI, drag/drop, detail popover |
 | `manager/src/dashboard-settings/` | Developer tools settings (diff defaults, embedding) |
+
+### Manager Settings — Pi Runtime
+
+| 파일 | 역할 |
+| --- | --- |
+| `manager/src/settings/pages/ModelProvider.tsx` | Pi를 Model defaults에서 AI-E보다 먼저 렌더하고 `settings.pi` draft를 `PerCliRow`로 전달 |
+| `manager/src/settings/pages/components/PerCliRow.tsx` | `cli === "pi"` branch: Provider dropdown, discovered-model SelectField, Effort, Settings button |
+| `manager/src/settings/pages/components/PiProfileDialog.tsx` | mode(`basic`/`openai`/`anthropic`/`vertex`) + endpoint/model/API key 등록 popup; `/api/pi/profiles/register` 호출 |
+| `manager/src/settings/pages/components/pi-profile.ts` | Pi profile/model option pure helper |
+
+- Pi model field는 발견된 모델이 있으면 `SelectField`를 사용하고, 목록이 비어 있을 때만 free-text `TextField`로 fallback한다.
+- 등록 성공 시 `settings.pi.profiles`, `settings.pi.discoveredModels`, `perCli.pi.provider`, `perCli.pi.model` draft가 함께 갱신되어 Pi model dropdown에 새 모델이 바로 나타난다.
 | `manager/src/jaw-ceo/` | Jaw CEO console panels, voice, virtual timeline |
 | `manager/src/notes/` | markdown notes, search sidebar, WYSIWYG editing, wikilinks, graph view |
 | `manager/src/hooks/` | dashboard registry/view persistence/instance message events hooks |

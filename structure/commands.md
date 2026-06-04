@@ -8,9 +8,9 @@ aliases: [CLI-JAW Commands, slash commands registry, commands.md]
 
 # src/cli/ — Slash Command Registry & Dispatcher
 
-> `commands.ts`(403L) + `handlers.ts`(446L) + `handlers-runtime.ts`(501L) + `handlers-completions.ts`(97L) + `handlers-workflows.ts`(370L) + `api-auth.ts`(45L) + `command-context.ts`(140L) + `registry.ts`(213L) + `acp-client.ts`(382L) + `claude-models.ts`(81L) + `compact.ts`(141L)
+> `commands.ts`(403L) + `handlers.ts`(446L) + `handlers-runtime.ts`(501L) + `handlers-completions.ts`(97L) + `handlers-workflows.ts`(370L) + `api-auth.ts`(45L) + `command-context.ts`(140L) + `registry.ts`(224L) + `acp-client.ts`(382L) + `claude-models.ts`(81L) + `compact.ts`(141L)
 > slash registry는 35개 커맨드, 4개 실행 인터페이스. root CLI는 `bin/cli-jaw.ts` + `bin/commands/*.ts` 기준 27개 user-facing command이며, helper까지 포함한 `bin/commands/*.ts` top-level 파일은 28개다. `browser web-ai`는 `browser-web-ai.ts`, `dashboard memory`는 `dashboard-memory.ts`, dispatch unwrap 보조는 `dispatch-helpers.ts`로 분리되어 있다.
-> 모델/CLI 선택은 `registry.ts` 단일 소스를 따른다. 현재 registry 런타임은 `agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `cursor`, `gemini`, `grok`, `kiro-code`, `opencode`, `copilot` 12개다.
+> 모델/CLI 선택은 `registry.ts` 단일 소스를 따른다. 현재 registry 런타임은 `pi`, `agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `cursor`, `gemini`, `grok`, `kiro-code`, `opencode`, `copilot` 13개다.
 
 ---
 
@@ -177,12 +177,13 @@ ide, orchestrate, project
 
 ## Registry.ts — CLI / Model Source of Truth
 
-`src/cli/registry.ts` (213L)
+`src/cli/registry.ts` (224L)
 
-현재 CLI registry는 12개 top-level runtime을 갖는다.
+현재 CLI registry는 13개 top-level runtime을 갖는다.
 
 | CLI | Default Model | Default Effort |
 | --- | --- | --- |
+| `pi` | `grok-composer-2.5-fast` | `medium` |
 | `agy` | *(TUI-managed)* | `''` |
 | `ai-e` | `sonnet` | `medium` |
 | `claude` | `sonnet` | `medium` |

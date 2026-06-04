@@ -16,8 +16,8 @@ const __dirname = dirname(__filename);
 
 // ─── Structure validation ────────────────────────────
 
-test('CLI_KEYS contains exactly 12 known entries', () => {
-    assert.deepEqual(CLI_KEYS.sort(), ['agy', 'ai-e', 'claude', 'claude-e', 'codex', 'codex-app', 'copilot', 'cursor', 'gemini', 'grok', 'kiro-code', 'opencode']);
+test('CLI_KEYS contains exactly 13 known entries', () => {
+    assert.deepEqual([...CLI_KEYS].sort(), ['agy', 'ai-e', 'claude', 'claude-e', 'codex', 'codex-app', 'copilot', 'cursor', 'gemini', 'grok', 'kiro-code', 'opencode', 'pi']);
 });
 
 test('DEFAULT_CLI is claude', () => {
@@ -61,6 +61,16 @@ test('Antigravity registry exposes AGY as a top-level runtime, not an ai-e provi
     assert.deepEqual(CLI_REGISTRY.agy.models, []);
     assert.match(CLI_REGISTRY.agy.effortNote || '', /Change at TUI/);
     assert.equal(CLI_REGISTRY['ai-e'].providers.includes('agy'), false);
+});
+
+test('Pi registry exposes Pi as a top-level runtime above AI-E, not an ai-e provider', () => {
+    assert.equal(CLI_REGISTRY.pi.label, 'Pi');
+    assert.equal(CLI_REGISTRY.pi.binary, 'pi');
+    assert.equal(CLI_REGISTRY.pi.defaultProvider, 'progrok');
+    assert.equal(CLI_REGISTRY.pi.defaultModel, 'grok-composer-2.5-fast');
+    assert.ok(CLI_REGISTRY.pi.models.includes('grok-4.3'));
+    assert.equal(CLI_KEYS.indexOf('pi') < CLI_KEYS.indexOf('ai-e'), true);
+    assert.equal(CLI_REGISTRY['ai-e'].providers.includes('pi'), false);
 });
 
 test('Kiro registry exposes kiro-code as a top-level runtime', () => {

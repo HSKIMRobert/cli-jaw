@@ -16,6 +16,17 @@ export const CLI_REGISTRY = {
         effortNote: 'Change at TUI; cli-jaw never passes model or effort flags to agy',
         models: [],
     },
+    pi: {
+        label: 'Pi',
+        binary: 'pi',
+        experimental: true,
+        defaultProvider: 'progrok',
+        defaultModel: 'grok-composer-2.5-fast',
+        defaultEffort: 'medium',
+        efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
+        effortNote: 'Pi thinking level via RPC set_thinking_level',
+        models: ['grok-composer-2.5-fast', 'grok-4.3'],
+    },
     'ai-e': {
         label: 'AI-E',
         binary: 'ai-e',

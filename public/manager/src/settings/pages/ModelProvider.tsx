@@ -14,14 +14,26 @@ import {
 import { PerCliRow } from './components/PerCliRow';
 import { metaFor } from './components/agent/agent-meta';
 import type { PerCliEntry } from './components/agent/agent-meta';
+import type { PiSettingsView } from './components/pi-profile';
 import { expandPatch } from './path-utils';
 
 type ModelSnapshot = {
     perCli?: Record<string, PerCliEntry>;
     fallbackOrder?: string[];
     activeOverrides?: Record<string, { model?: string; effort?: string }>;
+    pi?: PiSettingsView;
     [key: string]: unknown;
 };
+
+export function orderModelCliKeys(keys: string[]): string[] {
+    return [...keys].sort((a, b) => {
+        if (a === 'pi') return -1;
+        if (b === 'pi') return 1;
+        if (a === 'ai-e') return b === 'pi' ? 1 : -1;
+        if (b === 'ai-e') return a === 'pi' ? -1 : 1;
+        return 0;
+    });
+}
 
 // Build a patch that clears every active override. Backend `mergeSettingsPatch`
 // shallow-merges per-cli, so we must enumerate known cli keys (current
@@ -41,6 +53,7 @@ export function buildResetOverridesPatch(snapshot: ModelSnapshot): {
 export default function ModelProvider({ port, client, dirty, registerSave }: SettingsPageProps) {
     const { state, refresh, setData } = usePageSnapshot<ModelSnapshot>(client, '/api/settings');
     const [perCliDraft, setPerCliDraft] = useState<Record<string, PerCliEntry>>({});
+    const [piDraft, setPiDraft] = useState<PiSettingsView | undefined>(undefined);
     const [fallback, setFallback] = useState<string[]>([]);
     const [codexCtx, setCodexCtx] = useState<{ contextWindowSize?: number; contextWindowCompactLimit?: number }>({});
     const [resetting, setResetting] = useState(false);
@@ -49,6 +62,7 @@ export default function ModelProvider({ port, client, dirty, registerSave }: Set
     useEffect(() => {
         if (state.kind !== 'ready') return;
         setPerCliDraft({ ...(state.data.perCli || {}) });
+        setPiDraft(state.data.pi);
         setFallback([...(state.data.fallbackOrder || [])]);
         const codex = state.data.perCli?.['codex'] || {};
         const nextCodexCtx: typeof codexCtx = {};
@@ -121,7 +135,7 @@ export default function ModelProvider({ port, client, dirty, registerSave }: Set
 
     const data = state.data;
     const perCliOriginal = data.perCli || {};
-    const cliKeys = Object.keys(perCliOriginal);
+    const cliKeys = orderModelCliKeys(Object.keys(perCliOriginal));
     const codexOriginal = perCliOriginal['codex'] || {};
     const overrides = data.activeOverrides || {};
     const overrideRows = Object.entries(overrides);
@@ -150,6 +164,9 @@ export default function ModelProvider({ port, client, dirty, registerSave }: Set
                             value={perCliDraft[cli] || perCliOriginal[cli] || {}}
                             setValue={(next) => setPerCliDraft({ ...perCliDraft, [cli]: next })}
                             setEntry={setEntry}
+                            client={client}
+                            pi={piDraft}
+                            setPi={setPiDraft}
                         />
                     ))
                 )}

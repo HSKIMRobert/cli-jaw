@@ -155,6 +155,7 @@ export function resolveSessionBucket(cli: string | null | undefined, model: stri
     if (cli === 'claude-e') return 'claude-e';
     if (cli === 'codex-app') return 'codex-app';
     if (cli === 'grok') return 'grok';
+    if (cli === 'pi') return 'pi';
     if (cli === 'codex' && isCodexSparkModel(model || '')) return 'codex-spark';
     return cli || '';
 }
@@ -164,6 +165,7 @@ export function buildArgs(cli: string, model: string, effort: string, prompt: st
     switch (cli) {
         case 'agy':
             return ['-p', prompt || '',
+                ...(model && model !== 'default' ? ['--model', model] : []),
                 '--print-timeout', options.agyPrintTimeout || AGY_PRINT_TIMEOUT,
                 ...(options.agyLogFile ? ['--log-file', options.agyLogFile] : []),
                 ...(autoPerm ? ['--dangerously-skip-permissions'] : []),
@@ -298,6 +300,7 @@ export function buildResumeArgs(cli: string, model: string, effort: string, sess
         case 'agy':
             return [...(sessionId ? ['--conversation', sessionId] : []),
                 '-p', prompt || '',
+                ...(model && model !== 'default' ? ['--model', model] : []),
                 '--print-timeout', options.agyPrintTimeout || AGY_PRINT_TIMEOUT,
                 ...(options.agyLogFile ? ['--log-file', options.agyLogFile] : []),
                 ...(autoPerm ? ['--dangerously-skip-permissions'] : []),

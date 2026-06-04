@@ -90,7 +90,7 @@ docker compose up -d       # → http://localhost:3457
 
 ## CLI-JAW 是什么？
 
-CLI-JAW 是一个开源平台，将你已经在用的 AI 编码 CLI — Antigravity、AI-E、Claude、Claude E、Codex、Codex App、Cursor、Gemini、Grok、OpenCode、Copilot — 统一成**一个助手、一份记忆、一个仪表盘**。
+CLI-JAW 是一个开源平台，将你已经在用的 AI 编码 CLI — Pi、Antigravity、AI-E、Claude、Claude E、Codex、Codex App、Cursor、Gemini、Grok、Kiro、OpenCode、Copilot — 统一成**一个助手、一份记忆、一个仪表盘**。
 
 你的主 CLI（Boss）调度其他 CLI 作为"员工"。不用在各种应用之间来回切换，直接在一个地方下达指令。
 
@@ -247,6 +247,7 @@ jaw dispatch --agent "Frontend" --task "修复 dashboard.tsx 中的 CSS grid 布
 
 | CLI | 默认模型 | 认证 | 费用 |
 |---|---|---|---|
+| **Pi** | `grok-composer-2.5-fast` | Settings profile API key、local proxy，或 `PI_CODING_AGENT_BIN` | 通过隔离的 `PI_CODING_AGENT_DIR` 连接 local/API endpoint 的 first-class `pi --mode rpc` runtime |
 | **Claude** | `claude-opus-4-8` | `claude auth login` | Claude Pro 或更高订阅 |
 | **Claude E** | `claude-opus-4-8` | underlying `claude auth login` | Claude Pro 或更高订阅；6 月订阅赠送额度的推荐 runtime |
 | **AI-E** | provider-selected | 所选 provider 认证 | 多 provider runtime wrapper |
@@ -261,7 +262,7 @@ jaw dispatch --agent "Frontend" --task "修复 dashboard.tsx 中的 CSS grid 布
 
 GPT 5.5 和 Claude Opus 4.8 从 Pro 订阅及以上开放。自 6 月起，如果要使用订阅计划赠送的 Claude 用量，请选择 `claude-e` runtime。
 
-配额/状态面板保持与 registry 相同的 runtime keyset。Wrapper runtime（`ai-e`, `claude-e`, `codex-app`）委托给 underlying provider；AGY/Cursor/Grok/OpenCode 这类 CLI 不暴露 quota window 时，会以 auth/status-only 显示。
+配额/状态面板保持与 registry 相同的 runtime keyset。Wrapper runtime（`ai-e`, `claude-e`, `codex-app`）委托给 underlying provider；Pi/AGY/Cursor/Grok/OpenCode 这类 CLI 不暴露 quota window 时，会以 auth/status-only 显示。
 
 **回退链**：当一个引擎被限速时，下一个自动接上。用 `/fallback [cli1 cli2...]` 配置。
 
@@ -462,7 +463,7 @@ npm run gate:all       # 发布/文档一致性门禁
 
 | | CLI-JAW 2.0 | Hermes Agent | Claude Code |
 |---|---|---|---|
-| **模型接入** | Antigravity、AI-E、Claude、Claude E、Codex、Codex App、Cursor、Gemini、Grok、OpenCode 和 Copilot（通过厂商/原生认证） | API 密钥（OpenRouter 200+、Nous Portal） | 仅 Anthropic |
+| **模型接入** | Pi、Antigravity、AI-E、Claude、Claude E、Codex、Codex App、Cursor、Gemini、Grok、Kiro、OpenCode 和 Copilot（通过厂商/原生认证） | API 密钥（OpenRouter 200+、Nous Portal） | 仅 Anthropic |
 | **费用模型** | 你已经在付的月订阅 | 按 token API 计费 | Anthropic 订阅 |
 | **主 UI** | 管理仪表盘 + Web 应用 + Mac 应用 + 终端 UI | 仅终端 | CLI + IDE 插件 |
 | **仪表盘** | 多实例管理器、看板、笔记工作区 | 无 | 无 |
