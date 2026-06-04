@@ -13,6 +13,7 @@ type InstancePreviewProps = {
     theme: PreviewTheme;
     onOpenNotesFromPreview?: (path: string) => void;
     onOpenDocFromPreview?: (absolutePath: string) => void;
+    onPreviewDroppedFiles?: (files: File[]) => void;
 };
 
 type PreviewOpenNotesMessage = {
@@ -24,6 +25,11 @@ type PreviewSendMessage = {
     type?: unknown;
     requestId?: unknown;
     prompt?: unknown;
+};
+
+type PreviewDroppedFilesMessage = {
+    type?: unknown;
+    files?: unknown;
 };
 
 function normalizeLoopbackHostname(hostname: string): string {
@@ -144,6 +150,11 @@ function isPreviewSttShortcut(event: KeyboardEvent): boolean {
     return primarySpace || fallbackMic;
 }
 
+function extractDroppedFiles(data: PreviewDroppedFilesMessage | null): File[] {
+    if (!data || data.type !== 'jaw-preview-dropped-files' || !Array.isArray(data.files)) return [];
+    return data.files.filter((item): item is File => item instanceof File);
+}
+
 export function InstancePreview(props: InstancePreviewProps) {
     const iframeRef = useRef<HTMLIFrameElement | null>(null);
     const loadedSrcRef = useRef<string | null>(null);
@@ -224,12 +235,21 @@ export function InstancePreview(props: InstancePreviewProps) {
             props.onOpenDocFromPreview?.(path);
         }
         window.addEventListener('message', onPreviewOpenDoc);
+        function onPreviewDroppedFiles(event: MessageEvent): void {
+            if (event.source !== iframeRef.current?.contentWindow) return;
+            if (!state.src || !previewFrameOriginMatches(event.origin, state.src, iframeRef.current)) return;
+            const files = extractDroppedFiles(event.data as PreviewDroppedFilesMessage | null);
+            if (files.length === 0) return;
+            props.onPreviewDroppedFiles?.(files);
+        }
+        window.addEventListener('message', onPreviewDroppedFiles);
         return () => {
             window.removeEventListener('message', onPreviewSend);
             window.removeEventListener('message', onPreviewOpenNotes);
             window.removeEventListener('message', onPreviewOpenDoc);
+            window.removeEventListener('message', onPreviewDroppedFiles);
         };
-    }, [props.enabled, props.instance, props.onOpenNotesFromPreview, props.onOpenDocFromPreview, state.canPreview, state.src]);
+    }, [props.enabled, props.instance, props.onOpenNotesFromPreview, props.onOpenDocFromPreview, props.onPreviewDroppedFiles, state.canPreview, state.src]);
 
     useEffect(() => {
         if (!props.active || !props.enabled || !state.canPreview || !state.src) return undefined;

@@ -35,7 +35,7 @@ public/
 │   ├── features/         ← 48 feature modules
 │   └── render/           ← 13 markdown/diagram rendering modules
 ├── locales/              ← ko/en/ja/zh JSON bundles
-├── manager/              ← React manager dashboard (297 files)
+├── manager/              ← React manager dashboard (298 files)
 │   ├── index.html        ← Manager HTML entry
 │   └── src/              ← React components/hooks/styles
 └── dist/                 ← Vite build output (generated)
@@ -45,12 +45,12 @@ public/
 
 | 영역 | 파일 수 | 비고 |
 | --- | ---: | --- |
-| `public/` source/assets (generated 제외) | 426 | `public/dist/*`, `public/public/dist/*` 모두 제외 |
+| `public/` source/assets (generated 제외) | 428 | `public/dist/*`, `public/public/dist/*` 모두 제외 |
 | `public/js/` root | 18 | TypeScript ES modules |
 | `public/js/diagram/` | 3 | SVG/iframe diagram pipeline |
 | `public/js/render/` | 13 | markdown/KaTeX/Mermaid/SVG/file-link/post-render 책임 분리 |
 | `public/js/features/` | 48 | settings 분해 + help/attention/orchestrate scope + process-step-match + preview shortcut/invalidate bridge + MCP registry + chat-search + workflow-event-adapter + media-lightbox 포함 |
-| `public/manager/src/` | 297 | React 19 manager dashboard |
+| `public/manager/src/` | 298 | React 19 manager dashboard |
 | `public/css/` | 12 | theme/layout/chat/markdown/tool UI/diagram/trace drawer/workflow cockpit/chat-search |
 | `public/locales/` | 4 | `ko.json`, `en.json`, `ja.json`, `zh.json` |
 | `public/assets/providers/` | 18 | provider SVG 세트 |
@@ -209,11 +209,12 @@ settings.ts (barrel)
 | `manager/src/main.tsx` | `react-dom/client` `createRoot()`로 `App` 렌더 |
 | `manager/src/App.tsx` | 475L — instance scan/filter/select/lifecycle + dashboard section 상태 orchestration |
 | `manager/src/AppChrome.tsx` | App chrome shell (sidebar rail + workspace layout) |
-| `manager/src/SidebarRailRouter.tsx` | 295L — sidebar rail routing to workspace panels |
-| `manager/src/InstancePreview.tsx` | 283L — preview iframe mount/theme sync + STT shortcut bridge + sandbox popup escape + `jaw-preview-open-doc` 수신 |
+| `manager/src/SidebarRailRouter.tsx` | 323L — sidebar rail routing to workspace panels + Electron drop routing to FolderPanel/DocPanel |
+| `manager/src/InstancePreview.tsx` | 303L — preview iframe mount/theme sync + STT shortcut bridge + sandbox popup escape + `jaw-preview-open-doc` + preview dropped-file metadata 수신 |
 | `manager/src/panels/` | desktop panel infra: `PanelResizer`, `PanelLayoutProvider`, `RightSidebar`, `BottomPanel`, `BottomPanelTabBar`, `desktop-bridge`, `panel-capabilities`, `panel-shortcut-bus` |
-| `manager/src/doc-panel/` | `DocPanel.tsx` — `.md` 절대경로를 우측 사이드바에 markdown preview로 렌더(Electron only) |
-| `manager/src/folder-panel/` | Electron desktop folder tree panel |
+| `manager/src/hooks/useElectronDroppedPaths.ts` | 89L — Electron-only OS file/folder drop resolver; Manager drops route to right panel, preview drops preserve iframe chip passthrough |
+| `manager/src/doc-panel/` | `DocPanel.tsx` — dropped file / `.md` 절대경로를 우측 사이드바에 markdown preview로 렌더(Electron only) |
+| `manager/src/folder-panel/` | Electron desktop folder tree panel; dropped folders can become the active root |
 | `manager/src/terminal/` | Electron desktop terminal panel |
 | `manager/src/browser-panel/` | Electron desktop Browser panel (Google default, URL/search normalization) |
 | `manager/src/diff-panel/` | Electron desktop Git Diff panel (server-backed via `/api/dashboard/git/*`) |

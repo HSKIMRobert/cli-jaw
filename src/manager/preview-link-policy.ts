@@ -1,8 +1,11 @@
 import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'node:http';
 
 const LINK_POLICY_MARKER = 'data-jaw-preview-link-policy';
+const DROP_OBSERVER_MARKER = 'data-jaw-preview-drop-observer';
 
 const PREVIEW_LINK_POLICY_SCRIPT = `<script ${LINK_POLICY_MARKER}>(function(){function e(e){try{return new URL(e,location.href)}catch{return null}}function t(e){if(!e)return false;if(e.protocol!=="http:"&&e.protocol!=="https:")return false;if(e.username||e.password)return false;return e.origin!==location.origin}function n(e){var t=e&&e.nodeType===1?e:e&&e.parentElement;return t&&t.closest?t.closest("a[href]"):null}function r(e){if(!t(e))return false;window.open(e.href,"_blank","noopener,noreferrer");return true}document.addEventListener("click",function(o){var i=n(o.target);if(!i)return;var a=e(i.getAttribute("href")||"");if(!t(a))return;o.preventDefault();r(a)},true);document.addEventListener("submit",function(n){var r=n.target;if(!r||!r.action)return;var o=e(r.action);if(!t(o))return;r.target="_blank"},true);})();</script>`;
+const PREVIEW_DROP_OBSERVER_SCRIPT = `<script ${DROP_OBSERVER_MARKER}>(function(){function t(){try{return document.referrer?new URL(document.referrer).origin:"*"}catch{return"*"}}document.addEventListener("drop",function(e){try{var r=e.dataTransfer&&e.dataTransfer.files?Array.prototype.slice.call(e.dataTransfer.files):[];if(!r.length||!window.parent||window.parent===window)return;setTimeout(function(){try{window.parent.postMessage({type:"jaw-preview-dropped-files",files:r},t())}catch(e){}},0)}catch(e){}},true);})();</script>`;
+const PREVIEW_INJECTED_SCRIPTS = `${PREVIEW_LINK_POLICY_SCRIPT}${PREVIEW_DROP_OBSERVER_SCRIPT}`;
 
 function headerValue(headers: IncomingHttpHeaders | OutgoingHttpHeaders, key: string): string {
     const value = headers[key] ?? headers[key.toLowerCase()];
@@ -45,12 +48,16 @@ export function prepareInjectedPreviewHeaders(
 }
 
 export function injectPreviewLinkPolicy(html: string): string {
-    if (!html || html.includes(LINK_POLICY_MARKER)) return html;
+    if (!html || (html.includes(LINK_POLICY_MARKER) && html.includes(DROP_OBSERVER_MARKER))) return html;
+    const scripts = [
+        html.includes(LINK_POLICY_MARKER) ? '' : PREVIEW_LINK_POLICY_SCRIPT,
+        html.includes(DROP_OBSERVER_MARKER) ? '' : PREVIEW_DROP_OBSERVER_SCRIPT,
+    ].join('');
     if (/<head(?:\s[^>]*)?>/i.test(html)) {
-        return html.replace(/<head(?:\s[^>]*)?>/i, match => `${match}${PREVIEW_LINK_POLICY_SCRIPT}`);
+        return html.replace(/<head(?:\s[^>]*)?>/i, match => `${match}${scripts}`);
     }
     if (/<html(?:\s[^>]*)?>/i.test(html)) {
-        return html.replace(/<html(?:\s[^>]*)?>/i, match => `${match}${PREVIEW_LINK_POLICY_SCRIPT}`);
+        return html.replace(/<html(?:\s[^>]*)?>/i, match => `${match}${scripts}`);
     }
-    return `${PREVIEW_LINK_POLICY_SCRIPT}${html}`;
+    return `${scripts || PREVIEW_INJECTED_SCRIPTS}${html}`;
 }

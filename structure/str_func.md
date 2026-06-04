@@ -9,7 +9,7 @@ aliases: [CLI-JAW Source Structure, str_func, source structure reference]
 # CLI-JAW — Source Structure & Function Reference
 
 > 마지막 검증: 2026-06-03 (실제 코드베이스 재측정)
-> `server.ts` 903L / `src/routes/` 23 files (registrars + helper modules, 143 route handlers) / `src/cli/handlers*.ts` 397L + 499L + 97L + 57L + workflow 370L / `src/cli/api-auth.ts` 45L / `src/workflows/` 21 files + 3 subdirs (checkpoint/permissions/context-map) / `src/agent/` 28 root TS + `spawn/` 3 files + `events/` 12 files (spawn.ts 1990L + lifecycle-handler.ts 951L + kiro-runtime.ts 377L + kiro-auth.ts 230L + kiro-models.ts 98L + cursor-runtime.ts 239L) / `src/goal/` 4 files (347L) / `src/goal-run/` 5 files (289L) / `src/trace/` 3 files (276L) / `src/team/` 5 files (323L, team dispatch planner/collector/preflight) / `src/jaw-ceo/` 16 files (2614L, OpenAI Realtime CEO channel) / `src/shared/` 2 files (253L) / `src/manager/` 80+ TS files (dashboard + board/notes/search/schedule/reminders/connector/routes/memory/git) / `src/browser/web-ai/` 59 TS files + `adaptive-fetch/` 18 files (2820L) / `src/types/` 3 files (296L) / `bin/commands/` 26 top-level ts files + `tui/` 9 helper files / `electron/` Electron tray app (25 TS files, 2844L) / `native/jaw-claude-i/` 11 Rust source files (1703L)
+> `server.ts` 903L / `src/routes/` 23 files (registrars + helper modules, 143 route handlers) / `src/cli/handlers*.ts` 397L + 499L + 97L + 57L + workflow 370L / `src/cli/api-auth.ts` 45L / `src/workflows/` 21 files + 3 subdirs (checkpoint/permissions/context-map) / `src/agent/` 28 root TS + `spawn/` 3 files + `events/` 12 files (spawn.ts 1990L + lifecycle-handler.ts 951L + kiro-runtime.ts 377L + kiro-auth.ts 230L + kiro-models.ts 98L + cursor-runtime.ts 239L) / `src/goal/` 4 files (347L) / `src/goal-run/` 5 files (289L) / `src/trace/` 3 files (276L) / `src/team/` 5 files (323L, team dispatch planner/collector/preflight) / `src/jaw-ceo/` 16 files (2614L, OpenAI Realtime CEO channel) / `src/shared/` 2 files (253L) / `src/manager/` 80+ TS files (dashboard + board/notes/search/schedule/reminders/connector/routes/memory/git) / `src/browser/web-ai/` 59 TS files + `adaptive-fetch/` 18 files (2820L) / `src/types/` 3 files (296L) / `bin/commands/` 26 top-level ts files + `tui/` 9 helper files / `electron/` Electron tray app (26 TS files, 2947L) / `native/jaw-claude-i/` 11 Rust source files (1703L)
 >
 > 상세 모듈 문서는 [서브 문서](#서브-문서)를 참조하세요.
 
@@ -19,7 +19,7 @@ aliases: [CLI-JAW Source Structure, str_func, source structure reference]
 
 ```text
 cli-jaw/
-├── server.ts                 ← Express 라우트 base + auth/CORS/rate-limit + WS bootstrap + `register*Routes()` glue + startup stale orc_state guard + graceful shutdown(closeDb) + employee migration + seed defaults + registerAvatarRoutes + async listen bootstrap (await initActiveMessagingRuntime) + orphaned jaw-emp-* cleanup + clearAllEmployeeSessions startup + no-store Vite index serving (942L)
+├── server.ts                 ← Express 라우트 base + auth/CORS/rate-limit + WS bootstrap + `register*Routes()` glue + startup stale orc_state guard + graceful shutdown(closeDb) + employee migration + seed defaults + registerAvatarRoutes + async listen bootstrap (await initActiveMessagingRuntime) + orphaned jaw-emp-* cleanup + clearAllEmployeeSessions startup + no-store Vite index serving (995L)
 ├── lib/                      ← 외부 통합/공용 헬퍼 (5 root files + mcp/ 8 files)
 │   ├── mcp-sync.ts           ← MCP 통합 + 스킬 복사 + softResetSkills + runSkillReset + trusted repair gate + clone cooldown (73L)
 │   ├── mcp/                  ← MCP 모듈 분리 (8 files)
@@ -84,7 +84,7 @@ cli-jaw/
 │   │   │   ├── tool-labels.ts ← tool name→label mapping (343L)
 │   │   │   └── types.ts      ← event type definitions (23L)
 │   │   ├── spawn-env.ts      ← spawn용 child env 빌더 (AGY NO_COLOR, OpenCode/Gemini permissions config 주입 등, 148L)
-│   │   ├── args.ts           ← CLI별 인자 빌더 + AGY print-mode/`--log-file`/`--conversation` resume args + `claude-e` helper run/resume args + session bucket 분리 (425L)
+│   │   ├── args.ts           ← CLI별 인자 빌더 + AGY print-mode/`--log-file`/`--conversation` resume args + `claude-e` helper run/resume args + session bucket 분리 (427L)
 │   │   ├── lifecycle-handler.ts ← child lifecycle + fallback/retry + queue resume orchestration + clearEmployeeSession on resume failure + stale resume fresh retry + kickGoalContinuation export + clearGoalTimers (951L)
 │   │   ├── kiro-auth.ts      ← Kiro CLI auth store reader (resolveKiroDataPath, readKiroAuthFromStore, resolveKiroProfileArn, regionFromProfileArn, listKiroConversationIdsForCwd, resolveKiroSessionIdAfterSpawn, extractKiroSessionIdFromV2Store) (230L)
 │   │   ├── kiro-models.ts    ← Kiro live model inventory (KiroModelEntry, KiroModelInventory, parseKiroModelListJson, fetchKiroModelInventory) (98L)
@@ -130,22 +130,22 @@ cli-jaw/
 │   │   ├── seed.ts           ← Interview seed/ontology builder (107L)
 │   │   └── sanitize.ts       ← Interview tracker strip helper (51L)
 │   ├── prompt/               ← 프롬프트 조립 (4 files + templates/ 10 files)
-│   │   ├── builder.ts        ← A-1/A-2 + 스킬 + 직원 프롬프트 v2 + promptCache (4-segment key: emp:role:phase:workingDir) + on-demand dev skill path contract + advanced memory mode branch + task snapshot injection + dashboard-connector anchor preserve (806L)
+│   │   ├── builder.ts        ← A-1/A-2 + 스킬 + 직원 프롬프트 v2 + promptCache (4-segment key: emp:role:phase:workingDir) + on-demand dev skill path contract + advanced memory mode branch + task snapshot injection + dashboard-connector anchor preserve (811L)
 │   │   ├── runtime-context.ts ← 런타임 컨텍스트 주입 (RuntimeContextEntry, loadEntries, getActiveEntries, addEntry, removeEntry, clearAll, buildInjectionBlock) (80L)
 │   │   ├── soul-bootstrap-prompt.ts ← LLM 기반 soul.md 개인화 부트스트랩 프롬프트 빌더 (52L)
 │   │   ├── template-loader.ts ← 프롬프트 템플릿 로더 (50L)
 │   │   └── templates/        ← 프롬프트 템플릿 (a1-system.md, a2-default.md, employee.md, orchestration.md, control-system.md, worker-context.md, vision-click.md, skills.md, heartbeat-*.md)
 │   ├── cli/                  ← 커맨드 시스템 (18 root files + tui/ 18 files)
-│   │   ├── commands.ts       ← 슬래시 커맨드 레지스트리 + workflow metadata + 디스패처 + 파일경로 필터 + /commands alias /cmd + /orchestrate alias /pabcd + /compact + /plan + artifact persistence (411L)
+│   │   ├── commands.ts       ← 슬래시 커맨드 레지스트리 + workflow metadata + 디스패처 + 파일경로 필터 + /commands alias /cmd + /orchestrate alias /pabcd + /compact + /plan + artifact persistence (413L)
 │   │   ├── handlers.ts       ← core command handlers + runtime/completion re-export hub + compact re-export + unknown command recovery payload (409L)
 │   │   ├── handlers-runtime.ts ← memory/browser/prompt/quit/file/steer/forward/fallback/flush/ide/orchestrate 핸들러 + `LEGACY_MODEL_CLI_HINTS` (499L)
 │   │   ├── handlers-completions.ts ← `/model` `/cli` `/skill` `/employee` `/browser` `/fallback` `/flush` 인자 자동완성 헬퍼 (97L)
-│   │   ├── handlers-workflows.ts ← `/plan` PABCD P 안내 + `/interview` `/deliberate` `/planaudit` prompt handlers + `/goal` gated stub + `/goal run` preflight gate (385L)
+│   │   ├── handlers-workflows.ts ← `/plan` PABCD P 안내 + `/interview` `/deliberate` `/planaudit` prompt handlers + `/goal` gated stub + `/goal run` preflight gate (438L)
 │   │   ├── handlers-project.ts ← `/project` 커맨드 핸들러 (projectDirs 관리) (57L) ✨
 │   │   ├── api-auth.ts       ← CLI→server Bearer token bootstrap (`getCliAuthToken`, `authHeaders`, `cliFetch`) (45L)
 │   │   ├── claude-models.ts  ← Claude 정규 모델셋 (CLAUDE_CANONICAL_MODELS, CLAUDE_LEGACY_VALUE_MAP) + migration/validation helpers (78L)
 │   │   ├── compact.ts        ← /compact 슬래시 커맨드 핸들러 (Claude native + managed 경로 분기) + working_dir scoped (139L)
-│   │   ├── registry.ts       ← 12개 CLI/모델 단일 소스 + canonical defaults + top-level `agy`/`cursor`/`ai-e`/`claude-e`/`kiro-code` (213L)
+│   │   ├── registry.ts       ← 12개 CLI/모델 단일 소스 + canonical defaults + top-level `agy`/`cursor`/`ai-e`/`claude-e`/`kiro-code` (220L)
 │   │   ├── registry-live.ts  ← buildLiveCliRegistry — Kiro model inventory 동적 병합 (fetchKiroModelInventory → registry clone) (17L)
 │   │   ├── readiness.ts      ← CLI별 인증/설치 상태 점검 + AGY runtime auth hint + `claude-e` underlying Claude auth/readiness bridge (CliReadiness[]) (163L)
 │   │   ├── acp-client.ts     ← Copilot ACP JSON-RPC 클라이언트 (382L)
@@ -319,18 +319,18 @@ cli-jaw/
 │       ├── checkpoint/       ← checkpoint store + types (2 files, 59L) ✨
 │       ├── permissions/      ← permission policy + types (2 files, 80L) ✨
 │       └── context-map/      ← context map builder (1 file, 71L) ✨
-├── public/                   ← Web UI (Vite 8 + ES Modules, ~80459L)
+├── public/                   ← Web UI (Vite 8 + ES Modules, ~80734L)
 │   ├── index.html            ← 뼈대 (1072L)
 │   ├── manifest.json         ← PWA 매니페스트
 │   ├── sw.js                 ← Service Worker 오프라인 캐시
 │   ├── css/                  ← 11 files (variables/layout/markdown/chat/diagram/orc-state/sidebar/modals/tool-ui/trace-drawer)
 │   ├── locales/              ← i18n (ko/en/ja/zh .json)
 │   └── js/                   ← 75 .ts files (root 17 + features/ 43 + diagram/ 3 + render/ 12, 전 파일 TypeScript)
-├── electron/                 ← Electron tray background app (25 TS files, 2844L) ✨
+├── electron/                 ← Electron tray background app (26 TS files, 2947L) ✨
 │   ├── package.json / electron-builder.yml / electron.vite.config.ts
 │   └── src/
 │       ├── main/index.ts     ← Electron main process — BrowserWindow + tray + jaw server spawn + deep-link + IPC (1053L)
-│       ├── main/lib/         ← 22 helper modules (jaw-spawn 196L, tray-manager 154L, terminal/ 185L, navigation-policy 112L, app-metrics 93L, folder/ipc 171L, health-check 78L, deep-link 78L, permissions, path-security, quit-progress, etc.)
+│       ├── main/lib/         ← 23 helper modules (jaw-spawn 196L, tray-manager 154L, terminal/ 185L, navigation-policy 112L, app-metrics 93L, folder/ipc 190L + dropped-paths 70L, health-check 78L, deep-link 78L, permissions, path-security, quit-progress, etc.)
 │       └── preload/          ← preload scripts (index 112L + metrics 68L)
 ├── native/
 │   └── jaw-claude-i/         ← Claude Interactive native helper (Rust, 11 src files, 1703L)
@@ -462,7 +462,7 @@ graph LR
 15. **Kiro provider**: `kiro-auth.ts` (auth store reader) + `kiro-models.ts` (live inventory) + `kiro-runtime.ts` (stdout parser) + `registry-live.ts` (dynamic merge)
 16. **Interview enhancement**: `orchestrator/friction.ts` (5-level clarity + oscillation detection) + `seed.ts` (evidence-ref ontology) + `sanitize.ts` (tracker strip) + pipeline.ts budget gate
 17. **TUI**: `src/cli/tui/` 18 files — transcript model + composer (paste collapse) + overlay (help/palette/selector) + text-buffer + theme + render/ sub-modules; `bin/commands/tui/` 9 files — fullscreen/simple mode + input-handler + ws-handler
-18. **Electron tray**: `electron/` — background mode, jaw server spawn, tray menu, deep-link, terminal IPC, navigation policy, permission diagnostics
+18. **Electron tray**: `electron/` — background mode, jaw server spawn, tray menu, deep-link, terminal IPC, folder/drop path IPC, navigation policy, permission diagnostics
 19. **Adaptive fetch**: `src/browser/adaptive-fetch/` 18 files — multi-strategy web fetch (direct → reader API → browser escalation) with WAF detection + content scoring
 20. **Team dispatch**: `src/team/` — planner/collector/dispatcher/preflight for structured multi-employee coordination
 21. **Jaw CEO**: `src/jaw-ceo/` — OpenAI Realtime API sideband channel + coordinator (admin/workers/completions/realtime-tools)
