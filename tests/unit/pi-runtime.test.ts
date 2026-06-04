@@ -146,8 +146,7 @@ test('Pi RPC parser extracts tool_execution events with toolName field', () => {
         args: { command: 'ls /tmp' },
         partialResult: { content: [] },
     });
-    assert.equal(update.tool?.label, 'bash');
-    assert.equal(update.tool?.status, 'running');
+    assert.deepEqual(update, {});
 
     const end = parsePiRpcRecord({
         type: 'tool_execution_end',
@@ -161,7 +160,7 @@ test('Pi RPC parser extracts tool_execution events with toolName field', () => {
     assert.ok(end.tool?.detail?.includes('file1.txt'));
 });
 
-test('Pi RPC parser routes toolcall_start/end as tool events with name', () => {
+test('Pi RPC parser routes toolcall_end as tool event, toolcall_start is dropped', () => {
     const start = parsePiRpcRecord({
         type: 'message_update',
         assistantMessageEvent: {
@@ -175,7 +174,7 @@ test('Pi RPC parser routes toolcall_start/end as tool events with name', () => {
             },
         },
     });
-    assert.equal(start.tool?.label, 'bash');
+    assert.deepEqual(start, {});
 
     const end = parsePiRpcRecord({
         type: 'message_update',

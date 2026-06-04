@@ -313,15 +313,12 @@ export function parsePiRpcRecord(record: unknown): { done?: boolean; text?: stri
                 if (delta) return { text: delta };
                 return {};
             }
-            if (ameType === 'toolcall_start' || ameType === 'toolcall_end') {
+            if (ameType === 'toolcall_end') {
                 const tc = (a['toolCall'] || extractToolCallFromPartial(a['partial'])) as Record<string, unknown> | undefined;
                 const name = tc ? trimString(tc['name']) : '';
                 const args = tc && tc['arguments'] ? JSON.stringify(tc['arguments']).slice(0, 2000) : '';
                 const label = name || 'Pi tool';
-                const tool: { label: string; status: string; detail?: string } = {
-                    label,
-                    status: ameType === 'toolcall_end' ? 'calling' : 'preparing',
-                };
+                const tool: { label: string; status: string; detail?: string } = { label, status: 'calling' };
                 if (args) tool.detail = args;
                 return { tool };
             }
@@ -336,7 +333,7 @@ export function parsePiRpcRecord(record: unknown): { done?: boolean; text?: stri
         return finalText ? { ...base, text: finalText } : base;
     }
 
-    if (/^tool_execution_(start|update|end)$/.test(type)) {
+    if (/^tool_execution_(start|end)$/.test(type)) {
         const name = trimString(obj['toolName'] || obj['name'] || obj['tool_name']) || 'Pi tool';
         const argsStr = obj['args'] != null ? JSON.stringify(obj['args']).slice(0, 2000) : '';
         const resultObj = obj['result'] && typeof obj['result'] === 'object' ? obj['result'] as Record<string, unknown> : null;
@@ -468,6 +465,9 @@ export function spawnPiRpc(profile: PiProfile, pi: PiSettings, options: {
     };
     write('get_state');
     if (options.effort) write('set_thinking_level', { level: options.effort });
-    write('prompt', { message: options.sysPrompt ? `${options.sysPrompt}\n\n${options.prompt}` : options.prompt });
+    const fullPrompt = options.sysPrompt ? `${options.sysPrompt}\n\n${options.prompt}` : options.prompt;
+    const hasHistory = fullPrompt.includes('[Recent Context]');
+    console.log(`[jaw:pi] prompt len=${fullPrompt.length}, hasHistory=${hasHistory}, effort=${options.effort || 'none'}`);
+    write('prompt', { message: fullPrompt });
     return { child, done };
 }
