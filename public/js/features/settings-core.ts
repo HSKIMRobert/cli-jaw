@@ -185,20 +185,21 @@ function syncActiveEffortOptions(cli: string, selected = ''): void {
     const providerEfforts = cli === 'ai-e' && aiEProvider
         ? (meta?.effortsByProvider?.[aiEProvider] || [])
         : null;
-    if (meta?.effortNote) {
+    const effortsList = providerEfforts || meta?.efforts || [];
+    if (meta?.effortNote && effortsList.length === 0) {
         selEffort.innerHTML = `<option value="">${escapeHtml(meta.effortNote)}</option>`;
         selEffort.title = meta.effortNote;
         selEffort.disabled = true;
         return;
     }
-    const efforts = [''].concat(providerEfforts || meta?.efforts || []);
+    const efforts = [''].concat(effortsList);
     const unique = [...new Set(efforts)];
     selEffort.innerHTML = unique.map(v => {
         if (!v) return '<option value="">— none</option>';
         return `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`;
     }).join('');
     selEffort.disabled = false;
-    selEffort.title = '';
+    selEffort.title = meta?.effortNote || '';
     if (Array.from(selEffort.options).some(o => o.value === selected)) selEffort.value = selected;
 }
 
