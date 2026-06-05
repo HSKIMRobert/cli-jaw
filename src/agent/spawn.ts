@@ -1410,6 +1410,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 processQueue,
             });
         }).catch((err: Error) => {
+            piWatchdog.stop();
             ctx.stderrBuf += err.message;
             console.error('[jaw:pi] runtime failed:', err.message);
             handleAgentExit({
