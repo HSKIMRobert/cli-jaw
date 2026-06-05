@@ -728,7 +728,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     const cfg = settings["perCli"]?.[cli] || {};
     const ao = settings["activeOverrides"]?.[cli] || {};
     const requestedModel = opts.model || ao.model || cfg.model || 'default';
-    const effort = opts.effort || ao.effort || cfg.effort || '';
+    const effort = opts.effort ?? ao.effort ?? cfg.effort ?? '';
     const effectiveProvider = cli === 'ai-e'
         ? resolveAiEProvider(
             typeof cfg.provider === 'string'
@@ -1309,13 +1309,20 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             }
             ctx.thinkingBuf = '';
         }
+        const piToolDiscipline = [
+            '[Pi Tool Discipline]',
+            'Your coding tools are strictly lowercase. Use ONLY these exact names:',
+            'read, bash, edit, write, grep, find, ls',
+            'Capitalized variants (Grep, Read, Edit, Write, Find, Ls) will fail with "Tool not found".',
+        ].join('\n');
+        const piSysPrompt = sysPrompt ? `${sysPrompt}\n\n${piToolDiscipline}` : piToolDiscipline;
         const { child, done } = spawnPiRpc(profile, pi, {
             prompt: piPrompt,
             model: runtimeModel,
             ...(piSessionId ? { sessionId: piSessionId } : {}),
             effort,
             cwd: spawnCwd,
-            sysPrompt,
+            sysPrompt: piSysPrompt,
             onEvent: (event) => {
                 opts.lifecycle?.onActivity?.('pi-rpc');
                 if (event.kind === 'thinking') {
