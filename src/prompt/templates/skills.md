@@ -7,7 +7,7 @@
 These skills are installed and available for reference.
 **Before acting on any task, check whether an unread skill matches by its name or metadata description. If one matches, read its SKILL.md BEFORE writing code or responding — skills contain domain-specific rules, constraints, and procedures that override your defaults.**
 **Development tasks**: Before writing code, ALWAYS read `{{JAW_HOME}}/skills/dev/SKILL.md` for project conventions.
-For role-specific tasks, also read the relevant skill (dev-frontend, dev-backend, dev-data, dev-testing).
+For role-specific tasks, also read the relevant skill (dev-frontend, dev-uiux-design, dev-backend, dev-data, dev-testing).
 {{ACTIVE_SKILLS_LIST}}
 
 ### Available Skills ({{REF_SKILLS_COUNT}})
