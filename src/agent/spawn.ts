@@ -1358,6 +1358,19 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 }
             },
         });
+        const piWatchdog = attachWatchdog(child, agentLabel, (reason) => {
+            console.log(`[jaw:watchdog] killing ${agentLabel} (pi) — ${reason}`);
+            ctx.stallReason = reason;
+            if (child.pid) {
+                killProcessTree(child.pid, 'SIGTERM');
+                const pid = child.pid;
+                setTimeout(() => {
+                    try { killProcessTree(pid, 'SIGKILL'); } catch { /* already dead */ }
+                }, 5_000);
+            }
+        });
+        ctx.stallWatchdog = piWatchdog;
+
         if (mainManaged) activeProcess = child;
         if (activeProcesses.has(agentLabel)) {
             console.warn(`[spawn:dup] activeProcesses already has child for ${agentLabel} — orphaning previous reference`);
@@ -1371,6 +1384,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         if (!opts.internal) broadcast('agent_status', { status: 'running', cli, agentId: agentLabel, provider: profile.id, ...empTag }, traceAudience);
 
         done.then((result) => {
+            piWatchdog.stop();
             flushPiThinking();
             ctx.stderrBuf += result.stderr || '';
             if (result.sessionId) ctx.sessionId = result.sessionId;
@@ -2018,7 +2032,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         const text = chunk.toString().trim();
         appendTraceEvent({ runId: ctx.traceRunId, source: 'stderr', eventType: 'stderr', raw: text });
         console.error(`[jaw:stderr:${agentLabel}] ${text}`);
-        ctx.stderrBuf += text + '\n';
+        if (ctx.stderrBuf.length < 4000) ctx.stderrBuf += text + '\n';
     });
 
     child.on('close', (code) => {
