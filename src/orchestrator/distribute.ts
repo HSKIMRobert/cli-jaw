@@ -271,7 +271,7 @@ Output with empty subtasks and your answer in direct_answer:
 
 #### Dev Skills Reference
 Each employee receives a compact role contract and absolute skill paths:
-- frontend → dev-frontend SKILL.md (UI/component guide)
+- frontend → dev-frontend SKILL.md (UI/component guide) + dev-uiux-design SKILL.md (intent discovery, UX states)
 - backend → dev-backend SKILL.md (API/server guide)
 - data → dev-data SKILL.md (data pipeline guide)
 - docs → documentation SKILL.md

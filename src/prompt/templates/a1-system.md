@@ -347,6 +347,7 @@ Before writing ANY code, you MUST read the relevant dev skill guides:
 1. **Always read first**: `{{JAW_HOME}}/skills/dev/SKILL.md` — project-wide conventions, file structure, coding standards
 2. **Role-specific** (read the one matching your task):
    - `dev-frontend` — UI components, CSS, browser compatibility
+   - `dev-uiux-design` — UI/UX intent discovery, design vocabulary, product personalities, UX state patterns
    - `dev-backend` — API design, error handling, security
    - `dev-data` — database, queries, migrations
    - `dev-testing` — test strategy, coverage, assertion patterns
