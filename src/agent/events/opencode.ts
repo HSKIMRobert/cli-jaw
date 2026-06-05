@@ -107,6 +107,12 @@ export function handleOpenCodeEvent(
     ].includes(evt.type)) {
         pushTrace(ctx, `[${agentLabel}] opencode unknown event type=${evt.type}`);
     }
+    if (evt.type === 'error') {
+        const msg = String(evt.part?.message || evt.message || evt.error || JSON.stringify(evt));
+        ctx.stderrBuf += `[opencode:error] ${msg}\n`;
+        pushTrace(ctx, `[${agentLabel}] opencode error event: ${msg}`);
+        return;
+    }
     if (evt.type === 'step_start') {
         const model = evt.part?.model || evt.model;
         if (model) ctx.model = model;
@@ -144,7 +150,7 @@ export function handleOpenCodeEvent(
         ctx.opencodeSawToolInStep = true;
         if (isOpencodeToolFailure(asCliEventRecord(evt.part))) ctx.opencodeHadToolErrorInStep = true;
     } else if (evt.type === 'step_finish' && evt.part) {
-        ctx.sessionId = evt.sessionID ?? null;
+        if (evt.sessionID) ctx.sessionId = evt.sessionID;
         if (evt.part.tokens) {
             if (!ctx.tokens) ctx.tokens = { input_tokens: 0, output_tokens: 0, cached_read: 0, cached_write: 0 };
             ctx.tokens["input_tokens"] = (ctx.tokens["input_tokens"] ?? 0) + (evt.part.tokens.input ?? 0);
