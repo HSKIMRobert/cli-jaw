@@ -113,9 +113,9 @@ export async function statusHandler(_args: string[], ctx: CliCommandContext): Pr
         ? (session["effort"] as string)
         : undefined;
     const effort = overrideEffort
-        || sessionEffort
-        || (settings?.["perCli"] as Record<string, { effort?: string }> | undefined)?.[cli]?.effort
-        || '-';
+        ?? sessionEffort
+        ?? (settings?.["perCli"] as Record<string, { effort?: string }> | undefined)?.[cli]?.effort
+        ?? '-';
     const activeAgent = runtime?.["activeAgent"];
     const agent = activeAgent === true
         ? '● running'
