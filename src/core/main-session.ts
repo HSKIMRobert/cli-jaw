@@ -29,7 +29,7 @@ export function getCliModelAndEffort(
     const pc = currentSettings["perCli"]?.[cli] || {};
     return {
         model: ao.model || pc.model || 'default',
-        effort: ao.effort || pc.effort || 'medium',
+        effort: ao.effort ?? pc.effort ?? 'medium',
     };
 }
 
