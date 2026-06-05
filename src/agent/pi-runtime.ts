@@ -260,7 +260,7 @@ export function listPiModels(piInput: unknown, profileId: string, options: { eff
             reject(Object.assign(new Error('pi model discovery timed out'), { statusCode: 504 }));
         }, options.timeoutMs ?? 20_000);
         child.stdout.on('data', (chunk) => { stdout += chunk.toString(); });
-        child.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
+        child.stderr.on('data', (chunk) => { if (stderr.length < 4000) stderr += chunk.toString(); });
         child.on('error', (err) => {
             clearTimeout(timer);
             reject(err);
@@ -412,10 +412,15 @@ export function spawnPiRpc(profile: PiProfile, pi: PiSettings, options: {
             }, 750);
             resolve({ text, code, sessionId, stderr });
         };
+        let parseFailures = 0;
         const dispatchLine = (line: string) => {
             let parsed: unknown;
             try { parsed = JSON.parse(line); }
-            catch { return; }
+            catch {
+                parseFailures++;
+                console.warn(`[jaw:pi] JSON parse failed (${parseFailures}): ${line.slice(0, 200)}`);
+                return;
+            }
             const event = parsePiRpcRecord(parsed);
             if (event.sessionId) {
                 sessionId = event.sessionId;
@@ -436,7 +441,7 @@ export function spawnPiRpc(profile: PiProfile, pi: PiSettings, options: {
             buffer = lines.pop() ?? '';
             for (const line of lines) if (line.trim()) dispatchLine(line.trim());
         });
-        child.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
+        child.stderr.on('data', (chunk) => { if (stderr.length < 4000) stderr += chunk.toString(); });
         child.on('close', (code) => {
             if (buffer.trim()) dispatchLine(buffer.trim());
             finish(code ?? 0);
