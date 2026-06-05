@@ -168,7 +168,7 @@ function syncPerCliModelAndEffortControls(settings: SettingsData | null = null):
                 ? (meta?.effortsByProvider?.[aiEProvider] || [])
                 : null;
             const options = [''].concat(providerEfforts || meta?.efforts || []);
-            const selected = settings?.perCli?.[cli]?.effort || effortSel.value || '';
+            const selected = settings?.perCli?.[cli]?.effort ?? effortSel.value ?? '';
             const unique = [...new Set(options)];
             const noneLabel = (unique.length === 1 && !unique[0] && meta?.effortNote) ? meta.effortNote : '— none';
             effortSel.innerHTML = unique.map(v => {
@@ -310,7 +310,7 @@ export async function loadSettings(): Promise<void> {
     const ao = s.activeOverrides?.[s.cli] || {};
     const pc = s.perCli?.[s.cli] || {};
     const activeModel = ao.model || pc.model;
-    const activeEffort = ao.effort || pc.effort || '';
+    const activeEffort = ao.effort ?? pc.effort ?? '';
     const selModel = document.getElementById('selModel') as HTMLSelectElement | null;
     if (activeModel && selModel) {
         const displayModel = normalizeModelForDisplay(s.cli, activeModel);
@@ -500,7 +500,7 @@ export function onCliChange(save = true): void {
         const ao = s.activeOverrides?.[cli] || {};
         const pc = s.perCli?.[cli] || {};
         const model = ao.model || pc.model;
-        const effort = ao.effort || pc.effort || '';
+        const effort = ao.effort ?? pc.effort ?? '';
         if (model && modelSel) {
             if (cli === 'ai-e') {
                 const savedProvider = s.perCli?.['ai-e']?.provider || 'claude';
