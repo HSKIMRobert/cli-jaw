@@ -384,6 +384,7 @@ export function spawnPiRpc(profile: PiProfile, pi: PiSettings, options: {
         ...cmd.baseArgs,
         '--mode', 'rpc',
         '--no-context-files',
+        '--tools', 'read,bash,edit,write,grep,find,ls',
         '--provider', profile.id,
         '--model', options.model || profile.model,
         '--api-key', profile.apiKey || 'dummy',
