@@ -1311,9 +1311,8 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         }
         const piToolDiscipline = [
             '[Pi Tool Discipline]',
-            'Your coding tools are strictly lowercase. Use ONLY these exact names:',
-            'read, bash, edit, write, grep, find, ls',
-            'Capitalized variants (Grep, Read, Edit, Write, Find, Ls) will fail with "Tool not found".',
+            'Your available tools are strictly lowercase: read, bash, edit, write, grep, find, ls.',
+            'Capitalized variants (Read, Bash, Edit, Write, Grep, Find, Ls) do NOT exist and will fail.',
         ].join('\n');
         const piSysPrompt = sysPrompt ? `${sysPrompt}\n\n${piToolDiscipline}` : piToolDiscipline;
         const { child, done } = spawnPiRpc(profile, pi, {
