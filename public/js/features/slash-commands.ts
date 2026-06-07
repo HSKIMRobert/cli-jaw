@@ -3,6 +3,9 @@ import { getPreferredLocale } from '../locale.js';
 import { t } from './i18n.js';
 import { api } from '../api.js';
 import { escapeHtml } from '../render.js';
+import { COMMAND_TOPIC_MAP } from './command-info.js';
+import { openHelpDialog } from './help-dialog.js';
+import { isHelpTopicId } from './help-content.js';
 
 interface WorkflowCommandMeta {
     kind: 'workflow';
@@ -97,6 +100,10 @@ function render(): void {
         const selected = i === selectedIdx;
         const args = formatWorkflowArgs(cmd);
         const workflowMeta = renderWorkflowMeta(cmd);
+        const topicId = COMMAND_TOPIC_MAP[cmd.name];
+        const infoBtn = topicId
+            ? `<button type="button" class="cmd-info-btn" data-cmd-info="${escapeHtml(cmd.name)}" aria-label="Info" tabindex="-1">?</button>`
+            : '';
         return `<div class="cmd-item${selected ? ' selected' : ''}"
                      role="option"
                      id="cmd-item-${i}"
@@ -106,6 +113,7 @@ function render(): void {
             <span class="cmd-desc">${escapeHtml(cmd.desc)}</span>
             ${workflowMeta}
             ${args ? `<span class="cmd-args">${escapeHtml(args)}</span>` : ''}
+            ${infoBtn}
         </div>`;
     }).join('');
 
@@ -237,6 +245,18 @@ export function handleKeydown(e: KeyboardEvent): boolean {
 
 export function handleClick(e: Event): void {
     const target = e.target as HTMLElement;
+    const infoBtn = target.closest('.cmd-info-btn') as HTMLElement | null;
+    if (infoBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const cmdName = infoBtn.getAttribute('data-cmd-info') || '';
+        const topicId = COMMAND_TOPIC_MAP[cmdName];
+        if (topicId && isHelpTopicId(topicId)) {
+            close();
+            openHelpDialog(topicId);
+        }
+        return;
+    }
     const item = target.closest('.cmd-item') as HTMLElement | null;
     if (!item) return;
     const idx = parseInt(item.dataset['index'] || '-1', 10);
