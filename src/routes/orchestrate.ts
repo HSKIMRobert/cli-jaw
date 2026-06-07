@@ -36,6 +36,7 @@ import { sanitizeToolLogForDurableStorage } from '../shared/tool-log-sanitize.js
 import { getSecurityAuditLog } from '../security/security-audit-log.js';
 import { validateDispatchTask } from '../workflows/employee-boundary.js';
 import { normalizeScope, postDispatchDiffCheck } from '../workflows/scope-sandbox.js';
+import { recordDispatch } from '../goal-run/controller.js';
 
 function getRuntimeSnapshot() {
     return {
@@ -388,6 +389,7 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
             const resultTools = Array.isArray(result["tools"]) ? result["tools"] : [];
             updateWorkerTools(slot.agentId, resultTools);
             finishWorker(slot.agentId, String(result["text"] || ''), resultTools);
+            recordDispatch();
 
             // Post-dispatch scope violation check
             if (allowWrite && scope) {

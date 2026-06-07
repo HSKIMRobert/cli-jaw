@@ -23,6 +23,7 @@ export interface GoalRunState {
     gates: GoalRunSafetyGate[];
     startedAt?: string | undefined;
     stoppedAt?: string | undefined;
+    lastActiveAt?: string | undefined;
     lastError?: string | undefined;
 }
 
