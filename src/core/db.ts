@@ -358,7 +358,7 @@ export const listActiveOrcStates = db.prepare(
 );
 
 export const resetAllOrcStates = db.prepare(
-    "UPDATE orc_state SET state = 'IDLE', ctx = NULL WHERE state != 'IDLE'"
+    "UPDATE orc_state SET state = 'IDLE', ctx = NULL WHERE state != 'IDLE' AND updated_at < datetime('now', '-24 hours')"
 );
 
 export const deleteNonDefaultOrcStates = db.prepare(
