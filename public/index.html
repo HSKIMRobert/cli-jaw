@@ -62,7 +62,11 @@
         <span id="orcStateBadge" class="orc-state-badge" style="display:none"></span>
 
         <div>
-            <div class="section-title" data-i18n="sidebar.status">상태</div>
+            <div class="section-title-row">
+                <div class="section-title" data-i18n="sidebar.status">상태</div>
+                <button class="help-trigger" type="button" data-help-topic="agentControl"
+                    data-i18n-aria="help.agentControl.aria" aria-label="에이전트 제어 도움말">?</button>
+            </div>
             <span class="status-badge status-idle" id="statusBadge">idle</span>
         </div>
 
@@ -84,6 +88,8 @@
         <div>
             <div class="cli-status-toolbar">
                 <div class="section-title cli-status-header" id="cliStatusHeader" data-i18n="sidebar.cliStatus">CLI 상태</div>
+                <button class="help-trigger" type="button" data-help-topic="cliTools"
+                    data-i18n-aria="help.cliTools.aria" aria-label="CLI 도구 도움말">?</button>
                 <div id="cliStatusRefreshState" class="cli-refresh-state" role="status" aria-live="polite" aria-atomic="true"></div>
             </div>
             <div class="cli-status-controls flex gap-2 mt-2 items-center">
@@ -216,7 +222,10 @@
         </div>
         <div class="interview-panel" id="interviewPanel" hidden></div>
         <div class="budget-panel" id="budgetPanel" hidden style="padding:8px 12px;border-top:1px solid var(--border-color)"></div>
-        <div class="goal-cockpit" id="goalCockpit" hidden></div>
+        <div class="goal-cockpit" id="goalCockpit" hidden>
+            <button class="help-trigger" type="button" data-help-topic="goals"
+                data-i18n-aria="help.goals.aria" aria-label="Goals help">?</button>
+        </div>
         <div class="chat-messages" id="chatMessages"></div>
         <div class="empty-state" id="emptyState">
             <div class="empty-icon">CLI-JAW</div>
@@ -338,7 +347,11 @@
             </div>
 
             <div>
-                <label data-i18n="label.workingDir">작업 디렉토리</label>
+                <label class="label-with-help">
+                    <span data-i18n="label.workingDir">작업 디렉토리</span>
+                    <button class="help-trigger" type="button" data-help-topic="session"
+                        data-i18n-aria="help.session.aria" aria-label="세션 도움말">?</button>
+                </label>
                 <span id="inpCwd" class="cwd-display">~/.cli-jaw</span>
             </div>
 
