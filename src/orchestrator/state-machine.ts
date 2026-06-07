@@ -154,10 +154,11 @@ export function resetState(scope = 'default'): void {
 }
 
 export function resetAllStaleStates(): number {
+  // Only resets states older than 24 hours — preserves active PABCD sessions
   const result = resetAllOrcStates.run();
   const cleared = result.changes;
   if (cleared > 0) {
-    console.log(`[jaw:pabcd] cleared ${cleared} stale orchestration state(s)`);
+    console.log(`[jaw:pabcd] cleared ${cleared} stale orchestration state(s) (>24h old)`);
     broadcast('orc_state', { state: 'IDLE', title: '', scope: 'all' });
   }
   const pruned = deleteNonDefaultOrcStates.run();
