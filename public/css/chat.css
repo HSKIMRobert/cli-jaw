@@ -1230,6 +1230,34 @@ div.math-placeholder {
     flex-shrink: 0;
 }
 
+.cmd-info-btn {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 11px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    opacity: 0.6;
+    flex-shrink: 0;
+    transition: border-color 0.15s, color 0.15s, background 0.15s, opacity 0.15s;
+}
+
+.cmd-info-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: color-mix(in oklch, var(--accent) 8%, transparent);
+    opacity: 1;
+}
+
 .cmd-empty {
     color: var(--text-dim);
     font-style: italic;

@@ -1,7 +1,7 @@
 import { openHelpDialog } from './help-dialog.js';
 import type { HelpTopicId } from './help-content.js';
 
-const COMMAND_TOPIC_MAP: Record<string, HelpTopicId> = {
+export const COMMAND_TOPIC_MAP: Record<string, HelpTopicId> = {
     mcp: 'mcp',
     memory: 'memory',
     model: 'model',
