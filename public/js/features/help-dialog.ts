@@ -149,6 +149,7 @@ function appendTopicSections(parent: HTMLElement, topic: HelpTopic): void {
     appendHowToList(parent, t('help.section.howTo'), topic.howToKeys);
     appendListSection(parent, t('help.section.example'), topic.exampleKeys, false, 'help-example-list');
     if (topic.avoidWhenKeys?.length) appendListSection(parent, t('help.section.avoidWhen'), topic.avoidWhenKeys);
+    if (topic.subcmdKeys?.length) appendSubcmdSection(parent, t('help.section.commands'), topic.subcmdKeys);
     if (topic.relatedKeys?.length) appendListSection(parent, t('help.section.related'), topic.relatedKeys, true);
 }
 
@@ -255,6 +256,32 @@ function appendHowToList(parent: HTMLElement, heading: string, keys: string[]): 
         const item = document.createElement('li');
         item.textContent = t(key);
         list.append(item);
+    }
+    section.append(list);
+    parent.append(section);
+}
+
+function appendSubcmdSection(parent: HTMLElement, heading: string, keys: string[]): void {
+    const section = createSection(heading);
+    const list = document.createElement('dl');
+    list.className = 'help-subcmd-list';
+    for (const key of keys) {
+        const text = t(key);
+        const sepIdx = text.indexOf(' — ');
+        const cmd = sepIdx >= 0 ? text.slice(0, sepIdx) : text;
+        const desc = sepIdx >= 0 ? text.slice(sepIdx + 3) : '';
+
+        const dt = document.createElement('dt');
+        dt.className = 'help-subcmd-cmd';
+        const code = document.createElement('code');
+        code.textContent = cmd;
+        dt.append(code);
+
+        const dd = document.createElement('dd');
+        dd.className = 'help-subcmd-desc';
+        dd.textContent = desc;
+
+        list.append(dt, dd);
     }
     section.append(list);
     parent.append(section);
