@@ -28,7 +28,8 @@ test('memory-flush spawn is not main-managed and uses isolated history/session p
     assert.ok(flushSrc.includes('forceNew: true'), 'memory flush must not resume main provider session');
     assert.ok(flushSrc.includes('_skipHistory: true'), 'memory flush must not receive full history twice');
     assert.ok(
-        /const\s+historyBlock\s*=\s*!isResume\s*&&\s*!opts\._skipHistory[\s\S]*?\?\s*buildHistoryBlock/.test(spawnSrc),
+        spawnSrc.includes('const needsHistory = !opts._skipHistory') &&
+        /const\s+historyBlock\s*=\s*needsHistory[\s\S]*?\?\s*buildHistoryBlock/.test(spawnSrc),
         'standard history injection must honor _skipHistory',
     );
     assert.ok(
