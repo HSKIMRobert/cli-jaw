@@ -12,6 +12,7 @@ import { ICONS } from '../icons.js';
 import { clearUnreadResponses } from './attention-badge.js';
 import { syncOrchestrateSnapshot } from '../ws.js';
 import { waitForSettingsSaveIdle } from './settings-core.js';
+import { tryCommandInfo } from './command-info.js';
 import { isChatNearBottom, markFollowingBottom, reconcileChatBottomAfterLayout } from './chat-scroll.js';
 import { copyText } from './copy-text.js';
 import { isLocalPreviewRelayOrigin, previewParentOrigin } from '../preview-parent-origin.js';
@@ -267,6 +268,7 @@ export async function sendMessage(source: SendSource = 'enter'): Promise<void> {
             input.value = '';
             resetInputHeight();
             slashCmd.close();
+            if (tryCommandInfo(text)) return;
             try {
                 await handleSlashCommandResponse(text, await postSlashCommand(text));
             } catch (err) {

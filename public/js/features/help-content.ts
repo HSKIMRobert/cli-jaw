@@ -20,7 +20,11 @@ export type HelpTopicId =
     | 'orchestration'
     | 'attachments'
     | 'diagrams'
-    | 'keyboardShortcuts';
+    | 'keyboardShortcuts'
+    | 'session'
+    | 'cliTools'
+    | 'agentControl'
+    | 'goals';
 
 export interface HelpDocLink {
     url: string;
@@ -72,6 +76,10 @@ export const HELP_TOPICS: Record<HelpTopicId, HelpTopic> = {
     attachments: topic('attachments', 3, 2, 2),
     diagrams: topic('diagrams', 3, 2, 2),
     keyboardShortcuts: topic('keyboardShortcuts', 3, 2, 2, 3, 2),
+    session: topic('session', 3, 1, 2),
+    cliTools: topic('cliTools', 3, 1, 2),
+    agentControl: topic('agentControl', 3, 1, 2),
+    goals: topic('goals', 3, 1, 2),
 };
 
 export function isHelpTopicId(value: string | null | undefined): value is HelpTopicId {
