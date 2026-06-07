@@ -19,6 +19,7 @@ import { registerJawMemoryRoutes, buildMemorySyncPayload } from './src/routes/ja
 import { registerI18nRoutes } from './src/routes/i18n.js';
 import { registerOrchestrateRoutes } from './src/routes/orchestrate.js';
 import { registerGoalRoutes } from './src/routes/goal.js';
+import { registerTaskRoutes } from './src/routes/task.js';
 import { registerGoalRunRoutes } from './src/routes/goal-run.js';
 import { registerMemoryRoutes } from './src/routes/memory.js';
 import { registerSettingsRoutes } from './src/routes/settings.js';
@@ -730,6 +731,7 @@ registerSkillRoutes(app, requireAuth, makeWebCommandCtx);
 registerJawMemoryRoutes(app, requireAuth);
 registerOrchestrateRoutes(app, requireAuth);
 registerGoalRoutes(app, requireAuth);
+registerTaskRoutes(app, requireAuth);
 registerGoalRunRoutes(app, requireAuth);
 registerMemoryRoutes(app, requireAuth);
 registerSettingsRoutes(app, requireAuth, applySettingsPatch, projectRoot);
@@ -820,8 +822,8 @@ const shutdown = async (sig: string) => {
     stopHeartbeat();
     killAllAgents('shutdown');
 
-    // Reset orchestration state so next startup doesn't show stale P/A/B/C
-    resetAllStaleStates();
+    // No longer resetting orc_state on shutdown — 24h staleness filter handles cleanup on startup.
+    // Active PABCD sessions should survive graceful restarts.
 
     try {
         await Promise.race([
@@ -889,8 +891,7 @@ server.listen(PORT, bindHost, async () => {
     log.info(`  Perms:  ${settings["permissions"]}`);
     log.info(`  CWD:    ${settings["workingDir"]}`);
 
-    // Clear stale PABCD states from previous sessions
-    resetAllStaleStates();
+    // Stale PABCD cleanup already runs at module init (line ~195) with 24h filter
 
     // Warn: lanBypass=true but bindHost=127.0.0.1 → LAN unreachable
     if (settings["network"]?.lanBypass === true && bindHost === '127.0.0.1' && !lanMode) {
