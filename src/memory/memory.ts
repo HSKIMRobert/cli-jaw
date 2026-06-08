@@ -81,13 +81,23 @@ export function read(filename: string, opts: Record<string, any> = {}) {
 
 // ─── Save (append) ───────────────────────────────
 
+function injectCreatedAt(content: string): string {
+    if (!content.trimStart().startsWith('---')) return content;
+    if (/created_at:/m.test(content)) return content;
+    const endIdx = content.indexOf('---', content.indexOf('---') + 3);
+    if (endIdx < 0) return content;
+    const ts = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    return content.slice(0, endIdx) + `created_at: ${ts}\n` + content.slice(endIdx);
+}
+
 export function save(filename: string, content: string) {
     ensureMemoryDir();
     const filepath = resolveMemoryPath(filename);
     fs.mkdirSync(join(filepath, '..'), { recursive: true });
-    // Unescape \n from CLI
     const unescaped = content.replace(/\\n/g, '\n');
-    fs.appendFileSync(filepath, '\n' + unescaped + '\n');
+    const isNew = !fs.existsSync(filepath);
+    const body = isNew ? injectCreatedAt(unescaped) : unescaped;
+    fs.appendFileSync(filepath, '\n' + body + '\n');
     void import('./runtime.js').then(m => {
         const normalized = filename.replace(/\\/g, '/');
         if (normalized.startsWith('structured/')) {

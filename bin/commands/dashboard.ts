@@ -9,6 +9,7 @@ import { shouldOpenBrowserByDefault } from '../../src/core/browser-open-default.
 import { shouldShowHelp, printAndExit } from '../helpers/help.js';
 import { asArray, asRecord, fieldString, type JsonRecord } from '../_http-client.js';
 import { handleMemory } from './dashboard-memory.js';
+import { handleDashboardChat } from './dashboard-chat.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const commandRoot = join(__dirname, '..', '..');
@@ -34,6 +35,7 @@ if (shouldShowHelp(process.argv, 3)) printAndExit(`
     unperm <port>           Unregister persistent service
     service [install|status|unset]  Dashboard auto-start management
     memory <search|read|instances>  L2 cross-instance memory federation (read-only)
+    chat search "<query>"           L2 cross-instance chat search (read-only)
 
   Global options:
     --json                  Machine-readable JSON output
@@ -93,6 +95,9 @@ switch (subcommand) {
         break;
     case 'memory':
         await handleMemory(process.argv.slice(4));
+        break;
+    case 'chat':
+        await handleDashboardChat(process.argv.slice(4));
         break;
     default:
         console.error(`  ❌ Unknown dashboard command: ${subcommand}`);

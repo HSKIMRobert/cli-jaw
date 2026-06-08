@@ -2,6 +2,7 @@ import express, { type RequestHandler } from 'express';
 import { existsSync, lstatSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { extname, join, relative, resolve } from 'node:path';
 import { searchFederated } from '../memory/federation.js';
+import { searchChatFederated } from '../memory/chat-federation.js';
 import { listSearchableInstancesFromScan } from '../memory/instance-discovery.js';
 import type { ScanItemForFederation } from '../memory/types.js';
 import { resolveStructuredMemoryDir } from '../../memory/shared.js';
@@ -147,6 +148,33 @@ export function createDashboardMemoryRouter(opts: DashboardMemoryRouterOptions):
             }
         } catch (err) {
             res.status(500).json({ ok: false, code: 'search_failed', message: (err as Error).message });
+        }
+    });
+
+    router.get('/chat/search', async (req, res) => {
+        const q = String(req.query["q"] || '').trim();
+        if (!q) { res.status(400).json({ ok: false, code: 'invalid_query' }); return; }
+        if (q.length > MAX_QUERY_LEN) { res.status(400).json({ ok: false, code: 'query_too_long' }); return; }
+        const filter = String(req.query["instance"] || '').split(',').map(s => s.trim()).filter(Boolean);
+        const requestedLimit = Number(req.query["limit"]);
+        const limit = Number.isFinite(requestedLimit)
+            ? Math.min(Math.floor(Math.max(1, requestedLimit)), MAX_RESULT_LIMIT)
+            : DEFAULT_RESULT_LIMIT;
+        const requestedDays = Number(req.query["days"]);
+        const days = Number.isFinite(requestedDays) && requestedDays > 0 ? Math.floor(requestedDays) : undefined;
+        try {
+            const scan = await opts.scanSupplier();
+            const refs = listSearchableInstancesFromScan(scan);
+            const chatOpts: import('../memory/chat-federation.js').ChatFederatedSearchOptions = {
+                instances: refs,
+                limit,
+            };
+            if (filter.length) chatOpts.instanceFilter = filter;
+            if (days != null) chatOpts.days = days;
+            const result = searchChatFederated(q, chatOpts);
+            res.json({ ok: true, ...result });
+        } catch (err) {
+            res.status(500).json({ ok: false, code: 'chat_search_failed', message: (err as Error).message });
         }
     });
 
