@@ -93,8 +93,8 @@ if (isBatch) {
             headers: { 'Content-Type': 'application/json', 'X-Jaw-Boss-Token': bossToken },
             body: JSON.stringify({ agents: batchAgents }),
         });
-        const body = await res.json() as { ok: boolean; results?: { agent: string; ok: boolean; text?: string; error?: string }[]; error?: string };
-        if (!body.ok) {
+        const { body, nonJsonError } = await readJsonResponse<BatchDispatchBody>(res, 'batch dispatch endpoint');
+        if (nonJsonError || !body.ok) {
             console.error(`❌ ${body.error || `Failed: ${res.status}`}`);
             process.exit(1);
         }
@@ -139,6 +139,12 @@ interface DispatchResultBody {
     };
 }
 
+interface BatchDispatchBody {
+    ok?: boolean;
+    results?: { agent: string; ok: boolean; text?: string; error?: string }[];
+    error?: string;
+}
+
 interface WorkerProgressRunBody {
     state?: string;
     tools?: DispatchToolEntry[];
@@ -169,10 +175,34 @@ function sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function responsePreview(raw: string): string {
+    return raw.replace(/\s+/g, ' ').trim().slice(0, 180);
+}
+
+function nonJsonResponseError(res: Response, raw: string, context: string): string {
+    const contentType = res.headers.get('content-type') || 'unknown content-type';
+    const preview = responsePreview(raw);
+    const suffix = preview ? `; body preview: ${preview}` : '';
+    return `${context} returned non-JSON HTTP ${res.status} (${contentType}); server may be stale or missing this route${suffix}`;
+}
+
+async function readJsonResponse<T>(res: Response, context: string): Promise<{ body: T; nonJsonError?: string }> {
+    const raw = await res.text();
+    if (!raw.trim()) return { body: {} as T };
+    try {
+        return { body: JSON.parse(raw) as T };
+    } catch {
+        const nonJsonError = nonJsonResponseError(res, raw, context);
+        return { body: { error: nonJsonError } as T, nonJsonError };
+    }
+}
+
 async function resolveAgentId(name: string): Promise<string | null> {
     const res = await cliFetch(`${BASE}/api/employees`);
     if (!res.ok) return null;
-    const employees = unwrapEmployeeSummaries(await res.json() as unknown);
+    const parsed = await readJsonResponse<unknown>(res, 'employees endpoint');
+    if (parsed.nonJsonError) return null;
+    const employees = unwrapEmployeeSummaries(parsed.body);
     const found = employees.find(e => e.name === name || e.id === name);
     return found?.id || null;
 }
@@ -198,7 +228,8 @@ async function pollWorkerResult(agentId: string, agentName = ''): Promise<Dispat
                 agentName,
             );
         }
-        const body = await res.json() as DispatchResultBody;
+        const { body, nonJsonError } = await readJsonResponse<DispatchResultBody>(res, 'worker result endpoint');
+        if (nonJsonError) throw new DispatchPollError(nonJsonError, agentId, agentName);
         if (!res.ok) throw new DispatchPollError(body.error || `poll failed: ${res.status}`, agentId, agentName);
         lastState = body.state || 'unknown';
         if (body.state !== 'running') return body;
@@ -218,7 +249,8 @@ async function fetchWorkerProgress(agentId: string, agentName = ''): Promise<Wor
             agentName,
         );
     }
-    const body = await res.json() as WorkerProgressResponseBody;
+    const { body, nonJsonError } = await readJsonResponse<WorkerProgressResponseBody>(res, 'worker progress endpoint');
+    if (nonJsonError) throw new DispatchPollError(nonJsonError, agentId, agentName);
     if (res.status === 404) return null;
     if (!res.ok) throw new DispatchPollError(body.error || `progress fetch failed: ${res.status}`, agentId, agentName);
     return body.progress || null;
@@ -327,7 +359,8 @@ async function pollWorkerResultOnce(agentId: string, agentName = ''): Promise<Di
             agentName,
         );
     }
-    const body = await res.json() as DispatchResultBody;
+    const { body, nonJsonError } = await readJsonResponse<DispatchResultBody>(res, 'worker result endpoint');
+    if (nonJsonError) throw new DispatchPollError(nonJsonError, agentId, agentName);
     if (!res.ok) throw new DispatchPollError(body.error || `poll failed: ${res.status}`, agentId, agentName);
     return body;
 }
@@ -388,7 +421,11 @@ try {
         process.exit(1);
     }
 
-    const body = await res.json() as DispatchResultBody;
+    const { body, nonJsonError } = await readJsonResponse<DispatchResultBody>(res, 'dispatch endpoint');
+    if (nonJsonError) {
+        console.error(`❌ ${nonJsonError}`);
+        process.exit(1);
+    }
     if (watch && res.status === 202) {
         const pollAgentId = body?.worker?.agentId || await resolveAgentId(agent);
         if (!pollAgentId) {

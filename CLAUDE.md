@@ -22,6 +22,9 @@ This repository is a Node.js ESM orchestration runtime for boss/employee dispatc
 - Heartbeat schedules support `{ kind: "every", minutes }` and `{ kind: "cron", cron, timeZone? }`.
 - Tool logs are capped by `src/shared/tool-log-sanitize.ts` before WebSocket, `agent_done`, and orchestration snapshot delivery.
 - Employee worker progress is query-first via `jaw worker status [agent]`, watchable via `jaw worker watch [agent]` or `jaw dispatch --watch`, memory-only for current plus previous completed run, and safe-summary only with thinking detail hidden.
+- `jaw employee list [--json]` lists DB and static employees, including Control. `jaw dispatch` reads response bodies defensively and reports stale/missing server routes when an old manager returns HTML instead of JSON.
+- `npm run build` is a pure backend build/link operation and must not signal, kill, or restart live manager processes.
+- Web/CLI `jaw dashboard serve` defaults to manager port `24576`; Electron implicit spawn owns the separate `24577-24590` manager lane and does not reuse `24576`.
 - `jaw browser fetch <url>` is the adaptive URL-reader mirror from agbrowse: use it for a known URL/search-result URL, not as generic search.
 
 ## Build

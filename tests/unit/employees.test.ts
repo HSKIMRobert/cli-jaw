@@ -116,3 +116,12 @@ test('employee cli/model updates clear stale employee session', () => {
     assert.match(src, /keys\.includes\('cli'\)/);
     assert.match(src, /keys\.includes\('model'\)/);
 });
+
+test('employee CLI supports list and honest help text', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'bin/commands/employee.ts'), 'utf8');
+    assert.match(src, /cli-jaw employee list \[--port 3457\] \[--json\]/);
+    assert.match(src, /case 'list'/);
+    assert.match(src, /\/api\/employees/);
+    assert.match(src, /values\.json/);
+    assert.doesNotMatch(src, /default 5 profiles/);
+});
