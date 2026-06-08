@@ -49,6 +49,7 @@
     "cmd.workflow.goal.tg_desc": "查看目标或运行状态",
     "cmd.workflow.team.desc": "并行团队编排",
     "cmd.workflow.team.tg_desc": "团队编排",
+    "cmd.workflow.review.tg_desc": "一键代码审查",
     "cmd.workflow.interview.title": "需求访谈",
     "cmd.workflow.deliberate.title": "角色式计划审查",
     "cmd.workflow.planAudit.title": "只读计划审计",

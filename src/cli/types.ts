@@ -64,7 +64,8 @@ export type WorkflowArtifactKind =
     | 'unknownCommandRecovery'
     | 'interviewBrief'
     | 'deliberationPlan'
-    | 'auditTask';
+    | 'auditTask'
+    | 'reviewReport';
 
 export type WorkflowArtifactLifetime =
     | 'ephemeral'
