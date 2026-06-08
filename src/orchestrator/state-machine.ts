@@ -383,7 +383,7 @@ You will receive user feedback with a [PLANNING MODE] prefix. Revise until appro
 
 IMPORTANT — Project Workspace:
 Before writing a plan, confirm the project workspace: "작업할 프로젝트 디렉토리를 확인합니다: <dirs>. 이대로 진행할까요?"
-If projectDirs is not set, ask the user to set it.`,
+If projectDirs is not set, ask the user to run \`cli-jaw project set /path/to/repo\` before proceeding. Do NOT guess or infer the project path.`,
 
   A: `[PABCD — A: PLAN AUDIT]
 
