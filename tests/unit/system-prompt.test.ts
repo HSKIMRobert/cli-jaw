@@ -76,6 +76,12 @@ test('system skills prompt reinforces metadata-based skill matching', () => {
 test('system prompt routes ambiguous Korean search intent away from default code grep', () => {
     assert.ok(a1Src.includes('Korean "검색" intent guard'),
         'system prompt should include a Korean search intent guard');
+    assert.ok(a1Src.includes('Rewrite it into 1-3 focused keyword queries'),
+        'system prompt should require focused query rewrites for Korean external searches');
+    assert.ok(a1Src.includes('Treat search results as URL candidates, not final evidence'),
+        'system prompt should treat search results as URL candidates');
+    assert.ok(a1Src.includes('Use browser/browse escalation only as downstream verification'),
+        'system prompt should reserve browser escalation for downstream verification');
     assert.ok(a1Src.includes('Do **not** treat the bare Korean word "검색" as permission to start repository-wide Grep/Glob by default'),
         'system prompt should prevent bare Korean search intent from defaulting to code search');
     assert.ok(a1Src.includes('use Context7 or official docs search first when available'),
@@ -87,6 +93,12 @@ test('skills prompt prefers active search skill for external search intent', () 
         'skills prompt should include a search intent override');
     assert.ok(skillsSrc.includes('prefer the active `search` skill or web/official-docs retrieval before local code Grep/Glob'),
         'skills prompt should prefer active search/web retrieval before local grep');
+    assert.ok(skillsSrc.includes('first rewrite the request into 1-3 focused keyword queries'),
+        'skills prompt should require query rewrite for Korean external search intent');
+    assert.ok(skillsSrc.includes('treat search results as URL candidates'),
+        'skills prompt should treat search output as URL candidates');
+    assert.ok(skillsSrc.includes('use browser/browse only when fetch is empty, truncated, JS-rendered, Naver shell/iframe, or otherwise incomplete'),
+        'skills prompt should keep browser/browse as downstream fallback');
     assert.ok(skillsSrc.includes('Use local code search first only when the user clearly asks about this repository'),
         'skills prompt should reserve local code search for explicit repository targets');
 });
