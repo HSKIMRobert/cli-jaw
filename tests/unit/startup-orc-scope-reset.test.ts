@@ -1,11 +1,12 @@
 import test, { afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { getState, setState, resetAllStaleStates } from '../../src/orchestrator/state-machine.ts';
+import { getState, setState, resetState, resetAllStaleStates } from '../../src/orchestrator/state-machine.ts';
+import { setOrcState } from '../../src/core/db.ts';
 
 const serverSrc = readFileSync(new URL('../../server.ts', import.meta.url), 'utf8');
 
-afterEach(() => { resetAllStaleStates(); });
+afterEach(() => { resetState('default'); resetState('legacy:scope'); });
 
 test('SOS-001: startup calls resetAllStaleStates (single-scope)', () => {
     assert.ok(serverSrc.includes('resetAllStaleStates()'),
@@ -27,17 +28,22 @@ test('SOS-003: WebSocket initial state includes scope', () => {
     assert.ok(serverSrc.includes("scope: webScope, ts: Date.now()"), 'WS initial orc_state should include scope');
 });
 
-test('SOS-004: resetAllStaleStates resets default scope to IDLE', () => {
-    resetAllStaleStates();
-
+test('SOS-004: resetAllStaleStates preserves recent states and resets stale ones', () => {
     setState('P', {
-        originalPrompt: 'stale task', workingDir: null, scopeId: 'default',
+        originalPrompt: 'fresh task', workingDir: null, scopeId: 'default',
         plan: null, workerResults: [], origin: 'web',
     }, 'default');
     assert.equal(getState('default'), 'P');
 
     resetAllStaleStates();
-    assert.equal(getState('default'), 'IDLE');
+    assert.equal(getState('default'), 'P', 'fresh state (<24h) must be preserved');
+
+    // Backdate the row to simulate a stale session (>24h old)
+    const db = (setOrcState as unknown as { database: import('better-sqlite3').Database }).database;
+    db.prepare("UPDATE orc_state SET updated_at = datetime('now', '-25 hours') WHERE id = 'default'").run();
+
+    resetAllStaleStates();
+    assert.equal(getState('default'), 'IDLE', 'stale state (>24h) must be reset');
 });
 
 test('SOS-005: resetAllStaleStates prunes non-default scope rows', () => {
