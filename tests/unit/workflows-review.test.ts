@@ -5,6 +5,7 @@ import {
     buildReviewArtifact,
     buildReviewSteerPrompt,
     buildReviewTargetContext,
+    parseReviewFocus,
     parseReviewFlags,
 } from '../../src/workflows/review.ts';
 
@@ -83,6 +84,34 @@ test('/review steer prompt resolves recent-context scope beyond uncommitted diff
     assert.match(prompt, /No project changes to review/);
     assert.doesNotMatch(prompt, /No uncommitted changes to review/);
     assert.match(prompt, /Scope Resolution/);
+});
+
+test('/review preserves user-provided focus text as the highest-priority scope signal', async () => {
+    const args = ['프롬프트', 'scope', '--fix'];
+    const flags = parseReviewFlags(args);
+    const focus = parseReviewFocus(args);
+    const artifact = buildReviewArtifact(flags, 'en', {
+        workingDir: jawHome,
+        projectDirs: [repoRoot],
+    }, focus);
+    const context = buildReviewTargetContext({ projectDirs: [repoRoot] }, '20260609000000-reviewReport-focus');
+    const prompt = buildReviewSteerPrompt(flags, context, focus);
+
+    assert.equal(focus, '프롬프트 scope');
+    assert.equal(sectionBody(artifact, 'review-focus'), '프롬프트 scope');
+    assert.equal(artifact.sourcePrompt, '/review 프롬프트 scope --fix');
+    assert.match(prompt, /User-requested review focus: 프롬프트 scope/);
+    assert.match(prompt, /highest-priority scope signal/);
+
+    const parsed = parseCommand('/review 프롬프트 scope --fix');
+    const result = await executeCommand(parsed, {
+        interface: 'telegram',
+        locale: 'en',
+        getSettings: () => ({ workingDir: jawHome, projectDirs: [repoRoot] }),
+    });
+
+    assert.equal(result?.artifact?.sections.find(s => s.id === 'review-focus')?.body, '프롬프트 scope');
+    assert.match(result?.steerPrompt || '', /User-requested review focus: 프롬프트 scope/);
 });
 
 test('/review --fix remains scoped to Critical and High findings in the resolved repo', () => {

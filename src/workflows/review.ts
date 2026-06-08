@@ -28,6 +28,13 @@ export function parseReviewFlags(args: string[]): ReviewFlags {
     };
 }
 
+export function parseReviewFocus(args: string[]): string {
+    return args
+        .filter(arg => arg !== '--fix' && arg !== '--dispatch')
+        .join(' ')
+        .trim();
+}
+
 function configuredProjectDirsFromSettings(settingsSource: unknown): string[] {
     const s = settingsSource && typeof settingsSource === 'object'
         ? settingsSource as Record<string, unknown>
@@ -68,13 +75,19 @@ export function buildReviewArtifact(
     flags: ReviewFlags,
     locale = 'ko',
     settingsOverride?: unknown,
+    reviewFocus = '',
 ): WorkflowArtifact {
     const id = createWorkflowArtifactId('reviewReport');
     const target = buildReviewTargetContext(settingsOverride, id);
 
     const mode = flags.dispatch ? 'subagent' : 'direct';
     const fixLabel = flags.fix ? ' + auto-fix' : '';
-    const sourcePrompt = `/review${flags.fix ? ' --fix' : ''}${flags.dispatch ? ' --dispatch' : ''}`;
+    const sourcePrompt = [
+        '/review',
+        reviewFocus,
+        flags.fix ? '--fix' : '',
+        flags.dispatch ? '--dispatch' : '',
+    ].filter(Boolean).join(' ');
 
     return {
         id,
@@ -94,6 +107,7 @@ export function buildReviewArtifact(
             { id: 'configured-project-dirs', title: 'Configured project dirs', body: formatConfiguredProjectDirs(target.configuredProjectDirs), format: 'plain', required: true },
             { id: 'target-policy', title: 'Target resolution policy', body: target.fallbackInstruction, format: 'plain', required: true },
             { id: 'markdown-report', title: 'Markdown report path', body: target.reportPath, format: 'plain', required: true },
+            { id: 'review-focus', title: 'Review focus', body: reviewFocus || '(none provided)', format: 'plain', required: false },
             { id: 'mode', title: 'Mode', body: mode, format: 'plain', required: true },
             { id: 'fix', title: 'Auto-fix', body: flags.fix ? 'enabled' : 'disabled', format: 'plain', required: true },
         ],
@@ -103,7 +117,7 @@ export function buildReviewArtifact(
     };
 }
 
-export function buildReviewSteerPrompt(flags: ReviewFlags, target: ReviewTargetContext): string {
+export function buildReviewSteerPrompt(flags: ReviewFlags, target: ReviewTargetContext, reviewFocus = ''): string {
     const lines = [
         `[System] User invoked /review. Perform a one-shot project-dir code review of recent relevant project changes.`,
         '',
@@ -116,6 +130,8 @@ export function buildReviewSteerPrompt(flags: ReviewFlags, target: ReviewTargetC
         '- If projectDirs are empty, infer the most likely repository from recent conversation/context, then validate it before review.',
         '- Validation requires: absolute path, path exists, `git rev-parse --show-toplevel` succeeds, and the resolved git root is not JAW_HOME.',
         '- If no valid git project target can be resolved, output `BLOCKED: project directory required` with `cli-jaw project set /absolute/path/to/repo`, save that blocked report to the Markdown path, and stop.',
+        `- User-requested review focus: ${reviewFocus || '(none provided)'}`,
+        '- If a user-requested review focus is provided, treat it as the highest-priority scope signal and use conversation/goal/git evidence to resolve that focused scope before considering broader recent work.',
         '',
         'Steps:',
         '1. Resolve and validate the project repo using the contract above. Treat the validated git top-level as the only Project root.',
