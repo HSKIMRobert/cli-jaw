@@ -738,6 +738,7 @@
     "help.goals.subcmd.21": "/team status — 팀 실행 상태를 표시합니다",
     "help.goals.subcmd.22": "/team collect — 팀 결과를 수집합니다",
     "help.goals.subcmd.23": "/team stop — 팀 실행을 중지합니다",
+    "help.goals.subcmd.24": "/goal refine <목표> — AI가 선택한 plan-mode 목표를 최종 확정합니다",
     "help.activeCli.subcmd.1": "/cli — 현재 활성 CLI를 표시합니다",
     "help.activeCli.subcmd.2": "/cli <이름> — CLI 엔진을 전환합니다 (claude, codex, gemini 등)",
     "help.activeCli.subcmd.3": "/status — 전체 시스템 상태를 표시합니다",

@@ -2,10 +2,11 @@ import { describe, test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
     getActiveGoal, getGoalHistory, setGoal, updateGoal,
-    completeGoal, cancelGoal, pauseGoal, resumeGoal,
+    completeGoal, cancelGoal, pauseGoal, resumeGoal, refineObjective,
     clearGoal, resetGoalStore, MAX_GOAL_OBJECTIVE_CHARS,
     getAgentPauseCount, incrementAgentPauseCount, resetAgentPauseCount,
 } from '../../src/goal/store.ts';
+import { GOAL_PLAN_PENDING_OBJECTIVE } from '../../src/goal/types.ts';
 
 beforeEach(() => { resetGoalStore(); });
 
@@ -196,5 +197,42 @@ describe('Goal Store', () => {
     test('23. resetAgentPauseCount is no-op with no active goal', () => {
         resetAgentPauseCount();
         assert.equal(getAgentPauseCount(), 0);
+    });
+
+    test('24. plan-mode goal stores hint separately from pending objective', () => {
+        const goal = setGoal(GOAL_PLAN_PENDING_OBJECTIVE, {
+            goalMode: 'plan',
+            planHint: 'investigate goalplan context loss',
+        });
+
+        assert.equal(goal.objective, GOAL_PLAN_PENDING_OBJECTIVE);
+        assert.equal(goal.goalMode, 'plan');
+        assert.equal(goal.planHint, 'investigate goalplan context loss');
+        assert.notEqual(goal.objective, goal.planHint);
+    });
+
+    test('25. plan-mode goal rejects checkpoints before refinement', () => {
+        setGoal(GOAL_PLAN_PENDING_OBJECTIVE, {
+            goalMode: 'plan',
+            planHint: 'must refine first',
+        });
+
+        assert.equal(updateGoal('started without refine'), null);
+        assert.equal(getActiveGoal()!.checkpoints.length, 0);
+    });
+
+    test('26. refineObjective finalizes plan-mode goal and clears hint', () => {
+        setGoal(GOAL_PLAN_PENDING_OBJECTIVE, {
+            goalMode: 'plan',
+            planHint: 'raw hint only',
+        });
+
+        const refined = refineObjective('Implement refined goal objective');
+
+        assert.ok(refined);
+        assert.equal(refined!.objective, 'Implement refined goal objective');
+        assert.equal(refined!.goalMode, 'direct');
+        assert.equal(refined!.planHint, undefined);
+        assert.ok(updateGoal('verified after refine'));
     });
 });
