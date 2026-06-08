@@ -1,5 +1,11 @@
 import { useEffect, useId, useState } from 'react';
 import { preprocessMermaid, sanitizeMermaidForRetry } from '../../../../js/render/mermaid-preprocess';
+import { getMermaidInitConfig } from '../../../../js/render/mermaid';
+import { sanitizeMermaidSvg } from '../../../../js/render/sanitize';
+
+const WIDE_DIAGRAM_TYPES = new Set([
+    'gantt', 'sequencediagram', 'timeline', 'sankey-beta',
+]);
 
 type MermaidApi = {
     initialize(config: Record<string, unknown>): void;
@@ -12,7 +18,7 @@ type MermaidBlockProps = {
 
 type MermaidState =
     | { status: 'loading' }
-    | { status: 'ready'; svg: string }
+    | { status: 'ready'; svg: string; wide: boolean }
     | { status: 'error'; message: string };
 
 let mermaidModule: MermaidApi | null = null;
@@ -20,13 +26,9 @@ let mermaidModule: MermaidApi | null = null;
 async function loadMermaid(): Promise<MermaidApi> {
     if (!mermaidModule) {
         const module = await import('mermaid');
-        const mermaid = module.default as MermaidApi;
-        mermaid.initialize({
-            startOnLoad: false,
-            securityLevel: 'strict',
-        });
-        mermaidModule = mermaid;
+        mermaidModule = module.default as MermaidApi;
     }
+    mermaidModule.initialize(getMermaidInitConfig());
     return mermaidModule;
 }
 
@@ -51,7 +53,14 @@ export function MermaidBlock(props: MermaidBlockProps) {
                     if (!retryCode) throw firstErr;
                     ({ svg } = await mermaid.render(`${id}-retry`, retryCode));
                 }
-                if (!cancelled) setState({ status: 'ready', svg });
+                if (!cancelled) {
+                    const dtype = code.trim().split(/\s/)[0].toLowerCase();
+                    setState({
+                        status: 'ready',
+                        svg: sanitizeMermaidSvg(svg),
+                        wide: WIDE_DIAGRAM_TYPES.has(dtype),
+                    });
+                }
             } catch (err) {
                 if (!cancelled) {
                     setState({
@@ -71,7 +80,7 @@ export function MermaidBlock(props: MermaidBlockProps) {
     if (state.status === 'ready') {
         return (
             <div
-                className="notes-mermaid-block is-ready"
+                className={`notes-mermaid-block is-ready${state.wide ? ' mermaid-type-wide' : ''}`}
                 dangerouslySetInnerHTML={{ __html: state.svg }}
             />
         );
