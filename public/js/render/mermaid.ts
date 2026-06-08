@@ -69,6 +69,7 @@ function applyMermaidTheme() {
         themeVariables: getMermaidThemeVars(),
         securityLevel: 'strict',
         suppressErrorRendering: true,
+        gantt: { useMaxWidth: false, useWidth: 800 },
     });
 }
 
@@ -100,6 +101,9 @@ export async function rerenderMermaidDiagrams(): Promise<void> {
                 }
                 if (!htmlEl.isConnected) continue;
                 htmlEl.innerHTML = sanitizeMermaidSvg(svg);
+                const dtype = code.trim().split(/\s/)[0].toLowerCase();
+                htmlEl.closest('.mermaid-container')?.classList
+                    .toggle('mermaid-type-gantt', dtype === 'gantt');
                 appendMermaidActionBtns(htmlEl);
                 bindDiagramZoom(htmlEl);
             } catch { /* keep existing render on failure */ }
@@ -167,6 +171,9 @@ async function renderSingleMermaidImpl(el: HTMLElement): Promise<void> {
         }
         el.innerHTML = sanitizeMermaidSvg(svg);
         el.classList.add('mermaid-rendered');
+        const dtype = code.trim().split(/\s/)[0].toLowerCase();
+        el.closest('.mermaid-container')?.classList
+            .toggle('mermaid-type-gantt', dtype === 'gantt');
         delete el.dataset['mermaidCodeRaw'];
         appendMermaidActionBtns(el);
         bindDiagramZoom(el);

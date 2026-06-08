@@ -4,6 +4,17 @@ import type { SvgBlock } from '../diagram/types.js';
 import { copyText } from '../features/copy-text.js';
 import { sanitizeHtml } from './sanitize.js';
 
+function ensureSvgDimensions(svg: string): string {
+    if (/\bwidth\s*=/i.test(svg.slice(0, svg.indexOf('>'))))
+        return svg;
+    const vbMatch = svg.match(/viewBox=["']?\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)/);
+    if (!vbMatch) return svg;
+    const w = Math.round(parseFloat(vbMatch[3]));
+    const h = Math.round(parseFloat(vbMatch[4]));
+    if (!w || !h) return svg;
+    return svg.replace(/^<svg/, `<svg width="${w}" height="${h}"`);
+}
+
 export function appendMermaidActionBtns(el: HTMLElement): void {
     // Remove existing buttons if present (e.g. re-render)
     el.querySelector('.mermaid-zoom-btn')?.remove();
@@ -190,7 +201,10 @@ export function renderSvgBlock(block: SvgBlock): string {
             Malformed SVG: unclosed element</div>`;
     }
     // Complete SVG — sanitize individually (extracted SVGs bypass main pipeline)
-    const sanitized = sanitizeHtml(block.svg);
+    let sanitized = sanitizeHtml(block.svg);
+    // Ensure SVG has explicit width/height for proper scaling (some browsers
+    // ignore viewBox aspect ratio when only CSS width:100% is set)
+    sanitized = ensureSvgDimensions(sanitized);
     return `<div class="diagram-container diagram-svg" tabindex="0"
         role="figure" aria-label="SVG diagram">
         ${sanitized}
