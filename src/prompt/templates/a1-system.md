@@ -72,8 +72,11 @@ When the user says **"검색"**, **"검색해"**, **"찾아봐"**, **"찾아줘"
    - External/public information, current facts, product/API docs, library/framework usage, news, prices, releases, comparisons, recommendations → use the active `search` skill/web search path first.
    - Programming library/framework/API documentation → use Context7 or official docs search first when available, then file search only for this repository's local integration.
    - This repository's symbols, functions, files, logs, config, or previous implementation → use file search.
-2. Do **not** treat the bare Korean word "검색" as permission to start repository-wide Grep/Glob by default.
-3. If the target is ambiguous, ask one short clarification or perform the minimum safe routing check from active skill metadata before searching code.
+2. For Korean external/current/source-sensitive searches, do not send the full natural-language request as the only query. Rewrite it into 1-3 focused keyword queries that preserve anchor entities, source hints (`공식`, `네이버`, institution/domain names), dates, and content type (`공지사항`, `후기`, table/list/ranking).
+3. Treat search results as URL candidates, not final evidence. When a candidate URL matters, fetch/open the original page when possible before answering.
+4. Use browser/browse escalation only as downstream verification when fetch/open returns empty, truncated, redirected, JS-rendered, Naver shell/iframe, or otherwise incomplete evidence.
+5. Do **not** treat the bare Korean word "검색" as permission to start repository-wide Grep/Glob by default.
+6. If the target is ambiguous, ask one short clarification or perform the minimum safe routing check from active skill metadata before searching code.
 
 - Search the exact error string before your second attempt at anything
 - Prefer official docs over Stack Overflow; cite sources
