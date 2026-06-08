@@ -4,6 +4,7 @@
 import { getActiveGoal } from './store.js';
 import { getState } from '../orchestrator/state-machine.js';
 import { getActiveWorkers, hasPendingWorkerReplays } from '../orchestrator/worker-registry.js';
+import { getProjectDirs } from '../core/config.js';
 
 export interface GoalContinuationResult {
     shouldContinue: boolean;
@@ -51,11 +52,15 @@ export function buildGoalContinuation(): GoalContinuationResult {
     const nextAction = checkpoint?.nextAction || 'Continue working on the objective.';
     const summary = checkpoint?.summary || 'No checkpoint yet.';
 
+    const _projDirs = getProjectDirs();
     const prompt = [
         `[goal-continuation] Active goal: ${goal.objective}`,
         `Last checkpoint: ${summary}`,
         `Next action: ${nextAction}`,
         `Goal ID: ${goal.id}`,
+        ...(_projDirs && _projDirs.length > 0
+            ? _projDirs.map(d => `Project root: ${d}`)
+            : ['⚠ Project root is NOT set. Run `cli-jaw project set /path/to/repo` before proceeding.']),
         ...(pabcdActive ? [`PABCD state: ${orcState}`] : []),
         '',
         'Continue the goal. At each milestone log progress AND verification evidence: `cli-jaw goal update "<summary>" --evidence "<test result or changed file>"`.',

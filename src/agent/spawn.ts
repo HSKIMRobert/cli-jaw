@@ -7,7 +7,7 @@ import { join } from 'path';
 import { spawn, type ChildProcess } from 'child_process';
 import { StringDecoder } from 'node:string_decoder';
 import { broadcast } from '../core/bus.js';
-import { settings, UPLOADS_DIR, detectCli } from '../core/config.js';
+import { settings, UPLOADS_DIR, detectCli, getProjectDirs } from '../core/config.js';
 import { migrateLegacyClaudeValue } from '../cli/claude-models.js';
 import { stripUndefined } from '../core/strip-undefined.js';
 import {
@@ -821,13 +821,20 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     }
 
     // ─── User prompt wrapper (boss main only) ───
-    // #99: compact timestamp (moved from builder.ts system prompt → user prompt)
-    // + memory search nudge
-    if (!opts.agentId && !opts.internal && !opts._isSmokeContinuation && !opts._isGoalContinuation) {
+    // #99: compact timestamp + project root (moved from builder.ts system prompt → user prompt)
+    // + memory search nudge (regular messages only)
+    if (!opts.agentId && !opts.internal) {
         const _d = new Date(); const _p = (n: number) => String(n).padStart(2, '0');
         const _h = _d.getHours(); const _h12 = _h % 12 || 12;
         const ts = `${_p(_d.getFullYear() % 100)}${_p(_d.getMonth() + 1)}${_p(_d.getDate())}-${_p(_h12)}:${_p(_d.getMinutes())}${_h < 12 ? 'AM' : 'PM'}.`;
-        prompt = `${ts}\n${prompt}\n(need history? cli-jaw memory search "<keywords>" in "ENGLISH")`;
+        const _projDirs = getProjectDirs();
+        const projLine = _projDirs && _projDirs.length > 0
+            ? _projDirs.map(d => `Project root: ${d}`).join('\n') + '\n'
+            : '';
+        const memoryNudge = (!opts._isSmokeContinuation && !opts._isGoalContinuation)
+            ? '\n(need history? cli-jaw memory search "<keywords>" in "ENGLISH")'
+            : '';
+        prompt = `${ts}\n${projLine}${prompt}${memoryNudge}`;
     }
 
     const resumeSessionId = empSid || (isResume ? bucketSessionId : null);
