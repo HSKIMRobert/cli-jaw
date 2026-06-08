@@ -247,7 +247,7 @@ export function createDashboardMemoryRouter(opts: DashboardMemoryRouterOptions):
             apiKey: undefined,
             apiKeyPresent: !!config.apiKey,
             apiKeySource: config.apiKey?.startsWith('$') ? 'env' : config.apiKey ? 'direct' : 'none',
-            apiKeyPreview: config.apiKey?.startsWith('$') ? config.apiKey : config.apiKey ? `${config.apiKey.slice(0, 6)}...` : '',
+            apiKeyPreview: config.apiKey?.startsWith('$') ? config.apiKey : config.apiKey ? `...${config.apiKey.slice(-4)}` : '',
         };
         res.json({ ok: true, config: masked });
     });
@@ -323,12 +323,16 @@ export function createDashboardMemoryRouter(opts: DashboardMemoryRouterOptions):
                 const instances = listSearchableInstancesFromScan(scan);
                 for (const inst of instances) {
                     if (!inst.hasDb) continue;
+                    let instDb: Database.Database | null = null;
                     try {
-                        const db = new Database(inst.dbPath, { readonly: true });
-                        const row = db.prepare('SELECT COUNT(*) as cnt FROM chunks').get() as { cnt: number };
+                        instDb = new Database(inst.dbPath, { readonly: true });
+                        const row = instDb.prepare('SELECT COUNT(*) as cnt FROM chunks').get() as { cnt: number };
                         totalSourceChunks += row.cnt;
-                        db.close();
-                    } catch {}
+                    } catch (e) {
+                        console.warn(`[embed-state] chunk count failed for ${inst.instanceId}:`, (e as Error).message);
+                    } finally {
+                        instDb?.close();
+                    }
                 }
             } catch {}
             const status = getEmbeddingState({
@@ -352,13 +356,17 @@ export function createDashboardMemoryRouter(opts: DashboardMemoryRouterOptions):
             let totalChars = 0;
             for (const inst of instances) {
                 if (!inst.hasDb) continue;
+                let instDb: Database.Database | null = null;
                 try {
-                    const db = new Database(inst.dbPath, { readonly: true });
-                    const row = db.prepare('SELECT COUNT(*) as cnt, SUM(LENGTH(content)) as chars FROM chunks').get() as { cnt: number; chars: number | null };
+                    instDb = new Database(inst.dbPath, { readonly: true });
+                    const row = instDb.prepare('SELECT COUNT(*) as cnt, SUM(LENGTH(content)) as chars FROM chunks').get() as { cnt: number; chars: number | null };
                     totalChunks += row.cnt;
                     totalChars += row.chars || 0;
-                    db.close();
-                } catch {}
+                } catch (e) {
+                    console.warn(`[embed-estimate] chunk count failed for ${inst.instanceId}:`, (e as Error).message);
+                } finally {
+                    instDb?.close();
+                }
             }
             const estimatedTokens = Math.ceil(totalChars / 3);
             const batches = Math.ceil(totalChunks / 20);
@@ -374,7 +382,7 @@ export function createDashboardMemoryRouter(opts: DashboardMemoryRouterOptions):
         }
     });
 
-    router.get('/reindex-stream', async (_req, res) => {
+    router.get('/reindex-stream', async (req, res) => {
         const embConfig = opts.embeddingConfig();
         if (!embConfig?.enabled) {
             res.status(400).json({ ok: false, code: 'embedding_not_enabled' });
@@ -390,6 +398,9 @@ export function createDashboardMemoryRouter(opts: DashboardMemoryRouterOptions):
         res.setHeader('Connection', 'keep-alive');
         res.flushHeaders();
 
+        let aborted = false;
+        req.on('close', () => { aborted = true; });
+
         try {
             const scan = await opts.scanSupplier();
             const instances = listSearchableInstancesFromScan(scan);
@@ -401,15 +412,16 @@ export function createDashboardMemoryRouter(opts: DashboardMemoryRouterOptions):
                 vecStore: vec,
                 provider,
                 onProgress: (instId, done, total) => {
+                    if (aborted) return;
                     res.write(`data: ${JSON.stringify({ instanceId: instId, done, total })}\n\n`);
                 },
             });
             vec.setConfig('lastSyncAt', new Date().toISOString());
-            res.write(`data: ${JSON.stringify({ complete: true, results })}\n\n`);
+            if (!aborted) res.write(`data: ${JSON.stringify({ complete: true, results })}\n\n`);
         } catch (err) {
-            res.write(`data: ${JSON.stringify({ error: String(err) })}\n\n`);
+            if (!aborted) res.write(`data: ${JSON.stringify({ error: String(err) })}\n\n`);
         }
-        res.end();
+        if (!aborted) res.end();
     });
 
     return router;
