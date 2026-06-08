@@ -9,6 +9,8 @@ settings.json
 cache/
 public/dist/
 dist/
+.dist-staging/
+.dist-old/
 native/**/target/
 
 out/

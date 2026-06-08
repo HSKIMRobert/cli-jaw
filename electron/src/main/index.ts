@@ -909,10 +909,34 @@ async function spawnAndWait(): Promise<void> {
   }
 }
 
+const PLANNED_RESTART_CODE = 75;
+
 function handleManagerExit(code: number | null, signal: NodeJS.Signals | null): void {
   ringBuffer.append(`[manager exit] code=${code} signal=${signal}\n`);
   if (shuttingDown || crashLoopStopped) return;
   if (managerRestarting) return;
+
+  if (code === PLANNED_RESTART_CODE) {
+    ringBuffer.append(`[manager exit] planned restart (code ${PLANNED_RESTART_CODE})\n`);
+    void (async () => {
+      try {
+        await ensureManagerRunning();
+        updateServerStatus('Server: Running');
+        clearTrayBadge();
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          try {
+            await mainWindow.loadURL(MANAGER_URL);
+          } catch (err) {
+            ringBuffer.append(`[planned restart reload error] ${(err as Error)?.message ?? err}\n`);
+          }
+        }
+      } catch (err) {
+        ringBuffer.append(`[planned restart error] ${(err as Error)?.message ?? err}\n`);
+      }
+    })();
+    return;
+  }
+
   void (async () => {
     if (shouldAttachToExistingManager() && await probeOnce(MANAGER_URL)) {
       ringBuffer.append(`[manager exit] another instance owns ${MANAGER_URL}; attaching\n`);
