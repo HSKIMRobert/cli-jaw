@@ -64,15 +64,22 @@ function searchInstance(
             };
         }
 
-        const likeTerm = `%${query}%`;
+        const words = query.split(/\s+/).filter(w => w.length >= 2).slice(0, 5);
+        if (!words.length) { db.close(); return { hits: [] }; }
         const conditions: string[] = [];
-        const params: Record<string, unknown> = { likeTerm, limit: opts.limit };
+        const params: Record<string, unknown> = { limit: opts.limit };
 
-        if (schema.hasToolLog) {
-            conditions.push('(content LIKE @likeTerm OR tool_log LIKE @likeTerm)');
-        } else {
-            conditions.push('content LIKE @likeTerm');
-        }
+        const likeParts: string[] = [];
+        words.forEach((w, i) => {
+            const key = `w${i}`;
+            params[key] = `%${w}%`;
+            if (schema.hasToolLog) {
+                likeParts.push(`(content LIKE @${key} OR tool_log LIKE @${key})`);
+            } else {
+                likeParts.push(`content LIKE @${key}`);
+            }
+        });
+        conditions.push(`(${likeParts.join(' OR ')})`);
 
         if (opts.days && opts.days > 0) {
             conditions.push("created_at >= datetime('now', @daysOffset)");
@@ -82,7 +89,7 @@ function searchInstance(
         const where = conditions.join(' AND ');
         const selectCli = 'cli';
         const matchField = schema.hasToolLog
-            ? "CASE WHEN tool_log LIKE @likeTerm THEN 'tool_log' ELSE 'content' END"
+            ? `CASE WHEN tool_log LIKE @w0 THEN 'tool_log' ELSE 'content' END`
             : "'content'";
 
         const sql = `SELECT id, role, content, ${selectCli}, created_at, ${matchField} as match_field
