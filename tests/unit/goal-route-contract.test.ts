@@ -113,6 +113,7 @@ test('GR-016: plan-mode goals store planHint and block updates before refine', (
     assert.ok(typesSrc.includes('GOAL_PLAN_PENDING_OBJECTIVE'), 'types must define a pending plan objective');
     assert.ok(typesSrc.includes('planHint?'), 'GoalState must store planHint separately');
     assert.ok(routeSrc.includes('planHint'), 'route set action should accept planHint');
+    assert.ok(routeSrc.includes('MAX_GOAL_PLAN_HINT_CHARS'), 'route should cap planHint size before persistence');
     assert.ok(routeSrc.includes('must be refined before checkpoints'), 'route update should reject plan-mode checkpoints');
     assert.ok(handlerSrc.includes('must be refined before checkpoints'), 'slash update should reject plan-mode checkpoints');
 });

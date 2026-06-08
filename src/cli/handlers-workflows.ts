@@ -248,6 +248,8 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
         const lines = [
             `Goal: ${goal.objective}`,
             `Status: ${goal.status}`,
+            goal.goalMode ? `Mode: ${goal.goalMode}` : null,
+            goal.planHint ? `Plan hint: ${goal.planHint}` : null,
             `Created: ${goal.createdAt}`,
             goal.lastCheckpoint ? `Last checkpoint: ${goal.lastCheckpoint.summary}` : null,
             goal.lastCheckpoint?.nextAction ? `Next action: ${goal.lastCheckpoint.nextAction}` : null,
