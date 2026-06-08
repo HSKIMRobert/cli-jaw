@@ -42,7 +42,6 @@ function searchInstance(
     try {
         const schema = probeSchema(db);
         if (!schema) {
-            db.close();
             return {
                 hits: [],
                 warning: {
@@ -65,18 +64,19 @@ function searchInstance(
         }
 
         const words = query.split(/\s+/).filter(w => w.length >= 2).slice(0, 5);
-        if (!words.length) { db.close(); return { hits: [] }; }
+        if (!words.length) return { hits: [] };
         const conditions: string[] = [];
         const params: Record<string, unknown> = { limit: opts.limit };
 
+        const escapeLike = (s: string) => s.replace(/%/g, '\\%').replace(/_/g, '\\_');
         const likeParts: string[] = [];
         words.forEach((w, i) => {
             const key = `w${i}`;
-            params[key] = `%${w}%`;
+            params[key] = `%${escapeLike(w)}%`;
             if (schema.hasToolLog) {
-                likeParts.push(`(content LIKE @${key} OR tool_log LIKE @${key})`);
+                likeParts.push(`(content LIKE @${key} ESCAPE '\\' OR tool_log LIKE @${key} ESCAPE '\\')`);
             } else {
-                likeParts.push(`content LIKE @${key}`);
+                likeParts.push(`content LIKE @${key} ESCAPE '\\'`);
             }
         });
         conditions.push(`(${likeParts.join(' OR ')})`);
@@ -87,12 +87,11 @@ function searchInstance(
         }
 
         const where = conditions.join(' AND ');
-        const selectCli = 'cli';
         const matchField = schema.hasToolLog
-            ? `CASE WHEN tool_log LIKE @w0 THEN 'tool_log' ELSE 'content' END`
+            ? `CASE WHEN tool_log LIKE @w0 ESCAPE '\\' THEN 'tool_log' ELSE 'content' END`
             : "'content'";
 
-        const sql = `SELECT id, role, content, ${selectCli}, created_at, ${matchField} as match_field
+        const sql = `SELECT id, role, content, cli, created_at, ${matchField} as match_field
             FROM messages
             WHERE ${where}
             ORDER BY created_at DESC
@@ -102,8 +101,6 @@ function searchInstance(
             id: number; role: string; content: string;
             cli: string | null; created_at: string; match_field: string;
         }>;
-
-        db.close();
 
         const result: { hits: ChatSearchHit[]; warning?: FederationWarning } = {
             hits: rows.map(r => ({
@@ -120,7 +117,6 @@ function searchInstance(
         if (warning) result.warning = warning;
         return result;
     } catch (err) {
-        db.close();
         return {
             hits: [],
             warning: {
@@ -129,6 +125,8 @@ function searchInstance(
                 message: err instanceof Error ? err.message : String(err),
             },
         };
+    } finally {
+        db.close();
     }
 }
 

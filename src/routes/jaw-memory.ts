@@ -146,11 +146,15 @@ export function registerJawMemoryRoutes(app: Express, requireAuth: AuthMiddlewar
                 return;
             }
 
-            const windowHours = Number(req.query["window"]) || 4;
+            const windowHours = Math.min(Math.max(Number(req.query["window"]) || 4, 1), 720);
             const limit = Math.min(Number(req.query["limit"]) || 10, 30);
 
             const allTerms = `${q} ${q2 || ''}`.split(/\s+/).filter(t => t.length >= 2);
-            const primaryTerm = allTerms[0] || q || q2 || '';
+            const primaryTerm = allTerms[0] || '';
+            if (!primaryTerm) {
+                res.json({ file, center, hits: [], message: 'no searchable terms after split' });
+                return;
+            }
             const secondaryTerm = allTerms.length > 1 ? allTerms[1] : null;
 
             const rows = searchMessagesByTimeWindow.all({
