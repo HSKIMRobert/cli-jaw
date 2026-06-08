@@ -278,13 +278,28 @@ export async function thoughtHandler(args: string[], ctx: CliCommandContext): Pr
 export async function skillHandler(args: string[], ctx: CliCommandContext): Promise<SlashResult> {
     const L = ctx.locale || 'ko';
     const sub = (args[0] || 'list').toLowerCase();
+    const hasInactive = args.includes('--inactive') || args.includes('--ref');
+
+    if (sub === 'list' && hasInactive) {
+        const skills = await safeCall(ctx.getSkills, null) as Array<{ enabled?: boolean; id?: string; name?: string; description?: string }> | null;
+        if (!Array.isArray(skills)) return { ok: false, text: t('cmd.skill.loadFail', {}, L) };
+        const ref = skills.filter(s => !s.enabled);
+        if (!ref.length) return { ok: true, text: 'No reference skills found.' };
+        const lines = ref.map(s => {
+            const label = s.name && s.name !== s.id ? `${s.name} (${s.id})` : (s.id || 'unknown');
+            return s.description ? `- ${label} — ${s.description}` : `- ${label}`;
+        });
+        return { ok: true, text: `📚 Reference Skills (${ref.length}):\n${lines.join('\n')}` };
+    }
+
     if (sub === 'list') {
         const skills = await safeCall(ctx.getSkills, null) as Array<{ enabled?: boolean }> | null;
         if (!Array.isArray(skills)) return { ok: false, text: t('cmd.skill.loadFail', {}, L) };
         const active = skills.filter(s => s.enabled).length;
         const ref = skills.filter(s => !s.enabled).length;
-        return { ok: true, text: `🧰 Skills: ${active} active, ${ref} ref` };
+        return { ok: true, text: `🧰 Skills: ${active} active, ${ref} ref\nUse /skill list --inactive to see reference skills` };
     }
+
     if (sub === 'reset') {
         if (typeof ctx.resetSkills !== 'function') {
             return { ok: false, text: t('cmd.skill.resetUnavailable', {}, L) };
@@ -292,7 +307,7 @@ export async function skillHandler(args: string[], ctx: CliCommandContext): Prom
         await ctx.resetSkills();
         return { ok: true, text: t('cmd.skill.resetDone', {}, L) };
     }
-    return { ok: false, text: 'Usage: /skill [list|reset]' };
+    return { ok: false, text: 'Usage: /skill [list [--inactive]|reset]' };
 }
 
 export async function employeeHandler(args: string[], ctx: CliCommandContext): Promise<SlashResult> {

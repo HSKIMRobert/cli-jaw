@@ -43,9 +43,9 @@ test('TMPISO-003: spawnCwd is used (not settings.workingDir) for AcpClient', () 
 
 test('TMPISO-004: acp.createSession uses spawnCwd (both occurrences)', () => {
     const src = readSrc('../../src/agent/spawn.ts');
-    const matches = src.match(/acp\.createSession\(spawnCwd\)/g);
-    assert.ok(matches, 'should have acp.createSession(spawnCwd) calls');
-    assert.equal(matches.length, 2, 'exactly 2 acp.createSession(spawnCwd) calls');
+    const matches = src.match(/acp\.createSession\(spawnCwd,\s*getEmployeeMcpServers\(\)\)/g);
+    assert.ok(matches, 'should have acp.createSession(spawnCwd, getEmployeeMcpServers()) calls');
+    assert.equal(matches.length, 2, 'exactly 2 acp.createSession(spawnCwd, getEmployeeMcpServers()) calls');
     // Verify no acp.createSession(settings.workingDir) remains
     assert.ok(!src.includes('acp.createSession(settings.workingDir)'));
 });

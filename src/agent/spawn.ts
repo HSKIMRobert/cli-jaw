@@ -66,6 +66,7 @@ import {
 } from './kiro-runtime.js';
 import { resolveCursorModelVariant } from './cursor-runtime.js';
 import { normalizePiSettings, spawnPiRpc } from './pi-runtime.js';
+import { getEmployeeMcpServers } from './mcp-passthrough.js';
 
 // ─── State ───────────────────────────────────────────
 
@@ -1172,10 +1173,10 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                             clearEmployeeSession.run(opts.agentId);
                             console.warn(`[acp:session] cleared stale employee resume for ${opts.agentId}`);
                         }
-                        await acp.createSession(spawnCwd);
+                        await acp.createSession(spawnCwd, getEmployeeMcpServers());
                     }
                 } else {
-                    await acp.createSession(spawnCwd);
+                    await acp.createSession(spawnCwd, getEmployeeMcpServers());
                 }
                 replayMode = false;  // Phase 17.2: unmute after session load
                 ctx.sessionId = acp.sessionId;

@@ -109,8 +109,8 @@ test('rendered Boss prompt keeps skill matching guidance when only ref skills ex
         'ref-only Boss prompt should still include the skill matching prelude');
     assert.ok(prompt.includes('Match by intent, not exact words'),
         'ref-only Boss prompt should preserve semantic skill routing');
-    assert.ok(prompt.includes('diagram — SVG diagrams, charts, and interactive visualizations for chat UI'),
-        'ref-only Boss prompt should include skill metadata descriptions');
+    assert.ok(prompt.includes('cli-jaw skill list --inactive'),
+        'ref-only Boss prompt should point to CLI command for browsing ref skills');
     assert.ok(prompt.includes(JAW_HOME),
         'rendered prompt should still use the configured test JAW_HOME');
 });

@@ -32,8 +32,8 @@ test('prompt guard: Boss skills system renders skill descriptions, not bare ids 
     const systemPromptSection = src.slice(src.indexOf('function getSystemPrompt'));
     assert.ok(systemPromptSection.includes('ACTIVE_SKILLS_LIST"] = activeSkills.map(s => formatSkillListItem'),
         'active Boss skill list should use description-aware formatter');
-    assert.ok(systemPromptSection.includes('REF_SKILLS_LIST"] = availableRef.map(s => formatSkillListItem'),
-        'available Boss skill list should use description-aware formatter');
-    assert.ok(!systemPromptSection.includes('REF_SKILLS_LIST"] = availableRef.map(s => s.id).join'),
-        'available Boss skill list must not degrade to bare comma-separated ids');
+    assert.ok(!systemPromptSection.includes('REF_SKILLS_LIST"] = availableRef.map'),
+        'ref skills list should NOT be inlined in Boss prompt (moved to CLI command)');
+    assert.ok(systemPromptSection.includes('REF_SKILLS_COUNT'),
+        'Boss prompt should still track ref skills count');
 });
