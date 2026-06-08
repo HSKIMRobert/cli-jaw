@@ -78,6 +78,12 @@ test('system prompt routes ambiguous Korean search intent away from default code
         'system prompt should include a Korean search intent guard');
     assert.ok(a1Src.includes('Rewrite it into 1-3 focused keyword queries'),
         'system prompt should require focused query rewrites for Korean external searches');
+    assert.ok(a1Src.includes('agbrowse research plan --query "<request>" --json'),
+        'system prompt should prefer agbrowse research planning when available');
+    assert.ok(a1Src.includes('plan.atomicQueries'),
+        'system prompt should route provider/native search through agbrowse atomic queries');
+    assert.ok(a1Src.includes('when agbrowse is unavailable'),
+        'system prompt should preserve cli-jaw-only fallback behavior');
     assert.ok(a1Src.includes('Treat search results as URL candidates, not final evidence'),
         'system prompt should treat search results as URL candidates');
     assert.ok(a1Src.includes('Use browser/browse escalation only as downstream verification'),
@@ -95,6 +101,12 @@ test('skills prompt prefers active search skill for external search intent', () 
         'skills prompt should prefer active search/web retrieval before local grep');
     assert.ok(skillsSrc.includes('first rewrite the request into 1-3 focused keyword queries'),
         'skills prompt should require query rewrite for Korean external search intent');
+    assert.ok(skillsSrc.includes('agbrowse research plan --query "<request>" --json'),
+        'skills prompt should bridge Korean search routing to agbrowse when available');
+    assert.ok(skillsSrc.includes('plan.atomicQueries'),
+        'skills prompt should tell agents to search with agbrowse atomic queries');
+    assert.ok(skillsSrc.includes('when agbrowse is unavailable'),
+        'skills prompt should keep manual rewrite/fetch/browse fallback');
     assert.ok(skillsSrc.includes('treat search results as URL candidates'),
         'skills prompt should treat search output as URL candidates');
     assert.ok(skillsSrc.includes('use browser/browse only when fetch is empty, truncated, JS-rendered, Naver shell/iframe, or otherwise incomplete'),
