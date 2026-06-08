@@ -28,7 +28,7 @@ import {
     memoryFlushCounter,
 } from './memory-flush-controller.js';
 import { buildGoalContinuation } from '../goal/heartbeat.js';
-import { completeGoal, cancelGoal, getActiveGoal, goalHasCompletionEvidence } from '../goal/store.js';
+import { completeGoal, cancelGoal, getActiveGoal, goalHasCompletionEvidence, resetAgentPauseCount } from '../goal/store.js';
 import { recordTurn } from '../goal-run/controller.js';
 
 const GOAL_CONT_MAX_ATTEMPTS = 20;
@@ -79,6 +79,7 @@ export function kickGoalContinuation(): boolean {
 // Match /goal done|cancel or cli-jaw goal done|cancel at line start or after whitespace
 const GOAL_DONE_RE = /(?:^|\n)\s*(?:\/goal|cli-jaw\s+goal)\s+done\b/im;
 const GOAL_CANCEL_RE = /(?:^|\n)\s*(?:\/goal|cli-jaw\s+goal)\s+cancel\b/im;
+const GOAL_PAUSE_RE = /(?:^|\n)\s*(?:\/goal|cli-jaw\s+goal)\s+pause\b/im;
 
 type LifecycleSpawnOptions = {
     internal?: boolean;
@@ -827,6 +828,10 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
                 clearGoalTimers();
                 console.log('[jaw:goal] AI output contained /goal cancel — goal cancelled');
                 broadcast('goal_cancel', { goalId: activeGoal.id, source: 'ai_output' });
+            } else if (GOAL_PAUSE_RE.test(ctx.fullText)) {
+                clearGoalTimers();
+                console.log('[jaw:goal] AI output contained /goal pause — timers cleared');
+                broadcast('goal_pause_detected', { goalId: activeGoal.id, source: 'ai_output' });
             }
         }
     }
@@ -904,6 +909,9 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
                 _goalContAttempts = 0;
             } else {
                 recordTurn();
+                if (!GOAL_PAUSE_RE.test(ctx.fullText ?? '')) {
+                    resetAgentPauseCount();
+                }
                 const delay = opts._isGoalContinuation ? 10000 : 2000;
                 console.log(`[jaw:goal] active goal — continuation ${_goalContAttempts}/${GOAL_CONT_MAX_ATTEMPTS} in ${delay}ms`);
                 broadcast('goal_continuation', { reason: goalCont.reason, attempt: _goalContAttempts });

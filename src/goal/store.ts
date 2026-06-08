@@ -181,6 +181,28 @@ function archiveGoal(goal: GoalState): void {
     writeJson(HISTORY_PATH, history);
 }
 
+export function getAgentPauseCount(): number {
+    const goal = getActiveGoal();
+    return goal?.agentPauseCount ?? 0;
+}
+
+export function incrementAgentPauseCount(): GoalState | null {
+    const goal = getActiveGoal();
+    if (!goal || goal.status !== 'active') return null;
+    goal.agentPauseCount = (goal.agentPauseCount ?? 0) + 1;
+    goal.updatedAt = new Date().toISOString();
+    writeJson(ACTIVE_PATH, goal);
+    return goal;
+}
+
+export function resetAgentPauseCount(): void {
+    const goal = getActiveGoal();
+    if (!goal || !goal.agentPauseCount) return;
+    goal.agentPauseCount = 0;
+    goal.updatedAt = new Date().toISOString();
+    writeJson(ACTIVE_PATH, goal);
+}
+
 /** Completion-gate predicate: AI may complete only if the latest checkpoint carries at least one NON-BLANK verification evidence entry (blank/whitespace entries never satisfy the gate, regardless of how they were inserted). */
 export function goalHasCompletionEvidence(goal: GoalState | null): boolean {
     return (goal?.lastCheckpoint?.evidencePaths ?? []).some(e => typeof e === 'string' && e.trim().length > 0);

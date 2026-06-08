@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildGoalContinuation } from '../../src/goal/heartbeat.ts';
-import { setGoal, resetGoalStore } from '../../src/goal/store.ts';
+import { setGoal, resetGoalStore, incrementAgentPauseCount } from '../../src/goal/store.ts';
 import { setState, resetState } from '../../src/orchestrator/state-machine.ts';
 import { claimWorker, finishWorker, clearAllWorkers } from '../../src/orchestrator/worker-registry.ts';
 
@@ -98,6 +98,35 @@ test('goal continuation prompt requires executing PABCD transition commands thro
         assert.match(res.prompt ?? '', /Run the exact `cli-jaw orchestrate \.\.\.` command/);
         assert.match(res.prompt ?? '', /C passed → `cli-jaw orchestrate D` immediately/);
         assert.match(res.prompt ?? '', /do NOT only say "run D"/);
+    } finally {
+        cleanup();
+    }
+});
+
+test('goal continuation injects dev-skill audit prompt when agentPauseCount >= 1', () => {
+    cleanup();
+    try {
+        setGoal('contract: pause gate audit prompt');
+        incrementAgentPauseCount();
+        const res = buildGoalContinuation();
+        assert.equal(res.shouldContinue, true);
+        assert.match(res.prompt ?? '', /AGENT PAUSE GATE/);
+        assert.match(res.prompt ?? '', /First attempt recorded/);
+        assert.match(res.prompt ?? '', /Requirement-by-requirement verification/);
+        assert.match(res.prompt ?? '', /Dev skill compliance/);
+        assert.match(res.prompt ?? '', /Independent reviewer/);
+    } finally {
+        cleanup();
+    }
+});
+
+test('goal continuation does NOT inject audit prompt when agentPauseCount is 0', () => {
+    cleanup();
+    try {
+        setGoal('contract: no audit prompt without count');
+        const res = buildGoalContinuation();
+        assert.equal(res.shouldContinue, true);
+        assert.doesNotMatch(res.prompt ?? '', /AGENT PAUSE GATE/);
     } finally {
         cleanup();
     }
