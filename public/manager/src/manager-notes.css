@@ -1229,6 +1229,11 @@
     height: auto;
 }
 
+.notes-mermaid-block.mermaid-type-wide svg {
+    max-width: none;
+    min-width: 600px;
+}
+
 .notes-mermaid-block.is-error {
     display: grid;
     gap: 6px;

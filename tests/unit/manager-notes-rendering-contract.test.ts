@@ -229,8 +229,8 @@ test('MermaidBlock uses component-owned strict Mermaid rendering without iframe'
     const mermaid = read('public/manager/src/notes/rendering/MermaidBlock.tsx');
 
     assert.ok(mermaid.includes("await import('mermaid')"), 'Mermaid must stay lazy-loaded');
-    assert.ok(mermaid.includes('startOnLoad: false'), 'Mermaid must not scan the whole document on load');
-    assert.ok(mermaid.includes("securityLevel: 'strict'"), 'Mermaid must use strict security level');
+    assert.ok(mermaid.includes('getMermaidInitConfig'), 'Mermaid must use shared init config for theme/security parity');
+    assert.ok(mermaid.includes('sanitizeMermaidSvg'), 'Mermaid SVG output must be sanitized before DOM insertion');
     assert.ok(mermaid.includes('mermaid.render'), 'MermaidBlock must render through the Mermaid API');
     assert.equal(mermaid.includes('<iframe'), false, 'MermaidBlock must not use iframe rendering');
     assert.ok(mermaid.includes("status: 'error'"), 'Mermaid render failures must stay local to the block');
