@@ -57,6 +57,30 @@ test('/review steer prompt contains project-dir validation and markdown report c
     assert.doesNotMatch(prompt, new RegExp(`Project root: ${jawHome.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
 });
 
+test('/review steer prompt resolves recent-context scope beyond uncommitted diff', () => {
+    const context = buildReviewTargetContext({
+        workingDir: jawHome,
+        projectDirs: [repoRoot],
+    }, '20260609000000-reviewReport-scope');
+    const prompt = buildReviewSteerPrompt(parseReviewFlags([]), context);
+
+    assert.doesNotMatch(prompt, /code review of uncommitted changes/,
+        'review must not be framed as uncommitted-only');
+    assert.match(prompt, /recent relevant project changes/,
+        'review should be framed around recent project changes');
+    assert.match(prompt, /cli-jaw goal status/);
+    assert.match(prompt, /cli-jaw goal history/);
+    assert.match(prompt, /cli-jaw chat search .*--recent\/--days/);
+    assert.match(prompt, /git log --oneline --decorate --max-count=20/);
+    assert.match(prompt, /git reflog --date=iso --max-count=20/);
+    assert.match(prompt, /committed changes, uncommitted changes, and untracked files/,
+        'uncommitted changes remain one input, not the whole review scope');
+    assert.match(prompt, /Do not limit the review to `git diff HEAD`/);
+    assert.match(prompt, /No project changes to review/);
+    assert.doesNotMatch(prompt, /No uncommitted changes to review/);
+    assert.match(prompt, /Scope Resolution/);
+});
+
 test('/review --fix remains scoped to Critical and High findings in the resolved repo', () => {
     const context = buildReviewTargetContext({
         projectDirs: [repoRoot],
@@ -64,7 +88,8 @@ test('/review --fix remains scoped to Critical and High findings in the resolved
     const prompt = buildReviewSteerPrompt(parseReviewFlags(['--fix']), context);
 
     assert.match(prompt, /auto-fix all Critical and High severity findings only/);
-    assert.match(prompt, /Apply fixes only inside the validated Project root/);
+    assert.match(prompt, /new working-tree patch on top of current HEAD/);
+    assert.match(prompt, /Do not rewrite, amend, rebase, or reset existing commits/);
     assert.match(prompt, /Update the Markdown report with the fix summary and verification result/);
 });
 
