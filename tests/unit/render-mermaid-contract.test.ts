@@ -114,10 +114,10 @@ test('N2: data-mermaid-queued guard prevents duplicate enqueueing', () => {
 });
 
 test('S3: sanitizer ADD_ATTR whitelists data-mermaid-code-raw', () => {
-    const addAttrMatch = renderSrc.match(/ADD_ATTR:\s*\[([^\]]+)\]/);
-    assert.ok(addAttrMatch, 'sanitizeHtml must have ADD_ATTR config');
-    assert.ok(addAttrMatch[1].includes("'data-mermaid-code-raw'"),
-        'data-mermaid-code-raw must be in the sanitizer allowlist');
+    const allMatches = [...renderSrc.matchAll(/ADD_ATTR:\s*\[([^\]]+)\]/g)];
+    assert.ok(allMatches.length > 0, 'sanitizeHtml must have ADD_ATTR config');
+    const hasAttr = allMatches.some(m => m[1].includes("'data-mermaid-code-raw'"));
+    assert.ok(hasAttr, 'data-mermaid-code-raw must be in the sanitizer allowlist');
 });
 
 test('D1: rendered Mermaid diagrams restore expand control and binding', () => {
