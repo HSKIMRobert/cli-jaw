@@ -677,7 +677,7 @@ export function getEmployeePromptV2(
     const phase = Number(currentPhase);
     const mcpSummary = getEmployeeMcpToolSummary();
     const mcpHash = mcpSummary ? createHash('md5').update(mcpSummary).digest('hex').slice(0, 8) : '';
-    const cacheKey = `${emp.id || emp.name}:${role}:${phase}:${settings["workingDir"] || '~'}:${opts?.mutable ? 'mut' : 'ro'}:${opts?.scope || ''}:${mcpHash}`;
+    const cacheKey = `${emp.id || emp.name}:${emp.cli || ''}:${role}:${phase}:${settings["workingDir"] || '~'}:${opts?.mutable ? 'mut' : 'ro'}:${opts?.scope || ''}:${mcpHash}`;
     if (promptCache.has(cacheKey)) return promptCache.get(cacheKey);
 
     let prompt = getEmployeePrompt(emp);
@@ -726,6 +726,16 @@ export function getEmployeePromptV2(
     prompt += `\n- Match by intent, not exact words: compare the task, files, domain nouns, output, and task verbs against visible skill names, descriptions, and any listed metadata, keywords, or triggers.`;
     prompt += `\n- When uncertain, inspect the best candidate: if metadata suggests a plausible match, read that SKILL.md once before deciding it does not apply.`;
     prompt += `\n- Search intent override: for "검색", "검색해", "찾아봐", "알아봐", "look up", or "search" targeting external/current/docs/library information, inspect the active search skill before local Grep/Glob.`;
+    if (emp.cli === 'agy') {
+        prompt += `\n\n## AGY Search Grounding Rules`;
+        prompt += `\nAGY/Gemini search summaries are orientation only, not final evidence.`;
+        prompt += `\n- For Korean external/current/source-sensitive search tasks, rewrite the request into 1-3 focused Korean keyword queries that preserve source hints, dates, domains, and content type.`;
+        prompt += `\n- Treat search_web output as URL candidates only. Do not claim original-source verification from a search summary.`;
+        prompt += `\n- If the request asks for 원문, 특정 후기, 정확한 문구, 표/목록/순위, 실시간 상태, 현재 수치, 공식 공고, or source-of-truth verification, fetch/open the original candidate URL when tools allow it.`;
+        prompt += `\n- If fetch/open/browser tools are unavailable or not used, explicitly say the answer is not original-source verified.`;
+        prompt += `\n- For Naver Blog/Cafe, iframe shells, JS-rendered pages, official dashboards, live standings, tables, pagination, or login-gated surfaces, state that browser/browse verification is required instead of saying the snippet is enough.`;
+        prompt += `\n- In final search notes, label evidence state as VERIFIED_BY_ORIGINAL_SOURCE, CANDIDATE_ONLY_NEEDS_FETCH, or NEEDS_BROWSER_VERIFICATION.`;
+    }
     prompt += `\n- Common dev guide: ${formatSkillPath('dev', devCommonPath)}`;
     prompt += `\n- Scaffolding guide: ${formatSkillPath('dev-scaffolding', scaffoldingPath)} (read only for new projects, new modules, or structure audits)`;
     if (staticSpec?.skills?.length) {
