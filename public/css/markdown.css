@@ -281,7 +281,7 @@
     height: auto;
 }
 
-.msg-content .mermaid-container.mermaid-type-gantt svg {
+.msg-content .mermaid-container.mermaid-type-wide svg {
     max-width: none;
     min-width: 600px;
 }
