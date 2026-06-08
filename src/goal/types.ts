@@ -1,5 +1,6 @@
 export type GoalStatus = 'active' | 'paused' | 'blocked' | 'complete' | 'cancelled';
 export type GoalMode = 'direct' | 'plan';
+export const GOAL_PLAN_PENDING_OBJECTIVE = '(AI-driven goal planning pending refinement)';
 
 export interface GoalBudget {
     maxTurns?: number;
@@ -25,6 +26,7 @@ export interface GoalState {
     objective: string;
     status: GoalStatus;
     goalMode?: GoalMode | undefined;
+    planHint?: string | undefined;
     createdAt: string;
     updatedAt: string;
     repoRoot?: string | undefined;

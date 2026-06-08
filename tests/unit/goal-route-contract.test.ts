@@ -34,7 +34,12 @@ test('GR-003b: goal route caps objective at 10000 characters', () => {
 });
 
 test('GR-004: goal route supports clear and reset without confirmation', () => {
-    assert.ok(routeSrc.includes('clear') && !routeSrc.includes('confirm'), 'clear must not require confirm');
+    const clearStart = routeSrc.indexOf("case 'clear':");
+    const resetStart = routeSrc.indexOf("case 'reset':", clearStart);
+    assert.notEqual(clearStart, -1, 'clear action must exist');
+    assert.notEqual(resetStart, -1, 'reset action must exist');
+    const clearBlock = routeSrc.slice(clearStart, resetStart);
+    assert.doesNotMatch(clearBlock, /confirm/, 'clear must not require confirm');
     assert.ok(routeSrc.includes('reset'), 'reset action must exist');
 });
 
@@ -43,7 +48,7 @@ test('GR-005: server.ts registers goal routes', () => {
 });
 
 test('GR-006: goal handler supports all subcommands', () => {
-    for (const sub of ['set', 'plan', 'status', 'update', 'done', 'cancel', 'pause', 'resume', 'clear', 'reset', 'history']) {
+    for (const sub of ['set', 'plan', 'refine', 'status', 'update', 'done', 'cancel', 'pause', 'resume', 'clear', 'reset', 'history']) {
         assert.ok(
             handlerSrc.includes(`sub === '${sub}'`),
             `handler must support /${sub} subcommand`,
@@ -83,6 +88,7 @@ test('GR-011: goal CLI exposes agent pause audit flags', () => {
 test('GR-012: store exports refineObjective for plan-mode confirmation', () => {
     assert.ok(storeSrc.includes('refineObjective'), 'store must export refineObjective');
     assert.ok(storeSrc.includes("goal.goalMode = 'direct'"), 'refineObjective must transition goalMode to direct');
+    assert.ok(storeSrc.includes('delete goal.planHint'), 'refineObjective must clear plan hints after final objective selection');
 });
 
 test('GR-013: route supports refine-objective action', () => {
@@ -99,4 +105,21 @@ test('GR-014: store and types support GoalMode', () => {
 test('GR-015: goal CLI supports plan subcommand', () => {
     assert.ok(goalCliSrc.includes("sub === 'plan'"), 'CLI must handle plan subcommand');
     assert.ok(goalCliSrc.includes("goalMode: 'plan'"), 'CLI plan must send goalMode plan');
+    assert.ok(goalCliSrc.includes('GOAL_PLAN_PENDING_OBJECTIVE'), 'CLI plan should store pending objective instead of raw hint');
+    assert.ok(goalCliSrc.includes('planHint'), 'CLI plan should send hint separately');
+});
+
+test('GR-016: plan-mode goals store planHint and block updates before refine', () => {
+    assert.ok(typesSrc.includes('GOAL_PLAN_PENDING_OBJECTIVE'), 'types must define a pending plan objective');
+    assert.ok(typesSrc.includes('planHint?'), 'GoalState must store planHint separately');
+    assert.ok(routeSrc.includes('planHint'), 'route set action should accept planHint');
+    assert.ok(routeSrc.includes('must be refined before checkpoints'), 'route update should reject plan-mode checkpoints');
+    assert.ok(handlerSrc.includes('must be refined before checkpoints'), 'slash update should reject plan-mode checkpoints');
+});
+
+test('GR-017: goal refine surfaces are documented in CLI and command metadata', () => {
+    assert.ok(goalCliSrc.includes('refine <objective>'), 'CLI help must document goal refine');
+    assert.ok(goalCliSrc.includes("'refine-objective'"), 'CLI refine should call refine-objective action');
+    assert.ok(handlerSrc.includes("sub === 'refine'"), 'slash handler must support /goal refine');
+    assert.ok(handlerSrc.includes('refineObjective(objective)'), 'slash refine must call refineObjective');
 });

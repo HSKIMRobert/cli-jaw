@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// bin/commands/goal.ts — CLI: jaw goal [set|status|update|done|cancel|pause|resume|clear|reset|history]
+// bin/commands/goal.ts — CLI: jaw goal [set|plan|refine|status|update|done|cancel|pause|resume|clear|reset|history]
 import { loadSettings, getServerUrl } from '../../src/core/config.js';
 import { cliFetch, getCliAuthToken } from '../../src/cli/api-auth.js';
 import { shouldShowHelp, printAndExit } from '../helpers/help.js';
 import { errString, isConnRefused } from '../_http-client.js';
+import { GOAL_PLAN_PENDING_OBJECTIVE } from '../../src/goal/types.js';
 
 if (shouldShowHelp(process.argv)) printAndExit(`
   jaw goal — Persistent goal lifecycle
@@ -13,6 +14,7 @@ if (shouldShowHelp(process.argv)) printAndExit(`
   Subcommands:
     set <objective>     Set a new goal (up to 10000 characters)
     plan [hint]         AI selects and executes a goal (hint is optional direction)
+    refine <objective>  Replace a pending plan-mode objective with the finalized goal
     status              Show active goal
     update <summary>    Add a checkpoint  (add --evidence <note>[,<...>] to record verification)
     done [note]         Mark goal complete (add --force to skip the evidence gate)
@@ -27,6 +29,7 @@ if (shouldShowHelp(process.argv)) printAndExit(`
   Examples:
     jaw goal plan                              # AI decides goal from context
     jaw goal plan "improve auth"               # AI uses hint as direction
+    jaw goal refine "Implement auth redirects" # Finalize AI-selected goal objective
     jaw goal set "Implement keyboard shortcuts"
     jaw goal update "K0 done"
     jaw goal done "All phases complete"
@@ -83,11 +86,15 @@ try {
 
     if (sub === 'plan') {
         const hint = args.slice(1).join(' ').trim();
-        const objective = hint || '(AI-driven planning)';
         const res = await cliFetch(`${BASE}/api/goal`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'set', objective, goalMode: 'plan' }),
+            body: JSON.stringify({
+                action: 'set',
+                objective: GOAL_PLAN_PENDING_OBJECTIVE,
+                goalMode: 'plan',
+                ...(hint ? { planHint: hint } : {}),
+            }),
         });
         const body = await res.json() as Record<string, unknown>;
         if (!res.ok) { console.error((body['error'] as string) || `Failed: ${res.status}`); process.exit(1); }
@@ -97,7 +104,7 @@ try {
     }
 
     const actionMap: Record<string, string> = {
-        set: 'set', done: 'done', cancel: 'cancel',
+        set: 'set', refine: 'refine-objective', done: 'done', cancel: 'cancel',
         update: 'update', pause: 'pause', resume: 'resume',
         clear: 'clear', reset: 'reset',
     };
@@ -105,12 +112,13 @@ try {
     const action = actionMap[sub];
     if (!action) {
         console.error(`Unknown subcommand: ${sub}`);
-        console.error('Use: set, plan, status, update, done, cancel, pause, resume, clear, reset, history');
+        console.error('Use: set, plan, refine, status, update, done, cancel, pause, resume, clear, reset, history');
         process.exit(1);
     }
 
     const payload: Record<string, unknown> = { action };
     if (sub === 'set') payload['objective'] = rest || undefined;
+    if (sub === 'refine') payload['objective'] = rest || undefined;
     if (sub === 'cancel') payload['reason'] = rest || undefined;
     if (sub === 'done') {
         payload['note'] = args.slice(1).filter(a => a !== '--force').join(' ').trim() || undefined;
@@ -153,6 +161,7 @@ try {
     const goal = body['goal'] as Record<string, unknown> | null;
     switch (sub) {
         case 'set': console.log(`✅ Goal set: ${goal?.['objective']}`); break;
+        case 'refine': console.log(`✅ Goal refined: ${goal?.['objective']}`); break;
         case 'done': console.log(`✅ Goal completed: ${goal?.['objective']}`); break;
         case 'cancel': console.log(`✅ Goal cancelled: ${goal?.['objective']}`); break;
         case 'update': console.log(`✅ Checkpoint added`); break;

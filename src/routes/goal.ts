@@ -4,6 +4,7 @@ import {
     setGoal, updateGoal, refineObjective, completeGoal, cancelGoal,
     pauseGoal, resumeGoal, clearGoal, resetGoalStore,
     goalHasCompletionEvidence,
+    getAgentPauseCount, incrementAgentPauseCount,
     MAX_GOAL_OBJECTIVE_CHARS,
 } from '../goal/store.js';
 import type { GoalMode } from '../goal/types.js';
@@ -45,10 +46,12 @@ export function registerGoalRoutes(app: Router, requireAuth: RequestHandler): vo
                     const repoRoot = body?.['repoRoot'] as string | undefined;
                     const budget = body?.['budget'] as Record<string, number> | undefined;
                     const goalMode = body?.['goalMode'] as GoalMode | undefined;
+                    const planHint = typeof body?.['planHint'] === 'string' ? String(body?.['planHint']).trim() : '';
                     const goal = setGoal(objective, {
                         ...(repoRoot ? { repoRoot } : {}),
                         ...(budget ? { budget } : {}),
                         ...(goalMode ? { goalMode } : {}),
+                        ...(planHint ? { planHint } : {}),
                     });
                     res.json({ ok: true, goal });
                     return;
@@ -61,6 +64,11 @@ export function registerGoalRoutes(app: Router, requireAuth: RequestHandler): vo
                     }
                     const ev = body?.['evidence'];
                     const evidence = Array.isArray(ev) ? ev.map(String) : (typeof ev === 'string' && ev ? [ev] : []);
+                    const active = getActiveGoal();
+                    if (active?.goalMode === 'plan') {
+                        res.status(409).json({ ok: false, error: 'Goal plan must be refined before checkpoints. Run `cli-jaw goal refine "<specific objective>"` first.' });
+                        return;
+                    }
                     const goal = updateGoal(summary, String(body?.['nextAction'] || ''), evidence);
                     if (!goal) { res.status(404).json({ ok: false, error: 'No active goal' }); return; }
                     res.json({ ok: true, goal });
@@ -101,6 +109,17 @@ export function registerGoalRoutes(app: Router, requireAuth: RequestHandler): vo
                     const auditEvidence = String(body?.['audit'] || '').trim();
                     if (actor === 'agent' && !auditEvidence) {
                         res.status(409).json({ ok: false, error: 'Agent-initiated goal pause requires independent audit evidence. Run an independent reviewer first, then retry with `cli-jaw goal pause --agent --audit "<review summary>"`.' });
+                        return;
+                    }
+                    if (actor === 'agent' && getAgentPauseCount() < 1) {
+                        incrementAgentPauseCount();
+                        res.status(409).json({
+                            ok: false,
+                            blocked: true,
+                            error: 'First agent pause attempt recorded (1/2). Pause NOT executed. '
+                                + 'Complete the dev-skill audit checklist injected in the next goal continuation, '
+                                + 'then call `cli-jaw goal pause --agent --audit "<evidence>"` again to confirm.',
+                        });
                         return;
                     }
                     const reason = String(body?.['reason'] || '').trim();

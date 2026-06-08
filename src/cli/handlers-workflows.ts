@@ -5,7 +5,7 @@ import { parseReviewFlags, parseReviewFocus, buildReviewArtifact, buildReviewSte
 import type { CliCommandContext } from './command-context.js';
 import type { SlashResult } from './types.js';
 import { clearGoalTimers } from '../agent/lifecycle-handler.js';
-import type { GoalState } from '../goal/types.js';
+import { GOAL_PLAN_PENDING_OBJECTIVE, type GoalState } from '../goal/types.js';
 
 function joinArgs(args: string[]): string {
     return args.join(' ').trim();
@@ -129,7 +129,7 @@ export async function planAuditWorkflowHandler(args: string[], ctx: CliCommandCo
 }
 
 function buildGoalPlanSteerPrompt(goal: GoalState): string {
-    const hint = goal.objective && goal.objective !== '(AI-driven planning)' ? goal.objective : '';
+    const hint = goal.planHint?.trim() || '';
     const hintLine = hint
         ? `The user provided a hint: "${hint}". Use it as directional guidance, but you decide the actual goal.`
         : 'No hint was provided. Determine the most appropriate goal from context.';
@@ -144,7 +144,7 @@ function buildGoalPlanSteerPrompt(goal: GoalState): string {
         '',
         'Based on your analysis, formulate a specific, actionable, long-term goal.',
         'Then immediately:',
-        '1. Set the goal objective via `/api/goal` with action `refine-objective` and the goal you chose',
+        '1. Set the goal objective via `cli-jaw goal refine "<specific objective>"` (or `/api/goal` action `refine-objective`) with the goal you chose',
         '2. Enter PABCD orchestration with `cli-jaw orchestrate P`',
         '3. Execute the full goal autonomously',
         '',
@@ -154,7 +154,7 @@ function buildGoalPlanSteerPrompt(goal: GoalState): string {
 }
 
 export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext): Promise<SlashResult> {
-    const { getActiveGoal, getGoalHistory, setGoal, updateGoal, completeGoal, cancelGoal, pauseGoal, resumeGoal, clearGoal, resetGoalStore, goalHasCompletionEvidence } = await import('../goal/store.js');
+    const { getActiveGoal, getGoalHistory, setGoal, updateGoal, refineObjective, completeGoal, cancelGoal, pauseGoal, resumeGoal, clearGoal, resetGoalStore, goalHasCompletionEvidence } = await import('../goal/store.js');
     const sub = (args[0] || '').toLowerCase();
 
     if (sub === 'run') {
@@ -212,7 +212,6 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
 
     if (sub === 'plan' || sub === 'goalplan') {
         const hint = args.slice(sub === 'plan' ? 1 : 0).join(' ').trim();
-        const objective = hint || '(AI-driven planning)';
         const existing = getActiveGoal();
         if (existing && (existing.status === 'active' || existing.status === 'paused')) {
             return blocked(`Active goal already exists: "${existing.objective}"\nUse /goal done, /goal cancel, or /goal clear first.`);
@@ -220,9 +219,10 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
         clearGoalTimers();
         const settings = await resolveSettings(ctx);
         const wd = (settings as Record<string, unknown>)['workingDir'] as string | undefined;
-        const goal = setGoal(objective, {
+        const goal = setGoal(GOAL_PLAN_PENDING_OBJECTIVE, {
             ...(wd ? { repoRoot: wd } : {}),
             goalMode: 'plan' as const,
+            ...(hint ? { planHint: hint } : {}),
         });
         return fireSteerForWebCli(ctx, {
             ok: true,
@@ -230,6 +230,14 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
             text: `Goal plan activated${hint ? `: ${hint}` : ''}\nID: ${goal.id}\nMode: AI selects and executes goal`,
             steerPrompt: buildGoalPlanSteerPrompt(goal),
         });
+    }
+
+    if (sub === 'refine') {
+        const objective = args.slice(1).join(' ').trim();
+        if (!objective) return blocked('Usage: /goal refine <specific objective>');
+        const goal = refineObjective(objective);
+        if (!goal) return blocked('No active goal to refine.');
+        return info(`Goal refined: ${goal.objective}`);
     }
 
     if (sub === 'status' || sub === '--json') {
@@ -256,6 +264,10 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
             : [];
         const summary = (evIdx >= 0 ? rest.slice(0, evIdx) : rest).join(' ').trim();
         if (!summary) return blocked('Usage: /goal update <summary> [--evidence <note-or-path>[,<...>]]');
+        const active = getActiveGoal();
+        if (active?.goalMode === 'plan') {
+            return blocked('Goal plan must be refined before checkpoints. Run `/goal refine <specific objective>` first.');
+        }
         const goal = updateGoal(summary, '', evidence);
         if (!goal) return blocked('No active goal to update.');
         return info(`Checkpoint added: ${summary}${evidence.length ? ` (evidence: ${evidence.length})` : ''}`);

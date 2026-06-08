@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseCommand, executeCommand } from '../../src/cli/commands.ts';
-import { resetGoalStore, setGoal, updateGoal, getAgentPauseCount } from '../../src/goal/store.ts';
+import { resetGoalStore, setGoal, updateGoal, getAgentPauseCount, getActiveGoal } from '../../src/goal/store.ts';
+import { GOAL_PLAN_PENDING_OBJECTIVE } from '../../src/goal/types.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const handlersSrc = readFileSync(join(__dirname, '../../src/cli/handlers-workflows.ts'), 'utf8');
@@ -23,7 +24,7 @@ function goalSubcommandBlock(subcommand: string): string {
 }
 
 test('/goal terminal commands bypass fireSteerForWebCli submitMessage path', () => {
-    for (const subcommand of ['done', 'cancel', 'pause', 'clear']) {
+    for (const subcommand of ['refine', 'done', 'cancel', 'pause', 'clear']) {
         const block = goalSubcommandBlock(subcommand);
         assert.doesNotMatch(block, /fireSteerForWebCli/);
         assert.doesNotMatch(block, /steerPrompt/);
@@ -33,6 +34,41 @@ test('/goal terminal commands bypass fireSteerForWebCli submitMessage path', () 
 test('/goal set and resume still use the steering path', () => {
     assert.match(goalSubcommandBlock('set'), /fireSteerForWebCli/);
     assert.match(goalSubcommandBlock('resume'), /fireSteerForWebCli/);
+});
+
+test('/goalplan stores the hint separately and requires refine before checkpoint', async () => {
+    resetGoalStore();
+    try {
+        const parsed = parseCommand('/goalplan investigate context loss');
+        const planned = await executeCommand(parsed, { interface: 'telegram', locale: 'en' });
+        assert.equal(planned?.ok, true);
+        assert.match(planned?.text ?? '', /Goal plan activated: investigate context loss/);
+        assert.match(planned?.steerPrompt ?? '', /cli-jaw goal refine/);
+
+        const pending = getActiveGoal();
+        assert.ok(pending);
+        assert.equal(pending!.objective, GOAL_PLAN_PENDING_OBJECTIVE);
+        assert.equal(pending!.goalMode, 'plan');
+        assert.equal(pending!.planHint, 'investigate context loss');
+
+        const blockedUpdate = await runGoalCommand('/goal update premature checkpoint --evidence fake');
+        assert.equal(blockedUpdate?.ok, false);
+        assert.match(blockedUpdate?.text ?? '', /must be refined before checkpoints/);
+        assert.equal(getActiveGoal()!.checkpoints.length, 0);
+
+        const refined = await runGoalCommand('/goal refine Implement concrete context-preserving goalplan flow');
+        assert.equal(refined?.ok, true);
+        assert.match(refined?.text ?? '', /Goal refined/);
+        assert.equal(getActiveGoal()!.objective, 'Implement concrete context-preserving goalplan flow');
+        assert.equal(getActiveGoal()!.goalMode, 'direct');
+        assert.equal(getActiveGoal()!.planHint, undefined);
+
+        const allowedUpdate = await runGoalCommand('/goal update verified after refine --evidence focused test');
+        assert.equal(allowedUpdate?.ok, true);
+        assert.equal(getActiveGoal()!.checkpoints.length, 1);
+    } finally {
+        resetGoalStore();
+    }
 });
 
 test('/goal done requires checkpoint evidence without spawning continuation text', async () => {

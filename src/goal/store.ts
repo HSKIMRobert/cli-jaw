@@ -39,12 +39,13 @@ export function getGoalHistory(): GoalHistory {
     return readJson<GoalHistory>(HISTORY_PATH) ?? { goals: [] };
 }
 
-export function setGoal(objective: string, opts?: { repoRoot?: string | undefined; budget?: GoalBudget | undefined; replace?: boolean; goalMode?: GoalMode }): GoalState {
+export function setGoal(objective: string, opts?: { repoRoot?: string | undefined; budget?: GoalBudget | undefined; replace?: boolean; goalMode?: GoalMode; planHint?: string | undefined }): GoalState {
     const normalizedObjective = objective.trim();
     if (!normalizedObjective) throw new Error('Goal objective is required.');
     if (normalizedObjective.length > MAX_GOAL_OBJECTIVE_CHARS) {
         throw new Error(`Goal objective exceeds ${MAX_GOAL_OBJECTIVE_CHARS} characters.`);
     }
+    const normalizedPlanHint = opts?.planHint?.trim();
     const existing = getActiveGoal();
     if (existing && (existing.status === 'active' || existing.status === 'paused')) {
         if (!opts?.replace) {
@@ -61,6 +62,7 @@ export function setGoal(objective: string, opts?: { repoRoot?: string | undefine
         updatedAt: now,
         repoRoot: opts?.repoRoot,
         goalMode: opts?.goalMode,
+        ...(normalizedPlanHint ? { planHint: normalizedPlanHint } : {}),
         budget: opts?.budget,
         checkpoints: [],
     };
@@ -75,6 +77,7 @@ export function refineObjective(newObjective: string): GoalState | null {
     if (!trimmed || trimmed.length > MAX_GOAL_OBJECTIVE_CHARS) return null;
     goal.objective = trimmed;
     goal.goalMode = 'direct';
+    delete goal.planHint;
     goal.updatedAt = new Date().toISOString();
     writeJson(ACTIVE_PATH, goal);
     return goal;
@@ -83,6 +86,7 @@ export function refineObjective(newObjective: string): GoalState | null {
 export function updateGoal(summary: string, nextAction = '', evidence: string[] = []): GoalState | null {
     const goal = getActiveGoal();
     if (!goal || goal.status !== 'active') return null;
+    if (goal.goalMode === 'plan') return null;
     const cp: GoalCheckpoint = {
         summary,
         nextAction,

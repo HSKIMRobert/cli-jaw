@@ -5,6 +5,7 @@ import { getActiveGoal } from './store.js';
 import { getState } from '../orchestrator/state-machine.js';
 import { getActiveWorkers, hasPendingWorkerReplays } from '../orchestrator/worker-registry.js';
 import { getProjectDirs } from '../core/config.js';
+import { GOAL_PLAN_PENDING_OBJECTIVE } from './types.js';
 
 export interface GoalContinuationResult {
     shouldContinue: boolean;
@@ -102,14 +103,17 @@ export function buildGoalContinuation(): GoalContinuationResult {
         '- Artifact paths required in all validation summaries',
         '- Final completion requires the evidence triple: documentation + implementation + verification',
         '- Dispatch independent verification before claiming phase completion',
-        ...(goal.goalMode === 'plan' && !checkpoint?.summary
+        ...(goal.goalMode === 'plan'
             ? [
                 '',
                 '--- AI-Driven Goal Planning Mode ---',
                 'This goal was set via /goal plan. YOU must decide what goal to pursue.',
-                goal.objective && goal.objective !== '(AI-driven planning)'
-                    ? `User hint: "${goal.objective}" — use as directional guidance, not a literal objective.`
+                goal.planHint
+                    ? `User hint: "${goal.planHint}" — use as directional guidance, not a literal objective.`
                     : 'No hint provided — determine the goal entirely from context.',
+                goal.objective === GOAL_PLAN_PENDING_OBJECTIVE
+                    ? 'The stored objective is still pending refinement. It is NOT a real executable objective yet.'
+                    : 'The stored objective still has plan mode. Refine it before logging checkpoints or executing.',
                 '',
                 'Analyze these sources to choose the right goal:',
                 '1. Conversation history: What has the user been working on?',
@@ -118,8 +122,8 @@ export function buildGoalContinuation(): GoalContinuationResult {
                 '',
                 'Then immediately:',
                 '1. Formulate a specific, actionable goal from your analysis',
-                '2. Set it via `/api/goal` action `refine-objective`',
-                '3. Enter PABCD with `cli-jaw orchestrate P`',
+                '2. Run `cli-jaw goal refine "<specific objective>"` to replace the pending objective',
+                '3. Confirm `cli-jaw goal status` no longer shows plan-mode intent, then enter PABCD with `cli-jaw orchestrate P`',
                 'Do NOT ask the user. Do NOT wait. YOU decide and execute.',
               ]
             : []),
