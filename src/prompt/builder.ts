@@ -13,6 +13,7 @@ import { buildMemoryInjection } from '../memory/injection.js';
 import { loadAndRender, loadTemplate, renderTemplate, parseWorkerContexts, clearTemplateCache } from './template-loader.js';
 import { findStaticEmployee } from '../core/employees.js';
 import { isDiscoverableSkillDirName } from '../../lib/mcp/skills-utils.js';
+import { getEmployeeMcpToolSummary } from '../agent/mcp-passthrough.js';
 import { buildInjectionBlock as buildRuntimeContextBlock } from './runtime-context.js';
 
 const promptCache = new Map();
@@ -674,7 +675,9 @@ export function getEmployeePromptV2(
     opts?: { mutable?: boolean; scope?: string | null },
 ) {
     const phase = Number(currentPhase);
-    const cacheKey = `${emp.id || emp.name}:${role}:${phase}:${settings["workingDir"] || '~'}:${opts?.mutable ? 'mut' : 'ro'}:${opts?.scope || ''}`;
+    const mcpSummary = getEmployeeMcpToolSummary();
+    const mcpHash = mcpSummary ? createHash('md5').update(mcpSummary).digest('hex').slice(0, 8) : '';
+    const cacheKey = `${emp.id || emp.name}:${role}:${phase}:${settings["workingDir"] || '~'}:${opts?.mutable ? 'mut' : 'ro'}:${opts?.scope || ''}:${mcpHash}`;
     if (promptCache.has(cacheKey)) return promptCache.get(cacheKey);
 
     let prompt = getEmployeePrompt(emp);
@@ -767,6 +770,10 @@ export function getEmployeePromptV2(
     prompt += `\n- ⛔ Do NOT run \`cli-jaw dispatch\` or any equivalent delegation command from this session.`;
     prompt += `\n- ⛔ Do NOT output jaw dispatch JSON or subtask JSON.`;
     prompt += `\n- ⛔ Do NOT describe Boss/employee orchestration structure in your answer.`;
+
+    if (mcpSummary) {
+        prompt += `\n\n${mcpSummary}`;
+    }
 
     promptCache.set(cacheKey, prompt);
     return prompt;
