@@ -78,11 +78,17 @@ test('system prompt routes ambiguous Korean search intent away from default code
         'system prompt should include a Korean search intent guard');
     assert.ok(a1Src.includes('Rewrite it into 1-3 focused keyword queries'),
         'system prompt should require focused query rewrites for Korean external searches');
+    assert.ok(a1Src.includes('Native cli-jaw search is the default backend'),
+        'system prompt should keep cli-jaw search native-first');
+    assert.ok(a1Src.includes('active `search` skill or existing search/web/official-docs retrieval tools'),
+        'system prompt should route through existing cli-jaw search tools');
     assert.ok(a1Src.includes('agbrowse research plan --query "<request>" --json'),
-        'system prompt should prefer agbrowse research planning when available');
+        'system prompt should preserve optional agbrowse research planning');
     assert.ok(a1Src.includes('plan.atomicQueries'),
-        'system prompt should route provider/native search through agbrowse atomic queries');
-    assert.ok(a1Src.includes('when agbrowse is unavailable'),
+        'system prompt should allow agbrowse atomic queries as rewrite candidates');
+    assert.ok(a1Src.includes('Do not use agbrowse to execute Exa, Tavily, Perplexity, Brave, or other search providers'),
+        'system prompt should prevent agbrowse from becoming a search-provider runner');
+    assert.ok(a1Src.includes('When agbrowse is unavailable'),
         'system prompt should preserve cli-jaw-only fallback behavior');
     assert.ok(a1Src.includes('Treat search results as URL candidates, not final evidence'),
         'system prompt should treat search results as URL candidates');
@@ -101,15 +107,21 @@ test('skills prompt prefers active search skill for external search intent', () 
         'skills prompt should prefer active search/web retrieval before local grep');
     assert.ok(skillsSrc.includes('first rewrite the request into 1-3 focused keyword queries'),
         'skills prompt should require query rewrite for Korean external search intent');
+    assert.ok(skillsSrc.includes('Native cli-jaw search is the default backend'),
+        'skills prompt should make cli-jaw native search the default backend');
+    assert.ok(skillsSrc.includes('active `search` skill or existing search/web/official-docs tools'),
+        'skills prompt should use active search or existing native search tools');
     assert.ok(skillsSrc.includes('agbrowse research plan --query "<request>" --json'),
-        'skills prompt should bridge Korean search routing to agbrowse when available');
+        'skills prompt should keep agbrowse as optional planning help');
     assert.ok(skillsSrc.includes('plan.atomicQueries'),
-        'skills prompt should tell agents to search with agbrowse atomic queries');
-    assert.ok(skillsSrc.includes('when agbrowse is unavailable'),
+        'skills prompt should use agbrowse atomic queries only as rewrite candidates');
+    assert.ok(skillsSrc.includes('Do not use agbrowse to execute search providers such as Exa, Tavily, Perplexity, or Brave'),
+        'skills prompt should prevent agbrowse provider execution');
+    assert.ok(skillsSrc.includes('When agbrowse is unavailable'),
         'skills prompt should keep manual rewrite/fetch/browse fallback');
-    assert.ok(skillsSrc.includes('treat search results as URL candidates'),
+    assert.ok(skillsSrc.includes('Treat search results as URL candidates'),
         'skills prompt should treat search output as URL candidates');
-    assert.ok(skillsSrc.includes('use browser/browse only when fetch is empty, truncated, JS-rendered, Naver shell/iframe, or otherwise incomplete'),
+    assert.ok(skillsSrc.includes('use browser/browse only when fetch is empty, truncated, JS-rendered, Naver shell/iframe, PDF-binary, table/list/ranking-only, or otherwise incomplete'),
         'skills prompt should keep browser/browse as downstream fallback');
     assert.ok(skillsSrc.includes('Use local code search first only when the user clearly asks about this repository'),
         'skills prompt should reserve local code search for explicit repository targets');

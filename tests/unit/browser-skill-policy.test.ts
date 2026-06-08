@@ -33,6 +33,18 @@ test('BSP-004: browser skill documents snapshot-scoped refs and vision fallback 
     assert.match(browserSkill, /vision-click.*fallback/i);
 });
 
+test('BSP-005: browser skill documents Korean search result verification ladder', { skip: !hasBrowserSkill && 'skills_ref submodule not checked out' }, () => {
+    const browserSkill = fs.readFileSync(browserSkillPath, 'utf8');
+    assert.match(browserSkill, /Korean Search Result Verification/);
+    assert.match(browserSkill, /URL candidates/);
+    assert.match(browserSkill, /cli-jaw browser fetch/);
+    assert.match(browserSkill, /Naver-cafe\/blog\/search shell content/);
+    assert.match(browserSkill, /PDF, attachment, table, list, ranking/);
+    assert.match(browserSkill, /browse-needed/);
+    assert.match(browserSkill, /agbrowse research plan/);
+    assert.match(browserSkill, /does not replace native\s+cli-jaw search\/browser verification/);
+});
+
 test('BSP-002: vision-click skill documents screenshot-based coordinate click', { skip: !hasVisionSkill && 'skills_ref submodule not checked out' }, () => {
     const visionSkill = fs.readFileSync(visionSkillPath, 'utf8');
     assert.match(visionSkill, /screenshot/i);
