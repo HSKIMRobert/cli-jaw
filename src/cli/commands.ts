@@ -16,7 +16,7 @@ import {
 } from './handlers.js';
 import { projectHandler } from './handlers-project.js';
 import { taskHandler } from './handlers-task.js';
-import { newSessionHandler, switchSessionHandler, sessionsListHandler } from './handlers/session-handlers.js';
+import { newSessionHandler, switchSessionHandler, sessionsListHandler, forkSessionHandler } from './handlers/session-handlers.js';
 import {
     planWorkflowHandler,
     interviewWorkflowHandler,
@@ -86,6 +86,23 @@ function dedupeChoices(list: Array<SlashChoice | null>): SlashChoice[] {
     return out;
 }
 
+function levenshtein(a: string, b: string): number {
+    const m = a.length, n = b.length;
+    if (m === 0) return n;
+    if (n === 0) return m;
+    const dp: number[] = Array.from({ length: n + 1 }, (_, i) => i);
+    for (let i = 1; i <= m; i++) {
+        let prev = i - 1;
+        dp[0] = i;
+        for (let j = 1; j <= n; j++) {
+            const tmp = dp[j]!;
+            dp[j] = a[i - 1] === b[j - 1] ? prev : 1 + Math.min(prev, dp[j]!, dp[j - 1]!);
+            prev = tmp;
+        }
+    }
+    return dp[n]!;
+}
+
 function scoreToken(value: string, query: string): number {
     const target = toChoiceKey(value);
     const q = toChoiceKey(query);
@@ -94,6 +111,8 @@ function scoreToken(value: string, query: string): number {
     if (target === q) return 100;
     if (target.startsWith(q)) return 60;
     if (target.includes(q)) return 30;
+    const dist = levenshtein(target, q);
+    if (dist <= 2 && q.length >= 2) return Math.max(10, 30 - dist * 10);
     return -1;
 }
 
@@ -245,7 +264,29 @@ export const COMMANDS: SlashCommand[] = [
     { name: 'new', descKey: '', desc: 'New chat session', args: '[label]', category: 'session', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: newSessionHandler },
     { name: 'switch', aliases: ['sw'], descKey: '', desc: 'Switch session', args: '<seq>', category: 'session', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: switchSessionHandler },
     { name: 'sessions', aliases: ['ss'], descKey: '', desc: 'List sessions', category: 'session', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: sessionsListHandler },
+    { name: 'fork', descKey: '', desc: 'Fork current session', category: 'session', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: forkSessionHandler },
 ];
+
+// ─── Tokenizer ───────────────────────────────────────
+
+function tokenizeArgs(body: string): string[] {
+    const tokens: string[] = [];
+    let current = '', inQuote: string | null = null;
+    for (const ch of body) {
+        if (inQuote) {
+            if (ch === inQuote) { inQuote = null; continue; }
+            current += ch;
+        } else if (ch === '"' || ch === "'") {
+            inQuote = ch;
+        } else if (/\s/.test(ch)) {
+            if (current) { tokens.push(current); current = ''; }
+        } else {
+            current += ch;
+        }
+    }
+    if (current) tokens.push(current);
+    return tokens;
+}
 
 // ─── Dispatch ────────────────────────────────────────
 
@@ -265,7 +306,7 @@ export function parseCommand(text: string): ParsedSlashCommand {
         const switchCmd = findCommand('switch');
         if (switchCmd) return { type: 'known', cmd: switchCmd, args: [firstToken], name: 'switch', rawText: text };
     }
-    const parts = body.split(/\s+/);
+    const parts = tokenizeArgs(body);
     const name = (parts.shift() || '').toLowerCase();
     const cmd = findCommand(name);
     if (!cmd) return { type: 'unknown', name, args: parts, rawText: text };

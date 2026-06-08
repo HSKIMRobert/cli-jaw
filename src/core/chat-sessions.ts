@@ -78,3 +78,20 @@ export function getNextSeq(): number {
     const row = maxSeqStmt.get() as { max_seq: number | null } | undefined;
     return (row?.max_seq ?? 0) + 1;
 }
+
+export function forkChatSession(sourceSessionId?: string): { id: string; seq: number; copiedCount: number } {
+    const srcId = sourceSessionId || getActiveChatSession();
+    const id = randomUUID().slice(0, 8);
+    const seq = getNextSeq();
+    const srcSession = getByIdStmt.get(srcId) as ChatSessionRow | undefined;
+    const label = srcSession?.label ? `fork of "${srcSession.label}"` : `fork of #${srcSession?.seq ?? 0}`;
+    insertStmt.run(id, seq, label);
+    const copyResult = db.prepare(
+        `INSERT INTO messages (role, content, cli, model, trace, tool_log, cost_usd, duration_ms, created_at, session_id, working_dir, trace_run_id)
+         SELECT role, content, cli, model, trace, tool_log, cost_usd, duration_ms, created_at, ?, working_dir, trace_run_id
+         FROM messages WHERE session_id = ? ORDER BY id ASC`
+    ).run(id, srcId);
+    setActiveChatSession(id);
+    broadcast('session_created', { id, seq, label, forkedFrom: srcId }, 'public');
+    return { id, seq, copiedCount: copyResult.changes };
+}
