@@ -2,9 +2,12 @@
 import { t } from '../features/i18n.js';
 import { ICONS } from '../icons.js';
 import { escapeHtml } from './html.js';
+import { getMermaidInitConfig, isWideMermaidDiagram } from './mermaid-config.js';
 import { preprocessMermaid, sanitizeMermaidForRetry } from './mermaid-preprocess.js';
 import { sanitizeMermaidSvg } from './sanitize.js';
 import { appendMermaidActionBtns, bindDiagramZoom } from './svg-actions.js';
+
+export { getMermaidThemeVars, getMermaidInitConfig } from './mermaid-config.js';
 
 interface MermaidApi {
     initialize(config: Record<string, unknown>): void;
@@ -17,61 +20,12 @@ let mermaidModule: MermaidApi | null = null;
 // Serialise all Mermaid render calls — concurrent renders corrupt shared internal state.
 let mermaidQueue: Promise<void> = Promise.resolve();
 
-export function getMermaidThemeVars() {
-    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-    return isLight ? {
-        primaryColor: '#e2e8f0',
-        primaryTextColor: '#1a202c',
-        primaryBorderColor: '#a0aec0',
-        lineColor: '#718096',
-        secondaryColor: '#ebf8ff',
-        tertiaryColor: '#f7fafc',
-        background: 'transparent',
-        mainBkg: '#e2e8f0',
-        nodeBorder: '#a0aec0',
-        clusterBkg: '#f7fafc',
-        clusterBorder: '#cbd5e0',
-        titleColor: '#1a202c',
-        edgeLabelBackground: '#f7fafc',
-    } : {
-        primaryColor: '#2d3748',
-        primaryTextColor: '#e2e8f0',
-        primaryBorderColor: '#4a5568',
-        lineColor: '#718096',
-        secondaryColor: '#1a365d',
-        tertiaryColor: '#1a202c',
-        background: 'transparent',
-        mainBkg: '#2d3748',
-        nodeBorder: '#4a5568',
-        clusterBkg: '#1a202c',
-        clusterBorder: '#2d3748',
-        titleColor: '#e2e8f0',
-        edgeLabelBackground: '#1a202c',
-    };
-}
-
 async function ensureMermaidLoaded() {
     if (!mermaidModule) {
         const loader = await import('../mermaid-loader.js');
         mermaidModule = loader.loadMermaid();
     }
     return mermaidModule;
-}
-
-const WIDE_DIAGRAM_TYPES = new Set([
-    'gantt', 'sequencediagram', 'timeline', 'sankey-beta',
-]);
-
-export function getMermaidInitConfig() {
-    return {
-        startOnLoad: false,
-        theme: 'base' as const,
-        htmlLabels: false,
-        themeVariables: getMermaidThemeVars(),
-        securityLevel: 'strict' as const,
-        suppressErrorRendering: true,
-        gantt: { useMaxWidth: false, useWidth: 800 },
-    };
 }
 
 function applyMermaidTheme() {
@@ -106,10 +60,9 @@ export async function rerenderMermaidDiagrams(): Promise<void> {
                 }
                 if (!htmlEl.isConnected) continue;
                 htmlEl.innerHTML = sanitizeMermaidSvg(svg);
-                const dtype = code.trim().split(/\s/)[0].toLowerCase();
                 const container = htmlEl.closest('.mermaid-container');
                 if (container) {
-                    container.classList.toggle('mermaid-type-wide', WIDE_DIAGRAM_TYPES.has(dtype));
+                    container.classList.toggle('mermaid-type-wide', isWideMermaidDiagram(code));
                 }
                 appendMermaidActionBtns(htmlEl);
                 bindDiagramZoom(htmlEl);
@@ -178,10 +131,9 @@ async function renderSingleMermaidImpl(el: HTMLElement): Promise<void> {
         }
         el.innerHTML = sanitizeMermaidSvg(svg);
         el.classList.add('mermaid-rendered');
-        const dtype = code.trim().split(/\s/)[0].toLowerCase();
         const container = el.closest('.mermaid-container');
         if (container) {
-            container.classList.toggle('mermaid-type-wide', WIDE_DIAGRAM_TYPES.has(dtype));
+            container.classList.toggle('mermaid-type-wide', isWideMermaidDiagram(code));
         }
         delete el.dataset['mermaidCodeRaw'];
         appendMermaidActionBtns(el);
