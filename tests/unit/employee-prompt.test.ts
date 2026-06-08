@@ -153,6 +153,30 @@ test('EMP-008d: docs role resolves to an available documentation skill', () => {
         'docs role should not point to the removed documentation skill id');
 });
 
+test('EMP-008e: AGY employee prompt includes source-verification search grounding rules', () => {
+    const emp = { name: 'Data', cli: 'agy', role: 'data' };
+    clearPromptCache();
+    const v2 = getEmployeePromptV2(emp, 'data', 1);
+    assert.ok(v2.includes('AGY Search Grounding Rules'),
+        'AGY employees should receive a provider-specific search grounding block');
+    assert.ok(v2.includes('AGY/Gemini search summaries are orientation only, not final evidence'),
+        'AGY prompt should reject summary-only final evidence');
+    assert.ok(v2.includes('Treat search_web output as URL candidates only'),
+        'AGY prompt should treat search_web output as URL candidates');
+    assert.ok(v2.includes('NEEDS_BROWSER_VERIFICATION'),
+        'AGY prompt should require explicit evidence-state labeling');
+});
+
+test('EMP-008f: AGY search grounding rules are not injected into non-AGY employee prompts', () => {
+    clearPromptCache();
+    const agy = getEmployeePromptV2({ name: 'Data', cli: 'agy', role: 'data' }, 'data', 1);
+    const codex = getEmployeePromptV2({ name: 'Data', cli: 'codex', role: 'data' }, 'data', 1);
+    assert.ok(agy.includes('AGY Search Grounding Rules'),
+        'sanity check: AGY prompt should include AGY-specific rules');
+    assert.equal(codex.includes('AGY Search Grounding Rules'), false,
+        'prompt cache must keep AGY-specific rules out of non-AGY prompts');
+});
+
 test('EMP-009: getEmployeePromptV2 includes phase gate', () => {
     const emp = { name: 'Backend', cli: 'claude', role: 'backend' };
     const v2 = getEmployeePromptV2(emp, 'backend', 3);
