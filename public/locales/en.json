@@ -85,6 +85,7 @@
     "cmd.skill.loadFail": "Failed to load skill info.",
     "cmd.skill.resetUnavailable": "/skill reset is not available in this environment.",
     "cmd.skill.resetDone": "Skill reset completed.",
+    "cmd.employee.helpDetail": "Subcommands:\n  list — list all employees\n  info <name> — employee details (skills, hints)\n  model <name> <model> — change employee model\n  cli <name> <cli> — change employee CLI (DB only)\n  reset — reset to defaults",
     "cmd.employee.usage": "Usage: /employee [list|info|model|cli|reset]",
     "cmd.employee.empty": "No employees registered.",
     "cmd.employee.notFound": "Employee '{name}' not found.",

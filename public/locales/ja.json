@@ -85,6 +85,7 @@
     "cmd.skill.loadFail": "スキル情報を読み込めませんでした。",
     "cmd.skill.resetUnavailable": "この環境では /skill reset は使えません。",
     "cmd.skill.resetDone": "スキルをリセットしました。",
+    "cmd.employee.helpDetail": "サブコマンド:\n  list — 全従業員一覧\n  info <名前> — 従業員詳細 (skills, hints)\n  model <名前> <モデル> — モデル変更\n  cli <名前> <cli> — CLI 変更 (DB のみ)\n  reset — デフォルトに戻す",
     "cmd.employee.usage": "使い方: /employee [list|info|model|cli|reset]",
     "cmd.employee.empty": "登録された従業員がいません。",
     "cmd.employee.notFound": "従業員 '{name}' が見つかりません。",

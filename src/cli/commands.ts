@@ -196,6 +196,10 @@ async function helpHandler(args: string[], ctx: CliCommandContext): Promise<Slas
             `${displayUsage(target)} — ${desc}`,
             `interfaces: ${target.interfaces.join(', ')}`,
         ];
+        if (target.helpDetailKey) {
+            const detail = t(target.helpDetailKey, {}, L);
+            if (detail !== target.helpDetailKey) lines.push('', detail);
+        }
         return { ok: true, type: 'info', text: lines.join('\n') };
     }
 
@@ -249,7 +253,7 @@ export const COMMANDS: SlashCommand[] = [
     { name: 'flush', descKey: 'cmd.flush.desc', tgDescKey: 'cmd.flush.tg_desc', desc: 'Set flush model', args: '[cli] [model] | off', category: 'model', interfaces: ['cli', 'web', 'telegram', 'discord'], getArgumentCompletions: flushArgumentCompletions, handler: flushHandler },
     { name: 'version', descKey: 'cmd.version.desc', tgDescKey: 'cmd.version.tg_desc', desc: 'Version/CLI status', category: 'cli', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: versionHandler },
     { name: 'skill', descKey: 'cmd.skill.desc', tgDescKey: 'cmd.skill.tg_desc', desc: 'Skill list/reset', args: '[list [--inactive]|reset]', category: 'tools', interfaces: ['cli', 'web', 'telegram', 'discord'], getArgumentCompletions: skillArgumentCompletions, handler: skillHandler },
-    { name: 'employee', descKey: 'cmd.employee.desc', desc: 'Manage employees', args: '[list|info|model|cli|reset] [...]', category: 'tools', interfaces: ['cli', 'web', 'telegram', 'discord'], getArgumentCompletions: employeeArgumentCompletions, handler: employeeHandler },
+    { name: 'employee', descKey: 'cmd.employee.desc', desc: 'Manage employees', args: '[list|info|model|cli|reset] [...]', helpDetailKey: 'cmd.employee.helpDetail', category: 'tools', interfaces: ['cli', 'web', 'telegram', 'discord'], getArgumentCompletions: employeeArgumentCompletions, handler: employeeHandler },
     { name: 'mcp', descKey: 'cmd.mcp.desc', desc: 'MCP list/sync/install', args: '[sync|install]', category: 'tools', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: mcpHandler },
     { name: 'memory', descKey: 'cmd.memory.desc', desc: 'Memory search/list', args: '[query]', category: 'tools', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: memoryHandler },
     { name: 'browser', descKey: 'cmd.browser.desc', tgDescKey: 'cmd.browser.tg_desc', desc: 'Browser status/tabs', args: '[status|tabs]', category: 'tools', interfaces: ['cli', 'web', 'telegram', 'discord'], getArgumentCompletions: browserArgumentCompletions, handler: browserHandler },
