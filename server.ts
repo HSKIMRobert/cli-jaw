@@ -59,7 +59,7 @@ import {
     APP_VERSION,
 } from './src/core/config.js';
 import {
-    db, getSession, getMessages, getMessagesWithTrace, getRecentMessagesAll, getRecentMessagesAllWithTrace, searchMessages, getMessageContext, getLatestAssistantMessage, getLatestDashboardActivityMessage, closeDb,
+    db, getSession, getMessages, getMessagesWithTrace, getRecentMessagesAll, getRecentMessagesAllWithTrace, searchMessages, getMessageContext, getMessageCount, getLatestAssistantMessage, getLatestDashboardActivityMessage, closeDb,
     clearAllEmployeeSessions,
 } from './src/core/db.js';
 import { getActiveChatSession, listChatSessions, createChatSession, setActiveChatSession, getChatSessionBySeq } from './src/core/chat-sessions.js';
@@ -516,6 +516,10 @@ app.get('/api/messages', (req, res) => {
         tool_log: sanitizeSerializedToolLog(row["tool_log"] as string | null | undefined),
     }));
     ok(res, safeRows);
+});
+app.get('/api/messages/count', (_req, res) => {
+    const row = getMessageCount.get(getActiveChatSession()) as { count: number } | undefined;
+    ok(res, { count: row?.count ?? 0 });
 });
 app.get('/api/messages/search', (req, res) => {
     const q = String(req.query['q'] || '').trim();

@@ -96,8 +96,7 @@ export function closeChatSearch(): void {
 function buildMessageIndexMap(): void {
     messageIdToVsIndex = new Map();
     // Must mirror the rendered boot window so id→virtual-scroll index stays
-    // aligned with what loadMessages() actually rendered (embedded: recent-N;
-    // standalone: full history).
+    // aligned with what loadMessages() actually rendered.
     api<{ id: number }[]>(`/api/messages${bootMessageQuery()}`).then(msgs => {
         if (!msgs) return;
         messageIdToVsIndex = new Map();
