@@ -274,7 +274,7 @@ Each employee receives a compact role contract and absolute skill paths:
 - frontend → dev-frontend SKILL.md (UI/component guide) + dev-uiux-design SKILL.md (intent discovery, UX states)
 - backend → dev-backend SKILL.md (API/server guide)
 - data → dev-data SKILL.md (data pipeline guide)
-- docs → documentation SKILL.md
+- docs → dev-scaffolding SKILL.md (project structure + documentation generation)
 Skill bodies are read on demand instead of preloaded into every employee prompt.
 
 ### ⚡ Parallel Execution (Tier 1-2 only)
