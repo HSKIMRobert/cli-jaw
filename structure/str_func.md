@@ -315,7 +315,7 @@ cli-jaw/
 │       ├── handoff.ts        ← buildHandoff (mutable option) + hasImplementationDelegation (64L)
 │       ├── deliberate.ts     ← `/deliberate` workflow handler (85L)
 │       ├── planaudit.ts      ← `/planaudit` workflow handler (82L)
-│       ├── review.ts         ← `/review` projectDirs/recent-context scope resolution + Markdown report path + fix/dispatch steer prompt (178L)
+│       ├── review.ts         ← `/review` projectDirs/recent-context scope resolution + Markdown report path + fix/dispatch steer prompt (179L)
 │       ├── competitive-gap.ts ← competitive gap analysis workflow (113L)
 │       ├── runtime.ts / runtime-guards.ts / guards.ts / events.ts / status.ts / context.ts / index.ts / types.ts / browser-web-ai.ts / web-ai-guards.ts
 │       ├── checkpoint/       ← checkpoint store + types (2 files, 59L) ✨
