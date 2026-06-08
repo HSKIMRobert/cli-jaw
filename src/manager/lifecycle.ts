@@ -20,7 +20,12 @@ import {
     waitForPortFree,
     type ProcessVerifyImpl,
 } from './process-verify.js';
-import { DASHBOARD_DEFAULT_PORT, DASHBOARD_FALLBACK_PORT_END } from './constants.js';
+import {
+    DASHBOARD_DEFAULT_PORT,
+    DASHBOARD_FALLBACK_PORT_END,
+    MANAGED_INSTANCE_PORT_FROM,
+    MANAGED_INSTANCE_PORT_TO,
+} from './constants.js';
 import {
     DETACHED_EXIT_POLL_MS,
     PORT_FREE_TIMEOUT_MS,
@@ -399,7 +404,7 @@ export class DashboardLifecycleManager {
             return this.stopPeerDashboard(port, home, command);
         }
         if (!entry) {
-            return rejectResult(action, port, home, command, 'Only dashboard-owned instances can be stopped.');
+            return this.stopExternalCoreInstance(port, home, command);
         }
 
         try {
@@ -610,6 +615,44 @@ export class DashboardLifecycleManager {
                 command,
                 pid,
                 message: `Peer dashboard on port ${port} stopped (pid ${pid}).`,
+                expectedStateAfter: 'offline',
+            };
+        } catch (error) {
+            return errorResultBuilder(action, port, home, command, error);
+        }
+    }
+
+    private async stopExternalCoreInstance(port: number, home: string, command: string[]): Promise<DashboardLifecycleResult> {
+        const action: DashboardLifecycleAction = 'stop';
+        if (port < MANAGED_INSTANCE_PORT_FROM || port > MANAGED_INSTANCE_PORT_TO) {
+            return rejectResult(
+                action,
+                port,
+                home,
+                command,
+                `External stop is limited to core instance ports ${MANAGED_INSTANCE_PORT_FROM}-${MANAGED_INSTANCE_PORT_TO}.`,
+            );
+        }
+        const pid = await this.verify.resolveListeningPid(port);
+        if (!pid) {
+            return rejectResult(action, port, home, command, 'External instance is not running or listener PID not found.');
+        }
+        try {
+            this.verify.killPid(pid, 'SIGTERM');
+            const freed = await waitForPortFree(port, STOP_WAIT_TIMEOUT_MS, this.verify);
+            if (!freed && this.verify.isPidAlive(pid)) {
+                this.verify.killPid(pid, 'SIGKILL');
+                await waitForPortFree(port, STOP_WAIT_TIMEOUT_MS, this.verify);
+            }
+            return {
+                ok: true,
+                action,
+                status: 'stopped',
+                port,
+                home,
+                command,
+                pid,
+                message: `External Jaw on port ${port} stopped by listener PID ${pid}.`,
                 expectedStateAfter: 'offline',
             };
         } catch (error) {

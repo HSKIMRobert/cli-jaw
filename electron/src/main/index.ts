@@ -60,8 +60,9 @@ interface CliFlags {
 }
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
-const DEFAULT_MANAGER_PORT = 24576;
-const MAX_MANAGER_PORT_PROBES = 50;
+const ELECTRON_MANAGER_PORT_START = 24577;
+const ELECTRON_MANAGER_PORT_END = 24590;
+const DEFAULT_MANAGER_PORT = ELECTRON_MANAGER_PORT_START;
 
 function assertLoopbackManagerUrl(raw: string): void {
   let parsed: URL;
@@ -822,13 +823,18 @@ function isTcpPortAvailable(port: number): Promise<boolean> {
   });
 }
 
+function normalizeElectronPreferredManagerPort(port: number): number {
+  if (port >= ELECTRON_MANAGER_PORT_START && port <= ELECTRON_MANAGER_PORT_END) return port;
+  return ELECTRON_MANAGER_PORT_START;
+}
+
 async function findAvailableManagerPort(preferredPort: number): Promise<number> {
-  for (let offset = 0; offset < MAX_MANAGER_PORT_PROBES; offset += 1) {
-    const candidate = preferredPort + offset;
+  const start = normalizeElectronPreferredManagerPort(preferredPort);
+  for (let candidate = start; candidate <= ELECTRON_MANAGER_PORT_END; candidate += 1) {
     if (await isTcpPortAvailable(candidate)) return candidate;
   }
   throw new Error(
-    `[jaw-electron] no free manager port from ${preferredPort} to ${preferredPort + MAX_MANAGER_PORT_PROBES - 1}`,
+    `[jaw-electron] no free manager port from ${start} to ${ELECTRON_MANAGER_PORT_END}`,
   );
 }
 

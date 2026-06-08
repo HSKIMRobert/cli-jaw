@@ -137,6 +137,9 @@ test('Electron quit path shows progress and exits after manager cleanup', () => 
 test('Electron default launch owns its manager server instead of attaching to web UI', () => {
     const main = read('electron/src/main/index.ts');
 
+    assert.ok(main.includes('const ELECTRON_MANAGER_PORT_START = 24577'), 'Electron implicit manager lane must start at 24577, leaving web/CLI dashboard on 24576');
+    assert.ok(main.includes('const ELECTRON_MANAGER_PORT_END = 24590'), 'Electron fallback manager lane must reuse the dashboard fallback upper bound 24590');
+    assert.ok(main.includes('const DEFAULT_MANAGER_PORT = ELECTRON_MANAGER_PORT_START'), 'Electron default port must be 24577 through the named lane constant');
     assert.ok(main.includes('managerUrlExplicit'), 'Electron flags must track whether the manager URL was explicitly supplied');
     assert.ok(main.includes('function shouldAttachToExistingManager()'), 'Electron main must make attach mode explicit');
     assert.ok(
@@ -144,7 +147,21 @@ test('Electron default launch owns its manager server instead of attaching to we
         'Electron should only attach to an existing manager when attach-only or an explicit manager URL is used',
     );
     assert.ok(main.includes('function isTcpPortAvailable'), 'Electron must check port ownership before spawning its own dashboard');
+    assert.ok(main.includes('function normalizeElectronPreferredManagerPort'), 'Electron must normalize implicit spawn preferences into the Electron-only manager lane');
+    assert.ok(
+        main.includes('if (port >= ELECTRON_MANAGER_PORT_START && port <= ELECTRON_MANAGER_PORT_END) return port;'),
+        'Electron may honor preferred ports only inside 24577-24590',
+    );
+    assert.ok(
+        main.includes('return ELECTRON_MANAGER_PORT_START;'),
+        'Electron must normalize out-of-range or 24576 preferences back to 24577',
+    );
     assert.ok(main.includes('function findAvailableManagerPort'), 'Electron must find a free manager port when the default port is busy');
+    assert.ok(
+        main.includes('for (let candidate = start; candidate <= ELECTRON_MANAGER_PORT_END; candidate += 1)'),
+        'Electron fallback scan must be bounded to 24577-24590 and must not probe 24576',
+    );
+    assert.equal(main.includes('MAX_MANAGER_PORT_PROBES'), false, 'Electron fallback must not use a probe count that can include 24576');
     assert.ok(
         main.includes('ringBuffer.append(`[manager port] ${MANAGER_URL} is busy; spawning dashboard at ${url}\\n`)'),
         'Electron must log when it avoids a busy web dashboard port',

@@ -9,7 +9,7 @@ import type {
     DashboardLifecycleCapability,
     DashboardLifecycleResult,
 } from './types.js';
-import { MANAGED_INSTANCE_PORT_FROM } from './constants.js';
+import { MANAGED_INSTANCE_PORT_FROM, MANAGED_INSTANCE_PORT_TO } from './constants.js';
 
 export const START_FAILURE_GRACE_MS = 250;
 export const STOP_WAIT_TIMEOUT_MS = 3000;
@@ -147,14 +147,19 @@ export function buildCapability(args: {
             pid: null,
         };
     }
+    const isCanonicalCorePort =
+        instance.port >= MANAGED_INSTANCE_PORT_FROM
+        && instance.port <= MANAGED_INSTANCE_PORT_TO;
     return stripUndefined({
         owner: 'external',
         canStart: false,
-        canStop: false,
+        canStop: isCanonicalCorePort,
         canRestart: false,
         canPerm: false,
         canUnperm: false,
-        reason: 'not dashboard-owned',
+        reason: isCanonicalCorePort
+            ? 'listener pid stop available; not dashboard-owned'
+            : 'not dashboard-owned',
         defaultHome,
         commandPreview,
         pid: null,

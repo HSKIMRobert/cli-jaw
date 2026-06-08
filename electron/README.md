@@ -1,7 +1,8 @@
 # cli-jaw Electron Desktop Shell
 
-Thin Electron wrapper around the jaw manager dashboard. Loads `http://127.0.0.1:24576/manager/`
-and manages the lifecycle of the underlying `jaw dashboard serve` process.
+Thin Electron wrapper around the jaw manager dashboard. Loads `http://127.0.0.1:24577/manager/`
+by default and manages the lifecycle of the underlying `jaw dashboard serve` process.
+The Web/CLI dashboard lane keeps `24576`; Electron implicit spawn uses `24577-24590`.
 
 > Native deps (`better-sqlite3`, `playwright-core`, `sharp`, `canvas`) live exclusively in the
 > manager server. The Electron main process never imports them.
@@ -22,7 +23,7 @@ From the repo root (concurrently spawns the dashboard server + Electron with HMR
 npm run electron:dev
 ```
 
-Or, if a manager server is already running on 24576:
+Or, if an Electron manager server is already running on 24577:
 
 ```bash
 npm --prefix electron run dev
@@ -47,8 +48,8 @@ npm --prefix electron run start
 
 | Var | Default | Description |
 |---|---|---|
-| `JAW_MANAGER_URL` | `http://127.0.0.1:24576/` | Manager URL to attach to |
-| `JAW_MANAGER_PORT` | `24576` | Port (used when URL is not set) |
+| `JAW_MANAGER_URL` | `http://127.0.0.1:24577/` | Manager URL to attach to |
+| `JAW_MANAGER_PORT` | `24577` | Port (used when URL is not set; implicit spawn falls back through `24590`) |
 | `JAW_BIN` | _(auto-detected)_ | Path to `jaw` CLI binary |
 | `JAW_ELECTRON_DEVTOOLS` | _(unset)_ | Set to `1` to open DevTools |
 | `NODE_ENV` | _(unset)_ | `development` enables DevTools |
@@ -56,7 +57,7 @@ npm --prefix electron run start
 ## CLI flags
 
 ```
---port <n>          Override manager port (default 24576)
+--port <n>          Override manager port (default 24577; implicit spawn only uses 24577-24590)
 --manager-url <url> Override full manager URL
 --attach-only       Never spawn jaw dashboard serve; only attach
 --spawn             Force spawn even if no health probe is required

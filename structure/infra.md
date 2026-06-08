@@ -83,6 +83,7 @@ aliases: [CLI-JAW Infra, infrastructure modules, core runtime]
 | Frontend dev | `npm run dev:frontend` | Vite dev server port `5173`, `/api` proxy는 `http://localhost:3458` |
 | Frontend build | `npm run build:frontend` | Vite가 `public/index.html` + `public/manager/index.html`을 `public/dist`로 빌드 |
 | Manager dashboard | `jaw dashboard serve` | `src/manager/server.ts` 또는 `dist/src/manager/server.js` 실행, 기본 port `24576` |
+| Electron manager dashboard | Electron implicit spawn | Web/CLI lane `24576`과 분리된 manager port `24577` 기본값, fallback `24578-24590` |
 | Docker local source | `Dockerfile` | local source copy → `npm run build` + `npm run build:frontend` → `node dist/server.js` |
 | Docker npm image | `Dockerfile.dev` | `npm install -g cli-jaw@${CLI_JAW_VERSION}` → `jaw serve --no-open` |
 | Compose | `docker-compose.yml` | 단일 `jaw` service, `${PORT:-3457}:3457`, `.env`, named volume `jaw-data` |
@@ -612,6 +613,7 @@ Copilot 할당량 조회 + 인증 토큰 관리. env → file cache → `gh auth
 
 > `jaw dashboard serve [--port 24576] [--from 3457] [--count 50] [--no-open]`.
 > `jaw dashboard service`는 현재 “later phase”로 거절된다.
+> Electron app의 implicit manager spawn은 `24577-24590` lane을 사용하며 Web/CLI 기본 manager `24576`을 스캔하거나 공유하지 않는다.
 
 | Option | Env |
 | --- | --- |

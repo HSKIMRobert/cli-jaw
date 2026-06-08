@@ -103,7 +103,7 @@ test('lifecycle rejects ports outside scan range', async (t) => {
     assert.match(result.message, /outside dashboard scan range/);
 });
 
-test('lifecycle marks external online instances as visible but not stoppable', (t) => {
+test('lifecycle marks external online core instances as stoppable by listener PID only', (t) => {
     const { dir, cleanup } = setupTmpStorage();
     t.after(cleanup);
     const manager = new DashboardLifecycleManager({
@@ -118,8 +118,28 @@ test('lifecycle marks external online instances as visible but not stoppable', (
 
     assert.equal(row.lifecycle?.owner, 'external');
     assert.equal(row.lifecycle?.canStart, false);
+    assert.equal(row.lifecycle?.canStop, true);
+    assert.equal(row.lifecycle?.canRestart, false);
+    assert.match(row.lifecycle?.reason || '', /listener pid/);
+});
+
+test('lifecycle keeps external custom scan ports non-stoppable in capability', (t) => {
+    const { dir, cleanup } = setupTmpStorage();
+    t.after(cleanup);
+    const manager = new DashboardLifecycleManager({
+        managerPort: MANAGER_PORT,
+        from: 4000,
+        count: 50,
+        jawPath: '/usr/local/bin/jaw',
+        storageRoot: dir,
+    });
+
+    const row = manager.decorateInstance(makeOnline(4000));
+
+    assert.equal(row.lifecycle?.owner, 'external');
     assert.equal(row.lifecycle?.canStop, false);
     assert.equal(row.lifecycle?.canRestart, false);
+    assert.equal(row.lifecycle?.reason, 'not dashboard-owned');
 });
 
 test('lifecycle marks offline ports as startable with default home policy', (t) => {
@@ -143,10 +163,11 @@ test('lifecycle marks offline ports as startable with default home policy', (t) 
     assert.equal(row.lifecycle?.defaultHome, '/Users/jun/.cli-jaw-3460');
 });
 
-test('lifecycle stop/restart are limited to manager-owned child processes', async (t) => {
+test('lifecycle stop can terminate external core listener PID but restart remains owner-limited', async (t) => {
     const { dir, cleanup } = setupTmpStorage();
     t.after(cleanup);
     const children: FakeChild[] = [];
+    const killed: Array<{ pid: number; signal: NodeJS.Signals }> = [];
     const manager = new DashboardLifecycleManager({
         managerPort: MANAGER_PORT,
         from: 3457,
@@ -154,7 +175,12 @@ test('lifecycle stop/restart are limited to manager-owned child processes', asyn
         jawPath: '/usr/local/bin/jaw',
         homeRoot: dir,
         storageRoot: dir,
-        processVerify: { isPortOccupied: async () => false },
+        processVerify: {
+            isPortOccupied: async () => false,
+            resolveListeningPid: async (port) => (port === 3457 ? 99001 : null),
+            isPidAlive: () => false,
+            killPid: (pid, signal) => { killed.push({ pid, signal }); },
+        },
         spawnImpl: ((command: string, args: string[]) => {
             assert.equal(command, '/usr/local/bin/jaw');
             assert.deepEqual(args.slice(0, 2), ['--home', join(dir, '.cli-jaw')]);
@@ -164,9 +190,15 @@ test('lifecycle stop/restart are limited to manager-owned child processes', asyn
         }) as never,
     });
 
-    const rejected = await manager.stop(3457);
-    assert.equal(rejected.ok, false);
-    assert.match(rejected.message, /dashboard-owned/);
+    const restartRejected = await manager.restart(3457);
+    assert.equal(restartRejected.ok, false);
+    assert.match(restartRejected.message, /dashboard-owned/);
+
+    const stoppedExternal = await manager.stop(3457);
+    assert.equal(stoppedExternal.ok, true);
+    assert.equal(stoppedExternal.pid, 99001);
+    assert.match(stoppedExternal.message, /listener PID 99001/);
+    assert.deepEqual(killed, [{ pid: 99001, signal: 'SIGTERM' }]);
 
     const started = await manager.start(3457);
     assert.equal(started.ok, true);
@@ -178,6 +210,59 @@ test('lifecycle stop/restart are limited to manager-owned child processes', asyn
     const stopped = await manager.stop(3457);
     assert.equal(stopped.ok, true);
     assert.equal(children[0]?.killed, true);
+});
+
+test('lifecycle external stop rejects outside canonical core ports even with custom scan range', async (t) => {
+    const { dir, cleanup } = setupTmpStorage();
+    t.after(cleanup);
+    const killed: number[] = [];
+    const manager = new DashboardLifecycleManager({
+        managerPort: MANAGER_PORT,
+        from: 4000,
+        count: 50,
+        jawPath: '/usr/local/bin/jaw',
+        storageRoot: dir,
+        processVerify: {
+            isPortOccupied: async () => true,
+            resolveListeningPid: async () => 99002,
+            isPidAlive: () => true,
+            killPid: (pid) => { killed.push(pid); },
+        },
+    });
+
+    const result = await manager.stop(4000);
+
+    assert.equal(result.ok, false);
+    assert.match(result.message, /External stop is limited to core instance ports 3457-3506/);
+    assert.deepEqual(killed, []);
+});
+
+test('lifecycle self stop and peer dashboard stop keep separate policies', async (t) => {
+    const { dir, cleanup } = setupTmpStorage();
+    t.after(cleanup);
+    const killed: Array<{ pid: number; signal: NodeJS.Signals }> = [];
+    const manager = new DashboardLifecycleManager({
+        managerPort: MANAGER_PORT,
+        from: 3457,
+        count: 50,
+        jawPath: '/usr/local/bin/jaw',
+        storageRoot: dir,
+        processVerify: {
+            isPortOccupied: async () => false,
+            resolveListeningPid: async (port) => (port === 24577 ? 99003 : null),
+            isPidAlive: () => false,
+            killPid: (pid, signal) => { killed.push({ pid, signal }); },
+        },
+    });
+
+    const self = await manager.stop(MANAGER_PORT);
+    assert.equal(self.ok, false);
+    assert.match(self.message, /self/);
+
+    const peer = await manager.stop(24577);
+    assert.equal(peer.ok, true);
+    assert.match(peer.message, /Peer dashboard/);
+    assert.deepEqual(killed, [{ pid: 99003, signal: 'SIGTERM' }]);
 });
 
 test('lifecycle stopAll returns empty when no child is managed', async (t) => {
