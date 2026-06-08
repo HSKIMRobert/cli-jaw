@@ -143,7 +143,7 @@ ide, orchestrate, project
 - `/interview <request>`: IPABCD I(Interview) 상태 머신으로 진입.
 - `/deliberate <request-or-plan>`: Planner/Architect/Critic 관점으로 계획을 점검.
 - `/planaudit [plan]`: PABCD A에서 직원에게 보낼 읽기 전용 감사 task text를 만든다.
-- `/review [--fix] [--dispatch]`: `projectDirs` 또는 최근 맥락에서 검증한 git 프로젝트 디렉토리를 리뷰한다. JAW_HOME/`process.cwd()` fallback은 금지하며, 결과 Markdown report를 JAW_HOME workflow report 경로에 저장한다. `--fix`는 검증된 프로젝트 루트 안의 Critical/High만 자동 수정한다.
+- `/review [--fix] [--dispatch]`: `projectDirs` 또는 최근 맥락에서 검증한 git 프로젝트 디렉토리를 리뷰한다. JAW_HOME/`process.cwd()` fallback은 금지한다. 리뷰 범위는 최근 goal/chat context, 커밋 히스토리, diff, worktree, untracked 파일을 종합해 자율적으로 정하고, 결과 Markdown report에는 `Scope Resolution` 근거를 저장한다. `--fix`는 검증된 프로젝트 루트 안의 Critical/High만 현재 `HEAD` 위 새 working-tree patch로 자동 수정하며 기존 커밋을 rewrite하지 않는다.
 - `/goal [set|status|run|done|cancel|pause|resume|clear|reset|history] [args...]`: Persistent goal lifecycle management.
 - `/team [plan|audit|status|collect|stop] [args...]`: 여러 worker를 병렬로 쓰는 team orchestration helper.
 
