@@ -17,7 +17,7 @@ let mermaidModule: MermaidApi | null = null;
 // Serialise all Mermaid render calls — concurrent renders corrupt shared internal state.
 let mermaidQueue: Promise<void> = Promise.resolve();
 
-function getMermaidThemeVars() {
+export function getMermaidThemeVars() {
     const isLight = document.documentElement.getAttribute('data-theme') === 'light';
     return isLight ? {
         primaryColor: '#e2e8f0',
@@ -58,19 +58,24 @@ async function ensureMermaidLoaded() {
     return mermaidModule;
 }
 
-// Re-apply theme config immediately before every render() call.
-// Mermaid's internal config can drift after parse()/render() due to
-// directive resets — never cache, always re-initialise.
-function applyMermaidTheme() {
-    mermaidModule!.initialize({
+const WIDE_DIAGRAM_TYPES = new Set([
+    'gantt', 'sequencediagram', 'timeline', 'sankey-beta',
+]);
+
+export function getMermaidInitConfig() {
+    return {
         startOnLoad: false,
-        theme: 'base',
+        theme: 'base' as const,
         htmlLabels: false,
         themeVariables: getMermaidThemeVars(),
-        securityLevel: 'strict',
+        securityLevel: 'strict' as const,
         suppressErrorRendering: true,
         gantt: { useMaxWidth: false, useWidth: 800 },
-    });
+    };
+}
+
+function applyMermaidTheme() {
+    mermaidModule!.initialize(getMermaidInitConfig());
 }
 
 // ── Mermaid deferred rendering (lazy-loaded) ──
@@ -102,8 +107,10 @@ export async function rerenderMermaidDiagrams(): Promise<void> {
                 if (!htmlEl.isConnected) continue;
                 htmlEl.innerHTML = sanitizeMermaidSvg(svg);
                 const dtype = code.trim().split(/\s/)[0].toLowerCase();
-                htmlEl.closest('.mermaid-container')?.classList
-                    .toggle('mermaid-type-gantt', dtype === 'gantt');
+                const container = htmlEl.closest('.mermaid-container');
+                if (container) {
+                    container.classList.toggle('mermaid-type-wide', WIDE_DIAGRAM_TYPES.has(dtype));
+                }
                 appendMermaidActionBtns(htmlEl);
                 bindDiagramZoom(htmlEl);
             } catch { /* keep existing render on failure */ }
@@ -172,8 +179,10 @@ async function renderSingleMermaidImpl(el: HTMLElement): Promise<void> {
         el.innerHTML = sanitizeMermaidSvg(svg);
         el.classList.add('mermaid-rendered');
         const dtype = code.trim().split(/\s/)[0].toLowerCase();
-        el.closest('.mermaid-container')?.classList
-            .toggle('mermaid-type-gantt', dtype === 'gantt');
+        const container = el.closest('.mermaid-container');
+        if (container) {
+            container.classList.toggle('mermaid-type-wide', WIDE_DIAGRAM_TYPES.has(dtype));
+        }
         delete el.dataset['mermaidCodeRaw'];
         appendMermaidActionBtns(el);
         bindDiagramZoom(el);
