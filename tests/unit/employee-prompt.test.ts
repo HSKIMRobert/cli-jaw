@@ -143,12 +143,12 @@ test('EMP-008c3: active skills render nested metadata triggers for routing', () 
         'base employee prompt should tell workers to inspect active search skill before local grep');
 });
 
-test('EMP-008d: docs role resolves to an available documentation skill', () => {
+test('EMP-008d: docs role resolves to dev-scaffolding skill', () => {
     const emp = { name: 'Docs', cli: 'agy', role: 'docs' };
     clearPromptCache();
     const v2 = getEmployeePromptV2(emp, 'docs', 1);
-    assert.ok(v2.includes('doc-coauthoring'),
-        'docs role should map to the available doc-coauthoring skill');
+    assert.ok(v2.includes('dev-scaffolding'),
+        'docs role should map to the dev-scaffolding skill');
     assert.ok(!v2.includes('Role guide: documentation: unavailable'),
         'docs role should not point to the removed documentation skill id');
 });
