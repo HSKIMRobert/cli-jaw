@@ -8,6 +8,8 @@ export interface InstanceMemoryRef {
     label: string | null;
     dbPath: string;
     hasDb: boolean;
+    chatDbPath: string;
+    hasChatDb: boolean;
 }
 
 export interface FederatedHit extends SearchHit {
@@ -32,6 +34,24 @@ export interface FederationWarning {
 
 export interface FederatedSearchResult {
     hits: FederatedHit[];
+    warnings: FederationWarning[];
+    instancesQueried: number;
+    instancesSucceeded: number;
+}
+
+export interface ChatSearchHit {
+    id: number;
+    role: string;
+    content: string;
+    cli: string | null;
+    created_at: string;
+    match_field: 'content' | 'tool_log';
+    instanceId: string;
+    instanceLabel: string | null;
+}
+
+export interface ChatFederatedResult {
+    hits: ChatSearchHit[];
     warnings: FederationWarning[];
     instancesQueried: number;
     instancesSucceeded: number;

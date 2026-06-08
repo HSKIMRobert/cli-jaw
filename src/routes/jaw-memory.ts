@@ -6,14 +6,14 @@ import * as memory from '../memory/memory.js';
 import { getMemoryStatus, searchIndexedMemory, readIndexedMemorySnippet, reflectMemory, hasSoulFile, loadSoulSummary, getAdvancedMemoryDir, safeReadFile, readMeta, writeMeta, listMemoryFiles, writeText } from '../memory/runtime.js';
 import { ensureAdvancedMemoryStructure, scanSystemProfile } from '../memory/bootstrap.js';
 import { reindexSingleFile } from '../memory/indexing.js';
-import { getMemory } from '../core/db.js';
+import { getMemory, searchMessagesByTimeWindow } from '../core/db.js';
 import { settings, getServerUrl, JAW_HOME } from '../core/config.js';
 import { stripUndefined } from '../core/strip-undefined.js';
 import { broadcast } from '../core/bus.js';
 import { submitMessage } from '../orchestrator/gateway.js';
 import { buildSoulBootstrapPrompt } from '../prompt/soul-bootstrap-prompt.js';
 import { join } from 'path';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { resolveDashboardHome } from '../manager/dashboard-home.js';
 import { DASHBOARD_DEFAULT_PORT } from '../manager/constants.js';
 
@@ -104,6 +104,54 @@ export function registerJawMemoryRoutes(app: Express, requireAuth: AuthMiddlewar
             const payload = buildMemorySyncPayload('save');
             broadcastMemorySync('save');
             res.json({ ok: true, path: p, ...payload });
+        } catch (e: unknown) { res.status(httpStatus(e, 500)).json({ error: (e as Error).message }); }
+    });
+
+    app.get('/api/jaw-memory/context', (req, res) => {
+        try {
+            const file = assertMemoryRelPath(String(req.query["file"] || ''), { allowExt: ['.md', '.txt', '.json'] });
+            const memDir = getAdvancedMemoryDir() || join(JAW_HOME, 'memory');
+            const fullPath = join(memDir, file);
+            if (!existsSync(fullPath)) {
+                res.status(404).json({ error: `memory file not found: ${file}` });
+                return;
+            }
+            const content = readFileSync(fullPath, 'utf8');
+            const mtime = statSync(fullPath).mtime;
+
+            const createdMatch = content.match(/created_at:\s*(.+)/);
+            const center = createdMatch?.[1]?.trim() || mtime.toISOString().replace('T', ' ').slice(0, 19);
+
+            const nameMatch = content.match(/name:\s*(.+)/);
+            const descMatch = content.match(/description:\s*(.+)/);
+            const q = (nameMatch?.[1] || '').replace(/[-_]/g, ' ').trim();
+            const q2 = (descMatch?.[1] || '').trim().slice(0, 60) || null;
+
+            if (!q && !q2) {
+                res.json({ file, center, hits: [], message: 'no searchable terms extracted from memory file' });
+                return;
+            }
+
+            const windowHours = Number(req.query["window"]) || 4;
+            const limit = Math.min(Number(req.query["limit"]) || 10, 30);
+
+            const rows = searchMessagesByTimeWindow.all({
+                center, window_hours: windowHours, q: q || q2, q2, limit,
+            }) as Array<{ id: number; role: string; content: string; cli: string | null; created_at: string; session_id: string }>;
+
+            res.json({
+                file,
+                center,
+                terms: { q, q2 },
+                hits: rows.map(r => ({
+                    id: r.id,
+                    role: r.role,
+                    content: r.content.slice(0, 400),
+                    cli: r.cli,
+                    created_at: r.created_at,
+                    session_id: r.session_id,
+                })),
+            });
         } catch (e: unknown) { res.status(httpStatus(e, 500)).json({ error: (e as Error).message }); }
     });
 

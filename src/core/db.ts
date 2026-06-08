@@ -258,6 +258,15 @@ export const getMessageContext = db.prepare(`
       AND id BETWEEN ($target_id - $range) AND ($target_id + $range)
     ORDER BY id ASC
 `);
+export const searchMessagesByTimeWindow = db.prepare(`
+    SELECT id, role, content, cli, created_at, session_id
+    FROM messages
+    WHERE created_at BETWEEN datetime($center, '-' || $window_hours || ' hours')
+                        AND datetime($center, '+' || $window_hours || ' hours')
+      AND (content LIKE '%' || $q || '%' OR ($q2 IS NOT NULL AND content LIKE '%' || $q2 || '%'))
+    ORDER BY created_at DESC
+    LIMIT $limit
+`);
 export const getMessagesWithTrace = db.prepare('SELECT * FROM messages WHERE session_id = ? ORDER BY id ASC');
 // Recent-window variants: fetch the most recent N rows (DESC + LIMIT) to keep the
 // chat boot payload bounded. Callers reverse the result back to ascending order.

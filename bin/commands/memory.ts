@@ -127,6 +127,29 @@ try {
             console.log(`🧠 ${r.message || 'Memory flush triggered'}`);
             break;
         }
+        case 'context': {
+            const file = process.argv[4];
+            if (!file) { console.error('Usage: cli-jaw memory context <file> [--window N]'); process.exit(1); }
+            const { values: ctxValues } = parseArgs({
+                args: process.argv.slice(5),
+                options: { window: { type: 'string', default: '4' }, limit: { type: 'string', default: '10' } },
+                strict: false,
+            });
+            const params = new URLSearchParams({ file });
+            if (ctxValues.window) params.set('window', ctxValues.window as string);
+            if (ctxValues.limit) params.set('limit', ctxValues.limit as string);
+            const r = await api<{ file?: string; center?: string; terms?: { q: string; q2: string | null }; hits?: Array<{ id: number; role: string; content: string; cli: string | null; created_at: string; session_id: string }>; message?: string }>('GET', `/context?${params}`);
+            if (r.message) { console.log(r.message); break; }
+            console.log(`# Memory: ${r.file}  (center: ${r.center})`);
+            console.log(`# Terms: q="${r.terms?.q}" q2="${r.terms?.q2 || ''}"`);
+            const hits = r.hits || [];
+            if (!hits.length) { console.log('(no related chat messages found)'); break; }
+            for (const h of hits) {
+                console.log(`\n[${h.created_at}] (${h.role}) session:${h.session_id}`);
+                console.log(h.content);
+            }
+            break;
+        }
         case 'cleanup': {
             const { values: cleanupValues } = parseArgs({
                 args: process.argv.slice(4),
@@ -147,6 +170,7 @@ try {
     save <file> <content>        Append content to a memory file
     list                         List all memory files
     init                         Initialize memory directory
+    context <file> [--window N]   Find chat messages around a memory file's creation time
     reflect [--sinceDays N]      Promote durable facts from episodes to shared pages
     flush                        Manually trigger memory flush
     cleanup [--days N]           Archive episodes older than N days (default: 90)

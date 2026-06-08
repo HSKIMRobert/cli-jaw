@@ -1,5 +1,5 @@
 import { existsSync, statSync } from 'node:fs';
-import { basename } from 'node:path';
+import { basename, join } from 'node:path';
 import { homedir } from 'node:os';
 import { loadDashboardRegistry } from '../registry.js';
 import { defaultHomeForPort } from '../lifecycle-helpers.js';
@@ -48,6 +48,13 @@ function buildRefs(
         } catch {
             hasDb = false;
         }
+        const chatDbPath = join(home.path, 'jaw.db');
+        let hasChatDb = false;
+        try {
+            hasChatDb = existsSync(chatDbPath) && statSync(chatDbPath).isFile();
+        } catch {
+            hasChatDb = false;
+        }
         out.push({
             instanceId: String(port),
             homePath: home.path,
@@ -56,6 +63,8 @@ function buildRefs(
             label: info.label ?? null,
             dbPath,
             hasDb,
+            chatDbPath,
+            hasChatDb,
         });
     }
     return out;
