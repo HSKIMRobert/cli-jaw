@@ -19,17 +19,8 @@ export function buildVirtualHistoryItems(msgs: MessageItem[]): VirtualItem[] {
     return msgs.map((m, index) => buildLazyVirtualMessageItem(normalizeMessageToolLog(m), index));
 }
 
-// Only the embedded dashboard preview frame remounts on every instance switch,
-// so it fetches a bounded recent-N window to keep the per-remount payload small
-// (the full all-time history was ~tens of MB). The standalone chat tab loads
-// once and never remounts, so it keeps the full scrollable history — bounding it
-// would silently drop access to older messages (no load-older mechanism exists).
-export const BOOT_MESSAGE_LIMIT = 300;
-
 export function bootMessageQuery(): string {
-    let embedded = true;
-    try { embedded = window.parent !== window; } catch { embedded = true; }
-    return embedded ? `?limit=${BOOT_MESSAGE_LIMIT}` : '';
+    return '';
 }
 
 function normalizeMessageScopePart(value: string | null | undefined): string {
