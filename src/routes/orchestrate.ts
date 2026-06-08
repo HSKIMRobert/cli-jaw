@@ -23,7 +23,7 @@ import {
     getWorkerProgressSnapshot,
     listWorkerProgressSnapshots,
 } from '../orchestrator/worker-registry.js';
-import { findEmployee, runSingleAgent } from '../orchestrator/distribute.js';
+import { findEmployee, runSingleAgent, validateParallelSafety } from '../orchestrator/distribute.js';
 import { getEmployees } from '../core/db.js';
 import { settings, clearProjectDirs } from '../core/config.js';
 import { broadcast } from '../core/bus.js';
@@ -496,6 +496,136 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
         }
 
         await runDispatch(true);
+    });
+
+    // ─── Batch Parallel Dispatch (G-13) ──────────────────
+    app.post('/api/orchestrate/dispatch/batch', requireAuth, async (req, res) => {
+        const bossToken = String(req.headers['x-jaw-boss-token'] || '');
+        if (!verifyBossToken(bossToken)) {
+            return fail(res, 403, 'Dispatch requires boss-scoped token.');
+        }
+        const agents = req.body?.agents;
+        if (!Array.isArray(agents) || agents.length === 0) {
+            return fail(res, 400, 'Missing or empty agents array');
+        }
+        if (agents.length > 10) {
+            return fail(res, 400, 'Batch dispatch limited to 10 agents');
+        }
+
+        const dispatchScope = resolveOrcScope({ origin: 'web', workingDir: settings["workingDir"] || null });
+        const currentOrcState = getState(dispatchScope);
+        const dispatchCtx = getCtx(dispatchScope);
+        const PABCD_PHASE_MAP: Record<string, number> = { A: 2, B: 4, C: 4 };
+        const emps = getEmployees.all() as EmployeeRow[];
+        const bossMeta = getCurrentMainMeta();
+        const replayMeta = bossMeta ? stripUndefined({
+            origin: bossMeta.origin, target: bossMeta.target,
+            chatId: bossMeta.chatId, requestId: bossMeta.requestId,
+            scopeId: bossMeta.scopeId,
+        }) : undefined;
+
+        interface BatchEntry {
+            agentName: string;
+            task: string;
+            emp: EmployeeRow | SyntheticEmployeeRow;
+            allowWrite: boolean;
+            scope: string | null;
+            parallel: boolean;
+            affectedFiles: string[];
+            resolvedPhase: number;
+        }
+
+        const entries: BatchEntry[] = [];
+        for (const item of agents) {
+            const agentName = String(item?.agent || '').trim();
+            const task = String(item?.task || '').trim();
+            if (!agentName || !task) {
+                return fail(res, 400, `Invalid entry: missing agent or task`);
+            }
+            const allowWrite = item?.mutable === true;
+            const scope = typeof item?.scope === 'string' ? item.scope : null;
+            if (allowWrite && scope) {
+                try { normalizeScope(settings["workingDir"] || process.cwd(), scope); }
+                catch (e) { return fail(res, 400, (e as Error).message); }
+            }
+            let emp = findEmployee(emps, { agent: agentName }) as EmployeeRow | SyntheticEmployeeRow | null;
+            if (!emp) {
+                const staticSpec = resolveDispatchableEmployee(agentName, emps);
+                if (staticSpec) emp = staticSpec.row;
+            }
+            if (!emp) return fail(res, 404, `Employee not found: ${agentName}`);
+            const resolvedPhase = allowWrite ? 3 : (item?.phase ?? PABCD_PHASE_MAP[currentOrcState] ?? 3);
+            entries.push({
+                agentName, task, emp, allowWrite,
+                scope, parallel: item?.parallel === true,
+                affectedFiles: Array.isArray(item?.affected_files) ? item.affected_files.map(String) : [],
+                resolvedPhase,
+            });
+        }
+
+        const agentPhases = entries.map(e => ({
+            agent: e.agentName,
+            parallel: e.parallel,
+            verification: { affected_files: e.affectedFiles },
+        }));
+        validateParallelSafety(agentPhases);
+        const parallelResolved = new Map(agentPhases.map((ap, i) => [i, ap.parallel]));
+
+        const runOne = async (entry: BatchEntry): Promise<{ agent: string; ok: boolean; text?: string; error?: string }> => {
+            let slot;
+            try { slot = claimWorker(entry.emp, entry.task, replayMeta); }
+            catch (err) {
+                if (err instanceof WorkerBusyError) {
+                    return { agent: entry.agentName, ok: false, error: `worker_busy: ${entry.agentName} is already running` };
+                }
+                throw err;
+            }
+            try {
+                let enrichedTask = entry.task;
+                if (dispatchCtx?.plan) {
+                    const sanitizedPlan = dispatchCtx.plan.replace(/<!--\s*(BEGIN|END)\s+PLAN\s+CONTENT/gi, '<!-- $1_PLAN_CONTENT');
+                    enrichedTask = [
+                        `## Approved Plan (auto-injected by orchestrator)`,
+                        `<!-- BEGIN PLAN CONTENT -->`, sanitizedPlan, `<!-- END PLAN CONTENT -->`,
+                        `---`, enrichedTask,
+                    ].join('\n\n');
+                }
+                const ap = {
+                    agent: entry.emp.name, role: entry.emp.role || 'general developer',
+                    task: enrichedTask, parallel: entry.parallel,
+                    currentPhase: entry.resolvedPhase, currentPhaseIdx: 0,
+                    phaseProfile: [entry.resolvedPhase],
+                    mutable: entry.allowWrite, scope: entry.scope,
+                };
+                const worklog = dispatchCtx?.worklogPath ? { path: dispatchCtx.worklogPath } : {};
+                const result = await runSingleAgent(ap, entry.emp, worklog, 1, { origin: 'api', projectDirs: dispatchCtx?.projectDirs }, []);
+                const resultTools = Array.isArray(result["tools"]) ? result["tools"] : [];
+                updateWorkerTools(slot.agentId, resultTools);
+                finishWorker(slot.agentId, String(result["text"] || ''), resultTools);
+                recordDispatch();
+                return { agent: entry.agentName, ok: true, text: String(result["text"] || '') };
+            } catch (err: unknown) {
+                const msg = (err as Error)?.message || String(err);
+                failWorker(slot.agentId, msg);
+                return { agent: entry.agentName, ok: false, error: msg };
+            }
+        };
+
+        const parallelEntries = entries.filter((_, i) => parallelResolved.get(i));
+        const sequentialEntries = entries.filter((_, i) => !parallelResolved.get(i));
+
+        const results: { agent: string; ok: boolean; text?: string; error?: string }[] = [];
+        if (parallelEntries.length > 0) {
+            const settled = await Promise.allSettled(parallelEntries.map(e => runOne(e)));
+            for (const s of settled) {
+                results.push(s.status === 'fulfilled' ? s.value : { agent: '?', ok: false, error: String((s as PromiseRejectedResult).reason) });
+            }
+        }
+        for (const entry of sequentialEntries) {
+            results.push(await runOne(entry));
+        }
+
+        res.json({ ok: true, results });
     });
 
     // Phase 7-4: explicit result polling for 409 retries and reconnects.

@@ -16,6 +16,7 @@ if (shouldShowHelp(process.argv)) printAndExit(`
   jaw dispatch — send task to an employee agent
 
   Usage: jaw dispatch --agent "Name" --task "instruction" [--watch]
+         jaw dispatch --batch --agents '<JSON array>'
 
   Options:
     --agent <name>    Employee name (must match settings.json employees)
@@ -25,11 +26,16 @@ if (shouldShowHelp(process.argv)) printAndExit(`
     --watch           Print live sanitized employee progress until completion
     --json            JSON output
 
+  Batch mode:
+    --batch           Enable batch parallel dispatch
+    --agents <json>   JSON array of {agent, task, parallel?, mutable?, scope?, affected_files?}
+
   Result is returned via stdout. Employee names are case-sensitive.
 
   Examples:
     jaw dispatch --agent "Frontend" --task "Fix CSS bug in header"
     jaw dispatch --agent "Backend" --task "Add rate limiting to /api/chat"
+    jaw dispatch --batch --agents '[{"agent":"Frontend","task":"verify CSS","parallel":true},{"agent":"Backend","task":"verify API","parallel":true}]'
 `);
 
 loadSettings();
@@ -62,6 +68,49 @@ const task = getFlag('--task');
 const mutable = process.argv.includes('--mutable');
 const scope = getFlag('--scope');
 const watch = process.argv.includes('--watch');
+const isBatch = process.argv.includes('--batch');
+const batchAgentsRaw = getFlag('--agents');
+
+if (isBatch) {
+    if (!batchAgentsRaw) {
+        console.error('Usage: jaw dispatch --batch --agents \'[{"agent":"Name","task":"..."}]\'');
+        process.exit(1);
+    }
+    let batchAgents: { agent: string; task: string; parallel?: boolean; mutable?: boolean; scope?: string; affected_files?: string[] }[];
+    try {
+        batchAgents = JSON.parse(batchAgentsRaw);
+        if (!Array.isArray(batchAgents) || batchAgents.length === 0) throw new Error('empty');
+    } catch {
+        console.error('❌ --agents must be a non-empty JSON array');
+        process.exit(1);
+    }
+    const BASE = getServerUrl();
+    await getCliAuthToken();
+    console.log(`🚀 Batch dispatching ${batchAgents.length} agents...`);
+    try {
+        const res = await cliFetch(`${BASE}/api/orchestrate/dispatch/batch`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Jaw-Boss-Token': bossToken },
+            body: JSON.stringify({ agents: batchAgents }),
+        });
+        const body = await res.json() as { ok: boolean; results?: { agent: string; ok: boolean; text?: string; error?: string }[]; error?: string };
+        if (!body.ok) {
+            console.error(`❌ ${body.error || `Failed: ${res.status}`}`);
+            process.exit(1);
+        }
+        let exitCode = 0;
+        for (const r of body.results || []) {
+            const status = r.ok ? '✅' : '❌';
+            console.log(`\n${status} ${r.agent}`);
+            if (r.text) console.log(r.text);
+            if (r.error) { console.error(`  Error: ${r.error}`); exitCode = 1; }
+        }
+        process.exit(exitCode);
+    } catch (e: unknown) {
+        console.error(`❌ Error: ${errString(e)}`);
+        process.exit(1);
+    }
+}
 
 if (!agent || !task) {
     console.error('Usage: jaw dispatch --agent <name> --task <task>');
