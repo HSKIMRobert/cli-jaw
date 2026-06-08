@@ -37,6 +37,7 @@ export interface GoalState {
     pauseAudit?: GoalPauseAudit | undefined;
     cancelReason?: string | undefined;
     completionNote?: string | undefined;
+    agentPauseCount?: number | undefined;
 }
 
 export interface GoalHistory {

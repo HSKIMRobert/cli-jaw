@@ -53,6 +53,7 @@ export function buildGoalContinuation(): GoalContinuationResult {
     const summary = checkpoint?.summary || 'No checkpoint yet.';
 
     const _projDirs = getProjectDirs();
+    const pauseCount = goal.agentPauseCount ?? 0;
     const prompt = [
         `[goal-continuation] Active goal: ${goal.objective}`,
         `Last checkpoint: ${summary}`,
@@ -138,6 +139,39 @@ export function buildGoalContinuation(): GoalContinuationResult {
                 'Document progress in jawdev style (devlog/_plan/ or worklog) at each phase transition — use dev-pabcd skill conventions.',
                 'Do not advance a development phase unless the documentation, implementation, and verification evidence bundle is present for that phase.',
                 'NEVER end a turn just because a PABCD phase completed. Keep working through ALL phases in a single goal continuation.',
+              ]
+            : []),
+        ...(pauseCount >= 1
+            ? [
+                '',
+                '--- ⚠ AGENT PAUSE GATE: First attempt recorded — dev-skill audit required ---',
+                'Your previous `cli-jaw goal pause --agent` was BLOCKED (attempt 1/2).',
+                'Before you may pause again, you MUST complete a thorough audit:',
+                '',
+                '**Requirement-by-requirement verification:**',
+                '- Derive every concrete requirement from the goal objective.',
+                '- For EACH requirement, provide authoritative evidence: file path, command output, test result, or runtime behavior.',
+                '- Mark each as PROVEN (evidence directly confirms), UNPROVEN (no evidence or indirect), or CONTRADICTED (evidence disproves).',
+                '- Any UNPROVEN or CONTRADICTED item means work remains — do NOT pause.',
+                '',
+                '**Dev skill compliance:**',
+                '- §3 verification gate: all changes tested/verified with fresh output',
+                '- §5 safety rules: no broken imports/exports, no deleted public APIs',
+                '- §7.2 static analysis: tsc/mypy/eslint passes (run and confirm)',
+                '- File length: no file exceeds 500 lines',
+                '- Commit discipline: atomic commits for each logical change',
+                '',
+                '**Documentation evidence:**',
+                '- devlog entry exists with plan + outcome',
+                '- Implementation evidence: changed source/test file paths listed',
+                '- Verification evidence: fresh command output proving correctness',
+                '',
+                '**Independent reviewer:**',
+                '- Dispatch a CLI sub-agent or jaw employee to challenge whether viable work remains.',
+                '- If the reviewer finds a viable path → continue working (counter resets on next turn).',
+                '- If the reviewer confirms no path → call `cli-jaw goal pause --agent --audit "<reviewer summary>"` to actually pause.',
+                '',
+                'RULE: Do NOT call pause again unless EVERY requirement is PROVEN and the independent reviewer confirms PASS.',
               ]
             : []),
         '',

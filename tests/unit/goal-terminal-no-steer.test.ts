@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseCommand, executeCommand } from '../../src/cli/commands.ts';
-import { resetGoalStore, setGoal, updateGoal } from '../../src/goal/store.ts';
+import { resetGoalStore, setGoal, updateGoal, getAgentPauseCount } from '../../src/goal/store.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const handlersSrc = readFileSync(join(__dirname, '../../src/cli/handlers-workflows.ts'), 'utf8');
@@ -102,13 +102,41 @@ test('/goal pause --agent requires audit evidence without spawning continuation 
     }
 });
 
-test('/goal pause --agent --audit records audit evidence without spawning continuation text', async () => {
+test('/goal pause --agent --audit blocked on first attempt (2-tap gate)', async () => {
     resetGoalStore();
     try {
-        setGoal('agent pause audit success');
-        const result = await runGoalCommand('/goal pause --agent --audit reviewer found no viable remaining path');
+        setGoal('2-tap gate first attempt');
+        const result = await runGoalCommand('/goal pause --agent --audit reviewer says PASS');
+        assert.equal(result?.ok, false);
+        assert.match(result?.text ?? '', /First agent pause attempt/);
+        assert.match(result?.text ?? '', /1\/2/);
+        assert.equal(getAgentPauseCount(), 1);
+    } finally {
+        resetGoalStore();
+    }
+});
+
+test('/goal pause --agent --audit succeeds on second attempt (2-tap gate)', async () => {
+    resetGoalStore();
+    try {
+        setGoal('2-tap gate second attempt');
+        const result1 = await runGoalCommand('/goal pause --agent --audit first review');
+        assert.equal(result1?.ok, false);
+        const result2 = await runGoalCommand('/goal pause --agent --audit second review confirms PASS');
+        assert.equal(result2?.ok, true);
+        assert.equal('steerPrompt' in result2, false);
+        assert.match(result2?.text ?? '', /Goal paused/);
+    } finally {
+        resetGoalStore();
+    }
+});
+
+test('/goal pause without --agent always immediate (human path)', async () => {
+    resetGoalStore();
+    try {
+        setGoal('human pause no gate');
+        const result = await runGoalCommand('/goal pause');
         assert.equal(result?.ok, true);
-        assert.equal('steerPrompt' in result, false);
         assert.match(result?.text ?? '', /Goal paused/);
     } finally {
         resetGoalStore();

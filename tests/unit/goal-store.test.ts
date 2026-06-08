@@ -4,6 +4,7 @@ import {
     getActiveGoal, getGoalHistory, setGoal, updateGoal,
     completeGoal, cancelGoal, pauseGoal, resumeGoal,
     clearGoal, resetGoalStore, MAX_GOAL_OBJECTIVE_CHARS,
+    getAgentPauseCount, incrementAgentPauseCount, resetAgentPauseCount,
 } from '../../src/goal/store.ts';
 
 beforeEach(() => { resetGoalStore(); });
@@ -164,5 +165,36 @@ describe('Goal Store', () => {
     test('18. setGoal rejects objectives over 10000 characters', () => {
         const objective = 'x'.repeat(MAX_GOAL_OBJECTIVE_CHARS + 1);
         assert.throws(() => setGoal(objective), /10000 characters/);
+    });
+
+    test('19. agentPauseCount defaults to 0', () => {
+        setGoal('pause count default');
+        assert.equal(getAgentPauseCount(), 0);
+    });
+
+    test('20. incrementAgentPauseCount increments and persists', () => {
+        setGoal('pause count increment');
+        incrementAgentPauseCount();
+        assert.equal(getAgentPauseCount(), 1);
+        incrementAgentPauseCount();
+        assert.equal(getAgentPauseCount(), 2);
+    });
+
+    test('21. resetAgentPauseCount resets to 0', () => {
+        setGoal('pause count reset');
+        incrementAgentPauseCount();
+        incrementAgentPauseCount();
+        assert.equal(getAgentPauseCount(), 2);
+        resetAgentPauseCount();
+        assert.equal(getAgentPauseCount(), 0);
+    });
+
+    test('22. incrementAgentPauseCount fails with no active goal', () => {
+        assert.equal(incrementAgentPauseCount(), null);
+    });
+
+    test('23. resetAgentPauseCount is no-op with no active goal', () => {
+        resetAgentPauseCount();
+        assert.equal(getAgentPauseCount(), 0);
     });
 });

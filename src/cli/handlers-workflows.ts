@@ -289,6 +289,27 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
         if (args.includes('--agent') && !auditEvidence) {
             return blocked('Agent-initiated goal pause requires independent audit evidence. Run an independent reviewer first, then retry with `cli-jaw goal pause --agent --audit "<review summary>"`.');
         }
+        if (args.includes('--agent')) {
+            const { getAgentPauseCount, incrementAgentPauseCount } = await import('../goal/store.js');
+            const count = getAgentPauseCount();
+            if (count < 1) {
+                incrementAgentPauseCount();
+                return blocked(
+                    'First agent pause attempt recorded (1/2). Your pause was NOT executed.\n\n' +
+                    'The next goal continuation will inject a dev-skill audit checklist.\n' +
+                    'You MUST complete a thorough requirement-by-requirement verification before pausing again.\n\n' +
+                    'Audit checklist:\n' +
+                    '1. Derive every concrete requirement from the goal objective.\n' +
+                    '2. For EACH requirement, provide authoritative evidence: file path, command output, test result, or runtime behavior.\n' +
+                    '3. Mark each as PROVEN / UNPROVEN / CONTRADICTED. Any non-PROVEN item means work remains.\n' +
+                    '4. Dev skill compliance: §3 verification gate, §5 safety rules, §7.2 static analysis.\n' +
+                    '5. Documentation evidence: devlog entry, implementation paths, fresh verification output.\n' +
+                    '6. Dispatch an independent reviewer (CLI sub-agent or jaw employee) to challenge whether viable work remains.\n\n' +
+                    'If you find remaining work, continue instead — the counter resets automatically on the next turn.\n' +
+                    'If everything is PROVEN and the reviewer confirms PASS, call `cli-jaw goal pause --agent --audit "<evidence>"` again to confirm.'
+                );
+            }
+        }
         clearGoalTimers();
         const goal = pauseGoal({
             ...(reason ? { reason } : {}),
