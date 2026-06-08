@@ -1,13 +1,14 @@
 /**
  * cli-jaw employee — employee utilities
  * Usage:
+ *   cli-jaw employee list [--port 3457] [--json]
  *   cli-jaw employee reset [--port 3457]
  */
 import { parseArgs } from 'node:util';
 import { getServerUrl } from '../../src/core/config.js';
 import { stripUndefined } from '../../src/core/strip-undefined.js';
 import { getCliAuthToken } from '../../src/cli/api-auth.js';
-import { asRecord, fieldString, type JsonRecord } from '../_http-client.js';
+import { asArray, asRecord, fieldString, type JsonRecord } from '../_http-client.js';
 
 const sub = String(process.argv[3] || '').toLowerCase();
 const isHelpSubcommand = sub === '--help' || sub === '-h' || sub === 'help';
@@ -15,6 +16,7 @@ const { values } = parseArgs({
     args: process.argv.slice(4),
     options: {
         port: { type: 'string', default: process.env["PORT"] || '3457' },
+        json: { type: 'boolean', default: false },
         help: { type: 'boolean', default: false },
     },
     strict: false,
@@ -23,11 +25,22 @@ const { values } = parseArgs({
 function printHelp() {
     console.log(`
   Usage:
+    cli-jaw employee list [--port 3457] [--json]
     cli-jaw employee reset [--port 3457]
 
   Description:
-    Reset employees to default 5 profiles (frontend/backend/data/docs/qa).
+    List employees or reset DB employees to built-in defaults.
+    Static employees such as Control are merged into the list by the server.
 `);
+}
+
+interface EmployeeListRow {
+    id: string;
+    name: string;
+    cli: string;
+    model: string | undefined;
+    role: string | undefined;
+    source: string | undefined;
 }
 
 type EmployeeApiInit = Omit<RequestInit, 'body' | 'headers'> & {
@@ -55,6 +68,44 @@ async function apiJson<T = JsonRecord>(baseUrl: string, path: string, init: Empl
     return data as T;
 }
 
+function employeeListRows(payload: unknown): EmployeeListRow[] {
+    const record = asRecord(payload);
+    const rawRows = Array.isArray(payload) ? payload : record["data"];
+    return asArray<JsonRecord>(rawRows).map(row => ({
+        id: fieldString(row["id"]),
+        name: fieldString(row["name"]),
+        cli: fieldString(row["cli"]),
+        model: fieldString(row["model"]) || undefined,
+        role: fieldString(row["role"]) || undefined,
+        source: fieldString(row["source"]) || undefined,
+    }));
+}
+
+function printEmployeeList(rows: EmployeeListRow[]): void {
+    if (rows.length === 0) {
+        console.log('(no employees configured)');
+        return;
+    }
+    const headers = ['Name', 'ID', 'CLI', 'Model', 'Role', 'Source'];
+    const data = rows.map(row => [
+        row.name,
+        row.id,
+        row.cli,
+        row.model || '',
+        row.role || '',
+        row.source || '',
+    ]);
+    const widths = headers.map((header, index) => Math.max(
+        header.length,
+        ...data.map(row => row[index]?.length || 0),
+    ));
+    console.log(headers.map((header, index) => header.padEnd(widths[index]!)).join('  '));
+    console.log(widths.map(width => '-'.repeat(width)).join('  '));
+    for (const row of data) {
+        console.log(row.map((value, index) => value.padEnd(widths[index]!)).join('  '));
+    }
+}
+
 if (values.help || !sub || isHelpSubcommand) {
     printHelp();
     process.exit(0);
@@ -64,6 +115,21 @@ const baseUrl = getServerUrl(values.port as string);
 await getCliAuthToken(values.port as string);
 
 switch (sub) {
+    case 'list': {
+        try {
+            const payload = await apiJson<unknown>(baseUrl, '/api/employees');
+            const rows = employeeListRows(payload);
+            if (values.json) {
+                console.log(JSON.stringify(rows, null, 2));
+            } else {
+                printEmployeeList(rows);
+            }
+        } catch (err) {
+            console.error(`❌ employee list failed: ${(err as Error).message}`);
+            process.exitCode = 1;
+        }
+        break;
+    }
     case 'reset': {
         try {
             const result = await apiJson<{ seeded?: number }>(baseUrl, '/api/employees/reset', { method: 'POST' });

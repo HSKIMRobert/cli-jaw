@@ -45,7 +45,19 @@ test('dispatch CLI resolves agent id from /api/employees only for watch or worke
         'watch 202 path should resolve agent id only if the server omits worker metadata',
     );
     assert.ok(
-        dispatchSrc.includes('unwrapEmployeeSummaries(await res.json() as unknown)'),
+        dispatchSrc.includes('const parsed = await readJsonResponse<unknown>(res, \'employees endpoint\')'),
+        'resolveAgentId should parse /api/employees through the safe JSON helper',
+    );
+    assert.ok(
+        dispatchSrc.includes('unwrapEmployeeSummaries(parsed.body)'),
         'resolveAgentId should unwrap /api/employees envelope safely',
     );
+});
+
+test('dispatch CLI reports stale or missing server routes for non-JSON responses', () => {
+    assert.match(dispatchSrc, /async function readJsonResponse/);
+    assert.match(dispatchSrc, /await res\.text\(\)/);
+    assert.match(dispatchSrc, /JSON\.parse\(raw\)/);
+    assert.match(dispatchSrc, /server may be stale or missing this route/);
+    assert.doesNotMatch(dispatchSrc, /\.json\(\)/);
 });

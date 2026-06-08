@@ -496,6 +496,7 @@ jaw --home ~/project serve --port 3458  # run second instance
 jaw service install               # auto-start on boot
 
 # AI & Orchestration
+jaw employee list                         # list configured + static employees
 jaw dispatch --agent "Backend" --task "..."  # dispatch employee
 jaw dispatch --agent "Backend" --task "..." --watch  # dispatch and stream safe progress
 jaw worker status Backend            # inspect current/previous employee progress
@@ -578,7 +579,8 @@ Architecture details: [ARCHITECTURE.md](docs/ARCHITECTURE.md) · Internal struct
 | `EADDRINUSE: port 3457` | Another instance running. Use `--port 3458` or stop it first |
 | Telegram / Discord auth fails | Run `jaw doctor`, check tokens, restart `jaw serve` |
 | Browser commands fail | Install Chrome/Chromium. Run `jaw browser start` first |
-| Employee dispatch hangs | Ensure the employee CLI is authenticated (`jaw doctor`) |
+| Employee dispatch hangs | Run `jaw employee list`, ensure the employee CLI is authenticated (`jaw doctor`), then retry with `jaw dispatch --watch` |
+| Employee dispatch returns non-JSON or HTML | The server may be stale or missing the route. Run `npm run build` or restart the manager/dashboard process. |
 | Computer Use not working | macOS only. Codex CLI required. Check Automation permission in System Settings |
 
 ---
