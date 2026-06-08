@@ -149,8 +149,12 @@ export function registerJawMemoryRoutes(app: Express, requireAuth: AuthMiddlewar
             const windowHours = Number(req.query["window"]) || 4;
             const limit = Math.min(Number(req.query["limit"]) || 10, 30);
 
+            const allTerms = `${q} ${q2 || ''}`.split(/\s+/).filter(t => t.length >= 2);
+            const primaryTerm = allTerms[0] || q || q2 || '';
+            const secondaryTerm = allTerms.length > 1 ? allTerms[1] : null;
+
             const rows = searchMessagesByTimeWindow.all({
-                center, window_hours: windowHours, q: q || q2, q2, limit,
+                center, window_hours: windowHours, q: primaryTerm, q2: secondaryTerm, limit,
             }) as Array<{ id: number; role: string; content: string; cli: string | null; created_at: string; session_id: string }>;
 
             res.json({
