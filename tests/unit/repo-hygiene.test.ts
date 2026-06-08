@@ -61,13 +61,8 @@ test('RH-006: .npmignore excludes dist/bin/cli-claw.js', () => {
 
 // ── RH-007: build is race-free for concurrent server reads ──
 //
-// Previously the build started with `clean:dist` which wiped dist/ before tsc
-// repopulated it — if a live server read dist/src/prompt/templates/*.md during
-// that window it got ENOENT (see devlog/_plan/260417_message_duplication/03_*
-// "Control dispatch fail" incident). The build now:
-//   (1) lets tsc overwrite JS files in place (no pre-delete),
-//   (2) uses rsync -a --delete for template/prompt dirs (atomic per file).
-// Both satisfy: "a concurrent reader always sees old-or-new, never missing".
+// Build compiles to .dist-staging/ then swaps into dist/ with rollback.
+// Uses rsync for template/prompt dirs (atomic per file).
 test('RH-007: build avoids destructive clean:dist (rsync-based template copy)', () => {
     const pkg = JSON.parse(fs.readFileSync(join(root, 'package.json'), 'utf8'));
     const build = pkg.scripts?.build || '';
