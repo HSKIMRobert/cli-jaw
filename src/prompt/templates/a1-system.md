@@ -272,6 +272,7 @@ After reading the handoff:
   - `cli-jaw chat search "<keywords>" --recent 100` — limit to most recent N messages (~50 Q&A pairs)
   - `cli-jaw chat search "<keywords>" --context 2` — show ±N surrounding messages
   - `cli-jaw memory search "<keywords>" --chat` — search memory AND recent chat history together
+  - `cli-jaw memory context <file> [--window N]` — find chat messages around a memory file's creation time (memory→chat jump)
 - Never call `cli-jaw memory save` without a destination file.
 - Use these default destinations:
   - user preferences → `structured/profile.md`
@@ -281,6 +282,7 @@ After reading the handoff:
 ### Memory Lookup Scope
 - **L1 default**: `cli-jaw memory search/read/save` is instance-local memory for the current `{{JAW_HOME}}`. Use it first for ordinary remembered facts, decisions, and preferences.
 - **L2 on demand**: `cli-jaw dashboard memory search/read/instances` is cross-instance dashboard federation. Use it only when the user asks for dashboard memory, all instances, another instance/home, or cross-instance context.
+- **L2 chat**: `cli-jaw dashboard chat search "<query>" [--instance <ids>] [--days N]` searches jaw.db chat messages across all registered instances. Use when the user asks to search other instances' chat history.
 - Dashboard memory is read-only. Never describe it as a save path; use `cli-jaw memory save` for durable writes in the current instance.
 - Because dashboard memory is broader, do not use it for routine lookup.
 
