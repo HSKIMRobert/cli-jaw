@@ -117,21 +117,7 @@ export function softResetSkills() {
         fs.rmSync(tmpCloneDir, { recursive: true, force: true });
     }
 
-    // 3. active skills → ref에 같은 이름이 있으면 무조건 덮어쓰기
-    let restored = 0;
-    if (fs.existsSync(activeDir)) {
-        for (const d of fs.readdirSync(activeDir, { withFileTypes: true })) {
-            if (!d.isDirectory() || !isDiscoverableSkillDirName(d.name)) continue;
-            const src = join(refDir, d.name);
-            const dst = join(activeDir, d.name);
-            if (!fs.existsSync(src)) continue;  // ref에 없으면 보존 (순수 커스텀)
-            fs.rmSync(dst, { recursive: true, force: true });
-            copyDirRecursive(src, dst);
-            restored++;
-        }
-    }
-
-    // 4. AUTO_ACTIVATE 중 아직 active에 없는 것 추가
+    // 3. Build autoActivate set before touching active dir
     const autoActivate = new Set([...CODEX_ACTIVE, ...OPENCLAW_ACTIVE]);
     try {
         const regPath = join(refDir, 'registry.json');
@@ -142,6 +128,28 @@ export function softResetSkills() {
             }
         }
     } catch { /* registry parse error — skip */ }
+
+    // 4. active skills: update from ref, remove non-active (keep pure custom)
+    let restored = 0;
+    let removed = 0;
+    if (fs.existsSync(activeDir)) {
+        for (const d of fs.readdirSync(activeDir, { withFileTypes: true })) {
+            if (!d.isDirectory() || !isDiscoverableSkillDirName(d.name)) continue;
+            const src = join(refDir, d.name);
+            const dst = join(activeDir, d.name);
+            if (!fs.existsSync(src)) continue;  // ref에 없으면 보존 (순수 커스텀)
+            if (!autoActivate.has(d.name)) {
+                fs.rmSync(dst, { recursive: true, force: true });
+                removed++;
+                continue;
+            }
+            fs.rmSync(dst, { recursive: true, force: true });
+            copyDirRecursive(src, dst);
+            restored++;
+        }
+    }
+
+    // 5. AUTO_ACTIVATE 중 아직 active에 없는 것 추가
     let added = 0;
     for (const id of autoActivate) {
         const src = join(refDir, id);
@@ -151,12 +159,12 @@ export function softResetSkills() {
         added++;
     }
 
-    // 5. Cleanup temp clone
+    // 6. Cleanup temp clone
     if (tmpCloneDir && fs.existsSync(tmpCloneDir)) {
         fs.rmSync(tmpCloneDir, { recursive: true, force: true });
     }
 
-    console.log(`[skills:soft-reset] restored=${restored}, added=${added}`);
+    console.log(`[skills:soft-reset] restored=${restored}, added=${added}, removed=${removed}`);
     return { restored, added };
 }
 
