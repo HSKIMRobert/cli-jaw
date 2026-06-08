@@ -16,6 +16,7 @@ import { createPreviewOriginProxyController } from './preview-origin-proxy.js';
 import { DashboardLifecycleManager } from './lifecycle.js';
 import { createDashboardShutdown } from './shutdown.js';
 import { PLANNED_RESTART_CODE } from '../core/process-codes.js';
+import { killAllAgents } from '../agent/spawn.js';
 import { parsePositiveCount, parsePositivePort } from './security.js';
 import {
     applyDashboardRegistry,
@@ -736,7 +737,8 @@ process.once('SIGTERM', () => void shutdownDashboard('locked-skip'));
 process.on('SIGUSR2', () => {
     console.log('[dashboard] SIGUSR2 received — planned restart');
     plannedRestartCode = PLANNED_RESTART_CODE;
-    void shutdownDashboard('locked-skip');
+    killAllAgents('planned-restart');
+    void shutdownDashboard('full');
 });
 
 async function main(): Promise<void> {
