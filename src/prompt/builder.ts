@@ -711,7 +711,7 @@ export function getEmployeePromptV2(
         frontend: 'dev-frontend',
         backend: 'dev-backend',
         data: 'dev-data',
-        docs: 'doc-coauthoring',
+        docs: 'dev-scaffolding',
         custom: null,
     };
 
