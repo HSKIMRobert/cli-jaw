@@ -104,6 +104,7 @@ ${c.cyan}  🦈 jaw${c.reset} — AI agent orchestration platform  ${c.dim}v${pk
     employee [list|reset]               Employee management
     orchestrate [P|A|B|C|D|reset]       PABCD state machine
     goal <set|status|done|cancel|...>   Persistent goal lifecycle
+    task <add|done|list|assign|...>     Atomic task checklist
 
   ${c.bold}Automation:${c.reset}
     browser <sub>                       Chrome CDP browser control

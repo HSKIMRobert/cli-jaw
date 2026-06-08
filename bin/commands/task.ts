@@ -14,6 +14,7 @@ if (shouldShowHelp(process.argv)) printAndExit(`
     done <id>                                   Mark task done
     start <id>                                  Mark task in progress
     assign <id> <owner>                         Assign to employee
+    edit <id> <new content>                      Edit task content
     cancel <id>                                 Cancel a task
     list [--status pending|done] [--owner Name] List tasks
     clear                                       Remove done/cancelled tasks
@@ -62,6 +63,16 @@ try {
             if (!data.ok) { console.error(data.error || 'Failed'); process.exit(1); }
             const t = data.task;
             console.log(`Added: [${t.id}] ${t.content}${t.owner ? ` @${t.owner}` : ''}${t.after ? ` (after:${t.after})` : ''}`);
+            break;
+        }
+        case 'edit': {
+            const id = args[1];
+            const content = args.slice(2).join(' ').trim();
+            if (!id || !content) { console.error('Usage: jaw task edit <id> <new content>'); process.exit(1); }
+            const res = await cliFetch(`${BASE}/api/task`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update', id, content }) });
+            const data = await res.json() as any;
+            if (!data.ok) { console.error(data.error || 'Failed'); process.exit(1); }
+            console.log(`Edited: [${data.task.id}] ${data.task.content}`);
             break;
         }
         case 'done':
@@ -114,7 +125,7 @@ try {
         }
         default:
             console.error(`Unknown subcommand: ${sub}`);
-            console.error('Usage: jaw task [add|done|start|assign|cancel|list|clear]');
+            console.error('Usage: jaw task [add|edit|done|start|assign|cancel|list|clear]');
             process.exit(1);
     }
 } catch (e: any) {

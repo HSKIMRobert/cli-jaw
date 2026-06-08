@@ -239,7 +239,7 @@ export const COMMANDS: SlashCommand[] = [
     { name: 'ide', descKey: 'cmd.ide.desc', desc: 'IDE diff view', args: '[pop|on|off]', category: 'tools', interfaces: ['cli'], handler: ideHandler },
     { name: 'orchestrate', aliases: ['pabcd'], descKey: '', desc: 'Enter PABCD orchestration', args: '[I|P|A|B|C|D|status|reset] [--force]', category: 'tools', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: orchestrateHandler },
     { name: 'project', aliases: ['proj'], descKey: '', desc: 'Manage project workspace directories', args: '[set|reset|clear|list] [paths...]', category: 'tools', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: projectHandler },
-    { name: 'task', descKey: '', desc: 'Task checklist', args: '[add|done|start|assign|cancel|list|clear] [args...]', category: 'tools', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: taskHandler },
+    { name: 'task', descKey: '', desc: 'Task checklist', args: '[add|edit|done|start|assign|cancel|list|clear] [args...]', category: 'tools', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: taskHandler },
     { name: 'new', descKey: '', desc: 'New chat session', args: '[label]', category: 'session', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: newSessionHandler },
     { name: 'switch', aliases: ['sw'], descKey: '', desc: 'Switch session', args: '<seq>', category: 'session', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: switchSessionHandler },
     { name: 'sessions', aliases: ['ss'], descKey: '', desc: 'List sessions', category: 'session', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: sessionsListHandler },

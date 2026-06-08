@@ -42,6 +42,14 @@ export async function taskHandler(args: string[], _ctx: CliCommandContext): Prom
             if (!task) return { text: `Task not found: ${id}` };
             return { text: `Assigned: [${task.id}] → ${owner}` };
         }
+        case 'edit': {
+            const id = args[1];
+            const content = args.slice(2).join(' ').trim();
+            if (!id || !content) return { text: 'Usage: /task edit <id> <new content>' };
+            const task = updateTask(id, { content });
+            if (!task) return { text: `Task not found: ${id}` };
+            return { text: `Edited: [${task.id}] ${task.content}` };
+        }
         case 'cancel': {
             const id = args[1];
             if (!id) return { text: 'Usage: /task cancel <id>' };
@@ -66,6 +74,6 @@ export async function taskHandler(args: string[], _ctx: CliCommandContext): Prom
             return { text: removed > 0 ? `Cleared ${removed} done/cancelled tasks.` : 'Nothing to clear.' };
         }
         default:
-            return { text: 'Usage: /task [add|done|start|assign|cancel|list|clear]' };
+            return { text: 'Usage: /task [add|edit|done|start|assign|cancel|list|clear]' };
     }
 }
