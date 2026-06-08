@@ -833,7 +833,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             ? _projDirs.map(d => `Project root: ${d}`).join('\n') + '\n'
             : '';
         const memoryNudge = (!opts._isSmokeContinuation && !opts._isGoalContinuation)
-            ? '\n(need history? cli-jaw memory search "<keywords>" in "ENGLISH")'
+            ? '\n(need history? L1: cli-jaw chat/memory search/context | L2: cli-jaw dashboard memory search, cli-jaw dashboard chat search)'
             : '';
         prompt = `${ts}\n${projLine}${prompt}${memoryNudge}`;
     }
