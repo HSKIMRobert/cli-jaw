@@ -278,6 +278,13 @@
 
 .msg-content .mermaid-container svg {
     max-width: 100%;
+    height: auto;
+}
+
+.msg-content .mermaid-container svg[id*="gantt"],
+.msg-content .mermaid-container svg[aria-roledescription="gantt"] {
+    max-width: none;
+    min-width: 600px;
 }
 
 /* Phase 127-F1: skeleton placeholder while mermaid renders */
