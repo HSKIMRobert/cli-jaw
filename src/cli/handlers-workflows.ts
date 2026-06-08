@@ -1,7 +1,7 @@
 import { buildPlanCompatArtifact, formatPlanCompatText } from '../workflows/plan.js';
 import { buildDeliberateArtifact, formatDeliberateText } from '../workflows/deliberate.js';
 import { buildPlanAuditArtifact, formatPlanAuditText } from '../workflows/planaudit.js';
-import { parseReviewFlags, buildReviewArtifact, buildReviewSteerPrompt, formatReviewText } from '../workflows/review.js';
+import { parseReviewFlags, buildReviewArtifact, buildReviewSteerPrompt, buildReviewTargetContext, formatReviewText } from '../workflows/review.js';
 import type { CliCommandContext } from './command-context.js';
 import type { SlashResult } from './types.js';
 import { clearGoalTimers } from '../agent/lifecycle-handler.js';
@@ -444,9 +444,8 @@ export async function reviewWorkflowHandler(args: string[], ctx: CliCommandConte
     const settingsObj = await resolveSettings(ctx);
     const flags = parseReviewFlags(args);
     const artifact = buildReviewArtifact(flags, locale, settingsObj);
-    const workingDir = (settingsObj as Record<string, unknown>)['workingDir'] as string | null;
-    const projectRoot = workingDir || process.cwd();
-    const steerPrompt = buildReviewSteerPrompt(flags, projectRoot);
+    const target = buildReviewTargetContext(settingsObj, artifact.id);
+    const steerPrompt = buildReviewSteerPrompt(flags, target);
 
     return fireSteerForWebCli(ctx, {
         ok: true,
