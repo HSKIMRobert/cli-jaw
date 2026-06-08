@@ -219,3 +219,16 @@ test('SRH-018: runtime-path includes deno and keg-only node paths', () => {
     assert.ok(src.includes("'/opt/homebrew/opt/node@22/bin'"),
         'runtime-path must include keg-only node@22');
 });
+
+test('SRH-019: postbuild does not signal live dashboard managers', () => {
+    const pkg = JSON.parse(readSource(path.join(ROOT, 'package.json'), 'utf8')) as {
+        scripts?: Record<string, string>;
+    };
+    const postbuild = pkg.scripts?.postbuild || '';
+    assert.match(postbuild, /link-current-nvm-bin\.cjs/,
+        'postbuild should keep current nvm bin linking');
+    assert.doesNotMatch(postbuild, /signal-dashboard-restart\.mjs/,
+        'npm run build must not signal or restart live dashboard managers');
+    assert.doesNotMatch(postbuild, /SIGUSR2|kill|pkill|pgrep/,
+        'postbuild must remain free of process-control side effects');
+});
