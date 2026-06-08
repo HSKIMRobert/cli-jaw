@@ -163,7 +163,8 @@ employees → heartbeat → skills → jaw-memory → orchestrate
 
 ### `/api/goal` — action-based POST
 
-- `POST /api/goal` body `{ action }` 분기: `set`, `update`, `done`, `cancel`, `pause`, `resume`, `clear`, `reset`.
+- `POST /api/goal` body `{ action }` 분기: `set`, `refine-objective`, `update`, `done`, `cancel`, `pause`, `resume`, `clear`, `reset`.
+- `set` may receive `goalMode: "plan"` and `planHint`; plan-mode stores a pending objective and rejects normal checkpoint updates until `refine-objective` replaces it with a concrete objective.
 - `done` action은 `goalHasCompletionEvidence()` gate를 거치며, evidence 없으면 `409`를 반환한다. `force:true`로 override 가능.
 - `resume` action은 이미 active이면 `{ alreadyActive:true }`를 반환하고, paused goal을 resume하면 `kickGoalContinuation()`을 즉시 트리거한다.
 

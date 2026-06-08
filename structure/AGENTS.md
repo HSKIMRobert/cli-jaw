@@ -10,11 +10,14 @@
 - When a command, API, UI, memory, or orchestration surface changes, sync the relevant doc(s) in this directory in the same change.
 - Route refactors belong in `INDEX.md`, `server_api.md`, `infra.md`, and `str_func.md`. CLI handler splits and auth helper changes belong in `commands.md`, `memory_architecture.md`, `telegram.md`, and `str_func.md`.
 
-## Current sync hotspots (2026-05)
+## Current sync hotspots (2026-06)
 
 When refreshing docs from recent non-strict commits, check these first:
 
 - `src/orchestrator/parser.ts` / `pipeline.ts`: `/continue` is slash-only; do not document natural-language continue as resume.
+- `src/cli/commands.ts` / `src/cli/handlers/session-handlers.ts` / `src/core/chat-sessions.ts`: slash registry currently includes 39 commands. Keep quoted-argument `tokenizeArgs()`, Levenshtein unknown-command recovery, `/goalplan`, `/review`, `/task`, and `/fork` reflected in `commands.md`.
+- `src/prompt/templates/a1-system.md` / `src/prompt/templates/skills.md` / `skills_ref/search/SKILL.md` / `skills_ref/browser/SKILL.md`: Korean/source-sensitive search defaults to native cli-jaw search with focused query rewrite + original-page verification; `agbrowse research plan` is optional planning help only. Private runtime skills such as `k-thread-gen` and `lecture-stt` are active-skill deployments, not `skills_ref` public entries.
+- `src/agent/lifecycle-handler.ts` / `src/trace/redact.ts`: retry docs should mention exponential backoff attempt metadata and trace redaction should include AWS, Anthropic, JWT, and expanded secret key patterns.
 - `src/cli/commands.ts` / `src/cli/handlers-workflows.ts` / `src/command-contract/catalog.ts` / `src/workflows/*`: workflow helper commands are `/plan`, `/interview`, `/deliberate`, `/planaudit`, and `/goal`; `/plan` is a PABCD P compatibility guide, not a second planning mode; bounded automation belongs under `/goal run ...`, not a top-level `/autopilot`; keep `/planaudit` remote-safe and do not document `/plan-audit` as registered unless an interface-aware alias layer exists.
 - `src/agent/args.ts` + `src/agent/spawn.ts`: Gemini full-access must keep auto-approval and pass OS home roots through `--include-directories` so cwd-external folders do not fail with `Path not in workspace`; WSL should include both Linux home and the Windows user home when discoverable.
 - `src/shared/tool-log-sanitize.ts`: bounded tool-log storage/delivery protects Web UI and Manager ProcessBlock hydration.
