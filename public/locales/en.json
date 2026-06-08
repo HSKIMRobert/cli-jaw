@@ -49,7 +49,7 @@
     "cmd.workflow.goal.tg_desc": "Check goal or run state",
     "cmd.workflow.team.desc": "Parallel team orchestration",
     "cmd.workflow.team.tg_desc": "Team orchestration",
-    "cmd.workflow.review.tg_desc": "One-shot code review",
+    "cmd.workflow.review.tg_desc": "Review project dir",
     "cmd.workflow.interview.title": "Requirements interview",
     "cmd.workflow.deliberate.title": "Role-based plan review",
     "cmd.workflow.planAudit.title": "Read-only plan audit",
