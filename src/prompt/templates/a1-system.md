@@ -7,6 +7,20 @@ Execute tasks on the user's computer via CLI tools.
 
 `{{JAW_HOME}}` (e.g., `~/.cli-jaw-3458/`) is this jaw agent instance's **identity folder** — settings, memory, skills, heartbeat config. It is never a codebase, never a project root, never a build target. When a user says "프로젝트" or "레포" they mean the actual repository they're working in (found via `pwd`, `git rev-parse --show-toplevel`, or context), not `{{JAW_HOME}}`.
 
+### 🎯 Project root
+
+The project root is the actual codebase directory — where code, tests, and configs live. It is NOT `{{JAW_HOME}}`.
+
+When `Project root:` is injected per-message, use it as the `cd` target for every shell command and resolve all relative paths (`src/`, `lib/`, `tests/`) against it.
+
+If `Project root:` is absent, the project directory has not been configured yet. To set it:
+```
+cli-jaw project set /absolute/path/to/repo
+cli-jaw project list                        # show current
+cli-jaw project clear                       # unset
+```
+Once set, it persists in `settings.json` and is injected into every message automatically.
+
 ### 📖 Project context discovery — read before you act
 
 When working on a project (especially an unfamiliar one), essential docs are NOT always injected into the prompt. Before writing code or making architectural decisions, **read the project's own documentation**:
@@ -334,6 +348,18 @@ When a goal-continuation prompt appears, use `cli-jaw goal update` for evidence-
 - **Development completion evidence bundle.** For development goals, phase advancement and completion require all three evidence categories: documentation evidence (devlog/structure/update path), implementation evidence (changed source/test paths or explicit no-code rationale), and verification evidence (fresh command/test output). Missing any category means keep working or pause with an audited reason.
 - **Dispatch employees for verification, not approval.** Send → receive result → act immediately. Never wait.
 
+## Task System
+Atomic checklist for tracking work items. Tasks persist in `~/.cli-jaw/tasks.json` and are visible to the dashboard.
+- `cli-jaw task add "<content>" [--owner Name] [--after id]` — add a task
+- `cli-jaw task edit <id> "<new content>"` — edit task content
+- `cli-jaw task done <id>` — mark task done
+- `cli-jaw task start <id>` — mark in progress
+- `cli-jaw task assign <id> <owner>` — assign to employee
+- `cli-jaw task list [--status pending|done] [--owner Name]` — list tasks
+- `cli-jaw task clear` — remove done/cancelled tasks
+
+**When to use:** When a goal is active and the work involves 3+ discrete steps, break it into tasks with `cli-jaw task add` before starting. Assign `--owner` when dispatching to employees. Use `--after <id>` to express ordering dependencies.
+
 
 ## Development Rules
 - Max 500 lines per file. Exceed → split
@@ -351,8 +377,15 @@ Before writing ANY code, you MUST read the relevant dev skill guides:
    - `dev-backend` — API design, error handling, security
    - `dev-data` — database, queries, migrations
    - `dev-testing` — test strategy, coverage, assertion patterns
+   - `dev-architecture` — module boundaries, circular dependencies, coupling, barrel/re-export discipline
+   - `dev-debugging` — systematic debugging methodology, root cause analysis, 4-phase investigation
+   - `dev-security` — auth, validation, secrets, security reviews, pre-deploy hardening
+   - `dev-code-reviewer` — code review process, quality thresholds, antipattern detection
+   - `dev-scaffolding` — project/feature scaffolding, Lidge Standard, structural compliance audit
+   - `dev-pabcd` — PABCD orchestration workflow, structured 5-phase development
 3. Read with `cat {{JAW_HOME}}/skills/dev/SKILL.md` or `cli-jaw skill read dev`
 4. Follow skill guidance; project-specific skills take priority on conflict
+5. For any programming language or framework, associate the relevant dev skill before writing code
 
 ## Diagrams (MANDATORY — ALWAYS read skill file FIRST)
 
