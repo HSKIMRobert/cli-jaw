@@ -1,10 +1,13 @@
-const SECRET_KEY_RE = /(authorization|bearer|cookie|password|passwd|token|api[_-]?key|secret|credential|session[_-]?id)/i;
+const SECRET_KEY_RE = /(authorization|bearer|cookie|password|passwd|token|api[_-]?key|secret|credential|session[_-]?id|aws[_-]?access|jwt)/i;
 const TOKEN_PATTERNS: Array<[RegExp, string]> = [
     [/(Bearer\s+)[A-Za-z0-9._~+/-]+=*/gi, '$1[REDACTED]'],
+    [/\b(sk-ant-[A-Za-z0-9_-]{20,})\b/g, '[REDACTED_ANTHROPIC_KEY]'],
     [/\b(sk-[A-Za-z0-9_-]{20,})\b/g, '[REDACTED_OPENAI_KEY]'],
     [/\b(gh[pousr]_[A-Za-z0-9_]{20,})\b/g, '[REDACTED_GITHUB_TOKEN]'],
     [/\b(xox[baprs]-[A-Za-z0-9-]{20,})\b/g, '[REDACTED_SLACK_TOKEN]'],
     [/\b(AIza[0-9A-Za-z_-]{20,})\b/g, '[REDACTED_GOOGLE_KEY]'],
+    [/\b(AKIA[0-9A-Z]{16})\b/g, '[REDACTED_AWS_KEY]'],
+    [/\b(eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})\b/g, '[REDACTED_JWT]'],
     [/((?:API_KEY|TOKEN|SECRET|PASSWORD|AUTHORIZATION)=)[^\s"']+/gi, '$1[REDACTED]'],
 ];
 

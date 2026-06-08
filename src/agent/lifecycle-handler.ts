@@ -81,10 +81,18 @@ const GOAL_DONE_RE = /(?:^|\n)\s*(?:\/goal|cli-jaw\s+goal)\s+done\b/im;
 const GOAL_CANCEL_RE = /(?:^|\n)\s*(?:\/goal|cli-jaw\s+goal)\s+cancel\b/im;
 const GOAL_PAUSE_RE = /(?:^|\n)\s*(?:\/goal|cli-jaw\s+goal)\s+pause\b/im;
 
+function computeBackoff(attempt: number, base = 5000, max = 120_000): number {
+    const delay = Math.min(base * 2 ** attempt, max);
+    return Math.round(delay * (0.5 + Math.random() * 0.5));
+}
+
+const MAIN_MAX_RETRIES = 3;
+const EMP_MAX_RETRIES = 2;
+
 type LifecycleSpawnOptions = {
     internal?: boolean;
     _isFallback?: boolean;
-    _isRetry?: boolean;
+    _retryAttempt?: number;
     _isGoalContinuation?: boolean;
     _isCapacityFallback?: boolean;
     _isSmokeContinuation?: boolean;
@@ -640,10 +648,13 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
             return;
         }
 
-        // ─── 429 delay retry (same engine, 1회만) ───
-        if (!opts.internal && !opts._isFallback && effectiveIs429 && !opts._isRetry) {
-            console.log(`[jaw:retry] ${cli} 429 detected — waiting 10s before retry`);
-            broadcast('agent_retry', { cli, delay: 10, reason: errMsg, ...empTag }, isEmployee ? 'internal' : 'public');
+        // ─── 429 delay retry (exponential backoff, up to MAIN_MAX_RETRIES) ───
+        const mainAttempt = opts._retryAttempt ?? 0;
+        if (!opts.internal && !opts._isFallback && effectiveIs429 && mainAttempt < MAIN_MAX_RETRIES) {
+            const delayMs = computeBackoff(mainAttempt);
+            const delaySec = Math.round(delayMs / 1000);
+            console.log(`[jaw:retry] ${cli} 429 detected — waiting ${delaySec}s before retry (attempt ${mainAttempt + 1}/${MAIN_MAX_RETRIES})`);
+            broadcast('agent_retry', { cli, delay: delaySec, reason: errMsg, attempt: mainAttempt + 1, maxRetries: MAIN_MAX_RETRIES, ...empTag }, isEmployee ? 'internal' : 'public');
             finalizeTraceRun(ctx.traceRunId, 'error', errMsg);
             retryState.setIsEmployee(isEmployee);
             retryState.setResolve(resolve);
@@ -653,14 +664,14 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
                 retryState.setResolve(null);
                 retryState.setOrigin(null);
                 const { promise: retryP } = _spawnAgent(prompt, {
-                    ...opts, _isRetry: true, _skipInsert: true,
+                    ...opts, _retryAttempt: mainAttempt + 1, _skipInsert: true,
                 });
                 retryP.then((r) => resolve(r)).catch(() => {
-                    broadcast('agent_done', { text: `❌ ${errMsg} (재시도 실패)`, error: true, origin, ...empTag }, isEmployee ? 'internal' : 'public');
+                    broadcast('agent_done', { text: `❌ ${errMsg} (재시도 실패, attempt ${mainAttempt + 1})`, error: true, origin, ...empTag }, isEmployee ? 'internal' : 'public');
                     resolve({ text: '', code: 1 });
                     if (mainManaged && !opts.internal) processQueue();
                 });
-            }, 10_000));
+            }, delayMs));
             return;
         }
 
@@ -694,20 +705,17 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
             }
         }
         broadcast('agent_done', { text: `❌ ${errMsg}`, error: true, origin, ...empTag }, isEmployee ? 'internal' : 'public');
-    } else if (isEmployee && code !== 0 && !wasKilled && !opts._isRetry && !opts._isFallback) {
-        // ─── Employee transient retry (#219) ───
-        // The mainManaged-gated recovery block above never runs for employees, so a
-        // flaky claude-opus startup blip surfaces as a hard dispatch failure. Give
-        // employees ONE bounded delay-retry for transient/quota/pre-session exits,
-        // reusing the same retryState machinery as the main 429 path. Pre-session
-        // exits fail in seconds, well inside the worker monitor budget (600s) and
-        // the boss-side dispatch timeout.
+    } else if (isEmployee && code !== 0 && !wasKilled && !opts._isFallback) {
+        // ─── Employee transient retry (exponential backoff, up to EMP_MAX_RETRIES) ───
         const diagnosticText = `${ctx.fullText}\n${ctx.traceLog.join('\n')}`;
         const cls = classifyExitError(runtimeCli, code, ctx.stderrBuf, ctx.stallReason, diagnosticText);
-        if ((cls.is429 || cls.isClaudeRateLimit || cls.isTransientStartup) && !cls.isStall && !cls.isAuth) {
+        const empAttempt = opts._retryAttempt ?? 0;
+        if ((cls.is429 || cls.isClaudeRateLimit || cls.isTransientStartup) && !cls.isStall && !cls.isAuth && empAttempt < EMP_MAX_RETRIES) {
             recordError(cli, '429');
-            console.log(`[jaw:retry] employee ${cli} transient exit — retry once in 5s (${cls.message})`);
-            broadcast('agent_retry', { cli, delay: 5, reason: cls.message, isEmployee: true }, 'internal');
+            const empDelayMs = computeBackoff(empAttempt, 3000, 60_000);
+            const empDelaySec = Math.round(empDelayMs / 1000);
+            console.log(`[jaw:retry] employee ${cli} transient exit — retry in ${empDelaySec}s (attempt ${empAttempt + 1}/${EMP_MAX_RETRIES}, ${cls.message})`);
+            broadcast('agent_retry', { cli, delay: empDelaySec, reason: cls.message, isEmployee: true, attempt: empAttempt + 1 }, 'internal');
             finalizeTraceRun(ctx.traceRunId, 'error', cls.message);
             retryState.setIsEmployee(true);
             retryState.setResolve(resolve);
@@ -716,15 +724,14 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
                 retryState.setTimer(null);
                 retryState.setResolve(null);
                 retryState.setOrigin(null);
-                // _skipResume: first attempt died before session_started → session is stale.
                 const { promise: retryP } = _spawnAgent(prompt, {
-                    ...opts, _isRetry: true, _skipInsert: true, _skipResume: true,
+                    ...opts, _retryAttempt: empAttempt + 1, _skipInsert: true, _skipResume: true,
                 });
                 retryP.then((r) => resolve(r)).catch(() => {
-                    broadcast('agent_done', { text: `❌ ${cls.message} (재시도 실패)`, error: true, origin, isEmployee: true }, 'internal');
+                    broadcast('agent_done', { text: `❌ ${cls.message} (재시도 실패, attempt ${empAttempt + 1})`, error: true, origin, isEmployee: true }, 'internal');
                     resolve({ text: '', code: 1, diagnostic: cls.message });
                 });
-            }, 5_000));
+            }, empDelayMs));
             return;
         }
         // non-retryable employee error → fall through to Final resolve below
