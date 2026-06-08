@@ -24,9 +24,13 @@ test('SSP-002: search skill keeps four-tier escalation order', { skip: !hasSearc
     const searchSkill = fs.readFileSync(searchSkillPath, 'utf8');
 
     assert.match(searchSkill, /Tier 1 — Built-in CLI Web Search/);
-    assert.match(searchSkill, /Tier 2 — progrok/);
-    assert.match(searchSkill, /Tier 3 — cli-jaw browser/);
+    assert.match(searchSkill, /Tier 2 — cli-jaw browser/);
+    assert.match(searchSkill, /Tier 3 — progrok/);
     assert.match(searchSkill, /Tier 4 — web-ai/);
+    assert.ok(
+        searchSkill.indexOf('Tier 2 — cli-jaw browser') < searchSkill.indexOf('Tier 3 — progrok'),
+        'browser verification should come before progrok'
+    );
     assert.match(searchSkill, /Order is mandatory/);
 });
 
@@ -39,6 +43,8 @@ test('SSP-003: Korean search policy treats snippets as discovery and requires or
     assert.match(searchSkill, /Fetch\/open the original page/);
     assert.match(searchSkill, /browse-needed/);
     assert.match(searchSkill, /Naver shell\/iframe/);
+    assert.match(searchSkill, /run Tier 2 browser verification before relying on secondary sources/);
+    assert.match(searchSkill, /Secondary sources are corroboration, not substitutes/);
 });
 
 test('SSP-004: agbrowse remains an optional planner, not a provider runner', { skip: !hasSearchSkill && 'skills_ref/search missing' }, () => {
@@ -49,4 +55,3 @@ test('SSP-004: agbrowse remains an optional planner, not a provider runner', { s
     assert.match(searchSkill, /optional planning helper/);
     assert.match(searchSkill, /Do not use agbrowse to execute Exa,\s+Tavily, Perplexity, Brave, or any other search provider/);
 });
-
