@@ -588,7 +588,7 @@ export interface SpawnLifecycle {
 interface SpawnOpts {
     internal?: boolean;
     _isFallback?: boolean;
-    _isRetry?: boolean;      // 429 delay retry 중 여부
+    _retryAttempt?: number;  // 429 exponential backoff attempt counter (0-based)
     _isCapacityFallback?: boolean;
     _isSmokeContinuation?: boolean;  // Auto-retry after smoke response detected
     _isGoalContinuation?: boolean;

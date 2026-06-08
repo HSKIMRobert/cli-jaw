@@ -124,7 +124,7 @@ test('Claude rate-limit retry is restored but fallback is suppressed', () => {
     const lifecycle = readSrc('../../src/agent/lifecycle-handler.ts');
     assert.match(lifecycle, /const\s+suppressClaudeRateLimitFallback\s*=\s*isClaudeRateLimit/);
     assert.match(lifecycle, /const\s+effectiveIs429\s*=\s*is429\s*\|\|\s*isClaudeRateLimit/);
-    assert.match(lifecycle, /effectiveIs429\s*&&\s*!opts\._isRetry/);
+    assert.match(lifecycle, /effectiveIs429\s*&&\s*mainAttempt\s*<\s*MAIN_MAX_RETRIES/);
     assert.match(lifecycle, /!\s*suppressClaudeRateLimitFallback\)\s*\{/);
 });
 
@@ -185,7 +185,8 @@ test('Claude rate-limit process exit broadcasts retry but suppresses fallback', 
         assert.ok(events.some(event => event.type === 'agent_retry'), 'Claude 429 exit should trigger same-engine retry');
         assert.equal(events.some(event => event.type === 'agent_fallback'), false, 'Claude 429 exit should NOT trigger fallback');
         const retryEvent = events.find(event => event.type === 'agent_retry');
-        assert.equal(retryEvent?.data["delay"], 10);
+        const retryDelay = retryEvent?.data["delay"] as number;
+        assert.ok(retryDelay >= 3 && retryDelay <= 5, `backoff delay should be 3-5s on first attempt, got ${retryDelay}`);
     } finally {
         if (retryTimer) clearTimeout(retryTimer);
         settings["fallbackOrder"] = originalFallbackOrder;
@@ -215,7 +216,7 @@ test('ai-e error classification uses effective provider, not selector name', asy
             mainManaged: true,
             origin: 'test',
             prompt: 'test',
-            opts: { _isRetry: true },
+            opts: { _retryAttempt: 3 },
             cfg: { effort: '' },
             ownerGeneration: 0,
             forceNew: false,
@@ -481,7 +482,7 @@ test('#219 classifier flags pre-SessionStart exit as a transient startup', () =>
     assert.equal(generic.isTransientStartup, false);
 });
 
-test('#219 employee pre-SessionStart exit triggers one bounded retry (delay 5, no fallback)', async () => {
+test('#219 employee pre-SessionStart exit triggers bounded retry with backoff (no fallback)', async () => {
     const events: Array<{ type: string; data: Record<string, unknown> }> = [];
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     clearErrors('claude-e');
@@ -502,7 +503,8 @@ test('#219 employee pre-SessionStart exit triggers one bounded retry (delay 5, n
         await handleAgentExit(params as any);
         const retry = events.find(event => event.type === 'agent_retry');
         assert.ok(retry, 'employee transient exit should broadcast agent_retry');
-        assert.equal(retry?.data["delay"], 5);
+        const empDelay = retry?.data["delay"] as number;
+        assert.ok(empDelay >= 2 && empDelay <= 3, `employee backoff delay should be 2-3s on first attempt, got ${empDelay}`);
         assert.equal(retry?.data["isEmployee"], true);
         assert.equal(events.some(event => event.type === 'agent_fallback'), false, 'employee transient retry must not switch CLI');
     } finally {
@@ -526,12 +528,12 @@ test('#219 employee transient retry does not loop on the retry attempt', async (
         agentLabel: 'Frontend',
         mainManaged: false,
         empSid: 'emp-sess-1',
-        opts: { _isRetry: true },
+        opts: { _retryAttempt: 2 },
         resolve: (value: any) => { resolved = value; },
     });
     try {
         await handleAgentExit(params as any);
-        assert.equal(events.some(event => event.type === 'agent_retry'), false, 'must not retry again on the _isRetry attempt');
+        assert.equal(events.some(event => event.type === 'agent_retry'), false, 'must not retry when _retryAttempt exhausted');
         assert.ok(resolved, 'should resolve to a failure result');
         assert.equal(resolved.code, 5);
     } finally {
@@ -540,7 +542,7 @@ test('#219 employee transient retry does not loop on the retry attempt', async (
     }
 });
 
-test('#219 main pre-SessionStart exit is retried via effectiveIs429 (delay 10)', async () => {
+test('#219 main pre-SessionStart exit is retried via effectiveIs429 (backoff)', async () => {
     const events: Array<{ type: string; data: Record<string, unknown> }> = [];
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     clearErrors('claude');
@@ -560,7 +562,8 @@ test('#219 main pre-SessionStart exit is retried via effectiveIs429 (delay 10)',
         await handleAgentExit(params as any);
         const retry = events.find(event => event.type === 'agent_retry');
         assert.ok(retry, 'main transient exit should trigger a retry');
-        assert.equal(retry?.data["delay"], 10);
+        const mainDelay = retry?.data["delay"] as number;
+        assert.ok(mainDelay >= 3 && mainDelay <= 5, `main backoff delay should be 3-5s on first attempt, got ${mainDelay}`);
     } finally {
         if (retryTimer) clearTimeout(retryTimer);
         clearErrors('claude');
