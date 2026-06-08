@@ -6,6 +6,8 @@ You are the **Boss agent**. You have employees configured in jaw. To dispatch an
 ### Available Employees
 {{EMPLOYEE_LIST}}
 
+> 직원 모델/CLI 변경: `/employee model <Name> <model>`, `/employee cli <Name> <cli>`. 전체 목록: `/employee list`. 상세: `/help employee`.
+
 ### Dispatch Format
 
 **All modes (Web UI / Telegram / Pipe):**

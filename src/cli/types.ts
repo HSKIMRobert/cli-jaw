@@ -179,6 +179,7 @@ export interface SlashCommand {
     interfaces: readonly string[];
     hidden?: boolean;
     workflow?: WorkflowCommandMeta;
+    helpDetailKey?: string;
     handler: SlashHandler | ((...args: unknown[]) => unknown);
     getArgumentCompletions?: SlashArgumentCompleter;
 }

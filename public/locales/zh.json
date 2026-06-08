@@ -85,6 +85,7 @@
     "cmd.skill.loadFail": "无法加载技能信息。",
     "cmd.skill.resetUnavailable": "当前环境不支持 /skill reset。",
     "cmd.skill.resetDone": "技能已重置。",
+    "cmd.employee.helpDetail": "子命令:\n  list — 所有员工列表\n  info <名称> — 员工详情 (skills, hints)\n  model <名称> <模型> — 更改模型\n  cli <名称> <cli> — 更改 CLI (仅限 DB)\n  reset — 重置为默认",
     "cmd.employee.usage": "用法: /employee [list|info|model|cli|reset]",
     "cmd.employee.empty": "没有已注册的员工。",
     "cmd.employee.notFound": "找不到员工 '{name}'。",
