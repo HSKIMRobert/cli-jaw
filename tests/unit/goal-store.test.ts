@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
     getActiveGoal, getGoalHistory, setGoal, updateGoal,
     completeGoal, cancelGoal, pauseGoal, resumeGoal, refineObjective,
-    clearGoal, resetGoalStore, MAX_GOAL_OBJECTIVE_CHARS,
+    clearGoal, resetGoalStore, MAX_GOAL_OBJECTIVE_CHARS, MAX_GOAL_PLAN_HINT_CHARS,
     getAgentPauseCount, incrementAgentPauseCount, resetAgentPauseCount,
 } from '../../src/goal/store.ts';
 import { GOAL_PLAN_PENDING_OBJECTIVE } from '../../src/goal/types.ts';
@@ -234,5 +234,12 @@ describe('Goal Store', () => {
         assert.equal(refined!.goalMode, 'direct');
         assert.equal(refined!.planHint, undefined);
         assert.ok(updateGoal('verified after refine'));
+    });
+
+    test('27. setGoal rejects overlong plan hints', () => {
+        assert.throws(() => setGoal(GOAL_PLAN_PENDING_OBJECTIVE, {
+            goalMode: 'plan',
+            planHint: 'x'.repeat(MAX_GOAL_PLAN_HINT_CHARS + 1),
+        }), /plan hint exceeds/);
     });
 });

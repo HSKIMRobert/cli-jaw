@@ -8,6 +8,7 @@ const GOAL_DIR = path.join(JAW_HOME, 'goal');
 const ACTIVE_PATH = path.join(GOAL_DIR, 'active.json');
 const HISTORY_PATH = path.join(GOAL_DIR, 'history.json');
 export const MAX_GOAL_OBJECTIVE_CHARS = 10000;
+export const MAX_GOAL_PLAN_HINT_CHARS = MAX_GOAL_OBJECTIVE_CHARS;
 
 function ensureDir(): void {
     fs.mkdirSync(GOAL_DIR, { recursive: true });
@@ -46,6 +47,9 @@ export function setGoal(objective: string, opts?: { repoRoot?: string | undefine
         throw new Error(`Goal objective exceeds ${MAX_GOAL_OBJECTIVE_CHARS} characters.`);
     }
     const normalizedPlanHint = opts?.planHint?.trim();
+    if (normalizedPlanHint && normalizedPlanHint.length > MAX_GOAL_PLAN_HINT_CHARS) {
+        throw new Error(`Goal plan hint exceeds ${MAX_GOAL_PLAN_HINT_CHARS} characters.`);
+    }
     const existing = getActiveGoal();
     if (existing && (existing.status === 'active' || existing.status === 'paused')) {
         if (!opts?.replace) {

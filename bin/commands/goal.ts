@@ -66,6 +66,8 @@ try {
         if (sub === '--json') { console.log(JSON.stringify(goal, null, 2)); process.exit(0); }
         console.log(`Goal: ${goal['objective']}`);
         console.log(`Status: ${goal['status']}`);
+        if (goal['goalMode']) console.log(`Mode: ${goal['goalMode']}`);
+        if (goal['planHint']) console.log(`Plan hint: ${goal['planHint']}`);
         console.log(`ID: ${goal['id']}`);
         console.log(`Created: ${goal['createdAt']}`);
         process.exit(0);

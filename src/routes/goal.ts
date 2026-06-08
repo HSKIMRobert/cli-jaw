@@ -6,6 +6,7 @@ import {
     goalHasCompletionEvidence,
     getAgentPauseCount, incrementAgentPauseCount,
     MAX_GOAL_OBJECTIVE_CHARS,
+    MAX_GOAL_PLAN_HINT_CHARS,
 } from '../goal/store.js';
 import type { GoalMode } from '../goal/types.js';
 import { clearGoalTimers, kickGoalContinuation } from '../agent/lifecycle-handler.js';
@@ -47,6 +48,10 @@ export function registerGoalRoutes(app: Router, requireAuth: RequestHandler): vo
                     const budget = body?.['budget'] as Record<string, number> | undefined;
                     const goalMode = body?.['goalMode'] as GoalMode | undefined;
                     const planHint = typeof body?.['planHint'] === 'string' ? String(body?.['planHint']).trim() : '';
+                    if (planHint.length > MAX_GOAL_PLAN_HINT_CHARS) {
+                        res.status(400).json({ ok: false, error: `planHint must be ${MAX_GOAL_PLAN_HINT_CHARS} characters or fewer` });
+                        return;
+                    }
                     const goal = setGoal(objective, {
                         ...(repoRoot ? { repoRoot } : {}),
                         ...(budget ? { budget } : {}),

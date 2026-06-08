@@ -51,6 +51,11 @@ test('/goalplan stores the hint separately and requires refine before checkpoint
         assert.equal(pending!.goalMode, 'plan');
         assert.equal(pending!.planHint, 'investigate context loss');
 
+        const status = await runGoalCommand('/goal status');
+        assert.equal(status?.ok, true);
+        assert.match(status?.text ?? '', /Mode: plan/);
+        assert.match(status?.text ?? '', /Plan hint: investigate context loss/);
+
         const blockedUpdate = await runGoalCommand('/goal update premature checkpoint --evidence fake');
         assert.equal(blockedUpdate?.ok, false);
         assert.match(blockedUpdate?.text ?? '', /must be refined before checkpoints/);
