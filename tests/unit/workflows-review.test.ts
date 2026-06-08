@@ -68,11 +68,15 @@ test('/review steer prompt resolves recent-context scope beyond uncommitted diff
         'review must not be framed as uncommitted-only');
     assert.match(prompt, /recent relevant project changes/,
         'review should be framed around recent project changes');
+    assert.match(prompt, /current conversation focus first/);
     assert.match(prompt, /cli-jaw goal status/);
     assert.match(prompt, /cli-jaw goal history/);
-    assert.match(prompt, /cli-jaw chat search .*--recent\/--days/);
+    assert.match(prompt, /cli-jaw chat search .*--recent N/);
+    assert.match(prompt, /--days N/);
     assert.match(prompt, /git log --oneline --decorate --max-count=20/);
     assert.match(prompt, /git reflog --date=iso --max-count=20/);
+    assert.match(prompt, /do not include unrelated commits merely because they are in `origin\/master\.\.HEAD`/,
+        'git ranges should be evidence, not a reason to broaden past the conversation focus');
     assert.match(prompt, /committed changes, uncommitted changes, and untracked files/,
         'uncommitted changes remain one input, not the whole review scope');
     assert.match(prompt, /Do not limit the review to `git diff HEAD`/);
