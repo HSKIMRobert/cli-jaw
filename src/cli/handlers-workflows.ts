@@ -19,7 +19,12 @@ function blocked(text: string, code = 'workflow_not_ready'): SlashResult {
     return { ok: false, type: 'error', code, text };
 }
 
-
+function recoverableGoalConflict(ctx: CliCommandContext, args: string[], text: string): SlashResult {
+    const rawText = String((ctx as { rawText?: unknown }).rawText || '').trim();
+    const originalText = rawText || `/goal${args.length ? ` ${args.join(' ')}` : ''}`;
+    const commandName = originalText.match(/^\/([^\s]+)/)?.[1] || 'goal';
+    return { ...blocked(text), recovery: { kind: 'slash-command-original', commandName, args, originalText, suggestedCommands: ['/goal status', '/goal resume', '/goal done', '/goal cancel', '/goal clear'] } };
+}
 
 async function fireSteerForWebCli(
     ctx: CliCommandContext,
@@ -201,7 +206,7 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
         if (!objective) return blocked('Usage: /goal <objective>');
         const existing = getActiveGoal();
         if (existing && (existing.status === 'active' || existing.status === 'paused')) {
-            return blocked(`Active goal already exists: "${existing.objective}"\nUse /goal done, /goal cancel, or /goal clear first.`);
+            return recoverableGoalConflict(ctx, args, `Active goal already exists: "${existing.objective}"\nUse /goal done, /goal cancel, or /goal clear first.`);
         }
         clearGoalTimers();
         const settings = await resolveSettings(ctx);
@@ -214,7 +219,7 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
         const hint = args.slice(sub === 'plan' ? 1 : 0).join(' ').trim();
         const existing = getActiveGoal();
         if (existing && (existing.status === 'active' || existing.status === 'paused')) {
-            return blocked(`Active goal already exists: "${existing.objective}"\nUse /goal done, /goal cancel, or /goal clear first.`);
+            return recoverableGoalConflict(ctx, args, `Active goal already exists: "${existing.objective}"\nUse /goal done, /goal cancel, or /goal clear first.`);
         }
         clearGoalTimers();
         const settings = await resolveSettings(ctx);
@@ -376,7 +381,7 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
         const objective = args.join(' ').trim();
         const existing = getActiveGoal();
         if (existing && (existing.status === 'active' || existing.status === 'paused')) {
-            return blocked(`Active goal already exists: "${existing.objective}"\nUse /goal done, /goal cancel, or /goal clear first.`);
+            return recoverableGoalConflict(ctx, args, `Active goal already exists: "${existing.objective}"\nUse /goal done, /goal cancel, or /goal clear first.`);
         }
         clearGoalTimers();
         const settings = await resolveSettings(ctx);

@@ -76,6 +76,31 @@ test('/goalplan stores the hint separately and requires refine before checkpoint
     }
 });
 
+test('/goal active-conflict blocks preserve the submitted prompt for copy/reinsert', async () => {
+    resetGoalStore();
+    try {
+        setGoal('existing active goal');
+        const commands = [
+            '/goal set replacement objective',
+            '/goal plan investigate the next target',
+            '/goalplan investigate the next target',
+            '/goal implement a different objective',
+        ];
+        for (const command of commands) {
+            const result = await runGoalCommand(command);
+            assert.equal(result?.ok, false, `${command} should be blocked`);
+            assert.match(result?.text ?? '', /Active goal already exists/);
+            assert.equal(result?.recovery?.kind, 'slash-command-original');
+            assert.equal(result?.recovery?.originalText, command);
+            assert.ok(result?.recovery?.suggestedCommands?.includes('/goal clear'));
+            assert.equal('steerPrompt' in result, false);
+        }
+        assert.equal(getActiveGoal()!.objective, 'existing active goal');
+    } finally {
+        resetGoalStore();
+    }
+});
+
 test('/goal done requires checkpoint evidence without spawning continuation text', async () => {
     resetGoalStore();
     try {
