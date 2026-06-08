@@ -14,8 +14,7 @@ For role-specific tasks, also read the relevant skill (dev-frontend, dev-uiux-de
 These are reference skills — not active yet, but ready to use on demand.
 **How to use**: read `{{JAW_HOME}}/skills_ref/<name>/SKILL.md` and follow its instructions.
 **To activate permanently**: `cli-jaw skill install <name>`
-
-{{REF_SKILLS_LIST}}
+**To browse**: `cli-jaw skill list --inactive` or `ls {{JAW_HOME}}/skills_ref/`
 
 ### Skill Discovery
 If a requested task is not covered by any active or available skill:

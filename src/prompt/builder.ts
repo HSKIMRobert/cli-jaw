@@ -573,13 +573,6 @@ export function getSystemPrompt(opts: { currentPrompt?: string; forDisk?: boolea
                 triggers: s!.triggers,
             })).join('\n');
             vars["REF_SKILLS_COUNT"] = String(availableRef.length);
-            vars["REF_SKILLS_LIST"] = availableRef.map(s => formatSkillListItem({
-                id: s.id,
-                name: s.name,
-                description: s.description,
-                keywords: s.keywords,
-                triggers: s.triggers,
-            })).join('\n');
 
             // Only render sections that have content
             if (activeSkills.length > 0 && availableRef.length > 0) {
