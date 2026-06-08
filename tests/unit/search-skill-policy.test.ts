@@ -47,7 +47,23 @@ test('SSP-003: Korean search policy treats snippets as discovery and requires or
     assert.match(searchSkill, /Secondary sources are corroboration, not substitutes/);
 });
 
-test('SSP-004: agbrowse remains an optional planner, not a provider runner', { skip: !hasSearchSkill && 'skills_ref/search missing' }, () => {
+test('SSP-004: browser gate starts browser before skipping Tier 2', { skip: !hasSearchSkill && 'skills_ref/search missing' }, () => {
+    const searchSkill = fs.readFileSync(searchSkillPath, 'utf8');
+
+    assert.match(searchSkill, /run `cli-jaw browser start --agent` and retry\s+status\/fetch once/);
+    assert.match(searchSkill, /Skip Tier 2 only if browser start, status, or fetch still\s+fails/);
+    assert.doesNotMatch(searchSkill, /browser not connected\), skip that tier/);
+});
+
+test('SSP-005: search skill does not hardcode a specific Jaw home', { skip: !hasSearchSkill && 'skills_ref/search missing' }, () => {
+    const searchSkill = fs.readFileSync(searchSkillPath, 'utf8');
+
+    assert.doesNotMatch(searchSkill, /\/Users\/jun\/\.cli-jaw-\d+/);
+    assert.match(searchSkill, /active `browser` skill from the current Jaw home/);
+    assert.match(searchSkill, /active `web-ai` skill from the current Jaw home/);
+});
+
+test('SSP-006: agbrowse remains an optional planner, not a provider runner', { skip: !hasSearchSkill && 'skills_ref/search missing' }, () => {
     const searchSkill = fs.readFileSync(searchSkillPath, 'utf8');
 
     assert.match(searchSkill, /agbrowse research plan --query "<request>" --json/);
