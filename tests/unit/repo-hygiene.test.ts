@@ -72,8 +72,14 @@ test('RH-007: build avoids destructive clean:dist (rsync-based template copy)', 
     const pkg = JSON.parse(fs.readFileSync(join(root, 'package.json'), 'utf8'));
     const build = pkg.scripts?.build || '';
     assert.ok(!build.startsWith('npm run clean:dist'), 'build must NOT lead with clean:dist (races with running server)');
-    assert.ok(build.includes('tsc'), 'build must still invoke tsc');
-    assert.ok(build.includes('rsync'), 'build must use rsync for template copy (atomic per-file)');
+    let buildContent = build;
+    const scriptMatch = build.match(/bash\s+(\S+)/);
+    if (scriptMatch) {
+        const scriptPath = join(root, scriptMatch[1]);
+        if (fs.existsSync(scriptPath)) buildContent = fs.readFileSync(scriptPath, 'utf8');
+    }
+    assert.ok(buildContent.includes('tsc'), 'build must still invoke tsc');
+    assert.ok(buildContent.includes('rsync'), 'build must use rsync for template copy (atomic per-file)');
 });
 
 // ── RH-008: Electron desktop app stays out of the npm CLI package ──

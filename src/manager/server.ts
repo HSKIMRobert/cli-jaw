@@ -15,6 +15,7 @@ import { installDashboardProxy } from './proxy.js';
 import { createPreviewOriginProxyController } from './preview-origin-proxy.js';
 import { DashboardLifecycleManager } from './lifecycle.js';
 import { createDashboardShutdown } from './shutdown.js';
+import { PLANNED_RESTART_CODE } from '../core/process-codes.js';
 import { parsePositiveCount, parsePositivePort } from './security.js';
 import {
     applyDashboardRegistry,
@@ -713,11 +714,13 @@ server.on('error', (error: NodeJS.ErrnoException) => {
     process.exit(1);
 });
 
+let plannedRestartCode: number | null = null;
+
 const shutdown = createDashboardShutdown({
     lifecycle,
     previewProxy,
     server,
-    exit: code => process.exit(code),
+    exit: code => process.exit(plannedRestartCode ?? code),
 });
 
 async function shutdownDashboard(mode?: 'full' | 'locked-skip'): Promise<void> {
@@ -729,6 +732,12 @@ async function shutdownDashboard(mode?: 'full' | 'locked-skip'): Promise<void> {
 
 process.once('SIGINT', () => void shutdownDashboard('locked-skip'));
 process.once('SIGTERM', () => void shutdownDashboard('locked-skip'));
+
+process.on('SIGUSR2', () => {
+    console.log('[dashboard] SIGUSR2 received — planned restart');
+    plannedRestartCode = PLANNED_RESTART_CODE;
+    void shutdownDashboard('locked-skip');
+});
 
 async function main(): Promise<void> {
     previewProxy.validate();
