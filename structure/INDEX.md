@@ -113,7 +113,7 @@ Support labels must stay aligned with agbrowse:
 
 ---
 
-## Recent Non-Strict Architecture Deltas (2026-05)
+## Recent Non-Strict Architecture Deltas (2026-06)
 
 최근 100개 커밋 중 strict migration 자체가 아닌 구조 변화는 아래 문서에 반영되어야 합니다.
 
@@ -144,6 +144,9 @@ Support labels must stay aligned with agbrowse:
 | Goal objective length limit removed | `src/cli/handlers-workflows.ts`, `src/goal/store.ts` | goal objective의 2000자 길이 제한 제거. `/goal run start`는 preflight/start/stop/status를 갖춘 budget tracking-only Preview로 동작하며, budget enforcement는 아직 tracking-only다. |
 | Inline media rendering | `server.ts` `/media/:filename` route, `public/js/render/markdown.ts` renderer.image, `public/js/features/chat-messages.ts` formatUserPrompt, `public/js/features/media-lightbox.ts`, `public/css/chat.css`, `lib/upload.ts` | Web UI에서 이미지/비디오를 인라인 렌더링. `/media/:filename` Express route가 uploads 폴더를 서빙. marked renderer.image가 절대경로를 API_BASE-prefixed URL로 변환. 유저 첨부 파일도 채팅 버블에 인라인 표시. 이미지 클릭 시 lightbox 모달 → 더블클릭으로 브라우저 열기. Manager iframe proxy `/i/:port/media/` 호환. |
 | Goal continuation hardening | `src/goal/heartbeat.ts`, `src/orchestrator/state-machine.ts`, `src/prompt/templates/a1-system.md` | Goal mode가 PABCD보다 우선. Codex-style completion audit (requirement-by-requirement scrutiny) + blocked audit (3턴 연속 규칙). PABCD P/A/B phase에 'Goal mode EXCEPTION — IGNORE STOP' 추가. Interview per-turn에 negativity bias / pressure-test 규칙. a1-system.md Goal System 섹션 강화. |
+| Slash command P2 surface | `src/cli/commands.ts`, `src/cli/handlers/session-handlers.ts`, `src/core/chat-sessions.ts` | Slash parsing now uses `tokenizeArgs()` for quoted arguments, unknown-command suggestions include Levenshtein recovery, and `/fork` clones the current chat into a new session. `commands.md` command counts and category lists must include `/goalplan`, `/review`, `/task`, and `/fork`. |
+| Agent retry + trace redaction quick wins | `src/agent/lifecycle-handler.ts`, `src/agent/spawn.ts`, `src/trace/redact.ts`, `tests/unit/gemini-capacity-fallback.test.ts` | 429/transient retry uses `_retryAttempt` with exponential backoff (`MAIN_MAX_RETRIES = 3`, `EMP_MAX_RETRIES = 2`). Trace redaction covers AWS access keys, Anthropic `sk-ant-*` keys, JWT-like tokens, and expanded secret key names. `agent_retry` events include attempt/max retry metadata. |
+| Native search skill + private skill boundary | `src/prompt/templates/a1-system.md`, `src/prompt/templates/skills.md`, `skills_ref/search/SKILL.md`, `skills_ref/browser/SKILL.md`, `skills_ref/registry.json` | Korean/source-sensitive search defaults to native cli-jaw search: rewrite into focused queries, treat results as URL candidates, verify original pages via fetch/open, and escalate browser/web-ai only when the original page is incomplete. `agbrowse research plan` is optional query-planning help, not provider execution. `k-thread-gen` and `lecture-stt` remain private active runtime skills, not public `skills_ref` entries. |
 | Goalplan refine guard | `src/goal/store.ts`, `src/goal/heartbeat.ts`, `src/routes/goal.ts`, `src/cli/handlers-workflows.ts`, `bin/commands/goal.ts` | `/goal plan`/`/goalplan`/`cli-jaw goal plan`은 raw hint를 objective로 저장하지 않고 pending objective + `planHint`로 저장한다. `goalMode: "plan"` 상태에서는 checkpoint/update가 거부되며, `cli-jaw goal refine "<specific objective>"` 또는 `/api/goal` `refine-objective`가 objective를 확정하고 direct mode로 전환한다. |
 | `/review` project-dir workflow | `src/workflows/review.ts`, `src/cli/handlers-workflows.ts`, `src/cli/commands.ts` | `/review`는 `projectDirs` 또는 최근 맥락에서 검증한 git repo만 대상으로 하며 JAW_HOME/`process.cwd()` fallback을 금지한다. `/review [focus]`의 사용자 focus text를 최우선 scope signal로 반영하고, 현재 대화의 작업 초점과 최근 goal/chat context, commit history, diff, worktree, untracked 파일은 그 범위의 근거로 사용하며, 무관한 최근 커밋을 git range만으로 포함하지 않는다. Markdown report에 `Scope Resolution` 근거를 저장한다. `--fix`는 검증된 프로젝트 루트 안의 Critical/High만 현재 `HEAD` 위 새 working-tree patch로 자동 수정하며 기존 커밋을 rewrite하지 않는다. |
 
@@ -180,4 +183,4 @@ Support labels must stay aligned with agbrowse:
 
 ---
 
-*마지막 갱신: 2026-05-31 (`server.ts` 903L, `src/routes/` 23 files, `src/agent/` 40 TS files, `src/goal/` 4 TS files, `src/cli/tui/` 22 TS files, `src/manager/` 77 TS/TSX files, `src/browser/web-ai/` 68 TS files, `src/browser/adaptive-fetch/` 18 TS files, `native/jaw-claude-i/` 15 Rust source files, `bin/commands/` 34 TS files, `public/js/` 81 .ts, `electron/` 25 TS files 기준)*
+*마지막 갱신: 2026-06-09 (`server.ts` 약 1000L, `src/routes/` 23 files / 193 route handlers, `src/agent/` 43 TS files including spawn/events submodules, `src/goal/` 4 TS files, `src/cli/commands.ts` 39 slash commands, `src/manager/` 80+ TS/TSX files, `src/browser/web-ai/` 59 TS files + `adaptive-fetch/` 18 files, `bin/commands/` 28 top-level TS files, `electron/` 26 TS files 기준)*

@@ -35,13 +35,14 @@ aliases: [A1 system prompt, CLI-JAW A1, system prompt template]
 
 - `Rules`: 응답 언어, 결과 보고, git 안전장치, 짧고 구조적인 Markdown
 - `Fail fast`: 실패를 숨기지 말고 즉시 보고
-- `Web search first`: 버전/오류/API 질문은 검색을 우선
+- `Search routing`: 버전/오류/API/현재 정보 질문은 native cli-jaw search 경로를 우선하고, 한국어/source-sensitive 검색은 1-3개 focused query로 재작성한 뒤 URL 후보의 원문 fetch/open 검증을 거친다.
 - `jaw Employees vs CLI Sub-agents` + `When to Use Which`: Boss dispatch와 CLI 내부 sub-agent를 구분
 - `How jaw Works (Architecture)`: Boss/employee 흐름과 `$computer-use` 토큰, `cli-jaw dispatch` 타임아웃
 - `Desktop / Browser Control (MANDATORY)`: `$computer-use` 트리거, Control 디스패치 템플릿, 빠른 `cli-jaw browser` CDP/Web UI 경로, Codex/Control Computer Use 경로, Codex-only vision-click fallback, transcript format, forbidden 항목
 - `Channel File Delivery` (+ Discord notes): 로컬 채널 API, Telegram bot API curl 예시
 - `Long-term Memory (MANDATORY)`: `{{JAW_HOME}}/memory/structured/` 경로, L1 `cli-jaw memory ...` current-instance read/write, L2 `cli-jaw dashboard memory ...` cross-instance read-only 경계, 저장 가이드
   - **Compact Handoff Interpretation**: `/compact` 핸드오프 후 trust table(section별 High/Medium/Low) + decision tree(goal 검증 → memory search → file open 순서)
+- `Search routing — file vs web`: 로컬 코드/로그/심볼은 file search, 외부·현재 정보는 active `search` skill 또는 web/official-docs 경로를 사용한다. `agbrowse research plan`은 query-planning 보조일 뿐 provider 실행 경로가 아니며, `k-thread-gen`/`lecture-stt` 같은 private runtime skills는 public `skills_ref` surface로 문서화하지 않는다.
 - `Goal System` + `Goal Mode Rules`: goal CLI 명령어, autonomous phase advance, independent pause audit, evidence bundle 요구사항
 - `Heartbeat System`: `heartbeat.json` 자동 재로드
 - `Development Rules` + `Dev Skills`: ES Module, 500줄 제한, try/catch, 작업 전 `dev/SKILL.md` 읽기

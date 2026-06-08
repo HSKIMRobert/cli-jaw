@@ -8,8 +8,8 @@ aliases: [CLI-JAW Commands, slash commands registry, commands.md]
 
 # src/cli/ — Slash Command Registry & Dispatcher
 
-> `commands.ts`(403L) + `handlers.ts`(446L) + `handlers-runtime.ts`(501L) + `handlers-completions.ts`(97L) + `handlers-workflows.ts`(370L) + `api-auth.ts`(45L) + `command-context.ts`(140L) + `registry.ts`(224L) + `acp-client.ts`(382L) + `claude-models.ts`(81L) + `compact.ts`(141L)
-> slash registry는 35개 커맨드, 4개 실행 인터페이스. root CLI는 `bin/cli-jaw.ts` + `bin/commands/*.ts` 기준 27개 user-facing command이며, helper까지 포함한 `bin/commands/*.ts` top-level 파일은 28개다. `browser web-ai`는 `browser-web-ai.ts`, `dashboard memory`는 `dashboard-memory.ts`, dispatch unwrap 보조는 `dispatch-helpers.ts`로 분리되어 있다.
+> `commands.ts`(462L) + `handlers.ts`(446L) + `handlers-runtime.ts`(501L) + `handlers-completions.ts`(97L) + `handlers-workflows.ts`(494L) + `api-auth.ts`(45L) + `command-context.ts`(140L) + `registry.ts`(224L) + `acp-client.ts`(382L) + `claude-models.ts`(81L) + `compact.ts`(141L)
+> slash registry는 39개 커맨드, 4개 실행 인터페이스. root CLI는 `bin/cli-jaw.ts` + `bin/commands/*.ts` 기준 27개 user-facing command이며, helper까지 포함한 `bin/commands/*.ts` top-level 파일은 28개다. `browser web-ai`는 `browser-web-ai.ts`, `dashboard memory`는 `dashboard-memory.ts`, dispatch unwrap 보조는 `dispatch-helpers.ts`로 분리되어 있다.
 > 모델/CLI 선택은 `registry.ts` 단일 소스를 따른다. 현재 registry 런타임은 `pi`, `agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `cursor`, `gemini`, `grok`, `kiro-code`, `opencode`, `copilot` 13개다.
 
 ---
@@ -29,32 +29,31 @@ aliases: [CLI-JAW Commands, slash commands registry, commands.md]
 
 ## Registry Snapshot
 
-### Command 목록 (35)
+### Command 목록 (39)
 
 ```text
-help, commands, status, clear, purge, compact, reset, new, switch, sessions,
-plan, interview, deliberate, planaudit, goal, team,
+help, commands, status, clear, purge, compact, reset, new, switch, sessions, fork,
+plan, interview, deliberate, planaudit, review, goal, goalplan, team,
 model, cli, fallback, forward, thought, flush,
 version, skill, employee, mcp, memory, browser, prompt, quit, file, steer,
-ide, orchestrate, project
+ide, orchestrate, project, task
 ```
 
 ### 인터페이스 가시성
 
 | Interface | Visible | 비고 |
 | --- | ---: | --- |
-| `cli` | 33 | `file` hidden, `steer` 미지원 |
-| `web` | 31 | `commands`, `quit`, `file`, `ide` 미지원 |
-| `telegram` | 31 | remote-safe command set |
-| `discord` | 31 | remote-safe command set |
-| `cmdline` | 12 | 루트 CLI 서브커맨드용 contract-only capability 필터; workflow commands는 hidden |
+| `cli` | 37 | `file` hidden, `steer` 미지원 |
+| `web` | 35 | `commands`, `quit`, `file`, `ide` 미지원 |
+| `telegram` | 35 | remote-safe command set |
+| `discord` | 35 | remote-safe command set |
 
 ### 카테고리
 
-- `session`: `help`, `commands`, `status`, `clear`, `purge`, `compact`, `reset`, `steer`, `new`, `switch`, `sessions`
-- `workflow`: `plan`, `interview`, `deliberate`, `planaudit`, `goal`, `team`
+- `session`: `help`, `commands`, `status`, `clear`, `purge`, `compact`, `reset`, `steer`, `new`, `switch`, `sessions`, `fork`
+- `workflow`: `plan`, `interview`, `deliberate`, `planaudit`, `review`, `goal`, `goalplan`, `team`
 - `model`: `model`, `cli`, `fallback`, `forward`, `thought`, `flush`
-- `tools`: `skill`, `employee`, `mcp`, `memory`, `browser`, `prompt`, `ide`, `orchestrate`, `project`
+- `tools`: `skill`, `employee`, `mcp`, `memory`, `browser`, `prompt`, `ide`, `orchestrate`, `project`, `task`
 - `cli`: `version`, `quit`, `file`
 
 ---
@@ -151,6 +150,11 @@ ide, orchestrate, project
 
 - Web/Telegram/Discord에서 실행 가능. CLI slash registry에는 노출되지 않는다.
 - 실행 중 agent가 없으면 에러. 실행 중이면 kill 후 재지시.
+
+### `/fork`
+
+- 현재 채팅 세션의 메시지를 새 세션으로 복사하고 그 세션으로 전환한다.
+- `/new`, `/switch`, `/sessions`와 같은 session category 표면이며 CLI/Web/Telegram/Discord에서 사용 가능하다.
 
 ### `/orchestrate` (alias: `/pabcd`)
 

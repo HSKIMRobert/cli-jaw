@@ -54,7 +54,7 @@ CLI spawn / ACP session
 | `agent:claude-i:interrupted` | `{ runId, sessionId?, resumable? }` | `claude-e-runtime.ts`; graceful SIGINT interrupt and resume metadata |
 | `agent:claude-i:cleanup` | `{ runId, event, escalated? }` | `claude-e-runtime.ts`; cleanup start/done lifecycle |
 | `agent:claude-i:error` | `{ runId, message?, exitCode? }` | `claude-e-runtime.ts`; helper/runtime error |
-| `agent_retry` | `{ cli, delay, reason, isEmployee? }` | 429 retry 안내 |
+| `agent_retry` | `{ cli, delay, reason, attempt?, maxRetries?, isEmployee? }` | 429/transient retry 안내. Main runs use exponential backoff up to 3 attempts; employee transient retries use a shorter backoff up to 2 attempts. |
 | `agent_fallback` | `{ from, to, reason, isEmployee? }` | fallback CLI 전환 안내 |
 | `agent_smoke` | `{ cli, confidence, reason, agentId, isEmployee? }` | smoke response auto-continue 안내 |
 | `queue_update` | `{ pending }` | `spawn.ts`; message queue 길이 |

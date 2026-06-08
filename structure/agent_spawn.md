@@ -154,6 +154,20 @@ aliases: [CLI-JAW Agent Spawn, agent runtime, ACP orchestration]
 | WS `agent_done.toolLog` | `core/bus.ts` → `sanitizeToolLogForDurableStorage()` |
 | `/api/orchestrate/snapshot.activeRun.toolLog` | `routes/orchestrate.ts` → `getSafeLiveRun()` |
 
+### Retry and trace redaction boundary
+
+`lifecycle-handler.ts` uses `_retryAttempt` rather than a boolean retry flag.
+Main 429 retries use exponential backoff up to `MAIN_MAX_RETRIES = 3`; employee
+429/Claude-rate-limit/transient-startup retries use a shorter exponential
+backoff up to `EMP_MAX_RETRIES = 2`. Public `agent_retry` events include
+attempt/max retry metadata so the UI can distinguish first retry from exhausted
+attempts.
+
+`src/trace/redact.ts` is the trace-storage redaction boundary for structured
+trace values and previews. It redacts AWS `AKIA...` keys, Anthropic
+`sk-ant-*` keys, JWT-like tokens, and secret-looking object keys before values
+are persisted or displayed through trace helpers.
+
 ---
 
 ## src/cli/acp-client.ts — Copilot ACP JSON-RPC Client (382L)
