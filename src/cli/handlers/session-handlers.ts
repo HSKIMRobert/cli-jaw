@@ -6,6 +6,7 @@ import {
     getChatSessionBySeq,
     setActiveChatSession,
     getActiveChatSession,
+    forkChatSession,
 } from '../../core/chat-sessions.js';
 
 export async function newSessionHandler(args: string[]): Promise<SlashResult> {
@@ -41,4 +42,9 @@ export async function sessionsListHandler(): Promise<SlashResult> {
         return `#${s.seq}${label} — ${s.message_count} msgs${marker}`;
     });
     return { ok: true, text: `📋 Sessions:\n${lines.join('\n')}` };
+}
+
+export async function forkSessionHandler(_args: string[]): Promise<SlashResult> {
+    const { seq, copiedCount } = forkChatSession();
+    return { ok: true, text: `🔀 Forked to session #${seq} (${copiedCount} messages copied). Switched.` };
 }
