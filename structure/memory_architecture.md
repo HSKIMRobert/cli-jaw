@@ -296,8 +296,9 @@ Prefers ES Module only, no CommonJS.
 
 | Layer | Command surface | Scope | Write path |
 |------|-----------------|-------|------------|
-| **L1 instance-local** | `jaw memory search/read/save` | 현재 `JAW_HOME`의 structured memory | read/write |
-| **L2 dashboard federation** | `jaw dashboard memory search/read/instances` | dashboard가 관리하는 여러 `~/.cli-jaw*` 인스턴스 | read-only |
+| **L1 instance-local** | `jaw memory search/read/save/context` | 현재 `JAW_HOME`의 structured memory | read/write |
+| **L2 dashboard federation (memory)** | `jaw dashboard memory search/read/instances` | dashboard가 관리하는 여러 `~/.cli-jaw*` 인스턴스의 memory | read-only |
+| **L2 dashboard federation (chat)** | `jaw dashboard chat search` | dashboard가 관리하는 여러 `~/.cli-jaw*` 인스턴스의 jaw.db 채팅 이력 | read-only |
 
 운영 원칙:
 
@@ -305,6 +306,8 @@ Prefers ES Module only, no CommonJS.
 - L2는 사용자가 dashboard memory, all instances, 다른 instance/home, cross-instance context를 명시할 때만 쓴다.
 - L2는 더 넓은 검색이지 더 안전한 기본값이 아니다. 다른 인스턴스의 오래된 맥락이 섞일 수 있다.
 - 저장은 항상 현재 인스턴스의 L1 `jaw memory save <file> <content>` 경로로만 한다.
+- `jaw memory context <file>` 는 memory 파일의 생성 시점(created_at frontmatter 또는 mtime)과 name/description 키워드로 관련 채팅 메시지를 시간 윈도우 검색한다. 세션 무관 cross-session 검색.
+- L2 chat은 `jaw dashboard chat search`로 다른 인스턴스의 jaw.db를 직접 읽어 LIKE 검색한다. schema probe로 tool_log 컬럼 유무를 자동 감지하고, native module 불일치나 DB 없음 등은 warning으로 보고한다.
 - Embedding은 L2 dashboard add-on이며 기본 OFF다. 설정 전에는 FTS5/local 검색이 기본이다.
 
 ---
