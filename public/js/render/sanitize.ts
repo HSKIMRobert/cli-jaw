@@ -18,6 +18,7 @@ export function sanitizeMermaidSvg(svg: string): string {
         ],
         FORBID_ATTR: ['onerror', 'onclick', 'onload', 'onmouseover', 'onfocus', 'onblur',
                       'background'],
+        ADD_ATTR: ['dominant-baseline'],
     });
     // Sanitize CSS inside <style> blocks: strip @import, @font-face, external url()
     const div = document.createElement('div');
@@ -46,6 +47,6 @@ export function sanitizeHtml(html: string): string {
         ADD_TAGS: ['use'],
         ADD_ATTR: ['aria-hidden', 'xmlns', 'viewBox', 'role', 'aria-label',
                    'data-jaw-svg', 'data-jaw-kind', 'data-mermaid-code-raw',
-                   'href', 'xlink:href'],
+                   'href', 'xlink:href', 'dominant-baseline'],
     });
 }
