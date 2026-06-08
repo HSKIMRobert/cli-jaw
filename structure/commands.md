@@ -8,7 +8,7 @@ aliases: [CLI-JAW Commands, slash commands registry, commands.md]
 
 # src/cli/ — Slash Command Registry & Dispatcher
 
-> `commands.ts`(462L) + `handlers.ts`(446L) + `handlers-runtime.ts`(501L) + `handlers-completions.ts`(97L) + `handlers-workflows.ts`(494L) + `api-auth.ts`(45L) + `command-context.ts`(140L) + `registry.ts`(224L) + `acp-client.ts`(382L) + `claude-models.ts`(81L) + `compact.ts`(141L)
+> `commands.ts`(462L) + `handlers.ts`(448L) + `handlers-runtime.ts`(501L) + `handlers-completions.ts`(103L) + `handlers-workflows.ts`(499L) + `api-auth.ts`(45L) + `command-context.ts`(139L) + `registry.ts`(231L) + `acp-client.ts`(382L) + `claude-models.ts`(81L) + `compact.ts`(143L)
 > slash registry는 39개 커맨드, 4개 실행 인터페이스. root CLI는 `bin/cli-jaw.ts` + `bin/commands/*.ts` 기준 27개 user-facing command이며, helper까지 포함한 `bin/commands/*.ts` top-level 파일은 28개다. `browser web-ai`는 `browser-web-ai.ts`, `dashboard memory`는 `dashboard-memory.ts`, dispatch unwrap 보조는 `dispatch-helpers.ts`로 분리되어 있다.
 > 모델/CLI 선택은 `registry.ts` 단일 소스를 따른다. 현재 registry 런타임은 `pi`, `agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `cursor`, `gemini`, `grok`, `kiro-code`, `opencode`, `copilot` 13개다.
 
@@ -24,6 +24,13 @@ aliases: [CLI-JAW Commands, slash commands registry, commands.md]
 | `getCompletionItems(partial, iface)` | command palette용 상세 completion 항목 |
 | `getArgumentCompletionItems(...)` | command별 인자 completion |
 | `COMMANDS` | command registry 단일 소스 |
+
+## Web Slash Dropdown Help
+
+- `public/js/features/command-info.ts`의 `COMMAND_TOPIC_MAP`이 slash-command row `?` 도움말의 단일 매핑 소스다.
+- `public/js/features/slash-commands.ts`는 `COMMAND_TOPIC_MAP[cmd.name]`이 있을 때만 `.cmd-info-btn`을 렌더링하고, 클릭 시 `openHelpDialog(topicId)`를 호출한다.
+- Web에서 보이는 모든 command와 alias는 `COMMAND_TOPIC_MAP`에 있어야 한다. 누락되면 autocomplete row에 `?` popup이 사라진다.
+- `tests/unit/help-dialog-contract.test.ts`는 `COMMANDS`와 `COMMAND_TOPIC_MAP`을 대조해 `/review`, `/task`, `/fork`, `/h` 같은 누락이 재발하지 않도록 막는다.
 
 ---
 

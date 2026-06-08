@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { HELP_TOPICS } from '../../public/js/features/help-content.ts';
+import { COMMANDS } from '../../src/cli/commands.ts';
+import { COMMAND_TOPIC_MAP } from '../../public/js/features/command-info.ts';
+import { HELP_TOPICS, isHelpTopicId } from '../../public/js/features/help-content.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '../..');
@@ -159,6 +161,20 @@ test('HD-006: chat input uses one overlay help trigger for input and shortcuts',
         /\.chat-input-help-trigger\s*\{[\s\S]*position: absolute;[\s\S]*top: 8px;[\s\S]*right: 10px;/,
         'chat composer help should be absolutely positioned inside the input shell',
     );
+});
+
+test('HD-006b: every web slash command and alias has row-level info help mapping', () => {
+    const webCommands = COMMANDS.filter(cmd => !cmd.hidden && cmd.interfaces.includes('web'));
+    for (const cmd of webCommands) {
+        const topic = COMMAND_TOPIC_MAP[cmd.name];
+        assert.ok(topic, `missing command info topic for /${cmd.name}`);
+        assert.ok(isHelpTopicId(topic), `invalid command info topic for /${cmd.name}: ${topic}`);
+        for (const alias of cmd.aliases || []) {
+            const aliasTopic = COMMAND_TOPIC_MAP[alias];
+            assert.ok(aliasTopic, `missing command info topic for /${alias} alias of /${cmd.name}`);
+            assert.ok(isHelpTopicId(aliasTopic), `invalid command info topic for /${alias}: ${aliasTopic}`);
+        }
+    }
 });
 
 test('HD-007: help dialog uses safe text rendering and focus-aware modal behavior', () => {
