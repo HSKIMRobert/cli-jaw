@@ -124,8 +124,22 @@ export function registerJawMemoryRoutes(app: Express, requireAuth: AuthMiddlewar
 
             const nameMatch = content.match(/name:\s*(.+)/);
             const descMatch = content.match(/description:\s*(.+)/);
-            const q = (nameMatch?.[1] || '').replace(/[-_]/g, ' ').trim();
-            const q2 = (descMatch?.[1] || '').trim().slice(0, 60) || null;
+            const kindMatch = content.match(/kind:\s*(.+)/);
+            let q = (nameMatch?.[1] || '').replace(/[-_]/g, ' ').trim();
+            let q2 = (descMatch?.[1] || '').trim().slice(0, 60) || null;
+
+            if (!q) {
+                const stem = file.replace(/.*\//, '').replace(/\.\w+$/, '').replace(/[-_]/g, ' ').trim();
+                q = stem;
+            }
+            if (!q2 && kindMatch?.[1]) {
+                q2 = kindMatch[1].trim();
+            }
+            if (!q2 && !q) {
+                const bodyStart = content.replace(/^---[\s\S]*?---\s*/, '').trim().slice(0, 80);
+                const firstLine = bodyStart.split('\n')[0]?.trim() || null;
+                if (firstLine && firstLine.length > 3) q2 = firstLine;
+            }
 
             if (!q && !q2) {
                 res.json({ file, center, hits: [], message: 'no searchable terms extracted from memory file' });
