@@ -310,19 +310,7 @@ export async function skillHandler(args: string[], ctx: CliCommandContext): Prom
     return { ok: false, text: 'Usage: /skill [list [--inactive]|reset]' };
 }
 
-export async function employeeHandler(args: string[], ctx: CliCommandContext): Promise<SlashResult> {
-    const L = ctx.locale || 'ko';
-    const sub = (args[0] || '').toLowerCase();
-    if (sub !== 'reset') {
-        return { ok: false, text: 'Usage: /employee reset' };
-    }
-    if (typeof ctx.resetEmployees !== 'function') {
-        return { ok: false, text: t('cmd.employee.resetUnavailable', {}, L) };
-    }
-    const result = await ctx.resetEmployees() as { seeded?: number } | undefined;
-    const seeded = Number.isFinite(result?.seeded) ? result!.seeded : '?';
-    return { ok: true, text: t('cmd.employee.resetDone', { count: seeded }, L) };
-}
+export { employeeHandler } from './employee-handler.js';
 
 export async function clearHandler(args: string[], ctx: CliCommandContext): Promise<SlashResult> {
     const L = ctx.locale || 'ko';

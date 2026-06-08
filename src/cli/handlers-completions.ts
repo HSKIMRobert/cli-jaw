@@ -68,7 +68,13 @@ export function skillArgumentCompletions(ctx: CompletionCtx): SlashChoice[] {
 
 export function employeeArgumentCompletions(ctx: CompletionCtx): SlashChoice[] {
     const L = ctx?.locale || 'ko';
-    return [{ value: 'reset', label: t('cmd.arg.employeeReset', {}, L) }];
+    return [
+        { value: 'list', label: t('cmd.arg.employeeList', {}, L) },
+        { value: 'info', label: t('cmd.arg.employeeInfo', {}, L) },
+        { value: 'model', label: t('cmd.arg.employeeModel', {}, L) },
+        { value: 'cli', label: t('cmd.arg.employeeCli', {}, L) },
+        { value: 'reset', label: t('cmd.arg.employeeReset', {}, L) },
+    ];
 }
 
 export function browserArgumentCompletions(ctx: CompletionCtx): SlashChoice[] {
