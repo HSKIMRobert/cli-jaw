@@ -1,6 +1,7 @@
-import { Tray, Menu, nativeImage, app, clipboard, Notification } from 'electron';
+import { Tray, Menu, nativeImage, app, clipboard, Notification, dialog } from 'electron';
 import { join } from 'node:path';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { isCliInstalled, installCli } from './install-cli.js';
 
 const PREFS_FILENAME = 'tray-preferences.json';
 
@@ -145,6 +146,19 @@ function rebuildMenu(): void {
         prefs.startAtLogin = item.checked;
         savePrefs();
         syncLoginItemSetting();
+      },
+    },
+    {
+      label: isCliInstalled() ? 'CLI Installed ✓' : 'Install CLI to Terminal',
+      enabled: app.isPackaged && !isCliInstalled(),
+      click: async () => {
+        const result = await installCli();
+        await dialog.showMessageBox({
+          type: result.ok ? 'info' : 'error',
+          message: result.ok ? 'CLI Installed' : 'Installation Failed',
+          detail: result.message,
+        });
+        if (result.ok) rebuildMenu();
       },
     },
     { type: 'separator' },
