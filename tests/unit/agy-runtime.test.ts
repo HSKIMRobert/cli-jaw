@@ -219,6 +219,10 @@ test('AGY-RT-014: AGY interim progress output does not trigger quiet completion'
     ].join('\n');
     const resumedProgress = 'AGENTS.md was already read earlier in this conversation. Proceeding directly to create the directory and files.';
     const resumedProgressVariant = 'AGENTS.md already read in this conversation. Creating directory and all three files now.';
+    const agyStepProgress = 'Steps 1–8 (all independent):';
+    const agyStepProgressPartial = 'Steps 1–4 (independent):';
+    const agyStepProgressChunk = 'Steps';
+    const agyStepProgressMulti = 'Steps 1–4 (all independent):\n\nSteps 5–7 (write files, depend on step 4):';
     const finalAfterProgress = [
         'AGENTS.md was already read earlier in this conversation. Proceeding directly to create the directory and files.',
         'Let me verify all three files exist:',
@@ -230,6 +234,10 @@ test('AGY-RT-014: AGY interim progress output does not trigger quiet completion'
     assert.equal(isAgyInterimProgressOutput(multilineProgress), true);
     assert.equal(isAgyInterimProgressOutput(resumedProgress), true);
     assert.equal(isAgyInterimProgressOutput(resumedProgressVariant), true);
+    assert.equal(isAgyInterimProgressOutput(agyStepProgress), true);
+    assert.equal(isAgyInterimProgressOutput(agyStepProgressPartial), true);
+    assert.equal(isAgyInterimProgressOutput(agyStepProgressChunk), true);
+    assert.equal(isAgyInterimProgressOutput(agyStepProgressMulti), true);
     assert.equal(isAgyInterimProgressOutput(finalAfterProgress), false);
     assert.equal(getAgyQuietCompletionDelayMs({
         outputTextStarted: true,
@@ -253,6 +261,18 @@ test('AGY-RT-014: AGY interim progress output does not trigger quiet completion'
         outputTextStarted: true,
         liveOutputText: resumedProgressVariant,
         fullText: resumedProgressVariant,
+        toolLog: [],
+    }), null);
+    assert.equal(getAgyQuietCompletionDelayMs({
+        outputTextStarted: true,
+        liveOutputText: agyStepProgress,
+        fullText: agyStepProgress,
+        toolLog: [],
+    }), null);
+    assert.equal(getAgyQuietCompletionDelayMs({
+        outputTextStarted: true,
+        liveOutputText: agyStepProgressMulti,
+        fullText: agyStepProgressMulti,
         toolLog: [],
     }), null);
     assert.equal(getAgyQuietCompletionDelayMs({
