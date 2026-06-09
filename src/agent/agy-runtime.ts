@@ -26,6 +26,16 @@ export function stripAgyTrailingTimeoutOutput(text: string): { text: string; str
     return { text: before, stripped: true };
 }
 
+export function stripAgyResumeReplayPrefix(text: string, previousAssistantText: string | null | undefined): { text: string; stripped: boolean } {
+    const previous = String(previousAssistantText || '').trim();
+    if (!previous) return { text, stripped: false };
+    const current = String(text || '');
+    if (!current.startsWith(previous)) return { text, stripped: false };
+    const rest = current.slice(previous.length).replace(/^\s+/, '');
+    if (!rest.trim()) return { text, stripped: false };
+    return { text: rest, stripped: true };
+}
+
 export function hasRunningAgyTranscriptTool(toolLog: Pick<ToolEntry, 'status' | 'stepRef'>[]): boolean {
     return toolLog.some((tool) => {
         if (!tool.stepRef?.startsWith('agy:transcript:')) return false;

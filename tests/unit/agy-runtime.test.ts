@@ -10,6 +10,7 @@ import {
     hasRunningAgyTranscriptTool,
     isAgyTimeoutOutput,
     shouldCompleteAgyPrintRun,
+    stripAgyResumeReplayPrefix,
     stripAgyTrailingTimeoutOutput,
 } from '../../src/agent/agy-runtime.ts';
 
@@ -145,4 +146,31 @@ test('AGY-RT-011: AGY timeout suffix is stripped without masking timeout-only ou
     );
     const spawnSrc = readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
     assert.match(spawnSrc, /stripAgyTrailingTimeoutOutput\(ctx\.fullText\)/);
+});
+
+test('AGY-RT-012: AGY resume does not trim current stdout by prior output length', () => {
+    const spawnSrc = readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
+    const start = spawnSrc.indexOf('Length-based replay trimming can therefore swallow the whole new answer.');
+    const end = spawnSrc.indexOf('const ctx: SpawnContext =', start);
+    const resumeOffsetBlock = start >= 0 && end > start ? spawnSrc.slice(start, end) : '';
+    assert.match(resumeOffsetBlock, /const agyResumeOffset = 0/);
+    assert.doesNotMatch(resumeOffsetBlock, /bucketRow\?\.output_len|employeeOutputLen/);
+});
+
+test('AGY-RT-013: AGY resume replay prefix is stripped only when new output remains', () => {
+    assert.deepEqual(
+        stripAgyResumeReplayPrefix('OLD_ANSWER\nNEW_ANSWER', 'OLD_ANSWER'),
+        { text: 'NEW_ANSWER', stripped: true },
+    );
+    assert.deepEqual(
+        stripAgyResumeReplayPrefix('OLD_ANSWER', 'OLD_ANSWER'),
+        { text: 'OLD_ANSWER', stripped: false },
+    );
+    assert.deepEqual(
+        stripAgyResumeReplayPrefix('NEW_ANSWER', 'OLD_ANSWER'),
+        { text: 'NEW_ANSWER', stripped: false },
+    );
+    const spawnSrc = readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
+    assert.match(spawnSrc, /getLatestAssistantContentForAgyResume/);
+    assert.match(spawnSrc, /stripAgyResumeReplayPrefix\(ctx\.fullText,\s*agyResumeReplayPrefix\)/);
 });

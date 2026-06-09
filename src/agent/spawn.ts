@@ -58,6 +58,7 @@ import {
     isAgyStaleSessionOutput,
     isAgyTimeoutOutput,
     shouldCompleteAgyPrintRun,
+    stripAgyResumeReplayPrefix,
     stripAgyTrailingTimeoutOutput,
 } from './agy-runtime.js';
 import { startAgyTranscriptWatcher, type AgyTranscriptWatcherHandle } from './agy-transcript-watcher.js';
@@ -566,6 +567,12 @@ function withHistoryPrompt(prompt: string, historyBlock: string) {
     return `${historyBlock}\n\n---\n[Current Message]\n${body}`;
 }
 
+function getLatestAssistantContentForAgyResume(workingDir?: string | null): string | null {
+    const rows = getRecentMessages.all(workingDir || null, getActiveChatSession(), 12) as RecentMessageRow[];
+    const row = rows.find((msg) => msg.role === 'assistant' && typeof msg.content === 'string' && msg.content.trim().length > 0);
+    return row?.content || null;
+}
+
 import { buildArgs, buildResumeArgs, formatAgyPrintTimeout, resolveAiEProvider, resolveSessionBucket } from './args.js';
 export { buildArgs, buildResumeArgs, resolveAiEProvider, resolveSessionBucket };
 
@@ -865,6 +872,9 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     } else if ((cli === 'kiro-code' || (cli === 'ai-e' && effectiveProvider === 'kiro')) && sysPrompt) {
         promptForArgs = `[Operational Context — cli-jaw Integration]\nThe following operational guidelines apply to this session. Follow these task rules and use the tools/commands described:\n\n${sysPrompt}\n\n---\n\n${promptForArgs}`;
     }
+    const agyResumeReplayPrefix = cli === 'agy' && isResume
+        ? getLatestAssistantContentForAgyResume(settings["workingDir"])
+        : null;
     const claudeBin = (cli === 'claude-e' || (cli === 'ai-e' && effectiveProvider === 'claude'))
         ? detectCli('claude').path
         : null;
@@ -1835,9 +1845,9 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     const kiroConversationIdsBefore = (kiroPlainText && !isResume && !empSid)
         ? listKiroConversationIdsForCwd(spawnCwd)
         : null;
-    const agyResumeOffset = cli === 'agy' && isResume
-        ? (empSid ? (opts.employeeOutputLen ?? 0) : (bucketRow?.output_len ?? 0))
-        : 0;
+    // Native `agy --conversation ... -p` may emit only the current answer.
+    // Length-based replay trimming can therefore swallow the whole new answer.
+    const agyResumeOffset = 0;
     const ctx: SpawnContext = {
         fullText: '',
         traceLog: [],
@@ -2197,6 +2207,15 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             }
         }
         if (cli === 'agy') {
+            if (isResume && agyResumeReplayPrefix) {
+                const strippedReplay = stripAgyResumeReplayPrefix(ctx.fullText, agyResumeReplayPrefix);
+                if (strippedReplay.stripped) {
+                    ctx.fullText = strippedReplay.text;
+                    if (ctx.liveOutputText !== undefined) {
+                        ctx.liveOutputText = stripAgyResumeReplayPrefix(ctx.liveOutputText, agyResumeReplayPrefix).text;
+                    }
+                }
+            }
             const stripped = stripAgyTrailingTimeoutOutput(ctx.fullText);
             if (stripped.stripped) {
                 ctx.fullText = stripped.text;
