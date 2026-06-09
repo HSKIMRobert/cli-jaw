@@ -16,6 +16,7 @@ export type PanelLayoutState = {
         topMode: RightPanelMode | null;
         bottomMode: RightPanelMode | null;
         splitRatio: number;
+        ceoDirectOpen: boolean;
     };
     bottomPanel: {
         open: boolean;
@@ -31,7 +32,7 @@ type Action =
     | { type: 'SET_RIGHT_TOP_MODE'; mode: RightPanelMode | null }
     | { type: 'SET_RIGHT_BOTTOM_MODE'; mode: RightPanelMode | null }
     | { type: 'SET_RIGHT_SPLIT_RATIO'; ratio: number }
-    | { type: 'OPEN_RIGHT_PANEL'; mode: RightPanelMode; slot?: 'top' | 'bottom' | undefined }
+    | { type: 'OPEN_RIGHT_PANEL'; mode: RightPanelMode; slot?: 'top' | 'bottom' | undefined; direct?: boolean }
     | { type: 'CLOSE_RIGHT_SUB'; slot: 'top' | 'bottom' }
     | { type: 'SOLO_RIGHT_SUB'; slot: 'top' | 'bottom' }
     | { type: 'SET_BOTTOM_OPEN'; open: boolean }
@@ -68,6 +69,8 @@ function normalizeRightPanel(panel: PanelLayoutState['rightPanel']): PanelLayout
     }
     if (next.topMode !== null && next.topMode === next.bottomMode) next.bottomMode = null;
     if (next.topMode === null && next.bottomMode === null) next.open = false;
+    if (next.ceoDirectOpen && next.topMode !== 'ceo' && next.bottomMode !== 'ceo') next.ceoDirectOpen = false;
+    if (typeof next.ceoDirectOpen !== 'boolean') next.ceoDirectOpen = false;
     return next;
 }
 
@@ -92,6 +95,7 @@ function reducer(state: PanelLayoutState, action: Action): PanelLayoutState {
                     ...rp,
                     open: true,
                     [slot === 'top' ? 'topMode' : 'bottomMode']: action.mode,
+                    ceoDirectOpen: action.mode === 'ceo' && action.direct === true,
                 }),
             };
         }
@@ -162,6 +166,7 @@ const initialState: PanelLayoutState = {
         topMode: null,
         bottomMode: null,
         splitRatio: 0.5,
+        ceoDirectOpen: false,
     },
     bottomPanel: {
         open: false,

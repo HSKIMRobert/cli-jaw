@@ -85,8 +85,6 @@ body.is-resizing-vertical .panel-resizer { pointer-events: auto !important; }
 }
 .right-panel-close {
     margin-left: auto;
-    font-size: 15px;
-    line-height: 1;
 }
 .right-panel-sr-only {
     position: absolute;

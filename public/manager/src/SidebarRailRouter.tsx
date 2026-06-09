@@ -203,7 +203,7 @@ export function SidebarRailRouter(props: Props) {
 
     useEffect(() => {
         if (isElectron && props.jawCeoOpen && !rightPanelCeoActive) {
-            panelLayout.dispatch({ type: 'OPEN_RIGHT_PANEL', mode: 'ceo', slot: 'top' });
+            panelLayout.dispatch({ type: 'OPEN_RIGHT_PANEL', mode: 'ceo', slot: 'top', direct: true });
             props.onJawCeoOpenChange?.(false);
         }
     }, [isElectron, props.jawCeoOpen]);
