@@ -60,6 +60,14 @@ function CeoIcon() {
     );
 }
 
+function CloseIcon() {
+    return (
+        <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true" focusable="false">
+            <path d="M6 6l8 8M14 6l-8 8" />
+        </svg>
+    );
+}
+
 const MODE_ICONS: Record<RightPanelMode, ReactNode> = {
     folder: <FolderIcon />,
     doc: <DocIcon />,
@@ -105,6 +113,7 @@ export function RightSidebar(props: RightSidebarProps) {
     if (!effectiveRightOpen) return null;
 
     const isSplit = rightPanelSplit;
+    const hideToolbar = rp.ceoDirectOpen && (rp.topMode === 'ceo' || rp.bottomMode === 'ceo');
     const topFr = isSplit ? rp.splitRatio : 1;
     const bottomFr = isSplit ? 1 - rp.splitRatio : 0;
     const activeMode = rp.topMode ?? rp.bottomMode;
@@ -159,7 +168,7 @@ export function RightSidebar(props: RightSidebarProps) {
         <aside className="right-panel" aria-label="Right sidebar">
             <PanelResizer direction="horizontal" onDelta={handleWidthDelta} onEnd={handleWidthEnd} />
             <div className="right-panel-shell">
-                <div className="right-panel-toolbar" aria-label="Right sidebar panels">
+                {!hideToolbar && <div className="right-panel-toolbar" aria-label="Right sidebar panels">
                     {RIGHT_PANEL_TOOLBAR_MODES.map(mode => (
                         <button
                             key={mode}
@@ -180,9 +189,9 @@ export function RightSidebar(props: RightSidebarProps) {
                         title="Close"
                         onClick={() => dispatch({ type: 'SET_RIGHT_OPEN', open: false })}
                     >
-                        ×
+                        <CloseIcon />
                     </button>
-                </div>
+                </div>}
                 <div
                     ref={bodyRef}
                     className={`right-panel-body ${isSplit ? 'is-split-panel' : 'is-single-panel'}`}
