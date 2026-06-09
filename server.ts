@@ -27,6 +27,7 @@ import { registerStaticRoutes } from './src/routes/static.js';
 import { registerMessageRoutes } from './src/routes/messages.js';
 import { registerSystemRoutes } from './src/routes/system.js';
 import { registerAgentControlRoutes } from './src/routes/agent-control.js';
+import { registerCommandRoutes } from './src/routes/command.js';
 import { registerGoalRunRoutes } from './src/routes/goal-run.js';
 import { registerMemoryRoutes } from './src/routes/memory.js';
 import { registerSettingsRoutes } from './src/routes/settings.js';
@@ -75,9 +76,6 @@ import {
     isAgentBusy, killAllAgents,
     messageQueue, getQueuedMessageSnapshotForScope,
 } from './src/agent/spawn.js';
-import { parseCommand, executeCommand } from './src/cli/commands.js';
-import { getVisibleCommands } from './src/command-contract/policy.js';
-
 import { getState, resetAllStaleStates } from './src/orchestrator/state-machine.js';
 import { resolveOrcScope } from './src/orchestrator/scope.js';
 
@@ -92,8 +90,6 @@ import { initActiveMessagingRuntime, shutdownMessagingRuntime, hydrateTargetsFro
 
 import { startHeartbeat, stopHeartbeat, watchHeartbeatFile } from './src/memory/heartbeat.js';
 import { initAlertDelivery } from './src/agent/alert-escalation.js';
-
-const WEB_COMMAND_TEXT_LIMIT = 30_000;
 
 import {
     getCliModelAndEffort,
@@ -376,96 +372,7 @@ wss.on('connection', (ws) => {
 // src/routes/{system,instance,messages,chat-sessions,static,agent-control}.ts,
 // src/http/locale.ts, src/core/session-ops.ts, src/cli/web-command-ctx.ts.
 
-app.post('/api/command', requireAuth, async (req, res) => {
-    try {
-        const text = String(req.body?.text || '').trim().slice(0, WEB_COMMAND_TEXT_LIMIT);
-        const parsed = parseCommand(text);
-        const locale = resolveRequestLocale(req, req.body?.locale);
-        res.vary('Accept-Language');
-        res.set('Content-Language', locale);
-        if (!parsed) {
-            res.status(400).json({
-                ok: false,
-                code: 'not_command',
-                text: t('api.notCommand', {}, locale),
-            });
-            return;
-        }
-        const result = await executeCommand(parsed, makeWebCommandCtx(req, locale as string));
-        res.json(result);
-    } catch (err: unknown) {
-        console.error('[cmd:error]', err);
-        const locale = resolveRequestLocale(req, req.body?.locale);
-        res.status(500).json({
-            ok: false,
-            code: 'internal_error',
-            text: t('api.serverError', { msg: (err as Error).message }, locale),
-        });
-    }
-});
-
-app.get('/api/commands', (req, res) => {
-    const iface = String(req.query["interface"] || 'web');
-    const locale = resolveRequestLocale(req, req.query["locale"] as string);
-    res.vary('Accept-Language');
-    res.set('Content-Language', locale);
-    const commands = getVisibleCommands(iface);
-    res.json(commands
-        .map(c => {
-            const capability = (c as { capability?: Record<string, string> }).capability;
-            return {
-                name: c.name,
-                desc: c.descKey ? t(c.descKey, {}, locale) : c.desc,
-                args: c.args || null,
-                category: c.category || 'tools',
-                aliases: c.aliases || [],
-                workflow: c.workflow || null,
-                capability: capability?.[iface] || null,
-            };
-        })
-    );
-});
-
-app.post('/api/message', requireAuth, async (req, res) => {
-    const prompt = req.body?.prompt;
-    if (typeof prompt !== 'string' || !prompt.trim()) {
-        res.status(400).json({ error: 'prompt required' });
-        return;
-    }
-
-    const trimmed = prompt.trim();
-
-    // Slash command pre-processing: Telegram/Discord already do this,
-    // but /api/message callers (REST, goal-continuation) bypass /api/command.
-    if (trimmed.startsWith('/')) {
-        const parsed = parseCommand(trimmed);
-        if (parsed && (parsed.type === 'known' || parsed.type === 'unknown')) {
-            try {
-                const locale = resolveRequestLocale(req);
-                const cmdResult = await executeCommand(parsed, makeWebCommandCtx(req, locale));
-                if (cmdResult?.steerPrompt) {
-                    submitMessage(cmdResult.steerPrompt, { origin: 'web' });
-                }
-                res.json({ ok: true, command: true, ...cmdResult });
-                return;
-            } catch (err: unknown) {
-                const error = (err as Error).message;
-                console.error('[api/message:cmd]', error);
-                res.status(500).json({ ok: false, command: true, error });
-                return;
-            }
-        }
-    }
-
-    const result = submitMessage(trimmed, { origin: 'web' });
-    if (result.action === 'rejected') {
-        const status = (result.reason === 'busy' || result.reason === 'duplicate') ? 409 : 400;
-        res.status(status).json({ ok: false, error: result.reason, ...result });
-        return;
-    }
-    res.json({ ok: true, ...result });
-});
-
+// command/commands/message → src/routes/command.ts (Phase 2 extraction)
 // stop/clear/session-reset → src/routes/agent-control.ts (Phase 2 extraction)
 
 // ─── Route modules ───────────────────────────────────
@@ -482,6 +389,7 @@ registerChatSessionRoutes(app);
 registerMessageRoutes(app);
 registerSystemRoutes(app, { jawAuthToken: JAW_AUTH_TOKEN });
 registerAgentControlRoutes(app, requireAuth);
+registerCommandRoutes(app, requireAuth);
 registerGoalRunRoutes(app, requireAuth);
 registerMemoryRoutes(app, requireAuth);
 registerSettingsRoutes(app, requireAuth, applySettingsPatch, projectRoot);
