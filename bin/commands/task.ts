@@ -4,6 +4,9 @@ import { loadSettings, getServerUrl } from '../../src/core/config.js';
 import { cliFetch, getCliAuthToken } from '../../src/cli/api-auth.js';
 import { shouldShowHelp, printAndExit } from '../helpers/help.js';
 
+interface TaskItem { id: string; content: string; status: string; owner?: string; after?: string }
+interface TaskResponse { ok: boolean; error?: string; task: TaskItem; removed?: number; tasks?: TaskItem[] }
+
 if (shouldShowHelp(process.argv)) printAndExit(`
   jaw task — Task checklist
 
@@ -59,7 +62,7 @@ try {
             if (owner) body['owner'] = owner;
             if (after) body['after'] = after;
             const res = await cliFetch(`${BASE}/api/task`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-            const data = await res.json() as any;
+            const data = await res.json() as TaskResponse;
             if (!data.ok) { console.error(data.error || 'Failed'); process.exit(1); }
             const t = data.task;
             console.log(`Added: [${t.id}] ${t.content}${t.owner ? ` @${t.owner}` : ''}${t.after ? ` (after:${t.after})` : ''}`);
@@ -70,7 +73,7 @@ try {
             const content = args.slice(2).join(' ').trim();
             if (!id || !content) { console.error('Usage: jaw task edit <id> <new content>'); process.exit(1); }
             const res = await cliFetch(`${BASE}/api/task`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update', id, content }) });
-            const data = await res.json() as any;
+            const data = await res.json() as TaskResponse;
             if (!data.ok) { console.error(data.error || 'Failed'); process.exit(1); }
             console.log(`Edited: [${data.task.id}] ${data.task.content}`);
             break;
@@ -82,7 +85,7 @@ try {
             if (!id) { console.error(`Usage: jaw task ${sub} <id>`); process.exit(1); }
             const status = sub === 'done' ? 'done' : sub === 'start' ? 'in_progress' : 'cancelled';
             const res = await cliFetch(`${BASE}/api/task`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update', id, status }) });
-            const data = await res.json() as any;
+            const data = await res.json() as TaskResponse;
             if (!data.ok) { console.error(data.error || 'Failed'); process.exit(1); }
             const mark = status === 'done' ? 'Done' : status === 'in_progress' ? 'Started' : 'Cancelled';
             console.log(`${mark}: [${data.task.id}] ${data.task.content}`);
@@ -93,7 +96,7 @@ try {
             const owner = args[2];
             if (!id || !owner) { console.error('Usage: jaw task assign <id> <owner>'); process.exit(1); }
             const res = await cliFetch(`${BASE}/api/task`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update', id, owner }) });
-            const data = await res.json() as any;
+            const data = await res.json() as TaskResponse;
             if (!data.ok) { console.error(data.error || 'Failed'); process.exit(1); }
             console.log(`Assigned: [${id}] → ${owner}`);
             break;
@@ -106,7 +109,7 @@ try {
             }
             const qs = params.toString() ? `?${params}` : '';
             const res = await cliFetch(`${BASE}/api/task${qs}`);
-            const data = await res.json() as any;
+            const data = await res.json() as TaskResponse;
             if (!data.tasks?.length) { console.log('No tasks.'); break; }
             const markers: Record<string, string> = { pending: '○', in_progress: '▶', done: '✓', cancelled: '✗' };
             for (const t of data.tasks) {
@@ -119,8 +122,8 @@ try {
         }
         case 'clear': {
             const res = await cliFetch(`${BASE}/api/task`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'clear' }) });
-            const data = await res.json() as any;
-            console.log(data.removed > 0 ? `Cleared ${data.removed} done/cancelled tasks.` : 'Nothing to clear.');
+            const data = await res.json() as TaskResponse;
+            console.log((data.removed ?? 0) > 0 ? `Cleared ${data.removed} done/cancelled tasks.` : 'Nothing to clear.');
             break;
         }
         default:
@@ -128,11 +131,12 @@ try {
             console.error('Usage: jaw task [add|edit|done|start|assign|cancel|list|clear]');
             process.exit(1);
     }
-} catch (e: any) {
-    if (e?.cause?.code === 'ECONNREFUSED') {
+} catch (e: unknown) {
+    const err = e as Error & { cause?: { code?: string } };
+    if (err?.cause?.code === 'ECONNREFUSED') {
         console.error('  ❌ jaw server not running. Start with: jaw serve');
         process.exit(1);
     }
-    console.error('Error:', e.message || e);
+    console.error('Error:', err.message || e);
     process.exit(1);
 }
