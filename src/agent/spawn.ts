@@ -39,7 +39,7 @@ import {
     setSpawnRef as setMemorySpawnRef,
 } from './memory-flush-controller.js';
 import { applyCliEnvDefaults, buildSessionResumeKey, ensureOpencodeAlwaysAllowPermissions } from './spawn-env.js';
-import { attachWatchdog } from './watchdog.js';
+import { attachWatchdog, DEFAULT_WATCHDOG_ABSOLUTE_HARD_CAP_MS } from './watchdog.js';
 import {
     buildOpencodeRuntimeSnapshot,
     buildOpencodeSpawnAudit,
@@ -557,7 +557,7 @@ function withHistoryPrompt(prompt: string, historyBlock: string) {
     return `${historyBlock}\n\n---\n[Current Message]\n${body}`;
 }
 
-import { buildArgs, buildResumeArgs, resolveAiEProvider, resolveSessionBucket } from './args.js';
+import { buildArgs, buildResumeArgs, formatAgyPrintTimeout, resolveAiEProvider, resolveSessionBucket } from './args.js';
 export { buildArgs, buildResumeArgs, resolveAiEProvider, resolveSessionBucket };
 
 // ─── Upload wrapper ──────────────────────────────────
@@ -868,10 +868,12 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     const cliTimeoutCfg = globalTimeoutCfg[cli] && typeof globalTimeoutCfg[cli] === 'object'
         ? globalTimeoutCfg[cli] as Record<string, unknown> : {};
     const mergedTimeoutCfg = { ...globalTimeoutCfg, ...cliTimeoutCfg };
-    const resolvedAbsoluteMs = typeof mergedTimeoutCfg['absoluteMs'] === 'number'
-        ? mergedTimeoutCfg['absoluteMs'] as number : undefined;
-    const agyPrintTimeout = cli === 'agy' && resolvedAbsoluteMs
-        ? `${Math.ceil(resolvedAbsoluteMs / 60000)}m` : undefined;
+    const resolvedAgyPrintTimeoutMs = typeof mergedTimeoutCfg['absoluteHardCapMs'] === 'number'
+        ? mergedTimeoutCfg['absoluteHardCapMs'] as number
+        : DEFAULT_WATCHDOG_ABSOLUTE_HARD_CAP_MS;
+    const agyPrintTimeout = cli === 'agy'
+        ? formatAgyPrintTimeout(resolvedAgyPrintTimeoutMs)
+        : undefined;
     const argOptions = {
         fastMode: cfg.fastMode,
         sysPrompt,
@@ -1852,10 +1854,11 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     const cCfg = gCfg[cli] && typeof gCfg[cli] === 'object'
         ? gCfg[cli] as Record<string, unknown> : {};
     const agentTimeoutCfg = { ...gCfg, ...cCfg };
-    const watchdogConfig: { firstProgressMs?: number; idleMs?: number; absoluteMs?: number } = {};
+    const watchdogConfig: { firstProgressMs?: number; idleMs?: number; absoluteMs?: number; absoluteHardCapMs?: number } = {};
     if (typeof agentTimeoutCfg['firstProgressMs'] === 'number') watchdogConfig.firstProgressMs = agentTimeoutCfg['firstProgressMs'];
     if (typeof agentTimeoutCfg['idleMs'] === 'number') watchdogConfig.idleMs = agentTimeoutCfg['idleMs'];
     if (typeof agentTimeoutCfg['absoluteMs'] === 'number') watchdogConfig.absoluteMs = agentTimeoutCfg['absoluteMs'];
+    if (typeof agentTimeoutCfg['absoluteHardCapMs'] === 'number') watchdogConfig.absoluteHardCapMs = agentTimeoutCfg['absoluteHardCapMs'];
     const stallWatchdog = attachWatchdog(child, agentLabel, (reason) => {
         console.log(`[jaw:watchdog] killing ${agentLabel} — ${reason}`);
         ctx.stallReason = reason;

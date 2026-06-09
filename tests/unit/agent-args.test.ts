@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { resolveAgyAddDirectories, resolveGeminiIncludeDirectories } from '../../src/agent/args.ts';
+import { formatAgyPrintTimeout, resolveAgyAddDirectories, resolveGeminiIncludeDirectories } from '../../src/agent/args.ts';
 import { buildAiERuntimeStatusMeta, buildArgs, buildResumeArgs, resolveAiEProvider, resolveSessionBucket, shouldResumeBucketSession } from '../../src/agent/spawn.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -89,6 +89,12 @@ test('AG-000f: agy supports per-run log file capture for print-mode session ids'
     assert.ok(resumeArgs.includes('--conversation'));
     assert.ok(resumeArgs.includes('--log-file'));
     assert.ok(resumeArgs.includes('/tmp/jaw-agy-test.log'));
+});
+
+test('AG-000g: agy print-timeout formatter rounds milliseconds up to minute duration', () => {
+    assert.equal(formatAgyPrintTimeout(600_000), '10m');
+    assert.equal(formatAgyPrintTimeout(4 * 60 * 60_000), '240m');
+    assert.equal(formatAgyPrintTimeout(600_001), '11m');
 });
 
 test('AG-002: claude custom model includes --model', () => {

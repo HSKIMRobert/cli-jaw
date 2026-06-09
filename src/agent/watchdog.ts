@@ -11,11 +11,13 @@ interface WatchdogConfig {
     checkIntervalMs: number;
 }
 
+export const DEFAULT_WATCHDOG_ABSOLUTE_HARD_CAP_MS = 4 * 60 * 60_000;
+
 const DEFAULTS: WatchdogConfig = {
     firstProgressMs: 120_000,
     idleMs: 90_000,
     absoluteMs: 600_000,
-    absoluteHardCapMs: 4 * 60 * 60_000,
+    absoluteHardCapMs: DEFAULT_WATCHDOG_ABSOLUTE_HARD_CAP_MS,
     checkIntervalMs: 2_000,
 };
 

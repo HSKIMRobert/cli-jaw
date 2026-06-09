@@ -9,6 +9,12 @@ const isCodexSparkModel = (model: string) => !!model && /spark/i.test(model);
 const GEMINI_MAX_INCLUDE_DIRECTORIES = 5;
 export const AGY_MAX_ADD_DIRECTORIES = 8;
 export const AGY_PRINT_TIMEOUT = '10m';
+
+export function formatAgyPrintTimeout(ms: number): string {
+    const safeMs = Number.isFinite(ms) && ms > 0 ? ms : 10 * 60_000;
+    return `${Math.ceil(safeMs / 60_000)}m`;
+}
+
 // Claude Code fast mode is enabled by merging { fastMode: true } into the spawned
 // CLI's settings via --settings (the claude analogue of codex's service_tier="fast").
 // Gated on options.fastMode, which is sourced from perCli.<cli>.fastMode in spawn.ts.
