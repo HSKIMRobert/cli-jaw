@@ -53,8 +53,9 @@ function BrowserIcon() {
 function CeoIcon() {
     return (
         <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-            <rect x="3" y="4" width="14" height="12" rx="2" />
-            <path d="M7 10h6M10 7v6" />
+            <circle cx="10" cy="9" r="3.5" />
+            <path d="M4 16.5c0-3.3 2.7-6 6-6s6 2.7 6 6" />
+            <path d="M5 7.5C5 5 7.2 3 10 3s5 2 5 4.5" strokeWidth="1.4" />
         </svg>
     );
 }
