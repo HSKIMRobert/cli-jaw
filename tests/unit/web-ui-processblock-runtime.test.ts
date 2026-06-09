@@ -28,6 +28,33 @@ test('hydrateActiveRun is idempotent for process block ownership', async () => {
     assert.equal(document.querySelectorAll('.msg-agent .msg-content > .process-block').length, 0);
 });
 
+test('new live stream starts a fresh agent bubble after a later user message', async () => {
+    setupWebUiDom();
+    const ui = await import('../../public/js/ui.ts');
+    const { state } = await import('../../public/js/state.ts');
+    const container = document.getElementById('chatMessages');
+    assert.ok(container);
+    container.innerHTML = `
+        <div class="msg msg-agent">
+            <div class="agent-body"><div class="msg-content">previous answer</div></div>
+        </div>
+        <div class="msg msg-user">
+            <div class="user-body"><div class="msg-content">new prompt</div></div>
+        </div>
+    `;
+    const previous = container.querySelector('.msg-agent') as HTMLElement;
+    state.currentAgentDiv = previous;
+
+    ui.appendAgentText('new streamed text');
+    await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
+
+    const agents = [...document.querySelectorAll<HTMLElement>('.msg-agent')];
+    assert.equal(agents.length, 2);
+    assert.match(agents[0]?.querySelector('.msg-content')?.textContent || '', /previous answer/);
+    assert.doesNotMatch(agents[0]?.querySelector('.msg-content')?.textContent || '', /new streamed text/);
+    assert.match(agents[1]?.querySelector('.msg-content')?.textContent || '', /new streamed text/);
+});
+
 test('hydrateActiveRun preserves employee origin without polluting raw label', async () => {
     setupWebUiDom();
     const ui = await import('../../public/js/ui.ts');
