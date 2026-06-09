@@ -18,6 +18,14 @@ export function formatAgyTimeoutMessage(text: string): string {
     return trimmed || AGY_TIMEOUT_PREFIX;
 }
 
+export function stripAgyTrailingTimeoutOutput(text: string): { text: string; stripped: boolean } {
+    const idx = text.indexOf(AGY_TIMEOUT_PREFIX);
+    if (idx <= 0) return { text, stripped: false };
+    const before = text.slice(0, idx).trimEnd();
+    if (!before.trim()) return { text, stripped: false };
+    return { text: before, stripped: true };
+}
+
 export function hasRunningAgyTranscriptTool(toolLog: Pick<ToolEntry, 'status' | 'stepRef'>[]): boolean {
     return toolLog.some((tool) => {
         if (!tool.stepRef?.startsWith('agy:transcript:')) return false;
