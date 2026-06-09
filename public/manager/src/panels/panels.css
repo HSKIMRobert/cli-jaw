@@ -1,11 +1,6 @@
 .panel-resizer {
     all: unset;
     display: block;
-    appearance: none;
-    -webkit-appearance: none;
-    border: 0;
-    padding: 0;
-    margin: 0;
     position: relative;
     z-index: 2;
     flex-shrink: 0;

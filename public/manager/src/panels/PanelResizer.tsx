@@ -40,7 +40,7 @@ export function PanelResizer(props: PanelResizerProps) {
         };
     }, [handlePointerMove, handlePointerUp]);
 
-    function handlePointerDown(e: ReactPointerEvent<HTMLButtonElement>) {
+    function handlePointerDown(e: ReactPointerEvent<HTMLDivElement>) {
         e.preventDefault();
         (e.target as HTMLElement).setPointerCapture(e.pointerId);
         dragging.current = true;
@@ -48,7 +48,7 @@ export function PanelResizer(props: PanelResizerProps) {
         document.body.classList.add(direction === 'horizontal' ? 'is-resizing-horizontal' : 'is-resizing-vertical');
     }
 
-    function handleKeyDown(e: React.KeyboardEvent<HTMLButtonElement>) {
+    function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
         const step = 10;
         if (direction === 'horizontal') {
             if (e.key === 'ArrowLeft') { e.preventDefault(); onDelta(-step); }
@@ -60,8 +60,9 @@ export function PanelResizer(props: PanelResizerProps) {
     }
 
     return (
-        <button
-            type="button"
+        <div
+            role="separator"
+            tabIndex={0}
             className={`panel-resizer panel-resizer-${direction} ${props.className ?? ''}`}
             aria-label={`Resize ${direction === 'horizontal' ? 'width' : 'height'}`}
             onPointerDown={handlePointerDown}
