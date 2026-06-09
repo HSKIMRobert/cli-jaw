@@ -390,7 +390,7 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(browserCss.includes('.browser-webview-host.is-active {\n    display: block;'), 'active browser webview host must avoid flex-container rendering that can leave Electron webviews blank');
     assert.ok(browserCss.includes('.browser-webview {\n    position: absolute;'), 'Electron webview must fill the host as a composited replaced element');
     assert.ok(browserCss.includes('inset: 0;'), 'Electron webview must be pinned to all host edges');
-    assert.ok(browserCss.includes('display: block;'), 'Electron webview must render as a block replaced element, not a flex container');
+    assert.ok(browserCss.includes('display: flex;'), 'Electron webview must keep flex display so its internal guest iframe receives the full viewport height');
     assert.ok(browserCss.includes('contain: strict;'), 'Electron webview compositing should remain isolated from surrounding panel layout');
 });
 
