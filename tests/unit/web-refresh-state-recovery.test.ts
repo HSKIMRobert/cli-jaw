@@ -135,10 +135,11 @@ test('WRS-005: virtual scroll restore hooks use guarded bottom reconciliation af
 });
 
 test('WRS-006: reconnect snapshot reapplies bottom anchor without stale near-bottom gate', { skip: !hasWs && 'public/js/ws source not found' }, () => {
+    // Phase 3 (devlog 260609, 30): WS onopen/onclose → SSE onChannelOpen/onChannelDisconnect.
     const wsSrc = readFileSync(wsPath, 'utf8');
-    const openIdx = wsSrc.indexOf('state.ws.onopen');
-    assert.ok(openIdx > 0, 'ws onopen handler should exist');
-    const openBlock = wsSrc.slice(openIdx, wsSrc.indexOf('state.ws.onclose', openIdx));
+    const openIdx = wsSrc.indexOf('onChannelOpen(');
+    assert.ok(openIdx > 0, 'channel open handler should exist');
+    const openBlock = wsSrc.slice(openIdx, wsSrc.indexOf('onChannelDisconnect(', openIdx));
     assert.ok(!openBlock.includes('const shouldFollowBottom = isChatNearBottom()'), 'reconnect should not capture stale near-bottom geometry before hydration');
     assert.ok(!openBlock.includes('reconcileChatBottomAfterLayout(shouldFollowBottom)'), 'reconnect should not gate restore on stale geometry');
     assert.ok(openBlock.includes("reconcileChatBottomAfterRestore('reconnect')"), 'reconnect should run guarded restore bottom reconciliation after hydration');
