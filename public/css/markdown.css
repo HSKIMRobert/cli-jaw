@@ -286,6 +286,11 @@
     min-width: 600px;
 }
 
+/* Mindmap text alignment fix — SVG <text> in circle/rounded nodes */
+.msg-content .mermaid-container svg text {
+    dominant-baseline: central;
+}
+
 /* Phase 127-F1: skeleton placeholder while mermaid renders */
 .mermaid-skeleton {
     display: flex;

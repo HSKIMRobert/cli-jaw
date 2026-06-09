@@ -25,7 +25,6 @@ const DANGEROUS_PATTERNS: readonly RegExp[] = [
   /\.constructor\s*\.\s*constructor/,
   /\bdocument\.write\s*\(/,
   /\binsertAdjacentHTML\s*\(/,
-  /\bimport\s*\(/,
 ];
 
 // No warn-only patterns currently — innerHTML removed (too common in onerror fallbacks)
@@ -69,6 +68,25 @@ export function validateWidgetHtml(html: string): ValidationResult {
     if (pattern.test(html)) {
       return { valid: false, reason: `Dangerous pattern: ${pattern.source}`, warnings };
     }
+  }
+
+  // 4b. Dynamic import() — allow only with allowlisted CDN string literals
+  const importPattern = /\bimport\s*\(\s*['"`](.*?)['"`]\s*\)/g;
+  let importMatch;
+  while ((importMatch = importPattern.exec(html)) !== null) {
+    try {
+      const importDomain = new URL(importMatch[1]).hostname;
+      if (!CDN_ALLOWLIST.some(a => importDomain === a || importDomain.endsWith('.' + a))) {
+        return { valid: false, reason: `Blocked import() domain: ${importDomain}`, warnings };
+      }
+    } catch {
+      return { valid: false, reason: 'Dynamic import() with non-URL argument', warnings };
+    }
+  }
+  // Block bare import() with variable/expression (no string literal)
+  const bareImport = /\bimport\s*\(\s*(?!['"`])/g;
+  if (bareImport.test(html)) {
+    return { valid: false, reason: 'Dynamic import() with non-literal argument', warnings };
   }
 
   // 5. Warning-only patterns

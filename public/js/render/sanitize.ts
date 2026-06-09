@@ -5,8 +5,24 @@ function purifier() {
     return getDOMPurify();
 }
 
-// Mermaid SVG sanitizer — allows <style> (required for Mermaid theming)
-// Separate from sanitizeHtml() which blocks <style> for user-supplied SVGs.
+// Strip dangerous CSS constructs from <style> tags while preserving safe rules.
+// Blocks @import (external stylesheet injection), @font-face (font fingerprinting),
+// and external url() references (resource loading / cookie exfiltration).
+// Internal fragment refs like url(#gradient) are preserved via negative lookahead.
+function sanitizeCssInStyleTags(html: string): string {
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    for (const style of div.querySelectorAll('style')) {
+        let css = style.textContent || '';
+        css = css.replace(/@import\b[^;]*;?/gi, '/* stripped */');
+        css = css.replace(/@font-face\s*\{[^}]*\}/gi, '/* stripped */');
+        css = css.replace(/url\s*\(\s*(?!['"]?#)[^)]*\)/gi, 'none');
+        style.textContent = css;
+    }
+    return div.innerHTML;
+}
+
+// Mermaid SVG sanitizer — SVG-only profile (no HTML tags).
 // Mermaid is configured with htmlLabels:false so labels use SVG <text>,
 // not <foreignObject> + HTML. This avoids DOMPurify namespace issues.
 export function sanitizeMermaidSvg(svg: string): string {
@@ -20,33 +36,25 @@ export function sanitizeMermaidSvg(svg: string): string {
                       'background'],
         ADD_ATTR: ['dominant-baseline'],
     });
-    // Sanitize CSS inside <style> blocks: strip @import, @font-face, external url()
-    const div = document.createElement('div');
-    div.innerHTML = clean;
-    for (const style of div.querySelectorAll('style')) {
-        let css = style.textContent || '';
-        css = css.replace(/@import\b[^;]*;?/gi, '/* stripped */');
-        css = css.replace(/@font-face\s*\{[^}]*\}/gi, '/* stripped */');
-        css = css.replace(/url\s*\(\s*(?!['"]?#)[^)]*\)/gi, 'none');
-        style.textContent = css;
-    }
-    return div.innerHTML;
+    return sanitizeCssInStyleTags(clean);
 }
 
-// ── XSS sanitization (hardened for inline SVG — Phase 1) ──
+// ── XSS sanitization (hardened — allows <style> with CSS filtering) ──
 export function sanitizeHtml(html: string): string {
-    return purifier().sanitize(html, {
+    const clean = purifier().sanitize(html, {
         USE_PROFILES: { html: true, svg: true, svgFilters: true },
+        FORCE_BODY: true,
         FORBID_TAGS: [
-            'script', 'style', 'iframe', 'object', 'embed', 'form', 'input',
+            'script', 'iframe', 'object', 'embed', 'form', 'input',
             // SVG security: block animation + foreignObject (script injection vectors)
             'foreignObject', 'animate', 'set', 'animateTransform', 'animateMotion',
         ],
         FORBID_ATTR: ['onerror', 'onclick', 'onload', 'onmouseover', 'onfocus', 'onblur',
                       'background'],  // legacy HTML attr that triggers remote fetch
-        ADD_TAGS: ['use'],
+        ADD_TAGS: ['use', 'style'],
         ADD_ATTR: ['aria-hidden', 'xmlns', 'viewBox', 'role', 'aria-label',
                    'data-jaw-svg', 'data-jaw-kind', 'data-mermaid-code-raw',
                    'href', 'xlink:href', 'dominant-baseline'],
     });
+    return sanitizeCssInStyleTags(clean);
 }
