@@ -1175,6 +1175,20 @@ test('grok parser keeps separate thinking spans and handles part/state tool comp
     assert.equal(ctx.toolLog.filter(t => t.stepRef === 'grok:tool:call-1').length, 1);
 });
 
+test('grok parser final end closes stale running thinking spans', () => {
+    const ctx = { toolLog: [], fullText: '', traceLog: [], pendingOutputChunk: '', seenToolKeys: new Set() };
+    ctx.toolLog.push(
+        { icon: '💭', label: 'Grok thinking', toolType: 'thinking', detail: 'The', status: 'running', stepRef: 'grok:thinking' },
+        { icon: '💭', label: 'Grok thinking', toolType: 'thinking', detail: 'I', status: 'running', stepRef: 'grok:thinking:2' },
+    );
+
+    extractFromEvent('grok', { type: 'end', sessionId: 'grok-session' }, ctx, 'grok');
+
+    const runningThoughts = ctx.toolLog.filter(t => t.stepRef?.startsWith('grok:thinking') && t.status === 'running');
+    assert.equal(runningThoughts.length, 0);
+    assert.equal(ctx.toolLog.filter(t => t.stepRef?.startsWith('grok:thinking') && t.status === 'done').length, 2);
+});
+
 test('grok parser prefers per-call ids over shared request id for multi-tool streams', () => {
     const ctx = { toolLog: [], fullText: '', traceLog: [], pendingOutputChunk: '', seenToolKeys: new Set() };
     extractFromEvent('grok', {
