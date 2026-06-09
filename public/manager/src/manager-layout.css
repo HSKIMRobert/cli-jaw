@@ -24,6 +24,45 @@
 .manager-workspace.is-right-panel-closed { --right-panel-width: 0px; }
 .manager-workspace.is-right-panel-closed .right-panel,
 .manager-workspace.is-right-panel-closed .manager-ceo-panel { display: none; }
+.manager-workspace.is-right-panel-open .right-panel {
+    display: flex;
+    flex-direction: row;
+    min-height: 0;
+    overflow: hidden;
+}
+.manager-workspace.is-right-panel-open .right-panel-shell {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+.manager-workspace.is-right-panel-open .right-panel-body {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+.manager-workspace.is-right-panel-open .right-panel-body.is-single-panel {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+}
+.manager-workspace.is-right-panel-open .right-panel-body.is-split-panel {
+    display: grid;
+}
+.manager-workspace.is-right-panel-open .right-panel-body.is-single-panel > .right-sub-panel,
+.manager-workspace.is-right-panel-open .right-sub-content {
+    flex: 1 1 0;
+}
+.manager-workspace.is-right-panel-open .right-sub-panel,
+.manager-workspace.is-right-panel-open .right-sub-content {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
 .manager-workspace.is-bottom-panel-closed { --bottom-panel-height: 0px; }
 .manager-workspace.is-bottom-panel-closed .bottom-panel { display: none; }
 .manager-sidebar {

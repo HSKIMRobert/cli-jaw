@@ -47,7 +47,7 @@ export function buildManagerCsp(managerOrigin: string, previewFrameOrigins: stri
   const wsOrigin = managerOrigin
     .replace(/^http:/, 'ws:')
     .replace(/^https:/, 'wss:');
-  const frameSrc = [`'self'`, ...previewFrameOrigins].join(' ');
+  const frameSrc = [`'self'`, 'http:', 'https:', ...previewFrameOrigins].join(' ');
   return [
     `default-src 'self'`,
     `script-src 'self'`,
@@ -58,6 +58,7 @@ export function buildManagerCsp(managerOrigin: string, previewFrameOrigins: stri
     `object-src 'none'`,
     `base-uri 'self'`,
     `frame-ancestors 'self'`,
+    `child-src ${frameSrc}`,
     `frame-src ${frameSrc}`,
     `form-action 'self'`,
   ].join('; ');

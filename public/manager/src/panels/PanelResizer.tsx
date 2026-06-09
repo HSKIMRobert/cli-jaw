@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
+import type { MouseEvent as ReactMouseEvent } from 'react';
 
 type PanelResizerProps = {
     direction: 'horizontal' | 'vertical';
@@ -11,41 +12,111 @@ type PanelResizerProps = {
 export function PanelResizer(props: PanelResizerProps) {
     const dragging = useRef(false);
     const lastPos = useRef(0);
-    const { direction, onDelta, onEnd } = props;
+    const onDeltaRef = useRef(props.onDelta);
+    const onEndRef = useRef(props.onEnd);
+    const [isDragging, setIsDragging] = useState(false);
+    const { direction } = props;
+
+    useEffect(() => {
+        onDeltaRef.current = props.onDelta;
+        onEndRef.current = props.onEnd;
+    }, [props.onDelta, props.onEnd]);
+
+    const applyPointerPosition = useCallback((clientX: number, clientY: number) => {
+        if (!dragging.current) return;
+        const pos = direction === 'horizontal' ? clientX : clientY;
+        const delta = pos - lastPos.current;
+        lastPos.current = pos;
+        if (delta !== 0) onDeltaRef.current(delta);
+    }, [direction]);
 
     const handlePointerMove = useCallback((e: PointerEvent) => {
         if (!dragging.current) return;
-        const pos = direction === 'horizontal' ? e.clientX : e.clientY;
-        const delta = pos - lastPos.current;
-        lastPos.current = pos;
-        if (delta !== 0) onDelta(delta);
-    }, [direction, onDelta]);
+        e.preventDefault();
+        applyPointerPosition(e.clientX, e.clientY);
+    }, [applyPointerPosition]);
 
-    const handlePointerUp = useCallback(() => {
+    const handleMouseMove = useCallback((e: MouseEvent) => {
+        if (!dragging.current) return;
+        e.preventDefault();
+        applyPointerPosition(e.clientX, e.clientY);
+    }, [applyPointerPosition]);
+
+    const stopDragging = useCallback(() => {
         if (!dragging.current) return;
         dragging.current = false;
+        setIsDragging(false);
         document.body.classList.remove('is-resizing-horizontal', 'is-resizing-vertical');
-        onEnd?.();
-    }, [onEnd]);
+        onEndRef.current?.();
+    }, []);
 
     useEffect(() => {
-        document.addEventListener('pointermove', handlePointerMove);
-        document.addEventListener('pointerup', handlePointerUp);
-        document.addEventListener('pointercancel', handlePointerUp);
+        const options: AddEventListenerOptions = { capture: true };
+        document.addEventListener('pointermove', handlePointerMove, options);
+        document.addEventListener('pointerup', stopDragging, options);
+        document.addEventListener('pointercancel', stopDragging, options);
+        document.addEventListener('mousemove', handleMouseMove, options);
+        document.addEventListener('mouseup', stopDragging, options);
+        window.addEventListener('pointermove', handlePointerMove, options);
+        window.addEventListener('pointerup', stopDragging, options);
+        window.addEventListener('pointercancel', stopDragging, options);
+        window.addEventListener('mousemove', handleMouseMove, options);
+        window.addEventListener('mouseup', stopDragging, options);
+        window.addEventListener('blur', stopDragging);
         return () => {
-            document.removeEventListener('pointermove', handlePointerMove);
-            document.removeEventListener('pointerup', handlePointerUp);
-            document.removeEventListener('pointercancel', handlePointerUp);
+            document.removeEventListener('pointermove', handlePointerMove, options);
+            document.removeEventListener('pointerup', stopDragging, options);
+            document.removeEventListener('pointercancel', stopDragging, options);
+            document.removeEventListener('mousemove', handleMouseMove, options);
+            document.removeEventListener('mouseup', stopDragging, options);
+            window.removeEventListener('pointermove', handlePointerMove, options);
+            window.removeEventListener('pointerup', stopDragging, options);
+            window.removeEventListener('pointercancel', stopDragging, options);
+            window.removeEventListener('mousemove', handleMouseMove, options);
+            window.removeEventListener('mouseup', stopDragging, options);
+            window.removeEventListener('blur', stopDragging);
             document.body.classList.remove('is-resizing-horizontal', 'is-resizing-vertical');
         };
-    }, [handlePointerMove, handlePointerUp]);
+    }, [handleMouseMove, handlePointerMove, stopDragging]);
 
     function handlePointerDown(e: ReactPointerEvent<HTMLDivElement>) {
         e.preventDefault();
-        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+        e.stopPropagation();
+        e.currentTarget.setPointerCapture(e.pointerId);
+        startDragging(e.clientX, e.clientY);
+    }
+
+    function handleMouseDown(e: ReactMouseEvent<HTMLDivElement>) {
+        e.preventDefault();
+        e.stopPropagation();
+        startDragging(e.clientX, e.clientY);
+    }
+
+    function startDragging(clientX: number, clientY: number) {
         dragging.current = true;
-        lastPos.current = direction === 'horizontal' ? e.clientX : e.clientY;
+        setIsDragging(true);
+        lastPos.current = direction === 'horizontal' ? clientX : clientY;
         document.body.classList.add(direction === 'horizontal' ? 'is-resizing-horizontal' : 'is-resizing-vertical');
+    }
+
+    function handleOverlayPointerMove(e: ReactPointerEvent<HTMLDivElement>) {
+        e.preventDefault();
+        applyPointerPosition(e.clientX, e.clientY);
+    }
+
+    function handleOverlayPointerEnd(e: ReactPointerEvent<HTMLDivElement>) {
+        e.preventDefault();
+        stopDragging();
+    }
+
+    function handleOverlayMouseMove(e: ReactMouseEvent<HTMLDivElement>) {
+        e.preventDefault();
+        applyPointerPosition(e.clientX, e.clientY);
+    }
+
+    function handleOverlayMouseEnd(e: ReactMouseEvent<HTMLDivElement>) {
+        e.preventDefault();
+        stopDragging();
     }
 
     function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
@@ -60,13 +131,29 @@ export function PanelResizer(props: PanelResizerProps) {
     }
 
     return (
-        <div
-            role="separator"
-            tabIndex={0}
-            className={`panel-resizer panel-resizer-${direction} ${props.className ?? ''}`}
-            aria-label={`Resize ${direction === 'horizontal' ? 'width' : 'height'}`}
-            onPointerDown={handlePointerDown}
-            onKeyDown={handleKeyDown}
-        />
+        <>
+            <div
+                role="separator"
+                tabIndex={0}
+                className={`panel-resizer panel-resizer-${direction} ${props.className ?? ''}`}
+                aria-label={`Resize ${direction === 'horizontal' ? 'width' : 'height'}`}
+                aria-orientation={direction === 'horizontal' ? 'vertical' : 'horizontal'}
+                onPointerDown={handlePointerDown}
+                onMouseDown={handleMouseDown}
+                onLostPointerCapture={stopDragging}
+                onKeyDown={handleKeyDown}
+            />
+            {isDragging && (
+                <div
+                    aria-hidden="true"
+                    className={`panel-resize-overlay panel-resize-overlay-${direction}`}
+                    onPointerMove={handleOverlayPointerMove}
+                    onPointerUp={handleOverlayPointerEnd}
+                    onPointerCancel={handleOverlayPointerEnd}
+                    onMouseMove={handleOverlayMouseMove}
+                    onMouseUp={handleOverlayMouseEnd}
+                />
+            )}
+        </>
     );
 }

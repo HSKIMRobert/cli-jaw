@@ -4,36 +4,54 @@
     box-sizing: border-box;
     align-self: stretch;
     position: relative;
-    z-index: 2;
+    z-index: 80;
     flex-shrink: 0;
     background: transparent;
     transition: background 0.15s;
 }
-.panel-resizer:hover,
-.panel-resizer:focus-visible { background: var(--border-strong); }
+.panel-resizer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: transparent;
+    transition: background 0.15s;
+}
+.panel-resizer:hover::after,
+.panel-resizer:focus-visible::after { background: var(--border-strong); }
 .panel-resizer:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -1px; }
 
 .panel-resizer-horizontal {
-    width: 4px;
-    padding: 0 3px;
-    margin: 0 -3px;
-    background-clip: content-box;
+    width: 12px;
+    margin: 0 -6px 0 0;
     cursor: col-resize;
 }
+.panel-resizer-horizontal::after {
+    left: 5px;
+    right: 5px;
+}
 .panel-resizer-vertical {
-    height: 4px;
-    padding: 3px 0;
-    margin: -3px 0;
-    background-clip: content-box;
+    height: 12px;
+    margin: 0 0 -6px;
     cursor: row-resize;
+}
+.panel-resizer-vertical::after {
+    top: 5px;
+    bottom: 5px;
 }
 
 body.is-resizing-horizontal { cursor: col-resize !important; user-select: none; }
 body.is-resizing-vertical { cursor: row-resize !important; user-select: none; }
-body.is-resizing-horizontal *,
-body.is-resizing-vertical * { pointer-events: none !important; }
-body.is-resizing-horizontal .panel-resizer,
-body.is-resizing-vertical .panel-resizer { pointer-events: auto !important; }
+
+.panel-resize-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    background: transparent;
+    pointer-events: auto;
+    touch-action: none;
+}
+.panel-resize-overlay-horizontal { cursor: col-resize; }
+.panel-resize-overlay-vertical { cursor: row-resize; }
 
 .right-panel {
     grid-area: right;

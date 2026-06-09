@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { sendInstanceMessage } from './api';
+import { isElectron } from './panels/desktop-bridge';
 import { buildPreviewState } from './preview';
 import type { PreviewTheme } from './preview';
 import type { DashboardInstance, DashboardScanResult } from './types';
@@ -15,6 +16,8 @@ type InstancePreviewProps = {
     onOpenDocFromPreview?: (absolutePath: string) => void;
     onPreviewDroppedFiles?: (files: File[]) => void;
 };
+
+const PREVIEW_IFRAME_SANDBOX = 'allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts allow-downloads';
 
 type PreviewOpenNotesMessage = {
     type?: unknown;
@@ -284,7 +287,7 @@ export function InstancePreview(props: InstancePreviewProps) {
                     ref={iframeRef}
                     className="preview-frame"
                     src={state.src}
-                    sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts allow-downloads"
+                    sandbox={isElectron() ? undefined : PREVIEW_IFRAME_SANDBOX}
                     allow="clipboard-read; clipboard-write; microphone"
                     onLoad={() => {
                         loadedSrcRef.current = state.src;
