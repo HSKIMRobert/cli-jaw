@@ -1950,6 +1950,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     if (cli === 'agy') {
         agyTranscriptWatcher = startAgyTranscriptWatcher({
             cwd: spawnCwd,
+            prompt: promptForArgs,
             getSessionId: () => ctx.sessionId,
             ctx,
             agentLabel,

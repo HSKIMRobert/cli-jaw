@@ -52,6 +52,49 @@ export function resolveAgyTranscriptPath(cwd: string, sessionId?: string | null)
     return { ok: true, conversationId, transcriptPath };
 }
 
+function promptNeedle(prompt?: string): string {
+    return String(prompt || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+}
+
+function transcriptContainsPrompt(transcriptPath: string, prompt?: string): boolean {
+    const needle = promptNeedle(prompt);
+    if (needle.length < 12) return true;
+    try {
+        const text = fs.readFileSync(transcriptPath, 'utf8').slice(0, 96_000).replace(/\s+/g, ' ');
+        return text.includes(needle);
+    } catch {
+        return false;
+    }
+}
+
+export function resolveRecentAgyTranscriptPath(minMtimeMs: number, prompt?: string): {
+    ok: boolean;
+    conversationId?: string;
+    transcriptPath?: string;
+    reason?: string;
+} {
+    try {
+        if (!fs.existsSync(AGY_BRAIN_ROOT)) return { ok: false, reason: 'brain root not found' };
+        let best: { conversationId: string; transcriptPath: string; mtimeMs: number } | null = null;
+        for (const entry of fs.readdirSync(AGY_BRAIN_ROOT, { withFileTypes: true })) {
+            if (!entry.isDirectory()) continue;
+            const transcriptPath = agyTranscriptPathForConversation(entry.name);
+            let stat: fs.Stats;
+            try { stat = fs.statSync(transcriptPath); }
+            catch { continue; }
+            if (stat.mtimeMs < minMtimeMs) continue;
+            if (!transcriptContainsPrompt(transcriptPath, prompt)) continue;
+            if (!best || stat.mtimeMs > best.mtimeMs) {
+                best = { conversationId: entry.name, transcriptPath, mtimeMs: stat.mtimeMs };
+            }
+        }
+        if (!best) return { ok: false, reason: 'no recent transcript.jsonl' };
+        return { ok: true, conversationId: best.conversationId, transcriptPath: best.transcriptPath };
+    } catch (e) {
+        return { ok: false, reason: (e as Error).message };
+    }
+}
+
 function sanitizeSnippet(text: string, max: number): string {
     const oneLine = text.replace(/\s+/g, ' ').trim();
     if (oneLine.length <= max) return oneLine;
