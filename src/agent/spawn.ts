@@ -52,7 +52,7 @@ import { isJawRuntimeEvent, handleJawRuntimeEvent } from './claude-e-runtime.js'
 import { appendTraceEvent, stampTraceTool, startTraceRun } from '../trace/store.js';
 import { extractAgyConversationId, formatAgyTimeoutMessage, isAgyStaleSessionOutput, isAgyTimeoutOutput } from './agy-runtime.js';
 import { startAgyTranscriptWatcher, type AgyTranscriptWatcherHandle } from './agy-transcript-watcher.js';
-import { appendAssistantTextSegment } from './events/helpers.js';
+import { appendAssistantTextSegment, normalizeAssistantDisplayText } from './events/helpers.js';
 import { listKiroConversationIdsForCwd } from './kiro-auth.js';
 import {
     captureKiroSessionIdAfterExit,
@@ -166,7 +166,7 @@ function emitKiroStreamEvents(
         ctx.kiroHeartbeatSent = false;
         ctx.stallWatchdog?.markProgress();
         if (event.kind === 'assistant_delta') {
-            const segment = event.text;
+            const segment = normalizeAssistantDisplayText(event.text);
             if (!segment) continue;
             if (ctx.liveOutputText !== undefined) {
                 ctx.liveOutputText += segment;
@@ -1301,6 +1301,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             outputTextStarted: false,
             effectiveProvider: profile.id,
             thinkingBuf: '',
+            liveOutputText: '',
             liveScope: effectiveLiveScope,
             parentLiveScope: parentLiveScopeForChild,
             traceRunId,
@@ -1345,12 +1346,14 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                     const delta = String(event.text || '');
                     if (!delta) return;
                     ctx.fullText += delta;
+                    const displayDelta = normalizeAssistantDisplayText(delta);
+                    if (ctx.liveOutputText !== undefined) ctx.liveOutputText += displayDelta;
                     if (!ctx.outputTextStarted) ctx.outputTextStarted = true;
-                    if (ctx.liveScope) appendLiveRunText(ctx.liveScope, delta);
+                    if (ctx.liveScope) appendLiveRunText(ctx.liveScope, displayDelta);
                     broadcast('agent_output', {
                         agentId: agentLabel,
                         cli,
-                        text: delta,
+                        text: displayDelta,
                         ...empTag,
                     }, traceAudience);
                     return;
@@ -1842,7 +1845,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         geminiResultSeen: false,
         ...(opencodeSpawnAudit ? { opencodeSpawnAudit: opencodeSpawnAudit as Record<string, unknown> } : {}),
         ...(agyResumeOffset > 0 ? { agyResumeOffset, agyBytesReceived: 0 } : {}),
-        ...(kiroPlainText || cli === 'agy' ? { liveOutputText: '' } : {}),
+        ...(kiroPlainText || cli === 'agy' || cli === 'pi' ? { liveOutputText: '' } : {}),
         ...(kiroPlainText ? { kiroLastVisibleAt: Date.now(), kiroHeartbeatSent: false } : {}),
     };
     let geminiWatchdog: ReturnType<typeof setTimeout> | null = null;
@@ -1996,7 +1999,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 ctx.agyBytesReceived = (ctx.agyBytesReceived ?? 0) + text.length;
                 if (ctx.agyBytesReceived <= ctx.agyResumeOffset) return;
                 const newStart = text.length - (ctx.agyBytesReceived - ctx.agyResumeOffset);
-                const newText = newStart > 0 ? text.slice(newStart) : text;
+                const newText = normalizeAssistantDisplayText(newStart > 0 ? text.slice(newStart) : text);
                 ctx.agyResumeOffset = 0;
                 if (!newText) return;
                 if (ctx.liveOutputText !== undefined) ctx.liveOutputText += newText;
@@ -2010,13 +2013,14 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 }, traceAudience);
                 return;
             }
-            if (ctx.liveOutputText !== undefined) ctx.liveOutputText += text;
+            const displayText = normalizeAssistantDisplayText(text);
+            if (ctx.liveOutputText !== undefined) ctx.liveOutputText += displayText;
             ctx.outputTextStarted = true;
-            if (ctx.liveScope) appendLiveRunText(ctx.liveScope, text);
+            if (ctx.liveScope) appendLiveRunText(ctx.liveScope, displayText);
             broadcast('agent_output', {
                 agentId: agentLabel,
                 cli,
-                text,
+                text: displayText,
                 ...empTag,
             }, traceAudience);
             return;
@@ -2133,6 +2137,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             }
             const parsed = finalizeKiroFullText(ctx.fullText, ctx.kiroLineBuffer);
             const best = [ctx.liveOutputText, ctx.kiroDisplayedText, parsed]
+                .map((value) => normalizeAssistantDisplayText(value))
                 .map((value) => String(value || '').trim())
                 .filter(Boolean)
                 .sort((a, b) => b.length - a.length)[0];

@@ -83,6 +83,13 @@ export function appendDetail(...parts: Array<string | null | undefined>): string
     return parts.map(p => String(p || '').trim()).filter(Boolean).join('\n');
 }
 
+export function normalizeAssistantDisplayText(text: unknown): string {
+    return String(text || '')
+        .replace(/\\r\\n/g, '\n')
+        .replace(/\\n/g, '\n')
+        .replace(/\\r/g, '\n');
+}
+
 export function formatJsonDetail(label: string, value: unknown): string {
     if (value == null) return '';
     try {
@@ -104,7 +111,7 @@ function appendAssistantStreamText(ctx: SpawnContext, segment: string): void {
 }
 
 export function formatAssistantTextSegment(ctx: SpawnContext, text: unknown): string {
-    const raw = String(text || '');
+    const raw = normalizeAssistantDisplayText(text);
     if (!raw) return '';
     const streamText = assistantStreamText(ctx);
     if (!ctx.outputTextStarted) {
@@ -147,14 +154,14 @@ export function resolveSpawnOutputText(ctx: {
     kiroLineBuffer?: string;
 }): string {
     const raw = ctx.fullText.trim();
-    const live = (ctx.liveOutputText || '').trim();
-    const displayed = (ctx.kiroDisplayedText || '').trim();
+    const live = normalizeAssistantDisplayText(ctx.liveOutputText || '').trim();
+    const displayed = normalizeAssistantDisplayText(ctx.kiroDisplayedText || '').trim();
     const parsedKiro = ctx.kiroDisplayedText !== undefined || ctx.kiroLineBuffer !== undefined
-        ? finalizeKiroFullText(ctx.fullText, ctx.kiroLineBuffer).trim()
+        ? normalizeAssistantDisplayText(finalizeKiroFullText(ctx.fullText, ctx.kiroLineBuffer)).trim()
         : '';
-    const candidates = [displayed, parsedKiro, raw, live].filter(Boolean);
-    if (!candidates.length) return '';
-    return candidates.sort((a, b) => b.length - a.length)[0] ?? '';
+    const displayCandidates = [displayed, live, parsedKiro].filter(Boolean);
+    if (displayCandidates.length) return displayCandidates.sort((a, b) => b.length - a.length)[0] ?? '';
+    return normalizeAssistantDisplayText(raw).trim();
 }
 
 export function extractAssistantText(event: CliEventRecord): string {
