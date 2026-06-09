@@ -11,6 +11,14 @@ asar: true
 asarUnpack:
   - node_modules/node-pty/**/*
 extraResources:
+  - from: sidecar/server
+    to: server
+    filter:
+      - "**/*"
+      - "!**/*.ts"
+      - "!**/*.map"
+      - "!**/test*"
+      - "!**/.cache"
   - from: build/icon.png
     to: icon.png
   - from: build/trayTemplate.png
@@ -28,10 +36,10 @@ mac:
   target:
     - target: dmg
       arch:
-        - universal
+        - arm64
     - target: zip
       arch:
-        - universal
+        - arm64
   identity: null
   gatekeeperAssess: false
   notarize: false
@@ -50,6 +58,7 @@ win:
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+  include: build/installer.nsh
 linux:
   target:
     - AppImage
