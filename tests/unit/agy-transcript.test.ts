@@ -71,16 +71,23 @@ test('AGY-TR-007: transcript watcher retargets when AGY resume emits a new conve
     assert.match(watcherSrc, /currentSessionId\s*=\s*options\.getSessionId\(\)/);
     assert.match(watcherSrc, /currentSessionId !== conversationId/);
     assert.match(watcherSrc, /transcriptPath\s*=\s*null/);
-    assert.match(watcherSrc, /conversationId\s*=\s*resolved\.conversationId/);
+    assert.match(watcherSrc, /conversationId\s*=\s*effectiveResolved\.conversationId/);
 });
 
 test('AGY-TR-008: transcript watcher scans current-turn lines already written before path resolution', () => {
     const watcherSrc = fs.readFileSync(path.join(__dirname, '../../src/agent/agy-transcript-watcher.ts'), 'utf8');
+    const transcriptSrc = fs.readFileSync(path.join(__dirname, '../../src/agent/agy-transcript.ts'), 'utf8');
     assert.doesNotMatch(watcherSrc, /fs\.statSync\(transcriptPath\)\.size/);
     assert.match(watcherSrc, /offset\s*=\s*0/);
     assert.match(watcherSrc, /created_at/);
     assert.match(watcherSrc, /startedAt - 5_000/);
     assert.match(watcherSrc, /resolveAgyTranscriptPath\(options\.cwd, options\.getSessionId\(\)\)/);
+    assert.match(watcherSrc, /resolveRecentAgyTranscriptPath\(startedAt - 5_000, options\.prompt\)/);
+    assert.match(transcriptSrc, /export function resolveRecentAgyTranscriptPath/);
+    assert.match(transcriptSrc, /stat\.mtimeMs < minMtimeMs/);
+    assert.match(transcriptSrc, /transcriptContainsPrompt\(transcriptPath, prompt\)/);
+    const spawnSrc = fs.readFileSync(path.join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
+    assert.match(spawnSrc, /prompt:\s*promptForArgs/);
 });
 
 test('AGY-TR-009: spawn captures AGY session id before final transcript drain', () => {

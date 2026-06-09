@@ -3,6 +3,7 @@ import {
     agyTranscriptStepKey,
     parseTranscriptLine,
     readTranscriptDelta,
+    resolveRecentAgyTranscriptPath,
     resolveAgyTranscriptPath,
 } from './agy-transcript.js';
 
@@ -57,6 +58,7 @@ function applyTranscriptTool(
 
 export function startAgyTranscriptWatcher(options: {
     cwd: string;
+    prompt?: string;
     getSessionId: () => string | null;
     ctx: SpawnContext;
     agentLabel: string;
@@ -81,14 +83,17 @@ export function startAgyTranscriptWatcher(options: {
         }
         if (!transcriptPath) {
             const resolved = resolveAgyTranscriptPath(options.cwd, currentSessionId);
-            if (!resolved.ok || !resolved.transcriptPath) {
+            const effectiveResolved = resolved.ok
+                ? resolved
+                : resolveRecentAgyTranscriptPath(startedAt - 5_000, options.prompt);
+            if (!effectiveResolved.ok || !effectiveResolved.transcriptPath) {
                 if (Date.now() - startedAt > WAIT_PATH_MS) {
-                    console.warn(`[jaw:agy:transcript] gave up waiting (${resolved.reason ?? 'unknown'})`);
+                    console.warn(`[jaw:agy:transcript] gave up waiting (${effectiveResolved.reason ?? resolved.reason ?? 'unknown'})`);
                 }
                 return;
             }
-            transcriptPath = resolved.transcriptPath;
-            conversationId = resolved.conversationId ?? currentSessionId ?? null;
+            transcriptPath = effectiveResolved.transcriptPath;
+            conversationId = effectiveResolved.conversationId ?? currentSessionId ?? null;
             offset = 0;
             console.log(`[jaw:agy:transcript] tailing ${transcriptPath} (current-turn filter from ${new Date(startedAt).toISOString()})`);
         }
@@ -121,8 +126,11 @@ export function startAgyTranscriptWatcher(options: {
             clearInterval(interval);
             if (!transcriptPath) {
                 const resolved = resolveAgyTranscriptPath(options.cwd, options.getSessionId());
-                if (!resolved.ok || !resolved.transcriptPath) return;
-                transcriptPath = resolved.transcriptPath;
+                const effectiveResolved = resolved.ok
+                    ? resolved
+                    : resolveRecentAgyTranscriptPath(startedAt - 5_000, options.prompt);
+                if (!effectiveResolved.ok || !effectiveResolved.transcriptPath) return;
+                transcriptPath = effectiveResolved.transcriptPath;
                 offset = 0;
             }
             try {
