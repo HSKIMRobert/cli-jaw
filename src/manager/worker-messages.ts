@@ -59,14 +59,26 @@ export function findWorkerAssistantText(rows: WorkerMessageRow[], messageId: num
     return text.trim() ? text : '';
 }
 
-export async function fetchWorkerMessageRows(fetchImpl: WorkerFetch, port: number): Promise<WorkerMessageRow[]> {
-    const response = await fetchImpl(`http://127.0.0.1:${port}/api/messages`);
+/** limit > 0 uses the worker's recent-window (?limit=N, ascending — supported by
+ *  legacy servers too); limit 0 keeps the full-history fetch. */
+export async function fetchWorkerMessageRows(fetchImpl: WorkerFetch, port: number, limit = 0): Promise<WorkerMessageRow[]> {
+    const url = `http://127.0.0.1:${port}/api/messages${limit > 0 ? `?limit=${limit}` : ''}`;
+    const response = await fetchImpl(url);
     if (!response.ok) return [];
     return extractWorkerMessageRows(await response.json());
 }
 
+export const WORKER_RECENT_WINDOW = 200;
+
 export async function fetchWorkerAssistantTextById(fetchImpl: WorkerFetch, port: number, messageId: number): Promise<string> {
     if (!Number.isInteger(messageId)) return '';
-    const rows = await fetchWorkerMessageRows(fetchImpl, port);
-    return findWorkerAssistantText(rows, messageId);
+    // Two-stage (devlog 260609, 41 P4-lite): the target id comes from
+    // /api/messages/latest, so the recent window almost always contains it.
+    // Only when 200+ newer rows buried it do we pay for the full history.
+    const recent = await fetchWorkerMessageRows(fetchImpl, port, WORKER_RECENT_WINDOW);
+    const fromRecent = findWorkerAssistantText(recent, messageId);
+    if (fromRecent) return fromRecent;
+    if (recent.some(row => row.id === messageId)) return ''; // found but empty/non-assistant — full fetch won't differ
+    const all = await fetchWorkerMessageRows(fetchImpl, port);
+    return findWorkerAssistantText(all, messageId);
 }

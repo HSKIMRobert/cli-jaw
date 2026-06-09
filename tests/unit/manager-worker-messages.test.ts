@@ -40,7 +40,7 @@ test('worker message helper finds assistant content by id only', () => {
     assert.equal(findWorkerAssistantText(rows, 11), 'assistant text');
 });
 
-test('worker message fetch fallback reads assistant text from full message history', async () => {
+test('worker message fetch fallback reads assistant text from the recent window first', async () => {
     const calls: string[] = [];
     const fetchImpl = async (url: string) => {
         calls.push(url);
@@ -57,5 +57,32 @@ test('worker message fetch fallback reads assistant text from full message histo
     };
 
     assert.equal(await fetchWorkerAssistantTextById(fetchImpl, 3468, 41), 'final answer body');
-    assert.deepEqual(calls, ['http://127.0.0.1:3468/api/messages']);
+    // 41 P4-lite: bounded recent-window fetch — no full-history call when the id is found
+    assert.deepEqual(calls, ['http://127.0.0.1:3468/api/messages?limit=200']);
+});
+
+test('worker message fetch falls back to full history when the id is buried past the window', async () => {
+    const calls: string[] = [];
+    const fetchImpl = async (url: string) => {
+        calls.push(url);
+        const isWindowed = url.includes('?limit=');
+        return {
+            ok: true,
+            json: async () => ({
+                ok: true,
+                data: isWindowed
+                    ? [{ id: 900, role: 'user', content: 'newer noise' }]
+                    : [
+                        { id: 41, role: 'assistant', content: 'old buried answer' },
+                        { id: 900, role: 'user', content: 'newer noise' },
+                    ],
+            }),
+        };
+    };
+
+    assert.equal(await fetchWorkerAssistantTextById(fetchImpl, 3468, 41), 'old buried answer');
+    assert.deepEqual(calls, [
+        'http://127.0.0.1:3468/api/messages?limit=200',
+        'http://127.0.0.1:3468/api/messages',
+    ]);
 });
