@@ -144,6 +144,42 @@ test('Fix C2: kill helpers also clear worker registry on user stop (so submitMes
     assert.ok(killAll.includes('clearWorkerSlotsOnStop'), 'killAllAgents must call clearWorkerSlotsOnStop on user stop');
 });
 
+test('Fix C3: stop and steer clear stale main live-run snapshots synchronously', async () => {
+    const spawn = await import('../../src/agent/spawn.ts');
+    const liveRun = await import('../../src/agent/live-run-state.ts');
+
+    liveRun.beginLiveRun('unit-stop-live-run', 'agy');
+    liveRun.appendLiveRunText('unit-stop-live-run', 'intermediate output');
+    spawn.setCurrentMainMeta({ origin: 'web', scopeId: 'unit-stop-live-run' });
+
+    spawn.killActiveAgent('steer');
+
+    assert.equal(liveRun.getLiveRun('unit-stop-live-run').running, false);
+    assert.equal(liveRun.getLiveRun('unit-stop-live-run').text, '');
+
+    liveRun.beginLiveRun('unit-stop-live-run', 'agy');
+    spawn.killAllAgents('user');
+
+    assert.equal(liveRun.getLiveRun('unit-stop-live-run').running, false);
+    spawn.setCurrentMainMeta(null);
+});
+
+test('Fix C3: non-stop kill reasons do not clear main live-run snapshots', async () => {
+    const spawn = await import('../../src/agent/spawn.ts');
+    const liveRun = await import('../../src/agent/live-run-state.ts');
+
+    liveRun.beginLiveRun('unit-nonstop-live-run', 'agy');
+    liveRun.appendLiveRunText('unit-nonstop-live-run', 'still running');
+    spawn.setCurrentMainMeta({ origin: 'web', scopeId: 'unit-nonstop-live-run' });
+
+    spawn.killActiveAgent('test');
+
+    assert.equal(liveRun.getLiveRun('unit-nonstop-live-run').running, true);
+    assert.equal(liveRun.getLiveRun('unit-nonstop-live-run').text, 'still running');
+    liveRun.clearLiveRun('unit-nonstop-live-run');
+    spawn.setCurrentMainMeta(null);
+});
+
 test('Fix B2: enqueueMessage returns the queue id and gateway threads it into SubmitResult.queuedId', () => {
     const enqueueIdx = queueSrc.indexOf('function enqueueMessage');
     const enqueue = queueSrc.slice(enqueueIdx, enqueueIdx + 1200);
