@@ -91,7 +91,7 @@ cli-jaw/
 │   │   ├── kiro-models.ts    ← Kiro live model inventory (KiroModelEntry, KiroModelInventory, parseKiroModelListJson, fetchKiroModelInventory) (98L)
 │   │   ├── kiro-runtime.ts   ← Kiro plain-text stdout parser + session capture (isKiroPlainTextCli, processKiroStdoutChunk, flushKiroStdoutContext, appendKiroStdoutChunk, captureKiroSessionIdAfterExit, stripKiroAnsi, parseKiroAssistantText, isKiroStaleSessionOutput, isKiroResumeDegradedOutput, KiroStreamEvent, KiroStdoutContext) (377L)
 │   │   ├── cursor-runtime.ts ← Cursor CLI event adapter + session management (239L) ✨
-│   │   ├── agy-runtime.ts    ← AGY timeout stdout 판별/메시지 정규화 + stdout/log conversation id 추출 (26L)
+│   │   ├── agy-runtime.ts    ← AGY timeout stdout 판별/메시지 정규화 + stdout/log conversation id 추출 + quiet completion/interim progress/replay stripping helper (101L)
 │   │   ├── claude-e-runtime.ts ← `jaw_runtime` helper event를 legacy `agent:claude-i:*` broadcast로 변환 (44L)
 │   │   ├── alert-escalation.ts ← alert escalation event helper (86L)
 │   │   ├── cli-helpers.ts    ← Claude-like CLI 판별 helper (7L)
@@ -99,7 +99,7 @@ cli-jaw/
 │   │   ├── codex-app-events.ts ← Codex App turn/tool/message event adapter (291L)
 │   │   ├── error-classifier.ts ← stderr/result 기반 에러 분류 헬퍼 (52L)
 │   │   ├── grok-trace-backfill.ts ← Grok trace backfill helper (167L) ✨
-│   │   ├── live-run-state.ts ← active run snapshot / hydrate helper (64L)
+│   │   ├── live-run-state.ts ← active run snapshot / hydrate helper (69L)
 │   │   ├── memory-flush-controller.ts ← assistant 완료 후 메모리 flush lock + trigger 제어 (185L)
 │   │   ├── opencode-diagnostics.ts ← OpenCode permissions/env audit + raw event 진단 헬퍼 (156L)
 │   │   ├── session-persistence.ts ← main-session persistence policy + ownership generation (74L)
