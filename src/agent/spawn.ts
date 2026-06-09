@@ -52,12 +52,11 @@ import { isJawRuntimeEvent, handleJawRuntimeEvent } from './claude-e-runtime.js'
 import { appendTraceEvent, stampTraceTool, startTraceRun } from '../trace/store.js';
 import {
     AGY_COMPLETE_KILL_REASON,
-    AGY_PRINT_QUIET_COMPLETION_MS,
     extractAgyConversationId,
     formatAgyTimeoutMessage,
+    getAgyQuietCompletionDelayMs,
     isAgyStaleSessionOutput,
     isAgyTimeoutOutput,
-    shouldCompleteAgyPrintRun,
     stripAgyResumeReplayPrefix,
     stripAgyTrailingTimeoutOutput,
 } from './agy-runtime.js';
@@ -1878,11 +1877,12 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     const scheduleAgyQuietCompletion = () => {
         if (cli !== 'agy') return;
         clearAgyQuietCompletionTimer();
-        if (!shouldCompleteAgyPrintRun(ctx)) return;
+        const quietCompletionDelayMs = getAgyQuietCompletionDelayMs(ctx);
+        if (quietCompletionDelayMs === null) return;
         agyQuietCompletionTimer = setTimeout(() => {
             agyQuietCompletionTimer = null;
-            if (!child.pid || !shouldCompleteAgyPrintRun(ctx)) return;
-            console.log(`[jaw:agy] output quiet for ${AGY_PRINT_QUIET_COMPLETION_MS}ms — completing print run`);
+            if (!child.pid || getAgyQuietCompletionDelayMs(ctx) === null) return;
+            console.log(`[jaw:agy] output quiet for ${quietCompletionDelayMs}ms — completing print run`);
             killReasons.set(child.pid, AGY_COMPLETE_KILL_REASON);
             try {
                 killProcessTree(child.pid, 'SIGTERM');
@@ -1894,7 +1894,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             } catch (e) {
                 console.warn('[jaw:agy] quiet completion kill failed:', (e as Error).message);
             }
-        }, AGY_PRINT_QUIET_COMPLETION_MS);
+        }, quietCompletionDelayMs);
     };
 
     // ─── Subprocess stall watchdog (Phase 1: #178 OAuth2 stall recovery) ───
@@ -2225,7 +2225,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             }
         }
         const agyTimedOut = cli === 'agy' && isAgyTimeoutOutput(ctx.fullText);
-        const effectiveExitCode = agyCompletedByQuietOutput ? 0 : agyTimedOut ? 124 : code;
+        const effectiveExitCode = agyCompletedByQuietOutput ? 0 : agyTimedOut ? 124 : ctx.stallReason ? 124 : code;
         if (agyTimedOut) {
             const message = formatAgyTimeoutMessage(ctx.fullText);
             ctx.stderrBuf = ctx.stderrBuf ? `${ctx.stderrBuf}\n${message}` : message;

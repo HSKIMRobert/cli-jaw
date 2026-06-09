@@ -65,3 +65,11 @@ test('AGY-TR-005: spawn wires agy transcript watcher', () => {
     assert.match(spawnSrc, /startAgyTranscriptWatcher/);
     assert.match(spawnSrc, /agyTranscriptWatcher\?\.stop\(\)/);
 });
+
+test('AGY-TR-007: transcript watcher retargets when AGY resume emits a new conversation id', () => {
+    const watcherSrc = fs.readFileSync(path.join(__dirname, '../../src/agent/agy-transcript-watcher.ts'), 'utf8');
+    assert.match(watcherSrc, /currentSessionId\s*=\s*options\.getSessionId\(\)/);
+    assert.match(watcherSrc, /currentSessionId !== conversationId/);
+    assert.match(watcherSrc, /transcriptPath\s*=\s*null/);
+    assert.match(watcherSrc, /conversationId\s*=\s*resolved\.conversationId/);
+});

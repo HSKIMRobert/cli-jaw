@@ -5,9 +5,12 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
     AGY_COMPLETE_KILL_REASON,
+    AGY_PRINT_QUIET_COMPLETION_MS,
     extractAgyConversationId,
     formatAgyTimeoutMessage,
+    getAgyQuietCompletionDelayMs,
     hasRunningAgyTranscriptTool,
+    isAgyInterimProgressOutput,
     isAgyTimeoutOutput,
     shouldCompleteAgyPrintRun,
     stripAgyResumeReplayPrefix,
@@ -54,7 +57,7 @@ test('AGY-RT-003: extracts exact native AGY conversation ids from resume hints',
 test('AGY-RT-004: AGY timeout stdout is routed to lifecycle as an error', () => {
     const spawnSrc = readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
     assert.match(spawnSrc, /isAgyTimeoutOutput\(ctx\.fullText\)/);
-    assert.match(spawnSrc, /effectiveExitCode\s*=\s*agyCompletedByQuietOutput\s*\?\s*0\s*:\s*agyTimedOut\s*\?\s*124\s*:\s*code/);
+    assert.match(spawnSrc, /effectiveExitCode\s*=\s*agyCompletedByQuietOutput\s*\?\s*0\s*:\s*agyTimedOut\s*\?\s*124\s*:\s*ctx\.stallReason\s*\?\s*124\s*:\s*code/);
     assert.match(spawnSrc, /ctx\.stderrBuf\s*=/);
     assert.match(spawnSrc, /ctx\.fullText\s*=\s*''/);
     assert.match(spawnSrc, /detectSmokeResponse\(ctx\.fullText,\s*ctx\.toolLog,\s*effectiveExitCode,\s*cli\)/);
@@ -132,7 +135,7 @@ test('AGY-RT-010: AGY quiet completion is mapped to lifecycle success, not inter
     assert.match(spawnSrc, new RegExp(`stdKillReason === ['"]${AGY_COMPLETE_KILL_REASON}['"]|stdKillReason === AGY_COMPLETE_KILL_REASON`));
     assert.match(spawnSrc, /wasKilled\s*=\s*!!stdKillReason\s*&&\s*!agyCompletedByQuietOutput/);
     assert.match(spawnSrc, /effectiveExitCode\s*=\s*agyCompletedByQuietOutput\s*\?\s*0\s*:/);
-    assert.match(spawnSrc, /shouldCompleteAgyPrintRun\(ctx\)/);
+    assert.match(spawnSrc, /getAgyQuietCompletionDelayMs\(ctx\)/);
 });
 
 test('AGY-RT-011: AGY timeout suffix is stripped without masking timeout-only output', () => {
@@ -173,4 +176,36 @@ test('AGY-RT-013: AGY resume replay prefix is stripped only when new output rema
     const spawnSrc = readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
     assert.match(spawnSrc, /getLatestAssistantContentForAgyResume/);
     assert.match(spawnSrc, /stripAgyResumeReplayPrefix\(ctx\.fullText,\s*agyResumeReplayPrefix\)/);
+});
+
+test('AGY-RT-014: AGY interim progress output does not trigger quiet completion', () => {
+    const englishProgress = 'I will search the git log to identify recent changes related to AGY completion hardening.';
+    const koreanProgress = 'Neo-Brutalism 웹 목업을 세부페이지 에셋 포함해서 만들게요! 먼저 이미지 서버 상태 확인하고 에셋 생성부터 시작합니다.';
+    const multilineProgress = [
+        'I need to search the related commits to understand the completion hardening changes.',
+        'I will examine the git commits one by one to extract exact details of the completion hardening. First, checking `85c7344b`, `48455201`, `f1cda491`, `ea6c5a87`.',
+    ].join('\n');
+    assert.equal(isAgyInterimProgressOutput(englishProgress), true);
+    assert.equal(isAgyInterimProgressOutput(koreanProgress), true);
+    assert.equal(isAgyInterimProgressOutput(multilineProgress), true);
+    assert.equal(getAgyQuietCompletionDelayMs({
+        outputTextStarted: true,
+        liveOutputText: englishProgress,
+        fullText: englishProgress,
+        toolLog: [],
+    }), null);
+    assert.equal(getAgyQuietCompletionDelayMs({
+        outputTextStarted: true,
+        liveOutputText: '최종 답변입니다.\nFINAL_SENTINEL',
+        fullText: '최종 답변입니다.\nFINAL_SENTINEL',
+        toolLog: [],
+    }), AGY_PRINT_QUIET_COMPLETION_MS);
+    assert.equal(getAgyQuietCompletionDelayMs({
+        outputTextStarted: true,
+        liveOutputText: englishProgress,
+        fullText: englishProgress,
+        toolLog: [{ icon: '🔧', label: 'cmd', toolType: 'tool', stepRef: 'agy:transcript:1:RUN_COMMAND', status: 'running' }],
+    }), null);
+    const spawnSrc = readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
+    assert.match(spawnSrc, /getAgyQuietCompletionDelayMs\(ctx\)/);
 });

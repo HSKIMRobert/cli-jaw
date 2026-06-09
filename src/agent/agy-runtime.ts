@@ -36,6 +36,16 @@ export function stripAgyResumeReplayPrefix(text: string, previousAssistantText: 
     return { text: rest, stripped: true };
 }
 
+export function isAgyInterimProgressOutput(text: string): boolean {
+    const value = String(text || '').trim();
+    if (!value || value.length > 1_000) return false;
+    if (value.split('\n').filter(line => line.trim()).length > 5) return false;
+    return /^(?:I\s+(?:will|am going to|need to|should)\b|I'll\b|Let me\b)/i.test(value)
+        || /\b(?:I\s+will|I\s+need\s+to|I'll|Let me|First,\s+checking)\b/i.test(value)
+        || /(?:먼저|이제|다음으로|계속)\s*.*(?:확인|검색|읽|살펴|조사|실행|생성|시작|수정|만들|보겠|하겠|합니다|할게)/.test(value)
+        || /(?:확인하고|검색하고|읽고|살펴보고|조사하고|실행하고|생성하고|수정하고|만들고)\s*(?:진행|시작|하겠|할게|합니다)/.test(value);
+}
+
 export function hasRunningAgyTranscriptTool(toolLog: Pick<ToolEntry, 'status' | 'stepRef'>[]): boolean {
     return toolLog.some((tool) => {
         if (!tool.stepRef?.startsWith('agy:transcript:')) return false;
@@ -49,6 +59,13 @@ export function shouldCompleteAgyPrintRun(ctx: Pick<SpawnContext, 'outputTextSta
     if (!visibleText) return false;
     if (isAgyTimeoutOutput(visibleText)) return false;
     return !hasRunningAgyTranscriptTool(ctx.toolLog);
+}
+
+export function getAgyQuietCompletionDelayMs(ctx: Pick<SpawnContext, 'outputTextStarted' | 'liveOutputText' | 'fullText' | 'toolLog'>): number | null {
+    if (!shouldCompleteAgyPrintRun(ctx)) return null;
+    const visibleText = String(ctx.liveOutputText || ctx.fullText || '').trim();
+    if (isAgyInterimProgressOutput(visibleText)) return null;
+    return AGY_PRINT_QUIET_COMPLETION_MS;
 }
 
 export { resolveAgyConversationIdFromCache, agyTranscriptPathForConversation } from './agy-transcript.js';
