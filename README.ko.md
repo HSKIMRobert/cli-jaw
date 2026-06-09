@@ -78,6 +78,47 @@ wsl.exe -d Ubuntu -- bash -lc "jaw dashboard"
 </details>
 
 <details>
+<summary><b>Fresh-machine evidence</b> — maintainer release check</summary>
+
+설치 스크립트나 릴리스 설치 경로를 바꾸기 전에는 깨끗한 VM에서 이 절차를 실행하세요. collector는 환경 스냅샷, installer 로그, 실제 실행된 collector/installer/verifier 스크립트와 SHA-256 해시, verifier 로그, 새 shell PATH probe를 `~/cli-jaw-fresh-install-evidence-*`에 저장합니다.
+
+```bash
+# macOS Terminal
+COLLECTOR=/tmp/cli-jaw-collect-fresh-install-evidence.sh
+curl -fsSL https://raw.githubusercontent.com/lidge-jun/cli-jaw/master/scripts/collect-fresh-install-evidence.sh -o "$COLLECTOR"
+bash "$COLLECTOR" --target macos
+
+# Ubuntu inside WSL
+COLLECTOR=/tmp/cli-jaw-collect-fresh-install-evidence.sh
+curl -fsSL https://raw.githubusercontent.com/lidge-jun/cli-jaw/master/scripts/collect-fresh-install-evidence.sh -o "$COLLECTOR"
+bash "$COLLECTOR" --target wsl
+```
+
+Windows PowerShell에서는 지원되는 WSL 경로로 실행하세요:
+
+```powershell
+wsl.exe -d Ubuntu -- bash -lc 'COLLECTOR=/tmp/cli-jaw-collect-fresh-install-evidence.sh; curl -fsSL https://raw.githubusercontent.com/lidge-jun/cli-jaw/master/scripts/collect-fresh-install-evidence.sh -o "$COLLECTOR"; bash "$COLLECTOR" --target wsl'
+```
+
+각 evidence 디렉터리를 릴리스 증거로 쓰기 전에 audit하세요:
+
+```bash
+EVIDENCE_DIR="$(ls -dt ~/cli-jaw-fresh-install-evidence-* | head -1)"
+AUDITOR="$(npm root -g)/cli-jaw/scripts/audit-fresh-install-evidence.mjs"
+node "$AUDITOR" "$EVIDENCE_DIR" --target macos
+node "$AUDITOR" "$EVIDENCE_DIR" --target wsl
+```
+
+릴리스 전 matrix gate에는 macOS와 WSL evidence를 모두 넘깁니다:
+
+```bash
+GATE="$(npm root -g)/cli-jaw/scripts/verify-release-evidence.mjs"
+node "$GATE" --macos /path/to/macos-evidence --wsl /path/to/wsl-evidence
+```
+
+</details>
+
+<details>
 <summary><b>Docker</b></summary>
 
 ```bash
@@ -108,6 +149,16 @@ CLI-JAW는 여러분이 이미 사용하는 AI 코딩 CLI — Pi, Antigravity, A
 
 브라우저 탭보다 네이티브 창이 편하다면 **Electron 데스크톱 셸**을 사용할 수 있습니다. 데스크톱 앱은 manager dashboard를 부팅하고 내부 `jaw dashboard serve` 프로세스를 감독합니다. 패키징된 빌드는 Node.js sidecar 서버를 포함하므로, 전역 터미널 설치보다 앱에 번들된 `jaw` shim을 먼저 사용할 수 있습니다.
 
+최종 사용자는 **GitHub Releases**에서 데스크톱 아티팩트를 받으면 됩니다:
+
+- **macOS**: DMG를 다운로드하고 CLI-JAW를 Applications에 드래그한 뒤 실행합니다. 현재 빌드는 unsigned / un-notarized 상태라 첫 실행 시 Finder에서 우클릭 → **Open**이 필요할 수 있습니다.
+- **Windows**: NSIS installer를 다운로드합니다. 같은 sidecar 서버가 포함되어 있고, 패키징된 `jaw` shim을 PATH에 추가합니다.
+- **Linux**: AppImage를 다운로드하고 실행 권한을 준 뒤 실행합니다.
+
+첫 실행 후 **Install CLI command** 프롬프트를 승인하면 번들 sidecar 기반 터미널 `jaw` 명령이 생성됩니다. 건너뛰었다면 나중에 tray menu의 **Install CLI to Terminal** 항목을 사용하세요. 이 경로는 패키징된 앱과 터미널 shim에 전역 npm 설치를 요구하지 않습니다.
+
+개발자 빌드:
+
 ```bash
 # 저장소 루트에서 1회
 npm install && npm --prefix electron install
@@ -116,7 +167,7 @@ npm run electron:dev          # hot reload 개발
 npm run electron:dist:mac     # bundled sidecar 포함 macOS arm64 .dmg + .zip 빌드
 ```
 
-패키징 산출물은 `electron/dist/`에 생성됩니다. GitHub Actions desktop release workflow는 release publish 또는 manual dispatch에서 macOS arm64 DMG/ZIP, Windows x64 NSIS/ZIP, Linux AppImage 아티팩트를 빌드합니다. `better-sqlite3` 같은 네이티브 모듈은 manager/sidecar 서버 안에 머물고 Electron main process는 직접 import하지 않습니다. 현재 빌드는 **unsigned / un-notarized** 상태이므로 macOS 첫 실행 시 Gatekeeper에서 우클릭 → **Open**이 필요합니다.
+패키징 산출물은 `electron/dist/`에 생성됩니다. GitHub Actions desktop release workflow는 release publish 또는 manual dispatch에서 macOS arm64 DMG/ZIP, Windows x64 NSIS/ZIP, Linux AppImage 아티팩트를 빌드합니다. `better-sqlite3` 같은 네이티브 모듈은 manager/sidecar 서버 안에 머물고 Electron main process는 직접 import하지 않습니다.
 
 ---
 
