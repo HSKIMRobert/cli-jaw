@@ -199,6 +199,22 @@ async function cachedFullScan(): Promise<DashboardScanResult> {
         : instanceRegistry.forceRefresh();
 }
 
+// Phase 4b (devlog 260609, 41 P3): peer dashboard scan is up to 14 sequential
+// ports × 450ms in the request path — cache with a 30s TTL. Peers change
+// rarely; ?fresh=1 resets the TTL alongside the instance refresh.
+let peerCache: DashboardInstance[] = [];
+let peerCacheAt = 0;
+const PEER_CACHE_TTL_MS = 30_000;
+
+async function cachedPeerDashboards(): Promise<DashboardInstance[]> {
+    if (Date.now() - peerCacheAt < PEER_CACHE_TTL_MS) return peerCache;
+    try {
+        peerCache = await scanPeerDashboards(port);
+        peerCacheAt = Date.now();
+    } catch { /* keep the previous cache on scan failure */ }
+    return peerCache;
+}
+
 app.use(helmet({
     contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: false,
@@ -437,6 +453,7 @@ app.get('/api/dashboard/instances', async (req, res) => {
                 result.instances.filter(instance => instance.ok).map(instance => instance.port)
             );
         } else if (wantsFresh) {
+            peerCacheAt = 0; // fresh refreshes the peer scan too (41 P3)
             result = await instanceRegistry.forceRefresh();
         } else {
             // Phase 4a: cached snapshot (≤10s stale by design — 09 §2 P1);
@@ -448,7 +465,7 @@ app.get('/api/dashboard/instances', async (req, res) => {
 
         let peerDashboards: DashboardInstance[] = [];
         try {
-            const peers = await scanPeerDashboards(port);
+            const peers = await cachedPeerDashboards();
             peerDashboards = peers.map(peer => lifecycle.decorateInstance(peer, null, true));
         } catch { /* peer scan is best-effort */ }
 
@@ -469,7 +486,13 @@ app.get('/api/dashboard/instances/:port', async (req, res) => {
     }
     try {
         if (isPeerDashboard) {
-            const peers = await scanPeerDashboards(port);
+            // Cache first; a miss falls through to a live scan so a just-started
+            // peer is still discoverable before the TTL rolls over (41 P3).
+            let peers = await cachedPeerDashboards();
+            if (!peers.some(p => p.port === portValue)) {
+                peerCacheAt = 0;
+                peers = await cachedPeerDashboards();
+            }
             const peer = peers.find(p => p.port === portValue);
             if (!peer) {
                 res.json({ ok: true, instance: lifecycle.decorateInstance({ port: portValue, status: 'offline', ok: false, lastCheckedAt: new Date().toISOString() } as DashboardInstance, null, true), platform: process.platform });
