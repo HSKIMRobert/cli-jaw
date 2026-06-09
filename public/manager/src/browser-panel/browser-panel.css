@@ -179,21 +179,24 @@
     flex: 1 1 0;
     min-width: 0;
     min-height: 0;
+    position: relative;
     overflow: hidden;
     background: white;
 }
 .browser-webview-host.is-active {
-    display: flex;
+    display: block;
 }
 .browser-webview {
-    flex: 1 1 auto;
-    display: flex;
+    position: absolute;
+    inset: 0;
+    display: block;
     width: 100%;
     height: 100%;
     min-width: 0;
     min-height: 0;
     border: 0;
     background: white;
+    contain: strict;
 }
 
 .browser-external-surface {

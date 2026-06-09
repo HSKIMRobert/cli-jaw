@@ -377,9 +377,13 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(browserCss.includes('.browser-tab-close'), 'browser tabs must expose visible close controls');
     assert.ok(browserCss.includes('.browser-webview-stack'), 'browser webview stack must preserve tab surfaces inside the remaining height');
     assert.ok(browserCss.includes('.browser-webview-host.is-active'), 'only the active browser tab host should be visible');
-    assert.ok(browserCss.includes('.browser-webview-host.is-active {\n    display: flex;'), 'active browser webview host must own remaining height with flex layout');
-    assert.ok(!browserCss.includes('position: absolute'), 'Electron webview must not be taken out of flex layout because its guest iframe sizing depends on the webview container');
-    assert.ok(browserCss.includes('display: flex'), 'Electron webview must keep its default flex display so the internal guest iframe fills the container');
+    assert.ok(browserCss.includes('.browser-webview-host {\n    display: none;'), 'inactive browser webview hosts must stay hidden');
+    assert.ok(browserCss.includes('position: relative;'), 'active browser webview host must anchor the embedded guest surface');
+    assert.ok(browserCss.includes('.browser-webview-host.is-active {\n    display: block;'), 'active browser webview host must avoid flex-container rendering that can leave Electron webviews blank');
+    assert.ok(browserCss.includes('.browser-webview {\n    position: absolute;'), 'Electron webview must fill the host as a composited replaced element');
+    assert.ok(browserCss.includes('inset: 0;'), 'Electron webview must be pinned to all host edges');
+    assert.ok(browserCss.includes('display: block;'), 'Electron webview must render as a block replaced element, not a flex container');
+    assert.ok(browserCss.includes('contain: strict;'), 'Electron webview compositing should remain isolated from surrounding panel layout');
 });
 
 test('Electron diff panel resolves selected instance roots and exposes configurable modes', () => {
