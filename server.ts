@@ -3,7 +3,7 @@
 
 import express from 'express';
 import helmet from 'helmet';
-import { log, drainLogRing } from './src/core/logger.js';
+import { log } from './src/core/logger.js';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import { fileURLToPath } from 'url';
@@ -25,11 +25,12 @@ import { registerInstanceRoutes } from './src/routes/instance.js';
 import { registerChatSessionRoutes } from './src/routes/chat-sessions.js';
 import { registerStaticRoutes } from './src/routes/static.js';
 import { registerMessageRoutes } from './src/routes/messages.js';
+import { registerSystemRoutes } from './src/routes/system.js';
+import { registerAgentControlRoutes } from './src/routes/agent-control.js';
 import { registerGoalRunRoutes } from './src/routes/goal-run.js';
 import { registerMemoryRoutes } from './src/routes/memory.js';
 import { registerSettingsRoutes } from './src/routes/settings.js';
 import { registerMessagingRoutes } from './src/routes/messaging.js';
-import { buildChannelHealthSnapshot } from './src/messaging/channel-health.js';
 import { registerAvatarRoutes } from './src/routes/avatar.js';
 import { registerTraceRoutes } from './src/routes/traces.js';
 import { registerJawCeoRoutes } from './src/routes/jaw-ceo.js';
@@ -45,7 +46,6 @@ import {
 // ─── src/ modules ────────────────────────────────────
 
 
-import { ok } from './src/http/response.js';
 
 import { errorHandler } from './src/http/error-middleware.js';
 
@@ -61,10 +61,9 @@ import {
     PROMPTS_DIR, DB_PATH,
     settings, loadSettings, saveSettings,
     ensureDirs, runMigration,
-    APP_VERSION,
 } from './src/core/config.js';
 import {
-    db, getSession, getLatestAssistantMessage, closeDb,
+    db, getLatestAssistantMessage, closeDb,
     clearAllEmployeeSessions,
 } from './src/core/db.js';
 import { openUrlInBrowser } from './src/core/browser-open.js';
@@ -85,7 +84,7 @@ import { resolveOrcScope } from './src/orchestrator/scope.js';
 import { submitMessage } from './src/orchestrator/gateway.js';
 
 import { resolveRequestLocale } from './src/http/locale.js';
-import { clearSessionState, applySettingsPatch } from './src/core/session-ops.js';
+import { applySettingsPatch } from './src/core/session-ops.js';
 import { makeWebCommandCtx } from './src/cli/web-command-ctx.js';
 
 import './src/discord/bot.js'; // side-effect: registers discord transport
@@ -373,56 +372,9 @@ wss.on('connection', (ws) => {
 });
 
 // ─── API Routes ──────────────────────────────────────
-
-function getRuntimeSnapshot() {
-    const cli = settings["cli"] || null;
-    const model = cli ? getCliModelAndEffort(cli, settings).model : 'default';
-
-    return {
-        uptimeSec: Math.floor(process.uptime()),
-        activeAgent: isAgentBusy(),
-        queuePending: messageQueue.length,
-        cli,
-        model,
-    };
-}
-
-// clearSessionState/resetSessionOnly/applySettingsPatch → src/core/session-ops.ts
-// resolveRequestLocale → src/http/locale.ts, makeWebCommandCtx → src/cli/web-command-ctx.ts
-// (Phase 2 extraction — devlog 260609, 20 §3.1)
-
-app.get('/api/health', (_req, res) => res.json({
-    ok: true,
-    version: APP_VERSION,
-    uptime: process.uptime(),
-    channels: buildChannelHealthSnapshot(),
-}));
-app.get('/api/session', (_, res) => ok(res, getSession(), getSession() as Record<string, unknown> | undefined));
-
-// Instance lock/unlock → src/routes/instance.ts (Phase 2 extraction)
-// Messages read API → src/routes/messages.ts (Phase 2 extraction)
-
-// Chat Sessions API → src/routes/chat-sessions.ts (Phase 2 extraction)
-
-app.get('/api/runtime', (req, res) => {
-    if (req.query["logs"] === 'tail') {
-        const lines = drainLogRing();
-        res.json({ ok: true, lines });
-        return;
-    }
-    ok(res, getRuntimeSnapshot(), getRuntimeSnapshot());
-});
-
-// Auth token endpoint — Sec-Fetch-Site guard blocks cross-origin XSS token theft
-// Browser-enforced header: cannot be set/spoofed by JS, absent from CLI/curl (passes through)
-app.get('/api/auth/token', (req, res) => {
-    const site = req.headers['sec-fetch-site'];
-    if (site && site !== 'same-origin' && site !== 'none') {
-        res.status(403).json({ error: 'cross-origin token request blocked' });
-        return;
-    }
-    res.json({ token: JAW_AUTH_TOKEN });
-});
+// Phase 2 extraction (devlog 260609, 20): inline handlers/helpers moved to
+// src/routes/{system,instance,messages,chat-sessions,static,agent-control}.ts,
+// src/http/locale.ts, src/core/session-ops.ts, src/cli/web-command-ctx.ts.
 
 app.post('/api/command', requireAuth, async (req, res) => {
     try {
@@ -514,22 +466,7 @@ app.post('/api/message', requireAuth, async (req, res) => {
     res.json({ ok: true, ...result });
 });
 
-app.post('/api/stop', requireAuth, (_req, res) => {
-    const killed = killAllAgents('api');
-    ok(res, { killed });
-});
-
-// UI-only screen clear — broadcasts to all clients but does NOT delete messages
-app.post('/api/clear', requireAuth, (_, res) => {
-    broadcast('clear', {});
-    ok(res, { uiOnly: true });
-});
-
-// Explicit session reset — deletes messages (used by /reset confirm, cli-jaw reset)
-app.post('/api/session/reset', requireAuth, (_, res) => {
-    clearSessionState();
-    ok(res, null);
-});
+// stop/clear/session-reset → src/routes/agent-control.ts (Phase 2 extraction)
 
 // ─── Route modules ───────────────────────────────────
 registerEmployeeRoutes(app, requireAuth);
@@ -543,6 +480,8 @@ registerEventsRoutes(app, requireAuth);
 registerInstanceRoutes(app);
 registerChatSessionRoutes(app);
 registerMessageRoutes(app);
+registerSystemRoutes(app, { jawAuthToken: JAW_AUTH_TOKEN });
+registerAgentControlRoutes(app, requireAuth);
 registerGoalRunRoutes(app, requireAuth);
 registerMemoryRoutes(app, requireAuth);
 registerSettingsRoutes(app, requireAuth, applySettingsPatch, projectRoot);
