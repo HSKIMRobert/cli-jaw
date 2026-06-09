@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { createServer } from 'node:net';
 import type { ChildProcess } from 'node:child_process';
 import { findJawBinary, spawnJawDashboard, gracefulShutdown } from './lib/jaw-spawn.js';
+import { promptInstallCli } from './lib/install-cli.js';
 import {
   createTray, isKeepRunning, destroyTray,
   updateServerStatus, notifyServerCrash, clearTrayBadge,
@@ -221,6 +222,7 @@ if (!gotLock) {
 
   app.whenReady().then(async () => {
     await bootstrapOnce();
+    promptInstallCli().catch(() => {});
     if (!metricsCollector) {
       try {
         metricsCollector = startAppMetricsCollector();

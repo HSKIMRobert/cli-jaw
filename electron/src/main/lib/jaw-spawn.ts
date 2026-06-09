@@ -124,6 +124,15 @@ export async function findJawBinary(): Promise<FindResult> {
   const searched: string[] = [];
   const seen = new Set<string>();
 
+  const electron = await import('electron');
+  if (electron.app.isPackaged) {
+    const sidecarBin = process.platform === 'win32'
+      ? join(process.resourcesPath, 'server', 'bin', 'jaw.cmd')
+      : join(process.resourcesPath, 'server', 'bin', 'jaw');
+    const found = addCandidate(sidecarBin, searched, seen, 'bundled sidecar');
+    if (found) return { path: found, searched };
+  }
+
   if (process.env.JAW_BIN) {
     const found = addCandidate(process.env.JAW_BIN, searched, seen, `$JAW_BIN=${process.env.JAW_BIN}`);
     if (found) return { path: found, searched };
@@ -154,10 +163,12 @@ export function spawnJawDashboard(
   binary: string,
   opts: SpawnOptions,
 ): ChildProcess {
+  const useShell = process.platform === 'win32' && binary.endsWith('.cmd');
   const child = spawn(binary, ['dashboard', 'serve', '--port', String(opts.port)], {
     stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env, ...(opts.env ?? {}) },
     detached: false,
+    ...(useShell ? { shell: true } : {}),
   });
   child.stdout?.on('data', (d) => opts.ringBuffer.append(d));
   child.stderr?.on('data', (d) => opts.ringBuffer.append(d));
