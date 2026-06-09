@@ -12,6 +12,7 @@ const MODE_LABELS: Record<RightPanelMode, string> = {
     doc: 'Document preview',
     diff: 'Diff',
     browser: 'Browser',
+    ceo: 'Jaw CEO',
 };
 
 function FolderIcon() {
@@ -49,15 +50,25 @@ function BrowserIcon() {
     );
 }
 
+function CeoIcon() {
+    return (
+        <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+            <rect x="3" y="4" width="14" height="12" rx="2" />
+            <path d="M7 10h6M10 7v6" />
+        </svg>
+    );
+}
+
 const MODE_ICONS: Record<RightPanelMode, ReactNode> = {
     folder: <FolderIcon />,
     doc: <DocIcon />,
     diff: <DiffIcon />,
     browser: <BrowserIcon />,
+    ceo: <CeoIcon />,
 };
 
-const RIGHT_PANEL_TOOLBAR_MODES: RightPanelMode[] = ['folder', 'doc', 'diff', 'browser'];
-const CONTENT_OWNED_RIGHT_CHROME: RightPanelMode[] = ['browser'];
+const RIGHT_PANEL_TOOLBAR_MODES: RightPanelMode[] = ['folder', 'doc', 'diff', 'browser', 'ceo'];
+const CONTENT_OWNED_RIGHT_CHROME: RightPanelMode[] = ['browser', 'ceo'];
 const RIGHT_SPLIT_SLOT_MIN_HEIGHT = 180;
 
 export function RightSidebar(props: RightSidebarProps) {

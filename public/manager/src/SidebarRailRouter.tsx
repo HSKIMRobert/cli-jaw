@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode, Suspense } from 'react';
+import { useCallback, useEffect, useState, type ReactNode, Suspense } from 'react';
 import { ActivityDock } from './components/ActivityDock';
 import { InstanceDrawer } from './components/InstanceDrawer';
 import { InstanceNavigator } from './components/InstanceNavigator';
@@ -54,6 +54,9 @@ import type {
     ManagerEvent,
     DashboardRegistryUi,
 } from './types';
+import { JawCeoConsole } from './jaw-ceo/JawCeoConsole';
+import type { JawCeoController } from './jaw-ceo/useJawCeo';
+import type { JawCeoVoiceController } from './jaw-ceo/useJawCeoVoice';
 
 type WorkspaceSurfaceProps = {
     active: boolean;
@@ -127,7 +130,12 @@ type Props = {
     instanceListContent: ReactNode;
     jawCeoWorkbenchButton?: ReactNode;
     jawCeoVoiceOverlay?: ReactNode;
-    jawCeoConsoleContent?: ReactNode;
+    jawCeo?: JawCeoController;
+    jawCeoVoice?: JawCeoVoiceController;
+    jawCeoOpen?: boolean;
+    jawCeoSelectedPort?: number | null;
+    onJawCeoOpenChange?: (open: boolean) => void;
+    onJawCeoOpenWorker?: (port: number, messageId?: number) => void;
     loading: boolean;
     error: string | null;
     registryMessage: string | null;
@@ -152,6 +160,7 @@ function renderRightPanelContent(
     dashboardSettingsUi: DashboardRegistryUi,
     onDashboardSettingsPatch: (patch: Partial<DashboardRegistryUi>) => void,
     notesModel: NotesModelState,
+    jawCeoPanel: ReactNode,
 ): ReactNode {
     const fallback = <div style={{ padding: '12px', color: 'var(--text-dim)', fontSize: '12px' }}>Loading...</div>;
     switch (mode) {
@@ -159,6 +168,7 @@ function renderRightPanelContent(
         case 'folder': return <Suspense fallback={fallback}><FolderPanel selectedFilePath={previewFilePath} externalRootPath={folderRootPath} notesTree={notesModel.tree} notesRoot={notesModel.notesRoot} onPreviewFile={onPreviewFile} /></Suspense>;
         case 'doc': return <Suspense fallback={fallback}><DocPanel filePath={previewFilePath ?? undefined} /></Suspense>;
         case 'browser': return <Suspense fallback={fallback}><BrowserPanel /></Suspense>;
+        case 'ceo': return jawCeoPanel;
         default: return null;
     }
 }
@@ -179,8 +189,45 @@ export function SidebarRailRouter(props: Props) {
     const [, setRecentDroppedPaths] = useState<ElectronDroppedPathsEvent | null>(null);
     const [remindersView, setRemindersView] = useState<RemindersView>('matrix');
     const remindersFeed = useRemindersFeed({ active: props.sidebarMode === 'reminders' });
-    const desktopPanelsAvailable = currentManagerSurface() === 'electron';
+    const isElectron = currentManagerSurface() === 'electron';
+    const desktopPanelsAvailable = isElectron;
     const rightPanelOpen = desktopPanelsAvailable && panelLayout.effectiveRightOpen;
+    const rightPanelCeoActive = panelLayout.state.rightPanel.topMode === 'ceo'
+        || panelLayout.state.rightPanel.bottomMode === 'ceo';
+
+    useEffect(() => {
+        if (rightPanelCeoActive && props.jawCeoOpen) {
+            props.onJawCeoOpenChange?.(false);
+        }
+    }, [rightPanelCeoActive]);
+
+    useEffect(() => {
+        if (isElectron && props.jawCeoOpen && !rightPanelCeoActive) {
+            panelLayout.dispatch({ type: 'OPEN_RIGHT_PANEL', mode: 'ceo', slot: 'top' });
+            props.onJawCeoOpenChange?.(false);
+        }
+    }, [isElectron, props.jawCeoOpen]);
+
+    const ceoConsoleOpen = rightPanelCeoActive || (!isElectron && props.jawCeoOpen);
+    const handleCloseCeo = useCallback(() => {
+        if (rightPanelCeoActive) {
+            const slot = panelLayout.state.rightPanel.topMode === 'ceo' ? 'top' : 'bottom';
+            panelLayout.dispatch({ type: 'CLOSE_RIGHT_SUB', slot });
+        } else {
+            props.onJawCeoOpenChange?.(false);
+        }
+    }, [rightPanelCeoActive, panelLayout, props.onJawCeoOpenChange]);
+
+    const jawCeoPanel = (ceoConsoleOpen && props.jawCeo && props.jawCeoVoice) ? (
+        <JawCeoConsole
+            open
+            selectedPort={props.jawCeoSelectedPort ?? null}
+            ceo={props.jawCeo}
+            voice={props.jawCeoVoice}
+            onClose={handleCloseCeo}
+            onOpenWorker={props.onJawCeoOpenWorker ?? (() => {})}
+        />
+    ) : null;
     const bottomPanelOpen = desktopPanelsAvailable && panelLayout.state.bottomPanel.open;
     const notesSelectedHiddenByFilter = Boolean(
         props.notesModel.tagFilter
@@ -223,7 +270,7 @@ export function SidebarRailRouter(props: Props) {
             onCloseDrawer={props.onCloseDrawer}
             rightPanelOpen={rightPanelOpen}
             rightPanelWidth={panelLayout.state.rightPanel.width}
-            rightPanelContent={rightPanelOpen ? <RightSidebar renderPanel={mode => renderRightPanelContent(mode, rightPreviewFilePath, rightFolderRootPath, handleRightPreviewFile, props.selectedInstance, props.dashboardSettingsUi, props.onDashboardSettingsPatch, props.notesModel)} /> : undefined}
+            rightPanelContent={rightPanelOpen ? <RightSidebar renderPanel={mode => renderRightPanelContent(mode, rightPreviewFilePath, rightFolderRootPath, handleRightPreviewFile, props.selectedInstance, props.dashboardSettingsUi, props.onDashboardSettingsPatch, props.notesModel, jawCeoPanel)} /> : undefined}
             bottomPanelOpen={bottomPanelOpen}
             bottomPanelHeight={panelLayout.state.bottomPanel.height}
             bottomPanelContent={bottomPanelOpen && panelLayout.state.bottomPanel.tabs.length > 0 ? <BottomPanel renderTab={renderBottomTabContent} /> : undefined}
@@ -310,7 +357,7 @@ export function SidebarRailRouter(props: Props) {
                     onHeightChange={props.onActivityHeightChange}
                 />
             )}
-            sidePanel={props.jawCeoConsoleContent}
+            sidePanel={(!isElectron && ceoConsoleOpen) ? jawCeoPanel : undefined}
             mobileNav={<MobileNav activeTab={props.activeDetailTab} onOpenInstances={props.onOpenDrawer} onSelectTab={props.onSelectTab} onToggleActivity={props.onToggleActivityFromMobile} />}
             drawer={(
                 <InstanceDrawer open={props.drawerOpen} profileFilters={props.drawerProfileFilters} onClose={props.onCloseDrawer}>
