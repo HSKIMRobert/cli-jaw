@@ -57,7 +57,17 @@ export function stripAgyResumeReplayPrefixes(text: string, previousAssistantText
 
 export function isAgyInterimProgressOutput(text: string): boolean {
     const value = String(text || '').trim();
-    if (!value || value.length > 1_000) return false;
+    if (!value || value.length > 3_000) return false;
+    if (/\bFINAL_[A-Z0-9_]*DONE\b/i.test(value)) return false;
+    const compact = value.replace(/\s+/g, ' ');
+    if (
+        /(?:먼저|이제|다음으로|바로|계속|기반으로).{0,900}(?:읽겠습니다|찾겠습니다|확인하겠습니다|살펴보겠습니다|조사하겠습니다|실행하겠습니다|생성하겠습니다|수정하겠습니다|만들겠습니다|만들어보겠습니다|시작하겠습니다|진행하겠습니다|보겠습니다)/.test(compact)
+        || /(?:바로|먼저|이제).{0,400}(?:하겠습니다|보겠습니다)\.?$/.test(compact)
+        || /\b(?:Proceeding|Continuing|Moving on)\b.{0,500}\b(?:create|write|edit|run|read|check|verify|inspect|execute|generate|update|fix)\b/i.test(compact)
+        || /\b(?:Now|Next),?\s+(?:let me|I(?:'ll| will| am going to| need to)|proceeding)\b/i.test(compact)
+        || /\balready read(?:\s+earlier)?\b.{0,500}\b(?:proceeding|creating|writing|editing|running|checking|verifying)\b/i.test(compact)
+        || /^(?:Creating|Writing|Editing|Reading|Checking|Verifying|Running|Executing|Generating|Updating|Fixing)\b.{0,500}\b(?:now|next|first|then)?\.?$/i.test(compact)
+    ) return true;
     if (value.split('\n').filter(line => line.trim()).length > 5) return false;
     return /^(?:I\s+(?:will|am going to|need to|should)\b|I'll\b|Let me\b)/i.test(value)
         || /\b(?:I\s+will|I\s+need\s+to|I'll|Let me|First,\s+checking)\b/i.test(value)

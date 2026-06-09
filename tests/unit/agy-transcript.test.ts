@@ -100,3 +100,19 @@ test('AGY-TR-009: spawn captures AGY session id before final transcript drain', 
     assert.ok(sessionIdx >= 0, 'AGY close path must extract session id');
     assert.ok(watcherStopIdx > sessionIdx, 'AGY transcript final drain must run after session id extraction');
 });
+
+test('AGY-TR-010: parseTranscriptLine maps CODE_ACTION write_to_file completion to tool entry', () => {
+    const tool = parseTranscriptLine(JSON.stringify({
+        step_index: 8,
+        source: 'AGENT',
+        type: 'CODE_ACTION',
+        status: 'DONE',
+        content: 'Created file file:///tmp/agy-3474-complex-smoke/style.css',
+    }));
+    assert.ok(tool);
+    assert.equal(tool!.toolType, 'tool');
+    assert.equal(tool!.icon, '📝');
+    assert.equal(tool!.status, 'done');
+    assert.match(tool!.stepRef ?? '', /^agy:transcript:8:CODE_ACTION$/);
+    assert.match(tool!.detail, /style\.css/);
+});

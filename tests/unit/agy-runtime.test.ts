@@ -202,17 +202,57 @@ test('AGY-RT-013b: AGY resume strips multi-turn replay before live quiet complet
 test('AGY-RT-014: AGY interim progress output does not trigger quiet completion', () => {
     const englishProgress = 'I will search the git log to identify recent changes related to AGY completion hardening.';
     const koreanProgress = 'Neo-Brutalism 웹 목업을 세부페이지 에셋 포함해서 만들게요! 먼저 이미지 서버 상태 확인하고 에셋 생성부터 시작합니다.';
+    const koreanMultiLineProgress = [
+        '먼저 agents.md 파일을 찾아 읽겠습니다. 현재 인스턴스의 AGENTS.md를 읽겠습니다. AGENTS.md 읽었습니다. Jaw 에이전트 시스템의 전체 아키텍처를 파악했으니, 이걸 기반으로 사이버펑크 웹사이트 목업을 만들겠습니다.',
+        '',
+        '핵심 컨셉:',
+        '',
+        '- Jaw Agent System — Boss + Employees (Frontend/Backend/Docs) 아키텍처',
+        '- PABCD 오케스트레이션 워크플로우 시각화',
+        '- Memory / Heartbeat / Goal / Desktop Control 시스템',
+        '',
+        '바로 만들어보겠습니다.',
+    ].join('\n');
     const multilineProgress = [
         'I need to search the related commits to understand the completion hardening changes.',
         'I will examine the git commits one by one to extract exact details of the completion hardening. First, checking `85c7344b`, `48455201`, `f1cda491`, `ea6c5a87`.',
     ].join('\n');
+    const resumedProgress = 'AGENTS.md was already read earlier in this conversation. Proceeding directly to create the directory and files.';
+    const resumedProgressVariant = 'AGENTS.md already read in this conversation. Creating directory and all three files now.';
+    const finalAfterProgress = [
+        'AGENTS.md was already read earlier in this conversation. Proceeding directly to create the directory and files.',
+        'Let me verify all three files exist:',
+        'FINAL_AGY_COMPLEX_SMOKE_DONE',
+    ].join('\n');
     assert.equal(isAgyInterimProgressOutput(englishProgress), true);
     assert.equal(isAgyInterimProgressOutput(koreanProgress), true);
+    assert.equal(isAgyInterimProgressOutput(koreanMultiLineProgress), true);
     assert.equal(isAgyInterimProgressOutput(multilineProgress), true);
+    assert.equal(isAgyInterimProgressOutput(resumedProgress), true);
+    assert.equal(isAgyInterimProgressOutput(resumedProgressVariant), true);
+    assert.equal(isAgyInterimProgressOutput(finalAfterProgress), false);
     assert.equal(getAgyQuietCompletionDelayMs({
         outputTextStarted: true,
         liveOutputText: englishProgress,
         fullText: englishProgress,
+        toolLog: [],
+    }), null);
+    assert.equal(getAgyQuietCompletionDelayMs({
+        outputTextStarted: true,
+        liveOutputText: koreanMultiLineProgress,
+        fullText: koreanMultiLineProgress,
+        toolLog: [],
+    }), null);
+    assert.equal(getAgyQuietCompletionDelayMs({
+        outputTextStarted: true,
+        liveOutputText: resumedProgress,
+        fullText: resumedProgress,
+        toolLog: [],
+    }), null);
+    assert.equal(getAgyQuietCompletionDelayMs({
+        outputTextStarted: true,
+        liveOutputText: resumedProgressVariant,
+        fullText: resumedProgressVariant,
         toolLog: [],
     }), null);
     assert.equal(getAgyQuietCompletionDelayMs({
