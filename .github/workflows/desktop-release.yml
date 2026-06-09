@@ -3,18 +3,7 @@ name: Desktop Release
 on:
   release:
     types: [published]
-  workflow_dispatch:
-    inputs:
-      platform:
-        description: Platform to build (all, macos, windows, linux)
-        required: false
-        default: all
-        type: choice
-        options:
-          - all
-          - macos
-          - windows
-          - linux
+  workflow_dispatch: {}
 
 permissions:
   contents: write
@@ -23,7 +12,6 @@ jobs:
   desktop-release:
     name: Build ${{ matrix.platform }} desktop app
     runs-on: ${{ matrix.os }}
-    if: github.event_name == 'release' || inputs.platform == 'all' || inputs.platform == matrix.platform
     concurrency:
       group: desktop-release-${{ github.event.release.tag_name || github.run_id }}-${{ matrix.platform }}
       cancel-in-progress: false
