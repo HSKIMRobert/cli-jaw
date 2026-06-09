@@ -279,6 +279,16 @@ Monitor each AI engine's health and usage at a glance.
 
 Prefer a native window to a browser tab? CLI-JAW ships an **Electron desktop shell** that boots the manager dashboard and supervises the underlying `jaw dashboard serve` process for you. Packaged desktop builds include a Node.js sidecar server, so the app can prefer its bundled `jaw` shim before falling back to a global terminal install.
 
+For end users, download the desktop artifact from **GitHub Releases**:
+
+- **macOS**: download the DMG, drag CLI-JAW into Applications, then launch it. Current builds are unsigned / un-notarized, so first launch may require right-click → **Open** in Finder.
+- **Windows**: download the NSIS installer. It includes the same sidecar server and adds the packaged `jaw` shim to PATH.
+- **Linux**: download the AppImage, make it executable, and run it.
+
+After first launch, accept the **Install CLI command** prompt to create the terminal `jaw` command from the bundled sidecar. If you skip the prompt, use the tray menu item **Install CLI to Terminal** later. This path does not require a global npm install for the packaged app or terminal shim.
+
+Developer build:
+
 ```bash
 # one-time, from the repo root
 npm install && npm --prefix electron install
@@ -287,7 +297,7 @@ npm run electron:dev          # develop with hot reload
 npm run electron:dist:mac     # build macOS arm64 .dmg + .zip with bundled sidecar
 ```
 
-The packaged app lands in `electron/dist/`. The GitHub Actions desktop release workflow builds macOS arm64 DMG/ZIP, Windows x64 NSIS/ZIP, and Linux AppImage artifacts on release publish or manual dispatch. Native modules such as `better-sqlite3` stay in the manager/sidecar server — the Electron main process never imports them. Builds are currently **unsigned / un-notarized**, so on first launch macOS Gatekeeper needs a right-click → **Open**.
+The packaged app lands in `electron/dist/`. The GitHub Actions desktop release workflow builds macOS arm64 DMG/ZIP, Windows x64 NSIS/ZIP, and Linux AppImage artifacts on release publish or manual dispatch. Native modules such as `better-sqlite3` stay in the manager/sidecar server — the Electron main process never imports them.
 
 ---
 

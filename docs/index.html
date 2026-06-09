@@ -1172,7 +1172,7 @@
                 <div class="feature-card">
                     <span class="feature-icon"></span>
                     <div class="feature-title">7+ surfaces</div>
-                    <p class="feature-desc">Root CLI, terminal TUI, Web PWA, Electron desktop, Manager dashboard, Telegram, and Discord. Same memory and project context across all of them.</p>
+                    <p class="feature-desc">Root CLI, terminal TUI, Web PWA, Electron desktop, Manager dashboard, Telegram, and Discord. Desktop releases bundle a Node.js sidecar so the app and terminal shim can run without a global npm install.</p>
                 </div>
                 <div class="feature-card">
                     <span class="feature-icon"></span>
@@ -1267,9 +1267,28 @@
                 <div class="platform-chip">macOS</div>
                 <div class="platform-chip">Linux</div>
                 <div class="platform-chip">WSL</div>
+                <div class="platform-chip">Electron desktop</div>
                 <div class="platform-chip">Docker</div>
                 <div class="platform-chip">Cloud VMs</div>
                 <div class="platform-chip">CI/CD</div>
+            </div>
+            <div class="docker-block">
+                <div class="docker-info">
+                    <h3>Desktop app — npm-free packaged runtime</h3>
+                    <p>Download the DMG, NSIS installer, or AppImage from GitHub Releases. Packaged builds include the CLI-JAW server, Node.js 22 sidecar, frontend assets, production dependencies, and a bundled <code>jaw</code> shim.</p>
+                    <span class="docker-tag">macOS DMG</span>
+                    <span class="docker-tag">Windows NSIS</span>
+                    <span class="docker-tag">Linux AppImage</span>
+                </div>
+                <div class="code-block">
+                    <span class="dim"># End-user flow</span><br>
+                    Download from GitHub Releases<br>
+                    Open CLI-JAW Desktop<br>
+                    Accept "Install CLI command"<br>
+                    jaw dashboard<br><br>
+                    <span class="dim"># Developer build</span><br>
+                    npm run electron:dist:mac
+                </div>
             </div>
             <div class="docker-block">
                 <div class="docker-info">

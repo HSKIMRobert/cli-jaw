@@ -78,6 +78,47 @@ wsl.exe -d Ubuntu -- bash -lc "jaw dashboard"
 </details>
 
 <details>
+<summary><b>Fresh-machine evidence</b> — maintainer release check</summary>
+
+发布安装器变更前，请在干净 VM 上运行此流程。collector 会把环境快照、installer 日志、实际运行的 collector/installer/verifier 脚本及其 SHA-256 哈希、verifier 日志和新 shell PATH probe 写入 `~/cli-jaw-fresh-install-evidence-*`。
+
+```bash
+# macOS Terminal
+COLLECTOR=/tmp/cli-jaw-collect-fresh-install-evidence.sh
+curl -fsSL https://raw.githubusercontent.com/lidge-jun/cli-jaw/master/scripts/collect-fresh-install-evidence.sh -o "$COLLECTOR"
+bash "$COLLECTOR" --target macos
+
+# Ubuntu inside WSL
+COLLECTOR=/tmp/cli-jaw-collect-fresh-install-evidence.sh
+curl -fsSL https://raw.githubusercontent.com/lidge-jun/cli-jaw/master/scripts/collect-fresh-install-evidence.sh -o "$COLLECTOR"
+bash "$COLLECTOR" --target wsl
+```
+
+从 Windows PowerShell 运行时，请走受支持的 WSL 路径：
+
+```powershell
+wsl.exe -d Ubuntu -- bash -lc 'COLLECTOR=/tmp/cli-jaw-collect-fresh-install-evidence.sh; curl -fsSL https://raw.githubusercontent.com/lidge-jun/cli-jaw/master/scripts/collect-fresh-install-evidence.sh -o "$COLLECTOR"; bash "$COLLECTOR" --target wsl'
+```
+
+把 evidence 目录作为发布证据前，请先 audit：
+
+```bash
+EVIDENCE_DIR="$(ls -dt ~/cli-jaw-fresh-install-evidence-* | head -1)"
+AUDITOR="$(npm root -g)/cli-jaw/scripts/audit-fresh-install-evidence.mjs"
+node "$AUDITOR" "$EVIDENCE_DIR" --target macos
+node "$AUDITOR" "$EVIDENCE_DIR" --target wsl
+```
+
+发布前 matrix gate 需要同时传入 macOS 和 WSL evidence：
+
+```bash
+GATE="$(npm root -g)/cli-jaw/scripts/verify-release-evidence.mjs"
+node "$GATE" --macos /path/to/macos-evidence --wsl /path/to/wsl-evidence
+```
+
+</details>
+
+<details>
 <summary><b>Docker</b></summary>
 
 ```bash
@@ -108,6 +149,16 @@ CLI-JAW 是一个开源平台，将你已经在用的 AI 编码 CLI — Pi、Ant
 
 如果你更喜欢原生窗口而不是浏览器标签页，CLI-JAW 提供 **Electron 桌面壳**。桌面应用会启动 manager dashboard，并管理底层的 `jaw dashboard serve` 进程。打包版包含 Node.js sidecar 服务器，因此会优先使用应用内 bundled `jaw` shim，再回退到全局终端安装。
 
+最终用户可以直接从 **GitHub Releases** 下载桌面 artifact：
+
+- **macOS**：下载 DMG，把 CLI-JAW 拖到 Applications 后启动。当前构建仍是 unsigned / un-notarized，首次启动可能需要在 Finder 中右键 → **Open**。
+- **Windows**：下载 NSIS installer。它包含同一个 sidecar server，并把打包的 `jaw` shim 加入 PATH。
+- **Linux**：下载 AppImage，赋予执行权限后运行。
+
+首次启动后，接受 **Install CLI command** 提示即可从 bundled sidecar 创建终端 `jaw` 命令。如果跳过了提示，之后可在 tray menu 使用 **Install CLI to Terminal**。这个路径不要求为打包应用或终端 shim 进行全局 npm 安装。
+
+开发者构建：
+
 ```bash
 # 在仓库根目录执行一次
 npm install && npm --prefix electron install
@@ -116,7 +167,7 @@ npm run electron:dev          # hot reload 开发
 npm run electron:dist:mac     # 构建包含 bundled sidecar 的 macOS arm64 .dmg + .zip
 ```
 
-打包产物位于 `electron/dist/`。GitHub Actions desktop release workflow 会在 release publish 或 manual dispatch 时构建 macOS arm64 DMG/ZIP、Windows x64 NSIS/ZIP 和 Linux AppImage artifacts。`better-sqlite3` 等原生模块保留在 manager/sidecar server 中；Electron main process 不直接 import 它们。当前构建仍是 **unsigned / un-notarized**，macOS 首次启动时需要在 Gatekeeper 中右键 → **Open**。
+打包产物位于 `electron/dist/`。GitHub Actions desktop release workflow 会在 release publish 或 manual dispatch 时构建 macOS arm64 DMG/ZIP、Windows x64 NSIS/ZIP 和 Linux AppImage artifacts。`better-sqlite3` 等原生模块保留在 manager/sidecar server 中；Electron main process 不直接 import 它们。
 
 ---
 
