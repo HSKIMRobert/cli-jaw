@@ -58,6 +58,7 @@ import {
     isAgyStaleSessionOutput,
     isAgyTimeoutOutput,
     shouldCompleteAgyPrintRun,
+    stripAgyTrailingTimeoutOutput,
 } from './agy-runtime.js';
 import { startAgyTranscriptWatcher, type AgyTranscriptWatcherHandle } from './agy-transcript-watcher.js';
 import { appendAssistantTextSegment, normalizeAssistantDisplayText } from './events/helpers.js';
@@ -2193,6 +2194,15 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             if (fromStderr) {
                 ctx.sessionId = fromStderr;
                 console.log(`[jaw:ai-e:${effectiveProvider}] session capture id=${fromStderr.slice(0, 16)}...`);
+            }
+        }
+        if (cli === 'agy') {
+            const stripped = stripAgyTrailingTimeoutOutput(ctx.fullText);
+            if (stripped.stripped) {
+                ctx.fullText = stripped.text;
+                if (ctx.liveOutputText !== undefined) {
+                    ctx.liveOutputText = stripAgyTrailingTimeoutOutput(ctx.liveOutputText).text;
+                }
             }
         }
         const agyTimedOut = cli === 'agy' && isAgyTimeoutOutput(ctx.fullText);

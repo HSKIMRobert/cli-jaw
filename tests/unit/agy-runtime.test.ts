@@ -10,6 +10,7 @@ import {
     hasRunningAgyTranscriptTool,
     isAgyTimeoutOutput,
     shouldCompleteAgyPrintRun,
+    stripAgyTrailingTimeoutOutput,
 } from '../../src/agent/agy-runtime.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -131,4 +132,17 @@ test('AGY-RT-010: AGY quiet completion is mapped to lifecycle success, not inter
     assert.match(spawnSrc, /wasKilled\s*=\s*!!stdKillReason\s*&&\s*!agyCompletedByQuietOutput/);
     assert.match(spawnSrc, /effectiveExitCode\s*=\s*agyCompletedByQuietOutput\s*\?\s*0\s*:/);
     assert.match(spawnSrc, /shouldCompleteAgyPrintRun\(ctx\)/);
+});
+
+test('AGY-RT-011: AGY timeout suffix is stripped without masking timeout-only output', () => {
+    assert.deepEqual(
+        stripAgyTrailingTimeoutOutput('JAW_AGY_DONE\nError: timed out waiting for response\n'),
+        { text: 'JAW_AGY_DONE', stripped: true },
+    );
+    assert.deepEqual(
+        stripAgyTrailingTimeoutOutput('Error: timed out waiting for response\n'),
+        { text: 'Error: timed out waiting for response\n', stripped: false },
+    );
+    const spawnSrc = readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
+    assert.match(spawnSrc, /stripAgyTrailingTimeoutOutput\(ctx\.fullText\)/);
 });
