@@ -133,6 +133,22 @@ test('SF-004b: resume argv CLIs keep enriched promptForArgs for agy and compact 
     );
 });
 
+test('SF-004c: agy front-loads current task before operational context', () => {
+    const src = fs.readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
+    const agyBranchIdx = src.indexOf("if (cli === 'agy' && sysPrompt)");
+    const kiroBranchIdx = src.indexOf("else if ((cli === 'kiro-code'");
+    assert.ok(agyBranchIdx > 0, 'agy should have a dedicated prompt ordering branch');
+    assert.ok(kiroBranchIdx > agyBranchIdx, 'kiro branch should remain separate from agy');
+
+    const agyBranch = src.slice(agyBranchIdx, kiroBranchIdx);
+    assert.ok(agyBranch.includes('[Current cli-jaw task]'), 'agy prompt should put task context first');
+    assert.ok(agyBranch.includes('${promptForArgs}\\n\\n---\\n\\n[Operational Context'), 'agy should append operational context after task prompt');
+    assert.ok(
+        agyBranch.indexOf('[Current cli-jaw task]') < agyBranch.indexOf('[Operational Context'),
+        'agy must not put the long operational context before the current user task',
+    );
+});
+
 // ─── SF-EDGE: processQueue is called after mainManaged exit ───
 
 test('SF-EDGE: processQueue is triggered after mainManaged exit in both paths', () => {
