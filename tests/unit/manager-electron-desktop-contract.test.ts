@@ -29,8 +29,12 @@ test('Electron desktop build refreshes manager frontend assets before packaging'
     const pkg = read('package.json');
 
     assert.ok(
-        pkg.includes('"electron:dist:mac": "npm run build:frontend && npm --prefix electron run build && CSC_IDENTITY_AUTO_DISCOVERY=false npm --prefix electron run dist:mac"'),
-        'electron:dist:mac must rebuild the manager frontend before packaging the desktop shell',
+        pkg.includes('"electron:dist:mac": "npm run build:frontend && npm run sidecar:bundle && npm --prefix electron run build && CSC_IDENTITY_AUTO_DISCOVERY=false npm --prefix electron run dist:mac"'),
+        'electron:dist:mac must rebuild the manager frontend and bundle the sidecar before packaging the desktop shell',
+    );
+    assert.ok(
+        pkg.includes('"sidecar:bundle": "bash scripts/bundle-sidecar.sh darwin arm64"'),
+        'sidecar:bundle must assemble the Node.js sidecar for local mac packaging',
     );
 });
 
