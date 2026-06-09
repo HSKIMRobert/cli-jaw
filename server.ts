@@ -21,6 +21,8 @@ import { registerOrchestrateRoutes } from './src/routes/orchestrate.js';
 import { registerGoalRoutes } from './src/routes/goal.js';
 import { registerTaskRoutes } from './src/routes/task.js';
 import { registerEventsRoutes } from './src/routes/events.js';
+import { registerInstanceRoutes } from './src/routes/instance.js';
+import { registerChatSessionRoutes } from './src/routes/chat-sessions.js';
 import { registerGoalRunRoutes } from './src/routes/goal-run.js';
 import { registerMemoryRoutes } from './src/routes/memory.js';
 import { registerSettingsRoutes } from './src/routes/settings.js';
@@ -54,7 +56,7 @@ import { ensureMemoryRuntimeReady, hasSoulFile } from './src/memory/runtime.js';
 
 import { loadLocales, t } from './src/core/i18n.js';
 import {
-    PROMPTS_DIR, DB_PATH, UPLOADS_DIR, JAW_HOME,
+    PROMPTS_DIR, DB_PATH, UPLOADS_DIR,
     settings, loadSettings, saveSettings,
     ensureDirs, runMigration,
     APP_VERSION,
@@ -63,7 +65,7 @@ import {
     db, getSession, getMessages, getMessagesWithTrace, getRecentMessagesAll, getRecentMessagesAllWithTrace, searchMessages, getMessageContext, getMessageCount, getLatestAssistantMessage, getLatestDashboardActivityMessage, closeDb,
     clearAllEmployeeSessions,
 } from './src/core/db.js';
-import { getActiveChatSession, listChatSessions, createChatSession, setActiveChatSession, getChatSessionBySeq } from './src/core/chat-sessions.js';
+import { getActiveChatSession } from './src/core/chat-sessions.js';
 import { dashboardActivityTitleFromExcerpt } from './src/core/message-summary.js';
 import { openUrlInBrowser } from './src/core/browser-open.js';
 import { sanitizeSerializedToolLog } from './src/shared/tool-log-sanitize.js';
@@ -413,45 +415,7 @@ app.get('/api/health', (_req, res) => res.json({
 }));
 app.get('/api/session', (_, res) => ok(res, getSession(), getSession() as Record<string, unknown> | undefined));
 
-// ─── Instance lock/unlock (process protection) ──────
-const LOCK_MARKER_FILENAME = '.dashboard-managed.json';
-app.get('/api/instance/lock', (_req, res) => {
-    const markerPath = join(JAW_HOME, LOCK_MARKER_FILENAME);
-    try {
-        if (fs.existsSync(markerPath)) {
-            const marker = JSON.parse(fs.readFileSync(markerPath, 'utf8'));
-            res.json({ ok: true, protected: !!marker.protected, marker });
-        } else {
-            res.json({ ok: true, protected: false, marker: null });
-        }
-    } catch { res.json({ ok: true, protected: false, marker: null }); }
-});
-app.post('/api/instance/lock', (_req, res) => {
-    const markerPath = join(JAW_HOME, LOCK_MARKER_FILENAME);
-    try {
-        if (fs.existsSync(markerPath)) {
-            const marker = JSON.parse(fs.readFileSync(markerPath, 'utf8'));
-            marker.protected = true;
-            fs.writeFileSync(markerPath, JSON.stringify(marker, null, 2));
-            res.json({ ok: true, protected: true });
-        } else {
-            res.json({ ok: false, error: 'No marker file — instance is not dashboard-managed.' });
-        }
-    } catch (err) { res.status(500).json({ ok: false, error: (err as Error).message }); }
-});
-app.delete('/api/instance/lock', (_req, res) => {
-    const markerPath = join(JAW_HOME, LOCK_MARKER_FILENAME);
-    try {
-        if (fs.existsSync(markerPath)) {
-            const marker = JSON.parse(fs.readFileSync(markerPath, 'utf8'));
-            delete marker.protected;
-            fs.writeFileSync(markerPath, JSON.stringify(marker, null, 2));
-            res.json({ ok: true, protected: false });
-        } else {
-            res.json({ ok: true, protected: false });
-        }
-    } catch (err) { res.status(500).json({ ok: false, error: (err as Error).message }); }
-});
+// Instance lock/unlock → src/routes/instance.ts (Phase 2 extraction)
 app.get('/api/messages', (req, res) => {
     const includeTrace = ['1', 'true', 'yes'].includes(String(req.query["includeTrace"] || '').toLowerCase());
     // Optional recent-window: `?limit=N` returns only the most recent N messages
@@ -538,23 +502,7 @@ app.get('/api/messages/latest', (_req, res) => {
     });
 });
 
-// ─── Chat Sessions API ───────────────────────────────
-app.get('/api/chat-sessions', (_req, res) => {
-    ok(res, { sessions: listChatSessions(), active: getActiveChatSession() });
-});
-app.post('/api/chat-sessions', (req, res) => {
-    const label = typeof req.body?.label === 'string' ? req.body.label.trim() || undefined : undefined;
-    const session = createChatSession(label);
-    ok(res, session);
-});
-app.post('/api/chat-sessions/:id/switch', (req, res): void => {
-    const id = req.params["id"];
-    const seq = parseInt(id, 10);
-    const target = isNaN(seq) ? null : getChatSessionBySeq(seq);
-    if (!target) { res.status(404).json({ error: `Session not found: ${id}` }); return; }
-    setActiveChatSession(target.id);
-    ok(res, { switched: target.id, seq: target.seq });
-});
+// Chat Sessions API → src/routes/chat-sessions.ts (Phase 2 extraction)
 
 app.get('/api/runtime', (req, res) => {
     if (req.query["logs"] === 'tail') {
@@ -692,6 +640,8 @@ registerOrchestrateRoutes(app, requireAuth);
 registerGoalRoutes(app, requireAuth);
 registerTaskRoutes(app, requireAuth);
 registerEventsRoutes(app, requireAuth);
+registerInstanceRoutes(app);
+registerChatSessionRoutes(app);
 registerGoalRunRoutes(app, requireAuth);
 registerMemoryRoutes(app, requireAuth);
 registerSettingsRoutes(app, requireAuth, applySettingsPatch, projectRoot);
