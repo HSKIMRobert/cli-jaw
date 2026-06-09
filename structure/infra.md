@@ -20,7 +20,7 @@ aliases: [CLI-JAW Infra, infrastructure modules, core runtime]
 | 항목 | 현재 값 |
 | --- | --- |
 | package | `cli-jaw` |
-| version | `2.0.5` |
+| version | `2.1.3` |
 | type | `module` |
 | Node engine | `>=22.4.0` |
 | bin | `cli-jaw` → `dist/bin/cli-jaw.js`, `jaw` → `dist/bin/cli-jaw.js` |
@@ -38,6 +38,7 @@ aliases: [CLI-JAW Infra, infrastructure modules, core runtime]
 | `check:copilot-gap` | `tsx scripts/check-copilot-gap.ts` |
 | `check:deps` | `tsx scripts/check-deps-offline.ts` |
 | `check:frontend-build-output` | `tsx scripts/check-web-ui-build-output.ts` |
+| `check:strict-baseline` | `node scripts/check-strict-baseline.mjs` |
 | `i18n:registry` | `tsx scripts/i18n-registry.ts` |
 | `check:deps:online` | `bash scripts/check-deps-online.sh` |
 | `prebuild`, `pretest`, `pretest:all`, `pretest:integration`, `pretest:smoke` | `npm run ensure:native` |
@@ -52,22 +53,30 @@ aliases: [CLI-JAW Infra, infrastructure modules, core runtime]
 | `test:manager:browser` | `tsx --test tests/browser/manager-layout-smoke.test.ts` |
 | `test:smoke` | `TEST_PORT=3457 tsx --test tests/integration/api-smoke.test.ts` |
 | `smoke:opencode` | `tsx scripts/smoke/opencode-external-dir-smoke.ts` |
+| `verify:fresh-install` | `bash scripts/verify-fresh-install.sh` |
+| `collect:fresh-install-evidence` | `bash scripts/collect-fresh-install-evidence.sh` |
+| `audit:fresh-install-evidence` | `node scripts/audit-fresh-install-evidence.mjs` |
+| `verify:release-evidence` | `node scripts/verify-release-evidence.mjs` |
 | `test:fresh-install` | `tsx scripts/fresh-install-smoke.ts` |
 | `test:claude-exec` | `cargo test --manifest-path native/jaw-claude-i/Cargo.toml` |
-| `test:claude-i` | compatibility alias for `test:claude-exec` |
-| `build` | `tsc && mkdir -p dist/src/prompt && rsync -a --delete src/prompt/templates/ dist/src/prompt/templates/ && rsync -a --delete prompts/ dist/prompts/` |
+| `test:claude-e` | compatibility alias for `test:claude-exec` |
+| `build` | `bash scripts/atomic-build.sh` |
 | `build:claude-exec` | `cargo build --release --manifest-path native/jaw-claude-i/Cargo.toml` |
-| `build:claude-i` | compatibility alias for `build:claude-exec` |
+| `build:claude-e` | compatibility alias for `build:claude-exec` |
 | `postbuild` | `node scripts/link-current-nvm-bin.cjs` |
 | `build:frontend` | `vite build --config vite.config.ts` |
+| `qa:manager-frontend` | `npm run build:frontend && npm run typecheck:frontend` |
 | `dev:frontend` | `vite --config vite.config.ts` |
 | `preview:frontend` | `vite preview --config vite.config.ts` |
 | `typecheck` | `tsc --noEmit` |
 | `typecheck:frontend` | `tsc --noEmit -p tsconfig.frontend.json` |
+| `gate:typecheck` / `gate:tests` / `gate:*` | `node scripts/release-gates.mjs <gate>` |
+| `gate:all` | `node scripts/release-gates.mjs` |
 | `prepublishOnly` | `npm run build && npm run build:frontend` |
 | `electron:dev` | `concurrently -k -n jaw,electron "node scripts/electron-dev-manager.mjs" "npm --prefix electron run dev"` |
 | `electron:build` | `npm --prefix electron run build` |
-| `electron:dist:mac` | `npm --prefix electron run build && CSC_IDENTITY_AUTO_DISCOVERY=false npm --prefix electron run dist:mac` |
+| `sidecar:bundle` | `bash scripts/bundle-sidecar.sh darwin arm64` |
+| `electron:dist:mac` | `npm run build:frontend && npm run sidecar:bundle && npm --prefix electron run build && CSC_IDENTITY_AUTO_DISCOVERY=false npm --prefix electron run dist:mac` |
 | `electron:start` | `npm --prefix electron run start` |
 | `check:electron-no-native` | `node scripts/check-electron-no-native.cjs` |
 
@@ -83,7 +92,7 @@ aliases: [CLI-JAW Infra, infrastructure modules, core runtime]
 | Frontend dev | `npm run dev:frontend` | Vite dev server port `5173`, `/api` proxy는 `http://localhost:3458` |
 | Frontend build | `npm run build:frontend` | Vite가 `public/index.html` + `public/manager/index.html`을 `public/dist`로 빌드 |
 | Manager dashboard | `jaw dashboard serve` | `src/manager/server.ts` 또는 `dist/src/manager/server.js` 실행, 기본 port `24576` |
-| Electron manager dashboard | Electron implicit spawn | Web/CLI lane `24576`과 분리된 manager port `24577` 기본값, fallback `24578-24590` |
+| Electron manager dashboard | Electron implicit spawn | Web/CLI lane `24576`과 분리된 manager port `24577` 기본값, fallback `24578-24590`; packaged app prefers bundled sidecar `server/bin/jaw` |
 | Docker local source | `Dockerfile` | local source copy → `npm run build` + `npm run build:frontend` → `node dist/server.js` |
 | Docker npm image | `Dockerfile.dev` | `npm install -g cli-jaw@${CLI_JAW_VERSION}` → `jaw serve --no-open` |
 | Compose | `docker-compose.yml` | 단일 `jaw` service, `${PORT:-3457}:3457`, `.env`, named volume `jaw-data` |
@@ -122,11 +131,11 @@ aliases: [CLI-JAW Infra, infrastructure modules, core runtime]
 
 ### `scripts/` 실제 파일
 
-`check-copilot-gap.ts`, `check-deps-offline.ts`, `check-deps-online.sh`, `check-electron-no-native.cjs`, `check-web-ui-build-output.ts`, `electron-dev-manager.mjs`, `ensure-native-modules.cjs`, `fresh-install-smoke.ts`, `i18n-registry.ts`, `install-officecli.ps1`, `install-officecli.sh`, `install-wsl.sh`, `install.sh`, `link-current-nvm-bin.cjs`, `postinstall-guard.cjs`, `release-1.6.0.sh`, `release-preview.sh`, `release.sh`, `smoke/opencode-external-dir-smoke.ts`.
+`atomic-build.sh`, `bundle-sidecar.sh`, `check-copilot-gap.ts`, `check-deps-offline.ts`, `check-deps-online.sh`, `check-electron-no-native.cjs`, `check-strict-baseline.mjs`, `check-web-ui-build-output.ts`, `collect-fresh-install-evidence.sh`, `audit-fresh-install-evidence.mjs`, `verify-release-evidence.mjs`, `electron-dev-manager.mjs`, `ensure-native-modules.cjs`, `fresh-install-smoke.ts`, `i18n-registry.ts`, `install-officecli.ps1`, `install-officecli.sh`, `install-wsl.sh`, `install.sh`, `link-current-nvm-bin.cjs`, `postinstall-guard.cjs`, `release-gates.mjs`, `release-preview.sh`, `release.sh`, `smoke/opencode-external-dir-smoke.ts`.
 
 ---
 
-## src/core/ — runtime support cluster (21 files, 2315L)
+## src/core/ — runtime support cluster (30 files, 3803L)
 
 `boss-auth.ts`, `config.ts`, `codex-config.ts`, `instance.ts`, `runtime-path.ts`, `main-session.ts`, `message-summary.ts`, `path-expand.ts`, `runtime-settings.ts`, `runtime-settings-gate.ts`, `settings-merge.ts`, `db.ts`, `bus.ts`, `employees.ts`, `i18n.ts`, `compact.ts`, `logger.ts`, `claude-install.ts`, `launchd-cleanup.ts`, `launchd-plist.ts`, `tcc.ts`.
 
@@ -156,13 +165,13 @@ aliases: [CLI-JAW Infra, infrastructure modules, core runtime]
 
 ---
 
-## src/cli/registry.ts — CLI/모델 단일 소스 (160L)
+## src/cli/registry.ts — CLI/모델 단일 소스 (231L)
 
 **의존 없음** — `core/config.ts`, `cli/commands.ts`, `server.ts`, 프론트엔드가 모두 이 레지스트리를 참조.
 
 | Export | 역할 |
 | --- | --- |
-| `CLI_REGISTRY` | 12개 CLI 정의 (`agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `cursor`, `gemini`, `grok`, `kiro-code`, `opencode`, `copilot`; `label`, `binary`, `defaultModel`, `defaultEffort`, `efforts`, `models`, optional `effortNote`/provider metadata) |
+| `CLI_REGISTRY` | 13개 CLI 정의 (`pi`, `agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `cursor`, `gemini`, `grok`, `kiro-code`, `opencode`, `copilot`; `label`, `binary`, `defaultModel`, `defaultEffort`, `efforts`, `models`, optional `effortNote`/provider metadata) |
 | `CLI_KEYS` | `Object.keys(CLI_REGISTRY)` — 순서 보장 배열 |
 | `DEFAULT_CLI` | 기본 CLI (`claude` 우선, 없으면 첫 항목) |
 | `buildDefaultPerCli()` | registry에서 기본 `perCli` 객체 빌드 |
@@ -184,7 +193,7 @@ CLI → 서버 API 호출 시 인증 토큰을 관리하는 경량 헬퍼. 포�
 
 ---
 
-## src/core/config.ts — 경로, 설정, CLI 탐지 (431L)
+## src/core/config.ts — 경로, 설정, CLI 탐지 (528L)
 
 **상수**: `JAW_HOME` (`CLI_JAW_HOME` env || `~/.cli-jaw`) · `PROMPTS_DIR` · `DB_PATH` · `SETTINGS_PATH` · `HEARTBEAT_JOBS_PATH` (`heartbeat.json`) · `UPLOADS_DIR` · `SKILLS_DIR` · `SKILLS_REF_DIR` · `MIGRATION_MARKER` · `DEFAULT_PORT` (`3457`) · `CDP_PORT_OFFSET` (`5783`) · `APP_VERSION` (package.json)
 
@@ -209,9 +218,13 @@ CLI → 서버 API 호출 시 인증 토큰을 관리하는 경량 헬퍼. 포�
 
 | CLI | Default Model | Notable model aliases |
 | --- | --- | --- |
-| `claude` | `sonnet` | canonical choices: `opus`, `sonnet`, `sonnet[1m]`, `haiku`; legacy `opus[1m]` normalizes to `opus` |
-| `codex` | `gpt-5.4` | includes `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.3-codex*`, `gpt-5.2-codex`, `gpt-5.1-codex*` |
-| `codex-app` | `gpt-5.4` | Codex app-server runtime using Codex model choices |
+| `pi` | `grok-composer-2.5-fast` | Pi RPC runtime with isolated profile/model registration |
+| `agy` | native UI selected | print-mode runtime; no per-run model/effort flag |
+| `ai-e` | `sonnet` | AI-E wrapper runtime |
+| `claude` | `claude-opus-4-8` | canonical choices include `opus`, `sonnet`, `sonnet[1m]`, `haiku`; legacy aliases normalize |
+| `claude-e` | `claude-opus-4-8` | helper-backed Claude E runtime |
+| `codex` | `gpt-5.5` | includes `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.3-codex*`, `gpt-5.2-codex`, `gpt-5.1-codex*` |
+| `codex-app` | `gpt-5.5` | Codex app-server runtime using Codex model choices |
 | `cursor` | `composer-2.5` | uses `cursor-agent --model <resolvedModelId>`; effort resolves into model ids such as `composer-2.5-fast`, `gpt-5.5-medium-fast`, or `claude-opus-4-7-thinking-high-fast` |
 | `gemini` | `gemini-3-flash-preview` | includes `gemini-3.0-pro-preview`, `gemini-3.1-pro-preview`, `gemini-2.5-pro`, `gemini-2.5-flash` |
 | `grok` | `grok-build` | effort disabled because `grok-build` rejects `reasoningEffort`; auth/readiness via `grok models` |
@@ -230,7 +243,7 @@ CLI → 서버 API 호출 시 인증 토큰을 관리하는 경량 헬퍼. 포�
 
 ---
 
-## src/core/db.ts — Database (320L)
+## src/core/db.ts — Database (388L)
 
 ```sql
 session   (id='default', active_cli, session_id, model, permissions, working_dir, effort, updated_at)
@@ -256,9 +269,9 @@ jaw_ceo_transcript (id PK, at, role, text, source, created_at)
 
 ---
 
-## src/core/bus.ts — Broadcast Bus (23L)
+## src/core/bus.ts — Broadcast Bus (64L)
 
-순환 의존 방지 허브. 의존 0.
+순환 의존 방지 허브. 의존 0. WebSocket broadcast와 `src/core/event-bus.ts` SSE bridge가 함께 소비하는 내부 listener fan-out을 제공한다.
 
 | Function | 역할 |
 | --- | --- |
@@ -271,7 +284,7 @@ jaw_ceo_transcript (id PK, at, role, text, source, created_at)
 
 ---
 
-## src/messaging/ — shared messaging runtime (4 files, 347L)
+## src/messaging/ — shared messaging runtime (6 files, 506L)
 
 Telegram/Discord 채널의 활성 타겟 상태와 outbound routing을 공유한다. `settings.messaging.lastActive/latestSeen`를 유지하고, `core/runtime-settings.ts`의 restart 경로가 이 레이어를 다시 초기화한다.
 
@@ -433,7 +446,7 @@ Chrome CDP 제어, 완전 독립 모듈.
 |  | `getPageText(port, fmt)` |
 |  | `mouseClick(port, x, y)` |
 
-### vision.ts (138L) — Vision Click pipeline
+### vision.ts (204L) — Vision Click pipeline
 
 | Function | 역할 |
 | --- | --- |
@@ -475,7 +488,7 @@ Antigravity MCP sync is an existing config target at `~/.gemini/antigravity/mcp_
 - 백업 경로: `~/.cli-jaw/backups/skills-conflicts/<timestamp>/`
 - 결과가 로그/API 응답에 기록됨 (`status: ok/skip`, `action: noop/backup/create/conflict`)
 
-## lib/quota-copilot.ts — Copilot Quota & Auth (293L)
+## lib/quota-copilot.ts — Copilot Quota & Auth (328L)
 
 Copilot 할당량 조회 + 인증 토큰 관리. env → file cache → `gh auth token` → macOS keychain 4단계 폴백.
 

@@ -89,38 +89,44 @@
 <main class="docs-main">
 
 <h1>Goal System</h1>
-<p class="lead">Goals are persistent objectives that survive across sessions. They give your agent long-term direction and can trigger automatic continuation runs with budget tracking.</p>
+<p class="lead">Goals are persistent objectives that survive across sessions. They give the agent long-term direction, require evidence-backed checkpoints, and can trigger bounded continuation runs with budget tracking.</p>
 
 <h2>Goal Lifecycle</h2>
-<p>A goal moves through these states: <strong>set</strong> (active objective), <strong>paused</strong>, <strong>resumed</strong>, <strong>done</strong> (completed), or <strong>cancelled</strong>. Goal state is durable -- restarting the server preserves it.</p>
+<p>A goal moves through these states: <strong>plan-mode pending</strong>, <strong>active</strong>, <strong>paused</strong>, <strong>done</strong>, or <strong>cancelled</strong>. Goal state is durable -- restarting the server preserves it.</p>
 
 <h2>CLI Commands</h2>
 <pre><code># Set a new goal
 jaw goal set "Migrate the auth module to JWT tokens"
 
+# Start from a hint, then refine before checkpoints are accepted
+jaw goal plan "Make the desktop release self-contained"
+jaw goal refine "Ship self-contained Electron desktop artifacts with sidecar and CI evidence"
+
 # Check goal status
 jaw goal status
 
-# Pause the current goal
-jaw goal pause
+# Record evidence-backed progress
+jaw goal update "Sidecar bundle implemented" --evidence "npm run sidecar:bundle passed"
 
-# Resume a paused goal
+# Pause or resume the current goal
+jaw goal pause
 jaw goal resume
 
-# Mark goal as done (this is an API call, not a CLI command)
+# Mark goal as done
 jaw goal done
 
-# Cancel the goal
+# Cancel or reset goal state
 jaw goal cancel
-
-# Reset goal state
 jaw goal reset</code></pre>
 
 <h2>Slash Commands</h2>
 <table>
 <tr><th>Command</th><th>Description</th></tr>
 <tr><td><code>/goal set &lt;objective&gt;</code></td><td>Set a new goal objective</td></tr>
+<tr><td><code>/goal plan [hint]</code> / <code>/goalplan [hint]</code></td><td>Create a plan-mode goal with the raw hint stored separately as <code>planHint</code></td></tr>
+<tr><td><code>/goal refine &lt;objective&gt;</code></td><td>Finalize the specific durable objective before checkpoints are accepted</td></tr>
 <tr><td><code>/goal status</code></td><td>Show current goal state</td></tr>
+<tr><td><code>/goal update &lt;summary&gt;</code></td><td>Add a checkpoint with implementation/documentation/verification evidence</td></tr>
 <tr><td><code>/goal run start</code></td><td>Start a bounded auto-continuation run with budget tracking</td></tr>
 <tr><td><code>/goal run stop</code></td><td>Stop the current goal run</td></tr>
 <tr><td><code>/goal pause</code></td><td>Pause the goal</td></tr>
@@ -138,9 +144,10 @@ jaw goal reset</code></pre>
 <h3>Goal Mode Rules</h3>
 <ul>
 <li><strong>Goal is the supreme rule.</strong> When a goal is active, it supersedes PABCD phase gates. The agent self-advances through all phases without waiting for user approval.</li>
+<li><strong>Plan-mode guard.</strong> <code>/goal plan</code> and <code>/goalplan</code> store the user's hint as <code>planHint</code>; the agent must refine it into a specific objective before checkpoint updates count.</li>
 <li><strong>Completion audit.</strong> Before <code>/goal done</code>, the agent must perform a requirement-by-requirement verification. Uncertain or indirect evidence is treated as "not achieved."</li>
 <li><strong>Blocked audit.</strong> The agent can only declare "blocked" after the same blocking condition repeats for 3 consecutive goal turns. Hard/slow/uncertain work is never a valid reason to block.</li>
-<li><strong>Documentation.</strong> Progress is documented in jawdev style (devlog/_plan/ with decade numbering) at each milestone.</li>
+<li><strong>Evidence bundle.</strong> Development goals need documentation evidence, implementation evidence, and fresh verification output before completion.</li>
 </ul>
 
 <h2>API Endpoints</h2>
@@ -154,18 +161,20 @@ jaw goal reset</code></pre>
 <tr><td>POST</td><td><code>/api/goal-run</code></td><td>Start, pause, resume, or stop a goal run</td></tr>
 </table>
 
-<h2>WebSocket Events</h2>
-<p>Goal lifecycle changes emit WebSocket events that the Web UI consumes:</p>
+<h2>Runtime Events</h2>
+<p>Goal lifecycle changes emit runtime events. The Web UI receives them through <code>GET /api/events</code> SSE first, with WebSocket fallback on legacy servers:</p>
 <ul>
 <li><code>goal_done</code> -- goal completed</li>
+<li><code>goal_done_rejected</code> -- completion rejected because evidence is missing</li>
 <li><code>goal_cancel</code> -- goal cancelled</li>
 <li><code>goal_continuation</code> -- auto-continuation triggered</li>
 <li><code>goal_continuation_failed</code> -- continuation attempt failed</li>
 <li><code>goal_continuation_limit</code> -- continuation budget reached</li>
+<li><code>goal_pause_detected</code> -- two-step pause gate detected</li>
 </ul>
 
 <h2>Goal + PABCD Integration</h2>
-<p>Goals work alongside PABCD orchestration. You can set a goal and then use PABCD phases to break it down. Goal continuation is allowed during active PABCD phases, so the agent can keep working on goal-driven tasks within the orchestration framework.</p>
+<p>Goals work alongside PABCD orchestration, but an active goal has priority over phase gates. In goal mode, PABCD transition commands still record state, but the agent does not stop at P/A/B/C/D boundaries unless it needs a real external decision or must pause after an independent blocked audit.</p>
 
 <div class="callout callout-info">
 <strong>Try it:</strong>

@@ -1,11 +1,17 @@
 # cli-jaw Electron Desktop Shell
 
-Thin Electron wrapper around the jaw manager dashboard. Loads `http://127.0.0.1:24577/manager/`
-by default and manages the lifecycle of the underlying `jaw dashboard serve` process.
-The Web/CLI dashboard lane keeps `24576`; Electron implicit spawn uses `24577-24590`.
+Electron wrapper around the jaw manager dashboard. In development it attaches to
+or spawns `jaw dashboard serve`; in packaged builds it prefers the bundled
+Node.js sidecar server shipped under `extraResources/server`.
 
-> Native deps (`better-sqlite3`, `playwright-core`, `sharp`, `canvas`) live exclusively in the
-> manager server. The Electron main process never imports them.
+Default manager lanes:
+
+- Web/CLI dashboard: `24576`
+- Electron implicit spawn: `24577-24590`
+
+The Electron main process must not import server-native modules such as
+`better-sqlite3`. Native/server dependencies live in the manager or bundled
+sidecar process.
 
 ## Install
 
@@ -17,19 +23,19 @@ npm --prefix electron install
 
 ## Develop
 
-From the repo root (concurrently spawns the dashboard server + Electron with HMR):
+From the repo root, run the dashboard server and Electron with hot reload:
 
 ```bash
 npm run electron:dev
 ```
 
-Or, if an Electron manager server is already running on 24577:
+If an Electron manager server is already running on `24577`:
 
 ```bash
 npm --prefix electron run dev
 ```
 
-## Build
+## Build The Shell
 
 ```bash
 npm run electron:build
@@ -38,36 +44,117 @@ npm run electron:build
 #   electron/out/preload/index.js
 ```
 
-## Run a built artifact
+Run the built shell without packaging:
 
 ```bash
 npm --prefix electron run start
 ```
 
-## Environment variables
+## Bundle The Sidecar
+
+Packaged apps include a self-contained server sidecar:
+
+```bash
+npm run sidecar:bundle
+```
+
+`scripts/bundle-sidecar.sh` currently:
+
+- downloads Node.js `22.16.0` for the target platform/arch,
+- runs the root backend and frontend builds,
+- copies `dist/`, `public/`, `package.json`, and lockfile into
+  `electron/sidecar/server`,
+- installs production dependencies with scripts disabled,
+- prunes frontend-only packages,
+- rebuilds `better-sqlite3`,
+- creates `bin/jaw` or `bin/jaw.cmd` to launch `dist/bin/cli-jaw.js`,
+- optionally copies the native `jaw-claude-i` helper when available.
+
+`electron/src/main/lib/jaw-spawn.ts` searches the bundled sidecar first in
+packaged apps, then falls back to `JAW_BIN` and the global `jaw` binary.
+
+## Package
+
+```bash
+npm run electron:dist:mac
+```
+
+The root `electron:dist:mac` script runs:
+
+```bash
+npm run build:frontend
+npm run sidecar:bundle
+npm --prefix electron run build
+CSC_IDENTITY_AUTO_DISCOVERY=false npm --prefix electron run dist:mac
+```
+
+Current `electron-builder.yml` targets:
+
+| Platform | Arch | Artifacts |
+| --- | --- | --- |
+| macOS | arm64 | DMG, ZIP |
+| Windows | x64 | NSIS installer, ZIP |
+| Linux | x64 | AppImage |
+
+Builds are currently unsigned and unnotarized. On macOS, first launch may
+require right-click then Open.
+
+## Release Workflow
+
+`.github/workflows/desktop-release.yml` is the canonical desktop release path.
+It runs on GitHub Release publish and manual `workflow_dispatch`.
+
+For each platform matrix entry it:
+
+1. checks out the release tag or current ref,
+2. installs Node.js 22 and Python 3.11 for `node-gyp`,
+3. runs root `npm ci --ignore-scripts`,
+4. bundles the platform sidecar,
+5. installs Electron dependencies,
+6. typechecks and builds Electron,
+7. packages the app with signing disabled,
+8. uploads artifacts to the release or 7-day manual-run artifact storage.
+
+## Desktop Behavior
+
+Recent desktop surfaces include:
+
+- sidecar-first `jaw` detection,
+- first-launch and tray menu CLI install flow,
+- background tray mode,
+- browser webview panel and URL controls,
+- diff repo picker and dashboard git diff API bridge,
+- widened/resizable right sidebar panels,
+- visible quit cleanup/progress,
+- macOS Automation permission prompt for Computer Use-related flows.
+
+## Environment Variables
 
 | Var | Default | Description |
 |---|---|---|
 | `JAW_MANAGER_URL` | `http://127.0.0.1:24577/` | Manager URL to attach to |
-| `JAW_MANAGER_PORT` | `24577` | Port (used when URL is not set; implicit spawn falls back through `24590`) |
-| `JAW_BIN` | _(auto-detected)_ | Path to `jaw` CLI binary |
-| `JAW_ELECTRON_DEVTOOLS` | _(unset)_ | Set to `1` to open DevTools |
-| `NODE_ENV` | _(unset)_ | `development` enables DevTools |
+| `JAW_MANAGER_PORT` | `24577` | Port used when URL is not set; implicit spawn falls back through `24590` |
+| `JAW_BIN` | auto-detected | Path to a `jaw` CLI binary when not using the bundled sidecar |
+| `JAW_ELECTRON_DEVTOOLS` | unset | Set to `1` to open DevTools |
+| `NODE_ENV` | unset | `development` enables DevTools |
 
-## CLI flags
+## CLI Flags
 
-```
---port <n>          Override manager port (default 24577; implicit spawn only uses 24577-24590)
---manager-url <url> Override full manager URL
---attach-only       Never spawn jaw dashboard serve; only attach
---spawn             Force spawn even if no health probe is required
+```text
+--port <n>           Override manager port (implicit spawn uses 24577-24590)
+--manager-url <url>  Override full manager URL
+--attach-only        Never spawn jaw dashboard serve; only attach
+--spawn              Force spawn even if no health probe is required
 ```
 
 ## Lifecycle
 
-1. Health-check `${MANAGER_URL}api/dashboard/health` with backoff 200/400/800/1600/3000/5000ms (up to 60s).
-2. Healthy → load URL.
-3. Unhealthy and not `--attach-only` → discover `jaw` binary, spawn `jaw dashboard serve --port <port>`, re-check.
-4. Binary missing → native dialog (install guide / pick path / quit).
-5. Crash loop guard: more than 3 manager exits within 60s stops auto-restart and shows a dialog.
-6. Quit → `SIGTERM` → 5s grace → `SIGKILL`.
+1. Health-check `${MANAGER_URL}api/dashboard/health` with backoff
+   `200/400/800/1600/3000/5000ms` for up to 60 seconds.
+2. Healthy manager loads immediately.
+3. Unhealthy and not `--attach-only`: discover sidecar/global `jaw`, spawn
+   `jaw dashboard serve --port <port>`, then re-check.
+4. Binary missing: show native install/pick-path/quit dialog.
+5. Crash loop guard: more than 3 manager exits within 60 seconds stops
+   auto-restart and shows a dialog.
+6. Quit: `SIGTERM`, 5 second grace, then `SIGKILL`.

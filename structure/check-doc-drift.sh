@@ -122,7 +122,7 @@ const path = require('path');
 
 const doc = fs.readFileSync('structure/server_api.md', 'utf8');
 
-function extractRoutes(text) {
+function extractAppRoutes(text) {
   const routes = [];
   for (const match of text.matchAll(/app\.(get|post|put|delete|patch)\('([^']+)'/g)) {
     const method = match[1].toUpperCase();
@@ -130,6 +130,23 @@ function extractRoutes(text) {
     routes.push(`${method} ${route}`);
   }
   return routes;
+}
+
+function extractRouterRoutes(text) {
+  const routes = [];
+  for (const match of text.matchAll(/(?:router|ctx\.router)\.(get|post|put|delete|patch)\('([^']+)'/g)) {
+    const method = match[1].toUpperCase();
+    const route = match[2].split('?')[0];
+    routes.push(`${method} ${route}`);
+  }
+  return routes;
+}
+
+function prefixedRoutes(file, prefix) {
+  return extractRouterRoutes(fs.readFileSync(file, 'utf8')).map((entry) => {
+    const [method, route] = entry.split(' ');
+    return `${method} ${prefix}${route === '/' ? '' : route}`;
+  });
 }
 
 function collectTsFiles(dir) {
@@ -151,8 +168,13 @@ const routeTexts = collectTsFiles('src/routes')
   .map((file) => fs.readFileSync(file, 'utf8'));
 const browserText = fs.readFileSync('src/routes/browser.ts', 'utf8');
 const actualRoutes = new Set([
-  ...extractRoutes(serverText),
-  ...routeTexts.flatMap(extractRoutes),
+  ...extractAppRoutes(serverText),
+  ...routeTexts.flatMap(extractAppRoutes),
+  ...prefixedRoutes('src/routes/runtime-context.ts', '/api/runtime-context'),
+  ...prefixedRoutes('src/routes/security-audit.ts', '/api/security-audit'),
+  ...prefixedRoutes('src/manager/board/routes.ts', '/api/dashboard/board'),
+  ...prefixedRoutes('src/manager/schedule/routes.ts', '/api/dashboard/schedule'),
+  ...prefixedRoutes('src/routes/jaw-ceo.ts', '/api/jaw-ceo'),
 ].filter((route) => route !== 'GET /'));
 
 function expandDocRoutes(token) {
@@ -185,7 +207,8 @@ if (start === -1 || wsIndex === -1) {
 }
 
 const docRoutes = new Set();
-for (const line of lines.slice(start, wsIndex)) {
+const restEnd = lines.findIndex((line, index) => index > start && line.trim() === '---');
+for (const line of lines.slice(start, restEnd === -1 ? wsIndex : Math.min(restEnd, wsIndex))) {
   if (!line.startsWith('|')) continue;
   const cells = line.split('|').slice(1, -1).map((cell) => cell.trim());
   if (!cells[1] || cells[1] === 'Endpoints' || cells[1].startsWith('-')) continue;
@@ -211,7 +234,7 @@ const docCounts = {
 const actualCounts = {
   totalHandlers: actualRoutes.size + 1,
   apiEndpoints: actualRoutes.size,
-  browserRoutes: extractRoutes(browserText).length,
+  browserRoutes: extractAppRoutes(browserText).length,
 };
 
 const countLabels = [

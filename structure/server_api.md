@@ -6,10 +6,10 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 
 > 📚 [INDEX](INDEX.md) · [체크리스트 ↗](AGENTS.md) · [커맨드 ↗](commands.md) · **서버 API**
 
-# server.ts — Glue + Route Registration (995L)
+# server.ts — Glue + Route Registration (654L)
 
-> Express/WS bootstrap + localhost/LAN opt-in 보안 가드 + base route 14개 + `src/routes/*` 17개 registrar 등록.
-> 현재 라이브 surface는 총 193개 route handler이며, 이 중 `/`를 제외한 API 엔드포인트는 192개다.
+> Express/WS/SSE bootstrap + localhost/LAN opt-in 보안 가드 + `src/routes/*` registrar + mounted sub-router 등록.
+> 현재 라이브 surface는 총 195개 route handler이며, 이 중 `/`를 제외한 API 엔드포인트는 194개다.
 > mutation route(`POST`/`PUT`/`DELETE`)는 모두 `requireAuth`를 거친다. 단, `requireAuth()`는 loopback 요청을 토큰 없이 통과시키고, `lanAllowed()`가 true일 때 private IP도 LAN bypass로 통과시킨다.
 > `GET /api/auth/token`은 Bearer bootstrap 전용이며 `Sec-Fetch-Site`가 `same-origin` 또는 `none`이 아닐 때 `403`을 반환한다.
 
@@ -19,13 +19,21 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 
 | Module | Lines | Routes | 역할 |
 | --- | ---: | ---: | --- |
-| `server.ts` | 995L | 21 | Helmet/CORS/Host/rate-limit/WS/bootstrap + base routes + instance lock + chat sessions + module registration |
+| `server.ts` | 654L | mount glue | Helmet/CORS/Host/rate-limit/WS/bootstrap + static middleware + route/sub-router registration |
+| `src/routes/static.ts` | 30L | 2 | root HTML + `/media/:filename` upload media serve |
+| `src/routes/system.ts` | 57L | 4 | health/session/runtime/auth-token |
+| `src/routes/messages.ts` | 107L | 4 | message list/count/search/latest |
+| `src/routes/command.ts` | 108L | 3 | slash command execution, command palette, normal message submit |
+| `src/routes/instance.ts` | 53L | 3 | instance lock GET/POST/DELETE |
+| `src/routes/chat-sessions.ts` | 30L | 3 | session list/create/switch |
+| `src/routes/task.ts` | 59L | 2 | agent-native task list/action API |
+| `src/routes/events.ts` | 82L | 1 | `/api/events` data-only SSE event channel |
 | `src/routes/settings.ts` | 400L | 21 | settings/prompt/heartbeat-md/MCP/CLI registry/quota/copilot/Pi profile registration |
 | `src/routes/memory.ts` | 191L | 13 | memory runtime + KV memory + memory files |
-| `src/routes/browser.ts` | 475L | 41 | browser primitive/tab/debug/doctor/cleanup routes + adaptive fetch + web-ai render/send/poll/watch/sessions/capabilities/context routes |
-| `src/routes/jaw-memory.ts` | 282L | 11 | jaw memory search/read/save/list/init/reflect/flush/soul/soul-activate/bootstrap |
+| `src/routes/browser.ts` | 478L | 41 | browser primitive/tab/debug/doctor/cleanup routes + adaptive fetch + web-ai render/send/poll/watch/sessions/capabilities/context routes |
+| `src/routes/jaw-memory.ts` | 352L | 12 | jaw memory search/read/save/context/list/init/reflect/flush/soul/soul-activate/bootstrap |
 | `src/routes/orchestrate.ts` | 637L | 14 | reset/state/workers/worker-progress/snapshot/queue cancel/hold/queue steer async accept/dispatch/batch dispatch/worker result/state PUT |
-| `src/routes/goal.ts` | 139L | 3 | durable goal state get/history/set-update-complete-cancel-pause-resume-clear-reset |
+| `src/routes/goal.ts` | 177L | 3 | durable goal state get/history/set-update-complete-cancel-pause-resume-clear-reset |
 | `src/routes/goal-run.ts` | 83L | 3 | bounded goal-run state/preflight/start-pause-resume-stop |
 | `src/routes/messaging.ts` | 259L | 6 | upload/file-open/voice/telegram/channel/discord send |
 | `src/routes/employees.ts` | 105L | 5 | employee CRUD + reset |
@@ -34,8 +42,8 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 | `src/routes/traces.ts` | 80L | 3 | public trace summary/event read routes |
 | `src/routes/heartbeat.ts` | 47L | 2 | heartbeat GET + validated PUT |
 | `src/routes/jaw-ceo.ts` | 321L | 20 | Jaw CEO coordinator: state/message/query/docs-edit/settings/events/pending/watch/audit/voice/confirmations |
-| `src/routes/runtime-context.ts` | 46L | 4 | runtime context entry CRUD (ephemeral prompt injection) |
-| `src/routes/security-audit.ts` | 18L | 2 | security audit log entries + verify |
+| `src/routes/runtime-context.ts` | 46L | 4 | runtime context entry CRUD (ephemeral prompt injection), mounted at `/api/runtime-context` |
+| `src/routes/security-audit.ts` | 18L | 2 | security audit log entries + verify, mounted at `/api/security-audit` |
 | `src/routes/i18n.ts` | 35L | 2 | language list + locale bundle |
 | `src/routes/quota.ts` | 528L | — | `settings.ts`가 호출하는 quota/auth/status reader helper |
 | `src/routes/quota-kiro-reverse.ts` | 239L | — | Kiro/CodeWhisperer reverse-engineered usage-limits reader (`fetchKiroUsage`) |
@@ -47,18 +55,20 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 
 | Module | Routes | 역할 |
 | --- | ---: | --- |
-| `src/manager/board/routes.ts` | 5 | board tasks CRUD + from-message |
-| `src/manager/schedule/routes.ts` | 5 | scheduled work CRUD + dispatch |
+| `src/manager/board/routes.ts` | 99L / 5 | board tasks CRUD + from-message |
+| `src/manager/schedule/routes.ts` | 112L / 5 | scheduled work CRUD + dispatch |
 
 ### 등록 순서 (`server.ts`)
 
 ```text
-employees → heartbeat → skills → jaw-memory → orchestrate
-→ goal → goal-run → memory → settings → messaging → avatar → traces
-→ jaw-ceo → runtime-context → security-audit → dashboard board/schedule → browser → i18n
+static → employees → heartbeat → skills → jaw-memory → orchestrate
+→ goal → task → events(SSE) → instance → chat-sessions → messages
+→ system → agent-control → command → goal-run → memory → settings
+→ messaging → avatar → traces → jaw-ceo → runtime-context
+→ security-audit → dashboard board/schedule → browser → i18n
 ```
 
-라우트 모듈은 `server.ts:636-710` 부근에서 등록된다.
+라우트 모듈은 `server.ts:319`와 `server.ts:379-459` 부근에서 등록된다.
 
 ---
 
@@ -94,8 +104,11 @@ employees → heartbeat → skills → jaw-memory → orchestrate
 
 | Category | Endpoints |
 | --- | --- |
-| Core/Auth | `GET /api/health` `GET /api/session` `GET /api/messages` `GET /api/messages/search` `GET /api/messages/latest` `GET /api/runtime` `GET /api/auth/token` `POST /api/message` `POST /api/stop` `POST /api/clear` `POST /api/session/reset` |
+| Core/Auth | `GET /api/health` `GET /api/session` `GET /api/messages` `GET /api/messages/count` `GET /api/messages/search` `GET /api/messages/latest` `GET /api/runtime` `GET /api/auth/token` `GET /media/:filename` `POST /api/message` `POST /api/stop` `POST /api/clear` `POST /api/session/reset` |
 | Commands | `POST /api/command` `GET /api/commands?interface=` |
+| Events | `GET /api/events` |
+| Chat Sessions | `GET /api/chat-sessions` `POST /api/chat-sessions` `POST /api/chat-sessions/:id/switch` |
+| Instance Lock | `GET /api/instance/lock` `POST /api/instance/lock` `DELETE /api/instance/lock` |
 | Settings/Prompt | `GET/PUT /api/settings` `GET /api/codex-context` `GET/PUT /api/prompt` `GET /api/prompt-templates` `PUT /api/prompt-templates/:id` `GET/PUT /api/heartbeat-md` |
 | MCP/CLI/Quota | `GET/PUT /api/mcp` `POST /api/mcp/sync` `POST /api/mcp/install` `POST /api/mcp/reset` `GET /api/mcp/registry` `GET /api/cli-registry` `GET /api/cli-status` `GET /api/quota` `POST /api/copilot/refresh` `POST /api/pi/profiles/register` `GET /api/pi/models` |
 | Runtime Context | `GET /api/runtime-context` `POST /api/runtime-context` `DELETE /api/runtime-context/:id` `DELETE /api/runtime-context` |
@@ -105,6 +118,7 @@ employees → heartbeat → skills → jaw-memory → orchestrate
 | Orchestrate | `POST /api/orchestrate/reset` `GET /api/orchestrate/state` `GET /api/orchestrate/workers` `GET /api/orchestrate/worker-progress` `GET /api/orchestrate/worker-progress/:agentId` `GET /api/orchestrate/snapshot` `DELETE /api/orchestrate/queue/:id` `POST /api/orchestrate/queue/:id/hold` `DELETE /api/orchestrate/queue/:id/hold` `POST /api/orchestrate/queue/:id/steer` `POST /api/orchestrate/dispatch` `POST /api/orchestrate/dispatch/batch` `GET /api/orchestrate/worker/:agentId/result` `PUT /api/orchestrate/state` |
 | Goal | `GET /api/goal` `GET /api/goal/history` `POST /api/goal` |
 | Goal Run | `GET /api/goal-run` `GET /api/goal-run/preflight` `POST /api/goal-run` |
+| Task | `GET /api/task` `POST /api/task` |
 | Employees | `GET /api/employees` `POST /api/employees` `PUT /api/employees/:id` `DELETE /api/employees/:id` `POST /api/employees/reset` |
 | Skills | `GET /api/skills` `GET /api/skills/:id` `POST /api/skills/enable` `POST /api/skills/disable` `POST /api/skills/reset` |
 | Memory Runtime / KV / Files | `GET /api/memory/status` `POST /api/memory/reindex` `POST /api/memory/bootstrap` `GET /api/memory/files` `GET /api/memory` `POST /api/memory` `DELETE /api/memory/:key` `GET /api/memory-files` `GET /api/memory-file` `GET /api/memory-files/:filename` `DELETE /api/memory-file` `DELETE /api/memory-files/:filename` `PUT /api/memory-files/settings` |
@@ -117,7 +131,7 @@ employees → heartbeat → skills → jaw-memory → orchestrate
 | Dashboard Schedule | `GET /api/dashboard/schedule/work` `POST /api/dashboard/schedule/work` `PATCH /api/dashboard/schedule/work/:id` `DELETE /api/dashboard/schedule/work/:id` `POST /api/dashboard/schedule/work/:id/dispatch` |
 | i18n | `GET /api/i18n/languages` `GET /api/i18n/:lang` |
 
-> 실제 코드(`server.ts` + `src/routes/*.ts` + dashboard board/schedule)에서 추출한 총 193개 route handler 기준이다. 이 중 API 엔드포인트는 192개이고, 나머지 1개는 `/` 엔트리이다. Browser API 41개는 `src/routes/browser.ts`에서 등록된다. Jaw CEO 20개는 `src/routes/jaw-ceo.ts`에서 sub-router로 등록된다.
+> 실제 코드(`server.ts` + `src/routes/*.ts` + mounted runtime/security/Jaw CEO/dashboard sub-router)에서 추출한 총 195개 route handler 기준이다. 이 중 API 엔드포인트는 194개이고, 나머지 1개는 `/` 엔트리이다. Browser API 41개는 `src/routes/browser.ts`에서 등록된다. Jaw CEO 20개는 `src/routes/jaw-ceo.ts`에서 sub-router로 등록된다.
 
 ---
 
@@ -216,7 +230,7 @@ employees → heartbeat → skills → jaw-memory → orchestrate
 
 ## WebSocket Events
 
-연결 시 서버는 현재 상태 스냅샷을 먼저 보낸다: `agent_status`, `queue_update`, 비-IDLE `orc_state`. 현재 브로드캐스트되는 WebSocket 이벤트는 43종이다.
+연결 시 서버는 현재 상태 스냅샷을 먼저 보낸다: `agent_status`, `queue_update`, 비-IDLE `orc_state`. 현재 브로드캐스트되는 WebSocket 이벤트는 47종이다. Web UI는 우선 `GET /api/events` SSE channel을 사용하고, legacy 서버에서 `/api/events`가 열리지 않을 때만 WebSocket path로 자동 fallback한다.
 
 | Type | 설명 |
 | --- | --- |
@@ -234,20 +248,23 @@ employees → heartbeat → skills → jaw-memory → orchestrate
 | `orchestrate_done` / `orchestrate_warning` | orchestration 완료/실패 + 비차단 경고 |
 | `steer_started` | `/steer` 또는 pending queue steer가 새 프롬프트를 accepted 상태로 전환 |
 | `agent_added` / `agent_updated` / `agent_deleted` | employee CRUD 반영 |
-| `agent:claude-e:*` | Claude E native helper lifecycle bridge (runtime_started/spawned/session/prompt_injected/stop/stop_failure/interrupted/cleanup/error) |
+| `agent:claude-e:runtime_started` / `agent:claude-e:spawned` / `agent:claude-e:session` / `agent:claude-e:prompt_injected` | Claude E native helper start/session/prompt lifecycle bridge |
+| `agent:claude-e:stop` / `agent:claude-e:stop_failure` / `agent:claude-e:interrupted` / `agent:claude-e:cleanup` / `agent:claude-e:error` | Claude E native helper stop/error lifecycle bridge |
 | `settings_change` | project/workspace settings 변경 신호 |
 | `memory_status` | memory sidebar / runtime 상태 갱신 신호 |
 | `system_notice` | compact refresh 같은 시스템 공지 |
 | `heartbeat_pending` | pending heartbeat job 수 |
 | `worker_stalled` / `worker_disconnected` / `worker_timeout` | distributed worker 상태 변화 |
 | `goal_done` / `goal_done_rejected` / `goal_cancel` / `goal_continuation` / `goal_continuation_failed` / `goal_continuation_limit` | durable goal / bounded continuation lifecycle |
+| `goal_pause_detected` | goal pause 2-tap gate 감지 |
+| `session_switched` / `session_created` / `session_list` | multi-session state update |
 | `schedule_wakeup` / `schedule_wakeup_failed` | ScheduleWakeup continuation scheduling lifecycle |
 
 ---
 
 ## Manager Dashboard Server Surface
 
-`jaw dashboard serve`가 띄우는 별도 manager 서버(`src/manager/server.ts`, 753L)는 core `server.ts` route count에 포함하지 않는다.
+`jaw dashboard serve`가 띄우는 별도 manager 서버(`src/manager/server.ts`, 852L)는 core `server.ts` route count에 포함하지 않는다. Manager instance state는 `src/manager/instance-registry.ts`(120L)가 cached scan + diff event source로 제공하며, core Web UI의 `GET /api/events` SSE channel과 같은 event-channel client가 refresh-state recovery에 사용된다.
 
 | Surface | Endpoints |
 | --- | --- |
