@@ -120,6 +120,19 @@ test('SF-004: buildHistoryBlock filters stale worklog continue artifacts', () =>
     assert.ok(src.includes('Continuing from previous worklog.'), 'old English locale marker should be filtered');
 });
 
+test('SF-004b: resume argv CLIs keep enriched promptForArgs for agy and compact handoff', () => {
+    const src = fs.readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
+    const promptForArgsIdx = src.indexOf('let promptForArgs =');
+    const resumeArgsIdx = src.indexOf('args = buildResumeArgs(cli');
+
+    assert.ok(promptForArgsIdx > 0, 'spawn should compute promptForArgs before argv construction');
+    assert.ok(resumeArgsIdx > promptForArgsIdx, 'resume args should be built after promptForArgs');
+    assert.ok(
+        src.includes('buildResumeArgs(cli, runtimeModel, effort, sid, promptForArgs, permissions, argOptions)'),
+        'resume argv CLIs must receive promptForArgs, not raw prompt',
+    );
+});
+
 // ─── SF-EDGE: processQueue is called after mainManaged exit ───
 
 test('SF-EDGE: processQueue is triggered after mainManaged exit in both paths', () => {
