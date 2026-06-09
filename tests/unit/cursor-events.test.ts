@@ -73,6 +73,27 @@ test('Cursor assistant snapshots are deduped after deltas', () => {
     assert.equal(extractOutputChunk('cursor', { type: 'assistant' }, ctx), '');
 });
 
+test('Cursor assistant text normalizes escaped newlines for display and snapshot dedupe', () => {
+    const ctx = makeContext();
+    extractFromEvent('cursor', { type: 'assistant', subtype: 'delta', text: 'line 1\\n' }, ctx, 'cursor');
+    assert.equal(extractOutputChunk('cursor', { type: 'assistant' }, ctx), 'line 1\n');
+    extractFromEvent('cursor', { type: 'assistant', subtype: 'delta', text: 'line 2' }, ctx, 'cursor');
+    assert.equal(extractOutputChunk('cursor', { type: 'assistant' }, ctx), 'line 2');
+    extractFromEvent('cursor', {
+        type: 'assistant',
+        message: { content: [{ type: 'text', text: 'line 1\\nline 2' }] },
+    }, ctx, 'cursor');
+    assert.equal(extractOutputChunk('cursor', { type: 'assistant' }, ctx), '');
+    assert.equal(ctx.fullText, 'line 1\nline 2');
+});
+
+test('Cursor result fallback normalizes escaped newlines', () => {
+    const ctx = makeContext();
+    extractFromEvent('cursor', { type: 'result', subtype: 'success', result: 'done\\nnext' }, ctx, 'cursor');
+    assert.equal(extractOutputChunk('cursor', { type: 'result' }, ctx), 'done\nnext');
+    assert.equal(ctx.fullText, 'done\nnext');
+});
+
 test('Cursor tool calls update running entries to done', () => {
     const ctx = makeContext();
     extractFromEvent('cursor', {

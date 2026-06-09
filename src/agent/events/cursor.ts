@@ -8,6 +8,7 @@ import {
     buildPreview,
     emitAgentTool,
     extractText,
+    normalizeAssistantDisplayText,
     pushTrace,
     summarizeToolInput,
     syncLiveTools,
@@ -25,7 +26,7 @@ function cursorAssistantText(event: CliEventRecord): string {
 }
 
 function appendCursorAssistantText(ctx: SpawnContext, event: CliEventRecord): string {
-    const text = cursorAssistantText(event);
+    const text = normalizeAssistantDisplayText(cursorAssistantText(event));
     if (!text) return '';
 
     const isDelta = event.subtype === 'delta' || event.delta?.type === 'text_delta';
@@ -189,7 +190,7 @@ export function handleCursorEvent(
                 status: 'error',
             });
         } else if (!ctx.fullText && typeof event["result"] === 'string') {
-            const segment = appendAssistantTextSegment(ctx, event["result"]);
+            const segment = appendAssistantTextSegment(ctx, normalizeAssistantDisplayText(event["result"]));
             ctx.pendingOutputChunk = (ctx.pendingOutputChunk || '') + segment;
         }
     }
