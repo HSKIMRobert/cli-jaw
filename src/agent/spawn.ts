@@ -50,7 +50,15 @@ import type { SpawnContext, ToolEntry } from '../types/agent.js';
 import { asCliEventRecord, discriminate, fieldString, type CliEventRecord } from '../types/cli-events.js';
 import { isJawRuntimeEvent, handleJawRuntimeEvent } from './claude-e-runtime.js';
 import { appendTraceEvent, stampTraceTool, startTraceRun } from '../trace/store.js';
-import { extractAgyConversationId, formatAgyTimeoutMessage, isAgyStaleSessionOutput, isAgyTimeoutOutput } from './agy-runtime.js';
+import {
+    AGY_COMPLETE_KILL_REASON,
+    AGY_PRINT_QUIET_COMPLETION_MS,
+    extractAgyConversationId,
+    formatAgyTimeoutMessage,
+    isAgyStaleSessionOutput,
+    isAgyTimeoutOutput,
+    shouldCompleteAgyPrintRun,
+} from './agy-runtime.js';
 import { startAgyTranscriptWatcher, type AgyTranscriptWatcherHandle } from './agy-transcript-watcher.js';
 import { appendAssistantTextSegment, normalizeAssistantDisplayText } from './events/helpers.js';
 import { listKiroConversationIdsForCwd } from './kiro-auth.js';
@@ -1767,13 +1775,20 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     let stdSettled = false;  // guard: error→close can fire sequentially
     let lastOpencodeIoAt = Date.now();
     let opencodeIdleTimer: ReturnType<typeof setInterval> | null = null;
+    let agyQuietCompletionTimer: ReturnType<typeof setTimeout> | null = null;
     const clearOpencodeIdleTimer = () => {
         if (!opencodeIdleTimer) return;
         clearInterval(opencodeIdleTimer);
         opencodeIdleTimer = null;
     };
+    const clearAgyQuietCompletionTimer = () => {
+        if (!agyQuietCompletionTimer) return;
+        clearTimeout(agyQuietCompletionTimer);
+        agyQuietCompletionTimer = null;
+    };
     child.on('error', (err: NodeJS.ErrnoException) => {
         clearOpencodeIdleTimer();
+        clearAgyQuietCompletionTimer();
         if (stdSettled) return;
         stdSettled = true;
         cleanupEmployeeTmpDir(spawnCwd, settings["workingDir"], agentLabel);
@@ -1849,6 +1864,27 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         ...(kiroPlainText ? { kiroLastVisibleAt: Date.now(), kiroHeartbeatSent: false } : {}),
     };
     let geminiWatchdog: ReturnType<typeof setTimeout> | null = null;
+    const scheduleAgyQuietCompletion = () => {
+        if (cli !== 'agy') return;
+        clearAgyQuietCompletionTimer();
+        if (!shouldCompleteAgyPrintRun(ctx)) return;
+        agyQuietCompletionTimer = setTimeout(() => {
+            agyQuietCompletionTimer = null;
+            if (!child.pid || !shouldCompleteAgyPrintRun(ctx)) return;
+            console.log(`[jaw:agy] output quiet for ${AGY_PRINT_QUIET_COMPLETION_MS}ms — completing print run`);
+            killReasons.set(child.pid, AGY_COMPLETE_KILL_REASON);
+            try {
+                killProcessTree(child.pid, 'SIGTERM');
+                setTimeout(() => {
+                    try {
+                        if (child.pid) killProcessTree(child.pid, 'SIGKILL');
+                    } catch { /* already dead */ }
+                }, DEFAULT_KILL_ESCALATION_MS);
+            } catch (e) {
+                console.warn('[jaw:agy] quiet completion kill failed:', (e as Error).message);
+            }
+        }, AGY_PRINT_QUIET_COMPLETION_MS);
+    };
 
     // ─── Subprocess stall watchdog (Phase 1: #178 OAuth2 stall recovery) ───
     const rawAgentTimeoutCfg = (settings as Record<string, unknown>)["agentTimeout"];
@@ -1889,6 +1925,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 if (emitCtx.liveScope) replaceLiveRunTools(emitCtx.liveScope, emitCtx.toolLog);
                 appendParentLiveRunTool(emitCtx, tool);
                 broadcast('agent_tool', { agentId: label, ...tool, ...tag }, audience);
+                scheduleAgyQuietCompletion();
             },
         });
     }
@@ -2011,6 +2048,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                     text: newText,
                     ...empTag,
                 }, traceAudience);
+                scheduleAgyQuietCompletion();
                 return;
             }
             const displayText = normalizeAssistantDisplayText(text);
@@ -2023,6 +2061,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 text: displayText,
                 ...empTag,
             }, traceAudience);
+            scheduleAgyQuietCompletion();
             return;
         }
         if (kiroPlainText) {
@@ -2046,16 +2085,19 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
 
     child.stderr.on('data', (chunk) => {
         opts.lifecycle?.onActivity?.('stderr');
+        clearAgyQuietCompletionTimer();
         lastOpencodeIoAt = Date.now();
         const text = chunk.toString().trim();
         appendTraceEvent({ runId: ctx.traceRunId, source: 'stderr', eventType: 'stderr', raw: text });
         console.error(`[jaw:stderr:${agentLabel}] ${text}`);
         if (ctx.stderrBuf.length < 4000) ctx.stderrBuf += text + '\n';
+        scheduleAgyQuietCompletion();
     });
 
     child.on('close', (code) => {
         agyTranscriptWatcher?.stop();
         clearOpencodeIdleTimer();
+        clearAgyQuietCompletionTimer();
         stallWatchdog.stop();
         if (geminiWatchdog) { clearTimeout(geminiWatchdog); geminiWatchdog = null; }
         if (stdSettled) return;  // error handler already resolved
@@ -2085,7 +2127,8 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
 
         // [I2] Consume per-process kill reason
         const stdKillReason = consumeKillReason(child.pid);
-        const wasKilled = !!stdKillReason;
+        const agyCompletedByQuietOutput = cli === 'agy' && stdKillReason === AGY_COMPLETE_KILL_REASON;
+        const wasKilled = !!stdKillReason && !agyCompletedByQuietOutput;
         const wasSteer = stdKillReason === 'steer';
 
         if (cli === 'agy' && !ctx.sessionId) ctx.sessionId = extractAgyConversationId(ctx.fullText);
@@ -2153,7 +2196,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             }
         }
         const agyTimedOut = cli === 'agy' && isAgyTimeoutOutput(ctx.fullText);
-        const effectiveExitCode = agyTimedOut ? 124 : code;
+        const effectiveExitCode = agyCompletedByQuietOutput ? 0 : agyTimedOut ? 124 : code;
         if (agyTimedOut) {
             const message = formatAgyTimeoutMessage(ctx.fullText);
             ctx.stderrBuf = ctx.stderrBuf ? `${ctx.stderrBuf}\n${message}` : message;

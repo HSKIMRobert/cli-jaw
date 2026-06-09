@@ -1,4 +1,8 @@
+import type { SpawnContext, ToolEntry } from '../types/agent.js';
+
 export const AGY_TIMEOUT_PREFIX = 'Error: timed out waiting for response';
+export const AGY_COMPLETE_KILL_REASON = 'agy-complete';
+export const AGY_PRINT_QUIET_COMPLETION_MS = 2_500;
 const AGY_CONVERSATION_ID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const AGY_CONVERSATION_ID_RE = new RegExp(
     `(?:\\bagy\\s+)?--conversation(?:=|\\s+)(${AGY_CONVERSATION_ID})\\b|\\b(?:conversation=|Created conversation\\s+)(${AGY_CONVERSATION_ID})\\b`,
@@ -12,6 +16,21 @@ export function isAgyTimeoutOutput(text: string): boolean {
 export function formatAgyTimeoutMessage(text: string): string {
     const trimmed = text.trim();
     return trimmed || AGY_TIMEOUT_PREFIX;
+}
+
+export function hasRunningAgyTranscriptTool(toolLog: Pick<ToolEntry, 'status' | 'stepRef'>[]): boolean {
+    return toolLog.some((tool) => {
+        if (!tool.stepRef?.startsWith('agy:transcript:')) return false;
+        return tool.status === 'running';
+    });
+}
+
+export function shouldCompleteAgyPrintRun(ctx: Pick<SpawnContext, 'outputTextStarted' | 'liveOutputText' | 'fullText' | 'toolLog'>): boolean {
+    if (!ctx.outputTextStarted) return false;
+    const visibleText = String(ctx.liveOutputText || ctx.fullText || '').trim();
+    if (!visibleText) return false;
+    if (isAgyTimeoutOutput(visibleText)) return false;
+    return !hasRunningAgyTranscriptTool(ctx.toolLog);
 }
 
 export { resolveAgyConversationIdFromCache, agyTranscriptPathForConversation } from './agy-transcript.js';

@@ -4,9 +4,12 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
+    AGY_COMPLETE_KILL_REASON,
     extractAgyConversationId,
     formatAgyTimeoutMessage,
+    hasRunningAgyTranscriptTool,
     isAgyTimeoutOutput,
+    shouldCompleteAgyPrintRun,
 } from '../../src/agent/agy-runtime.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -49,7 +52,7 @@ test('AGY-RT-003: extracts exact native AGY conversation ids from resume hints',
 test('AGY-RT-004: AGY timeout stdout is routed to lifecycle as an error', () => {
     const spawnSrc = readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
     assert.match(spawnSrc, /isAgyTimeoutOutput\(ctx\.fullText\)/);
-    assert.match(spawnSrc, /effectiveExitCode\s*=\s*agyTimedOut\s*\?\s*124\s*:\s*code/);
+    assert.match(spawnSrc, /effectiveExitCode\s*=\s*agyCompletedByQuietOutput\s*\?\s*0\s*:\s*agyTimedOut\s*\?\s*124\s*:\s*code/);
     assert.match(spawnSrc, /ctx\.stderrBuf\s*=/);
     assert.match(spawnSrc, /ctx\.fullText\s*=\s*''/);
     assert.match(spawnSrc, /detectSmokeResponse\(ctx\.fullText,\s*ctx\.toolLog,\s*effectiveExitCode,\s*cli\)/);
@@ -96,4 +99,36 @@ test('AGY-RT-008: AGY print timeout is a hard cap while cli-jaw watchdog owns pr
     assert.doesNotMatch(timeoutBlock, /absoluteMs[\s\S]*formatAgyPrintTimeout/);
     assert.match(watchdogBlock, /absoluteHardCapMs/);
     assert.match(spawnSrc, /startAgyTranscriptWatcher\(\{[\s\S]*ctx,/);
+});
+
+test('AGY-RT-009: AGY print runs can finish after quiet assistant output', () => {
+    assert.equal(shouldCompleteAgyPrintRun({
+        outputTextStarted: true,
+        liveOutputText: 'done',
+        fullText: 'done',
+        toolLog: [],
+    }), true);
+    assert.equal(shouldCompleteAgyPrintRun({
+        outputTextStarted: true,
+        liveOutputText: 'done',
+        fullText: 'done',
+        toolLog: [{ icon: '🔧', label: 'cmd', toolType: 'tool', stepRef: 'agy:transcript:1:RUN_COMMAND', status: 'running' }],
+    }), false);
+    assert.equal(hasRunningAgyTranscriptTool([
+        { stepRef: 'agy:transcript:1:RUN_COMMAND', status: 'done' },
+    ]), false);
+    assert.equal(shouldCompleteAgyPrintRun({
+        outputTextStarted: true,
+        liveOutputText: 'Error: timed out waiting for response',
+        fullText: 'Error: timed out waiting for response',
+        toolLog: [],
+    }), false);
+});
+
+test('AGY-RT-010: AGY quiet completion is mapped to lifecycle success, not interruption', () => {
+    const spawnSrc = readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
+    assert.match(spawnSrc, new RegExp(`stdKillReason === ['"]${AGY_COMPLETE_KILL_REASON}['"]|stdKillReason === AGY_COMPLETE_KILL_REASON`));
+    assert.match(spawnSrc, /wasKilled\s*=\s*!!stdKillReason\s*&&\s*!agyCompletedByQuietOutput/);
+    assert.match(spawnSrc, /effectiveExitCode\s*=\s*agyCompletedByQuietOutput\s*\?\s*0\s*:/);
+    assert.match(spawnSrc, /shouldCompleteAgyPrintRun\(ctx\)/);
 });
