@@ -69,7 +69,7 @@
 
 <h2>前提条件</h2>
 <ul>
-<li><strong>Node.js 20+</strong> — <a href="https://nodejs.org">nodejs.org</a></li>
+<li><strong>Node.js 22.4+</strong> — <a href="https://nodejs.org">nodejs.org</a></li>
 <li><strong>npm</strong>（随 Node.js 一起安装）</li>
 <li>至少订阅一个 AI CLI（例如：Claude Code 需要 Claude Pro 或更高订阅，Codex 需要 ChatGPT Pro 或更高订阅，Gemini CLI 需要 Google AI）</li>
 </ul>
@@ -90,17 +90,21 @@ npm install -g cli-jaw</code></pre>
 <p>设置向导将引导您完成以下步骤：</p>
 <ol>
 <li>选择您的主要 CLI（Claude Code、Codex、Gemini CLI 等）</li>
-<li>设置 API 密钥</li>
+<li>认证您的 CLI 订阅</li>
 <li>配置服务器端口（默认：3457）</li>
 </ol>
 
-<h2>API 密钥配置</h2>
-<p>API 密钥存储在 <code>~/.cli-jaw/settings.json</code> 中：</p>
-<pre><code>{
-  "anthropic": { "apiKey": "sk-ant-..." },
-  "openai": { "apiKey": "sk-..." },
-  "google": { "apiKey": "AIza..." }
-}</code></pre>
+<h2>CLI 认证</h2>
+<p>每个 CLI 都通过自己的订阅登录。在单独的终端中运行对应的登录命令：</p>
+<pre><code># Claude Code（需要 Claude Pro 或更高订阅）
+claude
+
+# Codex（需要 ChatGPT Pro 或更高订阅）
+codex
+
+# Gemini CLI（需要 Google AI 订阅）
+gemini</code></pre>
+<div class="callout callout-info"><code>settings.json</code> 中的 API 密钥只用于语音识别（Gemini API）或图像生成（OpenAI API）等可选功能。主要 CLI 认证由每个工具自己的登录流程处理。</div>
 
 <h2>验证安装</h2>
 <pre><code>jaw doctor</code></pre>
@@ -111,7 +115,7 @@ npm install -g cli-jaw</code></pre>
 <tr><th>错误</th><th>解决方法</th></tr>
 <tr><td><code>command not found: jaw</code></td><td>确保 npm 全局 bin 目录在您的 PATH 中。运行 <code>npm bin -g</code> 查看路径。</td></tr>
 <tr><td><code>EACCES permission denied</code></td><td>使用 <code>sudo npm install -g cli-jaw</code> 或修复 npm 权限。</td></tr>
-<tr><td><code>node: command not found</code></td><td>从 nodejs.org 安装 Node.js 20+</td></tr>
+<tr><td><code>node: command not found</code></td><td>从 nodejs.org 安装 Node.js 22.4+</td></tr>
 </table>
 
 <div class="page-nav">

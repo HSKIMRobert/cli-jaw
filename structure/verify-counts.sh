@@ -134,12 +134,121 @@ for entry in "${CHECKS[@]}"; do
 done
 
 echo ""
+echo -e "${BOLD}📐 str_func.md 전체 파일 트리 항목${RESET}"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+tree_tmp=$(mktemp)
+FIX_MODE=0
+$FIX && FIX_MODE=1
+FIX_MODE="$FIX_MODE" node <<'NODE' > "$tree_tmp"
+const fs = require('fs');
+
+const doc = 'structure/str_func.md';
+const fix = process.env.FIX_MODE === '1';
+const text = fs.readFileSync(doc, 'utf8');
+const lines = text.split('\n');
+const stack = [];
+let ok = 0;
+let fail = 0;
+let fixed = 0;
+let skipped = 0;
+const messages = [];
+
+function wcLineCount(file) {
+  const buf = fs.readFileSync(file);
+  let count = 0;
+  for (const byte of buf) {
+    if (byte === 10) count += 1;
+  }
+  return count;
+}
+
+for (let i = 0; i < lines.length; i += 1) {
+  const line = lines[i];
+  const match = line.match(/^([│ ]*)(?:├──|└──)\s+([^←\s]+)/);
+  if (!match) continue;
+
+  const depth = Math.floor(match[1].length / 4);
+  const name = match[2];
+  if (name.endsWith('/')) {
+    stack[depth] = name.slice(0, -1);
+    stack.length = depth + 1;
+    continue;
+  }
+  if (!line.includes('←')) continue;
+
+  const countMatch = line.match(/\(([0-9]+)L\)/);
+  if (!countMatch) continue;
+
+  const rel = [...stack.slice(0, depth), name].filter(Boolean).join('/');
+  if (!fs.existsSync(rel) || !fs.statSync(rel).isFile()) {
+    skipped += 1;
+    continue;
+  }
+
+  const documented = Number(countMatch[1]);
+  const actual = wcLineCount(rel);
+  if (documented === actual) {
+    ok += 1;
+    continue;
+  }
+
+  if (fix) {
+    lines[i] = line.replace(`(${documented}L)`, `(${actual}L)`);
+    fixed += 1;
+    ok += 1;
+    messages.push(`FIXED\t${rel}\t${documented}\t${actual}\t${i + 1}`);
+  } else {
+    fail += 1;
+    messages.push(`FAIL\t${rel}\t${documented}\t${actual}\t${i + 1}`);
+  }
+}
+
+if (fix && fixed > 0) {
+  fs.writeFileSync(doc, lines.join('\n'), 'utf8');
+}
+
+for (const message of messages) {
+  console.log(message);
+}
+console.log(`SUMMARY\t${ok}\t${fail}\t${fixed}\t${skipped}`);
+NODE
+
+while IFS=$'\t' read -r kind path documented actual line; do
+  case "$kind" in
+    FAIL)
+      diff=$((actual - documented))
+      sign=""
+      [[ $diff -gt 0 ]] && sign="+"
+      echo -e "  ${RED}❌ $path — 문서: ${documented}L → 실제: ${actual}L (${sign}${diff}, line ${line})${RESET}"
+      ;;
+    FIXED)
+      echo -e "  ${GREEN}🔧 $path — ${documented}L → ${actual}L (line ${line})${RESET}"
+      ;;
+    SUMMARY)
+      tree_ok="$path"
+      tree_fail="$documented"
+      tree_fixed="$actual"
+      tree_skipped="$line"
+      if [[ "$tree_fail" == "0" ]]; then
+        echo -e "  ${GREEN}✅ 파일 트리 항목 — ${tree_ok}개 일치, ${tree_skipped}개 경로 스킵${RESET}"
+        PASS=$((PASS + tree_ok))
+      else
+        FAIL=$((FAIL + tree_fail))
+      fi
+      FIXED=$((FIXED + tree_fixed))
+      ;;
+  esac
+done < "$tree_tmp"
+rm -f "$tree_tmp"
+
+echo ""
 echo -e "${BOLD}📊 집계 항목${RESET}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # public/ total lines (source/assets only; exclude Vite build output)
-a_pub_total=$(find public -type f ! -path 'public/dist/*' | xargs wc -l | tail -1 | awk '{print $1}')
-d_pub_total=$( (rg '^├── public/.*~[0-9]+L\)' "$DOC" || true) | head -1 | rg -o '[0-9]+' | tail -1 || true)
+a_pub_total=$(find public -type f ! -path 'public/dist/*' ! -path 'public/public/dist/*' | xargs wc -l | tail -1 | awk '{print $1}')
+d_pub_total=$( (rg '^├── public/.*~[0-9]+L' "$DOC" || true) | head -1 | rg -o '~[0-9]+L' | rg -o '[0-9]+' | tail -1 || true)
 if [[ -n "${d_pub_total:-}" ]]; then
   diff_pub_total=$((a_pub_total - d_pub_total))
   if [[ $diff_pub_total -lt 0 ]]; then
@@ -156,7 +265,7 @@ if [[ -n "${d_pub_total:-}" ]]; then
 fi
 
 # public/ file count (source/assets only; exclude Vite build output)
-a_pub_files=$(find public -type f ! -path 'public/dist/*' | wc -l | tr -d ' ')
+a_pub_files=$(find public -type f ! -path 'public/dist/*' ! -path 'public/public/dist/*' | wc -l | tr -d ' ')
 d_pub_files=$( (rg '^├── public/.*[0-9]+ files' "$DOC" || true) | head -1 | rg -o '[0-9]+ files' | head -1 | rg -o '[0-9]+' || true)
 if [[ -n "${d_pub_files:-}" ]]; then
   if [[ "$a_pub_files" == "$d_pub_files" ]]; then

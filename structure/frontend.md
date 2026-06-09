@@ -11,7 +11,7 @@ aliases: [CLI-JAW Frontend, public architecture, frontend.md]
 > Web UI 본체는 Vanilla HTML + CSS + TypeScript ES Modules로 구성된다. Manager 대시보드는 `public/manager/`의 React 19 + TSX 앱이다.
 > 빌드는 Vite 8 기준이며, `vite.config.ts`는 `public/index.html`과 `public/manager/index.html`을 multi-entry로 빌드한다.
 > 메인 UI는 `index.html`에서 Google Fonts `Chakra Petch` + `Outfit`을 불러오고, 로컬 `public/assets/fonts/GeistVF.woff2`와 `JetBrainsMono-Variable.woff2`는 자산으로 보관 중이다.
-> PWA는 `manifest.json` + `sw.js` + `icons/`로 구성된다. 오프라인 메시지 캐시, virtual scroll, markdown/KaTeX/Mermaid 렌더링, sandboxed diagram widget, avatar emoji/image 커스터마이즈, voice recording, PABCD roadmap, subagent-aware ProcessBlock 렌더링, slash command 복구 액션, 반응형 사이드바, theme toggle, chat search, workflow cockpit이 현재 런타임의 핵심이다.
+> PWA는 `manifest.json` + `sw.js` + `icons/`로 구성된다. 오프라인 메시지 캐시, virtual scroll, markdown/KaTeX/Mermaid 렌더링, sandboxed diagram widget, avatar emoji/image 커스터마이즈, voice recording, SSE-first event-channel, PABCD roadmap, subagent-aware ProcessBlock 렌더링, slash command 복구 액션, 반응형 사이드바, theme toggle, chat search, workflow cockpit이 현재 런타임의 핵심이다.
 
 ---
 
@@ -30,12 +30,12 @@ public/
 ├── css/                  ← 12 CSS files
 ├── icons/                ← 3 PWA icons
 ├── img/                  ← shark sprite
-├── js/                   ← 78 TypeScript modules
+├── js/                   ← 86 TypeScript modules
 │   ├── diagram/          ← 3 diagram pipeline modules
-│   ├── features/         ← 48 feature modules
-│   └── render/           ← 13 markdown/diagram rendering modules
+│   ├── features/         ← 50 feature modules
+│   └── render/           ← 14 markdown/diagram rendering modules
 ├── locales/              ← ko/en/ja/zh JSON bundles
-├── manager/              ← React manager dashboard (298 files)
+├── manager/              ← React manager dashboard (300 source files under src)
 │   ├── index.html        ← Manager HTML entry
 │   └── src/              ← React components/hooks/styles
 └── dist/                 ← Vite build output (generated)
@@ -45,11 +45,11 @@ public/
 
 | 영역 | 파일 수 | 비고 |
 | --- | ---: | --- |
-| `public/` source/assets (generated 제외) | 428 | `public/dist/*`, `public/public/dist/*` 모두 제외 |
-| `public/js/` root | 18 | TypeScript ES modules |
+| `public/` source/assets (generated 제외) | 434 | `public/dist/*`, `public/public/dist/*` 모두 제외 |
+| `public/js/` root | 19 | TypeScript ES modules |
 | `public/js/diagram/` | 3 | SVG/iframe diagram pipeline |
-| `public/js/render/` | 13 | markdown/KaTeX/Mermaid/SVG/file-link/post-render 책임 분리 |
-| `public/js/features/` | 48 | settings 분해 + help/attention/orchestrate scope + process-step-match + preview shortcut/invalidate bridge + MCP registry + chat-search + workflow-event-adapter + media-lightbox 포함 |
+| `public/js/render/` | 14 | markdown/KaTeX/Mermaid/SVG/file-link/post-render 책임 분리 |
+| `public/js/features/` | 50 | settings 분해 + help/attention/orchestrate scope + process-step-match + preview shortcut/invalidate bridge + MCP registry + chat-search + workflow-event-adapter + media-lightbox + Pi settings 포함 |
 | `public/manager/src/` | 300 | React 19 manager dashboard |
 | `public/css/` | 12 | theme/layout/chat/markdown/tool UI/diagram/trace drawer/workflow cockpit/chat-search |
 | `public/locales/` | 4 | `ko.json`, `en.json`, `ja.json`, `zh.json` |
@@ -65,9 +65,10 @@ public/
 
 | 파일 | 라인 | 역할 |
 | --- | ---: | --- |
-| `js/main.ts` | 593L | 앱 부트스트랩. 아이콘/프로바이더 아이콘 hydrate, i18n 초기화, CLI registry 로드, WS 연결, 드래그앤드롭, auto-resize, commands/settings/employees/heartbeat/memory/app name/avatar/sidebar/theme/gesture 바인딩, production에서 SW 등록 |
-| `js/state.ts` | 107L | 공유 상태 저장소. WS, agent busy, attached files, heartbeat jobs/errors, CLI status cache, recording, `currentAgentDiv`, `currentProcessBlock` |
+| `js/main.ts` | 612L | 앱 부트스트랩. 아이콘/프로바이더 아이콘 hydrate, i18n 초기화, CLI registry 로드, SSE event-channel + WS fallback 연결, 드래그앤드롭, auto-resize, commands/settings/employees/heartbeat/memory/app name/avatar/sidebar/theme/gesture 바인딩, production에서 SW 등록 |
+| `js/state.ts` | 105L | 공유 상태 저장소. WS fallback, agent busy, attached files, heartbeat jobs/errors, CLI status cache, recording, `currentAgentDiv`, `currentProcessBlock` |
 | `js/constants.ts` | 279L | CLI registry 동적 로딩, provider/model 매핑, CLI 메타 데이터 |
+| `js/event-channel.ts` | 144L | `GET /api/events` SSE primary channel, Last-Event-ID replay, `replay_gap`, reconnect/backoff, legacy WS fallback handoff |
 | `js/api.ts` | — | `api`, `apiJson`, `apiFire` fetch 래퍼 |
 | `js/locale.ts` | — | localStorage 기반 locale 동기화 |
 | `js/icons.ts` | 278L | Lucide 기반 중앙 아이콘 레지스트리 + emoji compatibility. `ICONS.robot`/`ICONS.tool` 등 ProcessBlock summary와 row icon에 재사용 |
@@ -79,7 +80,7 @@ public/
 
 | 파일 | 라인 | 역할 |
 | --- | ---: | --- |
-| `js/render.ts` | 17L | render public API façade |
+| `js/render.ts` | 18L | render public API façade |
 | `js/render/markdown.ts` | — | marked pipeline, CJK punctuation fix, math/SVG shielding, sanitize/unshield, post-render scheduling |
 | `js/render/sanitize.ts` | — | DOMPurify 기반 HTML/SVG sanitizer |
 | `js/render/mermaid.ts` | — | lazy Mermaid load, queued render, observer, rerender, prewarm, unmount release |
@@ -93,8 +94,8 @@ public/
 | `js/render/math.ts` | — | KaTeX math rendering |
 | `js/render/notes-vault-path.ts` | — | notes vault path resolution |
 | `js/render/delegations.ts` | — | render delegation registry |
-| `js/ui.ts` | 419L | 메시지 렌더링, skeleton/empty state, virtual scroll 연동, ProcessBlock 오케스트레이션, copy button, avatar markup 주입, message finalization, `scrollIntent` 기반 bottom-follow/restore policy |
-| `js/ws.ts` | 760L | WebSocket 메시지 라우팅. agent status, queue update, `agent_tool`→typed ProcessStep, agent output/done, orchestration state, interview panel, Telegram/Discord new message, reconnect snapshot, 10초 reload dedup, reconnect 후 bottom anchor reconciliation |
+| `js/ui.ts` | 441L | 메시지 렌더링, skeleton/empty state, virtual scroll 연동, ProcessBlock 오케스트레이션, copy button, avatar markup 주입, message finalization, `scrollIntent` 기반 bottom-follow/restore policy |
+| `js/ws.ts` | 833L | SSE/WS 공용 메시지 dispatcher + legacy WebSocket fallback. agent status, queue update, `agent_tool`→typed ProcessStep, agent output/done, orchestration state, interview panel, Telegram/Discord new message, reconnect snapshot, 10초 reload dedup, reconnect 후 bottom anchor reconciliation |
 | `js/streaming-render.ts` | — | 스트리밍 텍스트 렌더러 |
 | `js/virtual-scroll-bootstrap.ts` | — | virtual scroll 초기 hydrate/measure/bootstrap 오케스트레이터 |
 | `js/virtual-scroll.ts` | 596L | TanStack virtualizer 기반 DOM 풀링, mounted node 재사용, post-render hook 실행, Mermaid observer release, scroll anchor preservation |
@@ -117,10 +118,10 @@ public/
 | `features/avatar.ts` | — | agent/user avatar emoji 저장 + image upload/reset |
 | `features/appname.ts` | — | sidebar agent name localStorage 저장 |
 | `features/attention-badge.ts` | — | window focus/visibility 기반 unread/attention badge |
-| `features/chat.ts` | 543L | send, slash command dispatch, unknown-command recovery, multi-file attachment, stop-mode, clear chat, auto-resize, voice send |
+| `features/chat.ts` | 587L | send, slash command dispatch, unknown-command recovery, multi-file attachment, stop-mode, clear chat, auto-resize, voice send |
 | `features/chat-messages.ts` | — | message DOM append/finalization helpers |
 | `features/chat-scroll.ts` | — | bottom-follow/scroll intent helpers and initial settle |
-| `features/chat-search.ts` | 227L | in-chat message search UI |
+| `features/chat-search.ts` | 226L | in-chat message search UI |
 | `features/media-lightbox.ts` | — | 업로드 이미지/비디오 인라인 렌더링 + 라이트박스 |
 | `features/copy-text.ts` | 39L | clipboard copy utility |
 | `features/employees.ts` | — | employee CRUD + CLI/model/role 조정 |
@@ -143,9 +144,9 @@ public/
 | `features/process-step-match.ts` | — | ProcessStep matching helper |
 | `features/settings.ts` | — | barrel re-export |
 | `features/settings-channel.ts` | — | active channel + fallback order |
-| `features/settings-cli-status.ts` | 478L | CLI availability/quota/status, kiro-code quota, generic auth/status badge |
-| `features/settings-cli-status-render.ts` | 163L | CLI status row rendering helpers |
-| `features/settings-core.ts` | 573L | settings load/update, per-CLI model/effort, locale sync, `postPreviewInvalidate` on active CLI change |
+| `features/settings-cli-status.ts` | 482L | CLI availability/quota/status, kiro-code quota, generic auth/status badge |
+| `features/settings-cli-status-render.ts` | 161L | CLI status row rendering helpers |
+| `features/settings-core.ts` | 586L | settings load/update, per-CLI model/effort, locale sync, `postPreviewInvalidate` on active CLI change |
 | `features/settings-discord.ts` | — | Discord settings save/load/toggles |
 | `features/settings-mcp.ts` | 561L | MCP server list/sync/install + registry browse/install (`/api/mcp/registry`) |
 | `features/settings-stt.ts` | — | STT engine/provider fields |
@@ -207,7 +208,7 @@ settings.ts (barrel)
 | 파일/폴더 | 역할 |
 | --- | --- |
 | `manager/src/main.tsx` | `react-dom/client` `createRoot()`로 `App` 렌더 |
-| `manager/src/App.tsx` | 475L — instance scan/filter/select/lifecycle + dashboard section 상태 orchestration |
+| `manager/src/App.tsx` | 475L — InstanceRegistry-backed scan/filter/select/lifecycle + dashboard section 상태 orchestration |
 | `manager/src/AppChrome.tsx` | App chrome shell (sidebar rail + workspace layout) |
 | `manager/src/SidebarRailRouter.tsx` | 323L — sidebar rail routing to workspace panels + Electron drop routing to FolderPanel/DocPanel |
 | `manager/src/InstancePreview.tsx` | 303L — preview iframe mount/theme sync + STT shortcut bridge + sandbox popup escape + `jaw-preview-open-doc` + preview dropped-file metadata 수신 |
@@ -219,7 +220,7 @@ settings.ts (barrel)
 | `manager/src/browser-panel/` | Electron desktop Browser panel (Google default, URL/search normalization) |
 | `manager/src/diff-panel/` | Electron desktop Git Diff panel (server-backed via `/api/dashboard/git/*`) |
 | `manager/src/settings/` | settings pages/components/field renderers, `pages/Mcp.tsx` (MCP server cards + registry), Model defaults Pi profile popup |
-| `manager/src/api.ts` | Dashboard API wrapper |
+| `manager/src/api.ts` | Dashboard API wrapper + manager event/diff surfaces |
 | `manager/src/components/` | `ManagerShell`, `WorkspaceLayout`, `Instance*`, `Command*`, `ActivityDock`, `MobileNav`, `DesktopPanelControls` 등 |
 | `manager/src/dashboard-board/` | Kanban board UI (backlog/ready/active/review/done lanes) |
 | `manager/src/dashboard-schedule/` | schedule/heartbeat dashboard UI |
@@ -291,7 +292,7 @@ tool history의 canonical UI는 `features/process-block.ts`다. `ui.ts`는 live 
 | 전송 | 일반 메시지는 `/api/message`, slash command는 `/api/command`, stop 버튼은 `/api/stop` |
 | 렌더링 | `render.ts` façade → `public/js/render/*` 모듈이 markdown/KaTeX/Mermaid/code copy/diagram widget/file-path click-to-open/external web-link new-tab targeting/post-render 담당 |
 | 오프라인 | `idb-cache.ts`가 메시지 히스토리를 IndexedDB에 보관 — scope별 캐시, 실시간 upsert |
-| WS | `agent_tool`→typed ProcessBlock step, `agent_output`→streaming renderer, `agent_done`→finalization, reconnect 10초 dedup |
+| Event channel | `GET /api/events` SSE primary channel handles `agent_tool`→typed ProcessBlock step, `agent_output`→streaming renderer, `agent_done`→finalization; `ws.ts` is the shared dispatcher and legacy WebSocket fallback |
 | 상태 | `agent_status`, `queue_update`, `orc_state`, `session_reset`, `clear`, Telegram/Discord `new_message` |
 | 반응형 | sidebar collapse/expand, mobile edge swipe, theme switch, PABCD roadmap, voice shortcut(`Ctrl/Cmd+Shift+Space`, `Alt/Option+M`) |
 | Manager | 별도 React 앱이 dashboard API로 Jaw 인스턴스 scan/preview/lifecycle, notes, board, reminders, schedule, CEO console 관리 |

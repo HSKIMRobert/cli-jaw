@@ -9,7 +9,7 @@ aliases: [CLI-JAW Commands, slash commands registry, commands.md]
 # src/cli/ — Slash Command Registry & Dispatcher
 
 > `commands.ts`(462L) + `handlers.ts`(448L) + `handlers-runtime.ts`(501L) + `handlers-completions.ts`(103L) + `handlers-workflows.ts`(499L) + `api-auth.ts`(45L) + `command-context.ts`(139L) + `registry.ts`(231L) + `acp-client.ts`(382L) + `claude-models.ts`(81L) + `compact.ts`(143L)
-> slash registry는 39개 커맨드, 4개 실행 인터페이스. root CLI는 `bin/cli-jaw.ts` + `bin/commands/*.ts` 기준 27개 user-facing command이며, helper까지 포함한 `bin/commands/*.ts` top-level 파일은 28개다. `browser web-ai`는 `browser-web-ai.ts`, `dashboard memory`는 `dashboard-memory.ts`, dispatch unwrap 보조는 `dispatch-helpers.ts`로 분리되어 있다.
+> slash registry는 39개 커맨드이며 interface별 가시성은 CLI 37 / Web 35 / Telegram 35 / Discord 35다. root cmdline에는 workflow/interactive hidden set을 제외한 17개가 보인다. root CLI는 `bin/cli-jaw.ts` 기준 26개 root router case를 가진다. `chat search`, `browser web-ai`, `dashboard memory`, `dashboard chat search`처럼 grouped subcommand까지 포함하면 27개 user-facing surface로 문서화한다. helper까지 포함한 `bin/commands/*.ts` top-level 파일은 30개다. `browser web-ai`는 `browser-web-ai.ts`, `dashboard memory`는 `dashboard-memory.ts`, dashboard chat federation은 `dashboard-chat.ts`, task root command는 `task.ts`, dispatch unwrap 보조는 `dispatch-helpers.ts`로 분리되어 있다.
 > 모델/CLI 선택은 `registry.ts` 단일 소스를 따른다. 현재 registry 런타임은 `pi`, `agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `cursor`, `gemini`, `grok`, `kiro-code`, `opencode`, `copilot` 13개다.
 
 ---
@@ -67,7 +67,7 @@ ide, orchestrate, project, task
 
 ## Root CLI Surface (`bin/cli-jaw.ts` + `bin/commands/*.ts`)
 
-소스 기준 entrypoint는 `bin/cli-jaw.ts`(213L)다. 현재 소스 트리에서 root command router는 아래 27개 user-facing command를 동적 import 한다. 파일 수 기준으로는 `browser-web-ai.ts`, `dashboard-memory.ts`, `dispatch-helpers.ts` helper가 추가되어 `bin/commands/*.ts` top-level은 28개다.
+소스 기준 entrypoint는 `bin/cli-jaw.ts`(228L)다. 현재 소스 트리에서 root command router는 26개 case를 동적 import 한다. 아래 표는 grouped subcommand(`chat search`, `browser web-ai`, dashboard federation 등)를 포함한 user-facing surface다. 파일 수 기준으로는 `browser-web-ai.ts`, `dashboard-memory.ts`, `dashboard-chat.ts`, `dispatch-helpers.ts`, `task.ts` helper/command가 포함되어 `bin/commands/*.ts` top-level은 30개다.
 
 ### Global options
 
@@ -105,6 +105,7 @@ ide, orchestrate, project, task
 | `connector` | `bin/commands/connector.ts` | `board add/update/list`, `notes write/list`, `reminders add/list/done`, `audit [--limit N] [--json]` |
 | `reminders` | `bin/commands/reminders.ts` | `list`, `add`, `done`; `--json`, `--priority`, `--due`, `--remind`, message/thread link flags |
 | `project` | `bin/commands/project.ts` | `set <path>[, <path>...]`, `reset`/`clear`, `list` (instance projectDirs 관리) |
+| `task` | `bin/commands/task.ts` | `add/edit/list/start/done/assign/clear`; dashboard-visible atomic checklist |
 | `lock` | `bin/commands/lock.ts` | `[--port 3457]`; instance lock (stopAll 보호). `unlock`도 동일 파일 처리 |
 | `unlock` | `bin/commands/lock.ts` | `[--port 3457]`; instance unlock |
 | `history` | `bin/commands/history.ts` | `search "<query>" [--limit N]`; 채팅 히스토리 검색 (65L) |

@@ -5,9 +5,9 @@
 ### Your personal AI agent. 2 lines to install. 13 AI runtime surfaces in one dashboard.
 
 [![npm](https://img.shields.io/npm/v/cli-jaw)](https://npmjs.com/package/cli-jaw)
-[![Version](https://img.shields.io/badge/v2.0.16-GA-brightgreen)](https://github.com/lidge-jun/cli-jaw/releases)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)](https://typescriptlang.org)
-[![Node](https://img.shields.io/badge/node-%3E%3D22-blue)](https://nodejs.org)
+[![Version](https://img.shields.io/badge/v2.1.3-GA-brightgreen)](https://github.com/lidge-jun/cli-jaw/releases)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue)](https://typescriptlang.org)
+[![Node](https://img.shields.io/badge/node-%3E%3D22.4-blue)](https://nodejs.org)
 [![License](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-supported-2496ED?logo=docker&logoColor=white)](#-docker)
 
@@ -31,12 +31,12 @@ Windows users should use the WSL install path below. Native PowerShell is not th
 </details>
 
 ```bash
-# macOS / Linux / WSL with Node.js 22+ already installed
+# macOS / Linux / WSL with Node.js 22.4+ already installed
 npm install -g cli-jaw
 jaw dashboard
 ```
 
-That's it. Open **http://localhost:3457** and you have a personal AI agent. Requires [Node.js 22+](https://nodejs.org).
+That's it. Open **http://localhost:3457** and you have a personal AI agent. Requires [Node.js 22.4+](https://nodejs.org).
 
 > **First time?** The default npm install initializes CLI-JAW and attempts native Claude setup. Other AI CLIs are optional; install them all during npm setup with `CLI_JAW_INSTALL_CLI_TOOLS=1 npm install -g cli-jaw` on macOS/Linux. On Windows, use the WSL install path below.
 
@@ -211,7 +211,7 @@ Check everything at once: `jaw doctor`
  ✅ OpenCode CLI    installed
  ✅ Copilot CLI     installed
  ✅ Database        jaw.db OK
- ✅ Skills          32 active, 194 reference
+ ✅ Skills          29 active, 238 reference
  ✅ MCP (plugins)   3 servers configured
  ✅ Memory          structured/ exists
  ✅ Server          port 3457 available
@@ -277,17 +277,17 @@ Monitor each AI engine's health and usage at a glance.
 
 ### Desktop App
 
-Prefer a native window to a browser tab? CLI-JAW ships an **Electron desktop shell** — a thin native wrapper that boots the manager dashboard and supervises the underlying `jaw dashboard serve` process for you. Nothing to keep open in a terminal, no tab to lose.
+Prefer a native window to a browser tab? CLI-JAW ships an **Electron desktop shell** that boots the manager dashboard and supervises the underlying `jaw dashboard serve` process for you. Packaged desktop builds include a Node.js sidecar server, so the app can prefer its bundled `jaw` shim before falling back to a global terminal install.
 
 ```bash
 # one-time, from the repo root
 npm install && npm --prefix electron install
 
 npm run electron:dev          # develop with hot reload
-npm run electron:dist:mac     # build a universal .dmg + .zip  (also :win / :linux)
+npm run electron:dist:mac     # build macOS arm64 .dmg + .zip with bundled sidecar
 ```
 
-The packaged app lands in `electron/dist/` (`cli-jaw.app`, `cli-jaw-<version>-universal.dmg`). Native modules (`better-sqlite3`, `playwright-core`, `sharp`, `canvas`) live only in the manager server — the Electron main process never loads them. Builds are currently **unsigned / un-notarized**, so on first launch macOS Gatekeeper needs a right-click → **Open**.
+The packaged app lands in `electron/dist/`. The GitHub Actions desktop release workflow builds macOS arm64 DMG/ZIP, Windows x64 NSIS/ZIP, and Linux AppImage artifacts on release publish or manual dispatch. Native modules such as `better-sqlite3` stay in the manager/sidecar server — the Electron main process never imports them. Builds are currently **unsigned / un-notarized**, so on first launch macOS Gatekeeper needs a right-click → **Open**.
 
 ---
 
@@ -401,7 +401,7 @@ jaw memory search "how did we set up the API auth?"
 
 ## Skills
 
-230+ skills covering dev workflows, office documents, automation, and media.
+200+ reference skills plus active runtime skills cover dev workflows, office documents, automation, and media.
 
 | Category | Skills | What they cover |
 |---|---|---|
@@ -488,12 +488,15 @@ jaw mcp sync       # re-sync after manual edits
 jaw dashboard                     # launch manager dashboard
 jaw serve                         # start server (http://localhost:3457)
 jaw chat                          # terminal chat UI
-jaw doctor                        # 12-point diagnostics
+jaw chat search "query"           # search chat history
+jaw doctor                        # installation and runtime diagnostics
 
 # Instances
 jaw clone ~/project               # clone instance to new directory
 jaw --home ~/project serve --port 3458  # run second instance
 jaw service install               # auto-start on boot
+jaw project set ~/repo            # set projectDirs for review/orchestration
+jaw lock                          # protect this instance from stop-all flows
 
 # AI & Orchestration
 jaw employee list                         # list configured + static employees
@@ -501,6 +504,8 @@ jaw dispatch --agent "Backend" --task "..."  # dispatch employee
 jaw dispatch --agent "Backend" --task "..." --watch  # dispatch and stream safe progress
 jaw worker status Backend            # inspect current/previous employee progress
 jaw orchestrate                   # enter/control PABCD workflow
+jaw goal status                   # persistent goal lifecycle
+jaw task list                     # agent-native task checklist
 # in chat: /continue               # explicit worklog/PABCD resume
 
 # Skills & MCP
@@ -518,6 +523,13 @@ jaw browser start                 # launch Chrome automation
 jaw browser fetch "https://example.com" --json --trace  # adaptive URL reader
 jaw browser snapshot              # capture page state
 jaw browser vision-click "Login"  # AI-powered click
+jaw browser web-ai status         # ChatGPT/Gemini/Grok web-AI session tooling
+
+# Dashboard connectors
+jaw dashboard memory search "query"  # read-only cross-instance memory search
+jaw dashboard chat search "query"    # cross-instance chat search
+jaw connector board add --title "Fix docs"
+jaw reminders add "Follow up tomorrow"
 
 # Maintenance
 jaw reset                         # full reset
@@ -542,9 +554,11 @@ Each instance is fully independent — different working directory, different me
 
 ```bash
 npm run build          # tsc → dist/
+npm run build:frontend # vite → public/dist/
 npm run dev            # tsx server.ts (hot-reload)
 npm test               # native Node.js test runner
 npm run gate:all       # named release/docs parity gates
+bash structure/check-doc-drift.sh
 ```
 
 Architecture details: [ARCHITECTURE.md](docs/ARCHITECTURE.md) · Internal structure docs: [structure/](structure/)
@@ -553,7 +567,7 @@ Architecture details: [ARCHITECTURE.md](docs/ARCHITECTURE.md) · Internal struct
 
 ## How It Compares
 
-| | CLI-JAW 2.0 | Hermes Agent | Claude Code |
+| | CLI-JAW 2.x | Hermes Agent | Claude Code |
 |---|---|---|---|
 | **Model access** | Pi, Antigravity, AI-E, Claude, Claude E, Codex, Codex App, Cursor, Gemini, Grok, Kiro, OpenCode, and Copilot through vendor/native auth where supported | API keys (OpenRouter 200+, Nous Portal) | Anthropic only |
 | **Cost model** | Monthly subscriptions you already pay for | Per-token API billing | Anthropic subscription |
@@ -564,7 +578,7 @@ Architecture details: [ARCHITECTURE.md](docs/ARCHITECTURE.md) · Internal struct
 | **Multi-agent** | Employee system (dispatch other CLIs) + PABCD | Subagent spawn | Task tool |
 | **Browser automation** | Chrome DevTools + vision-click + Computer Use | Limited | Via MCP |
 | **Execution** | Local + Docker | Local/Docker/SSH/Daytona/Modal | Local |
-| **Skills** | 230+ bundled | Self-creating + agentskills.io | User-configured |
+| **Skills** | 200+ reference skills + active runtime skills | Self-creating + agentskills.io | User-configured |
 | **Languages** | English, Korean, Chinese, Japanese | English | English |
 
 ---
@@ -574,7 +588,7 @@ Architecture details: [ARCHITECTURE.md](docs/ARCHITECTURE.md) · Internal struct
 | Problem | Solution |
 |---|---|
 | `cli-jaw: command not found` | `npm install -g cli-jaw` again. macOS/Linux/WSL: check `~/.local/bin` or `npm prefix -g` + `/bin` is in `$PATH`. From Windows PowerShell, invoke WSL through a login shell: `wsl.exe -d Ubuntu -- bash -lc "jaw dashboard"`. |
-| `Error: node version` | Upgrade to Node.js 22+: `nvm install 22` |
+| `Error: node version` | Upgrade to Node.js 22.4+: `nvm install 22` |
 | `NODE_MODULE_VERSION` mismatch | `npm run ensure:native` (auto-rebuilds native modules) |
 | `EADDRINUSE: port 3457` | Another instance running. Use `--port 3458` or stop it first |
 | Telegram / Discord auth fails | Run `jaw doctor`, check tokens, restart `jaw serve` |
@@ -588,8 +602,9 @@ Architecture details: [ARCHITECTURE.md](docs/ARCHITECTURE.md) · Internal struct
 ## Contributing
 
 1. Fork and branch from `master`
-2. `npm run build && npm test`
-3. Submit a PR
+2. `npm run build && npm run build:frontend && npm test`
+3. For release-sensitive changes, also run `npm run gate:all` and any focused checks for the touched surface.
+4. Submit a PR
 
 Bug reports and feature ideas: [Open an issue](https://github.com/lidge-jun/cli-jaw/issues)
 

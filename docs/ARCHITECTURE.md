@@ -1,381 +1,268 @@
-# 🏗️ CLI-JAW Architecture
+# CLI-JAW Architecture
 
-> Technical reference for developers and contributors.
-> For user-facing docs, see [README.md](../README.md).
+Technical overview for contributors. The detailed source-of-truth map lives in
+`structure/`; start with `structure/INDEX.md`, then use
+`structure/str_func.md`, `structure/server_api.md`, and
+`structure/commands.md` for exact counts and route/command surfaces.
+
+This file is intentionally higher level than `structure/` so it can stay useful
+in public and submodule-light checkouts.
 
 ---
 
 ## System Overview
 
+```text
+User interfaces
+  Web chat UI          public/
+  Terminal TUI        bin/commands/chat.ts + src/cli/tui/
+  Telegram            src/telegram/
+  Discord             src/discord/
+  Electron desktop    electron/ + src/manager/
+
+Core server
+  server.ts           bootstrap, auth, security, WS/SSE, route mounting
+  src/routes/         extracted REST/SSE route modules
+  src/core/           config, db, event bus, settings, employees
+  src/http/           ok/fail response helpers and error middleware
+  src/security/       path, filename, origin, and audit guards
+
+Agent runtime
+  src/agent/          spawn, resume, lifecycle, retry, watchdog
+  src/agent/events/   provider event adapters and tool-label mapping
+  src/cli/registry.ts 13 runtime registry entries and defaults
+  src/prompt/         prompt assembly, skills, runtime context, memory injection
+
+Workflow and memory
+  src/orchestrator/   IPABCD/PABCD state machine, dispatch, worker progress
+  src/goal/           persistent goal lifecycle and completion evidence gates
+  src/goal-run/       bounded goal-run preview state
+  src/task/           agent-native task checklist store
+  src/memory/         local structured memory, heartbeat schedules, indexing
+
+Manager dashboard
+  src/manager/        multi-instance dashboard server, notes, board, reminders,
+                      schedule, connector, git diff, memory federation
+  public/manager/     React manager frontend
+
+Browser and automation
+  src/browser/        CDP primitives, runtime diagnostics, tab lifecycle
+  src/browser/web-ai/ ChatGPT/Gemini/Grok web-AI session automation
+  src/browser/adaptive-fetch/ URL reader and browser-escalation pipeline
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     USER INTERFACES                         │
-│  ┌──────────┐  ┌──────────┐  ┌──────────────┐              │
-│  │ Web UI   │  │ Terminal  │  │ Telegram Bot │              │
-│  │ (ES Mod) │  │ TUI      │  │ (Grammy)     │              │
-│  └────┬─────┘  └────┬─────┘  └──────┬───────┘              │
-│       │HTTP+WS      │HTTP           │Grammy                │
-├───────┴──────────────┴───────────────┴──────────────────────┤
-│                    EXPRESS SERVER (server.ts)                │
-│  Routes(40+) · WebSocket · ok/fail · Security Guards        │
-├─────────────────────────────────────────────────────────────┤
-│                     CORE ENGINE                             │
-│  ┌─────────┐  ┌──────────────┐  ┌───────────┐              │
-│  │ agent.ts│  │orchestrator.ts│  │commands.ts│              │
-│  │ spawn + │  │ triage +     │  │ slash cmd │              │
-│  │ ACP     │  │ 5-phase pipe │  │ registry  │              │
-│  └────┬────┘  └──────┬───────┘  └───────────┘              │
-│       │              │                                      │
-│  ┌────┴────────────┐ │                                      │
-│  │  events.ts      │ │  ┌──────────────────────────┐        │
-│  │  NDJSON + ACP   │ │  │ prompt.ts                │        │
-│  │  dedupe         │ │  │ System + SubAgent prompt │        │
-│  └─────────────────┘ │  └──────────────────────────┘        │
-├──────────────────────┴──────────────────────────────────────┤
-│                   INFRASTRUCTURE                            │
-│  config · db · bus · memory · mcp-sync · cli-registry       │
-│  security/* · http/* · settings-merge · command-contract/*  │
-│  browser/* · heartbeat · telegram-forwarder                 │
-├─────────────────────────────────────────────────────────────┤
-│                   CLI BINARIES (spawned)                     │
-│  agy · ai-e · claude · claude-e · codex · codex-app         │
-│  gemini · grok · opencode · copilot (ACP)                   │
-└─────────────────────────────────────────────────────────────┘
-```
+
+Current core API shape, as of June 10, 2026:
+
+- `server.ts`: 654 lines of glue/bootstrap.
+- REST/SSE routes: 195 handlers including `/`; 194 API/media endpoints.
+- Browser API: 41 handlers in `src/routes/browser.ts`.
+- WebSocket broadcast event names: 47.
+- Primary web event channel: `GET /api/events` SSE, with legacy WebSocket fallback.
+- Slash command registry: 39 commands across CLI, Web, Telegram, and Discord.
+- Runtime registry: 13 top-level runtimes.
 
 ---
 
-## Module Dependency Graph
+## Runtime Registry
 
-```mermaid
-graph LR
-    CLI["bin/commands/*"] -->|HTTP| SRV["server.ts"]
-    WEB["public/"] -->|HTTP+WS| SRV
-    SRV --> CFG["config.ts"]
-    SRV --> DB["db.ts"]
-    SRV --> AGT["agent.ts"]
-    SRV --> ORC["orchestrator.ts"]
-    SRV --> PRM["prompt.ts"]
-    SRV --> MEM["memory.ts"]
-    SRV --> TG["telegram.ts"]
-    SRV --> HB["heartbeat.ts"]
-    SRV --> BR["browser/*"]
-    SRV --> MCP["lib/mcp-sync.ts"]
-    SRV --> CMD["commands.ts"]
-    SRV --> REG["cli-registry.ts"]
-    SRV --> SEC["security/*"]
-    SRV --> HTTP["http/*"]
-    SRV --> SM["settings-merge.ts"]
-    CMD --> REG
-    CMD --> CC["command-contract/*"]
-    CFG --> REG
-    AGT --> EVT["events.ts"]
-    AGT --> BUS["bus.ts"]
-    AGT --> ACP["acp-client.ts"]
-    ORC --> AGT
-    TG --> ORC
-    HB --> TG
+`src/cli/registry.ts` is the single source for runtime keys, default models, and
+model choices. Current top-level runtimes are:
+
+| Runtime | Role |
+| --- | --- |
+| `pi` | Pi RPC runtime with isolated `PI_CODING_AGENT_DIR` profiles |
+| `agy` | Antigravity print-mode runtime |
+| `ai-e` | AI-E wrapper runtime |
+| `claude` | Anthropic Claude CLI |
+| `claude-e` | Claude E helper-backed runtime |
+| `codex` | OpenAI Codex CLI |
+| `codex-app` | Codex App stdio bridge |
+| `cursor` | Cursor Agent CLI runtime |
+| `gemini` | Gemini CLI runtime |
+| `grok` | Grok CLI runtime |
+| `kiro-code` | AWS Kiro CLI runtime |
+| `opencode` | OpenCode runtime |
+| `copilot` | GitHub Copilot ACP runtime |
+
+Wrapper runtimes such as `ai-e`, `claude-e`, and `codex-app` delegate to their
+underlying tools but remain first-class registry keys. `agy`, `cursor`, `grok`,
+and `kiro-code` are not AI-E providers; they are top-level runtime surfaces.
+
+---
+
+## Request Flow
+
+```text
+User prompt
+  -> interface adapter (Web, CLI/TUI, Telegram, Discord)
+  -> src/orchestrator/gateway.ts
+  -> slash command parser or normal agent submission
+  -> src/agent/spawn.ts
+  -> provider CLI process
+  -> src/agent/events/* adapter
+  -> src/core/bus.ts broadcast
+  -> WebSocket clients + SSE event bus + trace/tool-log snapshots
 ```
 
-### Dependency Rules
+Important boundaries:
 
-| Module | Dependencies | Notes |
-|--------|-------------|-------|
-| `bus.ts` | — | Zero deps, broadcast hub |
-| `config.ts` | cli-registry | Registry-based CLI detection |
-| `cli-registry.ts` | — | Zero deps, CLI/model single source |
-| `db.ts` | config | DB_PATH only |
-| `events.ts` | bus | Broadcast + dedupe + ACP |
-| `memory.ts` | config | JAW_HOME only, independent |
-| `acp-client.ts` | — | Zero deps, Copilot ACP client |
-| `agent.ts` | bus, config, db, events, prompt, orchestrator, acp-client | Core hub |
-| `orchestrator.ts` | bus, db, prompt, agent | Planning ↔ agent mutual |
-| `telegram.ts` | bus, config, db, agent, orchestrator, commands, upload | External interface |
-| `heartbeat.ts` | config, telegram | Telegram re-export |
-| `prompt.ts` | config, db | A-1/A-2 + skills |
-| `commands.ts` | config, cli-registry | Command registry + dynamic models |
-| `security/*` | — | Input validation (path, id, filename) |
-| `http/*` | — | Response standardization + error middleware |
-| `settings-merge.ts` | — | perCli/activeOverrides merge |
-| `browser/*` | — | Independent Chrome CDP module |
+- `src/core/bus.ts` still broadcasts WebSocket payloads and now dual-emits to
+  `src/core/event-bus.ts` for SSE.
+- `src/routes/events.ts` exposes `GET /api/events`, a data-only SSE stream.
+  Topic and event name are JSON fields in each `data:` payload.
+- `public/js/event-channel.ts` owns the browser EventSource singleton,
+  exponential reconnect, `Last-Event-ID` replay, and fallback notification when
+  a legacy server has no `/api/events`.
+- `public/js/ws.ts` still owns legacy WebSocket compatibility and event-specific
+  UI dispatch.
 
 ---
 
-## File Structure & Line Counts
+## Orchestration
 
-> Verified by `devlog/structure/verify-counts.sh` when the private `devlog/` submodule is available.
-> In public or submodule-light checkouts, treat the counts in this section as approximate snapshots rather than a hard source of truth.
-> Detailed function-level reference: `devlog/structure/str_func.md` + `devlog/structure/*.md`
+CLI-JAW uses explicit orchestration for complex work:
 
-### Core (`src/`)
-
-| File | Lines | Responsibility |
-|------|------:|----------------|
-| `config.ts` | ~177 | JAW_HOME, settings, CLI detection |
-| `db.ts` | ~84 | SQLite schema + prepared statements |
-| `bus.ts` | ~18 | WS + internal listener broadcast |
-| `events.ts` | ~322 | NDJSON parsing + dedupe + ACP updates |
-| `commands.ts` | ~639 | Slash command registry + dispatcher |
-| `agent.ts` | ~619 | CLI spawn + ACP + queue + memory flush |
-| `orchestrator.ts` | ~637 | Triage + 5-phase pipeline + AI dispatch |
-| `prompt.ts` | ~515 | System prompt + sub-agent prompt |
-| `telegram.ts` | ~493 | Telegram bot + forwarder lifecycle |
-| `telegram-forwarder.ts` | ~105 | Forwarding helpers |
-| `heartbeat.ts` | ~107 | Heartbeat job scheduling |
-| `memory.ts` | ~128 | Persistent memory (grep-based) |
-| `worklog.ts` | ~153 | Worklog CRUD + phase matrix |
-| `cli-registry.ts` | ~159 | 12 CLI/runtime + model single source |
-| `acp-client.ts` | ~315 | Copilot ACP JSON-RPC client |
-| `settings-merge.ts` | ~46 | Deep merge for perCli/activeOverrides |
-
-### Security & HTTP (`src/security/`, `src/http/`)
-
-| File | Lines | Added In |
-|------|------:|----------|
-| `security/path-guards.ts` | ~67 | Phase 9.1 |
-| `security/decode.ts` | ~22 | Phase 9.1 |
-| `http/response.ts` | ~25 | Phase 9.2 |
-| `http/async-handler.ts` | ~12 | Phase 9.2 |
-| `http/error-middleware.ts` | ~27 | Phase 9.2 |
-| `command-contract/catalog.ts` | ~39 | Phase 9.5 |
-| `command-contract/policy.ts` | ~40 | Phase 9.5 |
-| `command-contract/help-renderer.ts` | ~46 | Phase 9.5 |
-
-### Server
-
-| File | Lines | Notes |
-|------|------:|-------|
-| `server.ts` | ~949 | Routes + WebSocket + glue (Phase 20.3 splits planned) |
-
-### Frontend (`public/`)
-
-| Area | Files | Lines | Notes |
-|------|------:|------:|-------|
-| HTML | 1 | ~443 | `index.html` — CDN 4개, data-theme, sidebar toggles |
-| CSS | 6 | ~1355 | variables, layout, markdown, modals, themes, sidebar |
-| JS | 16 | ~2159 | ES Modules — main, render, constants, 11 feature modules |
-
-### CLI (`bin/`)
-
-| File | Lines | Notes |
-|------|------:|-------|
-| `cli-jaw.ts` | — | 11 subcommand routing |
-| `postinstall.ts` | ~212 | Auto-install CLI runtimes + MCP + skills |
-| `commands/chat.ts` | ~844 | Terminal TUI (Phase 20.3 splits planned) |
-| `commands/browser.ts` | ~239 | 17 subcommands + vision-click |
-| Other commands | ~30-70ea | serve, init, doctor, status, mcp, skill, etc. |
-
----
-
-## Key Architectural Patterns
-
-### 1. CLI-Native Spawning
-
-All AI interactions go through official CLI binaries via stdio:
-
-```
-agent.ts → spawn('claude', [...args]) → NDJSON stdout → events.ts → broadcast
-agent.ts → spawn('copilot', ['--acp']) → JSON-RPC stdin/stdout → acp-client.ts
+```text
+I (Interview) -> P (Plan) -> A (Audit) -> B (Build) -> C (Check) -> D (Done)
 ```
 
-- **No API keys** — uses vendor authentication (OAuth, keychain)
-- **No ban risk** — same binary the vendor ships
-- **Runtime surfaces**: agy, ai-e, claude, claude-e, codex, codex-app, gemini, grok, opencode, copilot
+Key points:
 
-### 2. Event Deduplication
+- PABCD entry is explicit through `jaw orchestrate`, `/orchestrate`, or
+  `/pabcd`.
+- Resume is explicit `/continue`; natural-language “continue/계속/이어서” is a
+  normal prompt.
+- `/plan` is a compatibility guide for PABCD P, not a separate planning mode.
+- `/review [focus]` resolves a validated project directory from configured
+  `projectDirs` or recent conversation/git evidence; it does not fall back to
+  JAW_HOME or bare `process.cwd()`.
+- `/goal plan` and `/goalplan` store a raw `planHint` and require
+  `/goal refine <specific objective>` or `cli-jaw goal refine ...` before
+  checkpoints are accepted.
+- `/goal run ...` is the bounded automation preview surface. Budget enforcement
+  is tracking-oriented unless the corresponding gate has been implemented.
+- Worker progress is query-first through `jaw worker status` and watchable via
+  `jaw worker watch` or `jaw dispatch --watch`.
 
-Claude emits overlapping `stream_event` and `assistant` blocks. The `events.ts` dedupe system:
-- Tracks `hasClaudeStreamEvents` flag per session
-- Once stream events seen → blocks duplicate assistant blocks
-- Tool labels use deterministic keys for dedup
+---
 
-### 3. Orchestration Pipeline
+## API Surfaces
 
+Use `structure/server_api.md` for the full table. Major route groups:
+
+| Group | Examples |
+| --- | --- |
+| Core/system | `/api/health`, `/api/session`, `/api/runtime`, `/api/auth/token` |
+| Messages/sessions | `/api/messages`, `/api/messages/count`, `/api/chat-sessions` |
+| Events | `/api/events` SSE |
+| Commands | `/api/command`, `/api/commands`, `/api/message` |
+| Orchestration | `/api/orchestrate/*` including dispatch, batch dispatch, state, worker progress |
+| Goals/tasks | `/api/goal`, `/api/goal-run`, `/api/task` |
+| Runtime settings | `/api/settings`, `/api/cli-registry`, `/api/cli-status`, `/api/quota` |
+| Memory | `/api/jaw-memory/*`, `/api/memory/*`, dashboard memory federation |
+| Browser | `/api/browser/*`, `/api/browser/web-ai/*` |
+| Messaging | `/api/channel/send`, `/api/telegram/send`, `/api/discord/send` |
+| Manager | `/api/dashboard/board/*`, `/api/dashboard/schedule/*`, manager-only routes |
+| Jaw CEO | `/api/jaw-ceo/*` |
+| Traces/security | `/api/traces/*`, `/api/security-audit/*` |
+
+`/api/channel/send` is the canonical outbound channel send endpoint. Telegram
+and Discord direct endpoints remain compatibility/direct paths.
+
+---
+
+## Manager Dashboard
+
+`jaw dashboard serve` runs a separate manager server on port `24576` by default.
+Electron implicit spawn uses a separate `24577-24590` lane.
+
+The manager owns:
+
+- multi-instance discovery and cached `InstanceRegistry` scans,
+- live instance previews and preview-origin proxying,
+- board, schedule, reminders, and connector surfaces,
+- notes, WYSIWYG editing, graph/search, snippets, history, and assets,
+- git diff repo candidates, summary, and file diff APIs,
+- read-only dashboard memory federation and optional embedding search,
+- Electron panel bridges for terminal, browser, diff, folder, docs, and Jaw CEO.
+
+Manager routes are documented separately in `structure/server_api.md` because
+they are not all mounted on the core `server.ts` app.
+
+---
+
+## Electron Desktop
+
+The Electron app now ships as a self-contained desktop runtime instead of
+depending solely on a globally installed `jaw` binary. Packaged desktop builds
+include a Node.js sidecar:
+
+- `scripts/bundle-sidecar.sh` downloads Node.js 22.16 for the target platform.
+- The sidecar copies `dist/`, `public/`, `package.json`, and production
+  dependencies into `electron/sidecar/server`.
+- Frontend-only dependencies are pruned before packaging.
+- `better-sqlite3` is rebuilt against the bundled Node runtime.
+- A generated `bin/jaw` or `bin/jaw.cmd` shim launches `dist/bin/cli-jaw.js`.
+- `electron/electron-builder.yml` ships the sidecar as `extraResources/server`.
+- `electron/src/main/lib/jaw-spawn.ts` prefers the bundled sidecar `jaw` before
+  falling back to `JAW_BIN` or a global `jaw`.
+
+Current release targets:
+
+- macOS arm64: DMG + ZIP
+- Windows x64: NSIS installer + ZIP
+- Linux x64: AppImage
+
+`.github/workflows/desktop-release.yml` builds these artifacts on GitHub Release
+publish and through manual `workflow_dispatch`.
+
+---
+
+## Build And Verification
+
+Common local commands:
+
+```bash
+npm run build
+npm run build:frontend
+npm test
+npm run gate:all
+bash structure/check-doc-drift.sh
+bash structure/verify-counts.sh
 ```
-User Request → orchestrate() → triage
-  → Simple: Direct agent spawn
-  → Complex: Planning agent → subtask JSON → distribute to employees
-     → PABCD phases (explicit entry via /orchestrate or LLM tool call)
+
+Frontend TypeScript under `public/js/**/*.ts` requires `npm run build:frontend`.
+Backend TypeScript under `src/**/*.ts` requires `npm run build` or
+`npm run typecheck`.
+
+Desktop packaging:
+
+```bash
+npm install
+npm --prefix electron install
+npm run electron:dev
+npm run electron:dist:mac
 ```
 
-Phase 17 addition: Direct response path detects agent-generated subtask JSON → re-enters orchestration.
-
-### 4. MCP Sync
-
-One `mcp.json` → auto-converts to supported MCP-aware CLI formats:
-- Claude: `~/.claude/mcp.json`
-- Codex: `~/.codex/codex.toml` (TOML)
-- Gemini: `~/.gemini/settings.json`
-- OpenCode: `~/.opencode/opencode-mcp.json`
-- Copilot: per-session injection
-
-### 5. Frontend ES Modules
-
-```
-main.js (entry)
-  ├── render.js (marked + hljs + KaTeX + Mermaid)
-  ├── constants.js (dynamic CLI registry)
-  ├── ws.js (WebSocket + reconnect)
-  ├── ui.js (DOM manipulation)
-  └── features/
-      ├── chat.js, settings.js, employees.js
-      ├── heartbeat.js, memory.js, skills.js
-      ├── sidebar.js, theme.js, appname.js
-      ├── i18n.ts, slash-commands.ts
-      └── modals.js (planned)
-```
-
-### 6. Security Layers (Phase 9)
-
-| Layer | Module | Protection |
-|-------|--------|-----------|
-| Input | `path-guards.ts` | Path traversal, ID injection, filename abuse |
-| Input | `decode.ts` | Safe URL decoding |
-| Response | `response.ts` | Standardized `ok()`/`fail()` format |
-| Error | `async-handler.ts` | Async route error catching |
-| Error | `error-middleware.ts` | 404 + global error handler |
-| Commands | `command-contract/*` | Capability-based access control |
+`npm run electron:dist:mac` now runs frontend build, sidecar bundling, Electron
+build, and macOS packaging.
 
 ---
 
-## Runtime Data (`~/.cli-jaw/`)
+## Documentation Sync
 
-| Path | Description |
-|------|-------------|
-| `jaw.db` | SQLite DB (sessions, messages) |
-| `settings.json` | User settings (CLI, model, permissions, perCli) |
-| `mcp.json` | Unified MCP config (source of truth) |
-| `prompts/` | A-1, A-2, HEARTBEAT prompt templates |
-| `memory/` | Persistent memory (`MEMORY.md`, `daily/`) |
-| `skills/` | Active skills (injected into system prompt) |
-| `skills_ref/` | Reference skills (AI reads on demand) |
-| `browser-profile/` | Chrome user profile |
-| `backups/` | Symlink conflict backups |
-| `heartbeat.json` | Scheduled job definitions |
-| `worklogs/` | Orchestration work logs |
+When command, API, orchestration, runtime, manager, or desktop behavior changes,
+update these together:
 
----
+- `README.md`
+- `AGENTS.md`
+- `CLAUDE.md`
+- `structure/AGENTS.md`
+- `structure/INDEX.md`
+- `structure/server_api.md`
+- `structure/commands.md`
+- `structure/str_func.md`
+- `docs/ARCHITECTURE.md`
+- `electron/README.md` when desktop behavior changes
 
-## Phase History
-
-| Phase | Area | Summary |
-|-------|------|---------|
-| 1-12 | MVP | Core platform — server, agent, UI, MCP, skills, memory |
-| P0-P7 | Finness | Stabilization, tests, i18n, themes, sidebar, XSS hardening |
-| P8 | Audit | Code quality audit (500+ line files, security gaps) |
-| P9 | Hardening | Security guards, HTTP contracts, settings merge, catch policy, deps gate |
-| P10-P11 | Reliability | Activity-based timeout, heartbeat pending queue |
-| P12 | Docs | AGENTS.md unification for CLI runtimes |
-| P13-P16 | Polish | Telegram chatId persist, skill dedup, orchestrate UI, prompt fixes |
-| P17 | Triage | AI-driven dispatch — direct response subtask re-entry |
-| P20 | Audit v2 | Project-wide audit: graceful shutdown, fetch wrapper, file splitting, tests, XSS |
-| P21-P26 | Voice & Templates | STT multi-provider, prompt templates, quota UI, IDE diff, PABCD UI, WSL installer |
-
----
-
-## Development Guidelines
-
-> See also: `devlog/structure/str_func.md` for function-level reference.
-
-- **500-line limit** per file — split when exceeded
-- **ESM only** — `import`/`export`, no CommonJS
-- **Never delete exports** — other modules may import them
-- **try/catch mandatory** — no silent failures
-- **Config centralized** — `config.ts` or `settings.json`, never hardcode
-- **Verify with** `bash devlog/structure/verify-counts.sh` — ensures doc/code line count sync
-
----
-
-## Feature Inventory
-
-> Detailed feature list with complexity ratings. For user-facing summary, see [README.md](../README.md).
-
-### ✅ Implemented
-
-| Feature | Description | Complexity |
-|---------|-------------|:----------:|
-| **Multi-CLI Engine** | Antigravity, AI-E, Claude, Claude E, Codex, Codex App, Gemini, Grok, OpenCode, Copilot — unified spawn | ⭐⭐⭐⭐ |
-| **Grok CLI Runtime** | `grok-build` via `grok -p ... --output-format streaming-json`; no `--effort` until a model smoke proves support | ⭐⭐ |
-| **Copilot ACP** | JSON-RPC 2.0 over stdio, real-time streaming, activity timeout | ⭐⭐⭐⭐ |
-| **Orchestration v2** | Triage → role dispatch → 5-phase pipeline → gate reviews | ⭐⭐⭐⭐⭐ |
-| **AI-Driven Triage** | Agent autonomously decides dispatch vs direct response | ⭐⭐⭐ |
-| **MCP Sync** | `mcp.json` → supported MCP-aware CLI formats auto-conversion + symlink protection | ⭐⭐⭐⭐ |
-| **Skill System** | 100+ bundled skills, 2-tier classification | ⭐⭐⭐ |
-| **CLI Registry** | Single source of truth — modify one file, auto-propagate everywhere | ⭐⭐⭐ |
-| **Slash Commands** | Unified across CLI / Web / Telegram with autocomplete + dropdowns | ⭐⭐⭐ |
-| **Command Contract** | Capability-based access control per interface (Web/CLI/Telegram) | ⭐⭐⭐ |
-| **Telegram Bot** | Bidirectional forwarding, origin-based routing, lifecycle mgmt | ⭐⭐⭐⭐ |
-| **Persistent Memory** | `MEMORY.md` + daily auto-log + session flush + prompt injection | ⭐⭐⭐ |
-| **Browser Automation** | Chrome CDP: snapshot, click, navigate, screenshot | ⭐⭐⭐ |
-| **Vision Click** | Screenshot → AI coordinate → DPR correction → click (one cmd) | ⭐⭐⭐⭐ |
-| **Heartbeat** | Scheduled auto-execution + pending queue + active/quiet hours | ⭐⭐ |
-| **Fallback Chains** | `claude → codex → gemini` automatic retry on failure | ⭐⭐⭐ |
-| **Event Deduplication** | Claude `stream_event`/`assistant` overlap prevention | ⭐⭐⭐ |
-| **Security Guards** | Path traversal, ID injection, filename abuse prevention (Phase 9) | ⭐⭐⭐ |
-| **HTTP Contracts** | `ok()`/`fail()` standardized responses + async error handler | ⭐⭐ |
-| **Dependency Audit** | Offline vulnerability check + online npm audit script | ⭐⭐ |
-| **i18n** | KO/EN locale toggle — UI, API, CLI, Telegram, skill registry | ⭐⭐⭐ |
-| **Dark/Light Theme** | ☀️/🌙 toggle, 13 semantic CSS vars, highlight.js sync | ⭐⭐ |
-| **Responsive Sidebar** | Collapsible ◀/▶, auto-collapse <900px, localStorage persist | ⭐⭐ |
-| **Voice & STT** | Web mic button + Telegram voice transcription, multi-provider (OpenAI, Vertex AI) | ⭐⭐⭐ |
-| **Prompt Templates** | CRUD API + node-map UI editor for reusable prompt templates | ⭐⭐⭐ |
-| **Quota Dashboard** | Compact quota bars with reset time, 429 rate-limit caching | ⭐⭐ |
-| **IDE Diff View** | Fingerprint-based change detection, VS Code / Antigravity auto-detect | ⭐⭐⭐ |
-| **PABCD UI** | Live roadmap bar, shark runner animation, glow/pulse/badge feedback | ⭐⭐ |
-| **Cross-Platform Service** | `jaw service install` — auto-detects systemd, launchd, Docker | ⭐⭐⭐ |
-| **Test Coverage** | See `TESTS.md` for the current automated counts and coverage inventory | ⭐⭐⭐ |
-| **Unified AGENTS.md** | `{workDir}/AGENTS.md` — Codex + Copilot + OpenCode unified system prompt | ⭐⭐⭐ |
-| **XSS Hardening** | DOMPurify + escapeHtml (with quote escaping) + Mermaid strict mode | ⭐⭐ |
-| **Auto-Expand Input** | Chat textarea grows up to 8 lines, resets on send | ⭐ |
-
-### 🔜 Planned (Phase 20)
-
-| Feature | Description | Priority |
-|---------|-------------|:--------:|
-| **Graceful Shutdown** | SIGTERM/SIGINT handler with active process cleanup | 🔴 P0 |
-| **Frontend API Wrapper** | Centralized `api()` fetch wrapper with error handling | 🔴 P0 |
-| **WS Reconnect Restore** | Clear + reload messages on WebSocket reconnection | 🟡 P1 |
-| **Backend Logger** | Level-aware `log.info/warn/error` replacing raw `console.log` | 🟡 P1 |
-| **500-Line File Splitting** | Split 7 oversized files (chat, commands, mcp-sync, etc.) | 🟡 P1 |
-| **Express Security** | helmet + CORS (exact match) + rate limiting | 🟡 P1 |
-| **API Smoke Tests** | 12 endpoint tests + 4 CLI basic tests | 🟢 P2 |
-| **Mobile Responsive** | 768px breakpoint + bottom nav bar + sidebar toggle | 🟢 P2 |
-| **Accessibility** | ARIA roles/labels + focus-visible + Escape-to-close | 🟢 P2 |
-| **Vector DB Memory** | Embedding-based semantic retrieval (replacing grep) | 📋 |
-| **Vision Multi-Provider** | Extend vision-click to Claude, Gemini | 📋 |
-
----
-
-## REST API
-
-<details>
-<summary><b>40+ endpoints</b></summary>
-
-| Category | Endpoints |
-|----------|-----------|
-| Core | `GET /api/session`, `POST /api/message`, `POST /api/stop` |
-| Registry | `GET /api/cli-registry` — CLI/model single source |
-| Orchestration | `POST /api/orchestrate/continue`, `POST /api/employees/reset` |
-| Commands | `POST /api/command`, `GET /api/commands?interface=` |
-| Settings | `GET/PUT /api/settings`, `GET/PUT /api/prompt` |
-| Memory | `GET/POST /api/memory`, `GET /api/jaw-memory/search` |
-| MCP | `GET/PUT /api/mcp`, `POST /api/mcp/sync,install,reset` |
-| Skills | `GET /api/skills`, `POST /api/skills/enable,disable` |
-| Browser | `POST /api/browser/start,stop,act,navigate,screenshot` |
-| Employees | `GET/POST /api/employees`, `PUT/DELETE /api/employees/:id` |
-| Quota | `GET /api/quota` (registry-aligned runtime keyset; direct provider usage where supported, wrapper delegation for `ai-e`/`claude-e`/`codex-app`, and status-only metadata for AGY/Grok/OpenCode when quota windows are not exposed by the CLI) |
-
-</details>
-
----
-
-## Related Documentation
-
-| Document | Description |
-|----------|-------------|
-| [README.md](../README.md) | User-facing documentation |
-| [TESTS.md](../TESTS.md) | Test coverage details + Phase 20 test plan |
-| [devlog/structure/str_func.md](../devlog/structure/str_func.md) | Full function-level reference |
-| [devlog/structure/*.md](../devlog/structure/) | Per-module detailed docs |
-| [devlog/structure/verify-counts.sh](../devlog/structure/verify-counts.sh) | Line count verification script |
-| [devlog/260225_finness/](../devlog/260225_finness/) | Phase 0-20 implementation logs |
+Run `bash structure/check-doc-drift.sh` before calling the docs current.

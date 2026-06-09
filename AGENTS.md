@@ -44,7 +44,7 @@ git add devlog && git commit -m "chore: update devlog ref" && git push
 
 - `structure/` is the current architecture-doc hub; do not point new docs at `devlog/structure/`.
 - Keep `README.md`, root `AGENTS.md`, root `CLAUDE.md`, and `structure/AGENTS.md` synchronized when command/API/orchestration surfaces change.
-- Recent non-strict hotspots: explicit `/continue`, workflow helper slash commands (`/plan` as PABCD P compatibility guide, `/interview`, `/deliberate`, `/planaudit`, `/review` as projectDirs/recent-context repo review with no JAW_HOME fallback, optional user focus text, and current-conversation-first scope resolution backed by recent goal/chat + git history/diff/worktree evidence, gated `/goal`; `/goal plan` and `/goalplan` store user direction as `planHint` and require `/goal refine` before checkpoints; bounded automation is `/goal run ...`, not top-level `/autopilot`), Pi top-level `pi --mode rpc` runtime with isolated `PI_CODING_AGENT_DIR` profiles, Gemini `--skip-trust --approval-mode yolo`, AGY `-p` print-mode runtime, bounded tool-log sanitizer, worker progress query/watch, canonical `/api/channel/send`, heartbeat `every`/`cron` schedules, browser runtime diagnostics/session lifecycle, and `npm run gate:all`.
+- Recent non-strict hotspots: explicit `/continue`, workflow helper slash commands (`/plan` as PABCD P compatibility guide, `/interview`, `/deliberate`, `/planaudit`, `/review` as projectDirs/recent-context repo review with no JAW_HOME fallback, optional user focus text, and current-conversation-first scope resolution backed by recent goal/chat + git history/diff/worktree evidence, gated `/goal`; `/goal plan` and `/goalplan` store user direction as `planHint` and require `/goal refine` before checkpoints; bounded automation is `/goal run ...`, not top-level `/autopilot`), Pi top-level `pi --mode rpc` runtime with isolated `PI_CODING_AGENT_DIR` profiles, Gemini `--skip-trust --approval-mode yolo`, AGY `-p` print-mode runtime, SSE-first `GET /api/events` event channel with WebSocket fallback, bounded tool-log sanitizer, worker progress query/watch, canonical `/api/channel/send`, heartbeat `every`/`cron` schedules, browser runtime diagnostics/session lifecycle, Electron Node sidecar packaging, and `npm run gate:all`.
 
 ### Line Count Format (`str_func.md`)
 
@@ -56,7 +56,7 @@ File tree の行数は **`(NNNL)`** 형식으로 기재. 두 가지 변형 허�
 ```
 
 - 숫자 + `L` + `)` 또는 `,` 로 끝나야 detection 가능
-- 검증: `bash structure/verify-counts.sh` (exit code = 불일치 수)
+- 검증: `bash structure/verify-counts.sh` (exit code = 불일치 수; 현재는 `str_func.md` 파일 트리의 모든 `(NNNL)` 파일 항목도 검사)
 - 자동 수정: `bash structure/verify-counts.sh --fix`
 - **파일 수정 후 반드시 verify-counts 실행해서 문서 동기화**
 

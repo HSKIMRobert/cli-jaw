@@ -1,13 +1,13 @@
 ---
 created: 2026-03-28
-tags: [cli-jaw, ndjson, stream-events, parser]
-aliases: [CLI Stream Event Reference, stream events, NDJSON parser]
+tags: [cli-jaw, sse, websocket, ndjson, stream-events, parser]
+aliases: [CLI Stream Event Reference, stream events, SSE event channel, NDJSON parser]
 ---
 
-# CLI Stream Event Reference (NDJSON + WS)
+# CLI Stream Event Reference (SSE + WS + Provider Streams)
 
-> 각 CLI의 NDJSON/ACP 이벤트를 `src/agent/events.ts`가 파싱하고, AGY plain-text output은 `spawn.ts`가 직접 처리하며, `broadcast()`가 public WebSocket 또는 internal-only path와 내부 listener로 fan-out 한다.
-> 마지막 코드 대조: 2026-05-21 (`broadcast(...)`, `spawn.ts`, `events.ts`, `agy-runtime.ts`, `claude-e-runtime.ts`, `lifecycle-handler.ts`, `public/js/ws.ts`)
+> 각 CLI의 NDJSON/ACP/stream-json 이벤트를 `src/agent/events/`가 파싱하고, AGY plain-text output은 `spawn.ts`가 직접 처리한다. `broadcast()`는 WebSocket payload를 유지하면서 `src/core/event-bus.ts`로 dual-emit하고, Web UI는 `GET /api/events` SSE event channel을 primary transport로 사용한다.
+> 마지막 코드 대조: 2026-06-10 (`src/core/bus.ts`, `src/core/event-bus.ts`, `src/routes/events.ts`, `src/agent/spawn.ts`, `src/agent/events/*`, `src/agent/agy-runtime.ts`, `src/agent/claude-e-runtime.ts`, `src/agent/lifecycle-handler.ts`, `public/js/event-channel.ts`, `public/js/ws.ts`)
 
 ---
 
@@ -17,27 +17,49 @@ aliases: [CLI Stream Event Reference, stream events, NDJSON parser]
 CLI spawn / ACP session
   → raw stdout/stderr lines
   → AGY: spawn.ts plain-text branch
-  → Other standard CLIs: src/agent/events.ts
+  → Other standard CLIs: src/agent/events/*
       - logEventSummary()
       - extractFromEvent()
       - extractOutputChunk()
   → broadcast(type, data, audience)  // src/core/bus.ts
+      - public WebSocket payload when audience === "public"
+      - internal listeners regardless of audience
+      - public SSE topic/event publish through src/core/event-bus.ts
+  → public/js/event-channel.ts
+      - EventSource singleton
+      - Last-Event-ID / ?lastEventId replay
+      - replay_gap notice
+      - legacy WebSocket fallback only when /api/events is unavailable
   → public/js/ws.ts
-      - status / queue / process block / final render
+      - legacy WebSocket compatibility + UI event handlers
   → orchestrator listeners
       - collect.ts
       - telegram/discord forwarders
 ```
 
-`broadcast()`는 `audience === 'public'`일 때 WebSocket으로 push하고, audience와 무관하게 internal listener callback을 수행한다. Employee/internal 이벤트는 public WebSocket을 건너뛰지만 collector/forwarder listener에는 전달된다.
+`broadcast()`는 `audience === 'public'`일 때 WebSocket으로 push하고 SSE event bus에도 publish한다. audience와 무관하게 internal listener callback은 수행된다. Employee/internal 이벤트는 public WebSocket/SSE를 건너뛰지만 collector/forwarder listener에는 전달된다.
+
+`GET /api/events`는 data-only SSE wire format이다. 서버는 `event:` field를 쓰지 않고, `data:` JSON payload 안에 `{ topic, event, ...payload }`를 넣는다. 클라이언트는 단일 `onmessage` handler로 모든 topic/event를 받아 dispatch한다.
+
+SSE behavior:
+
+| Surface | Contract |
+| --- | --- |
+| Endpoint | `GET /api/events` |
+| Replay cursor | `Last-Event-ID` header or `?lastEventId=` query |
+| Ring buffer | `src/core/event-bus.ts` `RING_SIZE = 1000` |
+| Listener cap | `MAX_SSE_LISTENERS = 256`, overflow returns `503 { error: "SSE_CAPACITY" }` |
+| Heartbeat | comment ping every 15 seconds |
+| Replay gap | `data: {"topic":"system","event":"replay_gap"}` |
+| Client fallback | `public/js/event-channel.ts` fires unavailable once when SSE errors before first open, then `public/js/ws.ts` uses legacy WebSocket |
 
 ---
 
-## 2. 실제 Broadcast / WebSocket 이벤트 Surface
+## 2. 실제 Broadcast / SSE / WebSocket 이벤트 Surface
 
-`src/core/bus.ts`의 `broadcast(type, data, audience = 'public')`가 단일 fan-out 지점이다. WebSocket payload는 항상 `{ type, ...data, ts: Date.now() }` 형태이며, `audience === 'public'`일 때만 WS로 전송된다. 내부 listener(`addBroadcastListener`)는 public/internal 여부와 무관하게 호출된다.
+`src/core/bus.ts`의 `broadcast(type, data, audience = 'public')`가 단일 fan-out 지점이다. WebSocket payload는 항상 `{ type, ...data, ts: Date.now() }` 형태이며, SSE payload는 `{ topic, event: type, type, ...data, ts }` 형태다. 내부 listener(`addBroadcastListener`)는 public/internal 여부와 무관하게 호출된다.
 
-### 현재 코드에서 실제 emit되는 이벤트 (31종)
+### 현재 코드에서 실제 emit되는 이벤트 (47종)
 
 | Type | 대표 payload | 발행 위치 / 용도 |
 | --- | --- | --- |
@@ -45,15 +67,15 @@ CLI spawn / ACP session
 | `agent_tool` | `{ agentId, icon, label, toolType?, detail?, stepRef?, status?, isEmployee? }` | `agent/events.ts`, `spawn.ts`; CLI/ACP tool, thinking, search, subagent step |
 | `agent_output` | `{ agentId, cli, text, isEmployee? }` | `spawn.ts`; live preview chunk, including AGY plain stdout |
 | `agent_done` | `{ text, toolLog?, error?, origin?, isEmployee? }` | `lifecycle-handler.ts`, `spawn.ts`, `server.ts`; authoritative final/error |
-| `agent:claude-i:runtime_started` | `{ runId, seq, version? }` | `claude-e-runtime.ts`; native helper run started, legacy event namespace |
-| `agent:claude-i:spawned` | `{ runId, pid }` | `claude-e-runtime.ts`; underlying Claude process spawned |
-| `agent:claude-i:session` | `{ runId, sessionId, transcriptPath? }` | `claude-e-runtime.ts`; helper discovered Claude session/transcript |
-| `agent:claude-i:prompt_injected` | `{ runId }` | `claude-e-runtime.ts`; prompt was written into the PTY session |
-| `agent:claude-i:stop` | `{ runId, transcriptPath? }` | `claude-e-runtime.ts`; stop signal observed |
-| `agent:claude-i:stop_failure` | `{ runId, error? }` | `claude-e-runtime.ts`; stop/cleanup failed |
-| `agent:claude-i:interrupted` | `{ runId, sessionId?, resumable? }` | `claude-e-runtime.ts`; graceful SIGINT interrupt and resume metadata |
-| `agent:claude-i:cleanup` | `{ runId, event, escalated? }` | `claude-e-runtime.ts`; cleanup start/done lifecycle |
-| `agent:claude-i:error` | `{ runId, message?, exitCode? }` | `claude-e-runtime.ts`; helper/runtime error |
+| `agent:claude-e:runtime_started` | `{ runId, seq, version? }` | `claude-e-runtime.ts`; native helper run started |
+| `agent:claude-e:spawned` | `{ runId, pid }` | `claude-e-runtime.ts`; underlying Claude process spawned |
+| `agent:claude-e:session` | `{ runId, sessionId, transcriptPath? }` | `claude-e-runtime.ts`; helper discovered Claude session/transcript |
+| `agent:claude-e:prompt_injected` | `{ runId }` | `claude-e-runtime.ts`; prompt was written into the PTY session |
+| `agent:claude-e:stop` | `{ runId, transcriptPath? }` | `claude-e-runtime.ts`; stop signal observed |
+| `agent:claude-e:stop_failure` | `{ runId, error? }` | `claude-e-runtime.ts`; stop/cleanup failed |
+| `agent:claude-e:interrupted` | `{ runId, sessionId?, resumable? }` | `claude-e-runtime.ts`; graceful SIGINT interrupt and resume metadata |
+| `agent:claude-e:cleanup` | `{ runId, event, escalated? }` | `claude-e-runtime.ts`; cleanup start/done lifecycle |
+| `agent:claude-e:error` | `{ runId, message?, exitCode? }` | `claude-e-runtime.ts`; helper/runtime error |
 | `agent_retry` | `{ cli, delay, reason, attempt?, maxRetries?, isEmployee? }` | 429/transient retry 안내. Main runs use exponential backoff up to 3 attempts; employee transient retries use a shorter backoff up to 2 attempts. |
 | `agent_fallback` | `{ from, to, reason, isEmployee? }` | fallback CLI 전환 안내 |
 | `agent_smoke` | `{ cli, confidence, reason, agentId, isEmployee? }` | smoke response auto-continue 안내 |
@@ -69,13 +91,28 @@ CLI spawn / ACP session
 | `memory_status` | `buildMemorySyncPayload(reason)` | `routes/jaw-memory.ts`; memory sidebar refresh |
 | `heartbeat_pending` | `{ pending, deferredPending, reason?, policy?, jobId?, jobName? }` | `memory/heartbeat.ts`; heartbeat busy/defer queue |
 | `system_notice` | `{ code, text }` | `core/compact.ts`, `lifecycle-handler.ts`; compact/session refresh notice |
+| `alert_escalation` | `{ message?, reason?, ... }` | `agent/alert-escalation.ts`; repeated failure / capacity fallback escalation |
+| `settings_change` | `{ ... }` | settings/project/workspace refresh signal |
+| `steer_started` | `{ prompt, origin? }` | `handlers-workflows.ts`, `routes/orchestrate.ts`; accepted steer prompt |
+| `session_switched` | `{ sessionId }` | session switch broadcast |
+| `session_created` | `{ session }` | session create broadcast |
+| `session_list` | `{ sessions }` | session list refresh |
+| `goal_done` | `{ ... }` | durable goal completion |
+| `goal_done_rejected` | `{ ... }` | completion evidence gate rejection |
+| `goal_cancel` | `{ ... }` | durable goal cancellation |
+| `goal_pause_detected` | `{ ... }` | pause 2-tap gate detection |
+| `goal_continuation` | `{ ... }` | goal continuation kick |
+| `goal_continuation_failed` | `{ ... }` | goal continuation failure |
+| `goal_continuation_limit` | `{ ... }` | bounded continuation limit |
+| `schedule_wakeup` | `{ ... }` | ScheduleWakeup accepted |
+| `schedule_wakeup_failed` | `{ ... }` | ScheduleWakeup failed |
 | `worker_stalled` | `{ agentId, employeeName, isEmployee: true }` | `orchestrator/distribute.ts`; worker stall |
 | `worker_disconnected` | `{ agentId, exitCode, isEmployee: true }` | `orchestrator/distribute.ts`; worker disconnect |
 | `worker_timeout` | `{ agentId, employeeName, isEmployee: true }` | `orchestrator/distribute.ts`; worker timeout |
 
-### `public/js/ws.ts`가 직접 처리하는 emit 이벤트
+### Web client handling
 
-현재 Web UI는 실제 emit 이벤트 중 `agent_status`, `queue_update`, `agent_tool`, `agent_output`, `agent_retry`, `agent_fallback`, `agent_smoke`, `agent_done`, `orchestrate_done`, `clear`, `session_reset`, `agent_added`, `agent_updated`, `agent_deleted`, `heartbeat_pending`, `orc_state`, `memory_status`, `new_message`를 처리한다.
+현재 Web UI는 `public/js/event-channel.ts`를 통해 SSE payload를 받고, topic/event subscription을 `public/js/ws.ts`의 기존 handler path로 연결한다. legacy WebSocket fallback도 같은 handler set을 사용하므로 UI event 처리 코드는 transport와 분리되어 있다.
 
 ### 백엔드 emit은 있으나 Web UI 직접 분기는 없는 이벤트
 
@@ -83,7 +120,7 @@ CLI spawn / ACP session
 | --- | --- |
 | `worker_stalled` / `worker_disconnected` / `worker_timeout` | bus/internal listener에는 전달되지만 `public/js/ws.ts` 직접 분기는 없다 |
 | `system_notice` | WS public emit은 되지만 `public/js/ws.ts` 직접 분기는 없다 |
-| `agent:claude-i:*` | native helper lifecycle/status telemetry. 현재 Web UI 직접 분기는 없고, trace/internal listener와 외부 observer용이다 |
+| `agent:claude-e:*` | native helper lifecycle/status telemetry. 현재 Web UI 직접 분기는 없고, trace/internal listener와 외부 observer용이다 |
 
 ### Web UI에 legacy 분기만 남은 타입
 
@@ -99,7 +136,7 @@ CLI spawn / ACP session
 --print/-p --output-format stream-json --verbose --include-partial-messages
 ```
 
-Plaintext `thinking_delta`는 headless `--print`/`-p` stream에서 partial message streaming이 켜져야 온다. `claude-i`는 interactive PTY wrapper라 이 옵션 조합을 wrapper 뒤 Claude TUI에 강제하지 않고, transcript completed message의 plaintext thinking 또는 signature-only encrypted marker를 처리한다.
+Plaintext `thinking_delta`는 headless `--print`/`-p` stream에서 partial message streaming이 켜져야 온다. `claude-e` helper는 interactive PTY wrapper라 이 옵션 조합을 wrapper 뒤 Claude TUI에 강제하지 않고, transcript completed message의 plaintext thinking 또는 signature-only encrypted marker를 처리한다.
 
 ### top-level 타입
 
@@ -150,9 +187,9 @@ stream close →
 - `system.subtype === 'task_notification'`:
   같은 `claude:task:{task_id}` step을 `✅ done` 또는 `❌ error`로 갱신하고 summary/output_file/usage detail을 붙인다.
 
-### Claude E / Claude Interactive (`claude-e`, legacy `claude-i` events)
+### Claude E / Claude Interactive (`claude-e`)
 
-`claude-e`는 Claude CLI를 PTY로 띄우고, transcript tail과 hook output을 JSONL로 다시 내보내는 experimental runtime이다. Compatibility `claude-exec` and legacy `jaw-claude-i` / `claude-i` helper names remain fallback binaries. Public registry key is `claude-e`; session bucket and runtime event namespace remain legacy `claude-i`. `src/agent/spawn.ts`는 helper의 `jaw_runtime` 이벤트를 discriminator 전에 처리하고, 일반 Claude `system`/`assistant`/`result` event는 Claude-like parser 경로를 공유한다.
+`claude-e`는 Claude CLI를 PTY로 띄우고, transcript tail과 hook output을 JSONL로 다시 내보내는 experimental runtime이다. Compatibility `claude-exec` and legacy `jaw-claude-i` / `claude-i` helper names remain fallback binaries. Public registry key is `claude-e`; runtime telemetry namespace is `agent:claude-e:*`. Some persisted helper/session internals still use the historical `claude-i` bucket name. `src/agent/spawn.ts`는 helper의 `jaw_runtime` 이벤트를 discriminator 전에 처리하고, 일반 Claude `system`/`assistant`/`result` event는 Claude-like parser 경로를 공유한다.
 
 호출 플래그:
 
@@ -162,9 +199,9 @@ run --jsonl --output-format stream-json --timeout-ms 600000 [--resume <sessionId
 
 | helper/event | jaw 처리 |
 | --- | --- |
-| `jaw_runtime.runtime_started` | `agent:claude-i:runtime_started` broadcast |
+| `jaw_runtime.runtime_started` | `agent:claude-e:runtime_started` broadcast |
 | `jaw_runtime.claude_spawned` | underlying Claude pid telemetry |
-| `jaw_runtime.session_started` | `ctx.sessionId` 저장 + `agent:claude-i:session` broadcast |
+| `jaw_runtime.session_started` | `ctx.sessionId` 저장 + `agent:claude-e:session` broadcast |
 | `jaw_runtime.interrupted` | graceful SIGINT resume metadata 저장 |
 | `assistant` | transcript에서 온 완성 assistant message를 text block 단위로 `fullText`에 누적하고 `agent_output` single chunk로 preview |
 | `result` | cost/turns/duration/session/usage를 Claude path와 동일하게 저장 |
