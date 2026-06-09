@@ -1,7 +1,7 @@
 // ─── cli-jaw Server (glue + routes) ─────────────────
 // All business logic lives in src/ modules.
 
-import express, { type Request } from 'express';
+import express from 'express';
 import helmet from 'helmet';
 import { log, drainLogRing } from './src/core/logger.js';
 import { createServer } from 'http';
@@ -52,7 +52,7 @@ import * as browser from './src/browser/index.js';
 
 import { ensureMemoryRuntimeReady, hasSoulFile } from './src/memory/runtime.js';
 
-import { loadLocales, t, normalizeLocale } from './src/core/i18n.js';
+import { loadLocales, t } from './src/core/i18n.js';
 import {
     PROMPTS_DIR, DB_PATH, UPLOADS_DIR, JAW_HOME,
     settings, loadSettings, saveSettings,
@@ -73,9 +73,8 @@ import {
 
 import {
     isAgentBusy, killAllAgents,
-    messageQueue, resetFallbackState, getQueuedMessageSnapshotForScope,
+    messageQueue, getQueuedMessageSnapshotForScope,
 } from './src/agent/spawn.js';
-import { bumpSessionOwnershipGeneration } from './src/agent/session-persistence.js';
 import { parseCommand, executeCommand } from './src/cli/commands.js';
 import { getVisibleCommands } from './src/command-contract/policy.js';
 
@@ -84,7 +83,9 @@ import { resolveOrcScope } from './src/orchestrator/scope.js';
 
 import { submitMessage } from './src/orchestrator/gateway.js';
 
-import { makeCommandCtx } from './src/cli/command-context.js';
+import { resolveRequestLocale } from './src/http/locale.js';
+import { clearSessionState, applySettingsPatch } from './src/core/session-ops.js';
+import { makeWebCommandCtx } from './src/cli/web-command-ctx.js';
 
 import './src/discord/bot.js'; // side-effect: registers discord transport
 import { initActiveMessagingRuntime, shutdownMessagingRuntime, hydrateTargetsFromSettings } from './src/messaging/runtime.js';
@@ -95,12 +96,9 @@ import { initAlertDelivery } from './src/agent/alert-escalation.js';
 const WEB_COMMAND_TEXT_LIMIT = 30_000;
 
 import {
-    clearMainSessionState,
     getCliModelAndEffort,
     syncMainSessionToSettings,
-    resetSessionPreservingHistory,
 } from './src/core/main-session.js';
-import { applyRuntimeSettingsPatch } from './src/core/runtime-settings.js';
 
 import { seedDefaultEmployees } from './src/core/employees.js';
 import { buildServicePath } from './src/core/instance.js';
@@ -403,53 +401,9 @@ function getRuntimeSnapshot() {
     };
 }
 
-function clearSessionState() {
-    bumpSessionOwnershipGeneration();
-    clearMainSessionState();
-}
-
-function resetSessionOnly() {
-    bumpSessionOwnershipGeneration();
-    resetSessionPreservingHistory();
-}
-
-function resolveRequestLocale(req: Request | null, preferred: string | null = null) {
-    const fallback = settings["locale"] || 'ko';
-    const direct = typeof preferred === 'string' ? preferred.trim() : '';
-    if (direct) return normalizeLocale(direct, fallback);
-
-    const bodyLocale = typeof req?.body?.locale === 'string' ? req.body.locale.trim() : '';
-    if (bodyLocale) return normalizeLocale(bodyLocale, fallback);
-
-    const queryLocale = typeof req?.query?.["locale"] === 'string' ? req.query["locale"].trim() : '';
-    if (queryLocale) return normalizeLocale(queryLocale, fallback);
-
-    const acceptLanguage = typeof req?.headers?.['accept-language'] === 'string'
-        ? req.headers['accept-language']
-        : '';
-    if (acceptLanguage) {
-        const primary = acceptLanguage.split(',')[0]?.trim() || '';
-        if (primary) return normalizeLocale(primary, fallback);
-    }
-
-    return normalizeLocale(fallback, 'ko');
-}
-
-async function applySettingsPatch(rawPatch: Record<string, unknown> = {}) {
-    bumpSessionOwnershipGeneration();
-    return applyRuntimeSettingsPatch(rawPatch, {
-        resetFallbackState,
-    });
-}
-
-function makeWebCommandCtx(req: Request, localeOverride: string | null = null) {
-    return makeCommandCtx('web', resolveRequestLocale(req, localeOverride), {
-        applySettings: (patch) => applySettingsPatch(patch),
-        clearSession: () => clearSessionState(),
-        resetSession: () => resetSessionOnly(),
-        resetEmployees: () => seedDefaultEmployees({ reset: true, notify: true }),
-    });
-}
+// clearSessionState/resetSessionOnly/applySettingsPatch → src/core/session-ops.ts
+// resolveRequestLocale → src/http/locale.ts, makeWebCommandCtx → src/cli/web-command-ctx.ts
+// (Phase 2 extraction — devlog 260609, 20 §3.1)
 
 app.get('/api/health', (_req, res) => res.json({
     ok: true,
