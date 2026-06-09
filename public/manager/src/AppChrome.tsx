@@ -54,7 +54,12 @@ type AppChromeProps = {
     drawerProfileFilters: ReactNode;
     jawCeoWorkbenchButton?: ReactNode;
     jawCeoVoiceOverlay?: ReactNode;
-    jawCeoConsoleContent?: ReactNode;
+    jawCeo?: Parameters<typeof SidebarRailRouter>[0]['jawCeo'];
+    jawCeoVoice?: Parameters<typeof SidebarRailRouter>[0]['jawCeoVoice'];
+    jawCeoOpen?: boolean;
+    jawCeoSelectedPort?: number | null;
+    onJawCeoOpenChange?: (open: boolean) => void;
+    onJawCeoOpenWorker?: (port: number, messageId?: number) => void;
     previewEnabled: boolean;
     previewRefreshKey: number;
     autoUnloadNotice: boolean;
@@ -127,7 +132,8 @@ export function AppChrome(props: AppChromeProps) {
                         workbenchHeader={props.workbenchHeader} detailContent={props.detailContent} previewEnabled={props.previewEnabled}
                         previewRefreshKey={props.previewRefreshKey} previewTheme={props.theme.resolved} onOpenNotesFromPreview={props.openNotesFromPreview} lifecycleMessage={props.lifecycleMessage}
                         onDismissLifecycleMessage={props.onDismissLifecycleMessage} instanceListContent={props.instanceListContent} loading={props.loading}
-                        jawCeoWorkbenchButton={props.jawCeoWorkbenchButton} jawCeoVoiceOverlay={props.jawCeoVoiceOverlay} jawCeoConsoleContent={props.jawCeoConsoleContent}
+                        jawCeoWorkbenchButton={props.jawCeoWorkbenchButton} jawCeoVoiceOverlay={props.jawCeoVoiceOverlay}
+                        jawCeo={props.jawCeo} jawCeoVoice={props.jawCeoVoice} jawCeoOpen={props.jawCeoOpen} jawCeoSelectedPort={props.jawCeoSelectedPort} onJawCeoOpenChange={props.onJawCeoOpenChange} onJawCeoOpenWorker={props.onJawCeoOpenWorker}
                         error={props.error} registryMessage={props.registryMessage} managerEvents={props.activityEvents}
                         onToggleActivity={props.handleActivityToggle} onActivityHeightChange={props.handleActivityHeight} onOpenDrawer={() => props.view.setDrawerOpen(true)}
                         onSelectTab={props.handleTabChange} onToggleActivityFromMobile={props.activityUnreadOpenAndMarkSeen} drawerProfileFilters={props.drawerProfileFilters}

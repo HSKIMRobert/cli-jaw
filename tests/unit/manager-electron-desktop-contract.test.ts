@@ -282,8 +282,8 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     const workspace = read('public/manager/src/components/WorkspaceLayout.tsx');
     const browserCss = read('public/manager/src/browser-panel/browser-panel.css');
 
-    assert.ok(types.includes("RightPanelMode = 'folder' | 'doc' | 'diff' | 'browser'"), 'right panel modes must include folders, document preview, diff, and browser');
-    assert.ok(types.includes("['folder', 'doc', 'diff', 'browser']"), 'right panel mode order must match the toolbar order');
+    assert.ok(types.includes("RightPanelMode = 'folder' | 'doc' | 'diff' | 'browser' | 'ceo'"), 'right panel modes must include folders, document preview, diff, browser, and ceo');
+    assert.ok(types.includes("['folder', 'doc', 'diff', 'browser', 'ceo']"), 'right panel mode order must match the toolbar order');
     assert.ok(types.includes('RIGHT_SPLIT_MIN_RATIO = 0.3'), 'right panel split must not allow a slot to collapse into an unusable 20% strip');
     assert.ok(types.includes('RIGHT_SPLIT_MAX_RATIO = 0.7'), 'right panel split must reserve usable height for both slots');
     assert.ok(provider.includes("{ type: 'SOLO_RIGHT_SUB'; slot: 'top' | 'bottom' }"), 'layout reducer must expose a first-class solo action for split slots');
@@ -295,7 +295,7 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(sidebar.includes("aria-label={MODE_LABELS[mode]}"), 'icon buttons must keep accessible names');
     assert.ok(sidebar.includes("dispatch({ type: 'SET_RIGHT_BOTTOM_MODE', mode: null })"), 'toolbar buttons must collapse split state into a single visible panel');
     assert.ok(sidebar.includes("dispatch({ type: 'OPEN_RIGHT_PANEL', mode, slot: 'top' })"), 'toolbar buttons must switch the visible top panel');
-    assert.ok(sidebar.includes("const CONTENT_OWNED_RIGHT_CHROME: RightPanelMode[] = ['browser']"), 'single right-side Browser panels must be able to own their own chrome');
+    assert.ok(sidebar.includes("const CONTENT_OWNED_RIGHT_CHROME: RightPanelMode[] = ['browser', 'ceo']"), 'single right-side Browser and CEO panels must be able to own their own chrome');
     assert.ok(sidebar.includes('const slotOwnsChrome = !isSplit && CONTENT_OWNED_RIGHT_CHROME.includes(mode);'), 'right-side Browser chrome ownership must only apply outside split mode');
     assert.ok(sidebar.includes("right-sub-panel${slotOwnsChrome ? ' has-content-owned-chrome' : ''}"), 'right-side Browser panels must expose a chrome-owned styling hook');
     assert.ok(sidebar.includes('{!slotOwnsChrome && ('), 'right-side Browser panels must hide the duplicate Browser sub-header in single-panel mode');

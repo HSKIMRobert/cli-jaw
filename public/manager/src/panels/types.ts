@@ -1,7 +1,7 @@
-export type RightPanelMode = 'folder' | 'doc' | 'diff' | 'browser';
+export type RightPanelMode = 'folder' | 'doc' | 'diff' | 'browser' | 'ceo';
 export type BottomPanelTab = 'terminal' | 'browser' | 'logs' | 'activity';
 
-export const RIGHT_PANEL_MODES: RightPanelMode[] = ['folder', 'doc', 'diff', 'browser'];
+export const RIGHT_PANEL_MODES: RightPanelMode[] = ['folder', 'doc', 'diff', 'browser', 'ceo'];
 export const BOTTOM_PANEL_TABS: BottomPanelTab[] = ['terminal', 'browser', 'logs', 'activity'];
 
 export const RIGHT_PANEL_MIN_WIDTH = 260;

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ManagerEvent } from '../types';
-import { JawCeoConsole } from './JawCeoConsole';
 import { JawCeoWorkbenchButton } from './JawCeoWorkbenchButton';
 import { JawCeoVoiceOverlay } from './JawCeoVoiceOverlay';
 import { useJawCeo } from './useJawCeo';
@@ -44,7 +43,7 @@ export function useJawCeoDashboardBridge(args: {
             voiceStatus={voice.status}
             busy={ceo.busy}
             error={ceo.error || voice.error}
-            onOpenConsole={() => setOpen(true)}
+            onOpenConsole={() => setOpen(prev => !prev)}
             onToggleVoice={() => { voiceActive ? void voice.stop() : void voice.talk(); }}
         />
     );
@@ -57,21 +56,12 @@ export function useJawCeoDashboardBridge(args: {
             onStop={() => void voice.stop()}
         />
     );
-    const consoleContent = open ? (
-        <JawCeoConsole
-            open
-            selectedPort={args.selectedPort}
-            ceo={ceo}
-            voice={voice}
-            onClose={() => setOpen(false)}
-            onOpenWorker={args.onOpenWorker}
-        />
-    ) : null;
-
     return {
+        ceo,
         voice,
+        open,
+        setOpen,
         workbenchButton,
         voiceOverlay,
-        consoleContent,
     };
 }

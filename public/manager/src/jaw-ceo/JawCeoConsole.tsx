@@ -71,38 +71,35 @@ export function JawCeoConsole(props: {
     const target = props.selectedPort == null ? 'Dashboard' : `Worker :${props.selectedPort}`;
     const voiceLabel = voiceFooterLabel(props.voice.status);
     return (
-        <>
-            <div className="jaw-ceo-console-overlay" onClick={props.onClose} aria-hidden="true" />
-            <aside className="jaw-ceo-console" role="dialog" aria-modal="true" aria-label="Jaw CEO console">
-                <header className="jaw-ceo-console-header">
-                    <div className="jaw-ceo-console-titlebar">
-                        <span className={`jaw-ceo-console-mark status-${props.voice.status}`} aria-hidden="true">CEO</span>
-                        <div className="jaw-ceo-console-heading">
-                            <span>Dashboard coordinator</span>
-                            <h3>Jaw CEO</h3>
-                        </div>
+        <div className="jaw-ceo-console" role="region" aria-label="Jaw CEO console">
+            <header className="jaw-ceo-console-header">
+                <div className="jaw-ceo-console-titlebar">
+                    <span className={`jaw-ceo-console-mark status-${props.voice.status}`} aria-hidden="true">CEO</span>
+                    <div className="jaw-ceo-console-heading">
+                        <span>Dashboard coordinator</span>
+                        <h3>Jaw CEO</h3>
                     </div>
-                    <div className="jaw-ceo-console-header-actions">
-                        <button type="button" className="jaw-ceo-icon-btn" onClick={() => void props.ceo.refresh()} aria-label="Refresh Jaw CEO"><RefreshIcon /></button>
-                        <button ref={closeRef} type="button" className="jaw-ceo-console-close" onClick={props.onClose} aria-label="Close Jaw CEO"><CloseIcon /></button>
-                    </div>
-                    <div className="jaw-ceo-console-summary" aria-label="Jaw CEO status summary">
-                        <span>{target}</span>
-                        <span>Single session</span>
-                        <span className={`voice-tone-${voiceTone(props.voice.status)}`}>Voice {voiceLabel}</span>
-                    </div>
-                </header>
-                <JawCeoTabs active={model.tab} onChange={model.setTab} />
-                <div className="jaw-ceo-console-body"><JawCeoConsoleBody model={model} ceo={props.ceo} voice={props.voice} selectedPort={props.selectedPort} onOpenWorker={props.onOpenWorker} /></div>
-                <footer className={`jaw-ceo-console-footer voice-${props.voice.status}`}>
-                    <div className="jaw-ceo-realtime-status">
-                        <span className="jaw-ceo-realtime-dot" aria-hidden="true" />
-                        <span>Voice: {voiceLabel}{props.voice.error ? ` - ${props.voice.error}` : ''}</span>
-                        {props.voice.lastTranscript ? <small>{props.voice.lastTranscript}</small> : props.voice.lastEventType ? <small>{props.voice.lastEventType}</small> : null}
-                    </div>
-                    <button type="button" className="jaw-ceo-voice-action" onClick={() => canPauseVoice(props.voice.status) ? void props.voice.stop() : void props.voice.talk()}>{canPauseVoice(props.voice.status) ? 'Stop voice' : 'Start voice'}</button>
-                </footer>
-            </aside>
-        </>
+                </div>
+                <div className="jaw-ceo-console-header-actions">
+                    <button type="button" className="jaw-ceo-icon-btn" onClick={() => void props.ceo.refresh()} aria-label="Refresh Jaw CEO"><RefreshIcon /></button>
+                    <button ref={closeRef} type="button" className="jaw-ceo-console-close" onClick={props.onClose} aria-label="Close Jaw CEO"><CloseIcon /></button>
+                </div>
+                <div className="jaw-ceo-console-summary" aria-label="Jaw CEO status summary">
+                    <span>{target}</span>
+                    <span>Single session</span>
+                    <span className={`voice-tone-${voiceTone(props.voice.status)}`}>Voice {voiceLabel}</span>
+                </div>
+            </header>
+            <JawCeoTabs active={model.tab} onChange={model.setTab} />
+            <div className="jaw-ceo-console-body"><JawCeoConsoleBody model={model} ceo={props.ceo} voice={props.voice} selectedPort={props.selectedPort} onOpenWorker={props.onOpenWorker} /></div>
+            <footer className={`jaw-ceo-console-footer voice-${props.voice.status}`}>
+                <div className="jaw-ceo-realtime-status">
+                    <span className="jaw-ceo-realtime-dot" aria-hidden="true" />
+                    <span>Voice: {voiceLabel}{props.voice.error ? ` - ${props.voice.error}` : ''}</span>
+                    {props.voice.lastTranscript ? <small>{props.voice.lastTranscript}</small> : props.voice.lastEventType ? <small>{props.voice.lastEventType}</small> : null}
+                </div>
+                <button type="button" className="jaw-ceo-voice-action" onClick={() => canPauseVoice(props.voice.status) ? void props.voice.stop() : void props.voice.talk()}>{canPauseVoice(props.voice.status) ? 'Stop voice' : 'Start voice'}</button>
+            </footer>
+        </div>
     );
 }
