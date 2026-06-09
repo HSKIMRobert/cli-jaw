@@ -1,4 +1,3 @@
-import fs from 'node:fs';
 import type { SpawnContext, ToolEntry } from '../types/agent.js';
 import {
     agyTranscriptStepKey,
@@ -24,12 +23,20 @@ const WAIT_PATH_MS = 120_000;
 function applyTranscriptTool(
     ctx: SpawnContext,
     line: string,
+    minCreatedAtMs: number,
     onEmit: AgyTranscriptEmit,
     agentLabel: string,
     cli: string,
     empTag: Record<string, unknown>,
     traceAudience: 'public' | 'internal',
 ): void {
+    try {
+        const parsed = JSON.parse(line) as { created_at?: unknown };
+        if (typeof parsed.created_at === 'string') {
+            const createdAt = Date.parse(parsed.created_at);
+            if (Number.isFinite(createdAt) && createdAt < minCreatedAtMs) return;
+        }
+    } catch { /* parseTranscriptLine handles malformed rows */ }
     const tool = parseTranscriptLine(line);
     if (!tool?.stepRef) return;
     let dedupeKey = tool.stepRef;
@@ -82,8 +89,8 @@ export function startAgyTranscriptWatcher(options: {
             }
             transcriptPath = resolved.transcriptPath;
             conversationId = resolved.conversationId ?? currentSessionId ?? null;
-            try { offset = fs.statSync(transcriptPath).size; } catch { /* start from 0 */ }
-            console.log(`[jaw:agy:transcript] tailing ${transcriptPath} (skip ${offset} bytes)`);
+            offset = 0;
+            console.log(`[jaw:agy:transcript] tailing ${transcriptPath} (current-turn filter from ${new Date(startedAt).toISOString()})`);
         }
         try {
             const delta = readTranscriptDelta(transcriptPath, offset);
@@ -92,6 +99,7 @@ export function startAgyTranscriptWatcher(options: {
                 applyTranscriptTool(
                     options.ctx,
                     line,
+                    startedAt - 5_000,
                     options.onEmit,
                     options.agentLabel,
                     options.cli,
@@ -111,13 +119,19 @@ export function startAgyTranscriptWatcher(options: {
         stop: () => {
             stopped = true;
             clearInterval(interval);
-            if (!transcriptPath) return;
+            if (!transcriptPath) {
+                const resolved = resolveAgyTranscriptPath(options.cwd, options.getSessionId());
+                if (!resolved.ok || !resolved.transcriptPath) return;
+                transcriptPath = resolved.transcriptPath;
+                offset = 0;
+            }
             try {
                 const delta = readTranscriptDelta(transcriptPath, offset);
                 for (const line of delta.lines) {
                     applyTranscriptTool(
                         options.ctx,
                         line,
+                        startedAt - 5_000,
                         options.onEmit,
                         options.agentLabel,
                         options.cli,

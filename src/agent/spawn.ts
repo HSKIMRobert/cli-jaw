@@ -1897,8 +1897,10 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         ...(kiroPlainText ? { kiroLastVisibleAt: Date.now(), kiroHeartbeatSent: false } : {}),
     };
     let geminiWatchdog: ReturnType<typeof setTimeout> | null = null;
+    let agyClosing = false;
     const scheduleAgyQuietCompletion = () => {
         if (cli !== 'agy') return;
+        if (agyClosing) return;
         clearAgyQuietCompletionTimer();
         const quietCompletionDelayMs = getAgyQuietCompletionDelayMs(ctx);
         if (quietCompletionDelayMs === null) return;
@@ -2140,7 +2142,6 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     });
 
     child.on('close', (code) => {
-        agyTranscriptWatcher?.stop();
         clearOpencodeIdleTimer();
         clearAgyQuietCompletionTimer();
         stallWatchdog.stop();
@@ -2190,6 +2191,8 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             try { fs.rmSync(agyLogFile, { force: true }); }
             catch (e) { console.warn('[jaw:agy] log cleanup failed:', (e as Error).message); }
         }
+        agyClosing = true;
+        agyTranscriptWatcher?.stop();
         if (cli === 'agy' && isResume && isAgyStaleSessionOutput(ctx.fullText)) {
             console.log(`[jaw:agy] stale session detected (Warning: conversation not found) — clearing bucket`);
             try {
