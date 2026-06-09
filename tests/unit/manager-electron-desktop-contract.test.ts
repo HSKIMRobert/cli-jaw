@@ -306,6 +306,14 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(resizer.includes('onDeltaRef.current(delta)'), 'PanelResizer must call the latest delta handler without re-registering native listeners mid-drag');
     assert.ok(resizer.includes('const options: AddEventListenerOptions = { capture: true };'), 'PanelResizer must listen in capture phase so webview/iframe surfaces cannot swallow resize move/up events');
     assert.ok(resizer.includes("window.addEventListener('mouseup', stopDragging, options);"), 'PanelResizer must end drags even when mouseup lands outside the React element');
+    assert.ok(css.includes('touch-action: none;'), 'PanelResizer must opt out of touch/browser gestures so resize drags are not intercepted');
+    assert.ok(css.includes('-webkit-app-region: no-drag;'), 'PanelResizer must not be treated as an app drag region in Electron');
+    assert.ok(css.includes('.panel-resizer-horizontal {\n    width: 24px;'), 'right sidebar horizontal resizer must expose a forgiving edge hit area');
+    assert.ok(css.includes('margin: 0 -12px;'), 'horizontal resizer hit area must straddle the panel edge instead of living only inside the right panel');
+    assert.ok(css.includes('.panel-resizer-horizontal::after {\n    left: 11px;'), 'horizontal resizer must keep a thin visual divider inside the wider hit area');
+    assert.ok(css.includes('.right-panel {\n    grid-area: right;\n    position: relative;'), 'right panel must establish a positioning context for an edge-straddling resize hit area');
+    assert.ok(css.includes('overflow: visible;'), 'right panel must not clip the resize hit area outside its left edge');
+    assert.ok(layoutCss.includes('.manager-workspace.is-right-panel-open .right-panel {\n    display: flex;\n    flex-direction: row;\n    min-height: 0;\n    overflow: visible;'), 'open right panel layout must preserve the outside resize hit area');
     assert.ok(sidebar.includes("const CONTENT_OWNED_RIGHT_CHROME: RightPanelMode[] = ['browser', 'ceo']"), 'single right-side Browser and CEO panels must be able to own their own chrome');
     assert.ok(sidebar.includes('const slotOwnsChrome = !isSplit && CONTENT_OWNED_RIGHT_CHROME.includes(mode);'), 'right-side Browser chrome ownership must only apply outside split mode');
     assert.ok(sidebar.includes("right-sub-panel${slotOwnsChrome ? ' has-content-owned-chrome' : ''}"), 'right-side Browser panels must expose a chrome-owned styling hook');
