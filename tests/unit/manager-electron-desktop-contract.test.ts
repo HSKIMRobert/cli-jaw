@@ -275,6 +275,7 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     const types = read('public/manager/src/panels/types.ts');
     const provider = read('public/manager/src/panels/PanelLayoutProvider.tsx');
     const sidebar = read('public/manager/src/panels/RightSidebar.tsx');
+    const resizer = read('public/manager/src/panels/PanelResizer.tsx');
     const router = read('public/manager/src/SidebarRailRouter.tsx');
     const folder = read('public/manager/src/folder-panel/FolderPanel.tsx');
     const folderSources = read('public/manager/src/folder-panel/folder-sources.ts');
@@ -282,6 +283,8 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     const browserPanel = read('public/manager/src/browser-panel/BrowserPanel.tsx');
     const browserUrl = read('public/manager/src/browser-panel/browser-url.ts');
     const css = read('public/manager/src/panels/panels.css');
+    const layoutCss = read('public/manager/src/manager-layout.css');
+    const jawCeoCss = read('public/manager/src/jaw-ceo/jaw-ceo.css');
     const workspace = read('public/manager/src/components/WorkspaceLayout.tsx');
     const browserCss = read('public/manager/src/browser-panel/browser-panel.css');
 
@@ -298,6 +301,11 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(sidebar.includes("aria-label={MODE_LABELS[mode]}"), 'icon buttons must keep accessible names');
     assert.ok(sidebar.includes("dispatch({ type: 'SET_RIGHT_BOTTOM_MODE', mode: null })"), 'toolbar buttons must collapse split state into a single visible panel');
     assert.ok(sidebar.includes("dispatch({ type: 'OPEN_RIGHT_PANEL', mode, slot: 'top' })"), 'toolbar buttons must switch the visible top panel');
+    assert.ok(sidebar.includes('const widthRef = useRef(rp.width);'), 'right sidebar resize must accumulate drag deltas outside React render timing');
+    assert.ok(sidebar.includes('widthRef.current = width;'), 'right sidebar width ref must update immediately during drag');
+    assert.ok(resizer.includes('onDeltaRef.current(delta)'), 'PanelResizer must call the latest delta handler without re-registering native listeners mid-drag');
+    assert.ok(resizer.includes('const options: AddEventListenerOptions = { capture: true };'), 'PanelResizer must listen in capture phase so webview/iframe surfaces cannot swallow resize move/up events');
+    assert.ok(resizer.includes("window.addEventListener('mouseup', stopDragging, options);"), 'PanelResizer must end drags even when mouseup lands outside the React element');
     assert.ok(sidebar.includes("const CONTENT_OWNED_RIGHT_CHROME: RightPanelMode[] = ['browser', 'ceo']"), 'single right-side Browser and CEO panels must be able to own their own chrome');
     assert.ok(sidebar.includes('const slotOwnsChrome = !isSplit && CONTENT_OWNED_RIGHT_CHROME.includes(mode);'), 'right-side Browser chrome ownership must only apply outside split mode');
     assert.ok(sidebar.includes("right-sub-panel${slotOwnsChrome ? ' has-content-owned-chrome' : ''}"), 'right-side Browser panels must expose a chrome-owned styling hook');
@@ -347,6 +355,7 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(folderSources.includes('createNotesVaultFolderSource'), 'folder panel must expose a web notes-vault fallback source');
     assert.ok(doc.includes('Open Folders and select a file'), 'empty document preview must explain how to view a file');
     assert.ok(css.includes('.right-panel-toolbar'), 'right sidebar icon toolbar must be styled');
+    assert.equal(jawCeoCss.includes('@media (max-width: 767px) {\n    .jaw-ceo-console {\n    .jaw-ceo-workbench-button'), false, 'jaw ceo mobile CSS must not leave an open nested selector that swallows following panel CSS');
     assert.ok(css.includes('.right-panel-mode-button.is-active'), 'active right sidebar icon must have visible state');
     assert.ok(css.includes('.right-sub-title'), 'split header labels must be visible and styled');
     assert.ok(css.includes('.right-sub-action'), 'split slot only/close actions must be styled as usable controls');
@@ -355,6 +364,10 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(css.includes('flex: 1 1 0;'), 'single right panel content must not collapse to header height');
     assert.ok(css.includes('.right-sub-content {\n    display: flex;'), 'right sidebar content must pass flex height to nested panels');
     assert.ok(css.includes('height: 100%;'), 'right sub content must pass a stable height to nested panels');
+    assert.ok(layoutCss.includes('.manager-workspace.is-right-panel-open .right-panel {\n    display: flex;'), 'open right panel must keep flex display even when responsive workspace CSS has higher specificity');
+    assert.ok(layoutCss.includes('.manager-workspace.is-right-panel-open .right-panel-shell {\n    display: flex;'), 'right panel shell must remain a flex column so Browser webview can inherit height');
+    assert.ok(layoutCss.includes('.manager-workspace.is-right-panel-open .right-panel-body.is-single-panel {\n    display: flex;'), 'single right panel body must pass remaining height to its active sub-panel');
+    assert.ok(layoutCss.includes('.manager-workspace.is-right-panel-open .right-sub-content {\n    display: flex;'), 'right sub content must not regress to block and collapse Browser webview height to zero');
     assert.ok(workspace.includes('clampRightPanelRenderWidth'), 'right panel width must be clamped at render time so persisted large widths cannot clip the UI');
     assert.ok(workspace.includes('WORKSPACE_CENTER_MIN_WIDTH'), 'right panel clamp must reserve usable center workspace width');
     assert.ok(browserCss.includes('overflow: hidden'), 'browser panel must clip inside its own panel instead of escaping the sidebar');
@@ -473,6 +486,7 @@ test('Electron browser panel uses a hardened webview instead of a CSP-blocked if
     const main = read('electron/src/main/index.ts');
     const navigationPolicy = read('electron/src/main/lib/navigation-policy.ts');
     const browser = read('public/manager/src/browser-panel/BrowserPanel.tsx');
+    const instancePreview = read('public/manager/src/InstancePreview.tsx');
     const css = read('public/manager/src/browser-panel/browser-panel.css');
     assert.ok(main.includes('webviewTag: true'), 'BrowserWindow must enable webview only for the desktop browser panel');
     assert.ok(main.includes("mainWindow.webContents.on('will-attach-webview'"), 'Electron main must validate every attached webview');
@@ -495,6 +509,8 @@ test('Electron browser panel uses a hardened webview instead of a CSP-blocked if
     assert.ok(browser.includes("partition: 'persist:cli-jaw-browser'"), 'BrowserPanel must keep a persistent Electron browser session partition');
     assert.ok(browser.includes('browser-external-surface'), 'web UI must present a limited external browser launcher instead of a broken iframe browser');
     assert.ok(browser.includes("window.open(target, '_blank', 'noopener,noreferrer')"), 'web UI browser mode must open external URLs in a browser tab');
+    assert.ok(browser.includes('desktopBridge?.identify?.()?.electron === true'), 'BrowserPanel must only use Electron webview when the bridge is present, not from user-agent alone');
+    assert.ok(instancePreview.includes('sandbox={isElectron() ? undefined : PREVIEW_IFRAME_SANDBOX}'), 'Electron manager previews must not sandbox the frame that hosts desktop webviews');
     assert.ok(css.includes('.browser-go-btn'), 'browser toolbar must expose an explicit go action');
 
     const preload = read('electron/src/preload/index.ts');

@@ -1,4 +1,4 @@
-import { useCallback, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { PanelResizer } from './PanelResizer';
 import { usePanelLayout } from './PanelLayoutProvider';
 import type { RightPanelMode } from './types';
@@ -84,10 +84,17 @@ export function RightSidebar(props: RightSidebarProps) {
     const { state, dispatch, effectiveRightOpen, rightPanelSplit } = usePanelLayout();
     const rp = state.rightPanel;
     const bodyRef = useRef<HTMLDivElement>(null);
+    const widthRef = useRef(rp.width);
+
+    useEffect(() => {
+        widthRef.current = rp.width;
+    }, [rp.width]);
 
     const handleWidthDelta = useCallback((delta: number) => {
-        dispatch({ type: 'SET_RIGHT_WIDTH', width: rp.width - delta });
-    }, [dispatch, rp.width]);
+        const width = widthRef.current - delta;
+        widthRef.current = width;
+        dispatch({ type: 'SET_RIGHT_WIDTH', width });
+    }, [dispatch]);
 
     const handleWidthEnd = useCallback(() => {
         // save trigger handled by parent persistence layer (L7)

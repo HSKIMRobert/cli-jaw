@@ -12,6 +12,7 @@ export function panelLayoutInitialStateFromUi(ui: DashboardRegistryUi): Partial<
             topMode: (ui.rightPanelTopMode as RightPanelMode | null) ?? null,
             bottomMode: (ui.rightPanelBottomMode as RightPanelMode | null) ?? null,
             splitRatio: ui.rightPanelSplitRatio ?? 0.5,
+            ceoDirectOpen: false,
         },
         bottomPanel: {
             open: ui.bottomPanelOpen ?? false,

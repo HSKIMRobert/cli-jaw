@@ -17,8 +17,11 @@ test('electron CSP allows loopback origin-port iframe previews', () => {
     const csp = buildManagerCsp('http://127.0.0.1:24576', origins);
 
     assert.ok(csp.includes('frame-src'));
+    assert.ok(csp.includes('child-src'));
     assert.ok(csp.includes("script-src 'self'"));
     assert.ok(csp.includes("'self'"));
+    assert.ok(csp.includes('http:'));
+    assert.ok(csp.includes('https:'));
     assert.ok(csp.includes('http://127.0.0.1:24602'));
     assert.ok(csp.includes('http://localhost:24603'));
     assert.equal(csp.includes("script-src 'self' 'unsafe-inline'"), false);

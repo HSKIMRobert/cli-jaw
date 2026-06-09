@@ -106,6 +106,8 @@ function createBrowserTab(id: string, target = DEFAULT_BROWSER_URL): BrowserTabS
 
 export function BrowserPanel(props: BrowserPanelProps = {}) {
     const desktop = isElectron();
+    const desktopBridge = getDesktop();
+    const canUseElectronWebview = desktopBridge?.identify?.()?.electron === true;
     const initialTab = useRef<BrowserTabState>(createBrowserTab('browser-tab-1'));
     const nextTabIndex = useRef(2);
     const [tabs, setTabs] = useState<BrowserTabState[]>(() => [initialTab.current]);
@@ -270,16 +272,16 @@ export function BrowserPanel(props: BrowserPanelProps = {}) {
         updateTab(tabId, {
             blocked: false,
             error: null,
-            status: desktop ? null : 'Opened in a new browser tab. Web UI does not embed external pages.',
+            status: canUseElectronWebview ? null : 'Opened in a new browser tab. Embedded browser is only available in the Electron manager window.',
             inputUrl: target,
             url: target,
             title: titleFromUrl(target),
         });
-        if (!desktop) {
+        if (!canUseElectronWebview) {
             const opened = window.open(target, '_blank', 'noopener,noreferrer');
             if (!opened) updateTab(tabId, { error: 'Popup blocked. Allow popups or copy the URL from the address field.' });
         }
-    }, [blockedUrlMessage, desktop, updateTab]);
+    }, [blockedUrlMessage, canUseElectronWebview, desktop, updateTab]);
 
     const addTab = useCallback((rawTarget = DEFAULT_BROWSER_URL) => {
         const target = normalizeBrowserTarget(rawTarget) ?? DEFAULT_BROWSER_URL;
@@ -415,9 +417,9 @@ export function BrowserPanel(props: BrowserPanelProps = {}) {
                 )}
             </div>
             <div className="browser-toolbar">
-                <button type="button" className="browser-nav-btn" aria-label="Back" disabled={!desktop || !activeTab.canGoBack} onClick={() => webviewRefs.current.get(activeTab.id)?.goBack()}>‹</button>
-                <button type="button" className="browser-nav-btn" aria-label="Forward" disabled={!desktop || !activeTab.canGoForward} onClick={() => webviewRefs.current.get(activeTab.id)?.goForward()}>›</button>
-                <button type="button" className="browser-nav-btn" aria-label="Reload" disabled={!desktop} onClick={() => webviewRefs.current.get(activeTab.id)?.reload()}>↻</button>
+                <button type="button" className="browser-nav-btn" aria-label="Back" disabled={!canUseElectronWebview || !activeTab.canGoBack} onClick={() => webviewRefs.current.get(activeTab.id)?.goBack()}>‹</button>
+                <button type="button" className="browser-nav-btn" aria-label="Forward" disabled={!canUseElectronWebview || !activeTab.canGoForward} onClick={() => webviewRefs.current.get(activeTab.id)?.goForward()}>›</button>
+                <button type="button" className="browser-nav-btn" aria-label="Reload" disabled={!canUseElectronWebview} onClick={() => webviewRefs.current.get(activeTab.id)?.reload()}>↻</button>
                 <input
                     ref={inputRef}
                     className="browser-url-input"
@@ -436,14 +438,14 @@ export function BrowserPanel(props: BrowserPanelProps = {}) {
                     onKeyDown={event => { if (event.key === 'Enter') navigate(); }}
                     aria-label="URL"
                 />
-                <button type="button" className="browser-go-btn" onMouseDown={event => event.preventDefault()} onClick={navigate}>{desktop ? 'Go' : 'Open'}</button>
+                <button type="button" className="browser-go-btn" onMouseDown={event => event.preventDefault()} onClick={navigate}>{canUseElectronWebview ? 'Go' : 'Open'}</button>
             </div>
             {(activeTab.blocked || activeTab.error || activeTab.loading || activeTab.status) && (
                 <div className={`browser-status${activeTab.error ? ' is-error' : ''}`}>
                     {activeTab.error ?? (activeTab.loading ? 'Loading...' : activeTab.status ?? 'Blocked')}
                 </div>
             )}
-            {desktop ? (
+            {canUseElectronWebview ? (
                 <div className="browser-webview-stack">
                     <div key={activeTab.id} className="browser-webview-host is-active">
                         {createElement('webview', {
@@ -453,7 +455,7 @@ export function BrowserPanel(props: BrowserPanelProps = {}) {
                             partition: 'persist:cli-jaw-browser',
                             useragent: webviewUserAgent.current,
                             allowpopups: 'true',
-                            webpreferences: 'contextIsolation=yes,sandbox=yes,nodeIntegration=no',
+                            webpreferences: 'contextIsolation=yes,nodeIntegration=no',
                         })}
                     </div>
                 </div>

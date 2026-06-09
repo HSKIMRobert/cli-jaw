@@ -355,7 +355,6 @@
     50% { transform: scaleY(1.2); opacity: 1; }
 }
 @media (max-width: 767px) {
-    .jaw-ceo-console {
     .jaw-ceo-workbench-button {
         min-width: 76px;
         grid-template-columns: 24px auto;
