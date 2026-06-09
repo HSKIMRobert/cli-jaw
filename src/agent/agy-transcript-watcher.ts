@@ -60,13 +60,20 @@ export function startAgyTranscriptWatcher(options: {
 }): AgyTranscriptWatcherHandle {
     let offset = 0;
     let transcriptPath: string | null = null;
+    let conversationId: string | null = null;
     let stopped = false;
     const startedAt = Date.now();
 
     const tick = () => {
         if (stopped) return;
+        const currentSessionId = options.getSessionId();
+        if (transcriptPath && currentSessionId && conversationId && currentSessionId !== conversationId) {
+            transcriptPath = null;
+            conversationId = null;
+            offset = 0;
+        }
         if (!transcriptPath) {
-            const resolved = resolveAgyTranscriptPath(options.cwd, options.getSessionId());
+            const resolved = resolveAgyTranscriptPath(options.cwd, currentSessionId);
             if (!resolved.ok || !resolved.transcriptPath) {
                 if (Date.now() - startedAt > WAIT_PATH_MS) {
                     console.warn(`[jaw:agy:transcript] gave up waiting (${resolved.reason ?? 'unknown'})`);
@@ -74,6 +81,7 @@ export function startAgyTranscriptWatcher(options: {
                 return;
             }
             transcriptPath = resolved.transcriptPath;
+            conversationId = resolved.conversationId ?? currentSessionId ?? null;
             try { offset = fs.statSync(transcriptPath).size; } catch { /* start from 0 */ }
             console.log(`[jaw:agy:transcript] tailing ${transcriptPath} (skip ${offset} bytes)`);
         }
