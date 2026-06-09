@@ -23,11 +23,21 @@ test('AGY-TR-001: parseTranscriptLine maps RUN_COMMAND to tool entry', () => {
     assert.equal(tool!.status, 'done');
 });
 
-test('AGY-TR-002: parseTranscriptLine maps PLANNER_RESPONSE to thinking', () => {
+test('AGY-TR-002: parseTranscriptLine skips PLANNER_RESPONSE process blocks', () => {
     const lines = fs.readFileSync(fixturePath, 'utf8').split('\n').filter(Boolean);
     const tool = parseTranscriptLine(lines[2]);
-    assert.equal(tool?.toolType, 'thinking');
-    assert.equal(tool?.icon, '💭');
+    assert.equal(tool, null);
+});
+
+test('AGY-TR-006: Korean PLANNER_RESPONSE status prose is not a thinking tool', () => {
+    const tool = parseTranscriptLine(JSON.stringify({
+        step_index: 39,
+        source: 'MODEL',
+        type: 'PLANNER_RESPONSE',
+        status: 'DONE',
+        content: '서버 정상! 이제 Swiss Style에 맞는 이미지 4장을 동시에 생성한다. 🦈',
+    }));
+    assert.equal(tool, null);
 });
 
 test('AGY-TR-003: readTranscriptDelta returns only new bytes', () => {

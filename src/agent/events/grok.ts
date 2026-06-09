@@ -114,6 +114,25 @@ function finalizeGrokThinkingProgress(
     return true;
 }
 
+function finalizeAllGrokThinkingProgress(
+    ctx: SpawnContext,
+    agentLabel: string,
+    empTag: Record<string, unknown>,
+): void {
+    const runningThoughts = ctx.toolLog.filter(
+        (t: ToolEntry) => t.stepRef?.startsWith(GROK_THINKING_STEP_REF) && (!t.status || t.status === 'running')
+    );
+    for (const thought of runningThoughts) {
+        thought.status = 'done';
+        syncLiveTools(ctx);
+        emitAgentTool(ctx, agentLabel, thought, empTag);
+    }
+    delete ctx.grokCurrentThoughtRef;
+    delete ctx.grokLastThoughtEmitAt;
+    delete ctx.grokLastThoughtEmitChars;
+    ctx.grokThoughtProgressEmitted = false;
+}
+
 function grokToolRef(event: CliEventRecord, ctx: SpawnContext): string {
     const part = asCliEventRecord(event.part);
     const rawId = fieldString(event.id)
@@ -340,5 +359,6 @@ export function handleGrokEvent(
         } else {
             finalizeGrokThinkingProgress(ctx, agentLabel, empTag);
         }
+        finalizeAllGrokThinkingProgress(ctx, agentLabel, empTag);
     }
 }

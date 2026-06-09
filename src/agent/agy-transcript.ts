@@ -104,15 +104,10 @@ export function parseTranscriptLine(line: string): ToolEntry | null {
         return null;
     }
     const type = typeof row['type'] === 'string' ? row['type'] : '';
-    if (!TOOL_STEP_TYPES.has(type) && type !== 'PLANNER_RESPONSE') return null;
+    if (type === 'PLANNER_RESPONSE') return null;
+    if (!TOOL_STEP_TYPES.has(type)) return null;
 
     let content = typeof row['content'] === 'string' ? row['content'] : '';
-    // For thinking-mode planning steps, prefer the thinking field when content is empty
-    if (type === 'PLANNER_RESPONSE' && !content) {
-        const thinking = typeof row['thinking'] === 'string' ? row['thinking'] : '';
-        if (thinking) content = thinking;
-    }
-    if (type === 'PLANNER_RESPONSE' && !content.trim()) return null;
     const stepIndex = row['step_index'];
     const statusRaw = typeof row['status'] === 'string' ? row['status'] : '';
     const { icon, label, detail, toolType } = labelForStep(type, content);
