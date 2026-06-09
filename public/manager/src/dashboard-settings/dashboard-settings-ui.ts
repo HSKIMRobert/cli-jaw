@@ -34,6 +34,7 @@ export function dashboardSettingsUiFromView(
         dashboardShortcutKeymap: view.dashboardShortcutKeymap,
         diffRootPolicy: view.diffRootPolicy,
         diffPinnedRootByPort: view.diffPinnedRootByPort,
+        diffRecentRepoRoots: view.diffRecentRepoRoots,
         diffDefaultMode: view.diffDefaultMode,
         diffBaseRef: view.diffBaseRef,
         diffIncludeUntracked: view.diffIncludeUntracked,

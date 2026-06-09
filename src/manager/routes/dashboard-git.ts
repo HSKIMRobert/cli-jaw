@@ -34,7 +34,12 @@ function readSettings(value: unknown): DiffRootSettings {
     for (const [port, path] of Object.entries(pinnedInput)) {
         if (/^\d+$/.test(port) && typeof path === 'string' && path.trim()) diffPinnedRootByPort[port] = path.trim();
     }
-    return { diffRootPolicy: policy, diffPinnedRootByPort };
+    const recentInput = Array.isArray(input['diffRecentRepoRoots']) ? input['diffRecentRepoRoots'] : [];
+    const diffRecentRepoRoots = recentInput
+        .filter((path): path is string => typeof path === 'string' && path.trim().length > 0)
+        .map(path => path.trim())
+        .slice(0, 8);
+    return { diffRootPolicy: policy, diffPinnedRootByPort, diffRecentRepoRoots };
 }
 
 async function resolveRootsForBody(body: unknown, options: DashboardGitRouterOptions) {

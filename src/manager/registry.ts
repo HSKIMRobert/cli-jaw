@@ -172,6 +172,21 @@ function normalizeDiffPinnedRootByPort(value: unknown): Record<string, string> {
     return roots;
 }
 
+function normalizeDiffRecentRepoRoots(value: unknown): string[] {
+    if (!Array.isArray(value)) return [];
+    const roots: string[] = [];
+    const seen = new Set<string>();
+    for (const item of value) {
+        if (typeof item !== 'string') continue;
+        const root = item.trim().slice(0, 2048);
+        if (!root || seen.has(root)) continue;
+        seen.add(root);
+        roots.push(root);
+        if (roots.length >= 8) break;
+    }
+    return roots;
+}
+
 function normalizeShortcutChord(value: unknown, fallback: string): string {
     if (typeof value !== 'string') return fallback;
     const trimmed = value.trim().replace(/\s+/g, '');
@@ -280,6 +295,7 @@ function defaultUi(): DashboardRegistryUi {
         dashboardShortcutKeymap: { ...DEFAULT_DASHBOARD_SHORTCUT_KEYMAP },
         diffRootPolicy: 'project-first',
         diffPinnedRootByPort: {},
+        diffRecentRepoRoots: [],
         diffDefaultMode: 'unstaged',
         diffBaseRef: 'HEAD',
         diffIncludeUntracked: true,
@@ -353,6 +369,7 @@ function normalizeUi(value: unknown): DashboardRegistryUi {
         dashboardShortcutKeymap: normalizeShortcutKeymap(input["dashboardShortcutKeymap"]),
         diffRootPolicy,
         diffPinnedRootByPort: normalizeDiffPinnedRootByPort(input["diffPinnedRootByPort"]),
+        diffRecentRepoRoots: normalizeDiffRecentRepoRoots(input["diffRecentRepoRoots"]),
         diffDefaultMode,
         diffBaseRef: readString(input["diffBaseRef"]) ?? fallback.diffBaseRef,
         diffIncludeUntracked: typeof input["diffIncludeUntracked"] === 'boolean' ? input["diffIncludeUntracked"] : fallback.diffIncludeUntracked,

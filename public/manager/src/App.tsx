@@ -187,7 +187,7 @@ export function App() {
                 view.setNotesGraphSettings(ui.notesGraphSettings);
                 view.setShowLatestActivityTitles(ui.showLatestActivityTitles); view.setShowInlineLabelEditor(ui.showInlineLabelEditor); view.setShowSidebarRuntimeLine(ui.showSidebarRuntimeLine);
                 view.setShowSelectedRowActions(ui.showSelectedRowActions); view.setDashboardShortcutsEnabled(ui.dashboardShortcutsEnabled); view.setDashboardShortcutKeymap(ui.dashboardShortcutKeymap);
-                view.setDiffRootPolicy(ui.diffRootPolicy); view.setDiffPinnedRootByPort(ui.diffPinnedRootByPort); view.setDiffDefaultMode(ui.diffDefaultMode);
+                view.setDiffRootPolicy(ui.diffRootPolicy); view.setDiffPinnedRootByPort(ui.diffPinnedRootByPort); view.setDiffRecentRepoRoots(ui.diffRecentRepoRoots); view.setDiffDefaultMode(ui.diffDefaultMode);
                 view.setDiffBaseRef(ui.diffBaseRef); view.setDiffIncludeUntracked(ui.diffIncludeUntracked);
                 view.setLocale(ui.locale);
                 activityUnread.hydrateSeenAt(ui.activitySeenAt ?? null, ui.activitySeenByPort || {});
@@ -335,7 +335,7 @@ export function App() {
         if (ui.showSelectedRowActions !== undefined) view.setShowSelectedRowActions(ui.showSelectedRowActions);
         if (ui.dashboardShortcutsEnabled !== undefined) view.setDashboardShortcutsEnabled(ui.dashboardShortcutsEnabled);
         if (ui.dashboardShortcutKeymap !== undefined) view.setDashboardShortcutKeymap(ui.dashboardShortcutKeymap);
-        if (ui.diffRootPolicy !== undefined) view.setDiffRootPolicy(ui.diffRootPolicy); if (ui.diffPinnedRootByPort !== undefined) view.setDiffPinnedRootByPort(ui.diffPinnedRootByPort); if (ui.diffDefaultMode !== undefined) view.setDiffDefaultMode(ui.diffDefaultMode);
+        if (ui.diffRootPolicy !== undefined) view.setDiffRootPolicy(ui.diffRootPolicy); if (ui.diffPinnedRootByPort !== undefined) view.setDiffPinnedRootByPort(ui.diffPinnedRootByPort); if (ui.diffRecentRepoRoots !== undefined) view.setDiffRecentRepoRoots(ui.diffRecentRepoRoots); if (ui.diffDefaultMode !== undefined) view.setDiffDefaultMode(ui.diffDefaultMode);
         if (ui.diffBaseRef !== undefined) view.setDiffBaseRef(ui.diffBaseRef); if (ui.diffIncludeUntracked !== undefined) view.setDiffIncludeUntracked(ui.diffIncludeUntracked);
         if (ui.locale !== undefined) view.setLocale(ui.locale);
         void saveUi(ui);

@@ -1,7 +1,7 @@
 import type { DiffBridgeApi, DiffOptions, DiffRootCandidate, DiffResolvedRoot } from '../panels/desktop-bridge';
 import type { DashboardInstance, DashboardRegistryUi } from '../types';
 
-type DiffSettings = Pick<DashboardRegistryUi, 'diffRootPolicy' | 'diffPinnedRootByPort'>;
+type DiffSettings = Pick<DashboardRegistryUi, 'diffRootPolicy' | 'diffPinnedRootByPort' | 'diffRecentRepoRoots'>;
 
 async function postJson<T>(path: string, body: unknown): Promise<T> {
     const response = await fetch(path, {
@@ -20,6 +20,7 @@ function baseBody(instance: DashboardInstance | null, settings: DiffSettings): {
         settings: {
             diffRootPolicy: settings.diffRootPolicy,
             diffPinnedRootByPort: settings.diffPinnedRootByPort,
+            diffRecentRepoRoots: settings.diffRecentRepoRoots,
         },
     };
 }

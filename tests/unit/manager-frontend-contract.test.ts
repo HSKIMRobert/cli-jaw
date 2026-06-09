@@ -418,12 +418,14 @@ test('manager dashboard settings workspace controls sidebar display preferences'
     assert.ok(view.includes('dashboardShortcutsEnabled'), 'view hook must own global shortcut enabled state');
     assert.ok(view.includes('dashboardShortcutKeymap'), 'view hook must own the configurable shortcut keymap');
     assert.ok(view.includes('diffRootPolicy'), 'view hook must own git diff root policy');
+    assert.ok(view.includes('diffRecentRepoRoots'), 'view hook must own recent git diff repositories');
     assert.ok(view.includes('diffDefaultMode'), 'view hook must own default git diff mode');
     assert.ok(view.includes('diffIncludeUntracked'), 'view hook must own untracked diff preference');
     assert.ok(registry.includes("'settings'"), 'registry sidebar mode must support Dashboard settings mode');
     assert.ok(registry.includes('showLatestActivityTitles: true'), 'registry defaults must enable latest activity titles');
     assert.ok(registry.includes('dashboardShortcutsEnabled: true'), 'registry defaults must enable dashboard shortcuts');
     assert.ok(registry.includes("diffRootPolicy: 'project-first'"), 'registry defaults must prefer selected instance project roots for diff');
+    assert.ok(registry.includes('diffRecentRepoRoots: []'), 'registry defaults must start with no recent diff repositories');
     assert.ok(registry.includes("diffDefaultMode: 'unstaged'"), 'registry defaults must open unstaged diff');
     assert.ok(registry.includes('diffIncludeUntracked: true'), 'registry defaults must include untracked files');
     assert.ok(registry.includes('DEFAULT_DASHBOARD_SHORTCUT_KEYMAP'), 'registry must normalize a configurable shortcut keymap');
@@ -445,6 +447,7 @@ test('manager dashboard settings workspace controls sidebar display preferences'
     assert.ok(developer.includes('Default base ref'), 'developer settings must expose base ref');
     assert.ok(developer.includes('Include untracked'), 'developer settings must expose untracked toggle');
     assert.ok(types.includes('diffPinnedRootByPort'), 'frontend types must preserve per-instance pinned diff roots through the shared UI object');
+    assert.ok(types.includes('diffRecentRepoRoots'), 'frontend types must preserve recent picked diff roots through the shared UI object');
     assert.ok(workspace.includes('Left instance list'), 'settings workspace must show setting scope labels');
     assert.ok(workspace.includes('Language'), 'settings workspace must expose a saved language menu');
     assert.ok(workspace.includes('인스턴스 목록 표시'), 'settings workspace must render Korean copy when locale=ko');

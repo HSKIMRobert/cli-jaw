@@ -4,6 +4,7 @@ import type { DiffRootCandidate } from '../panels/desktop-bridge';
 type DiffRootSettings = {
     diffRootPolicy: DashboardDiffRootPolicy;
     diffPinnedRootByPort: Record<string, string>;
+    diffRecentRepoRoots: string[];
 };
 
 function pushCandidate(
@@ -49,6 +50,13 @@ export function buildDiffRootCandidates(
     if (settings.diffRootPolicy !== 'manual' && pinned) {
         pushCandidate(candidates, seen, { path: pinned, label: 'Pinned root', source: 'pinned' });
     }
+    settings.diffRecentRepoRoots.forEach((path, index) => {
+        pushCandidate(candidates, seen, {
+            path,
+            label: index === 0 ? 'Recent repo' : `Recent repo ${index + 1}`,
+            source: 'recent',
+        });
+    });
     if (homePath) pushCandidate(candidates, seen, { path: homePath, label: 'Home fallback', source: 'home' });
     return candidates;
 }

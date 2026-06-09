@@ -72,6 +72,7 @@ test('manager registry defaults when file is missing', () => {
     assert.equal(loaded.registry.ui.dashboardShortcutKeymap.nextInstance, 'Alt+J');
     assert.equal(loaded.registry.ui.diffRootPolicy, 'project-first');
     assert.deepEqual(loaded.registry.ui.diffPinnedRootByPort, {});
+    assert.deepEqual(loaded.registry.ui.diffRecentRepoRoots, []);
     assert.equal(loaded.registry.ui.diffDefaultMode, 'unstaged');
     assert.equal(loaded.registry.ui.diffBaseRef, 'HEAD');
     assert.equal(loaded.registry.ui.diffIncludeUntracked, true);
@@ -134,6 +135,13 @@ test('manager registry clamps scan and UI values', () => {
                 3462: '/Users/jun/Developer/new/700_projects/cli-jaw',
                 bad: '/tmp/ignored',
             },
+            diffRecentRepoRoots: [
+                ' /Users/jun/Developer/new/700_projects/cli-jaw ',
+                '/Users/jun/Developer/new/700_projects/cli-jaw',
+                '',
+                42,
+                '/Users/jun/Developer/new/700_projects/other',
+            ],
             diffDefaultMode: 'base',
             diffBaseRef: ' origin/master ',
             diffIncludeUntracked: false,
@@ -196,6 +204,10 @@ test('manager registry clamps scan and UI values', () => {
     assert.equal(loaded.registry.ui.dashboardShortcutKeymap.nextInstance, 'Alt+J');
     assert.equal(loaded.registry.ui.diffRootPolicy, 'working-dir-first');
     assert.deepEqual(loaded.registry.ui.diffPinnedRootByPort, { 3462: '/Users/jun/Developer/new/700_projects/cli-jaw' });
+    assert.deepEqual(loaded.registry.ui.diffRecentRepoRoots, [
+        '/Users/jun/Developer/new/700_projects/cli-jaw',
+        '/Users/jun/Developer/new/700_projects/other',
+    ]);
     assert.equal(loaded.registry.ui.diffDefaultMode, 'base');
     assert.equal(loaded.registry.ui.diffBaseRef, 'origin/master');
     assert.equal(loaded.registry.ui.diffIncludeUntracked, false);
@@ -241,6 +253,7 @@ test('manager registry patch persists instance preferences', () => {
             },
             diffRootPolicy: 'manual',
             diffPinnedRootByPort: { 3461: '/Users/jun/Developer/new/700_projects/cli-jaw' },
+            diffRecentRepoRoots: ['/Users/jun/Developer/new/700_projects/cli-jaw'],
             diffDefaultMode: 'staged',
             diffBaseRef: 'main',
             diffIncludeUntracked: false,
@@ -286,6 +299,7 @@ test('manager registry patch persists instance preferences', () => {
     assert.equal(saved.registry.ui.dashboardShortcutKeymap.nextInstance, 'Alt+ArrowDown');
     assert.equal(saved.registry.ui.diffRootPolicy, 'manual');
     assert.deepEqual(saved.registry.ui.diffPinnedRootByPort, { 3461: '/Users/jun/Developer/new/700_projects/cli-jaw' });
+    assert.deepEqual(saved.registry.ui.diffRecentRepoRoots, ['/Users/jun/Developer/new/700_projects/cli-jaw']);
     assert.equal(saved.registry.ui.diffDefaultMode, 'staged');
     assert.equal(saved.registry.ui.diffBaseRef, 'main');
     assert.equal(saved.registry.ui.diffIncludeUntracked, false);

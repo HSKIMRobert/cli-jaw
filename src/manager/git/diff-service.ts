@@ -6,7 +6,7 @@ import type { DashboardDiffMode, DashboardDiffRootPolicy, DashboardInstance } fr
 
 const OUTPUT_CAP = 1024 * 1024;
 const DIFF_MODES = new Set(['unstaged', 'staged', 'head', 'base']);
-const CANDIDATE_SOURCES = new Set(['project', 'working-dir', 'pinned', 'home']);
+const CANDIDATE_SOURCES = new Set(['project', 'working-dir', 'pinned', 'recent', 'home']);
 
 export type DiffMode = DashboardDiffMode;
 export type DiffOptions = {
@@ -18,7 +18,7 @@ export type DiffOptions = {
 export type DiffRootCandidate = {
     path: string;
     label: string;
-    source: 'project' | 'working-dir' | 'pinned' | 'home';
+    source: 'project' | 'working-dir' | 'pinned' | 'recent' | 'home';
 };
 
 export type DiffResolvedRoot = DiffRootCandidate & {
@@ -31,6 +31,7 @@ export type DiffResolvedRoot = DiffRootCandidate & {
 export type DiffRootSettings = {
     diffRootPolicy: DashboardDiffRootPolicy;
     diffPinnedRootByPort: Record<string, string>;
+    diffRecentRepoRoots: string[];
 };
 
 export type DiffFileSummary = {
@@ -144,6 +145,9 @@ export function buildDiffRootCandidates(instance: DashboardInstance | null, home
     const ordered = settings.diffRootPolicy === 'working-dir-first' ? [...workingCandidates, ...projectCandidates] : [...projectCandidates, ...workingCandidates];
     for (const candidate of ordered) pushCandidate(candidates, seen, candidate);
     if (settings.diffRootPolicy !== 'manual' && pinned) pushCandidate(candidates, seen, { path: pinned, label: 'Pinned root', source: 'pinned' });
+    settings.diffRecentRepoRoots.forEach((path, index) => {
+        pushCandidate(candidates, seen, { path, label: index === 0 ? 'Recent repo' : `Recent repo ${index + 1}`, source: 'recent' });
+    });
     if (homePath) pushCandidate(candidates, seen, { path: homePath, label: 'Home fallback', source: 'home' });
     return candidates;
 }
