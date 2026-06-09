@@ -82,9 +82,28 @@ export function markSteered(): void { lastSteerTs = Date.now(); }
 export function clearSteer(): void { lastSteerTs = 0; }
 export function isRecentSteer(): boolean { return Date.now() - lastSteerTs < 8000; }
 
+function hasFollowingUserMessage(el: HTMLElement): boolean {
+    for (const user of document.querySelectorAll<HTMLElement>('.msg-user')) {
+        if (el.compareDocumentPosition(user) & Node.DOCUMENT_POSITION_FOLLOWING) return true;
+    }
+    return false;
+}
+
+function currentAgentDivForActiveRun(): HTMLElement | null {
+    const existing = state.currentAgentDiv && state.currentAgentDiv.isConnected
+        ? state.currentAgentDiv as HTMLElement
+        : null;
+    if (!existing) return null;
+    if (!hasFollowingUserMessage(existing)) return existing;
+    state.currentAgentDiv = null;
+    state.currentProcessBlock = null;
+    currentStream = null;
+    return null;
+}
+
 export function showLiveToolActivity(label: string): void {
     removeSkeleton();
-    if (!state.currentAgentDiv || !state.currentAgentDiv.isConnected) {
+    if (!currentAgentDivForActiveRun()) {
         state.currentAgentDiv = addMessage('agent', '');
     }
     renderLiveToolActivity(state.currentAgentDiv as HTMLElement, label);
@@ -93,11 +112,12 @@ export function showLiveToolActivity(label: string): void {
 
 export function showProcessStep(step: ProcessStep): void {
     removeSkeleton();
-    if (!state.currentAgentDiv || !state.currentAgentDiv.isConnected) {
-        state.currentAgentDiv = addMessage('agent', '');
+    let agentDiv = currentAgentDivForActiveRun();
+    if (!agentDiv) {
+        agentDiv = addMessage('agent', '');
+        state.currentAgentDiv = agentDiv;
         state.currentProcessBlock = null;
     }
-    const agentDiv = state.currentAgentDiv;
     normalizeAgentToolBlocks(agentDiv);
     if (!state.currentProcessBlock) {
         const body = agentDiv.querySelector('.agent-body') as HTMLElement;
@@ -211,9 +231,7 @@ function removeStaleHydratedActiveRuns(keep?: HTMLElement | null): void {
 }
 
 function ensureActiveRunMessage(cli?: string | null): HTMLElement {
-    const existing = state.currentAgentDiv && state.currentAgentDiv.isConnected
-        ? state.currentAgentDiv as HTMLElement
-        : null;
+    const existing = currentAgentDivForActiveRun();
     removeStaleHydratedActiveRuns(existing);
     const div = existing || addMessage('agent', '', cli || null);
     div.setAttribute(ACTIVE_RUN_HYDRATED_ATTR, 'true');
@@ -261,7 +279,7 @@ export function hydrateActiveRun(snapshot?: ActiveRunSnapshot | null): void {
 export function appendAgentText(text: string): void {
     if (!text) return;
     removeSkeleton();
-    if (!state.currentAgentDiv || !state.currentAgentDiv.isConnected) {
+    if (!currentAgentDivForActiveRun()) {
         state.currentAgentDiv = addMessage('agent', '');
         currentStream = null;
     }

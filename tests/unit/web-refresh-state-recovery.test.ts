@@ -85,11 +85,16 @@ test('WRS-003b: hydrateActiveRun reuses one live active-run bubble across snapsh
     const helperStart = uiSrc.indexOf('function ensureActiveRunMessage');
     const helperEnd = uiSrc.indexOf('export function hydrateActiveRun');
     const helperBlock = uiSrc.slice(helperStart, helperEnd);
+    const activeHelperStart = uiSrc.indexOf('function currentAgentDivForActiveRun');
+    const activeHelperEnd = uiSrc.indexOf('export function showLiveToolActivity');
+    const activeHelperBlock = uiSrc.slice(activeHelperStart, activeHelperEnd);
 
     assert.ok(uiSrc.includes("const ACTIVE_RUN_HYDRATED_ATTR = 'data-active-run-hydrated'"), 'hydrated active-run DOM must be explicitly marked');
     assert.ok(uiSrc.includes('function removeStaleHydratedActiveRuns'), 'stale hydrated active-run bubbles must be removable');
     assert.ok(uiSrc.includes('function ensureActiveRunMessage'), 'hydrate should use a shared active-run message helper');
-    assert.ok(helperBlock.includes('state.currentAgentDiv && state.currentAgentDiv.isConnected'), 'helper should prefer the connected live agent bubble');
+    assert.ok(uiSrc.includes('function currentAgentDivForActiveRun'), 'hydrate should use a shared current-run ownership helper');
+    assert.ok(activeHelperBlock.includes('state.currentAgentDiv && state.currentAgentDiv.isConnected'), 'helper should prefer the connected live agent bubble');
+    assert.ok(activeHelperBlock.includes('hasFollowingUserMessage(existing)'), 'helper should reject stale agent bubbles once a later user turn exists');
     assert.ok(helperBlock.includes("addMessage('agent', '', cli || null)"), 'helper should add only when no live bubble exists');
     assert.ok(helperBlock.includes('removeStaleHydratedActiveRuns(existing)'), 'helper should remove old hydrated bubbles while preserving the live one');
     assert.ok(hydrateBlock.includes('removeStaleHydratedActiveRuns();'), 'non-running snapshots should clean stale hydrated bubbles');
