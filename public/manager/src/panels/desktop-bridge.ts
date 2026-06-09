@@ -20,7 +20,7 @@ export type DiffOptions = {
 export type DiffRootCandidate = {
     path: string;
     label: string;
-    source: 'project' | 'working-dir' | 'pinned' | 'home';
+    source: 'project' | 'working-dir' | 'pinned' | 'recent' | 'home';
 };
 
 export type DiffResolvedRoot = DiffRootCandidate & {

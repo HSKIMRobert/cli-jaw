@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { getDesktop, type DiffBridgeApi, type DiffOptions, type DiffResolvedRoot } from '../panels/desktop-bridge';
+import { getDesktop, type DiffBridgeApi, type DiffOptions, type DiffResolvedRoot, type DiffRootCandidate } from '../panels/desktop-bridge';
 import type { DashboardDiffMode, DashboardInstance, DashboardRegistryUi } from '../types';
 import { createDashboardGitDiffClient } from './diff-client';
 import { buildDiffRootCandidates } from './diff-root-candidates';
@@ -13,7 +13,7 @@ type DiffFileSummary = {
 };
 
 type DiffSettings = Pick<DashboardRegistryUi,
-    'diffRootPolicy' | 'diffPinnedRootByPort' | 'diffDefaultMode' | 'diffBaseRef' | 'diffIncludeUntracked'
+    'diffRootPolicy' | 'diffPinnedRootByPort' | 'diffRecentRepoRoots' | 'diffDefaultMode' | 'diffBaseRef' | 'diffIncludeUntracked'
 >;
 
 type DiffPanelProps = {
@@ -23,6 +23,7 @@ type DiffPanelProps = {
 };
 
 const DIFF_MODES: DashboardDiffMode[] = ['unstaged', 'staged', 'head', 'base'];
+const RECENT_REPO_LIMIT = 8;
 
 function getDiffLineClass(line: string): string {
     if (line.startsWith('@@')) return 'diff-line-hunk';
@@ -59,6 +60,15 @@ function rootTitle(root: DiffResolvedRoot): string {
     return `${root.label}: ${root.root} (${suffix}${root.dirty ? ', dirty' : ''})`;
 }
 
+function recentRepoRoots(current: string[], root: string): string[] {
+    const next = [root, ...current.filter(item => item !== root)];
+    return next.slice(0, RECENT_REPO_LIMIT);
+}
+
+function pickedRepoCandidate(path: string): DiffRootCandidate {
+    return { path, label: 'Picked repo', source: 'recent' };
+}
+
 export function DiffPanel(props: DiffPanelProps) {
     const desktopBridge = getDiffBridge();
     const bridge = useMemo(
@@ -71,6 +81,7 @@ export function DiffPanel(props: DiffPanelProps) {
     const [selectedFile, setSelectedFile] = useState<string | null>(null);
     const [diffContent, setDiffContent] = useState<string>('');
     const [error, setError] = useState<string | null>(null);
+    const [pickingRepo, setPickingRepo] = useState(false);
     const selectedInstanceKey = `${props.selectedInstance?.port ?? 'none'}:${props.selectedInstance?.workingDir ?? ''}:${props.selectedInstance?.projectDirs?.join('\0') ?? ''}`;
     const options = useMemo(() => diffOptions(props.settings), [
         props.settings.diffDefaultMode,
@@ -86,6 +97,7 @@ export function DiffPanel(props: DiffPanelProps) {
         const candidates = buildDiffRootCandidates(props.selectedInstance, home, {
             diffRootPolicy: props.settings.diffRootPolicy,
             diffPinnedRootByPort: props.settings.diffPinnedRootByPort,
+            diffRecentRepoRoots: props.settings.diffRecentRepoRoots,
         });
         const result = await bridge.getRepoCandidates(candidates);
         if (!result.ok) {
@@ -97,7 +109,7 @@ export function DiffPanel(props: DiffPanelProps) {
         setRepoRoot(current => current && roots.some(root => root.root === current) ? current : roots[0]?.root ?? null);
         if (roots.length === 0) setError('No git repository found from the selected instance roots.');
         else setError(null);
-    }, [bridge, selectedInstanceKey, props.settings.diffRootPolicy, props.settings.diffPinnedRootByPort]);
+    }, [bridge, selectedInstanceKey, props.settings.diffRootPolicy, props.settings.diffPinnedRootByPort, props.settings.diffRecentRepoRoots]);
 
     const loadSummary = useCallback(async () => {
         if (!bridge || !repoRoot) return;
@@ -128,21 +140,61 @@ export function DiffPanel(props: DiffPanelProps) {
         })();
     }, [bridge, options, repoRoot, selectedFile]);
 
-    function handleRootChange(root: string): void {
+    function handleRootChange(root: string, nextRecentRepoRoots?: string[]): void {
         setRepoRoot(root);
         setSelectedFile(null);
         const port = props.selectedInstance?.port;
-        if (port == null) return;
-        props.onSettingsPatch?.({
-            diffPinnedRootByPort: {
+        const patch: Partial<DashboardRegistryUi> = {};
+        if (port != null) {
+            patch.diffPinnedRootByPort = {
                 ...props.settings.diffPinnedRootByPort,
                 [String(port)]: root,
-            },
-        });
+            };
+        }
+        if (nextRecentRepoRoots) patch.diffRecentRepoRoots = nextRecentRepoRoots;
+        if (Object.keys(patch).length > 0) props.onSettingsPatch?.(patch);
     }
 
     function handleModeChange(mode: DashboardDiffMode): void {
         props.onSettingsPatch?.({ diffDefaultMode: mode });
+    }
+
+    async function handleChooseRepository(): Promise<void> {
+        const folderBridge = getDesktop()?.folder;
+        if (!folderBridge?.pickFolder) {
+            setError('Choose Repository is available in the Electron app.');
+            return;
+        }
+        if (!bridge) {
+            setError('Diff bridge is unavailable.');
+            return;
+        }
+        setPickingRepo(true);
+        try {
+            const picked = await folderBridge.pickFolder();
+            if (!picked.ok || !picked.path) {
+                if (picked.error && picked.error !== 'cancelled') setError(picked.error);
+                return;
+            }
+            const result = await bridge.getRepoCandidates([pickedRepoCandidate(picked.path)]);
+            if (!result.ok) {
+                setError(result.error ?? 'Failed to validate selected repository');
+                return;
+            }
+            const resolved = result.candidates?.[0] ?? null;
+            if (!resolved) {
+                setError('Selected folder is not a git repository.');
+                return;
+            }
+            const nextRecentRepoRoots = recentRepoRoots(props.settings.diffRecentRepoRoots, resolved.root);
+            setRepoCandidates(current => current.some(candidate => candidate.root === resolved.root)
+                ? current.map(candidate => candidate.root === resolved.root ? resolved : candidate)
+                : [resolved, ...current]);
+            setError(null);
+            handleRootChange(resolved.root, nextRecentRepoRoots);
+        } finally {
+            setPickingRepo(false);
+        }
     }
 
     return (
@@ -160,6 +212,9 @@ export function DiffPanel(props: DiffPanelProps) {
                     {repoCandidates.length === 0 && <option value="">No repo</option>}
                 </select>
                 <span className="diff-head-chip">{selectedRoot?.branch ?? selectedRoot?.head ?? 'no repo'}</span>
+                <button type="button" className="diff-pick-repo" onClick={() => void handleChooseRepository()} disabled={pickingRepo}>
+                    {pickingRepo ? 'Choosing...' : 'Choose Repository'}
+                </button>
                 <button type="button" className="diff-refresh" onClick={() => void loadRepoCandidates()}>Refresh</button>
             </div>
             <div className="diff-toolbar diff-options">

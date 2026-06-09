@@ -25,6 +25,7 @@ export function useDashboardView() {
     const [dashboardShortcutKeymap, setDashboardShortcutKeymapState] = useState<DashboardShortcutKeymap>({ ...DEFAULT_MANAGER_SHORTCUT_KEYMAP });
     const [diffRootPolicy, setDiffRootPolicy] = useState<DashboardDiffRootPolicy>('project-first');
     const [diffPinnedRootByPort, setDiffPinnedRootByPort] = useState<Record<string, string>>({});
+    const [diffRecentRepoRoots, setDiffRecentRepoRoots] = useState<string[]>([]);
     const [diffDefaultMode, setDiffDefaultMode] = useState<DashboardDiffMode>('unstaged');
     const [diffBaseRef, setDiffBaseRef] = useState('HEAD');
     const [diffIncludeUntracked, setDiffIncludeUntracked] = useState(true);
@@ -79,6 +80,8 @@ export function useDashboardView() {
         setDiffRootPolicy,
         diffPinnedRootByPort,
         setDiffPinnedRootByPort,
+        diffRecentRepoRoots,
+        setDiffRecentRepoRoots,
         diffDefaultMode,
         setDiffDefaultMode,
         diffBaseRef,

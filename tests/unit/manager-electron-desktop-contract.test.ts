@@ -407,9 +407,13 @@ test('Electron diff panel resolves selected instance roots and exposes configura
     assert.ok(router.includes('<DiffPanel selectedInstance={selectedInstance} settings={dashboardSettingsUi} onSettingsPatch={onDashboardSettingsPatch} />'), 'router must pass selected instance roots and saved diff settings into DiffPanel');
     assert.ok(diffRoots.includes('settings.diffRootPolicy'), 'diff root helper must honor saved root policy');
     assert.ok(diffRoots.includes('settings.diffPinnedRootByPort'), 'diff root helper must include pinned per-instance repo roots');
+    assert.ok(diffRoots.includes('settings.diffRecentRepoRoots'), 'diff root helper must include recent picked repo roots');
     assert.ok(diffRoots.includes('projectDirs'), 'diff root helper must use selected instance projectDirs');
     assert.ok(diffPanel.includes('bridge.getRepoCandidates(candidates)'), 'DiffPanel must resolve repo candidates instead of probing only Electron home');
     assert.ok(diffPanel.includes('diffPinnedRootByPort'), 'DiffPanel must persist the selected repo root by instance port');
+    assert.ok(diffPanel.includes('Choose Repository'), 'DiffPanel must expose a native repository picker button');
+    assert.ok(diffPanel.includes('folderBridge.pickFolder()'), 'DiffPanel must use the existing Electron folder picker bridge');
+    assert.ok(diffPanel.includes('diffRecentRepoRoots'), 'DiffPanel must persist recent picked repositories');
     assert.ok(diffPanel.includes("const DIFF_MODES: DashboardDiffMode[] = ['unstaged', 'staged', 'head', 'base']"), 'DiffPanel must expose the expected diff modes');
     assert.ok(diffPanel.includes('diffIncludeUntracked'), 'DiffPanel must expose an untracked-file toggle');
     assert.ok(desktopBridge.includes('getRepoCandidates'), 'desktop bridge must expose repo candidate resolution');
@@ -418,6 +422,7 @@ test('Electron diff panel resolves selected instance roots and exposes configura
     assert.ok(diffIpc.includes("from '../../../../../src/manager/git/diff-service.js'"), 'Electron diff IPC must delegate to the shared manager git diff service');
     assert.ok(diffService.includes("'-c', 'core.quotepath=false'"), 'git diff commands must preserve unicode/Korean paths');
     assert.ok(diffService.includes("DIFF_MODES = new Set(['unstaged', 'staged', 'head', 'base'])"), 'git diff service must validate diff mode options');
+    assert.ok(diffService.includes("'recent'"), 'git diff service must accept recent picked repo candidates');
     assert.ok(diffService.includes('isValidRef(rawRef)'), 'git diff service must validate base refs before invoking git');
     assert.ok(diffService.includes("ls-files', '--others', '--exclude-standard"), 'git diff service must support untracked file summaries');
     assert.ok(diffService.includes("diff', '--no-color', '--no-index'"), 'git diff service must provide content for untracked file diffs');

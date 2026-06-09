@@ -306,6 +306,7 @@ export type DashboardRegistryUi = {
     dashboardShortcutKeymap: DashboardShortcutKeymap;
     diffRootPolicy: DashboardDiffRootPolicy;
     diffPinnedRootByPort: Record<string, string>;
+    diffRecentRepoRoots: string[];
     diffDefaultMode: DashboardDiffMode;
     diffBaseRef: string;
     diffIncludeUntracked: boolean;
