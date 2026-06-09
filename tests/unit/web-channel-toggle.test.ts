@@ -10,6 +10,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(__dirname, '..', '..');
 const settingsRouteSrc = readFileSync(join(projectRoot, 'src/routes/settings.ts'), 'utf8');
 const serverSrc = readFileSync(join(projectRoot, 'server.ts'), 'utf8');
+// applySettingsPatch lives in core/session-ops.ts since the Phase 2 extraction (devlog 260609, 20).
+const sessionOpsSrc = readFileSync(join(projectRoot, 'src/core/session-ops.ts'), 'utf8');
 const runtimeSettingsSrc = readFileSync(join(projectRoot, 'src/core/runtime-settings.ts'), 'utf8');
 
 // ─── PUT /api/settings is async ─────────────────────
@@ -22,8 +24,7 @@ test('PUT /api/settings handler is async', () => {
 // ─── applySettingsPatch uses transactional runtime patch ─
 
 test('applySettingsPatch calls applyRuntimeSettingsPatch', () => {
-    // applySettingsPatch lives in server.ts, which wires applyRuntimeSettingsPatch
-    assert.match(serverSrc, /applyRuntimeSettingsPatch/,
+    assert.match(sessionOpsSrc, /applyRuntimeSettingsPatch/,
         'applySettingsPatch should use transactional runtime patch');
 });
 
