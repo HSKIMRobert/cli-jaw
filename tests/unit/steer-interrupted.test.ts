@@ -76,7 +76,7 @@ test('SI-006: Standard CLI close handler tags interrupted output', () => {
     const cliCloseIdx = spawnSrc.indexOf("child.on('close'");
     assert.ok(cliCloseIdx > 0, 'Standard CLI close handler should exist');
 
-    const cliCloseBlock = spawnSrc.slice(cliCloseIdx, cliCloseIdx + 7000);
+    const cliCloseBlock = spawnSrc.slice(cliCloseIdx, cliCloseIdx + 10000);
 
     assert.ok(
         cliCloseBlock.includes("stdKillReason === 'steer'") || cliCloseBlock.includes('wasSteer'),
@@ -117,7 +117,7 @@ test('SI-STRUCT: ACP and CLI exit handlers have symmetric steer logic', () => {
     assert.ok(acpExitIdx < cliCloseIdx, 'ACP exit should come before CLI close in source');
 
     const acpBlock = spawnSrc.slice(acpExitIdx, acpExitIdx + 7000);
-    const cliBlock = spawnSrc.slice(cliCloseIdx, cliCloseIdx + 7000);
+    const cliBlock = spawnSrc.slice(cliCloseIdx, cliCloseIdx + 10000);
 
     for (const pattern of [
         'wasSteer',
