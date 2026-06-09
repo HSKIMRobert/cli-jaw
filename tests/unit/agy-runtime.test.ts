@@ -78,3 +78,22 @@ test('AGY-RT-007: AGY stdout strips ANSI before persistence and trace append', (
     assert.match(spawnSrc, /ctx\.fullText\s*\+=\s*text/);
     assert.match(spawnSrc, /appendTraceEvent\(\{[\s\S]*raw:\s*text/);
 });
+
+test('AGY-RT-008: AGY print timeout is a hard cap while cli-jaw watchdog owns progress timeout', () => {
+    const spawnSrc = readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
+    const timeoutBlock = spawnSrc.slice(
+        spawnSrc.indexOf("const rawTimeoutCfg = (settings as Record<string, unknown>)['agentTimeout'];"),
+        spawnSrc.indexOf('const argOptions = {'),
+    );
+    const watchdogBlock = spawnSrc.slice(
+        spawnSrc.indexOf('const rawAgentTimeoutCfg = (settings as Record<string, unknown>)["agentTimeout"];'),
+        spawnSrc.indexOf('const stallWatchdog = attachWatchdog'),
+    );
+
+    assert.match(timeoutBlock, /absoluteHardCapMs/);
+    assert.match(timeoutBlock, /DEFAULT_WATCHDOG_ABSOLUTE_HARD_CAP_MS/);
+    assert.match(timeoutBlock, /formatAgyPrintTimeout\(resolvedAgyPrintTimeoutMs\)/);
+    assert.doesNotMatch(timeoutBlock, /absoluteMs[\s\S]*formatAgyPrintTimeout/);
+    assert.match(watchdogBlock, /absoluteHardCapMs/);
+    assert.match(spawnSrc, /startAgyTranscriptWatcher\(\{[\s\S]*ctx,/);
+});
