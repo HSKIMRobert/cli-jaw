@@ -9,7 +9,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const ctxSrc = fs.readFileSync(join(__dirname, '../../src/cli/command-context.ts'), 'utf8');
-const serverSrc = fs.readFileSync(join(__dirname, '../../server.ts'), 'utf8');
+// web ctx factory lives in cli/web-command-ctx.ts since the Phase 2 extraction (devlog 260609, 20).
+const serverSrc = fs.readFileSync(join(__dirname, '../../src/cli/web-command-ctx.ts'), 'utf8');
 const botSrc = fs.readFileSync(join(__dirname, '../../src/telegram/bot.ts'), 'utf8');
 const skillCmdSrc = fs.readFileSync(join(__dirname, '../../bin/commands/skill.ts'), 'utf8');
 

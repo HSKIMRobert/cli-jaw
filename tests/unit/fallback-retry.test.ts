@@ -82,11 +82,12 @@ test('server.js calls resetFallbackState on settings save', async () => {
     const { dirname, join } = await import('node:path');
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
-    const src = fs.readFileSync(join(__dirname, '../../server.ts'), 'utf8');
+    // applySettingsPatch lives in core/session-ops.ts since the Phase 2 extraction (devlog 260609, 20).
+    const src = fs.readFileSync(join(__dirname, '../../src/core/session-ops.ts'), 'utf8');
 
-    assert.ok(src.includes('resetFallbackState'), 'server.js should import/use resetFallbackState');
-    assert.ok(src.includes('applyRuntimeSettingsPatch'), 'server.js should delegate settings writes to shared helper');
-    assert.ok(src.includes('resetFallbackState,'), 'server.js should pass resetFallbackState into shared helper');
+    assert.ok(src.includes('resetFallbackState'), 'session-ops should import/use resetFallbackState');
+    assert.ok(src.includes('applyRuntimeSettingsPatch'), 'session-ops should delegate settings writes to shared helper');
+    assert.ok(src.includes('resetFallbackState,'), 'session-ops should pass resetFallbackState into shared helper');
 });
 
 // ─── 429 Retry: helpers ─────────────────────────────

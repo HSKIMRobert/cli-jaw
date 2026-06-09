@@ -2,13 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const serverSource = readFileSync(new URL('../../server.ts', import.meta.url), 'utf8');
+// /api/commands lives in routes/command.ts since the Phase 2 extraction (devlog 260609, 20).
+const serverSource = readFileSync(new URL('../../src/routes/command.ts', import.meta.url), 'utf8');
 
 test('commands API route uses policy-backed visibility', () => {
     assert.match(
         serverSource,
-        /import \{ getVisibleCommands \} from '\.\/src\/command-contract\/policy\.js';/,
-        'server.ts should import getVisibleCommands from command policy',
+        /import \{ getVisibleCommands \} from '\.\.\/command-contract\/policy\.js';/,
+        'routes/command.ts should import getVisibleCommands from command policy',
     );
     assert.match(
         serverSource,
@@ -30,7 +31,7 @@ test('commands API payload exposes workflow and capability metadata', () => {
 test('commands API route no longer imports COMMANDS directly', () => {
     assert.doesNotMatch(
         serverSource,
-        /import \{[^}]*COMMANDS[^}]*\} from '\.\/src\/cli\/commands\.js';/,
-        'server.ts should not import COMMANDS for /api/commands',
+        /import \{[^}]*COMMANDS[^}]*\} from '\.\.\/cli\/commands\.js';/,
+        'routes/command.ts should not import COMMANDS for /api/commands',
     );
 });

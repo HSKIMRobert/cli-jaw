@@ -17,7 +17,8 @@ test('backend agent_done DB and broadcast boundaries use sanitized tool logs', (
 });
 
 test('message and orchestrate snapshot API boundaries sanitize before res.json', () => {
-    const server = src('server.ts');
+    // /api/messages lives in routes/messages.ts since the Phase 2 extraction (devlog 260609, 20).
+    const server = src('src/routes/messages.ts');
     const orchestrate = src('src/routes/orchestrate.ts');
 
     assert.ok(server.includes('sanitizeSerializedToolLog(row["tool_log"]'));

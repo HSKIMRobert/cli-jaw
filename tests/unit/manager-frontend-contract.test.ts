@@ -299,11 +299,12 @@ test('manager instance rows support custom labels and latest activity titles', (
     const row = read('public/manager/src/components/InstanceRow.tsx');
     const labelHook = read('public/manager/src/hooks/useInstanceLabelEditor.ts');
     const messageHook = read('public/manager/src/hooks/useInstanceMessageEvents.ts');
-    const server = read('server.ts');
+    // /api/messages/latest lives in routes/messages.ts since the Phase 2 extraction
+    // (devlog 260609, 20) — it is the last handler there, so slice to end of file.
+    const server = read('src/routes/messages.ts');
     const db = read('src/core/db.ts');
     const latestRoute = server.slice(
         server.indexOf("app.get('/api/messages/latest'"),
-        server.indexOf("app.get('/api/runtime'"),
     );
 
     assert.ok(app.includes('useInstanceLabelEditor'), 'App must use a focused hook for custom label persistence');
