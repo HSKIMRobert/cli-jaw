@@ -31,7 +31,7 @@ Windows users should use the WSL install path below. Native PowerShell is not th
 </details>
 
 ```bash
-# macOS / Linux / WSL with Node.js 22.4+ already installed
+# macOS / Linux / WSL with Node.js 22+ already installed
 npm install -g cli-jaw
 jaw dashboard
 ```
