@@ -1,6 +1,7 @@
-// ── WebSocket Connection ──
+// ── Server Event Connection (SSE via event-channel) ──
 import { state } from './state.js';
 import { API_BASE } from './api.js';
+import { connectEventChannel, subscribe, onChannelOpen, onChannelDisconnect } from './event-channel.js';
 import { setStatus, updateQueueBadge, addSystemMsg, appendAgentText, finalizeAgent, addMessage, showProcessStep, cleanupToolActivity, applyQueuedOverlay, hydrateActiveRun, reconcileChatBottomAfterRestore, showChatRestoreIndicator, markSteered, clearSteer, isRecentSteer } from './ui.js';
 import { renderPendingQueue } from './features/pending-queue.js';
 import { t, getLang } from './features/i18n.js';
@@ -11,7 +12,6 @@ import type { HeartbeatRuntimeState, OrcStateName, ResolvedSelectionState } from
 import { notifyUnreadResponse } from './features/attention-badge.js';
 import { shouldApplyOrcStateEvent } from './features/orchestrate-scope.js';
 import { providerLabel } from './provider-icons.js';
-import { applyWorkflowEvent, type WorkflowEventMessage } from './features/workflow-event-adapter.js';
 
 const ROADMAP_PHASES = ['I', 'P', 'A', 'B', 'C'] as const;
 
@@ -101,7 +101,6 @@ interface WsMessage {
     interview?: { known: string[]; unknown: string[]; round: number } | null;
     delaySeconds?: number;
     attempts?: number;
-    event?: WorkflowEventMessage;
     code?: string;
     employeeName?: string;
     exitCode?: number;
@@ -566,204 +565,215 @@ function applyOrcState(orcState: string, title?: string) {
     }
 }
 
+// ── SSE transport (Phase 3 — devlog 260609, 30 §5) ──
+// event-channel delivers data-only payloads {…data, topic, event}; the adapter
+// aliases event → type so the dispatcher below stays byte-identical to the
+// original WS switch (30 §3 D-1). Server WS broadcast keeps running (dual-emit)
+// as a rollback safety net until X-01 cleanup.
+
+let channelWired = false;
+let snapshotReady: Promise<void> = Promise.resolve();
+let orcStateEpoch = 0;
+
 export function connect(): void {
     registerOrchestrateRestoreHooks();
-    const wsBase = import.meta.env?.DEV ? 'ws://localhost:3458' : `ws://${location.host}`;
-    state.ws = new WebSocket(`${wsBase}${API_BASE}/?lang=${getLang()}`);
-    state.ws.onmessage = (e: MessageEvent) => {
-        let msg: WsMessage;
-        try {
-            msg = JSON.parse(e.data as string);
-        } catch {
-            console.warn('[ws] malformed message:', e.data);
-            return;
-        }
-        if (!msg || typeof msg !== 'object' || typeof msg.type !== 'string') {
-            console.warn('[ws] invalid message shape:', msg);
-            return;
-        }
-        if (msg.type === 'agent_status') {
-            if (!msg.running && isRecentSteer()) return;
-            if (msg.running && isRecentSteer()) clearSteer();
-            if (msg.running !== undefined) {
-                setStatus(msg.running ? 'running' : 'idle');
-            } else {
-                setStatus(msg.status || 'idle');
-            }
-            // Track per-agent phase for badge rendering
-            if (msg.agentId && msg.phase) {
-                agentPhaseState[msg.agentId] = { phase: msg.phase, phaseLabel: msg.phaseLabel || '' };
-                import('./features/employees.js').then(m => m.loadEmployees());
-            }
-        } else if (msg.type === 'queue_update') {
-            updateQueueBadge(msg.pending || 0);
-            if (Array.isArray(msg.queued)) {
-                renderPendingQueue(msg.queued);
-            }
-            syncOrchestrateSnapshot('queue_update').catch(() => { /* snapshot not critical — UI recovers on next event */ });
-        } else if (msg.type === 'worklog_created') {
-            addSystemMsg(`${ICONS.clipboard} Worklog: ${escapeHtml(msg.path || '')}`);
-        } else if (msg.type === 'round_start') {
-            const agents = (msg.agentPhases || msg.subtasks || []);
-            const names = agents.map(a => escapeHtml(a.agent || a.name || '')).join(', ');
-            addSystemMsg(t('ws.roundStart', { round: msg.round || 0, count: agents.length, names }));
-        } else if (msg.type === 'round_done') {
-            if (msg.action === 'complete') {
-                addSystemMsg(t('ws.roundDone', { round: msg.round || 0 }));
-            } else if (msg.action === 'next') {
-                addSystemMsg(t('ws.roundNext', { round: msg.round || 0 }));
-            } else {
-                addSystemMsg(t('ws.roundRetry', { round: msg.round || 0 }));
-            }
-        } else if (msg.type === 'agent_tool') {
-            if (isRecentSteer()) return;
-            const stepType = msg.toolType === 'thinking' ? 'thinking'
-                : msg.toolType === 'search' ? 'search'
-                    : msg.toolType === 'subagent' ? 'subagent' : 'tool';
-            showProcessStep({
-                id: `step-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-                type: stepType,
-                icon: msg.icon || ICONS.tool,
-                rawIcon: msg.rawIcon || msg.icon || '',
-                label: msg.label || '',
-                isEmployee: msg.isEmployee === true,
-                detail: msg.detail || '',
-                stepRef: msg.stepRef || '',
-                traceRunId: msg.traceRunId || '',
-                traceSeq: msg.traceSeq,
-                detailAvailable: msg.detailAvailable,
-                detailBytes: msg.detailBytes,
-                rawRetentionStatus: msg.rawRetentionStatus,
-                status: (msg.status as 'running' | 'done' | 'error') || 'running',
-                startTime: Date.now(),
-            });
-        } else if (msg.type === 'agent_output' || msg.type === 'agent_chunk') {
-            if (isRecentSteer()) return;
-            appendAgentText(msg.text || '');
-        } else if (msg.type === 'agent_retry') {
-            const retryDelay = Number(msg.delay ?? 0);
-            const retryReasonValue = (msg as WsMessage & { reason?: unknown }).reason;
-            const retryReason = escapeHtml(String(retryReasonValue || '429'));
-            const retryKey = retryDelay > 0 ? 'ws.retry' : 'ws.retryNow';
-            addSystemMsg(t(retryKey, { cli: escapeHtml(msg.cli || ''), reason: retryReason, delay: retryDelay }), 'tool-activity');
-        } else if (msg.type === 'agent_fallback') {
-            addSystemMsg(t('ws.fallback', { from: escapeHtml(msg.from || ''), to: escapeHtml(msg.to || '') }), 'tool-activity');
-        } else if (msg.type === 'agent_smoke') {
-            addSystemMsg(`${ICONS.warning} ${escapeHtml(msg.cli || 'agent')}: smoke response detected — auto-continuing`, 'tool-activity');
-        } else if (msg.type === 'goal_done') {
-            state.activeGoal = null;
-            renderGoalCockpit();
-            addSystemMsg(`🎯 Goal completed${msg.source === 'ai_output' ? ' (detected from AI output)' : ''}`, 'tool-activity');
-        } else if (msg.type === 'goal_cancel') {
-            state.activeGoal = null;
-            renderGoalCockpit();
-            addSystemMsg(`🎯 Goal cancelled`, 'tool-activity');
-        } else if (msg.type === 'schedule_wakeup') {
-            addSystemMsg(`⏰ Wakeup scheduled in ${msg.delaySeconds}s — ${escapeHtml(String(msg.reason || ''))}`, 'tool-activity');
-        } else if (msg.type === 'goal_continuation_limit') {
-            addSystemMsg(`⚠️ Goal continuation limit reached (${msg.attempts} attempts)`, 'tool-activity');
-        } else if (msg.type === 'goal_continuation') {
-            addSystemMsg(`🎯 Active goal — auto-continuing`, 'tool-activity');
-        } else if (msg.type === 'workflow_event') {
-            const evt = msg.event;
-            if (evt) applyWorkflowEvent(evt);
-        } else if (msg.type === 'agent_done') {
-            if (msg.steered || isRecentSteer()) {
-                // Suppress agent_done from steered (killed) process.
-                // Server sets steered:true; isRecentSteer is fallback for edge cases.
-            } else {
-                finalizeAgent(msg.text || '', msg.toolLog);
-                notifyUnreadResponse();
-            }
-        } else if (msg.type === 'orchestrate_done') {
-            finalizeAgent(msg.text || '');
-            notifyUnreadResponse();
-        } else if (msg.type === 'clear') {
-            cancelPostRender();
-            cleanupToolActivity();
-            getVirtualScroll().clear();
-            const el = document.getElementById('chatMessages');
-            if (el) el.innerHTML = '';
-            // Intentional clear — also wipe IndexedDB cache
-            import('./features/idb-cache.js').then(m => m.clearCache()).catch(() => {});
-        } else if (msg.type === 'session_reset') {
-            addSystemMsg(`${ICONS.refresh} Session reset — history preserved`, 'tool-activity');
-        } else if (msg.type === 'agent_added' || msg.type === 'agent_updated' || msg.type === 'agent_deleted') {
-            import('./features/employees.js').then(m => m.loadEmployees());
-        } else if (msg.type === 'heartbeat_pending') {
-            const heartbeatRuntimePatch: Partial<HeartbeatRuntimeState> = {
-                pending: msg.pending || 0,
-                deferredPending: msg.deferredPending || 0,
-            };
-            if (msg.reason !== undefined) heartbeatRuntimePatch.reason = msg.reason;
-            if (msg.policy !== undefined) heartbeatRuntimePatch.policy = msg.policy;
-            if (msg.jobId !== undefined) heartbeatRuntimePatch.jobId = msg.jobId;
-            if (msg.jobName !== undefined) heartbeatRuntimePatch.jobName = msg.jobName;
-            applyHeartbeatRuntime(heartbeatRuntimePatch);
-        } else if (msg.type === 'orc_state') {
-            if (!shouldApplyOrcStateEvent(msg.scope, currentOrcScope)) return;
-            applyOrcState(typeof msg.state === 'string' ? msg.state : 'IDLE', msg.title);
-            applyOrcContext({
-                taskAnchor: msg.taskAnchor || null,
-                resolvedSelection: msg.resolvedSelection || null,
-                interview: msg.interview || null,
-            });
-            renderBudgetPanel(msg.buildBudget || null, typeof msg.state === 'string' ? msg.state : 'IDLE');
-        } else if (msg.type === 'memory_status') {
-            import('./features/memory.js').then(m => m.refreshMemorySidebar());
-        } else if (msg.type === 'steer_started') {
-            markSteered();
-            finalizeAgent('');
-            setStatus('steering');
-        } else if (msg.type === 'new_message' && (msg.source === 'telegram' || msg.source === 'discord' || msg.fromQueue === true)) {
-            addMessage(msg.role === 'assistant' ? 'agent' : (msg.role || 'user'), msg.content || '', msg.cli);
-        } else if (msg.type === 'system_notice') {
-            addSystemMsg(`ℹ️ ${escapeHtml(msg.text || '')}`, 'tool-activity');
-        } else if (msg.type === 'worker_stalled') {
-            addSystemMsg(`⚠️ Worker stalled: ${escapeHtml(msg.employeeName || msg.agentId || '')}`, 'tool-activity');
-        } else if (msg.type === 'worker_disconnected') {
-            addSystemMsg(`🔌 Worker disconnected: ${escapeHtml(msg.agentId || '')} (exit ${escapeHtml(String(msg.exitCode ?? '?'))})`, 'tool-activity');
-        } else if (msg.type === 'worker_timeout') {
-            addSystemMsg(`⏱️ Worker timed out: ${escapeHtml(msg.employeeName || msg.agentId || '')}`, 'tool-activity');
-        } else if (msg.type === 'alert_escalation') {
-            addSystemMsg(escapeHtml(msg.message || ''), 'tool-activity');
-        } else if (msg.type === 'schedule_wakeup_failed') {
-            addSystemMsg(`⚠️ Wakeup failed — ${escapeHtml(String(msg.reason || ''))}: ${escapeHtml(msg.error || '')}`, 'tool-activity');
-        } else if (msg.type === 'goal_continuation_failed') {
-            addSystemMsg(`⚠️ Goal continuation failed: ${escapeHtml(msg.error || '')}`, 'tool-activity');
-        } else if (msg.type === 'settings_change') {
-            syncOrchestrateSnapshot('settings_change').catch(() => {});
-        } else if (msg.type === 'session_switched' || msg.type === 'session_created') {
-            // Reload messages for the new active session
-            window.location.reload();
-        }
-    };
-    state.ws.onopen = () => {
-        console.log('[ws] connected');
+    if (!channelWired) {
+        channelWired = true;
+        wireEventChannel();
+    }
+    connectEventChannel(getLang());
+}
+
+/** Re-establish the channel (e.g. locale change). Distinct name keeps boot-order
+ *  source contracts (AB-003/HD-002) anchored on the single boot `connect();`. */
+export const reopenChannel = connect;
+
+function wireEventChannel(): void {
+    subscribe('*', null, (data) => {
+        const msg = { ...data, type: data['event'] } as unknown as WsMessage;
+        handleServerEvent(msg);
+    });
+
+    onChannelOpen(() => {
+        console.log('[sse] connected');
         const now = Date.now();
         const skipReload = now - lastLoadTs < 10000;
-        import('./ui.js').then(async m => {
+        // 08 §6: orc_state events must wait for the snapshot fetch — keep the
+        // whole hydration chain in snapshotReady so the orc_state gate can await it.
+        snapshotReady = import('./ui.js').then(async m => {
             m.cleanupToolActivity();
             if (!skipReload) {
                 try {
                     await m.loadMessages();
                     lastLoadTs = Date.now();
                 } catch (error) {
-                    console.error('[ws] loadMessages failed', error);
+                    console.error('[sse] loadMessages failed', error);
                 }
             }
-            syncOrchestrateSnapshot('reconnect', { hydrateRun: true })
-                .catch(() => { /* snapshot not critical — UI recovers on next WS event */ })
+            await syncOrchestrateSnapshot('reconnect', { hydrateRun: true })
+                .catch(() => { /* snapshot not critical — UI recovers on next event */ })
                 .finally(() => m.reconcileChatBottomAfterRestore('reconnect'));
         });
-    };
-    state.ws.onclose = () => {
-        console.log('[ws] disconnected, reconnecting in 2s...');
+    });
+
+    onChannelDisconnect(() => {
+        console.log('[sse] disconnected — channel reconnects with backoff');
         import('./ui.js').then(m => m.cleanupToolActivity());
         setStatus('idle');
         addSystemMsg(`${ICONS.exec} ${t('ws.disconnected')}`, 'tool-activity');
-        setTimeout(connect, 2000);
-    };
+    });
+}
+
+function handleServerEvent(msg: WsMessage): void {
+    if (msg.type === 'agent_status') {
+        if (!msg.running && isRecentSteer()) return;
+        if (msg.running && isRecentSteer()) clearSteer();
+        if (msg.running !== undefined) {
+            setStatus(msg.running ? 'running' : 'idle');
+        } else {
+            setStatus(msg.status || 'idle');
+        }
+        // Track per-agent phase for badge rendering
+        if (msg.agentId && msg.phase) {
+            agentPhaseState[msg.agentId] = { phase: msg.phase, phaseLabel: msg.phaseLabel || '' };
+            import('./features/employees.js').then(m => m.loadEmployees());
+        }
+    } else if (msg.type === 'queue_update') {
+        updateQueueBadge(msg.pending || 0);
+        if (Array.isArray(msg.queued)) {
+            renderPendingQueue(msg.queued);
+        }
+        syncOrchestrateSnapshot('queue_update').catch(() => { /* snapshot not critical — UI recovers on next event */ });
+    } else if (msg.type === 'agent_tool') {
+        if (isRecentSteer()) return;
+        const stepType = msg.toolType === 'thinking' ? 'thinking'
+            : msg.toolType === 'search' ? 'search'
+                : msg.toolType === 'subagent' ? 'subagent' : 'tool';
+        showProcessStep({
+            id: `step-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            type: stepType,
+            icon: msg.icon || ICONS.tool,
+            rawIcon: msg.rawIcon || msg.icon || '',
+            label: msg.label || '',
+            isEmployee: msg.isEmployee === true,
+            detail: msg.detail || '',
+            stepRef: msg.stepRef || '',
+            traceRunId: msg.traceRunId || '',
+            traceSeq: msg.traceSeq,
+            detailAvailable: msg.detailAvailable,
+            detailBytes: msg.detailBytes,
+            rawRetentionStatus: msg.rawRetentionStatus,
+            status: (msg.status as 'running' | 'done' | 'error') || 'running',
+            startTime: Date.now(),
+        });
+    } else if (msg.type === 'agent_output' || msg.type === 'agent_chunk') {
+        if (isRecentSteer()) return;
+        appendAgentText(msg.text || '');
+    } else if (msg.type === 'agent_retry') {
+        const retryDelay = Number(msg.delay ?? 0);
+        const retryReasonValue = (msg as WsMessage & { reason?: unknown }).reason;
+        const retryReason = escapeHtml(String(retryReasonValue || '429'));
+        const retryKey = retryDelay > 0 ? 'ws.retry' : 'ws.retryNow';
+        addSystemMsg(t(retryKey, { cli: escapeHtml(msg.cli || ''), reason: retryReason, delay: retryDelay }), 'tool-activity');
+    } else if (msg.type === 'agent_fallback') {
+        addSystemMsg(t('ws.fallback', { from: escapeHtml(msg.from || ''), to: escapeHtml(msg.to || '') }), 'tool-activity');
+    } else if (msg.type === 'agent_smoke') {
+        addSystemMsg(`${ICONS.warning} ${escapeHtml(msg.cli || 'agent')}: smoke response detected — auto-continuing`, 'tool-activity');
+    } else if (msg.type === 'goal_done') {
+        state.activeGoal = null;
+        renderGoalCockpit();
+        addSystemMsg(`🎯 Goal completed${msg.source === 'ai_output' ? ' (detected from AI output)' : ''}`, 'tool-activity');
+    } else if (msg.type === 'goal_cancel') {
+        state.activeGoal = null;
+        renderGoalCockpit();
+        addSystemMsg(`🎯 Goal cancelled`, 'tool-activity');
+    } else if (msg.type === 'schedule_wakeup') {
+        addSystemMsg(`⏰ Wakeup scheduled in ${msg.delaySeconds}s — ${escapeHtml(String(msg.reason || ''))}`, 'tool-activity');
+    } else if (msg.type === 'goal_continuation_limit') {
+        addSystemMsg(`⚠️ Goal continuation limit reached (${msg.attempts} attempts)`, 'tool-activity');
+    } else if (msg.type === 'goal_continuation') {
+        addSystemMsg(`🎯 Active goal — auto-continuing`, 'tool-activity');
+    } else if (msg.type === 'agent_done') {
+        if (msg.steered || isRecentSteer()) {
+            // Suppress agent_done from steered (killed) process.
+            // Server sets steered:true; isRecentSteer is fallback for edge cases.
+        } else {
+            finalizeAgent(msg.text || '', msg.toolLog);
+            notifyUnreadResponse();
+        }
+    } else if (msg.type === 'orchestrate_done') {
+        finalizeAgent(msg.text || '');
+        notifyUnreadResponse();
+    } else if (msg.type === 'clear') {
+        cancelPostRender();
+        cleanupToolActivity();
+        getVirtualScroll().clear();
+        const el = document.getElementById('chatMessages');
+        if (el) el.innerHTML = '';
+        // Intentional clear — also wipe IndexedDB cache
+        import('./features/idb-cache.js').then(m => m.clearCache()).catch(() => {});
+    } else if (msg.type === 'session_reset') {
+        addSystemMsg(`${ICONS.refresh} Session reset — history preserved`, 'tool-activity');
+    } else if (msg.type === 'agent_added' || msg.type === 'agent_updated' || msg.type === 'agent_deleted') {
+        import('./features/employees.js').then(m => m.loadEmployees());
+    } else if (msg.type === 'heartbeat_pending') {
+        const heartbeatRuntimePatch: Partial<HeartbeatRuntimeState> = {
+            pending: msg.pending || 0,
+            deferredPending: msg.deferredPending || 0,
+        };
+        if (msg.reason !== undefined) heartbeatRuntimePatch.reason = msg.reason;
+        if (msg.policy !== undefined) heartbeatRuntimePatch.policy = msg.policy;
+        if (msg.jobId !== undefined) heartbeatRuntimePatch.jobId = msg.jobId;
+        if (msg.jobName !== undefined) heartbeatRuntimePatch.jobName = msg.jobName;
+        applyHeartbeatRuntime(heartbeatRuntimePatch);
+    } else if (msg.type === 'orc_state') {
+        handleOrcStateGated(msg);
+    } else if (msg.type === 'memory_status') {
+        import('./features/memory.js').then(m => m.refreshMemorySidebar());
+    } else if (msg.type === 'steer_started') {
+        markSteered();
+        finalizeAgent('');
+        setStatus('steering');
+    } else if (msg.type === 'new_message' && (msg.source === 'telegram' || msg.source === 'discord' || msg.fromQueue === true)) {
+        addMessage(msg.role === 'assistant' ? 'agent' : (msg.role || 'user'), msg.content || '', msg.cli);
+    } else if (msg.type === 'system_notice') {
+        addSystemMsg(`ℹ️ ${escapeHtml(msg.text || '')}`, 'tool-activity');
+    } else if (msg.type === 'worker_stalled') {
+        addSystemMsg(`⚠️ Worker stalled: ${escapeHtml(msg.employeeName || msg.agentId || '')}`, 'tool-activity');
+    } else if (msg.type === 'worker_disconnected') {
+        addSystemMsg(`🔌 Worker disconnected: ${escapeHtml(msg.agentId || '')} (exit ${escapeHtml(String(msg.exitCode ?? '?'))})`, 'tool-activity');
+    } else if (msg.type === 'worker_timeout') {
+        addSystemMsg(`⏱️ Worker timed out: ${escapeHtml(msg.employeeName || msg.agentId || '')}`, 'tool-activity');
+    } else if (msg.type === 'alert_escalation') {
+        addSystemMsg(escapeHtml(msg.message || ''), 'tool-activity');
+    } else if (msg.type === 'schedule_wakeup_failed') {
+        addSystemMsg(`⚠️ Wakeup failed — ${escapeHtml(String(msg.reason || ''))}: ${escapeHtml(msg.error || '')}`, 'tool-activity');
+    } else if (msg.type === 'goal_continuation_failed') {
+        addSystemMsg(`⚠️ Goal continuation failed: ${escapeHtml(msg.error || '')}`, 'tool-activity');
+    } else if (msg.type === 'settings_change') {
+        syncOrchestrateSnapshot('settings_change').catch(() => {});
+    } else if (msg.type === 'session_switched' || msg.type === 'session_created') {
+        // Reload messages for the new active session
+        window.location.reload();
+    }
+}
+
+// 08 §6 + 감사 blocker 4: wait for the orchestrate snapshot before applying
+// orc_state, and only apply the LATEST event after the await (epoch guard
+// prevents stale events from racing ahead of newer ones).
+function handleOrcStateGated(msg: WsMessage): void {
+    const epoch = ++orcStateEpoch;
+    void snapshotReady.then(() => {
+        if (epoch !== orcStateEpoch) return;
+        if (!shouldApplyOrcStateEvent(msg.scope, currentOrcScope)) return;
+        applyOrcState(typeof msg.state === 'string' ? msg.state : 'IDLE', msg.title);
+        applyOrcContext({
+            taskAnchor: msg.taskAnchor || null,
+            resolvedSelection: msg.resolvedSelection || null,
+            interview: msg.interview || null,
+        });
+        renderBudgetPanel(msg.buildBudget || null, typeof msg.state === 'string' ? msg.state : 'IDLE');
+    });
 }
 
 export function getAgentPhase(agentId: string): { phase: string; phaseLabel: string } | null {

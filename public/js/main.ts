@@ -37,7 +37,7 @@ window.addEventListener('error', (e) => {
     console.error('[error]', e.message, e.filename, e.lineno);
 });
 
-import { connect } from './ws.js';
+import { connect, reopenChannel } from './ws.js';
 import { switchTab, handleSave, loadMessages, initMsgCopy } from './ui.js';
 import { prewarmMermaid } from './render.js';
 import { sendMessage, handleKey, clearAttachedFiles, removeAttachedFile, clearChat, initDragDrop, initAutoResize } from './features/chat.js';
@@ -162,8 +162,8 @@ document.getElementById('langSelect')?.addEventListener('change', async (e) => {
     const next = (e.target as HTMLSelectElement).value;
     if (!['ko', 'en', 'zh', 'ja'].includes(next)) return;
     await setLang(next);
-    // Reconnect WS with new locale
-    if (state.ws) { state.ws.close(); }
+    // Reopen the event channel with the new locale (Phase 3: SSE)
+    reopenChannel();
 });
 
 // ── Tab Bar (event delegation) ──

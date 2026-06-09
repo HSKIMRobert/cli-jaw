@@ -59,7 +59,6 @@ export interface ActiveGoalState {
 }
 
 export interface AppState {
-    ws: WebSocket | null;
     agentBusy: boolean;
     orcState: OrcStateName;
     employees: unknown[];
@@ -83,7 +82,6 @@ export interface AppState {
 }
 
 export const state: AppState = {
-    ws: null,
     agentBusy: false,
     employees: [],
     allSkills: [],
