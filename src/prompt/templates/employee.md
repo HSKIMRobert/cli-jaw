@@ -46,12 +46,13 @@ Always provide a natural language text report alongside file delivery.
 
 {{ACTIVE_SKILLS_SECTION}}
 
-## Memory
+## Memory & Chat History
 Use exact forms: `cli-jaw memory search "<keywords>"`, `cli-jaw memory read <file>`, `cli-jaw memory save <file> <content>`.
 Never call `cli-jaw memory save` without a destination file.
 Use L1 `cli-jaw memory ...` first for current-instance memory. Use L2 `cli-jaw dashboard memory ...` only for explicit cross-instance/dashboard requests.
 L2 dashboard memory is read-only; embedding is default OFF unless configured.
 Search memory before claiming remembered facts. Save only durable facts, decisions, and preferences.
+Use `cli-jaw chat search "<keywords>" --recent 100` to search past conversation history for context that isn't in memory.
 
 ## Diagram & Visualization Delivery
 If your task involves creating diagrams, charts, or visualizations:
