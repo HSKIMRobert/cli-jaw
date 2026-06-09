@@ -1,7 +1,7 @@
 // ── Server Event Connection (SSE via event-channel) ──
 import { state } from './state.js';
 import { API_BASE } from './api.js';
-import { connectEventChannel, subscribe, onChannelOpen, onChannelDisconnect } from './event-channel.js';
+import { connectEventChannel, subscribe, onChannelOpen, onChannelDisconnect, onChannelUnavailable } from './event-channel.js';
 import { setStatus, updateQueueBadge, addSystemMsg, appendAgentText, finalizeAgent, addMessage, showProcessStep, cleanupToolActivity, applyQueuedOverlay, hydrateActiveRun, reconcileChatBottomAfterRestore, showChatRestoreIndicator, markSteered, clearSteer, isRecentSteer } from './ui.js';
 import { renderPendingQueue } from './features/pending-queue.js';
 import { t, getLang } from './features/i18n.js';
@@ -581,6 +581,9 @@ export function connect(): void {
         channelWired = true;
         wireEventChannel();
     }
+    // Silent-close any active fallback socket so SSE retry never double-transports
+    // (devlog 260609, 31 — audit rules 1/3).
+    closeLegacyWebSocket();
     connectEventChannel(getLang());
 }
 
@@ -588,40 +591,89 @@ export function connect(): void {
  *  source contracts (AB-003/HD-002) anchored on the single boot `connect();`. */
 export const reopenChannel = connect;
 
+function handleChannelUp(transport: 'sse' | 'ws'): void {
+    console.log(`[${transport}] connected`);
+    const now = Date.now();
+    const skipReload = now - lastLoadTs < 10000;
+    // 08 §6: orc_state events must wait for the snapshot fetch — keep the
+    // whole hydration chain in snapshotReady so the orc_state gate can await it.
+    snapshotReady = import('./ui.js').then(async m => {
+        m.cleanupToolActivity();
+        if (!skipReload) {
+            try {
+                await m.loadMessages();
+                lastLoadTs = Date.now();
+            } catch (error) {
+                console.error(`[${transport}] loadMessages failed`, error);
+            }
+        }
+        await syncOrchestrateSnapshot('reconnect', { hydrateRun: true })
+            .catch(() => { /* snapshot not critical — UI recovers on next event */ })
+            .finally(() => m.reconcileChatBottomAfterRestore('reconnect'));
+    });
+}
+
+function handleChannelDown(): void {
+    console.log('[channel] disconnected');
+    import('./ui.js').then(m => m.cleanupToolActivity());
+    setStatus('idle');
+    addSystemMsg(`${ICONS.exec} ${t('ws.disconnected')}`, 'tool-activity');
+}
+
+// ── Legacy WebSocket fallback (devlog 260609, 31) ──
+// Old servers (pre-Phase 1) have no /api/events. When SSE has never connected
+// and the stream errors, fall back to the legacy WS wire — its {type, ...data}
+// payload is exactly what handleServerEvent expects, so handlers are shared.
+// On WS close we retry connect() (SSE first): an upgraded server flips us back.
+
+let legacyWs: WebSocket | null = null;
+let legacySilentClose = false;
+
+function closeLegacyWebSocket(): void {
+    if (!legacyWs) return;
+    legacySilentClose = true;
+    try { legacyWs.close(); } catch { /* already closing */ }
+    legacyWs = null;
+}
+
+function connectLegacyWebSocket(): void {
+    if (legacyWs) return; // double-connect guard (31 audit rule 3)
+    console.warn('[channel] /api/events unavailable — falling back to legacy WebSocket');
+    const wsBase = import.meta.env?.DEV ? 'ws://localhost:3458' : `ws://${location.host}`;
+    const ws = new WebSocket(`${wsBase}${API_BASE}/?lang=${getLang()}`);
+    legacyWs = ws;
+    legacySilentClose = false;
+    ws.onmessage = (e: MessageEvent) => {
+        let msg: WsMessage;
+        try {
+            msg = JSON.parse(e.data as string);
+        } catch {
+            console.warn('[ws] malformed message:', e.data);
+            return;
+        }
+        if (!msg || typeof msg !== 'object' || typeof msg.type !== 'string') {
+            console.warn('[ws] invalid message shape:', msg);
+            return;
+        }
+        handleServerEvent(msg);
+    };
+    ws.onopen = () => handleChannelUp('ws');
+    ws.onclose = () => {
+        if (legacyWs === ws) legacyWs = null;
+        if (legacySilentClose) { legacySilentClose = false; return; } // intentional close — no side effects (31 audit rule 1)
+        handleChannelDown();
+        setTimeout(connect, 2000);
+    };
+}
+
 function wireEventChannel(): void {
     subscribe('*', null, (data) => {
         const msg = { ...data, type: data['event'] } as unknown as WsMessage;
         handleServerEvent(msg);
     });
-
-    onChannelOpen(() => {
-        console.log('[sse] connected');
-        const now = Date.now();
-        const skipReload = now - lastLoadTs < 10000;
-        // 08 §6: orc_state events must wait for the snapshot fetch — keep the
-        // whole hydration chain in snapshotReady so the orc_state gate can await it.
-        snapshotReady = import('./ui.js').then(async m => {
-            m.cleanupToolActivity();
-            if (!skipReload) {
-                try {
-                    await m.loadMessages();
-                    lastLoadTs = Date.now();
-                } catch (error) {
-                    console.error('[sse] loadMessages failed', error);
-                }
-            }
-            await syncOrchestrateSnapshot('reconnect', { hydrateRun: true })
-                .catch(() => { /* snapshot not critical — UI recovers on next event */ })
-                .finally(() => m.reconcileChatBottomAfterRestore('reconnect'));
-        });
-    });
-
-    onChannelDisconnect(() => {
-        console.log('[sse] disconnected — channel reconnects with backoff');
-        import('./ui.js').then(m => m.cleanupToolActivity());
-        setStatus('idle');
-        addSystemMsg(`${ICONS.exec} ${t('ws.disconnected')}`, 'tool-activity');
-    });
+    onChannelOpen(() => handleChannelUp('sse'));
+    onChannelDisconnect(() => handleChannelDown());
+    onChannelUnavailable(() => connectLegacyWebSocket());
 }
 
 function handleServerEvent(msg: WsMessage): void {
