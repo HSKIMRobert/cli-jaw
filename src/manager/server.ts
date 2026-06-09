@@ -388,18 +388,22 @@ app.use('/api/jaw-ceo', createJawCeoRouter({
         };
     },
     runLifecycleAction: async ({ action, port: targetPort }) => {
-        const response = await fetch(`http://127.0.0.1:${port}/api/dashboard/lifecycle/${action}`, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ port: targetPort }),
-        });
-        const data = await response.json().catch(() => null) as DashboardLifecycleResult | null;
-        return {
-            ok: Boolean(response.ok && data?.ok),
-            message: data?.message || `lifecycle ${action} failed: ${response.status}`,
-            ...(data?.status ? { status: data.status } : {}),
-            data,
-        };
+        // Direct call — no loopback self-fetch (devlog 260609, 09 P5 / 41).
+        try {
+            const data = await runDashboardLifecycleAction(action as DashboardLifecycleAction, targetPort);
+            return {
+                ok: Boolean(data.ok),
+                message: data.message || `lifecycle ${action} failed: ${data.status}`,
+                ...(data.status ? { status: data.status } : {}),
+                data,
+            };
+        } catch (error) {
+            return {
+                ok: false,
+                message: `lifecycle ${action} failed: ${(error as Error).message}`,
+                data: null,
+            };
+        }
     },
 }));
 
@@ -571,59 +575,62 @@ app.patch('/api/dashboard/registry', (req, res) => {
     }
 });
 
+// Shared by the HTTP route below and the jaw-ceo deps — the manager used to
+// fetch its OWN lifecycle endpoint over HTTP for jaw-ceo actions (devlog 260609,
+// 09 P5). Direct call removes that loopback round-trip.
+function rejectedLifecycleResult(action: DashboardLifecycleAction, portValue: number, message: string): DashboardLifecycleResult {
+    return {
+        ok: false, action, port: portValue, status: 'rejected',
+        message, home: null, pid: null, command: [],
+    } as DashboardLifecycleResult;
+}
+
+async function runDashboardLifecycleAction(
+    action: DashboardLifecycleAction,
+    portValue: number,
+    home?: string,
+): Promise<DashboardLifecycleResult> {
+    if (!['start', 'stop', 'restart', 'perm', 'unperm'].includes(action)) {
+        return rejectedLifecycleResult(action, portValue, `Unsupported lifecycle action: ${action}`);
+    }
+    if (!Number.isInteger(portValue)) {
+        return rejectedLifecycleResult(action, portValue, 'port must be an integer');
+    }
+    let result: DashboardLifecycleResult;
+    if (action === 'perm') {
+        result = await lifecycle.perm(portValue, home);
+    } else if (action === 'unperm') {
+        result = await lifecycle.unperm(portValue, home);
+    } else {
+        const serviceState = await serviceDetectSingle(portValue, home);
+        result = action === 'start'
+            ? await lifecycle.start(portValue, home, serviceState)
+            : action === 'stop'
+                ? await lifecycle.stop(portValue, serviceState)
+                : await lifecycle.restart(portValue, serviceState);
+    }
+    observability.publish({
+        kind: 'lifecycle-result',
+        port: portValue,
+        action,
+        status: result.status,
+        message: result.message,
+        at: new Date().toISOString(),
+    });
+    return result;
+}
+
 app.post('/api/dashboard/lifecycle/:action', async (req, res) => {
     const action = String(req.params.action || '') as DashboardLifecycleAction;
     const portValue = Number(req.body?.port);
     const home = typeof req.body?.home === 'string' ? req.body.home : undefined;
-    if (!['start', 'stop', 'restart', 'perm', 'unperm'].includes(action)) {
-        res.status(400).json({
-            ok: false,
-            action,
-            port: portValue,
-            status: 'rejected',
-            message: `Unsupported lifecycle action: ${action}`,
-            home: null,
-            pid: null,
-            command: [],
-        });
-        return;
-    }
-    if (!Number.isInteger(portValue)) {
-        res.status(400).json({
-            ok: false,
-            action,
-            port: portValue,
-            status: 'rejected',
-            message: 'port must be an integer',
-            home: null,
-            pid: null,
-            command: [],
-        });
-        return;
-    }
 
     try {
-        let result: DashboardLifecycleResult;
-        if (action === 'perm') {
-            result = await lifecycle.perm(portValue, home);
-        } else if (action === 'unperm') {
-            result = await lifecycle.unperm(portValue, home);
-        } else {
-            const serviceState = await serviceDetectSingle(portValue, home);
-            result = action === 'start'
-                ? await lifecycle.start(portValue, home, serviceState)
-                : action === 'stop'
-                    ? await lifecycle.stop(portValue, serviceState)
-                    : await lifecycle.restart(portValue, serviceState);
+        const result = await runDashboardLifecycleAction(action, portValue, home);
+        if (result.status === 'rejected') {
+            res.status(400).json(result);
+            return;
         }
-        observability.publish({
-            kind: 'lifecycle-result',
-            port: portValue,
-            action,
-            status: result.status,
-            message: result.message,
-            at: new Date().toISOString(),
-        });
         res.status(result.ok ? 200 : 409).json(result);
     } catch (error) {
         res.status(500).json({
