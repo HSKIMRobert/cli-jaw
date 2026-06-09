@@ -218,7 +218,10 @@ test('manager desktop panel toggles are Electron-only and do not open sidebars o
     assert.ok(controls.includes("panelActions.openBottomTab('terminal')"), 'bottom panel toggle must open the terminal tab when closed');
     assert.ok(controls.includes('aria-label="Toggle right panel"'), 'DesktopPanelControls must expose the right panel toggle');
     assert.ok(controls.includes("panelActions.openRightPanel('folder')"), 'right panel toggle must open the folder panel when closed');
-    assert.ok(router.includes("const desktopPanelsAvailable = currentManagerSurface() === 'electron';"), 'SidebarRailRouter must suppress persisted desktop panel state on web');
+    assert.ok(
+        router.includes("const isElectron = currentManagerSurface() === 'electron'") && router.includes('const desktopPanelsAvailable = isElectron'),
+        'SidebarRailRouter must suppress persisted desktop panel state on web',
+    );
     assert.ok(router.includes('rightPanelOpen={rightPanelOpen}'), 'WorkspaceLayout must receive the surface-gated right panel state');
     assert.ok(router.includes('bottomPanelOpen={bottomPanelOpen}'), 'WorkspaceLayout must receive the surface-gated bottom panel state');
     assert.ok(capabilities.includes("folder: capability('folder', 'disabled'"), 'web folder side panel capability must be disabled');
