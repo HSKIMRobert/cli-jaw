@@ -3,6 +3,18 @@ name: Desktop Release
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Platform to build (all, macos, windows, linux)
+        required: false
+        default: all
+        type: choice
+        options:
+          - all
+          - macos
+          - windows
+          - linux
 
 permissions:
   contents: write
@@ -11,8 +23,9 @@ jobs:
   desktop-release:
     name: Build ${{ matrix.platform }} desktop app
     runs-on: ${{ matrix.os }}
+    if: github.event_name == 'release' || inputs.platform == 'all' || inputs.platform == matrix.platform
     concurrency:
-      group: desktop-release-${{ github.event.release.tag_name }}-${{ matrix.platform }}
+      group: desktop-release-${{ github.event.release.tag_name || github.run_id }}-${{ matrix.platform }}
       cancel-in-progress: false
     strategy:
       fail-fast: false
@@ -21,12 +34,16 @@ jobs:
           - platform: macos
             os: macos-latest
             script: dist:mac
+            sidecar_platform: darwin
+            sidecar_arch: arm64
             artifact_globs: |
               electron/dist/*.dmg
               electron/dist/*.zip
           - platform: windows
             os: windows-latest
             script: dist:win
+            sidecar_platform: win32
+            sidecar_arch: x64
             artifact_globs: |
               electron/dist/*.exe
               electron/dist/*.msi
@@ -34,6 +51,8 @@ jobs:
           - platform: linux
             os: ubuntu-latest
             script: dist:linux
+            sidecar_platform: linux
+            sidecar_arch: x64
             artifact_globs: |
               electron/dist/*.AppImage
               electron/dist/*.deb
@@ -44,14 +63,16 @@ jobs:
       - name: Checkout release tag
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ github.event.release.tag_name || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: electron/package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            electron/package-lock.json
 
       # node-gyp rebuilds the native node-pty module during packaging. The
       # bundled node-gyp still imports stdlib `distutils`, which Python 3.12+
@@ -60,6 +81,12 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      - name: Install server dependencies
+        run: npm ci
+
+      - name: Build server and bundle sidecar
+        run: bash scripts/bundle-sidecar.sh "${{ matrix.sidecar_platform }}" "${{ matrix.sidecar_arch }}"
 
       - name: Install Electron dependencies
         run: npm ci --prefix electron
@@ -75,7 +102,24 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
+      - name: Upload build artifacts (manual run)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.platform }}
+          path: |
+            electron/dist/*.dmg
+            electron/dist/*.exe
+            electron/dist/*.msi
+            electron/dist/*.AppImage
+            electron/dist/*.deb
+            electron/dist/*.rpm
+            electron/dist/*.zip
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Upload desktop assets to release
+        if: github.event_name == 'release'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
