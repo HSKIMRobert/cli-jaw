@@ -350,16 +350,18 @@ Codex/Claude/Gemini/Cursor/OpenCode는 `src/agent/events/helpers.ts`의 `appendA
 | 첫 assistant segment (tool 이미 있음) | `- {text}` |
 | 이후 segment | `\n- {text}` (공백/구두점 경계 예외는 helpers 참고) |
 
-Plain-text runtime은 raw stdout(`fullText`)과 formatted preview(`liveOutputText`)를 분리한다.
+Plain-text runtime은 raw stdout(`fullText`)과 display-normalized preview(`liveOutputText`)를 분리한다. 표시용 preview는 `normalizeAssistantDisplayText()`를 거쳐 JSON-style escaped newline (`\n`, `\r\n`, `\r`)이 UI에 literal text로 새지 않게 한다.
 
 | CLI | raw capture | formatted `agent_output` |
 | --- | --- | --- |
-| `agy` | stdout → `fullText` | `liveOutputText` via `appendAssistantTextSegment` |
-| `kiro-code` | stdout → `fullText` (kiro-runtime) | **raw** `assistant_delta` → `liveOutputText` (no `-` inject; Kiro has native `- Completed` / numbered lines) |
+| `agy` | stdout → `fullText` | normalized stdout delta → `liveOutputText` + `agent_output` |
+| `pi` | RPC text delta → `fullText` | normalized RPC text delta → `liveOutputText` + `agent_output` |
+| `kiro-code` | stdout → `fullText` (kiro-runtime) | normalized `assistant_delta` → `liveOutputText` (no `-` inject; Kiro has native `- Completed` / numbered lines) |
 | `grok` | NDJSON handler → `fullText` | raw delta concat → `pendingOutputChunk` (paragraph bullets deferred) |
 | `copilot` (ACP) | ACP chunks → `fullText` | `appendAssistantTextSegment` + `agent_output` broadcast |
 
 Web UI는 ProcessBlock(아이콘 - 라벨) 아래 markdown list bullet(`- ...`)로 흘러나오는 assistant preview를 기대한다.
+Final `agent_done` body도 `resolveSpawnOutputText()`에서 normalized display candidates를 raw escaped candidates보다 우선해 streaming 중 고친 줄바꿈이 완료 시점에 되돌아가지 않게 한다.
 
 ### 라이브 출력
 
