@@ -71,7 +71,9 @@ jobs:
           python-version: '3.11'
 
       - name: Install server dependencies
-        run: npm ci
+        # --ignore-scripts: postinstall-guard runs `bash atomic-build.sh` via cmd
+        # on Windows and fails; bundle-sidecar.sh builds explicitly under bash.
+        run: npm ci --ignore-scripts
 
       - name: Build server and bundle sidecar
         run: bash scripts/bundle-sidecar.sh "${{ matrix.sidecar_platform }}" "${{ matrix.sidecar_arch }}"
