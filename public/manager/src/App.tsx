@@ -371,6 +371,7 @@ export function App() {
     useEffect(() => {
         if (!view.dashboardShortcutsEnabled) return undefined;
         const unsubscribe = getDesktop()?.shortcuts?.onAction?.((action) => {
+            if (document.activeElement?.tagName === 'IFRAME') return;
             runManagerShortcut(action);
         });
         return unsubscribe;
