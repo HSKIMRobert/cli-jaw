@@ -51,8 +51,16 @@ function normalizeSkillMetadataList(value: unknown): string[] {
 }
 
 function parseTopLevelSkillMetadataList(content: string, field: string): string[] {
-    const match = content.match(new RegExp(`^${field}:\\s*(.+)$`, 'm'));
-    return normalizeSkillMetadataList(match?.[1]);
+    const inlineMatch = content.match(new RegExp(`^${field}:[ \\t]*(.+)$`, 'm'));
+    if (inlineMatch?.[1]) return normalizeSkillMetadataList(inlineMatch[1]);
+    const yamlMatch = content.match(new RegExp(`^${field}:[ \\t]*\\n((?:[ \\t]+-[ \\t]*.+\\n?)+)`, 'm'));
+    if (yamlMatch?.[1]) {
+        return yamlMatch[1]
+            .split('\n')
+            .map(line => line.replace(/^\s+-\s*/, '').replace(/^["']|["']$/g, '').trim())
+            .filter(Boolean);
+    }
+    return [];
 }
 
 function parseSkillMetadataObject(content: string): Record<string, unknown> {
@@ -87,8 +95,8 @@ function formatSkillRoutingMetadata(skill: { keywords?: unknown; triggers?: unkn
     return parts.length ? ` [${parts.join('; ')}]` : '';
 }
 
-function readSkillMetadata(skillName: string, skillPath: string | null): { name: string; description: string; keywords: string[]; triggers: string[] } {
-    if (!skillPath || !fs.existsSync(skillPath)) return { name: skillName, description: '', keywords: [], triggers: [] };
+function readSkillMetadata(skillName: string, skillPath: string | null): { name: string; description: string; keywords: string[]; triggers: string[]; capabilities: string[]; references: string[] } {
+    if (!skillPath || !fs.existsSync(skillPath)) return { name: skillName, description: '', keywords: [], triggers: [], capabilities: [], references: [] };
     try {
         const content = fs.readFileSync(skillPath, 'utf8');
         const nameMatch = content.match(/^name:\s*(.+)/m);
@@ -98,9 +106,11 @@ function readSkillMetadata(skillName: string, skillPath: string | null): { name:
             description: normalizeSkillDescription(descMatch?.[1]),
             keywords: parseSkillMetadataList(content, 'keywords'),
             triggers: parseSkillMetadataList(content, 'triggers'),
+            capabilities: parseSkillMetadataList(content, 'capabilities'),
+            references: parseSkillMetadataList(content, 'references'),
         };
     } catch {
-        return { name: skillName, description: '', keywords: [], triggers: [] };
+        return { name: skillName, description: '', keywords: [], triggers: [], capabilities: [], references: [] };
     }
 }
 
@@ -234,7 +244,24 @@ export function getMergedSkills() {
 
 /** Template variables shared across templates */
 function getTemplateVars(): Record<string, string> {
-    return { JAW_HOME, CDP_PORT: String(deriveCdpPort()) };
+    const vars: Record<string, string> = { JAW_HOME, CDP_PORT: String(deriveCdpPort()) };
+    try {
+        const diagramSkillPath = [
+            join(SKILLS_DIR, 'diagram', 'SKILL.md'),
+            join(SKILLS_REF_DIR, 'diagram', 'SKILL.md'),
+        ].find(p => fs.existsSync(p)) || null;
+        const meta = readSkillMetadata('diagram', diagramSkillPath);
+        vars['DIAGRAM_CAPABILITIES'] = meta.capabilities.length
+            ? meta.capabilities.map(c => `- ${c}`).join('\n')
+            : '';
+        vars['DIAGRAM_REFERENCES'] = meta.references.length
+            ? meta.references.map(r => `- ${r}`).join('\n')
+            : '';
+    } catch {
+        vars['DIAGRAM_CAPABILITIES'] = '';
+        vars['DIAGRAM_REFERENCES'] = '';
+    }
+    return vars;
 }
 
 /** Render A1 system prompt from template */

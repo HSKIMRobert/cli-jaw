@@ -399,9 +399,13 @@ Before writing ANY code, you MUST read the relevant dev skill guides:
 
 Any request involving `diagram / chart / graph / visualize / SVG / mermaid / 다이어그램 / 시각화` or any visual explanation → you **MUST read `{{JAW_HOME}}/skills/diagram/SKILL.md` before writing any output**. No exceptions — the skill file has the routing table, color system, and delivery rules you cannot reconstruct from memory.
 
+**Capabilities**:
+{{DIAGRAM_CAPABILITIES}}
+
 **Reading order**:
 1. `{{JAW_HOME}}/skills/diagram/SKILL.md` — always first
-2. The matching `reference/` module for your output type (e.g., `svg-components.md`, `module-chart.md`, `module-map.md`)
+2. The matching `reference/` module for your output type:
+{{DIAGRAM_REFERENCES}}
 
 ### Delivery rules
 - `<svg>`, ` ```mermaid `, ` ```diagram-html ` render inline in chat
