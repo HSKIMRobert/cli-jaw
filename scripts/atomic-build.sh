@@ -7,9 +7,11 @@ OLD=".dist-old"
 
 rm -rf "$STAGING"
 npx tsc --outDir "$STAGING"
-mkdir -p "$STAGING/src/prompt"
-rsync -a --delete src/prompt/templates/ "$STAGING/src/prompt/templates/"
-rsync -a --delete prompts/ "$STAGING/prompts/"
+# cp -R instead of rsync: staging is always fresh (rm -rf above), and
+# Git Bash on Windows runners has no rsync.
+mkdir -p "$STAGING/src/prompt/templates" "$STAGING/prompts"
+cp -R src/prompt/templates/. "$STAGING/src/prompt/templates/"
+cp -R prompts/. "$STAGING/prompts/"
 
 # Atomic swap with rollback on failure
 rm -rf "$OLD"
