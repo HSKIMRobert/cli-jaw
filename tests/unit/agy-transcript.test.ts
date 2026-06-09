@@ -73,3 +73,23 @@ test('AGY-TR-007: transcript watcher retargets when AGY resume emits a new conve
     assert.match(watcherSrc, /transcriptPath\s*=\s*null/);
     assert.match(watcherSrc, /conversationId\s*=\s*resolved\.conversationId/);
 });
+
+test('AGY-TR-008: transcript watcher scans current-turn lines already written before path resolution', () => {
+    const watcherSrc = fs.readFileSync(path.join(__dirname, '../../src/agent/agy-transcript-watcher.ts'), 'utf8');
+    assert.doesNotMatch(watcherSrc, /fs\.statSync\(transcriptPath\)\.size/);
+    assert.match(watcherSrc, /offset\s*=\s*0/);
+    assert.match(watcherSrc, /created_at/);
+    assert.match(watcherSrc, /startedAt - 5_000/);
+    assert.match(watcherSrc, /resolveAgyTranscriptPath\(options\.cwd, options\.getSessionId\(\)\)/);
+});
+
+test('AGY-TR-009: spawn captures AGY session id before final transcript drain', () => {
+    const spawnSrc = fs.readFileSync(path.join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
+    const closeIdx = spawnSrc.indexOf("child.on('close', (code) => {");
+    assert.ok(closeIdx >= 0);
+    const closeBlock = spawnSrc.slice(closeIdx, spawnSrc.indexOf('if (kiroPlainText)', closeIdx));
+    const sessionIdx = closeBlock.indexOf('ctx.sessionId = extractAgyConversationId');
+    const watcherStopIdx = closeBlock.indexOf('agyTranscriptWatcher?.stop()');
+    assert.ok(sessionIdx >= 0, 'AGY close path must extract session id');
+    assert.ok(watcherStopIdx > sessionIdx, 'AGY transcript final drain must run after session id extraction');
+});
