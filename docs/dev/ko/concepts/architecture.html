@@ -53,7 +53,7 @@
     </div>
   </div>
   <div class="docs-lang">
-    <a href="../../dev/">EN</a>
+    <a href="../../">EN</a>
     <a class="active" href="../">한국어</a>
     <a href="../zh/">中文</a>
   </div>
@@ -65,38 +65,32 @@
 <main class="docs-main">
 
 <h1>아키텍처</h1>
-<p class="lead">CLI-JAW는 15개 라우트 모듈에 걸쳐 141개의 API 엔드포인트를 갖춘 Node.js 서버입니다. 네 가지 인터페이스(CLI, Web, Telegram, Discord)가 중앙 서버에 연결되며, 서버는 에이전트, 오케스트레이션, 메모리, 브라우저 하위 시스템으로 요청을 분배합니다.</p>
+<p class="lead">CLI-JAW는 Node.js 22 기반의 다중 AI 런타임 서버입니다. 루트 핸들러와 194개의 API/미디어 엔드포인트가 CLI, TUI, Web PWA, Electron 데스크톱, Telegram, Discord, Manager 대시보드에 동일한 세션, 메모리, 프로젝트 컨텍스트를 제공합니다.</p>
 
 <h2>시스템 개요</h2>
-<p>네 가지 인터페이스 모두 <code>server.ts</code>를 거치며, 이 파일은 인증, 보안, WebSocket, 부트스트랩을 처리한 후 <code>src/routes/</code>의 라우트 모듈로 위임합니다.</p>
-<pre><code>CLI (bin/commands/*)  ──HTTP──→  server.ts (glue)
-Web (public/)         ──HTTP+WS→      │
-Telegram Bot          ──HTTP──→       │
-Discord Bot           ──HTTP──→       │
-                                      ↓
-Dashboard (port 24576) ─scan/proxy→ src/manager/
-                                      │
-                        src/routes/* ──┤──→ src/core/
-                                      ├──→ src/agent/
-                                      ├──→ src/orchestrator/
-                                      ├──→ src/prompt/
-                                      ├──→ src/memory/
-                                      ├──→ src/messaging/
-                                      ├──→ src/telegram/
-                                      ├──→ src/discord/
-                                      └──→ src/browser/</code></pre>
+<p>모든 런타임 표면은 <code>server.ts</code>를 거칩니다. 서버는 인증, 보안, SSE 이벤트, 부트스트랩을 처리한 뒤 <code>src/routes/</code>와 핵심 하위 시스템으로 위임합니다.</p>
+<pre><code>CLI/TUI/Electron/Web/Telegram/Discord ──HTTP──→ server.ts
+Web events                             ──SSE──→ GET /api/events
+Dashboard (port 24576)                 ─proxy→ src/manager/
+Agent streams                          ─NDJSON→ provider runtime + traces
 
-<h2>네 가지 인터페이스</h2>
+server.ts ──→ src/routes/* ──→ src/core/ | src/agent/ | src/orchestrator/
+                         └──→ src/memory/ | src/messaging/ | src/browser/</code></pre>
+
+<h2>런타임 표면</h2>
 <table>
-<tr><th>인터페이스</th><th>진입점</th><th>전송 방식</th></tr>
+<tr><th>표면</th><th>진입점</th><th>전송 방식</th></tr>
 <tr><td><strong>CLI</strong></td><td><code>bin/cli-jaw.ts</code> + <code>bin/commands/*.ts</code></td><td>서버로의 HTTP</td></tr>
-<tr><td><strong>Web UI</strong></td><td><code>public/index.html</code></td><td>HTTP + WebSocket</td></tr>
+<tr><td><strong>Terminal TUI</strong></td><td><code>src/tui/</code></td><td>터미널 렌더링 + 서버 명령</td></tr>
+<tr><td><strong>Web UI</strong></td><td><code>public/index.html</code></td><td>HTTP + SSE</td></tr>
+<tr><td><strong>Electron Desktop</strong></td><td><code>electron/src/</code></td><td>번들 sidecar 서버 + WebView</td></tr>
 <tr><td><strong>Telegram</strong></td><td><code>src/telegram/bot.ts</code></td><td>Grammy 봇 폴링</td></tr>
 <tr><td><strong>Discord</strong></td><td><code>src/discord/bot.ts</code></td><td>discord.js 게이트웨이</td></tr>
+<tr><td><strong>Manager Dashboard</strong></td><td><code>src/manager/</code> + <code>public/manager/</code></td><td>별도 포트 스캔, 프록시, 인스턴스 관리</td></tr>
 </table>
 
 <h2>라우트 모듈</h2>
-<p>서버는 15개의 라우트 모듈을 등록합니다. 각 모듈은 Express 앱과 인증 미들웨어를 받는 독립적인 등록 함수입니다.</p>
+<p>서버는 루트 핸들러와 라우트 모듈을 합쳐 195개의 핸들러를 등록합니다. 각 모듈은 Express 앱과 인증 미들웨어를 받는 독립적인 등록 함수입니다.</p>
 <table>
 <tr><th>모듈</th><th>라우트 수</th><th>역할</th></tr>
 <tr><td><code>server.ts</code> (기본)</td><td>14</td><td>헬스체크, 세션, 메시지, 인증, 명령, 중지, 초기화</td></tr>
@@ -118,12 +112,12 @@ Dashboard (port 24576) ─scan/proxy→ src/manager/
 
 <h2>파일 트리 개요</h2>
 <pre><code>cli-jaw/
-├── bin/                    # CLI entry + 23 command files
+├── bin/                    # CLI entry + 30 command files
 │   ├── cli-jaw.ts          # Root CLI router
 │   └── commands/           # serve, init, doctor, chat, browser, ...
-├── server.ts               # Express/WS bootstrap (882L)
+├── server.ts               # Express/SSE bootstrap (654L)
 ├── src/
-│   ├── core/               # 21 files — config, DB, bus, i18n, employees
+│   ├── core/               # 30 files — config, DB, bus, i18n, employees
 │   ├── agent/              # 37 files — spawn, events, lifecycle, ACP
 │   ├── orchestrator/       # 10 files — PABCD pipeline, state machine
 │   ├── prompt/             # builder + templates
@@ -133,15 +127,16 @@ Dashboard (port 24576) ─scan/proxy→ src/manager/
 │   ├── telegram/           # Telegram bot transport
 │   ├── discord/            # Discord bot transport
 │   ├── browser/            # CDP control + web-ai automation
-│   ├── routes/             # 15 route registrars
-│   ├── manager/            # Dashboard server (77 TS/TSX files)
+│   ├── routes/             # 32 route registrars
+│   ├── manager/            # Dashboard server
 │   ├── security/           # Path guards, input validation
 │   └── shared/             # Tool-log sanitization
 ├── public/                 # Web UI (Vanilla TS + Vite 8)
-│   ├── js/                 # 80 TypeScript modules
+│   ├── js/                 # 86 TypeScript modules
 │   ├── css/                # 11 CSS files
-│   ├── manager/            # React 19 dashboard app (286 files)
+│   ├── manager/            # React 19 dashboard app
 │   └── dist/               # Build output
+├── electron/               # Electron desktop shell + packaged sidecar
 ├── native/                 # jaw-claude-i Rust helper
 │   └── jaw-claude-i/       # 15 Rust source files
 └── tests/                  # 447 test files</code></pre>
@@ -153,7 +148,7 @@ Dashboard (port 24576) ─scan/proxy→ src/manager/
 <tr><td>오케스트레이터</td><td><code>src/orchestrator/</code></td><td>PABCD 상태 머신, 직원 디스패치, 워커 모니터링</td></tr>
 <tr><td>메모리</td><td><code>src/memory/</code></td><td>3계층 메모리(구조화/에피소드/시맨틱), FTS5 인덱싱, 플러시, 리플렉션</td></tr>
 <tr><td>프롬프트 빌더</td><td><code>src/prompt/</code></td><td>9단계 프롬프트 파이프라인: A1, A2, 메모리, 오케스트레이션, 하트비트, 스킬, 위임</td></tr>
-<tr><td>브라우저</td><td><code>src/browser/</code></td><td>Chrome CDP 제어, 비전 클릭, 탭 생명주기, web-ai 자동화</td></tr>
+<tr><td>브라우저</td><td><code>src/browser/</code></td><td>Chrome CDP 제어, 탭 생명주기, Web AI 자동화, provider별 어댑터</td></tr>
 <tr><td>메시징</td><td><code>src/messaging/</code></td><td>공유 Telegram/Discord 채널 라우팅, 대상 추적</td></tr>
 </table>
 

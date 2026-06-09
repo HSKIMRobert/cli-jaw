@@ -53,7 +53,7 @@
     </div>
   </div>
   <div class="docs-lang">
-    <a href="../../dev/">EN</a>
+    <a href="../../">EN</a>
     <a href="../ko/">한국어</a>
     <a class="active" href="../">中文</a>
   </div>
@@ -122,8 +122,8 @@ jaw goal reset</code></pre>
 <tr><td>POST</td><td><code>/api/goal-run</code></td><td>启动、暂停、恢复或停止目标运行</td></tr>
 </table>
 
-<h2>WebSocket 事件</h2>
-<p>目标生命周期变更会发出 WebSocket 事件，供 Web UI 消费：</p>
+<h2>实时事件</h2>
+<p>目标生命周期变更会发出 SSE-first 事件供 Web UI 消费。旧版服务器可使用 WebSocket fallback：</p>
 <ul>
 <li><code>goal_done</code> -- 目标已完成</li>
 <li><code>goal_cancel</code> -- 目标已取消</li>

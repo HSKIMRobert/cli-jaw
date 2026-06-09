@@ -1,32 +1,35 @@
-<!DOCTYPE html><html lang="zh"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>事件 — CLI-JAW 文档</title><link rel="stylesheet" href="../../_shell.css"></head><body><button class="docs-menu-toggle" onclick="document.querySelector('.docs-sidebar').classList.toggle('is-open');document.querySelector('.docs-sidebar-backdrop').classList.toggle('is-open')">☰</button><div class="docs-sidebar-backdrop" onclick="document.querySelector('.docs-sidebar').classList.remove('is-open');this.classList.remove('is-open')"></div><div class="docs-layout"><nav class="docs-sidebar"><div class="docs-logo"><a href="../">CLI-JAW</a></div><div class="docs-nav"><div class="docs-nav-section"><div class="docs-nav-title">Getting Started</div><a class="docs-nav-link" href="../">Overview</a><a class="docs-nav-link" href="../quickstart.html">Quickstart</a><a class="docs-nav-link" href="../quickstart-first-run.html">First Run</a></div><div class="docs-nav-section"><div class="docs-nav-title">Concepts</div><a class="docs-nav-link" href="../concepts/architecture.html">Architecture</a><a class="docs-nav-link" href="../concepts/employees.html">Employees</a><a class="docs-nav-link" href="../concepts/pabcd.html">PABCD</a><a class="docs-nav-link" href="../concepts/goals.html">Goals</a><a class="docs-nav-link" href="../concepts/skills.html">Skills</a><a class="docs-nav-link" href="../concepts/memory.html">Memory</a><a class="docs-nav-link" href="../concepts/prompts.html">Prompts</a></div><div class="docs-nav-section"><div class="docs-nav-title">Guides</div><a class="docs-nav-link" href="../guides/dashboard.html">Dashboard</a><a class="docs-nav-link" href="../guides/notes.html">Notes (Jawsidian)</a><a class="docs-nav-link" href="../guides/kanban.html">Kanban Board</a><a class="docs-nav-link" href="../guides/telegram.html">Telegram</a><a class="docs-nav-link" href="../guides/discord.html">Discord</a><a class="docs-nav-link" href="../guides/computer-use.html">Computer Use</a><a class="docs-nav-link" href="../guides/electron.html">Electron Desktop</a><a class="docs-nav-link" href="../guides/web-ai.html">Web AI</a></div><div class="docs-nav-section"><div class="docs-nav-title">Reference</div><a class="docs-nav-link" href="../reference/cli.html">CLI Commands</a><a class="docs-nav-link" href="../reference/api.html">Server API</a><a class="docs-nav-link" href="../reference/config.html">Configuration</a><a class="docs-nav-link" href="../reference/keyboard.html">Keyboard Shortcuts</a><a class="docs-nav-link active" href="../reference/events.html">Events</a></div><div class="docs-nav-section"><a class="docs-nav-link" href="../changelog.html">Changelog</a></div></div><div class="docs-lang"><a href="../../dev/">EN</a><a href="../ko/">한국어</a><a class="active" href="../">中文</a></div><div class="docs-nav-footer"><a href="https://github.com/lidge-jun/cli-jaw">GitHub</a><a href="../../../">Landing Page</a></div></nav><main class="docs-main">
+<!DOCTYPE html><html lang="zh"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>事件 — CLI-JAW 文档</title><link rel="stylesheet" href="../../_shell.css"></head><body><button class="docs-menu-toggle" onclick="document.querySelector('.docs-sidebar').classList.toggle('is-open');document.querySelector('.docs-sidebar-backdrop').classList.toggle('is-open')">☰</button><div class="docs-sidebar-backdrop" onclick="document.querySelector('.docs-sidebar').classList.remove('is-open');this.classList.remove('is-open')"></div><div class="docs-layout"><nav class="docs-sidebar"><div class="docs-logo"><a href="../">CLI-JAW</a></div><div class="docs-nav"><div class="docs-nav-section"><div class="docs-nav-title">Getting Started</div><a class="docs-nav-link" href="../">Overview</a><a class="docs-nav-link" href="../quickstart.html">Quickstart</a><a class="docs-nav-link" href="../quickstart-first-run.html">First Run</a></div><div class="docs-nav-section"><div class="docs-nav-title">Concepts</div><a class="docs-nav-link" href="../concepts/architecture.html">Architecture</a><a class="docs-nav-link" href="../concepts/employees.html">Employees</a><a class="docs-nav-link" href="../concepts/pabcd.html">PABCD</a><a class="docs-nav-link" href="../concepts/goals.html">Goals</a><a class="docs-nav-link" href="../concepts/skills.html">Skills</a><a class="docs-nav-link" href="../concepts/memory.html">Memory</a><a class="docs-nav-link" href="../concepts/prompts.html">Prompts</a></div><div class="docs-nav-section"><div class="docs-nav-title">Guides</div><a class="docs-nav-link" href="../guides/dashboard.html">Dashboard</a><a class="docs-nav-link" href="../guides/notes.html">Notes (Jawsidian)</a><a class="docs-nav-link" href="../guides/kanban.html">Kanban Board</a><a class="docs-nav-link" href="../guides/telegram.html">Telegram</a><a class="docs-nav-link" href="../guides/discord.html">Discord</a><a class="docs-nav-link" href="../guides/computer-use.html">Computer Use</a><a class="docs-nav-link" href="../guides/electron.html">Electron Desktop</a><a class="docs-nav-link" href="../guides/web-ai.html">Web AI</a></div><div class="docs-nav-section"><div class="docs-nav-title">Reference</div><a class="docs-nav-link" href="../reference/cli.html">CLI Commands</a><a class="docs-nav-link" href="../reference/api.html">Server API</a><a class="docs-nav-link" href="../reference/config.html">Configuration</a><a class="docs-nav-link" href="../reference/keyboard.html">Keyboard Shortcuts</a><a class="docs-nav-link active" href="../reference/events.html">Events</a></div><div class="docs-nav-section"><a class="docs-nav-link" href="../changelog.html">Changelog</a></div></div><div class="docs-lang"><a href="../../">EN</a><a href="../ko/">한국어</a><a class="active" href="../">中文</a></div><div class="docs-nav-footer"><a href="https://github.com/lidge-jun/cli-jaw">GitHub</a><a href="../../../">Landing Page</a></div></nav><main class="docs-main">
 <h1>事件</h1>
-<p class="lead">CLI-JAW 使用 WebSocket 进行实时更新，使用 NDJSON 进行流式 AI 响应。</p>
-<h2>WebSocket 连接</h2>
-<pre><code>ws://localhost:3457/ws</code></pre>
-<p>WebSocket 连接实时接收所有服务器事件。</p>
+<p class="lead">CLI-JAW 的浏览器 UI 默认使用 SSE 作为实时通道。Agent 响应通过 provider NDJSON 流传输，执行历史写入 trace 文件。</p>
+<h2>SSE 连接</h2>
+<pre><code>GET /api/events
+Accept: text/event-stream
+Last-Event-ID: &lt;last-seen-id&gt;</code></pre>
+<p><code>/api/events</code> 会在连接后重放 backlog，然后按顺序推送服务器事件。WebSocket 是旧版/辅助路径，新 UI 优先使用 SSE。</p>
 <h2>主要事件</h2>
-<table><tr><th>事件</th><th>载荷</th><th>描述</th></tr>
-<tr><td><code>message</code></td><td><code>{role, content}</code></td><td>聊天消息（用户或助手）</td></tr>
-<tr><td><code>tool_use</code></td><td><code>{name, input}</code></td><td>AI 工具调用</td></tr>
-<tr><td><code>thinking</code></td><td><code>{content}</code></td><td>扩展思考块</td></tr>
-<tr><td><code>status</code></td><td><code>{state}</code></td><td>Agent 状态变更</td></tr>
-<tr><td><code>error</code></td><td><code>{message}</code></td><td>错误通知</td></tr>
+<table><tr><th>事件</th><th>载荷</th><th>说明</th></tr>
+<tr><td><code>message</code></td><td><code>{id, role, content}</code></td><td>已保存的聊天消息</td></tr>
+<tr><td><code>agent_tool</code></td><td><code>{traceId, name, input}</code></td><td>Agent 工具调用</td></tr>
+<tr><td><code>agent_output</code></td><td><code>{traceId, content}</code></td><td>Agent 文本输出片段</td></tr>
+<tr><td><code>agent_done</code></td><td><code>{traceId, status}</code></td><td>Agent 执行结束</td></tr>
+<tr><td><code>queue_update</code></td><td><code>{pending, active}</code></td><td>消息队列状态</td></tr>
+<tr><td><code>orc_state</code></td><td><code>{phase, status}</code></td><td>PABCD 编排状态</td></tr>
 <tr><td><code>steer_started</code></td><td><code>{prompt}</code></td><td>Steer 提示注入</td></tr>
-<tr><td><code>goal_done</code></td><td><code>{goalId}</code></td><td>目标已完成</td></tr>
-<tr><td><code>goal_cancel</code></td><td><code>{goalId}</code></td><td>目标已取消</td></tr></table>
-<h2>NDJSON 流</h2>
-<p>聊天响应以换行符分隔的 JSON 格式进行流式传输：</p>
-<pre><code>POST /api/chat
-Content-Type: application/json
+<tr><td><code>goal_done</code></td><td><code>{goalId}</code></td><td>目标完成</td></tr>
+<tr><td><code>goal_done_rejected</code></td><td><code>{reason}</code></td><td>目标完成请求被拒绝</td></tr>
+<tr><td><code>goal_pause_detected</code></td><td><code>{reason}</code></td><td>检测到目标暂停</td></tr>
+<tr><td><code>session_switched</code></td><td><code>{sessionId}</code></td><td>活动会话切换</td></tr>
+<tr><td><code>agent:claude-e:*</code></td><td><code>{event}</code></td><td>Claude employee 运行时事件命名空间</td></tr></table>
+<h2>Provider NDJSON 流</h2>
+<p>消息发送和命令执行由 REST 请求启动，provider 输出以换行分隔的 JSON 事件流返回。</p>
+<pre><code>POST /api/message
+POST /api/command
 
-{"message": "Hello"}
-
-Response (streaming):
 {"type":"thinking","content":"..."}
 {"type":"text","content":"Hello! "}
-{"type":"text","content":"How can I help?"}
-{"type":"done"}</code></pre>
+{"type":"tool","name":"Bash","input":{...}}
+{"type":"done","status":"ok"}</code></pre>
 <h2>Trace 文件</h2>
-<p>会话 trace 以 NDJSON 文件格式保存到 <code>~/.cli-jaw/traces/</code>。每一行是一个带时间戳的事件。</p>
+<p>会话 trace 以 NDJSON 文件格式保存到 <code>~/.cli-jaw/traces/</code>。每一行都是带时间戳和 trace ID 的事件。</p>
 <div class="page-nav"><a class="prev" href="keyboard.html">Keyboard Shortcuts</a><a class="next" href="../changelog.html">Changelog</a></div>
 </main></div></body></html>

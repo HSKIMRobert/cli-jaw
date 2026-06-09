@@ -35,7 +35,6 @@
   <div class="docs-nav">
     <div class="docs-nav-section">
       <div class="docs-nav-title">Getting Started</div>
-  <div class="docs-search"><input class="docs-search-input" type="text" placeholder="Search docs..."></div>
       <a class="docs-nav-link" href="../">Overview</a>
       <a class="docs-nav-link" href="../quickstart.html">Quickstart</a>
       <a class="docs-nav-link" href="../quickstart-first-run.html">First Run</a>
@@ -109,7 +108,7 @@
 <main class="docs-main">
 
 <h1>Root CLI Subcommands</h1>
-<p class="lead">The <code>jaw</code> binary exposes 21 subcommands for server lifecycle, setup, orchestration, automation, and service management. These run directly from the terminal -- separate from the in-chat slash commands described in other command pages.</p>
+<p class="lead">The <code>jaw</code> binary exposes 26 root router cases plus grouped surfaces such as chat search, browser web-ai, dashboard memory/chat search, connector board, reminders, project, goal, task, and lock commands. These run directly from the terminal -- separate from the in-chat slash commands described in other command pages.</p>
 
 <div class="callout callout-info">
   <strong>Global flags:</strong> Every subcommand accepts <code>--help</code> / <code>-h</code> for its own help text. Use <code>--home &lt;path&gt;</code> before any subcommand to target a different data directory (default: <code>~/.cli-jaw</code>). Machine-readable JSON output is available on most commands via <code>--json</code>.
@@ -119,6 +118,15 @@
 jaw --home &lt;path&gt; &lt;command&gt;
 jaw --version
 jaw --help</code></pre>
+
+<h2>Current Root Surfaces</h2>
+<pre><code>jaw serve | init | doctor | status | reset
+jaw chat | chat search | dispatch | dispatch --watch | employee | worker
+jaw orchestrate | goal | task | project | lock | unlock | history
+jaw memory | dashboard memory | dashboard chat search
+jaw browser | browser web-ai | skill | mcp
+jaw connector board | reminders
+jaw launchd | service | clone</code></pre>
 
 <h2>Table of Contents</h2>
 <div class="toc-grid">
@@ -1018,5 +1026,6 @@ jaw launchd cleanup</code></pre>
 </div>
 </main>
 </div>
+<script src="../_search.js"></script>
 </body>
 </html>

@@ -2,12 +2,12 @@
 
 # CLI-JAW
 
-### 你的个人 AI 助手。2 行安装。11 个 AI 运行时，一个仪表盘。
+### 你的个人 AI 助手。2 行安装。13 个 AI 运行时入口，一个仪表盘。
 
 [![npm](https://img.shields.io/npm/v/cli-jaw)](https://npmjs.com/package/cli-jaw)
-[![Version](https://img.shields.io/badge/v2.0.0-GA-brightgreen)](https://github.com/lidge-jun/cli-jaw/releases)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)](https://typescriptlang.org)
-[![Node](https://img.shields.io/badge/node-%3E%3D22-blue)](https://nodejs.org)
+[![Version](https://img.shields.io/badge/v2.1.3-GA-brightgreen)](https://github.com/lidge-jun/cli-jaw/releases)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue)](https://typescriptlang.org)
+[![Node](https://img.shields.io/badge/node-%3E%3D22.4-blue)](https://nodejs.org)
 [![License](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-supported-2496ED?logo=docker&logoColor=white)](#docker)
 
@@ -31,12 +31,12 @@ Windows 用户应使用下方的 WSL 安装路径。原生 PowerShell 不是 CLI
 </details>
 
 ```bash
-# macOS / Linux / WSL，已安装 Node.js 22+
+# macOS / Linux / WSL，已安装 Node.js 22.4+
 npm install -g cli-jaw
 jaw dashboard
 ```
 
-完成。打开 **http://localhost:3457** 即可拥有你的个人 AI 助手。需要 [Node.js 22+](https://nodejs.org)。
+完成。打开 **http://localhost:3457** 即可拥有你的个人 AI 助手。需要 [Node.js 22.4+](https://nodejs.org)。
 
 > **第一次用？** 默认 npm 安装会初始化 CLI-JAW，并尝试配置原生 Claude。其他 AI CLI 是可选项；在 macOS/Linux 上如需安装全部工具，可运行 `CLI_JAW_INSTALL_CLI_TOOLS=1 npm install -g cli-jaw`。Windows 请使用下方 WSL 安装路径。
 
@@ -104,6 +104,20 @@ CLI-JAW 是一个开源平台，将你已经在用的 AI 编码 CLI — Pi、Ant
 
 </div>
 
+### 桌面应用
+
+如果你更喜欢原生窗口而不是浏览器标签页，CLI-JAW 提供 **Electron 桌面壳**。桌面应用会启动 manager dashboard，并管理底层的 `jaw dashboard serve` 进程。打包版包含 Node.js sidecar 服务器，因此会优先使用应用内 bundled `jaw` shim，再回退到全局终端安装。
+
+```bash
+# 在仓库根目录执行一次
+npm install && npm --prefix electron install
+
+npm run electron:dev          # hot reload 开发
+npm run electron:dist:mac     # 构建包含 bundled sidecar 的 macOS arm64 .dmg + .zip
+```
+
+打包产物位于 `electron/dist/`。GitHub Actions desktop release workflow 会在 release publish 或 manual dispatch 时构建 macOS arm64 DMG/ZIP、Windows x64 NSIS/ZIP 和 Linux AppImage artifacts。`better-sqlite3` 等原生模块保留在 manager/sidecar server 中；Electron main process 不直接 import 它们。当前构建仍是 **unsigned / un-notarized**，macOS 首次启动时需要在 Gatekeeper 中右键 → **Open**。
+
 ---
 
 ## 认证
@@ -114,6 +128,7 @@ CLI-JAW 是一个开源平台，将你已经在用的 AI 编码 CLI — Pi、Ant
 # 免费选项（无需信用卡）
 copilot login        # GitHub Copilot（有免费层）
 opencode             # OpenCode — 有免费模型
+kiro                 # AWS Kiro（AWS 账户免费层）
 
 # 付费（你已经在付的月订阅）
 claude auth login    # Anthropic Claude Pro 或更高
@@ -139,7 +154,7 @@ grok login --oauth   # xAI Grok / Grok Heavy
  ✅ OpenCode CLI    installed
  ✅ Copilot CLI     installed
  ✅ Database        jaw.db OK
- ✅ Skills          32 active, 194 reference
+ ✅ Skills          29 active, 238 reference
  ✅ MCP（插件）      3 servers configured
  ✅ Memory          structured/ exists
  ✅ Server          port 3457 available
@@ -254,11 +269,12 @@ jaw dispatch --agent "Frontend" --task "修复 dashboard.tsx 中的 CSS grid 布
 | **Antigravity** | AGY-selected | 由 `agy` 在运行时检查 | 支持 `--conversation` resume 的实验性 AGY print-mode runtime；模型切换保留在 native AGY UI |
 | **Codex** | `gpt-5.5` | `codex login` | ChatGPT Pro 或更高订阅 |
 | **Codex App** | `gpt-5.5` | `codex login` | ChatGPT Pro 或更高订阅 |
-| **Cursor** | `composer-2.5-fast` | `cursor-agent login` 或 `CURSOR_API_KEY` | Cursor 订阅；quota 为 auth/status-only |
-| **Gemini** | `gemini-3.1-pro-preview` | `gemini` | Gemini Advanced 订阅 |
+| **Cursor** | `composer-2.5` | `cursor-agent login` 或 `CURSOR_API_KEY` | Cursor 订阅；quota 为 auth/status-only |
+| **Gemini** | `gemini-3-flash-preview` | `gemini` | Gemini Advanced 订阅 |
 | **Grok** | `grok-build` | `grok login --oauth` | Grok 订阅；配额仅限认证/状态 |
-| **OpenCode** | `minimax-m2.7` | `opencode` | 有免费模型 |
-| **Copilot** | `gpt-5-mini` | `copilot login` | 有免费层 |
+| **Kiro** | registry-selected | `kiro` | AWS Kiro 免费层 |
+| **OpenCode** | `opencode-go/kimi-k2.6` | `opencode` | 有免费模型 |
+| **Copilot** | `claude-sonnet-4.6` | `copilot login` | 有免费层 |
 
 GPT 5.5 和 Claude Opus 4.8 从 Pro 订阅及以上开放。自 6 月起，如果要使用订阅计划赠送的 Claude 用量，请选择 `claude-e` runtime。
 
@@ -313,7 +329,7 @@ jaw memory search "我们是怎么设置 API 认证的？"
 
 ## 技能
 
-230+ 技能覆盖开发工作流、办公文档、自动化和媒体。
+200+ 参考技能和活跃运行时技能覆盖开发工作流、办公文档、自动化和媒体。
 
 | 分类 | 技能 | 覆盖范围 |
 |---|---|---|
@@ -382,7 +398,7 @@ Computer Use 让你用自然语言控制任何 macOS 应用——Finder、Safari
 
 ```bash
 jaw mcp install @anthropic/context7
-# → 同步到 Claude、Codex、Gemini、OpenCode、Copilot、Antigravity 的配置文件
+# → 同步到 Claude、Codex、Gemini、Kiro、OpenCode、Copilot、Antigravity 的配置文件
 ```
 
 不用再分别编辑多个 JSON 文件。安装一次，每个 MCP 感知引擎都会获得配置。Grok CLI 是标准运行时，但在 Grok 暴露兼容配置面之前不计为 MCP 同步对象。Antigravity MCP 同步是独立的 config target，不等同于 `agy` runtime registry entry。
@@ -400,16 +416,23 @@ jaw mcp sync       # 手动编辑后重新同步
 jaw dashboard                     # 启动管理仪表盘
 jaw serve                         # 启动服务器（http://localhost:3457）
 jaw chat                          # 终端聊天 UI
-jaw doctor                        # 12 项诊断
+jaw chat search "query"           # 搜索聊天历史
+jaw doctor                        # 安装和运行时诊断
 
 # 实例
 jaw clone ~/project               # 克隆实例到新目录
 jaw --home ~/project serve --port 3458  # 运行第二个实例
 jaw service install               # 开机自启
+jaw project set ~/repo            # 为 review/orchestration 设置 projectDirs
+jaw lock                          # 保护当前实例不被 stop-all 流程停止
 
 # AI 和编排
 jaw dispatch --agent "Backend" --task "..."  # 分派员工
+jaw dispatch --agent "Backend" --task "..." --watch  # 分派并流式查看安全进度
+jaw worker status Backend            # 查看当前/上一轮员工进度
 jaw orchestrate                   # 进入/控制 PABCD 工作流
+jaw goal status                   # 持久 goal 生命周期
+jaw task list                     # 代理原生任务清单
 
 # 技能和 MCP
 jaw skill install <name>          # 激活技能
@@ -426,6 +449,13 @@ jaw browser start                 # 启动 Chrome 自动化
 jaw browser fetch "https://example.com" --json --trace  # 自适应 URL 读取
 jaw browser snapshot              # 捕获页面状态
 jaw browser vision-click "Login"  # AI 驱动的点击
+jaw browser web-ai status         # ChatGPT/Gemini/Grok web-AI 会话工具
+
+# 仪表盘连接器
+jaw dashboard memory search "query"  # 只读跨实例记忆搜索
+jaw dashboard chat search "query"    # 跨实例聊天搜索
+jaw connector board add --title "Fix docs"
+jaw reminders add "Follow up tomorrow"
 
 # 维护
 jaw reset                         # 完全重置
@@ -450,9 +480,11 @@ jaw --home ~/my-project serve --port 3458
 
 ```bash
 npm run build          # tsc → dist/
+npm run build:frontend # vite → public/dist/
 npm run dev            # tsx server.ts（热重载）
 npm test               # Node.js 原生测试运行器
-npm run gate:all       # 发布/文档一致性门禁
+npm run gate:all       # 命名 release/docs parity gates
+bash structure/check-doc-drift.sh
 ```
 
 架构详情：[ARCHITECTURE.md](docs/ARCHITECTURE.md) · 测试覆盖：[TESTS.md](TESTS.md) · 内部结构文档：[structure/](structure/)
@@ -461,7 +493,7 @@ npm run gate:all       # 发布/文档一致性门禁
 
 ## 对比
 
-| | CLI-JAW 2.0 | Hermes Agent | Claude Code |
+| | CLI-JAW 2.x | Hermes Agent | Claude Code |
 |---|---|---|---|
 | **模型接入** | Pi、Antigravity、AI-E、Claude、Claude E、Codex、Codex App、Cursor、Gemini、Grok、Kiro、OpenCode 和 Copilot（通过厂商/原生认证） | API 密钥（OpenRouter 200+、Nous Portal） | 仅 Anthropic |
 | **费用模型** | 你已经在付的月订阅 | 按 token API 计费 | Anthropic 订阅 |
@@ -472,7 +504,7 @@ npm run gate:all       # 发布/文档一致性门禁
 | **多代理** | 员工系统（分派其他 CLI）+ PABCD | 子代理生成 | Task 工具 |
 | **浏览器自动化** | Chrome DevTools + vision-click + Computer Use | 有限 | 通过 MCP |
 | **运行环境** | 本地 + Docker | 本地/Docker/SSH/Daytona/Modal | 本地 |
-| **技能** | 230+ 内置 | 自动创建 + agentskills.io | 用户配置 |
+| **技能** | 200+ 参考技能 + 活跃运行时技能 | 自动创建 + agentskills.io | 用户配置 |
 | **多语言** | 英语、韩语、中文、日语 | 英语 | 英语 |
 
 ---
@@ -482,7 +514,7 @@ npm run gate:all       # 发布/文档一致性门禁
 | 问题 | 解决办法 |
 |---|---|
 | `cli-jaw: command not found` | 重新运行 `npm install -g cli-jaw`。macOS/Linux/WSL：检查 `~/.local/bin` 或 `npm prefix -g` + `/bin` 是否在 `$PATH` 中。从 Windows PowerShell 运行时，请通过 WSL login shell：`wsl.exe -d Ubuntu -- bash -lc "jaw dashboard"` |
-| `Error: node version` | 升级到 Node.js 22+：`nvm install 22` |
+| `Error: node version` | 升级到 Node.js 22.4+：`nvm install 22` |
 | `NODE_MODULE_VERSION` mismatch | `npm run ensure:native`（自动重编译原生模块） |
 | `EADDRINUSE: port 3457` | 另一个实例正在运行。使用 `--port 3458` 或先停止 |
 | Telegram / Discord 认证失败 | 运行 `jaw doctor`，检查 token，重启 `jaw serve` |

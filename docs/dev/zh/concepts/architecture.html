@@ -53,7 +53,7 @@
     </div>
   </div>
   <div class="docs-lang">
-    <a href="../../dev/">EN</a>
+    <a href="../../">EN</a>
     <a href="../ko/">한국어</a>
     <a class="active" href="../">中文</a>
   </div>
@@ -65,38 +65,32 @@
 <main class="docs-main">
 
 <h1>架构</h1>
-<p class="lead">CLI-JAW 是一个 Node.js 服务器，包含 15 个路由模块中的 141 个 API 端点。四个接口（CLI、Web、Telegram、Discord）通过一个中央服务器连接，该服务器将请求分发到代理、编排、记忆和浏览器子系统。</p>
+<p class="lead">CLI-JAW 是一个基于 Node.js 22 的多 AI 运行时服务器。根处理器和 194 个 API/媒体端点为 CLI、TUI、Web PWA、Electron 桌面、Telegram、Discord 和 Manager Dashboard 提供同一套会话、记忆和项目上下文。</p>
 
 <h2>系统概览</h2>
-<p>所有四个接口都通过 <code>server.ts</code> 传入，它处理认证、安全、WebSocket 和启动引导，然后委托给 <code>src/routes/</code> 中的路由模块。</p>
-<pre><code>CLI (bin/commands/*)  ──HTTP──→  server.ts (glue)
-Web (public/)         ──HTTP+WS→      │
-Telegram Bot          ──HTTP──→       │
-Discord Bot           ──HTTP──→       │
-                                      ↓
-Dashboard (port 24576) ─scan/proxy→ src/manager/
-                                      │
-                        src/routes/* ──┤──→ src/core/
-                                      ├──→ src/agent/
-                                      ├──→ src/orchestrator/
-                                      ├──→ src/prompt/
-                                      ├──→ src/memory/
-                                      ├──→ src/messaging/
-                                      ├──→ src/telegram/
-                                      ├──→ src/discord/
-                                      └──→ src/browser/</code></pre>
+<p>所有运行表面都经过 <code>server.ts</code>。服务器处理认证、安全、SSE 事件和启动引导，然后委托给 <code>src/routes/</code> 与核心子系统。</p>
+<pre><code>CLI/TUI/Electron/Web/Telegram/Discord ──HTTP──→ server.ts
+Web events                             ──SSE──→ GET /api/events
+Dashboard (port 24576)                 ─proxy→ src/manager/
+Agent streams                          ─NDJSON→ provider runtime + traces
 
-<h2>四个接口</h2>
+server.ts ──→ src/routes/* ──→ src/core/ | src/agent/ | src/orchestrator/
+                         └──→ src/memory/ | src/messaging/ | src/browser/</code></pre>
+
+<h2>运行表面</h2>
 <table>
-<tr><th>接口</th><th>入口</th><th>传输方式</th></tr>
+<tr><th>表面</th><th>入口</th><th>传输方式</th></tr>
 <tr><td><strong>CLI</strong></td><td><code>bin/cli-jaw.ts</code> + <code>bin/commands/*.ts</code></td><td>HTTP 到服务器</td></tr>
-<tr><td><strong>Web UI</strong></td><td><code>public/index.html</code></td><td>HTTP + WebSocket</td></tr>
+<tr><td><strong>Terminal TUI</strong></td><td><code>src/tui/</code></td><td>终端渲染 + 服务器命令</td></tr>
+<tr><td><strong>Web UI</strong></td><td><code>public/index.html</code></td><td>HTTP + SSE</td></tr>
+<tr><td><strong>Electron Desktop</strong></td><td><code>electron/src/</code></td><td>打包 sidecar 服务器 + WebView</td></tr>
 <tr><td><strong>Telegram</strong></td><td><code>src/telegram/bot.ts</code></td><td>Grammy bot 轮询</td></tr>
 <tr><td><strong>Discord</strong></td><td><code>src/discord/bot.ts</code></td><td>discord.js 网关</td></tr>
+<tr><td><strong>Manager Dashboard</strong></td><td><code>src/manager/</code> + <code>public/manager/</code></td><td>独立端口扫描、代理、实例管理</td></tr>
 </table>
 
 <h2>路由模块</h2>
-<p>服务器注册了 15 个路由模块。每个模块都是一个独立的注册函数，接收 Express 应用和认证中间件。</p>
+<p>服务器合计注册 195 个根处理器和路由处理器。每个模块都是一个独立的注册函数，接收 Express 应用和认证中间件。</p>
 <table>
 <tr><th>模块</th><th>路由数</th><th>职责</th></tr>
 <tr><td><code>server.ts</code>（基础）</td><td>14</td><td>健康检查、会话、消息、认证、命令、停止、清除</td></tr>
@@ -118,12 +112,12 @@ Dashboard (port 24576) ─scan/proxy→ src/manager/
 
 <h2>文件树概览</h2>
 <pre><code>cli-jaw/
-├── bin/                    # CLI entry + 23 command files
+├── bin/                    # CLI entry + 30 command files
 │   ├── cli-jaw.ts          # Root CLI router
 │   └── commands/           # serve, init, doctor, chat, browser, ...
-├── server.ts               # Express/WS bootstrap (882L)
+├── server.ts               # Express/SSE bootstrap (654L)
 ├── src/
-│   ├── core/               # 21 files — config, DB, bus, i18n, employees
+│   ├── core/               # 30 files — config, DB, bus, i18n, employees
 │   ├── agent/              # 37 files — spawn, events, lifecycle, ACP
 │   ├── orchestrator/       # 10 files — PABCD pipeline, state machine
 │   ├── prompt/             # builder + templates
@@ -133,15 +127,16 @@ Dashboard (port 24576) ─scan/proxy→ src/manager/
 │   ├── telegram/           # Telegram bot transport
 │   ├── discord/            # Discord bot transport
 │   ├── browser/            # CDP control + web-ai automation
-│   ├── routes/             # 15 route registrars
-│   ├── manager/            # Dashboard server (77 TS/TSX files)
+│   ├── routes/             # 32 route registrars
+│   ├── manager/            # Dashboard server
 │   ├── security/           # Path guards, input validation
 │   └── shared/             # Tool-log sanitization
 ├── public/                 # Web UI (Vanilla TS + Vite 8)
-│   ├── js/                 # 80 TypeScript modules
+│   ├── js/                 # 86 TypeScript modules
 │   ├── css/                # 11 CSS files
-│   ├── manager/            # React 19 dashboard app (286 files)
+│   ├── manager/            # React 19 dashboard app
 │   └── dist/               # Build output
+├── electron/               # Electron desktop shell + packaged sidecar
 ├── native/                 # jaw-claude-i Rust helper
 │   └── jaw-claude-i/       # 15 Rust source files
 └── tests/                  # 447 test files</code></pre>
@@ -153,7 +148,7 @@ Dashboard (port 24576) ─scan/proxy→ src/manager/
 <tr><td>编排器</td><td><code>src/orchestrator/</code></td><td>PABCD 状态机、员工调度、工作者监控</td></tr>
 <tr><td>记忆</td><td><code>src/memory/</code></td><td>三层记忆（结构化/情景/语义）、FTS5 索引、刷新、反思</td></tr>
 <tr><td>提示词构建器</td><td><code>src/prompt/</code></td><td>9 步提示词管道：A1、A2、记忆、编排、心跳、技能、委派</td></tr>
-<tr><td>浏览器</td><td><code>src/browser/</code></td><td>Chrome CDP 控制、视觉点击、标签页生命周期、web-ai 自动化</td></tr>
+<tr><td>浏览器</td><td><code>src/browser/</code></td><td>Chrome CDP 控制、标签页生命周期、Web AI 自动化、provider 适配器</td></tr>
 <tr><td>消息传递</td><td><code>src/messaging/</code></td><td>共享 Telegram/Discord 频道路由、目标追踪</td></tr>
 </table>
 
