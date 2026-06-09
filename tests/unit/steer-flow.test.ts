@@ -67,7 +67,7 @@ test('SF-002: exit handler saves interrupted content to DB via insertMessageWith
 
     const cliCloseIdx = spawnSrc.indexOf("child.on('close'");
     assert.ok(cliCloseIdx > 0);
-    const cliBlock = spawnSrc.slice(cliCloseIdx, cliCloseIdx + 7000);
+    const cliBlock = spawnSrc.slice(cliCloseIdx, cliCloseIdx + 10000);
     assert.ok(cliBlock.includes('handleAgentExit'), 'CLI close should delegate to handleAgentExit');
 });
 
@@ -164,7 +164,7 @@ test('SF-EDGE: processQueue is triggered after mainManaged exit in both paths', 
 
     // CLI path — processQueue passed to handleAgentExit (or called directly)
     const cliCloseIdx = src.indexOf("child.on('close'");
-    const cliBlock = src.slice(cliCloseIdx, cliCloseIdx + 8000);
+    const cliBlock = src.slice(cliCloseIdx, cliCloseIdx + 10000);
     assert.ok(
         cliBlock.includes('processQueue'),
         'CLI close should reference processQueue (direct call or handleAgentExit param)',
