@@ -58,6 +58,7 @@ import {
     isAgyStaleSessionOutput,
     isAgyTimeoutOutput,
     stripAgyResumeReplayPrefix,
+    stripAgyResumeReplayPrefixes,
     stripAgyTrailingTimeoutOutput,
 } from './agy-runtime.js';
 import { startAgyTranscriptWatcher, type AgyTranscriptWatcherHandle } from './agy-transcript-watcher.js';
@@ -340,10 +341,21 @@ function clearWorkerSlotsOnStop(reason: string) {
     console.log(`[jaw:stop] cleared worker registry (active=${active}, reason=${reason})`);
 }
 
+function clearMainLiveRunOnStop(reason: string): void {
+    if (reason !== 'api' && reason !== 'user' && reason !== 'steer') return;
+    const scope = currentMainMeta?.scopeId || resolveOrcScope(stripUndefined({
+        origin: currentMainMeta?.origin || 'web',
+        chatId: currentMainMeta?.chatId,
+        workingDir: settings["workingDir"] || null,
+    }));
+    clearLiveRun(scope);
+}
+
 export function killActiveAgent(reason = 'user') {
     const hadTimer = queueCtrl.isRetryPending();
     const cancelledPendingMain = cancelPendingMainSpawn ? (cancelPendingMainSpawn(reason), true) : false;
     clearRetryTimer(false);  // stop 의도: 큐 재개 안 함
+    clearMainLiveRunOnStop(reason);
     // Fix A: 사용자 stop은 큐도 폐기. steer/internal kill은 큐 보존.
     // Fix C2: worker registry 도 비워서 hasBlockingWorkers/hasPendingWorkerReplays가 즉시 false.
     if (reason === 'api' || reason === 'user') {
@@ -389,6 +401,7 @@ export function killAllAgents(reason = 'user') {
     const hadTimer = queueCtrl.isRetryPending();
     const cancelledPendingMain = cancelPendingMainSpawn ? (cancelPendingMainSpawn(reason), true) : false;
     clearRetryTimer(false);  // stop 의도: 큐 재개 안 함
+    clearMainLiveRunOnStop(reason);
     // Fix A: 사용자 stop은 큐도 폐기. Fix C2: worker 슬롯도 비움.
     if (reason === 'api' || reason === 'user') {
         queueCtrl.purgeQueueOnStop(reason);
@@ -570,6 +583,13 @@ function getLatestAssistantContentForAgyResume(workingDir?: string | null): stri
     const rows = getRecentMessages.all(workingDir || null, getActiveChatSession(), 12) as RecentMessageRow[];
     const row = rows.find((msg) => msg.role === 'assistant' && typeof msg.content === 'string' && msg.content.trim().length > 0);
     return row?.content || null;
+}
+
+function getRecentAssistantContentsForAgyResume(workingDir?: string | null): string[] {
+    const rows = getRecentMessages.all(workingDir || null, getActiveChatSession(), 20) as RecentMessageRow[];
+    return rows
+        .filter((msg) => msg.role === 'assistant' && typeof msg.content === 'string' && msg.content.trim().length > 0)
+        .map((msg) => String(msg.content || '').trim());
 }
 
 import { buildArgs, buildResumeArgs, formatAgyPrintTimeout, resolveAiEProvider, resolveSessionBucket } from './args.js';
@@ -874,6 +894,9 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     const agyResumeReplayPrefix = cli === 'agy' && isResume
         ? getLatestAssistantContentForAgyResume(settings["workingDir"])
         : null;
+    const agyResumeReplayPrefixes = cli === 'agy' && isResume
+        ? getRecentAssistantContentsForAgyResume(settings["workingDir"])
+        : [];
     const claudeBin = (cli === 'claude-e' || (cli === 'ai-e' && effectiveProvider === 'claude'))
         ? detectCli('claude').path
         : null;
@@ -2062,9 +2085,20 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 scheduleAgyQuietCompletion();
                 return;
             }
-            const displayText = normalizeAssistantDisplayText(text);
-            if (ctx.liveOutputText !== undefined) ctx.liveOutputText += displayText;
-            ctx.outputTextStarted = true;
+            const visibleFullText = isResume
+                ? stripAgyResumeReplayPrefixes(ctx.fullText, agyResumeReplayPrefixes).text
+                : ctx.fullText;
+            const displayFullText = normalizeAssistantDisplayText(visibleFullText);
+            const previousDisplayText = ctx.liveOutputText ?? '';
+            const displayText = displayFullText.startsWith(previousDisplayText)
+                ? displayFullText.slice(previousDisplayText.length)
+                : displayFullText;
+            if (ctx.liveOutputText !== undefined) ctx.liveOutputText = displayFullText;
+            ctx.outputTextStarted = Boolean(displayFullText.trim());
+            if (!displayText) {
+                scheduleAgyQuietCompletion();
+                return;
+            }
             if (ctx.liveScope) appendLiveRunText(ctx.liveScope, displayText);
             broadcast('agent_output', {
                 agentId: agentLabel,
@@ -2207,6 +2241,15 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             }
         }
         if (cli === 'agy') {
+            if (isResume && agyResumeReplayPrefixes.length > 0) {
+                const strippedReplays = stripAgyResumeReplayPrefixes(ctx.fullText, agyResumeReplayPrefixes);
+                if (strippedReplays.stripped) {
+                    ctx.fullText = strippedReplays.text;
+                    if (ctx.liveOutputText !== undefined) {
+                        ctx.liveOutputText = stripAgyResumeReplayPrefixes(ctx.liveOutputText, agyResumeReplayPrefixes).text;
+                    }
+                }
+            }
             if (isResume && agyResumeReplayPrefix) {
                 const strippedReplay = stripAgyResumeReplayPrefix(ctx.fullText, agyResumeReplayPrefix);
                 if (strippedReplay.stripped) {

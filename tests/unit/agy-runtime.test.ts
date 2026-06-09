@@ -14,6 +14,7 @@ import {
     isAgyTimeoutOutput,
     shouldCompleteAgyPrintRun,
     stripAgyResumeReplayPrefix,
+    stripAgyResumeReplayPrefixes,
     stripAgyTrailingTimeoutOutput,
 } from '../../src/agent/agy-runtime.ts';
 
@@ -176,6 +177,26 @@ test('AGY-RT-013: AGY resume replay prefix is stripped only when new output rema
     const spawnSrc = readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
     assert.match(spawnSrc, /getLatestAssistantContentForAgyResume/);
     assert.match(spawnSrc, /stripAgyResumeReplayPrefix\(ctx\.fullText,\s*agyResumeReplayPrefix\)/);
+});
+
+test('AGY-RT-013b: AGY resume strips multi-turn replay before live quiet completion', () => {
+    assert.deepEqual(
+        stripAgyResumeReplayPrefixes('OLD_0\nOLD_1\nNEW_2', ['OLD_1', 'OLD_0']),
+        { text: 'NEW_2', stripped: true, replayOnly: false },
+    );
+    assert.deepEqual(
+        stripAgyResumeReplayPrefixes('OLD_0\nOLD_1', ['OLD_1', 'OLD_0']),
+        { text: '', stripped: true, replayOnly: true },
+    );
+    assert.deepEqual(
+        stripAgyResumeReplayPrefixes('NEW_2', ['OLD_1', 'OLD_0']),
+        { text: 'NEW_2', stripped: false, replayOnly: false },
+    );
+    const spawnSrc = readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
+    assert.match(spawnSrc, /getRecentAssistantContentsForAgyResume/);
+    assert.match(spawnSrc, /stripAgyResumeReplayPrefixes\(ctx\.fullText,\s*agyResumeReplayPrefixes\)/);
+    assert.match(spawnSrc, /ctx\.liveOutputText\s*=\s*displayFullText/);
+    assert.match(spawnSrc, /ctx\.outputTextStarted\s*=\s*Boolean\(displayFullText\.trim\(\)\)/);
 });
 
 test('AGY-RT-014: AGY interim progress output does not trigger quiet completion', () => {

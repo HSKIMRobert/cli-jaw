@@ -36,6 +36,25 @@ export function stripAgyResumeReplayPrefix(text: string, previousAssistantText: 
     return { text: rest, stripped: true };
 }
 
+export function stripAgyResumeReplayPrefixes(text: string, previousAssistantTexts: readonly string[]): { text: string; stripped: boolean; replayOnly: boolean } {
+    let current = String(text || '');
+    let stripped = false;
+    const prefixes = [...previousAssistantTexts]
+        .map(value => String(value || '').trim())
+        .filter(Boolean);
+    for (let pass = 0; pass < prefixes.length + 1; pass++) {
+        let changed = false;
+        for (const previous of [...prefixes].reverse()) {
+            if (!current.startsWith(previous)) continue;
+            current = current.slice(previous.length).replace(/^\s+/, '');
+            stripped = true;
+            changed = true;
+        }
+        if (!changed) break;
+    }
+    return { text: current, stripped, replayOnly: stripped && !current.trim() };
+}
+
 export function isAgyInterimProgressOutput(text: string): boolean {
     const value = String(text || '').trim();
     if (!value || value.length > 1_000) return false;
