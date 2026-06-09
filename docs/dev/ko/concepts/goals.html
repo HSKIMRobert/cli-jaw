@@ -53,7 +53,7 @@
     </div>
   </div>
   <div class="docs-lang">
-    <a href="../../dev/">EN</a>
+    <a href="../../">EN</a>
     <a class="active" href="../">한국어</a>
     <a href="../zh/">中文</a>
   </div>
@@ -122,8 +122,8 @@ jaw goal reset</code></pre>
 <tr><td>POST</td><td><code>/api/goal-run</code></td><td>Goal 실행을 시작, 일시 중지, 재개 또는 중지합니다</td></tr>
 </table>
 
-<h2>WebSocket 이벤트</h2>
-<p>Goal 생명주기 변경 시 Web UI가 소비하는 WebSocket 이벤트가 발생합니다:</p>
+<h2>실시간 이벤트</h2>
+<p>Goal 생명주기 변경 시 Web UI가 소비하는 SSE-first 이벤트가 발생합니다. 레거시 서버에서는 WebSocket fallback을 사용할 수 있습니다:</p>
 <ul>
 <li><code>goal_done</code> -- Goal 완료</li>
 <li><code>goal_cancel</code> -- Goal 취소</li>

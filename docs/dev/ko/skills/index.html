@@ -127,7 +127,7 @@ tr.hidden-row { display: none; }
 <main class="docs-main">
 
 <h1>스킬 카탈로그</h1>
-<p class="lead">CLI-JAW는 11개 카테고리에 걸쳐 118개의 스킬을 제공합니다. 25개의 스킬은 기본적으로 활성화되어 시스템 프롬프트에 주입되며, 나머지 93개는 <code>jaw skill install</code>을 통해 필요시 사용할 수 있는 레퍼런스 스킬입니다.</p>
+<p class="lead">CLI-JAW는 활성 런타임 스킬과 200개 이상의 참조 스킬을 제공합니다. 이 페이지는 GitHub Pages에 게시된 대표 카탈로그이며, 실제 사용 가능한 스킬은 <code>jaw skill list</code>와 <code>skills_ref/</code> 기준으로 확인하세요.</p>
 
 <div class="callout callout-info">
   <strong>자연어 사용:</strong> "스킬 목록 보여줘", "cloudflare 스킬 설치해줘", "프론트엔드 스킬 켜줘" -- 이 모든 표현이 채팅에서 동작합니다. 슬래시 커맨드 버전은 <code>/skill list</code>를 사용하세요.
@@ -205,7 +205,7 @@ tr.hidden-row { display: none; }
     <option value="ref">레퍼런스만</option>
   </select>
 </div>
-<p class="skill-count"><strong id="visibleCount">118</strong> / 118개 스킬 표시 중</p>
+<p class="skill-count"><strong id="visibleCount">118</strong>개 대표 카탈로그 항목 표시 중</p>
 
 <table class="skill-table" id="skillTable">
 <thead>
@@ -333,7 +333,7 @@ tr.hidden-row { display: none; }
 <tr data-cat="System" data-status="ref"><td>&#128187;</td><td>linux-admin</td><td>System</td><td>Linux 시스템 관리: systemd, cron, 사용자, 권한, 네트워킹 및 문제 해결</td><td><span class="badge badge-ref">Reference</span></td></tr>
 <tr data-cat="System" data-status="ref"><td>&#127823;</td><td>macos-admin</td><td>System</td><td>macOS 시스템 관리: defaults, launchd, Homebrew, 디스크 유틸리티 및 자동화</td><td><span class="badge badge-ref">Reference</span></td></tr>
 
-<!-- Additional skills to reach 118 -->
+<!-- Additional representative skills -->
 <tr data-cat="Utility" data-status="ref"><td>&#128295;</td><td>rust</td><td>Utility</td><td>Rust 개발: 소유권, 라이프타임, 비동기, 크레이트 및 시스템 프로그래밍 패턴</td><td><span class="badge badge-ref">Reference</span></td></tr>
 <tr data-cat="Utility" data-status="ref"><td>&#128024;</td><td>php</td><td>Utility</td><td>PHP 개발: Laravel, Composer, PSR 표준 및 최신 PHP 8+ 기능</td><td><span class="badge badge-ref">Reference</span></td></tr>
 <tr data-cat="Utility" data-status="ref"><td>&#9889;</td><td>svelte</td><td>Utility</td><td>Svelte 및 SvelteKit: 컴포넌트, 스토어, SSR, 라우팅 및 어댑터 구성</td><td><span class="badge badge-ref">Reference</span></td></tr>
@@ -456,7 +456,7 @@ jaw skill reset --force</code></pre>
 <tr><td><strong>Smart Home</strong></td><td>0</td><td>10</td><td>10</td><td>Home Assistant, 조명, 냉난방, 잠금장치, 카메라, 스피커, 플러그, 청소기, 날씨, 네트워크</td></tr>
 <tr><td><strong>Utility</strong></td><td>0</td><td>49</td><td>49</td><td>프로그래밍 언어, 프레임워크, 데이터베이스, 인프라 도구 등</td></tr>
 <tr><td><strong>System</strong></td><td>0</td><td>5</td><td>5</td><td>AWS, GCP, Azure, Linux 관리, macOS 관리</td></tr>
-<tr><td colspan="2"><strong>합계</strong></td><td></td><td><strong>118</strong></td><td></td></tr>
+<tr><td colspan="2"><strong>대표 카탈로그</strong></td><td></td><td><strong>118</strong></td><td>전체 참조 스킬은 <code>skills_ref/</code> 기준</td></tr>
 </tbody>
 </table>
 

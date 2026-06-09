@@ -84,7 +84,7 @@
 <tr><td><strong>PABCD 오케스트레이션</strong></td><td>Plan → Audit → Build → Check → Done. 구조화된 개발 워크플로우.</td></tr>
 <tr><td><strong>Jawsidian 노트</strong></td><td>그래프 뷰, 위키링크, 이미지 붙여넣기를 지원하는 내장 마크다운 에디터.</td></tr>
 <tr><td><strong>칸반 보드</strong></td><td>Backlog → Active → Review → Done 레인으로 작업 관리.</td></tr>
-<tr><td><strong>195개 스킬</strong></td><td>도메인 지식 플러그인. AI가 자동으로 찾아서 활성화.</td></tr>
+<tr><td><strong>200+ 참조 스킬</strong></td><td>도메인 지식, 자동화, 오피스, 브라우저, 미디어, 배포 스킬. AI가 필요한 런타임 스킬을 활성화.</td></tr>
 <tr><td><strong>Goal 시스템</strong></td><td>세션 간에도 유지되는 영속적 목표 추적.</td></tr>
 <tr><td><strong>Computer Use</strong></td><td>Codex 직원 연동을 통한 데스크톱 자동화.</td></tr>
 <tr><td><strong>Telegram / Discord</strong></td><td>메시징 앱에서 원격으로 AI 에이전트 제어.</td></tr>
@@ -92,13 +92,12 @@
 </table>
 
 <h2>아키텍처 개요</h2>
-<p>CLI-JAW는 15개 라우트 모듈에 걸쳐 141개 API 엔드포인트를 제공하는 Node.js 서버로 구성됩니다. 4개 인터페이스(CLI, Web, Telegram, Discord)가 서버를 통해 연결됩니다. 전체 시스템 설계는 <a href="concepts/architecture.html">아키텍처</a> 페이지에서 확인하세요.</p>
+<p>CLI-JAW는 루트 핸들러와 194개의 API/미디어 엔드포인트를 포함하는 Node.js 22 서버로 구성됩니다. CLI, 터미널 TUI, Web PWA, Electron 데스크톱, Telegram, Discord, Manager 대시보드가 서버와 공유 SQLite 상태를 통해 연결됩니다. 전체 시스템 설계는 <a href="concepts/architecture.html">아키텍처</a> 페이지에서 확인하세요.</p>
 
-<pre><code>CLI (bin/commands/*) ──→ server.ts ──→ routes/*
-Web (public/)        ──→     ↓       ──→ core/
-Telegram Bot         ──→     ↓       ──→ agent/
-Discord Bot          ──→     ↓       ──→ orchestrator/
-Dashboard (port 24576) ─→ manager/   ──→ memory/</code></pre>
+<pre><code>CLI/TUI/Electron/Web/Telegram/Discord ──→ server.ts ──→ src/routes/*
+Web events                              ──→ GET /api/events (SSE) ──→ event-bus
+Dashboard (port 24576)                  ──→ src/manager/ + public/manager/
+Agent streams                           ──→ NDJSON provider events + trace files</code></pre>
 
 <h2>시작하기</h2>
 <p><a href="quickstart.html">빠른 시작</a> 가이드에서 CLI-JAW를 설치하고 5분 안에 첫 에이전트 세션을 시작하세요.</p>

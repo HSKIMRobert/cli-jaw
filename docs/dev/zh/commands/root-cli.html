@@ -107,7 +107,7 @@
 <main class="docs-main">
 
 <h1>Root CLI 子命令</h1>
-<p class="lead"><code>jaw</code> 可执行文件提供 21 个子命令，用于服务器生命周期管理、初始化设置、编排、自动化和服务管理。这些命令直接在终端中运行——与其他命令页面中描述的聊天内斜杠命令是分开的。</p>
+<p class="lead"><code>jaw</code> 可执行文件提供 26 个根路由器分支，以及 chat search、browser web-ai、dashboard memory/chat search、connector board、reminders、project、goal、task、lock 等分组表面。这些命令直接在终端中运行——与其他命令页面中描述的聊天内斜杠命令是分开的。</p>
 
 <div class="callout callout-info">
   <strong>全局标志：</strong>每个子命令都支持 <code>--help</code> / <code>-h</code> 来查看其帮助文本。在任何子命令前使用 <code>--home &lt;path&gt;</code> 可指定不同的数据目录（默认：<code>~/.cli-jaw</code>）。大多数命令通过 <code>--json</code> 支持机器可读的 JSON 输出。
@@ -117,6 +117,15 @@
 jaw --home &lt;path&gt; &lt;command&gt;
 jaw --version
 jaw --help</code></pre>
+
+<h2>当前根表面</h2>
+<pre><code>jaw serve | init | doctor | status | reset
+jaw chat | chat search | dispatch | dispatch --watch | employee | worker
+jaw orchestrate | goal | task | project | lock | unlock | history
+jaw memory | dashboard memory | dashboard chat search
+jaw browser | browser web-ai | skill | mcp
+jaw connector board | reminders
+jaw launchd | service | clone</code></pre>
 
 <h2>目录</h2>
 <div class="toc-grid">
@@ -480,7 +489,7 @@ jaw employee reset --port 3458</code></pre>
   <h3><code>jaw orchestrate</code></h3>
   <span class="cmd-badge cmd-badge-orch">Orchestration</span>
 </div>
-<p class="cmd-desc">PABCD 状态机转换。驱动工作流经历面谈、规划、审计、构建、检查和完成各阶段。通过调用运行中服务器的 API 实现，因此 WebSocket 广播会实时发送到所有已连接的客户端。</p>
+<p class="cmd-desc">PABCD 状态机转换。驱动工作流经历面谈、规划、审计、构建、检查和完成各阶段。它调用运行中服务器的 API，因此 SSE/WebSocket 事件会实时发送到已连接的客户端。</p>
 <pre><code>jaw orchestrate &lt;phase&gt; [--force] [--json] [--port &lt;N&gt;]</code></pre>
 <table>
 <tr><th>阶段</th><th>说明</th></tr>

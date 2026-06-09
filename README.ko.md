@@ -2,12 +2,12 @@
 
 # CLI-JAW
 
-### 나만의 AI 에이전트. 2줄이면 설치 끝. 11개 AI 런타임을 하나의 대시보드에서.
+### 나만의 AI 에이전트. 2줄이면 설치 끝. 13개 AI 런타임 표면을 하나의 대시보드에서.
 
 [![npm](https://img.shields.io/npm/v/cli-jaw)](https://npmjs.com/package/cli-jaw)
-[![Version](https://img.shields.io/badge/v2.0.0-GA-brightgreen)](https://github.com/lidge-jun/cli-jaw/releases)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)](https://typescriptlang.org)
-[![Node](https://img.shields.io/badge/node-%3E%3D22-blue)](https://nodejs.org)
+[![Version](https://img.shields.io/badge/v2.1.3-GA-brightgreen)](https://github.com/lidge-jun/cli-jaw/releases)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue)](https://typescriptlang.org)
+[![Node](https://img.shields.io/badge/node-%3E%3D22.4-blue)](https://nodejs.org)
 [![License](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-supported-2496ED?logo=docker&logoColor=white)](#-docker)
 
@@ -31,12 +31,12 @@ Windows 사용자는 아래 WSL 설치 경로를 사용하세요. 네이티브 P
 </details>
 
 ```bash
-# macOS / Linux / WSL, Node.js 22+가 이미 설치된 경우
+# macOS / Linux / WSL, Node.js 22.4+가 이미 설치된 경우
 npm install -g cli-jaw
 jaw dashboard
 ```
 
-끝입니다. **http://localhost:3457** 을 열면 나만의 AI 에이전트가 준비됩니다. [Node.js 22+](https://nodejs.org) 필요.
+끝입니다. **http://localhost:3457** 을 열면 나만의 AI 에이전트가 준비됩니다. [Node.js 22.4+](https://nodejs.org) 필요.
 
 > **처음이세요?** 기본 npm 설치는 CLI-JAW 초기화와 네이티브 Claude 설정을 시도합니다. 다른 AI CLI는 선택 사항입니다. macOS/Linux에서 npm 설치 중 모두 설치하려면 `CLI_JAW_INSTALL_CLI_TOOLS=1 npm install -g cli-jaw`를 사용하세요. Windows에서는 아래 WSL 설치 경로를 사용하세요.
 
@@ -104,6 +104,20 @@ CLI-JAW는 여러분이 이미 사용하는 AI 코딩 CLI — Pi, Antigravity, A
 
 </div>
 
+### 데스크톱 앱
+
+브라우저 탭보다 네이티브 창이 편하다면 **Electron 데스크톱 셸**을 사용할 수 있습니다. 데스크톱 앱은 manager dashboard를 부팅하고 내부 `jaw dashboard serve` 프로세스를 감독합니다. 패키징된 빌드는 Node.js sidecar 서버를 포함하므로, 전역 터미널 설치보다 앱에 번들된 `jaw` shim을 먼저 사용할 수 있습니다.
+
+```bash
+# 저장소 루트에서 1회
+npm install && npm --prefix electron install
+
+npm run electron:dev          # hot reload 개발
+npm run electron:dist:mac     # bundled sidecar 포함 macOS arm64 .dmg + .zip 빌드
+```
+
+패키징 산출물은 `electron/dist/`에 생성됩니다. GitHub Actions desktop release workflow는 release publish 또는 manual dispatch에서 macOS arm64 DMG/ZIP, Windows x64 NSIS/ZIP, Linux AppImage 아티팩트를 빌드합니다. `better-sqlite3` 같은 네이티브 모듈은 manager/sidecar 서버 안에 머물고 Electron main process는 직접 import하지 않습니다. 현재 빌드는 **unsigned / un-notarized** 상태이므로 macOS 첫 실행 시 Gatekeeper에서 우클릭 → **Open**이 필요합니다.
+
 ---
 
 ## 인증
@@ -114,6 +128,7 @@ CLI-JAW는 여러분이 이미 사용하는 AI 코딩 CLI — Pi, Antigravity, A
 # 무료 (신용카드 불필요)
 copilot login        # GitHub Copilot (무료 티어 있음)
 opencode             # OpenCode — 무료 모델 사용 가능
+kiro                 # AWS Kiro (AWS 계정 무료 티어)
 
 # 유료 (이미 결제 중인 월 구독)
 claude auth login    # Anthropic Claude Pro 이상
@@ -139,7 +154,7 @@ grok login --oauth   # xAI Grok / Grok Heavy
  ✅ OpenCode CLI    installed
  ✅ Copilot CLI     installed
  ✅ Database        jaw.db OK
- ✅ Skills          32 active, 194 reference
+ ✅ Skills          29 active, 238 reference
  ✅ MCP (플러그인)   3 servers configured
  ✅ Memory          structured/ exists
  ✅ Server          port 3457 available
@@ -254,11 +269,12 @@ jaw dispatch --agent "Frontend" --task "dashboard.tsx의 CSS 그리드 레이아
 | **Antigravity** | AGY-selected | `agy` 실행 시 확인 | `--conversation` resume을 쓰는 실험적 AGY print-mode runtime; 모델 변경은 native AGY UI 표면 |
 | **Codex** | `gpt-5.5` | `codex login` | ChatGPT Pro 구독 이상 |
 | **Codex App** | `gpt-5.5` | `codex login` | ChatGPT Pro 구독 이상 |
-| **Cursor** | `composer-2.5-fast` | `cursor-agent login` 또는 `CURSOR_API_KEY` | Cursor 구독; 쿼터는 인증/상태 전용 |
-| **Gemini** | `gemini-3.1-pro-preview` | `gemini` | Gemini Advanced 구독 |
+| **Cursor** | `composer-2.5` | `cursor-agent login` 또는 `CURSOR_API_KEY` | Cursor 구독; 쿼터는 인증/상태 전용 |
+| **Gemini** | `gemini-3-flash-preview` | `gemini` | Gemini Advanced 구독 |
 | **Grok** | `grok-build` | `grok login --oauth` | Grok 구독; 쿼터는 인증/상태 전용 |
-| **OpenCode** | `minimax-m2.7` | `opencode` | 무료 모델 사용 가능 |
-| **Copilot** | `gpt-5-mini` | `copilot login` | 무료 티어 사용 가능 |
+| **Kiro** | registry-selected | `kiro` | AWS Kiro 무료 티어 |
+| **OpenCode** | `opencode-go/kimi-k2.6` | `opencode` | 무료 모델 사용 가능 |
+| **Copilot** | `claude-sonnet-4.6` | `copilot login` | 무료 티어 사용 가능 |
 
 GPT 5.5와 Claude Opus 4.8은 Pro 구독 이상부터 허용됩니다. 6월부터 구독제에 포함된 Claude 사용량을 쓰려면 `claude-e` 런타임을 선택하세요.
 
@@ -313,7 +329,7 @@ jaw memory search "API 인증은 어떻게 설정했지?"
 
 ## 스킬
 
-230개 이상의 스킬이 개발 워크플로, 오피스 문서, 자동화, 미디어를 커버합니다.
+200개 이상의 참조 스킬과 활성 런타임 스킬이 개발 워크플로, 오피스 문서, 자동화, 미디어를 커버합니다.
 
 | 분류 | 스킬 | 할 수 있는 것 |
 |---|---|---|
@@ -382,7 +398,7 @@ Web(마이크 버튼), Telegram(음성 메시지), Discord에서 음성 입력 �
 
 ```bash
 jaw mcp install @anthropic/context7
-# → Claude, Codex, Gemini, OpenCode, Copilot, Antigravity 설정 파일에 동시에 동기화
+# → Claude, Codex, Gemini, Kiro, OpenCode, Copilot, Antigravity 설정 파일에 동시에 동기화
 ```
 
 여러 JSON 파일을 따로 편집할 필요 없습니다. 한 번 설치하면 MCP 지원 엔진 전체에 반영됩니다. Grok CLI는 표준 런타임이지만, Grok 쪽에 호환 MCP 설정이 확인될 때까지 MCP 동기화 대상으로 표기하지 않습니다. Antigravity MCP 동기화는 `agy` runtime registry entry와 별개의 config target입니다.
@@ -400,16 +416,23 @@ jaw mcp sync       # 수동 편집 후 다시 동기화
 jaw dashboard                     # 매니저 대시보드 실행
 jaw serve                         # 서버 시작 (http://localhost:3457)
 jaw chat                          # 터미널 채팅 UI
-jaw doctor                        # 12가지 진단
+jaw chat search "query"           # 채팅 히스토리 검색
+jaw doctor                        # 설치/런타임 진단
 
 # 인스턴스
 jaw clone ~/project               # 인스턴스 복제
 jaw --home ~/project serve --port 3458  # 두 번째 인스턴스 실행
 jaw service install               # 부팅 시 자동 시작
+jaw project set ~/repo            # review/orchestration용 projectDirs 설정
+jaw lock                          # stop-all 흐름에서 현재 인스턴스 보호
 
 # AI & 오케스트레이션
 jaw dispatch --agent "Backend" --task "..."  # 직원 디스패치
+jaw dispatch --agent "Backend" --task "..." --watch  # 안전 progress 스트리밍
+jaw worker status Backend            # 현재/이전 직원 progress 확인
 jaw orchestrate                   # PABCD 워크플로 시작/제어
+jaw goal status                   # 영구 goal lifecycle
+jaw task list                     # 에이전트 네이티브 task checklist
 
 # 스킬 & MCP
 jaw skill install <name>          # 스킬 활성화
@@ -426,6 +449,13 @@ jaw browser start                 # Chrome 자동화 시작
 jaw browser fetch "https://example.com" --json --trace  # URL 적응형 읽기
 jaw browser snapshot              # 페이지 상태 캡처
 jaw browser vision-click "로그인"  # AI 기반 클릭
+jaw browser web-ai status         # ChatGPT/Gemini/Grok web-AI 세션 도구
+
+# 대시보드 커넥터
+jaw dashboard memory search "query"  # read-only cross-instance memory search
+jaw dashboard chat search "query"    # cross-instance chat search
+jaw connector board add --title "문서 수정"
+jaw reminders add "내일 확인"
 
 # 유지보수
 jaw reset                         # 전체 초기화
@@ -450,9 +480,11 @@ jaw --home ~/my-project serve --port 3458
 
 ```bash
 npm run build          # tsc → dist/
+npm run build:frontend # vite → public/dist/
 npm run dev            # tsx server.ts (핫 리로드)
 npm test               # Node.js 네이티브 테스트 러너
-npm run gate:all       # 릴리스/문서 정합성 게이트
+npm run gate:all       # named release/docs parity gates
+bash structure/check-doc-drift.sh
 ```
 
 아키텍처 상세: [ARCHITECTURE.md](docs/ARCHITECTURE.md) · 테스트 커버리지: [TESTS.md](TESTS.md) · 내부 구조 문서: [structure/](structure/)
@@ -461,7 +493,7 @@ npm run gate:all       # 릴리스/문서 정합성 게이트
 
 ## 비교
 
-| | CLI-JAW 2.0 | Hermes Agent | Claude Code |
+| | CLI-JAW 2.x | Hermes Agent | Claude Code |
 |---|---|---|---|
 | **모델 접근** | Pi, Antigravity, AI-E, Claude, Claude E, Codex, Codex App, Cursor, Gemini, Grok, Kiro, OpenCode, Copilot — 벤더/네이티브 인증으로 연결 | API 키 (OpenRouter 200+, Nous Portal) | Anthropic 전용 |
 | **비용 모델** | 이미 결제 중인 월 구독 그대로 | 토큰당 API 과금 | Anthropic 구독 |
@@ -472,7 +504,7 @@ npm run gate:all       # 릴리스/문서 정합성 게이트
 | **멀티 에이전트** | 직원 시스템 (다른 CLI 디스패치) + PABCD | 서브에이전트 스폰 | Task 도구 |
 | **브라우저 자동화** | Chrome DevTools + vision-click + Computer Use | 제한적 | MCP 경유 |
 | **실행 환경** | 로컬 + Docker | 로컬/Docker/SSH/Daytona/Modal | 로컬 |
-| **스킬** | 230+ 번들 | 자가 생성 + agentskills.io | 유저 설정 |
+| **스킬** | 200+ 참조 스킬 + 활성 런타임 스킬 | 자가 생성 + agentskills.io | 유저 설정 |
 | **다국어** | 영어, 한국어, 중국어, 일본어 | 영어 | 영어 |
 
 ---
@@ -482,7 +514,7 @@ npm run gate:all       # 릴리스/문서 정합성 게이트
 | 문제 | 해결 방법 |
 |---|---|
 | `cli-jaw: command not found` | `npm install -g cli-jaw` 재실행. macOS/Linux/WSL에서는 `~/.local/bin` 또는 `npm prefix -g` + `/bin`이 `$PATH`에 있는지 확인. Windows PowerShell에서는 `wsl.exe -d Ubuntu -- bash -lc "jaw dashboard"`처럼 WSL login shell로 실행 |
-| `Error: node version` | Node.js 22+로 업그레이드: `nvm install 22` |
+| `Error: node version` | Node.js 22.4+로 업그레이드: `nvm install 22` |
 | `NODE_MODULE_VERSION` mismatch | `npm run ensure:native` (네이티브 모듈 자동 재빌드) |
 | `EADDRINUSE: port 3457` | 다른 인스턴스 실행 중. `--port 3458` 사용 또는 기존 프로세스 종료 |
 | Telegram / Discord 인증 실패 | `jaw doctor` 실행 후 `jaw serve` 재시작 |
