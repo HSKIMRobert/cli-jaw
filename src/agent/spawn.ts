@@ -851,7 +851,9 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     let promptForArgs = (cli === 'agy' || cli === 'cursor' || cli === 'kiro-code' || cli === 'gemini' || cli === 'grok' || cli === 'opencode' || (cli === 'ai-e' && effectiveProvider !== 'claude'))
         ? withHistoryPrompt(prompt, historyBlock)
         : prompt;
-    if ((cli === 'agy' || cli === 'kiro-code' || (cli === 'ai-e' && effectiveProvider === 'kiro')) && sysPrompt) {
+    if (cli === 'agy' && sysPrompt) {
+        promptForArgs = `[Current cli-jaw task]\n${promptForArgs}\n\n---\n\n[Operational Context — cli-jaw Integration]\nThe following operational guidelines apply to this session. Follow these task rules and use the tools/commands described:\n\n${sysPrompt}`;
+    } else if ((cli === 'kiro-code' || (cli === 'ai-e' && effectiveProvider === 'kiro')) && sysPrompt) {
         promptForArgs = `[Operational Context — cli-jaw Integration]\nThe following operational guidelines apply to this session. Follow these task rules and use the tools/commands described:\n\n${sysPrompt}\n\n---\n\n${promptForArgs}`;
     }
     const claudeBin = (cli === 'claude-e' || (cli === 'ai-e' && effectiveProvider === 'claude'))
