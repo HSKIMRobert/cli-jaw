@@ -15,6 +15,7 @@ const TOOL_STEP_TYPES = new Set([
     'READ_FILE',
     'WRITE_FILE',
     'EDIT_FILE',
+    'CODE_ACTION',
 ]);
 
 const LABEL_MAX = 120;
@@ -126,6 +127,8 @@ function labelForStep(type: string, content: string): { label: string; detail: s
             return { icon: '📂', toolType: 'tool', label: 'list directory', detail: snippet };
         case 'GREP_SEARCH':
             return { icon: '🔍', toolType: 'search', label: 'grep search', detail: snippet };
+        case 'CODE_ACTION':
+            return { icon: '📝', toolType: 'tool', label: sanitizeSnippet(snippet, LABEL_MAX) || 'code action', detail: snippet };
         case 'PLANNER_RESPONSE':
             return { icon: '💭', toolType: 'thinking', label: sanitizeSnippet(snippet, LABEL_MAX) || 'planner', detail: snippet };
         default:
