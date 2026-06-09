@@ -11,6 +11,7 @@ import {
 } from './constants.js';
 import { defaultPreviewFromForManagerPort } from './preview-ports.js';
 import { scanDashboardInstances, scanSinglePort, scanPeerDashboards } from './scan.js';
+import { InstanceRegistry } from './instance-registry.js';
 import { installDashboardProxy } from './proxy.js';
 import { createPreviewOriginProxyController } from './preview-origin-proxy.js';
 import { DashboardLifecycleManager } from './lifecycle.js';
@@ -172,6 +173,32 @@ function attachPreviewSnapshot(result: DashboardScanResult): DashboardScanResult
     return result;
 }
 
+// Phase 4a (devlog 260609, 40): background scan cache. Full-scan call sites
+// (instances list, memory supplier, jaw-ceo) read this snapshot; single-port
+// (:port) and git-router scans stay live for lifecycle pollUntilSettled freshness.
+const instanceRegistry = new InstanceRegistry({
+    scan: async () => {
+        const loaded = loadDashboardRegistry({ from: scanFrom, count: scanCount });
+        return scanDashboardInstances({
+            from: loaded.registry.scan.from,
+            count: loaded.registry.scan.count,
+            managerPort: port,
+        });
+    },
+    onScanResult: async (result) => {
+        recordScanEvents(result);
+        await previewProxy.reconcileOnlineTargets(
+            result.instances.filter(instance => instance.ok).map(instance => instance.port)
+        );
+    },
+});
+
+async function cachedFullScan(): Promise<DashboardScanResult> {
+    return instanceRegistry.isReady()
+        ? instanceRegistry.snapshot()!
+        : instanceRegistry.forceRefresh();
+}
+
 app.use(helmet({
     contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: false,
@@ -232,12 +259,8 @@ function getVecStore(config: EmbeddingConfig | null): VecStore | null {
 }
 
 const memoryScanSupplier = async () => {
-    const loaded = loadDashboardRegistry({ from: scanFrom, count: scanCount });
-    const scan = await scanDashboardInstances({
-        from: loaded.registry.scan.from,
-        count: loaded.registry.scan.count,
-        managerPort: port,
-    });
+    // Phase 4a: cached registry replaces the per-call 150-fetch full scan (09 P6/P7)
+    const scan = await cachedFullScan();
     return scan.instances.map(i => ({
         port: i.port,
         profileId: i.profileId ?? null,
@@ -300,7 +323,8 @@ app.use('/api/jaw-ceo', createJawCeoRouter({
     repoRoot: projectRoot,
     listInstances: async () => {
         const loaded = loadDashboardRegistry({ from: scanFrom, count: scanCount });
-        const result = await scanDashboardInstances({ from: loaded.registry.scan.from, count: loaded.registry.scan.count, managerPort: port });
+        // Phase 4a: cached registry instead of a fresh 150-fetch scan (09 P1)
+        const result = await cachedFullScan();
         const serviceStates = await serviceDetect({
             from: loaded.registry.scan.from,
             to: loaded.registry.scan.from + loaded.registry.scan.count - 1,
@@ -397,11 +421,24 @@ app.get('/api/dashboard/instances', async (req, res) => {
         const from = Number(req.query["from"] || loaded.registry.scan.from);
         const count = Number(req.query["count"] || loaded.registry.scan.count);
         const showHidden = req.query["showHidden"] === '1' || req.query["showHidden"] === 'true';
-        const result = await scanDashboardInstances({ from, count, managerPort: port });
-        recordScanEvents(result);
-        await previewProxy.reconcileOnlineTargets(
-            result.instances.filter(instance => instance.ok).map(instance => instance.port)
-        );
+        const isDefaultRange = from === loaded.registry.scan.from && count === loaded.registry.scan.count;
+        const wantsFresh = req.query["fresh"] === '1' || req.query["fresh"] === 'true';
+        let result: DashboardScanResult;
+        if (!isDefaultRange) {
+            // Custom range bypasses the cache (rare API path — default UI sends no from/count).
+            // Keeps the full side-effect pipeline of the legacy inline scan.
+            result = await scanDashboardInstances({ from, count, managerPort: port });
+            recordScanEvents(result);
+            await previewProxy.reconcileOnlineTargets(
+                result.instances.filter(instance => instance.ok).map(instance => instance.port)
+            );
+        } else if (wantsFresh) {
+            result = await instanceRegistry.forceRefresh();
+        } else {
+            // Phase 4a: cached snapshot (≤10s stale by design — 09 §2 P1);
+            // recordScanEvents/reconcile run in the registry's scan loop.
+            result = await cachedFullScan();
+        }
         const serviceStates = await serviceDetect({ from, to: from + count - 1 });
         const decorated = lifecycle.decorateScanResult(result, serviceStates);
 
@@ -725,6 +762,7 @@ const shutdown = createDashboardShutdown({
 });
 
 async function shutdownDashboard(mode?: 'full' | 'locked-skip'): Promise<void> {
+    instanceRegistry.stop();
     stopRemindersScheduler?.();
     noteWsServer.close();
     notesWatcher.close();
@@ -760,6 +798,8 @@ async function main(): Promise<void> {
         startScheduleRunner(scheduleStore, {
             log: msg => console.log(msg),
         });
+        // Phase 4a: background scan loop feeding the instance cache (devlog 260609, 40)
+        instanceRegistry.start();
         if (process.env["JAW_REMINDERS_SCHEDULER"] === '1') {
             stopRemindersScheduler = startRemindersScheduler({
                 store: remindersStore,
