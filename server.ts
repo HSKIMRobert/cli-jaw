@@ -7,7 +7,7 @@ import { log, drainLogRing } from './src/core/logger.js';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import { fileURLToPath } from 'url';
-import { dirname, join, basename } from 'path';
+import { dirname, join } from 'path';
 import crypto from 'crypto';
 import fs from 'fs';
 
@@ -23,6 +23,8 @@ import { registerTaskRoutes } from './src/routes/task.js';
 import { registerEventsRoutes } from './src/routes/events.js';
 import { registerInstanceRoutes } from './src/routes/instance.js';
 import { registerChatSessionRoutes } from './src/routes/chat-sessions.js';
+import { registerStaticRoutes } from './src/routes/static.js';
+import { registerMessageRoutes } from './src/routes/messages.js';
 import { registerGoalRunRoutes } from './src/routes/goal-run.js';
 import { registerMemoryRoutes } from './src/routes/memory.js';
 import { registerSettingsRoutes } from './src/routes/settings.js';
@@ -56,19 +58,16 @@ import { ensureMemoryRuntimeReady, hasSoulFile } from './src/memory/runtime.js';
 
 import { loadLocales, t } from './src/core/i18n.js';
 import {
-    PROMPTS_DIR, DB_PATH, UPLOADS_DIR,
+    PROMPTS_DIR, DB_PATH,
     settings, loadSettings, saveSettings,
     ensureDirs, runMigration,
     APP_VERSION,
 } from './src/core/config.js';
 import {
-    db, getSession, getMessages, getMessagesWithTrace, getRecentMessagesAll, getRecentMessagesAllWithTrace, searchMessages, getMessageContext, getMessageCount, getLatestAssistantMessage, getLatestDashboardActivityMessage, closeDb,
+    db, getSession, getLatestAssistantMessage, closeDb,
     clearAllEmployeeSessions,
 } from './src/core/db.js';
-import { getActiveChatSession } from './src/core/chat-sessions.js';
-import { dashboardActivityTitleFromExcerpt } from './src/core/message-summary.js';
 import { openUrlInBrowser } from './src/core/browser-open.js';
-import { sanitizeSerializedToolLog } from './src/shared/tool-log-sanitize.js';
 import {
     initPromptFiles, regenerateB,
 } from './src/prompt/builder.js';
@@ -320,26 +319,11 @@ app.use((req, res, next) => {
 
 app.use(express.json({ limit: '1mb' }));
 
-// Serve Vite production build (public/dist/index.html) at root when available
-const distIndex = join(projectRoot, 'public', 'dist', 'index.html');
-app.get('/', (_req, res, next) => {
-    if (fs.existsSync(distIndex)) {
-        res.setHeader('Cache-Control', 'no-store');
-        return res.sendFile('dist/index.html', { root: join(projectRoot, 'public') });
-    }
-    next();
-});
+// Root + media routes → src/routes/static.ts (Phase 2 extraction).
+// Must register BEFORE express.static so GET / prefers the Vite dist build.
+registerStaticRoutes(app, requireAuth, { projectRoot });
 
 app.use(express.static(join(projectRoot, 'public')));
-
-// Serve uploaded media files (images/videos) for inline rendering
-app.get('/media/:filename', requireAuth, (req, res) => {
-    const filename = basename(String(req.params['filename'] || ''));
-    if (!filename || filename.includes('..')) { res.status(400).end(); return; }
-    const filePath = join(UPLOADS_DIR, filename);
-    if (!fs.existsSync(filePath)) { res.status(404).end(); return; }
-    res.sendFile(filename, { root: UPLOADS_DIR });
-});
 
 // WebSocket incoming messages
 wss.on('connection', (ws) => {
@@ -416,91 +400,7 @@ app.get('/api/health', (_req, res) => res.json({
 app.get('/api/session', (_, res) => ok(res, getSession(), getSession() as Record<string, unknown> | undefined));
 
 // Instance lock/unlock → src/routes/instance.ts (Phase 2 extraction)
-app.get('/api/messages', (req, res) => {
-    const includeTrace = ['1', 'true', 'yes'].includes(String(req.query["includeTrace"] || '').toLowerCase());
-    // Optional recent-window: `?limit=N` returns only the most recent N messages
-    // (still ascending) so the chat boot/instance-switch payload stays small.
-    // Absent/invalid limit preserves the legacy full-history behavior.
-    const limitRaw = Number(req.query["limit"]);
-    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(Math.floor(limitRaw), 5000) : 0;
-    const sessionId = getActiveChatSession();
-    let rows: unknown[];
-    if (limit > 0) {
-        rows = (includeTrace ? getRecentMessagesAllWithTrace.all(sessionId, limit) : getRecentMessagesAll.all(sessionId, limit)).reverse();
-    } else {
-        rows = includeTrace ? getMessagesWithTrace.all(sessionId) : getMessages.all(sessionId);
-    }
-    const safeRows = (rows as Record<string, unknown>[]).map(row => ({
-        ...row,
-        tool_log: sanitizeSerializedToolLog(row["tool_log"] as string | null | undefined),
-    }));
-    ok(res, safeRows);
-});
-app.get('/api/messages/count', (_req, res) => {
-    const row = getMessageCount.get(getActiveChatSession()) as { count: number } | undefined;
-    ok(res, { count: row?.count ?? 0 });
-});
-app.get('/api/messages/search', (req, res) => {
-    const q = String(req.query['q'] || '').trim();
-    if (!q) return ok(res, []);
-    const limit = Math.min(Math.max(Number(req.query['limit']) || 20, 1), 50);
-    const daysRaw = Number(req.query['days']);
-    const days = (daysRaw > 0 && daysRaw <= 365) ? daysRaw : null;
-    const recentRaw = Number(req.query['recent']);
-    const recent = (recentRaw > 0 && recentRaw <= 5000) ? recentRaw : null;
-    const contextRange = Math.min(Math.max(Number(req.query['context']) || 0, 0), 5);
-    const session_id = getActiveChatSession();
-    const rows = searchMessages.all({ q, limit, session_id, days, recent }) as Record<string, unknown>[];
-    const results = rows.map(row => {
-        const entry: Record<string, unknown> = {
-            id: row['id'],
-            role: row['role'],
-            content: row['content'],
-            cli: row['cli'],
-            match_field: row['match_field'],
-            tool_log: sanitizeSerializedToolLog(row['tool_log'] as string | null | undefined),
-            created_at: row['created_at'],
-        };
-        if (contextRange > 0) {
-            entry['context'] = getMessageContext.all({
-                session_id, target_id: row['id'] as number, range: contextRange,
-            });
-        }
-        return entry;
-    });
-    ok(res, results);
-});
-app.get('/api/messages/latest', (_req, res) => {
-    const includeContent = ['1', 'true', 'yes'].includes(String(_req.query["includeContent"] || '').toLowerCase());
-    const latestRow = getLatestAssistantMessage.get(getActiveChatSession()) as {
-        id?: number;
-        role?: string;
-        content?: string | null;
-        created_at?: string;
-    } | null;
-    const activityRow = getLatestDashboardActivityMessage.get(getActiveChatSession()) as {
-        id?: number;
-        role?: string;
-        excerpt?: string | null;
-        created_at?: string;
-    } | null;
-    const title = dashboardActivityTitleFromExcerpt(activityRow?.excerpt || null);
-    ok(res, {
-        latestAssistant: latestRow?.id ? {
-            id: Number(latestRow.id),
-            role: 'assistant',
-            ...(latestRow.created_at ? { created_at: String(latestRow.created_at) } : {}),
-            ...(includeContent ? { text: String(latestRow.content || '') } : {}),
-        } : null,
-        activity: activityRow && title ? {
-            messageId: Number(activityRow.id),
-            role: String(activityRow.role || ''),
-            title,
-            updatedAt: String(activityRow.created_at || ''),
-        } : null,
-        processBusy: isAgentBusy(),
-    });
-});
+// Messages read API → src/routes/messages.ts (Phase 2 extraction)
 
 // Chat Sessions API → src/routes/chat-sessions.ts (Phase 2 extraction)
 
@@ -642,6 +542,7 @@ registerTaskRoutes(app, requireAuth);
 registerEventsRoutes(app, requireAuth);
 registerInstanceRoutes(app);
 registerChatSessionRoutes(app);
+registerMessageRoutes(app);
 registerGoalRunRoutes(app, requireAuth);
 registerMemoryRoutes(app, requireAuth);
 registerSettingsRoutes(app, requireAuth, applySettingsPatch, projectRoot);
