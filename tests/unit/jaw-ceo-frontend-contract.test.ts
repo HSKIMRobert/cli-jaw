@@ -33,7 +33,7 @@ test('jaw-ceo frontend installs workbench launcher outside instance groups', () 
     assert.ok(app.includes('useJawCeoDashboardBridge('), 'App must delegate Jaw CEO dashboard wiring to the bridge');
     assert.ok(bridge.includes('useJawCeo('), 'bridge must own the Jaw CEO dashboard hook');
     assert.ok(bridge.includes('<JawCeoWorkbenchButton'), 'bridge must render the Workbench CEO launcher');
-    assert.ok(bridge.includes('<JawCeoConsole'), 'bridge must render the CEO console drawer');
+    assert.ok(router.includes('<JawCeoConsole'), 'router must render the CEO console in the right panel or sidePanel slot');
     assert.ok(router.includes('jawCeoWorkbenchButton?: ReactNode'), 'router must accept a CEO Workbench button slot');
     assert.ok(workbench.includes('modeActions?: ReactNode'), 'Workbench must expose a tab-bar action slot');
     assert.ok(workbench.indexOf('workbench-mode-tabs') < workbench.indexOf('props.modeActions'), 'CEO button must render beside the mode tabs');
