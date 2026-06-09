@@ -122,11 +122,11 @@ export function PanelResizer(props: PanelResizerProps) {
     function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
         const step = 10;
         if (direction === 'horizontal') {
-            if (e.key === 'ArrowLeft') { e.preventDefault(); onDelta(-step); }
-            else if (e.key === 'ArrowRight') { e.preventDefault(); onDelta(step); }
+            if (e.key === 'ArrowLeft') { e.preventDefault(); onDeltaRef.current(-step); }
+            else if (e.key === 'ArrowRight') { e.preventDefault(); onDeltaRef.current(step); }
         } else {
-            if (e.key === 'ArrowUp') { e.preventDefault(); onDelta(-step); }
-            else if (e.key === 'ArrowDown') { e.preventDefault(); onDelta(step); }
+            if (e.key === 'ArrowUp') { e.preventDefault(); onDeltaRef.current(-step); }
+            else if (e.key === 'ArrowDown') { e.preventDefault(); onDeltaRef.current(step); }
         }
     }
 
