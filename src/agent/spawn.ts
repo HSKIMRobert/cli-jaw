@@ -884,7 +884,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     if (isResume) {
         const sid = resumeSessionId || '';
         console.log(`[jaw:resume] ${cli} session=${sid.slice(0, 12)}...`);
-        args = buildResumeArgs(cli, runtimeModel, effort, sid, prompt, permissions, argOptions);
+        args = buildResumeArgs(cli, runtimeModel, effort, sid, promptForArgs, permissions, argOptions);
     } else {
         args = buildArgs(cli, runtimeModel, effort, promptForArgs, sysPrompt, permissions, argOptions);
     }
