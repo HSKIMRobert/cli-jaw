@@ -555,6 +555,15 @@ It defines phase contracts, dispatch pitfalls (delegation trap, context drift, p
         }
     } catch { /* DB not ready yet */ }
 
+    // Boss Dev Work Classification contract (92_runtime_skill_routing_plan).
+    // Compact, unconditional — renders identically with or without employees.
+    prompt += '\n\n---\n## Dev Work Classification (contract)\n';
+    prompt += 'Before coding, classify work C0-C5 (C0 trivial text, C1 single-file local, C2 ordinary product slice, C3 cross-domain, C4 high-risk security/data/release, C5 research/ambiguous).\n';
+    prompt += 'Use direct mode for C0-C1, a compact plan for C2, compact/full PABCD for C3 when persistence, employee coordination, public contract, or architecture risk requires it, strict PABCD for C4, research/interview for C5.\n';
+    prompt += 'Dispatch employees only for independent specialist work, plan/build verification, or high-risk review. Optional dispatch `task_tags` (e.g. tdd, threat_model, migration_backfill, frontend_ui) add specialist guidance without changing the employee role.\n';
+    prompt += 'Ask the user for business ambiguity, destructive action, new dependency/framework, public API/schema change, irreversible migration, or permission model change.\n';
+    prompt += 'Verify with the narrowest command that proves the claim; run affected-suite gates for C3 and full relevant gates for C4 or release-sensitive work.\n';
+
     try {
         const hbData = loadHeartbeatFile();
         if (hbData.jobs.length > 0) {
@@ -688,16 +697,54 @@ export function getEmployeePrompt(emp: { name: string; role?: string; id?: strin
 
 // ─── Employee Prompt v2 (orchestration phase-aware) ──
 
+// Task-tag → skill routing (92_runtime_skill_routing_plan). Tags are normalized
+// task_tags from dispatch; they add skill pointers without changing the execution role.
+const TASK_TAG_SKILL_MAP: Record<string, string[]> = {
+    frontend_ui: ['dev-uiux-design'],
+    testing: ['dev-testing'],
+    tdd: ['dev-testing'],
+    bdd_acceptance: ['dev-testing'],
+    security: ['dev-security'],
+    threat_model: ['dev-security'],
+    architecture: ['dev-architecture'],
+    ddd: ['dev-architecture', 'dev-backend'],
+    clean_arch: ['dev-architecture', 'dev-backend'],
+    hexagonal: ['dev-architecture', 'dev-backend'],
+    vertical_slice: ['dev-architecture', 'dev-backend', 'dev-frontend', 'dev-testing'],
+    adr_rfc: ['dev-architecture', 'dev-scaffolding'],
+    review: ['dev-code-reviewer'],
+    code_review: ['dev-code-reviewer'],
+    debugging: ['dev-debugging'],
+    debugging_rca: ['dev-debugging'],
+    observability: ['dev-backend'],
+    observability_pipeline: ['dev-backend', 'dev-data'],
+    migration_backfill: ['dev-data', 'dev-backend', 'dev-testing'],
+    product_discovery: ['dev'],
+    product_discovery_ui: ['dev', 'dev-uiux-design'],
+    release_cd: ['dev-testing', 'dev-backend', 'dev-scaffolding'],
+    crud_fullstack: ['dev-backend', 'dev-frontend', 'dev-testing'],
+};
+
+export function normalizeTaskTags(raw: unknown): string[] {
+    if (!Array.isArray(raw)) return [];
+    return [...new Set(
+        raw.filter((t): t is string => typeof t === 'string')
+            .map(t => t.trim().toLowerCase().replace(/[\s-]+/g, '_'))
+            .filter(Boolean),
+    )].sort();
+}
+
 export function getEmployeePromptV2(
     emp: { name: string; role?: string; id?: string | number; cli?: string },
     role: string,
     currentPhase: number | string,
-    opts?: { mutable?: boolean; scope?: string | null },
+    opts?: { mutable?: boolean; scope?: string | null; taskTags?: string[] },
 ) {
     const phase = Number(currentPhase);
+    const taskTags = normalizeTaskTags(opts?.taskTags);
     const mcpSummary = getEmployeeMcpToolSummary();
     const mcpHash = mcpSummary ? createHash('md5').update(mcpSummary).digest('hex').slice(0, 8) : '';
-    const cacheKey = `${emp.id || emp.name}:${emp.cli || ''}:${role}:${phase}:${settings["workingDir"] || '~'}:${opts?.mutable ? 'mut' : 'ro'}:${opts?.scope || ''}:${mcpHash}`;
+    const cacheKey = `${emp.id || emp.name}:${emp.cli || ''}:${role}:${phase}:${settings["workingDir"] || '~'}:${opts?.mutable ? 'mut' : 'ro'}:${opts?.scope || ''}:${taskTags.join(',')}:${mcpHash}`;
     if (promptCache.has(cacheKey)) return promptCache.get(cacheKey);
 
     let prompt = getEmployeePrompt(emp);
@@ -770,6 +817,31 @@ export function getEmployeePromptV2(
     prompt += `\n- Role guide: ${roleSkillName ? formatSkillPath(roleSkillName, roleSkillPath) : 'none'}`;
     prompt += `\n- Apply this role on every assigned task. Before role-specific implementation or review, read the role guide once if it is available.`;
     prompt += `\n- Also read the common dev guide before modifying code.`;
+
+    // Task-tag overlays: extra skill pointers, de-duplicated against the role
+    // skill and the always-present common guides. Tags never change the role.
+    if (taskTags.length > 0) {
+        const baseSkills = new Set(['dev', 'dev-scaffolding', roleSkillName].filter(Boolean) as string[]);
+        const tagSkills: string[] = [];
+        const unknownTags: string[] = [];
+        for (const tag of taskTags) {
+            const mapped = TASK_TAG_SKILL_MAP[tag];
+            if (!mapped) { unknownTags.push(tag); continue; }
+            for (const skillName of mapped) {
+                if (!baseSkills.has(skillName) && !tagSkills.includes(skillName)) tagSkills.push(skillName);
+            }
+        }
+        if (tagSkills.length > 0 || unknownTags.length > 0) {
+            prompt += `\n\n## Task Tag Guides`;
+            prompt += `\n- Task tags for this dispatch: ${taskTags.join(', ')}. Tags add guidance; your execution role stays "${role}".`;
+            for (const skillName of tagSkills) {
+                prompt += `\n- ${formatSkillPath(skillName, findSkillPath(skillName))} (read once before work the tag covers)`;
+            }
+            if (unknownTags.length > 0) {
+                prompt += `\n- Unrecognized tags (no extra guide): ${unknownTags.join(', ')}`;
+            }
+        }
+    }
 
     prompt += `\n\n## Phase Guide`;
     prompt += `\n- Use the phase context below as the source of truth for what this employee should do now.`;

@@ -5,7 +5,7 @@ import { broadcast } from '../core/bus.js';
 import { settings, normalizeProjectDirs } from '../core/config.js';
 import { clearEmployeeSession, getEmployeeSession, upsertEmployeeSession } from '../core/db.js';
 import { clearStaleEmployeeSessionIfResumeKeyMismatch } from '../core/employees.js';
-import { getEmployeePromptV2 } from '../prompt/builder.js';
+import { getEmployeePromptV2, normalizeTaskTags } from '../prompt/builder.js';
 import { spawnAgent, killAgentById } from '../agent/spawn.js';
 import { appendToWorklog } from '../memory/worklog.js';
 import { startWorkerMonitor } from './worker-monitor.js';
@@ -332,6 +332,7 @@ Every task you assign MUST be specific. Vague instructions waste cycles.
     {
       "agent": "ExactAgentName",
       "role": "frontend|backend|data|docs",
+      "task_tags": ["tdd", "threat_model"],
       "task": "Specific instruction with files, behavior, and constraints",
       "start_phase": 3,
       "end_phase": 3,
@@ -348,6 +349,7 @@ Every task you assign MUST be specific. Vague instructions waste cycles.
 \`\`\`
 
 **parallel field**: Optional, defaults to \`false\`. Set \`true\` only for tasks with zero file overlap.
+**task_tags field**: Optional methodology/domain overlays (tdd, bdd_acceptance, ddd, clean_arch, hexagonal, vertical_slice, adr_rfc, review, threat_model, security, testing, architecture, debugging, debugging_rca, observability, migration_backfill, product_discovery, release_cd, frontend_ui, crud_fullstack). Tags add skill guidance; the execution role stays frontend|backend|data|docs.
 **affected_files**: REQUIRED for all subtasks. Used by server-side parallel safety validation.
 
 worklog path: ${worklogPath}
@@ -379,6 +381,7 @@ export async function runSingleAgent(
     const sysPrompt = getEmployeePromptV2(promptEmployee, text(ap["role"]), currentPhase, {
         mutable: ap["mutable"] === true,
         scope: typeof ap["scope"] === 'string' ? ap["scope"] : null,
+        taskTags: normalizeTaskTags(ap["task_tags"]),
     });
 
     const executionContext = ap["parallel"]
