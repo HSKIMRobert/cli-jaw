@@ -97,7 +97,7 @@ ide, orchestrate, project, task
 | `launchd` | `bin/commands/launchd.ts` | `[--port PORT] [status\|unset\|cleanup]` |
 | `clone` | `bin/commands/clone.ts` | `<target-dir> [--from <source>] [--with-memory] [--link-ref]` |
 | `orchestrate` | `bin/commands/orchestrate.ts` | `[I\|P\|A\|B\|C\|D\|status\|reset] [--force] [--json] [--port <port>]` |
-| `dispatch` | `bin/commands/dispatch.ts` | `--agent <name> --task <task> [--mutable] [--scope <path>] [--port <port>] [--watch] [--json]`; `--batch --agents '<JSON array>'` |
+| `dispatch` | `bin/commands/dispatch.ts` | `(--agent <name> \| --virtual <name>) --task <task> [--role <role>] [--cli <cli>] [--model <model>] [--mutable] [--scope <path>] [--port <port>] [--watch] [--json]`; `--batch --agents '<JSON array>'` where each entry accepts `agent` or `virtual` |
 | `goal` | `bin/commands/goal.ts` | `set <objective>`, `plan [hint]`, `refine <objective>`, `status`, `update <summary>`, `done [note]`, `cancel [reason]`, `pause`, `resume`, `clear`, `reset`, `history [limit]`; `--json`; plan-mode stores hints as `planHint` and requires refine before checkpoints |
 | `worker` | `bin/commands/worker.ts` | `status [agent]`, `watch [agent]`, `--json`, `--port <port>` |
 | `service` | `bin/commands/service.ts` | `[--port PORT] [--backend launchd\|systemd\|docker] [status\|unset\|logs]` |
@@ -153,6 +153,13 @@ ide, orchestrate, project, task
 - `/review [focus] [--fix] [--dispatch]`: `projectDirs` 또는 최근 맥락에서 검증한 git 프로젝트 디렉토리를 리뷰한다. JAW_HOME/`process.cwd()` fallback은 금지한다. 사용자가 `/review 프롬프트`처럼 focus text를 주면 이를 최우선 scope signal로 반영한다. 리뷰 범위는 현재 대화에서 논의 중인 작업 초점을 먼저 잡고, 최근 goal/chat context, 커밋 히스토리, diff, worktree, untracked 파일은 그 범위를 검증하는 근거로 사용한다. `origin/master..HEAD` 같은 git range에 있다는 이유만으로 무관한 최근 커밋을 포함하지 않는다. 결과 Markdown report에는 `Scope Resolution` 근거를 저장한다. `--fix`는 검증된 프로젝트 루트 안의 Critical/High만 현재 `HEAD` 위 새 working-tree patch로 자동 수정하며 기존 커밋을 rewrite하지 않는다.
 - `/goal [set|plan|refine|status|run|done|cancel|pause|resume|clear|reset|history] [args...]`: Persistent goal lifecycle management. `/goal plan [hint]` and `/goalplan [hint]` create a pending plan-mode goal, store the raw hint separately as `planHint`, and require `/goal refine <specific objective>` or `cli-jaw goal refine "<specific objective>"` before checkpoints/execution evidence are accepted.
 - `/team [plan|audit|status|collect|stop] [args...]`: 여러 worker를 병렬로 쓰는 team orchestration helper.
+
+### `jaw dispatch`
+
+- Named employees use `jaw dispatch --agent "Backend" --task "..."`.
+- Ephemeral virtual employees use `jaw dispatch --virtual "security" --task "..."` or `--virtual "Reviewer" --role "Review rollback gaps" --task "..."`.
+- Virtual employees are synthetic dispatch rows only; they do not appear in `jaw employee list` and do not write durable `employee_sessions`.
+- If `--cli`/`--model` are omitted for virtual dispatch, the server resolves the current CLI and uses the registry default model for that CLI.
 
 ### `/steer <prompt>`
 

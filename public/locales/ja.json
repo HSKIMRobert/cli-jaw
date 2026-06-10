@@ -231,6 +231,8 @@
     "role.label.backend": "バックエンド",
     "role.label.data": "データ",
     "role.label.docs": "ドキュメント",
+    "role.label.security": "セキュリティ",
+    "role.label.testing": "テスト",
     "role.label.custom": "カスタム...",
     "hb.empty": "heartbeat はありません",
     "hb.name": "名前",

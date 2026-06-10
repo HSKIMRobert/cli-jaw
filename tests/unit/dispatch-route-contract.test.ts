@@ -103,6 +103,35 @@ test('dispatch route accepts optional phase override in request body', () => {
     );
 });
 
+test('dispatch route resolves virtual employees through shared dispatch target helper', () => {
+    assert.ok(
+        orchestrateSrc.includes('function resolveDispatchTarget'),
+        'dispatch route should centralize employee/static/virtual target resolution',
+    );
+    assert.ok(
+        orchestrateSrc.includes('buildVirtualEmployeeRow'),
+        'dispatch route should build ephemeral virtual employees',
+    );
+    assert.ok(
+        orchestrateSrc.includes("Specify exactly one of agent or virtual"),
+        'dispatch route should reject ambiguous agent+virtual requests',
+    );
+    assert.ok(
+        orchestrateSrc.includes('resolveVirtualDefaults'),
+        'dispatch route should use registry defaults for virtual cli/model',
+    );
+});
+
+test('batch dispatch route accepts virtual employees', () => {
+    const batchStart = orchestrateSrc.indexOf("app.post('/api/orchestrate/dispatch/batch'");
+    assert.ok(batchStart >= 0, 'batch dispatch route should exist');
+    const batchBlock = orchestrateSrc.slice(batchStart, batchStart + 8000);
+
+    assert.ok(batchBlock.includes('resolveDispatchTarget(item || {}, emps)'), 'batch route should use shared target resolver');
+    assert.ok(batchBlock.includes('agentName: target.targetName'), 'batch results should label resolved target name');
+    assert.ok(batchBlock.includes('emp: target.emp'), 'batch entries should execute resolved virtual/static/db row');
+});
+
 test('pipeline.ts no longer contains parseSubtasks worker dispatch', () => {
     const pipelineSrc = readSource(join(projectRoot, 'src/orchestrator/pipeline.ts'), 'utf8');
 

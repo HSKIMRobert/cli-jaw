@@ -4,7 +4,7 @@
 import { broadcast } from '../core/bus.js';
 import { settings, normalizeProjectDirs } from '../core/config.js';
 import { clearEmployeeSession, getEmployeeSession, upsertEmployeeSession } from '../core/db.js';
-import { clearStaleEmployeeSessionIfResumeKeyMismatch } from '../core/employees.js';
+import { clearStaleEmployeeSessionIfResumeKeyMismatch, isVirtualEmployeeId } from '../core/employees.js';
 import { getEmployeePromptV2, normalizeTaskTags } from '../prompt/builder.js';
 import { spawnAgent, killAgentById } from '../agent/spawn.js';
 import { appendToWorklog } from '../memory/worklog.js';
@@ -464,8 +464,9 @@ ${worklogBlock}`.trim();
     updateWorkerPhase(empId, String(currentPhase), phaseLabel ?? '');
 
     const employeeModel = String(emp["model"] || '');
-    const empSession = getEmployeeSession.get(empId) as AgentRunResult | undefined;
-    const clearedStaleResumeKey = clearStaleEmployeeSessionIfResumeKeyMismatch(empId, empSession, {
+    const isVirtualEmployee = isVirtualEmployeeId(empId);
+    const empSession = isVirtualEmployee ? undefined : getEmployeeSession.get(empId) as AgentRunResult | undefined;
+    const clearedStaleResumeKey = isVirtualEmployee ? false : clearStaleEmployeeSessionIfResumeKeyMismatch(empId, empSession, {
         cli: emp["cli"],
         model: employeeModel,
     });
@@ -473,12 +474,13 @@ ${worklogBlock}`.trim();
     const canResume = !!(
         !clearedStaleResumeKey
         &&
-        isSessionPersistingCli(String(emp["cli"] || ''))
+        !isVirtualEmployee
+        && isSessionPersistingCli(String(emp["cli"] || ''))
         && empSessionId
         && empSession?.["cli"] === emp["cli"]
         && String(empSession?.["model"] || '') === employeeModel
     );
-    if (!isSessionPersistingCli(String(emp["cli"] || '')) && empSession?.["session_id"]) {
+    if (!isVirtualEmployee && !isSessionPersistingCli(String(emp["cli"] || '')) && empSession?.["session_id"]) {
         clearEmployeeSession.run(empId);
     }
 
@@ -535,10 +537,10 @@ ${worklogBlock}`.trim();
     const resultText = text(r["text"]);
     const resultTools = Array.isArray(r["tools"]) ? sanitizeToolLogForDurableStorage(r["tools"]) : [];
     const isSuccess = r["code"] === 0 || (r["code"] == null && resultText.trim().length > 0);
-    if (isSuccess && r["sessionId"] && isSessionPersistingCli(String(emp["cli"] || ''))) {
+    if (!isVirtualEmployee && isSuccess && r["sessionId"] && isSessionPersistingCli(String(emp["cli"] || ''))) {
         const empOutputLen = typeof r["outputLen"] === 'number' ? r["outputLen"] : 0;
         upsertEmployeeSession.run(empId, r["sessionId"], emp["cli"], employeeModel, empOutputLen);
-    } else if (!isSessionPersistingCli(String(emp["cli"] || ''))) {
+    } else if (!isVirtualEmployee && !isSessionPersistingCli(String(emp["cli"] || ''))) {
         clearEmployeeSession.run(empId);
     }
     const diagnosticText = resultText || (isSuccess ? '' : formatEmployeeFailure(emp, r));

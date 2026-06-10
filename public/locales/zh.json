@@ -231,6 +231,8 @@
     "role.label.backend": "后端",
     "role.label.data": "数据",
     "role.label.docs": "文档",
+    "role.label.security": "安全",
+    "role.label.testing": "测试",
     "role.label.custom": "自定义...",
     "hb.empty": "暂无 heartbeat",
     "hb.name": "名称",
