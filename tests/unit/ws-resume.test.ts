@@ -23,12 +23,17 @@ test('ws-resume: restore trigger debounce exists without full history reload sta
     assert.ok(!wsSrc.includes('HEAVY_RESUME_DEBOUNCE_MS'), 'heavy resume debounce must not exist');
 });
 
-test('ws-resume: restore sync hydrates runtime state but never reloads full message history', () => {
+test('ws-resume: restore sync reloads history only for history-sensitive reasons', () => {
+    // devlog 260609 75/82 deliberately retired the snapshot-only restore
+    // contract: hidden/preview restores can miss history-changing events, so
+    // classified reasons reload durable history first. Reload churn is bounded
+    // by the trigger debounce plus message-history's signature/scope skip.
     const block = functionBlock(wsSrc, 'function syncAfterBrowserRestore(reason: string): void');
     assert.ok(block.includes('showChatRestoreIndicator(reason)'), 'indicator must show first');
-    assert.ok(block.includes('syncOrchestrateSnapshot(reason, { hydrateRun: true })'), 'restore should hydrate active runtime only');
+    assert.ok(block.includes('shouldReloadMessagesForRestore(reason)'), 'history reload must stay gated by the restore classifier');
+    assert.ok(block.includes('m.loadMessages()'), 'history-sensitive restores must reload durable history');
+    assert.ok(block.includes('syncOrchestrateSnapshot(reason, { hydrateRun: true })'), 'restore should hydrate active runtime');
     assert.ok(block.includes('reconcileChatBottomAfterRestore(reason)'), 'restore should reconcile bottom');
-    assert.ok(!block.includes('loadMessages'), 'restore path must not reload full /api/messages history');
 });
 
 test('ws-resume: requestBrowserRestoreSync debounces repeated restore triggers', () => {
