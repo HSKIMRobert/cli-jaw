@@ -191,6 +191,19 @@ describe('bootstrapVirtualHistory', () => {
         assert.ok(virtualScrollSource.includes('captureScrollAnchor(anchorEl)'), 'mutation helper should capture the preferred anchor before mutation');
         assert.ok(virtualScrollSource.includes('restoreScrollAnchor(anchor)'), 'mutation helper should restore row-top anchor after mutation');
     });
+
+    it('lazy media load remeasures the owning row (260611 image overlap, doc 85)', () => {
+        assert.ok(virtualScrollSource.includes('this.attachMediaLoadRemeasure()'), 'constructor must wire the media-load remeasure hook');
+        assert.ok(virtualScrollSource.includes("this.innerEl.addEventListener('load', remeasure, true)"), 'img load must be delegated in capture phase (load does not bubble)');
+        assert.ok(virtualScrollSource.includes("this.innerEl.addEventListener('loadedmetadata', remeasure, true)"), 'video loadedmetadata must be delegated in capture phase');
+        assert.ok(virtualScrollSource.includes("target.closest<HTMLElement>('[data-vs-idx]')"), 'remeasure must resolve the owning VS row from the media element');
+        const hookStart = virtualScrollSource.indexOf('private attachMediaLoadRemeasure()');
+        assert.ok(hookStart > -1, 'attachMediaLoadRemeasure must exist');
+        const hookBody = virtualScrollSource.slice(hookStart, virtualScrollSource.indexOf("addEventListener('loadedmetadata'", hookStart));
+        assert.ok(hookBody.includes('syncMeasuredItemHeight(this.items,'), 'remeasure must sync the cached item height');
+        assert.ok(hookBody.includes('this.virtualizer.measureElement(row)'), 'remeasure must notify the virtualizer with the row element');
+        assert.ok(hookBody.includes('if (!this._active || !this.virtualizer) return;'), 'remeasure must no-op while VS is inactive');
+    });
 });
 
 describe('reconnect reload regressions (260610 ghost overlap)', () => {
