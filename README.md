@@ -440,7 +440,7 @@ jaw skill list              # see what's available
 | **Chrome DevTools Protocol** | Navigate, click, type, screenshot, evaluate JS, scroll, press keys — remote control for Chrome |
 | **Vision-click** | Screenshot the screen → AI extracts target coordinates → clicks. `jaw browser vision-click "Login button"` |
 | **Computer Use** | Desktop app automation via Codex Computer Use. Use Safari for localhost and it feels like the Codex app |
-| **Web-AI vendors** | `jaw browser web-ai --vendor chatgpt\|gemini\|grok` with session lifecycle, diagnostics, and source-audit/answer-artifact support where implemented |
+| **Web-AI vendors** | `jaw browser web-ai --vendor chatgpt\|gemini\|grok` with session lifecycle, diagnostics, source-audit/answer-artifact support, and ChatGPT code-mode zip recovery |
 | **Diagram Skill** | Generate SVG diagrams and interactive visualizations, rendered inline in chat |
 
 Computer Use lets you control any macOS app — Finder, Safari, System Settings, Xcode — through natural language. Point it at your localhost dev server in Safari and you get a full visual testing loop.
@@ -537,6 +537,7 @@ jaw browser fetch "https://example.com" --json --trace  # adaptive URL reader
 jaw browser snapshot              # capture page state
 jaw browser vision-click "Login"  # AI-powered click
 jaw browser web-ai status         # ChatGPT/Gemini/Grok web-AI session tooling
+jaw browser web-ai code --vendor chatgpt --model thinking --effort heavy --prompt "Build an MVP" --output-zip ./result.zip
 
 # Dashboard connectors
 jaw dashboard memory search "query"  # read-only cross-instance memory search

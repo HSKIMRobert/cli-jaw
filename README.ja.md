@@ -340,7 +340,7 @@ jaw skill list              # 利用可能なスキルを表示
 | **Chrome DevTools Protocol** | ナビゲーション、クリック、入力、スクリーンショット、JS 実行、スクロール、キー入力 — Chrome のリモートコントロール |
 | **Vision-click** | 画面をスクリーンショット → AI がターゲット座標を抽出 → クリック。`jaw browser vision-click "Login button"` |
 | **Computer Use** | Codex Computer Use によるデスクトップアプリ自動化。Safari で localhost にアクセスすれば Codex アプリのように動作 |
-| **Web-AI ベンダー** | `jaw browser web-ai --vendor chatgpt\|gemini\|grok` — セッションライフサイクル、診断、ソース監査サポート |
+| **Web-AI ベンダー** | `jaw browser web-ai --vendor chatgpt\|gemini\|grok` — セッションライフサイクル、診断、ソース監査、ChatGPT code-mode zip 回収サポート |
 | **Diagram スキル** | SVG ダイアグラムとインタラクティブなビジュアライゼーションを生成し、チャット内にインラインレンダリング |
 
 Computer Use で Finder、Safari、システム設定、Xcode など、あらゆる macOS アプリを自然言語で操作できます。

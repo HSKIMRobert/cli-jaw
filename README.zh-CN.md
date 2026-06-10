@@ -410,7 +410,7 @@ jaw skill list              # 查看可用技能
 | **Chrome DevTools Protocol** | 导航、点击、输入、截屏、执行 JS、滚动、按键——Chrome 的远程控制 |
 | **Vision-click** | 截屏 → AI 提取目标坐标 → 点击。`jaw browser vision-click "Login button"` |
 | **Computer Use** | 通过 Codex Computer Use 自动化桌面应用。用 Safari 访问 localhost，体验如同 Codex 应用 |
-| **Web-AI 供应商** | `jaw browser web-ai --vendor chatgpt\|gemini\|grok`——会话生命周期、诊断、源码审计支持 |
+| **Web-AI 供应商** | `jaw browser web-ai --vendor chatgpt\|gemini\|grok`——会话生命周期、诊断、源码审计、ChatGPT code-mode zip 回收支持 |
 | **Diagram 技能** | 生成 SVG 图表和交互式可视化，在聊天中内联渲染 |
 
 Computer Use 让你用自然语言控制任何 macOS 应用——Finder、Safari、系统设置、Xcode。
