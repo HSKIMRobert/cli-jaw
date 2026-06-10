@@ -33,6 +33,7 @@ export interface FetchTextCandidateOptions {
     redirectLimit?: number;
     allowPrivateNetwork?: boolean;
     fetchImpl?: typeof fetch;
+    beforeFetch?: (url: string) => Promise<void> | void;
     identity?: string;
 }
 

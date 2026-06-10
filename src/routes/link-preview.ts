@@ -1,8 +1,10 @@
 import type { Express, NextFunction, Request, RequestHandler, Response as ExpressResponse } from 'express';
+import { lookup } from 'node:dns/promises';
+import { isIP } from 'node:net';
 
 import { fetchTextCandidate } from '../browser/adaptive-fetch/fetcher.js';
 import { extractMetadataFromHtml } from '../browser/adaptive-fetch/metadata.js';
-import { AdaptiveFetchInputError, validateThirdPartyReaderTarget } from '../browser/adaptive-fetch/safety.js';
+import { AdaptiveFetchInputError, isPrivateHostname, validateThirdPartyReaderTarget } from '../browser/adaptive-fetch/safety.js';
 import { fail, ok } from '../http/response.js';
 
 const PREVIEW_TIMEOUT_MS = 3000;
@@ -38,6 +40,15 @@ type PreviewData = {
 type RateWindow = {
     count: number;
     start: number;
+};
+
+type ResolvedAddress = {
+    address: string;
+    family: number;
+};
+
+type LinkPreviewRouteOptions = {
+    resolveHost?: (hostname: string) => Promise<ResolvedAddress[]>;
 };
 
 const previewCache = new Map<string, CacheEntry<PreviewData>>();
@@ -129,6 +140,31 @@ function resolveSafeUrl(raw: unknown, baseUrl: string): string {
     }
 }
 
+async function defaultResolveHost(hostname: string): Promise<ResolvedAddress[]> {
+    const literal = isIP(hostname);
+    if (literal) return [{ address: hostname, family: literal }];
+    return await lookup(hostname, { all: true, verbatim: true });
+}
+
+async function assertPublicResolvedHost(url: string | URL, resolveHost: LinkPreviewRouteOptions['resolveHost'] = defaultResolveHost): Promise<void> {
+    const parsed = validateThirdPartyReaderTarget(url);
+    const addresses = await resolveHost(parsed.hostname);
+    if (addresses.length === 0) {
+        throw new AdaptiveFetchInputError('target host could not be resolved', {
+            code: 'unresolved-host',
+            url: parsed.href,
+        });
+    }
+    for (const entry of addresses) {
+        if (isPrivateHostname(entry.address)) {
+            throw new AdaptiveFetchInputError('resolved target address is private or local', {
+                code: 'private-network',
+                url: parsed.href,
+            });
+        }
+    }
+}
+
 function normalizePreview(rawUrl: string, html: string, finalUrl: string): PreviewData | null {
     const safeFinalUrl = validateThirdPartyReaderTarget(finalUrl).href;
     const parsedFinal = new URL(safeFinalUrl);
@@ -165,10 +201,11 @@ function sendInputError(res: ExpressResponse, error: unknown): void {
     fail(res, 500, 'link_preview_failed');
 }
 
-async function handlePreview(req: Request, res: ExpressResponse): Promise<void> {
+async function handlePreview(req: Request, res: ExpressResponse, options: LinkPreviewRouteOptions): Promise<void> {
     const rawUrl = readQueryUrl(req);
     try {
         const target = validateThirdPartyReaderTarget(rawUrl);
+        await assertPublicResolvedHost(target, options.resolveHost);
         const cacheKey = target.href;
         const cached = getCached(previewCache, cacheKey);
         if (cached !== undefined) {
@@ -184,6 +221,7 @@ async function handlePreview(req: Request, res: ExpressResponse): Promise<void> 
             maxBytes: PREVIEW_MAX_HTML_BYTES,
             redirectLimit: PREVIEW_REDIRECT_LIMIT,
             allowPrivateNetwork: false,
+            beforeFetch: url => assertPublicResolvedHost(url, options.resolveHost),
         });
         if (!fetched.ok || !isHtmlLike(fetched.contentType, fetched.text)) {
             setCached(previewCache, cacheKey, null, NEGATIVE_CACHE_TTL_MS);
@@ -226,11 +264,12 @@ async function readImageBody(response: globalThis.Response, maxBytes: number): P
     return Buffer.concat(chunks.map(chunk => Buffer.from(chunk)));
 }
 
-async function handleImageProxy(req: Request, res: ExpressResponse): Promise<void> {
+async function handleImageProxy(req: Request, res: ExpressResponse, options: LinkPreviewRouteOptions): Promise<void> {
     const rawUrl = readQueryUrl(req);
     try {
         let current = validateThirdPartyReaderTarget(rawUrl).href;
         for (let redirects = 0; redirects <= PREVIEW_REDIRECT_LIMIT; redirects += 1) {
+            await assertPublicResolvedHost(current, options.resolveHost);
             const response = await fetch(current, {
                 redirect: 'manual',
                 credentials: 'omit',
@@ -270,11 +309,11 @@ async function handleImageProxy(req: Request, res: ExpressResponse): Promise<voi
     }
 }
 
-export function registerLinkPreviewRoutes(app: Express, requireAuth: RequestHandler): void {
+export function registerLinkPreviewRoutes(app: Express, requireAuth: RequestHandler, options: LinkPreviewRouteOptions = {}): void {
     app.get('/api/link-preview', requireAuth, routeRateLimit, (req, res) => {
-        void handlePreview(req, res);
+        void handlePreview(req, res, options);
     });
     app.get('/api/link-preview/image', requireAuth, routeRateLimit, (req, res) => {
-        void handleImageProxy(req, res);
+        void handleImageProxy(req, res, options);
     });
 }
