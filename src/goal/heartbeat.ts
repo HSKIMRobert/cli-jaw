@@ -167,7 +167,6 @@ export function buildGoalContinuation(): GoalContinuationResult {
         '',
         'For important or high-risk decisions, dispatch an employee for verification — then immediately act on the result. Do NOT wait.',
         'ONLY ASK THE USER when genuinely blocked by missing information or authority you cannot obtain yourself, or before a destructive/irreversible action (git push/reset/clean, deleting files or data, production or infra changes — these STILL require explicit user approval).',
-        'RULE: If you need to wait for an external event (CI, deploy, build), use ScheduleWakeup to schedule a delayed check. The server intercepts ScheduleWakeup and resumes this session after the delay. NEVER say "will report when done" and exit.',
     ].join('\n');
 
     return { shouldContinue: true, reason: 'goal_active', prompt };

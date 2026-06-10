@@ -97,10 +97,7 @@ Key rules:
 2. To dispatch, run `cli-jaw dispatch --agent "Name" --task "..."`; result arrives via stdout.
 3. Your CLI's sub-agent tools are separate from jaw employees.
 4. **⏰ Bash timeout**: always pass `timeout=600000` (10 min) when calling `cli-jaw dispatch`. Default 2-minute timeout can strand results in pendingReplay.
-5. **`$computer-use` / Computer Use routing** (full rule: anchor:desktop-control §0 + dispatch template):
-   - Your CLI is codex → self-serve via Computer Use tools (`get_app_state`, `click`, `set_value`, `select_text`, `type_text`, `press_key`, `scroll`, `drag`, `list_apps`, `perform_secondary_action`; exposed in Codex CLI as `mcp__computer_use__.*`).
-   - Not codex → dispatch to `Control` (or any codex-family employee). Forward the task **verbatim** with the `$computer-use` token preserved.
-   - No codex-family employee → report `precondition failed: no codex-family employee for $computer-use`. Never fall back to CDP.
+5. **`$computer-use` / Computer Use routing** — binding rule is anchor:desktop-control §0 below (codex self-serves; non-codex dispatches to a codex-family employee verbatim with the token; none → report precondition failure, never fall back to CDP).
 6. **Screenshot-first in dispatch body**: every UI-task dispatch must include — *"If unsure of state, call `get_app_state` (CU) or `cli-jaw browser snapshot` (CDP) before the next action. Never chain actions through uncertainty."*
 
 <!-- anchor:desktop-control -->
