@@ -95,9 +95,9 @@ const CHATGPT_SIMPLIFIED_INTELLIGENCE_OPTIONS: Readonly<Record<ChatGptModelChoic
         },
     },
     pro: {
-        defaultLabels: ['Pro Standard', 'Pro Extended'],
+        defaultLabels: ['Pro Extended'],
         efforts: {
-            standard: ['Pro Standard'],
+            standard: ['Pro Extended'],
             extended: ['Pro Extended'],
         },
     },
@@ -376,6 +376,7 @@ async function findModelOption(page: Page, choice: ChatGptModelChoice): Promise<
         }
     }
     const simplified = await findOptionByExactLabels(page, simplifiedDefaultLabels(choice));
+    if (simplified && await isSimplifiedIntelligenceMenuOpen(page, choice, null)) return simplified;
     if (simplified && await isModelOptionCandidate(simplified, choice)) return simplified;
     return null;
 }
@@ -392,14 +393,14 @@ async function selectChatGptEffort(page: Page, model: ChatGptModelChoice, effort
     const config = CHATGPT_MODEL_EFFORT_OPTIONS[model as 'thinking' | 'pro'];
     if (!config?.efforts?.[effort]) throw new Error(`ChatGPT reasoning effort ${effort} is not available for ${model}`);
     await openEffortMenu(page, model, effort, usedFallbacks);
-    const before = await readCheckedEffort(page, model);
+    const before = await readCheckedEffort(page, model, effort);
     if (before === effort) return { selected: before, changed: false };
     const option = await findEffortOption(page, model, effort);
     if (!option) throw new Error(`ChatGPT reasoning effort option not found: ${model}/${effort}`);
     await option.click({ timeout: 5_000 });
     await page.waitForTimeout(500).catch(() => undefined);
     await openEffortMenu(page, model, effort, usedFallbacks);
-    const after = await readCheckedEffort(page, model);
+    const after = await readCheckedEffort(page, model, effort);
     if (after !== effort) throw new Error(`ChatGPT reasoning effort verification failed: expected ${effort}, got ${after || 'none'}`);
     return { selected: after, changed: true };
 }
@@ -521,14 +522,14 @@ async function findEffortTriggerBoxNearModelRow(page: Page, model: ChatGptModelC
     }, { expectedLabels: labels, modelChoice: model, triggerSelectors: CHATGPT_EFFORT_TRIGGER_SELECTORS }).catch(() => null);
 }
 
-async function readCheckedEffort(page: Page, model: ChatGptModelChoice): Promise<ChatGptEffortChoice | null> {
+async function readCheckedEffort(page: Page, model: ChatGptModelChoice, preferredEffort: ChatGptEffortChoice | null = null): Promise<ChatGptEffortChoice | null> {
     const config = CHATGPT_MODEL_EFFORT_OPTIONS[model as 'thinking' | 'pro'];
     const checkedRows = await page.locator('[role="menuitemradio"][aria-checked="true"], [role="menuitemradio"][data-state="checked"]')
         .all()
         .catch(() => []);
     for (const row of checkedRows) {
         const text = (await row.innerText({ timeout: 500 }).catch(() => '')).trim();
-        const simplified = effortChoiceFromSimplifiedText(text, model);
+        const simplified = effortChoiceFromSimplifiedText(text, model, preferredEffort);
         if (simplified) return simplified;
     }
     for (const [effort, label] of Object.entries(config?.efforts || {}) as Array<[ChatGptEffortChoice, string]>) {
@@ -732,8 +733,10 @@ function simplifiedEffortLabels(model: ChatGptModelChoice, effort: ChatGptEffort
     return CHATGPT_SIMPLIFIED_INTELLIGENCE_OPTIONS[model]?.efforts?.[effort] || [];
 }
 
-function effortChoiceFromSimplifiedText(text: string, model: ChatGptModelChoice): ChatGptEffortChoice | null {
+function effortChoiceFromSimplifiedText(text: string, model: ChatGptModelChoice, preferredEffort: ChatGptEffortChoice | null = null): ChatGptEffortChoice | null {
     const options = CHATGPT_SIMPLIFIED_INTELLIGENCE_OPTIONS[model]?.efforts || {};
+    const preferredLabels = preferredEffort ? options[preferredEffort] || [] : [];
+    if (preferredLabels.some(label => menuTextHasExactLine(text, label))) return preferredEffort;
     for (const [effort, labels] of Object.entries(options) as Array<[ChatGptEffortChoice, readonly string[]]>) {
         if (labels.some(label => menuTextHasExactLine(text, label))) return effort;
     }

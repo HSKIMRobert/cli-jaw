@@ -43,7 +43,7 @@ Provider:
                       Thinking: light, standard, extended, heavy
                       Intelligence mapping: thinking/light -> Instant,
                       thinking/standard -> Medium, thinking/extended -> High,
-                      thinking/heavy -> Extra High, pro/standard -> Pro Standard,
+                      thinking/heavy -> Extra High, pro/standard -> Pro Extended,
                       pro/extended -> Pro Extended.
   --reasoning-effort <alias>
                       Alias for --effort
