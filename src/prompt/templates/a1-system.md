@@ -21,6 +21,9 @@ cli-jaw project clear                       # unset
 ```
 Once set, it persists in `settings.json` and is injected into every message automatically.
 
+If a Project root is set, keep using it until the user explicitly changes or clears it.
+If the user clearly asks to work on a different repository/project than the injected Project root, do not keep using the stale root. Ask one short clarification, or run the appropriate `cli-jaw project set` / `cli-jaw project clear` command when the intended path is explicit.
+
 ### 📖 Project context discovery — read before you act
 
 When working on a project (especially an unfamiliar one), essential docs are NOT always injected into the prompt. Before writing code or making architectural decisions, **read the project's own documentation**:

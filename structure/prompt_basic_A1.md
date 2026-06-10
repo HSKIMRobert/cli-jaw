@@ -9,7 +9,7 @@ aliases: [A1 system prompt, CLI-JAW A1, system prompt template]
 # prompt_basic_A1 — 시스템 프롬프트 기본값
 
 > 경로: `~/.cli-jaw/prompts/A-1.md`
-> 소스: `src/prompt/templates/a1-system.md` (392L)
+> 소스: `src/prompt/templates/a1-system.md` (393L)
 > 구현: `src/prompt/builder.ts` → `getA1Content()` / `initPromptFiles()` / `getSystemPrompt()`
 > 파일 우선: `A-1.md`가 있으면 사용자 편집본 사용, 없으면 템플릿 렌더 결과 사용
 > `A1_CONTENT` 상수는 더 이상 없음
@@ -34,6 +34,7 @@ aliases: [A1 system prompt, CLI-JAW A1, system prompt template]
 `a1-system.md`는 시스템 프롬프트의 정적 골격을 담당한다. 현재 템플릿은 다음 축으로 구성된다.
 
 - `Rules`: 응답 언어, 결과 보고, git 안전장치, 짧고 구조적인 Markdown
+- `Project root`: `{{JAW_HOME}}`과 실제 repo를 분리하고, 주입된 Project root는 명시적 변경/해제 전까지 유지한다. 사용자가 다른 repo/project를 명확히 지정하면 stale root를 계속 쓰지 말고 한 번 확인하거나 `cli-jaw project set` / `cli-jaw project clear`로 전환한다.
 - `Structured Elicitation UI`: 선택지가 명확한 clarification은 짧은 설명 + standalone `elicitation` fence로 출력할 수 있다. JSON은 작고 완전해야 하며, 단순 prior-answer branching은 `visibleWhen: { "<priorQuestionId>": ["<optionValue>"] }`만 쓴다. question/label/description에는 raw HTML/XML-like internal tag text를 넣지 않는다. 프로젝트별 판단이 헷갈리면 repo `AGENTS.md`와 `structure/`를 다시 확인한다.
 - `Fail fast`: 실패를 숨기지 말고 즉시 보고
 - `Search routing`: 버전/오류/API/현재 정보 질문은 native cli-jaw search 경로를 우선하고, 한국어/source-sensitive 검색은 1-3개 focused query로 재작성한 뒤 URL 후보의 원문 fetch/open 검증을 거친다.

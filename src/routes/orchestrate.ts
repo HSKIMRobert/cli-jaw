@@ -25,7 +25,7 @@ import {
 } from '../orchestrator/worker-registry.js';
 import { findEmployee, runSingleAgent, validateParallelSafety } from '../orchestrator/distribute.js';
 import { getEmployees } from '../core/db.js';
-import { settings, clearProjectDirs } from '../core/config.js';
+import { settings } from '../core/config.js';
 import { broadcast } from '../core/bus.js';
 import { stripUndefined } from '../core/strip-undefined.js';
 import { verifyBossToken } from '../core/boss-auth.js';
@@ -694,8 +694,6 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
         if (t === 'D') {
             setState(t, undefined, scope, 'Done');
             resetState(scope);
-            clearProjectDirs();
-            broadcast('settings_change', { projectDirs: null });
         } else {
             let initCtx;
             if (t === 'P') {

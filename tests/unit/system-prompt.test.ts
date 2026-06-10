@@ -113,6 +113,17 @@ test('system prompt documents safe structured elicitation usage', () => {
         'A1 should point agents back to repo AGENTS.md and structure when unclear');
 });
 
+test('system prompt keeps Project root until explicit change and handles stale roots', () => {
+    assert.ok(a1Src.includes('keep using it until the user explicitly changes or clears it'),
+        'A1 should treat Project root as persistent user context');
+    assert.ok(a1Src.includes('different repository/project than the injected Project root'),
+        'A1 should detect user intent that conflicts with the injected root');
+    assert.ok(a1Src.includes('do not keep using the stale root'),
+        'A1 should forbid silently using stale Project root context');
+    assert.ok(a1Src.includes('`cli-jaw project set` / `cli-jaw project clear`'),
+        'A1 should point to explicit project set/clear commands');
+});
+
 test('skills prompt prefers active search skill for external search intent', () => {
     assert.ok(skillsSrc.includes('Search intent override'),
         'skills prompt should include a search intent override');
