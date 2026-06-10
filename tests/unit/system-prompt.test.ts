@@ -167,8 +167,6 @@ test('system prompt forbids runtime goal state and prefers cli-jaw goal pause', 
         'should direct agents to cli-jaw goal commands only');
     assert.ok(a1Src.includes('cli-jaw goal pause --agent --audit'),
         'should make audited agent pause the AI stop command');
-    assert.ok(a1Src.includes('Independent pause audit'),
-        'should require an independent objective review before AI pause');
     assert.ok(a1Src.includes('Plain `cli-jaw goal pause` is for human/manual use only'),
         'should keep plain pause as a manual-user path');
     assert.ok(a1Src.includes('Do not run `cli-jaw goal done` unless the user explicitly asks'),
@@ -177,22 +175,14 @@ test('system prompt forbids runtime goal state and prefers cli-jaw goal pause', 
         'should not instruct agents to run slash goal done');
 });
 
-test('system prompt requires goal-mode PABCD phase transition commands to be executed', () => {
-    assert.ok(a1Src.includes('Run phase-transition commands'),
-        'should explicitly tell goal-mode agents to execute phase transition commands');
-    assert.ok(a1Src.includes('mandatory shell actions, not status text'),
-        'should distinguish command execution from reporting');
-    assert.ok(a1Src.includes('at C pass, run `cli-jaw orchestrate D` immediately'),
-        'should force C to D transition by command');
-});
-
-test('system prompt requires development goal evidence bundle', () => {
-    assert.ok(a1Src.includes('Development completion evidence bundle'),
-        'goal mode should name the development evidence bundle');
-    assert.ok(a1Src.includes('documentation evidence'),
-        'goal mode should require documentation evidence');
-    assert.ok(a1Src.includes('implementation evidence'),
-        'goal mode should require implementation evidence');
-    assert.ok(a1Src.includes('verification evidence'),
-        'goal mode should require verification evidence');
+// 260610 prompt slim phase 2: goal-mode behavior rules are single-owned by the
+// continuation prompt (src/goal/heartbeat.ts, asserted in goal-continuation-pabcd
+// tests). A-1 keeps only the CLI command list and a [goal-continuation] pointer.
+test('system prompt points goal-mode behavior rules at the continuation prompt', () => {
+    assert.ok(a1Src.includes('[goal-continuation]'),
+        'should point agents at the goal-continuation prompt for goal-mode rules');
+    assert.ok(!a1Src.includes('### Goal Mode Rules'),
+        'goal mode rules must not be duplicated in A-1 (single owner: continuation)');
+    assert.ok(!a1Src.includes('Goal is the supreme rule'),
+        'supreme-rule wording lives only in the continuation PABCD OVERRIDE');
 });
