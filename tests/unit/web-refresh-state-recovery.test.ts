@@ -183,3 +183,16 @@ test('WRS-007: ui exposes guarded restore helper used by restore and reconnect p
     assert.ok(historySrc.includes('if (shouldForceBottom) settleChatBottomAfterInitialLoad();'), 'small fresh or changed-scope history should also settle to bottom without yanking same-scope reconnect readers');
     assert.ok(!scrollSrc.includes('userNearBottom = true;\\n    const vs = getVirtualScroll();\\n    if (vs.active)'), 'restore helper should not reset near-bottom intent before guarded restore');
 });
+
+test('WRS-008: channel-down toast waits out micro-drops (grace period)', () => {
+    const wsSrc = readFileSync(wsPathTs, 'utf8');
+    const downIdx = wsSrc.indexOf('function handleChannelDown');
+    assert.ok(downIdx >= 0, 'handleChannelDown should exist');
+    const block = wsSrc.slice(downIdx, downIdx + 900);
+    assert.ok(block.includes('CHANNEL_DOWN_TOAST_GRACE_MS'),
+        'disconnect toast must be deferred — SSE micro-drops reconnect in ~2s with replay');
+    const upIdx = wsSrc.indexOf('function handleChannelUp');
+    const upBlock = wsSrc.slice(upIdx, upIdx + 600);
+    assert.ok(upBlock.includes('clearChannelDownToastTimer()'),
+        'reconnect within grace must cancel the pending toast');
+});

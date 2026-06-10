@@ -594,6 +594,7 @@ export const reopenChannel = connect;
 function handleChannelUp(transport: 'sse' | 'ws'): void {
     console.log(`[${transport}] connected`);
     fallbackRetryDelayMs = 2000;
+    clearChannelDownToastTimer(); // reconnected within grace — stay silent
     const now = Date.now();
     const skipReload = now - lastLoadTs < 10000;
     // 08 §6: orc_state events must wait for the snapshot fetch — keep the
@@ -619,11 +620,29 @@ function handleChannelUp(transport: 'sse' | 'ws'): void {
     });
 }
 
+// Grace period before announcing a drop: SSE micro-drops auto-reconnect in
+// ~2s with full lastEventId replay — the user loses nothing, so a toast on
+// every blip reads as "끊김" spam while everything actually works. Only a
+// persistent outage is worth announcing (and worth flipping the status pill).
+const CHANNEL_DOWN_TOAST_GRACE_MS = 8000;
+let channelDownToastTimer: number | null = null;
+
+function clearChannelDownToastTimer(): void {
+    if (channelDownToastTimer !== null) {
+        window.clearTimeout(channelDownToastTimer);
+        channelDownToastTimer = null;
+    }
+}
+
 function handleChannelDown(): void {
     console.log('[channel] disconnected');
     import('./ui.js').then(m => m.cleanupToolActivity());
-    setStatus('idle');
-    addSystemMsg(`${ICONS.exec} ${t('ws.disconnected')}`, 'tool-activity');
+    if (channelDownToastTimer !== null) return; // earliest outage owns the deadline
+    channelDownToastTimer = window.setTimeout(() => {
+        channelDownToastTimer = null;
+        setStatus('idle');
+        addSystemMsg(`${ICONS.exec} ${t('ws.disconnected')}`, 'tool-activity');
+    }, CHANNEL_DOWN_TOAST_GRACE_MS);
 }
 
 // ── Legacy WebSocket fallback (devlog 260609, 31) ──
