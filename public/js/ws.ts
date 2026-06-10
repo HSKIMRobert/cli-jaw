@@ -610,6 +610,11 @@ function handleChannelUp(transport: 'sse' | 'ws'): void {
         await syncOrchestrateSnapshot('reconnect', { hydrateRun: true })
             .catch(() => { /* snapshot not critical — UI recovers on next event */ })
             .finally(() => m.reconcileChatBottomAfterRestore('reconnect'));
+        // X-01 (devlog 260609, 50): the server no longer pushes memory_status
+        // on connect — hydrate the sidebar badge from REST instead.
+        import('./features/memory.js')
+            .then(mem => mem.refreshMemorySidebar())
+            .catch(() => { /* badge hydrates on the next memory event */ });
     });
 }
 
