@@ -10,7 +10,7 @@ import { fromFetchResult, fromUserSessionResult, fromHumanResolvedResult } from 
 import { chooseBestReaderCandidate, scoreReaderCandidate } from './content-scorer.js';
 import { fetchThirdPartyReaderCandidate } from './third-party-readers.js';
 import { BrowserRequiredError } from './browser-runtime.js';
-import { collectBrowserCandidate, collectNetworkJsonCandidates } from './browser-escalation.js';
+import { collectBrowserCandidate, collectDefuddleCandidate, collectNetworkJsonCandidates } from './browser-escalation.js';
 import { fromBrowserResult, fromNetworkCandidate } from './reader-adapters.js';
 import { classifyChallengeType } from './challenge-detector.js';
 import { shouldTryUserSession, navigateInUserSession } from './browser-session.js';
@@ -231,6 +231,8 @@ export async function runAdaptiveFetch(input: Record<string, unknown>, deps: Rec
     const browserResult = await tryBrowserEscalation(parsed.href, options, deps, trace, detectedChallenge);
     if (browserResult) {
         readerCandidates.push(fromBrowserResult(browserResult));
+        const defuddleCandidate = collectDefuddleCandidate(browserResult);
+        if (defuddleCandidate) readerCandidates.push(fromBrowserResult(defuddleCandidate));
         for (const networkCandidate of collectNetworkJsonCandidates(browserResult)) {
             readerCandidates.push(fromNetworkCandidate(networkCandidate));
         }
@@ -489,6 +491,17 @@ async function tryBrowserEscalation(url: string, options: AdaptiveFetchOptions, 
             status: result['status'] as number,
             reason: `score:${scored.score}`,
         });
+        const defuddleCandidate = collectDefuddleCandidate(result);
+        if (defuddleCandidate) {
+            const scoredDefuddle = scoreReaderCandidate(fromBrowserResult(defuddleCandidate));
+            appendAttempt(trace, {
+                source: 'browser',
+                verdict: scoredDefuddle.verdict,
+                url: defuddleCandidate['finalUrl'] as string,
+                status: defuddleCandidate['status'] as number,
+                reason: `score:${scoredDefuddle.score}`,
+            });
+        }
         for (const networkCandidate of collectNetworkJsonCandidates(result)) {
             const scoredNetwork = scoreReaderCandidate(fromNetworkCandidate(networkCandidate));
             appendAttempt(trace, {
