@@ -117,16 +117,26 @@
     flex-shrink: 0;
 }
 
+/* The title span mixes plain text, the inline-flex CLI badge, and the project
+   label — flex keeps their baselines from drifting apart. */
+.chat-header > span:first-child {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
 .header-project {
-    margin-left: 10px;
+    margin-left: 4px;
     color: var(--text-muted, #888);
-    font-size: 0.85em;
+    font-size: 0.8em;
     font-weight: 400;
+    letter-spacing: 0.2px;
     max-width: 280px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    vertical-align: middle;
+    flex-shrink: 1;
 }
 
 .chat-messages {
