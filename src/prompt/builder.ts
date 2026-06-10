@@ -558,10 +558,10 @@ It defines phase contracts, dispatch pitfalls (delegation trap, context drift, p
     // Boss Dev Work Classification contract (92_runtime_skill_routing_plan).
     // Compact, unconditional — renders identically with or without employees.
     prompt += '\n\n---\n## Dev Work Classification (contract)\n';
-    prompt += 'Before coding, classify work C0-C5 (C0 trivial text, C1 single-file local, C2 ordinary product slice, C3 cross-domain, C4 high-risk security/data/release, C5 research/ambiguous).\n';
-    prompt += 'Use direct mode for C0-C1, a compact plan for C2, compact/full PABCD for C3 when persistence, employee coordination, public contract, or architecture risk requires it, strict PABCD for C4, research/interview for C5.\n';
+    prompt += 'Before coding, classify work C0-C5 (C0 trivial text, C1 single-file local, C2 ordinary product slice — endpoint/form/screen, C3 cross-domain — multiple modules/public API, C4 high-risk — auth/payments/security/data deletion/migration/release/permissions, C5 research/ambiguous). When signals match two classes, the higher class wins.\n';
+    prompt += 'Use direct mode for C0-C1, a compact plan for C2, compact/full PABCD for C3 when persistence, public contract, or architecture risk requires it, full PABCD for C4, research/interview for C5.\n';
     prompt += 'Dispatch employees only for independent specialist work, plan/build verification, or high-risk review. Optional dispatch `task_tags` (e.g. tdd, threat_model, migration_backfill, frontend_ui) add specialist guidance without changing the employee role.\n';
-    prompt += 'Ask the user for business ambiguity, destructive action, new dependency/framework, public API/schema change, irreversible migration, or permission model change.\n';
+    prompt += 'C4-promotion triggers (DEV-ESCALATE-01: security, data deletion/migration, destructive ops, public contract change, release surface, permission model, new dependency/framework) override any fast path and promote the affected part to C4-level care. Ask the user before destructive actions, new dependency/framework, public API/schema change, irreversible migration, permission model change, or unresolved business ambiguity.\n';
     prompt += 'Verify with the narrowest command that proves the claim; run affected-suite gates for C3 and full relevant gates for C4 or release-sensitive work.\n';
 
     try {
@@ -703,10 +703,10 @@ const TASK_TAG_SKILL_MAP: Record<string, string[]> = {
     frontend_ui: ['dev-uiux-design'],
     testing: ['dev-testing'],
     tdd: ['dev-testing'],
-    bdd_acceptance: ['dev-testing'],
+    bdd_acceptance: ['dev-testing', 'dev'],
     security: ['dev-security'],
     threat_model: ['dev-security'],
-    architecture: ['dev-architecture'],
+    architecture: ['dev-architecture', 'dev-backend'],
     ddd: ['dev-architecture', 'dev-backend'],
     clean_arch: ['dev-architecture', 'dev-backend'],
     hexagonal: ['dev-architecture', 'dev-backend'],
@@ -726,10 +726,13 @@ const TASK_TAG_SKILL_MAP: Record<string, string[]> = {
 };
 
 export function normalizeTaskTags(raw: unknown): string[] {
-    if (!Array.isArray(raw)) return [];
+    // Bare string is coerced to a single tag (dev §0.3); separators that would
+    // collide with the comma-joined cache key are normalized to underscores.
+    const arr = typeof raw === 'string' ? [raw] : raw;
+    if (!Array.isArray(arr)) return [];
     return [...new Set(
-        raw.filter((t): t is string => typeof t === 'string')
-            .map(t => t.trim().toLowerCase().replace(/[\s-]+/g, '_'))
+        arr.filter((t): t is string => typeof t === 'string')
+            .map(t => t.trim().toLowerCase().replace(/[\s,:;-]+/g, '_'))
             .filter(Boolean),
     )].sort();
 }
@@ -831,7 +834,10 @@ export function getEmployeePromptV2(
                 if (!baseSkills.has(skillName) && !tagSkills.includes(skillName)) tagSkills.push(skillName);
             }
         }
-        if (tagSkills.length > 0 || unknownTags.length > 0) {
+        {
+            // Render whenever tags exist — even if every mapped skill deduped
+            // against base skills (e.g. product_discovery → dev), so the tag
+            // stays visible to the employee.
             prompt += `\n\n## Task Tag Guides`;
             prompt += `\n- Task tags for this dispatch: ${taskTags.join(', ')}. Tags add guidance; your execution role stays "${role}".`;
             for (const skillName of tagSkills) {
