@@ -1,5 +1,6 @@
 type ElicitationKind = 'elicitation' | 'choice-buttons';
 type QuestionType = 'single_select' | 'multi_select' | 'rank_priorities';
+type VisibleWhen = Record<string, string[]>;
 
 interface RawOption {
     id?: unknown;
@@ -24,6 +25,7 @@ interface RawQuestion {
     title?: unknown;
     prompt?: unknown;
     options?: unknown;
+    visibleWhen?: unknown;
 }
 
 interface NormalizedQuestion {
@@ -31,6 +33,7 @@ interface NormalizedQuestion {
     type: QuestionType;
     question: string;
     options: NormalizedOption[];
+    visibleWhen: VisibleWhen;
 }
 
 interface NormalizedSpec {
@@ -116,6 +119,20 @@ function normalizeOptions(rawOptions: unknown): NormalizedOption[] {
     }).filter((option): option is NormalizedOption => Boolean(option));
 }
 
+function normalizeVisibleWhen(value: unknown): VisibleWhen {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+    const visibleWhen: VisibleWhen = {};
+    for (const [rawKey, rawAllowed] of Object.entries(value as Record<string, unknown>)) {
+        const key = rawKey.trim();
+        if (!key) continue;
+        const allowed = Array.isArray(rawAllowed)
+            ? rawAllowed.map(asString).filter(Boolean)
+            : [asString(rawAllowed)].filter(Boolean);
+        if (allowed.length > 0) visibleWhen[key] = allowed;
+    }
+    return visibleWhen;
+}
+
 function normalizeQuestion(rawQuestion: unknown, index: number): NormalizedQuestion | null {
     if (!rawQuestion || typeof rawQuestion !== 'object') return null;
     const raw = rawQuestion as RawQuestion;
@@ -126,6 +143,7 @@ function normalizeQuestion(rawQuestion: unknown, index: number): NormalizedQuest
         type: normalizeType(raw.type),
         question,
         options: normalizeOptions(raw.options),
+        visibleWhen: normalizeVisibleWhen(raw.visibleWhen),
     };
 }
 
@@ -177,8 +195,9 @@ export function hydrateElicitationBlocks(root: ParentNode = document): void {
             block.innerHTML = '<div class="elicitation-error-text">질문 형식을 읽을 수 없습니다.</div>';
             continue;
         }
-        blockStates.set(block, { spec: parsed, index: 0, answers: [] });
-        renderCurrentQuestion(block);
+        const state: ElicitationState = { spec: parsed, index: 0, answers: [] };
+        blockStates.set(block, state);
+        advanceToNextVisibleQuestion(block, state);
     }
 }
 
@@ -232,13 +251,40 @@ function currentOption(state: ElicitationState, optionId: string): NormalizedOpt
     return question?.options.find(option => option.id === optionId) || null;
 }
 
+function buildAnswersByQuestionId(state: ElicitationState): Map<string, ElicitationAnswer> {
+    const answers = new Map<string, ElicitationAnswer>();
+    for (const answer of state.answers) {
+        if (answer) answers.set(answer.question.id, answer);
+    }
+    return answers;
+}
+
+function isQuestionVisible(question: NormalizedQuestion, answersByQuestionId: Map<string, ElicitationAnswer>): boolean {
+    for (const [questionId, allowedValues] of Object.entries(question.visibleWhen)) {
+        const answer = answersByQuestionId.get(questionId);
+        if (!answer || answer.skipped) return false;
+        if (!answer.values.some(value => allowedValues.includes(value))) return false;
+    }
+    return true;
+}
+
+function advanceToNextVisibleQuestion(block: HTMLElement, state: ElicitationState): void {
+    while (state.index < state.spec.questions.length) {
+        const question = currentQuestion(state);
+        if (!question) break;
+        if (isQuestionVisible(question, buildAnswersByQuestionId(state))) break;
+        state.index += 1;
+    }
+    renderCurrentQuestion(block);
+}
+
 function recordAnswer(block: HTMLElement, answer: Omit<ElicitationAnswer, 'question'>): void {
     const state = blockStates.get(block);
     const question = state ? currentQuestion(state) : null;
     if (!state || !question || block.dataset['elicitationState'] === SUBMITTING_STATE) return;
     state.answers[state.index] = { question, ...answer };
     state.index += 1;
-    renderCurrentQuestion(block);
+    advanceToNextVisibleQuestion(block, state);
 }
 
 function handleSelectOption(button: HTMLElement, block: HTMLElement, state: ElicitationState): void {

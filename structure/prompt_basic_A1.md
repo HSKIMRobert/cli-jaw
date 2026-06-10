@@ -34,7 +34,7 @@ aliases: [A1 system prompt, CLI-JAW A1, system prompt template]
 `a1-system.md`는 시스템 프롬프트의 정적 골격을 담당한다. 현재 템플릿은 다음 축으로 구성된다.
 
 - `Rules`: 응답 언어, 결과 보고, git 안전장치, 짧고 구조적인 Markdown
-- `Structured Elicitation UI`: 선택지가 명확한 clarification은 짧은 설명 + standalone `elicitation` fence로 출력할 수 있다. JSON은 작고 완전해야 하며, question/label/description에는 raw HTML/XML-like internal tag text를 넣지 않는다. 프로젝트별 판단이 헷갈리면 repo `AGENTS.md`와 `structure/`를 다시 확인한다.
+- `Structured Elicitation UI`: 선택지가 명확한 clarification은 짧은 설명 + standalone `elicitation` fence로 출력할 수 있다. JSON은 작고 완전해야 하며, 단순 prior-answer branching은 `visibleWhen: { "<priorQuestionId>": ["<optionValue>"] }`만 쓴다. question/label/description에는 raw HTML/XML-like internal tag text를 넣지 않는다. 프로젝트별 판단이 헷갈리면 repo `AGENTS.md`와 `structure/`를 다시 확인한다.
 - `Fail fast`: 실패를 숨기지 말고 즉시 보고
 - `Search routing`: 버전/오류/API/현재 정보 질문은 native cli-jaw search 경로를 우선하고, 한국어/source-sensitive 검색은 1-3개 focused query로 재작성한 뒤 URL 후보의 원문 fetch/open 검증을 거친다.
 - `jaw Employees vs CLI Sub-agents` + `When to Use Which`: Boss dispatch와 CLI 내부 sub-agent를 구분

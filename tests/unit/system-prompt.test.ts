@@ -105,6 +105,8 @@ test('system prompt documents safe structured elicitation usage', () => {
         'A1 should scope elicitation to clear choice-based clarification');
     assert.ok(a1Src.includes('standalone `elicitation` fence'),
         'A1 should require standalone elicitation fence output');
+    assert.ok(a1Src.includes('visibleWhen: { "<priorQuestionId>": ["<optionValue>"] }'),
+        'A1 should document the minimal visibleWhen branching syntax');
     assert.ok(a1Src.includes('avoid raw HTML/XML-like internal tag text'),
         'A1 should avoid raw internal tag text in elicitation fields');
     assert.ok(a1Src.includes('repo `AGENTS.md`/`structure/`'),

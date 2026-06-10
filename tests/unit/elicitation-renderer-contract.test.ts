@@ -169,3 +169,151 @@ test('hydrated single-question option click composes a user message and removes 
     assert.match(input.value, /- 구현 범위: single_select MVP \(값: single_select MVP\)/);
     assert.match(input.value, /위 응답을 기준으로 계속 진행해줘\./);
 });
+
+test('visibleWhen shows a dependent question when the controlling value matches', async () => {
+    setupWebUiDom();
+    const input = document.createElement('textarea');
+    input.id = 'chatInput';
+    document.body.appendChild(input);
+
+    const { renderMarkdown } = await import('../../public/js/render.ts');
+    const { hydrateElicitationBlocks } = await import('../../public/js/features/elicitation.ts');
+    const spec = {
+        questions: [
+            {
+                id: 'work_type',
+                question: '작업 종류',
+                options: [{ label: '버그 수정', value: 'bug_fix' }, { label: '문서화', value: 'docs' }],
+            },
+            {
+                id: 'repro_path',
+                question: '재현 경로',
+                visibleWhen: { work_type: ['bug_fix'] },
+                options: [{ label: '있음', value: 'has_repro' }],
+            },
+        ],
+    };
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = renderMarkdown(`\`\`\`elicitation\n${JSON.stringify(spec)}\n\`\`\``);
+    document.body.appendChild(wrapper);
+    hydrateElicitationBlocks(wrapper);
+
+    wrapper.querySelectorAll<HTMLButtonElement>('.elicitation-option')[0]?.click();
+
+    assert.match(wrapper.textContent || '', /재현 경로/);
+    assert.match(wrapper.textContent || '', /있음/);
+});
+
+test('visibleWhen skips non-matching questions and omits them from composed prompt', async () => {
+    setupWebUiDom();
+    const input = document.createElement('textarea');
+    input.id = 'chatInput';
+    document.body.appendChild(input);
+    let sent = 0;
+    input.addEventListener('cmd-execute', () => { sent += 1; });
+
+    const { renderMarkdown } = await import('../../public/js/render.ts');
+    const { hydrateElicitationBlocks } = await import('../../public/js/features/elicitation.ts');
+    const spec = {
+        questions: [
+            {
+                id: 'work_type',
+                question: '작업 종류',
+                options: [{ label: '버그 수정', value: 'bug_fix' }, { label: '문서화', value: 'docs' }],
+            },
+            {
+                id: 'repro_path',
+                question: '재현 경로',
+                visibleWhen: { work_type: ['bug_fix'] },
+                options: [{ label: '있음', value: 'has_repro' }],
+            },
+            {
+                id: 'priority',
+                question: '우선순위',
+                options: [{ label: '높음', value: 'high' }],
+            },
+        ],
+    };
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = renderMarkdown(`\`\`\`elicitation\n${JSON.stringify(spec)}\n\`\`\``);
+    document.body.appendChild(wrapper);
+    hydrateElicitationBlocks(wrapper);
+
+    wrapper.querySelectorAll<HTMLButtonElement>('.elicitation-option')[1]?.click();
+    assert.doesNotMatch(wrapper.textContent || '', /재현 경로/);
+    assert.match(wrapper.textContent || '', /우선순위/);
+
+    wrapper.querySelector<HTMLButtonElement>('.elicitation-option')?.click();
+
+    assert.equal(sent, 1);
+    assert.match(input.value, /- 작업 종류: 문서화 \(값: docs\)/);
+    assert.match(input.value, /- 우선순위: 높음 \(값: high\)/);
+    assert.doesNotMatch(input.value, /재현 경로/);
+});
+
+test('visibleWhen is not satisfied when the controlling answer is skipped', async () => {
+    setupWebUiDom();
+    const { renderMarkdown } = await import('../../public/js/render.ts');
+    const { hydrateElicitationBlocks } = await import('../../public/js/features/elicitation.ts');
+    const spec = {
+        questions: [
+            {
+                id: 'work_type',
+                question: '작업 종류',
+                options: [{ label: '버그 수정', value: 'bug_fix' }],
+            },
+            {
+                id: 'repro_path',
+                question: '재현 경로',
+                visibleWhen: { work_type: ['bug_fix'] },
+                options: [{ label: '있음', value: 'has_repro' }],
+            },
+            {
+                id: 'priority',
+                question: '우선순위',
+                options: [{ label: '높음', value: 'high' }],
+            },
+        ],
+    };
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = renderMarkdown(`\`\`\`elicitation\n${JSON.stringify(spec)}\n\`\`\``);
+    document.body.appendChild(wrapper);
+    hydrateElicitationBlocks(wrapper);
+
+    wrapper.querySelector<HTMLButtonElement>('[data-elicitation-action="skip"]')?.click();
+
+    assert.doesNotMatch(wrapper.textContent || '', /재현 경로/);
+    assert.match(wrapper.textContent || '', /우선순위/);
+});
+
+test('visibleWhen multi_select controller matches when any selected value is allowed', async () => {
+    setupWebUiDom();
+    const { renderMarkdown } = await import('../../public/js/render.ts');
+    const { hydrateElicitationBlocks } = await import('../../public/js/features/elicitation.ts');
+    const spec = {
+        questions: [
+            {
+                id: 'areas',
+                question: '영역',
+                type: 'multi_select',
+                options: [{ label: '문서', value: 'docs' }, { label: '런타임', value: 'runtime' }],
+            },
+            {
+                id: 'runtime_detail',
+                question: '런타임 세부',
+                visibleWhen: { areas: ['runtime'] },
+                options: [{ label: '렌더러', value: 'renderer' }],
+            },
+        ],
+    };
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = renderMarkdown(`\`\`\`elicitation\n${JSON.stringify(spec)}\n\`\`\``);
+    document.body.appendChild(wrapper);
+    hydrateElicitationBlocks(wrapper);
+
+    wrapper.querySelectorAll<HTMLButtonElement>('.elicitation-option')[1]?.click();
+    wrapper.querySelector<HTMLButtonElement>('[data-elicitation-action="submit-multi"]')?.click();
+
+    assert.match(wrapper.textContent || '', /런타임 세부/);
+    assert.match(wrapper.textContent || '', /렌더러/);
+});

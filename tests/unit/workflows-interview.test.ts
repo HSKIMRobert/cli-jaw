@@ -63,6 +63,10 @@ test('IW-005b: Interview prompt allows safe structured elicitation without repla
         'I prompt should recommend 1-3 questions',
     );
     assert.ok(
+        stateMachineSrc.includes('visibleWhen: { "scope": ["mvp"] }'),
+        'I prompt should document visibleWhen prior-answer branching syntax',
+    );
+    assert.ok(
         stateMachineSrc.includes('Do not put raw internal tag strings'),
         'I prompt should forbid raw internal tag strings in elicitation JSON fields',
     );

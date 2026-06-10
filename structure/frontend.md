@@ -94,7 +94,7 @@ public/
 | `js/render/math.ts` | — | KaTeX math rendering |
 | `js/render/notes-vault-path.ts` | — | notes vault path resolution |
 | `js/render/delegations.ts` | — | render delegation registry |
-| `js/features/elicitation.ts` | — | `elicitation` / `choice-buttons` structured question placeholder hydration. Final-render oriented; malformed final specs fail closed with user-safe error + console diagnostic, and incomplete fences stay inert. |
+| `js/features/elicitation.ts` | — | `elicitation` / `choice-buttons` structured question placeholder hydration. Supports sequential wizard answers, skip/direct input, auto-injection, and 21 Advanced `visibleWhen` prior-answer branching. Final-render oriented; malformed final specs fail closed with user-safe error + console diagnostic, and incomplete fences stay inert. |
 | `src/shared/structured-fence.ts` | — | shared syntax-light scanner for `elicitation` / `choice-buttons` fenced block completeness; used by frontend render guards and server lifecycle diagnostics. |
 | `js/ui.ts` | 441L | 메시지 렌더링, skeleton/empty state, virtual scroll 연동, ProcessBlock 오케스트레이션, copy button, avatar markup 주입, message finalization, `scrollIntent` 기반 bottom-follow/restore policy |
 | `js/ws.ts` | 877L | SSE/WS 공용 메시지 dispatcher + legacy WebSocket fallback. agent status, queue update, `agent_tool`→typed ProcessStep, agent output/done, orchestration state, interview panel, Telegram/Discord new message, reconnect snapshot, 10초 reload dedup, 8초 disconnect-toast grace, reconnect 후 bottom anchor reconciliation |
