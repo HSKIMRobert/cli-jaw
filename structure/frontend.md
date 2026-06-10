@@ -32,7 +32,7 @@ public/
 ├── img/                  ← shark sprite
 ├── js/                   ← 90 TypeScript modules
 │   ├── diagram/          ← 3 diagram pipeline modules
-│   ├── features/         ← 50 feature modules
+│   ├── features/         ← 51 feature modules
 │   └── render/           ← 18 markdown/diagram rendering modules
 ├── locales/              ← ko/en/ja/zh JSON bundles
 ├── manager/              ← React manager dashboard (300 source files under src)
@@ -49,7 +49,7 @@ public/
 | `public/js/` root | 19 | TypeScript ES modules |
 | `public/js/diagram/` | 3 | SVG/iframe diagram pipeline |
 | `public/js/render/` | 18 | markdown/KaTeX/Mermaid/SVG/file-link/post-render/structured card renderer 책임 분리 |
-| `public/js/features/` | 50 | settings 분해 + help/attention/orchestrate scope + process-step-match + preview shortcut/invalidate bridge + MCP registry + chat-search + workflow-event-adapter + media-lightbox + Pi settings 포함 |
+| `public/js/features/` | 51 | settings 분해 + help/attention/orchestrate scope + process-step-match + preview shortcut/invalidate bridge + MCP registry + chat-search + workflow-event-adapter + media-lightbox + elicitation-state + Pi settings 포함 |
 | `public/manager/src/` | 300 | React 19 manager dashboard |
 | `public/css/` | 12 | theme/layout/chat/markdown/tool UI/diagram/trace drawer/workflow cockpit/chat-search |
 | `public/locales/` | 4 | `ko.json`, `en.json`, `ja.json`, `zh.json` |
@@ -100,7 +100,7 @@ public/
 | `js/render/diff-viewer.ts` | — | Unified diff native renderer. Supports explicit `diff` fences and no-language unified diff auto-detect, escapes all content, caps large diffs, and keeps streaming code blocks inert. |
 | `js/render/dataframe.ts` | — | `dataframe` fenced JSON placeholder hydration. Renders searchable/sortable/paginated read-only tables with cell copy, row/column caps, final-render-only activation, and malformed-spec fail-closed errors. |
 | `js/render/chart-json.ts` | — | `chart-json` fenced JSON placeholder hydration. Renders dependency-free SVG bar/line/pie cards with legend swatches, data caps, final-render-only activation, and malformed-spec fail-closed errors. |
-| `js/features/elicitation.ts` | — | `elicitation` / `choice-buttons` structured question placeholder hydration. Supports sequential wizard answers, skip/direct input, auto-injection, submitted read-only summaries, and 21 Advanced `visibleWhen` prior-answer branching. Final-render oriented; malformed final specs fail closed with user-safe error + console diagnostic, and incomplete fences stay inert. |
+| `js/features/elicitation.ts` | — | `elicitation` / `choice-buttons` structured question placeholder hydration. Supports sequential wizard answers, skip/direct input, auto-injection, persistent compact completed-state rendering, and 21 Advanced `visibleWhen` prior-answer branching. Final-render oriented; malformed final specs fail closed with user-safe error + console diagnostic, and incomplete fences stay inert. |
 | `src/shared/structured-fence.ts` | — | shared syntax-light scanner for `elicitation` / `choice-buttons` / `search-results` / `compose-block` / `dataframe` / `chart-json` fenced block completeness; used by frontend render guards and server lifecycle diagnostics. |
 | `js/ui.ts` | 441L | 메시지 렌더링, skeleton/empty state, virtual scroll 연동, ProcessBlock 오케스트레이션, copy button, avatar markup 주입, message finalization, `scrollIntent` 기반 bottom-follow/restore policy |
 | `js/ws.ts` | 877L | SSE/WS 공용 메시지 dispatcher + legacy WebSocket fallback. agent status, queue update, `agent_tool`→typed ProcessStep, agent output/done, orchestration state, interview panel, Telegram/Discord new message, reconnect snapshot, 10초 reload dedup, 8초 disconnect-toast grace, reconnect 후 bottom anchor reconciliation |
@@ -139,6 +139,7 @@ public/
 | `features/help-dialog.ts` | — | help trigger binding + modal rendering |
 | `features/i18n.ts` | — | 프론트엔드 번역 bootstrap + `t()` |
 | `features/idb-cache.ts` | — | IndexedDB conversation cache — scope-based, incremental upsert |
+| `features/elicitation-state.ts` | — | `elicitation` / `choice-buttons` 완료 상태 keying, localStorage persistence, structured-response history backfill, shared spec normalization/hash |
 | `features/memory.ts` | — | basic memory + advanced memory modal/indexing UI |
 | `features/message-actions.ts` | — | message action button delegation |
 | `features/message-history.ts` | — | history loading and reconnect restore flow |

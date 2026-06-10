@@ -15,6 +15,10 @@ const delegationsSrc = read('public/js/render/delegations.ts');
 const messageHistorySrc = read('public/js/features/message-history.ts');
 const chatMessagesSrc = read('public/js/features/chat-messages.ts');
 const elicitationSrc = read('public/js/features/elicitation.ts');
+const elicitationStateSrc = read('public/js/features/elicitation-state.ts');
+const idbCacheSrc = read('public/js/features/idb-cache.ts');
+const messageItemHtmlSrc = read('public/js/features/message-item-html.ts');
+const uiSrc = read('public/js/ui.ts');
 
 test.afterEach(() => {
     resetWebUiDom();
@@ -106,6 +110,8 @@ test('hydration is wired through render finalization, live messages, and virtual
     assert.match(markdownSrc, /renderElicitationPlaceholder/);
     assert.match(postRenderSrc, /hydrateElicitationBlocks\(msgContainer\)/);
     assert.match(delegationsSrc, /ensureElicitationDelegation\(\)/);
+    assert.match(messageHistorySrc, /seedCompletedElicitationsFromMessages\(safeMsgs\)/);
+    assert.match(messageHistorySrc, /seedCompletedElicitationsFromMessages\(safeCached\)/);
 
     const lazyIdx = messageHistorySrc.indexOf('vs.onLazyRender = ');
     const postIdx = messageHistorySrc.indexOf('vs.onPostRender = ');
@@ -116,6 +122,16 @@ test('hydration is wired through render finalization, live messages, and virtual
 
     assert.match(chatMessagesSrc, /hydrateElicitationBlocks\(div\)/);
     assert.match(chatMessagesSrc, /hydrateElicitationBlocks\(viewport\)/);
+});
+
+test('completion persistence uses stable turn indexes across history, cache, and virtual promotion', () => {
+    assert.match(elicitationStateSrc, /jaw:elicitation:complete/);
+    assert.match(elicitationStateSrc, /dataset\['turnIndex'\]/);
+    assert.match(elicitationStateSrc, /extractElicitationSpecs/);
+    assert.match(elicitationStateSrc, /seedCompletedElicitationsFromMessages/);
+    assert.match(messageItemHtmlSrc, /String\(m\.id \?\? generateId\(\)\)/);
+    assert.match(idbCacheSrc, /message_id: msg\.message_id \?\? msg\.id/);
+    assert.match(uiSrc, /div\.dataset\['turnIndex'\] = String\(vs\.count\)/);
 });
 
 test('elicitation feature avoids chat imports and submits through cmd-execute', () => {
@@ -129,7 +145,7 @@ test('elicitation feature avoids chat imports and submits through cmd-execute', 
     assert.doesNotMatch(elicitationSrc, /block\.remove\(\)/);
 });
 
-test('hydrated single-question option click composes a user message and keeps submitted context visible', async () => {
+test('hydrated single-question option click composes a user message and renders compact completed button only', async () => {
     setupWebUiDom();
     const input = document.createElement('textarea');
     input.id = 'chatInput';
@@ -165,12 +181,76 @@ test('hydrated single-question option click composes a user message and keeps su
     option.click();
 
     assert.equal(sent, 1);
-    assert.ok(wrapper.querySelector('.elicitation-complete'), 'completed wizard should stay visible as read-only context');
-    assert.match(wrapper.textContent || '', /구현 범위/);
-    assert.match(wrapper.textContent || '', /single_select MVP/);
+    assert.ok(wrapper.querySelector('.elicitation-complete'), 'completed wizard should stay visible as compact context');
+    assert.ok(wrapper.querySelector('.elicitation-complete-button'), 'completed wizard should render a status button');
+    assert.match(wrapper.textContent || '', /응답 완료/);
+    assert.equal(wrapper.querySelector('.elicitation-option'), null);
+    assert.equal(wrapper.querySelector('.elicitation-input'), null);
+    assert.equal(wrapper.querySelector('[data-elicitation-action="skip"]'), null);
+    assert.doesNotMatch(wrapper.textContent || '', /구현 범위/);
+    assert.doesNotMatch(wrapper.textContent || '', /single_select MVP/);
     assert.match(input.value, /구조화 질문 응답:/);
     assert.match(input.value, /- 구현 범위: single_select MVP \(값: single_select MVP\)/);
     assert.match(input.value, /위 응답을 기준으로 계속 진행해줘\./);
+});
+
+test('history structured response seed keeps completed elicitation compact after refresh', async () => {
+    setupWebUiDom();
+    const { renderMarkdown } = await import('../../public/js/render.ts');
+    const { hydrateElicitationBlocks } = await import('../../public/js/features/elicitation.ts');
+    const { seedCompletedElicitationsFromMessages } = await import('../../public/js/features/elicitation-state.ts');
+    const spec = {
+        questions: [{
+            id: 'scope',
+            question: '구현 범위',
+            options: [{ id: 'mvp', label: 'MVP', value: 'mvp' }],
+        }],
+    };
+    const assistant = `\`\`\`elicitation\n${JSON.stringify(spec)}\n\`\`\``;
+    const user = '구조화 질문 응답:\n\n- 구현 범위: MVP (값: mvp)\n\n위 응답을 기준으로 계속 진행해줘.';
+    seedCompletedElicitationsFromMessages([
+        { role: 'assistant', content: assistant },
+        { role: 'user', content: user },
+    ]);
+
+    const msg = document.createElement('div');
+    msg.className = 'msg msg-agent';
+    msg.dataset['turnIndex'] = '0';
+    msg.innerHTML = `<div class="msg-content">${renderMarkdown(assistant)}</div>`;
+    document.body.appendChild(msg);
+    hydrateElicitationBlocks(msg);
+
+    assert.ok(msg.querySelector('.elicitation-complete-button'));
+    assert.match(msg.textContent || '', /응답 완료/);
+    assert.equal(msg.querySelector('.elicitation-option'), null);
+});
+
+test('completion keys do not collide for identical specs at different turn indexes', async () => {
+    setupWebUiDom();
+    const { renderMarkdown } = await import('../../public/js/render.ts');
+    const { hydrateElicitationBlocks } = await import('../../public/js/features/elicitation.ts');
+    const { seedCompletedElicitationsFromMessages } = await import('../../public/js/features/elicitation-state.ts');
+    const spec = { questions: [{ question: '선택?', options: ['A', 'B'] }] };
+    const assistant = `\`\`\`elicitation\n${JSON.stringify(spec)}\n\`\`\``;
+    seedCompletedElicitationsFromMessages([
+        { role: 'assistant', content: assistant },
+        { role: 'user', content: '구조화 질문 응답:\n\n- 선택?: A (값: A)' },
+    ]);
+
+    const first = document.createElement('div');
+    first.className = 'msg msg-agent';
+    first.dataset['turnIndex'] = '0';
+    first.innerHTML = `<div class="msg-content">${renderMarkdown(assistant)}</div>`;
+    const second = document.createElement('div');
+    second.className = 'msg msg-agent';
+    second.dataset['turnIndex'] = '2';
+    second.innerHTML = `<div class="msg-content">${renderMarkdown(assistant)}</div>`;
+    document.body.append(first, second);
+    hydrateElicitationBlocks(document.body);
+
+    assert.ok(first.querySelector('.elicitation-complete-button'));
+    assert.equal(second.querySelector('.elicitation-complete-button'), null);
+    assert.ok(second.querySelector('.elicitation-option'));
 });
 
 test('visibleWhen shows a dependent question when the controlling value matches', async () => {

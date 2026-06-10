@@ -12,7 +12,7 @@ import { hydrateDataframeBlocks } from '../render/dataframe.js';
 import { hydrateChartJsonBlocks } from '../render/chart-json.js';
 import { hydrateLinkPreviewCards } from '../render/link-preview.js';
 import { t } from './i18n.js';
-import { cacheMessages, getMessageScope, getScopedMessages, setMessageScope } from './idb-cache.js';
+import { cacheMessages, getMessageScope, getScopedMessages, setMessageScope, type CachedMessage } from './idb-cache.js';
 import { addMessage, addSystemMsg, showEmptyState } from './chat-messages.js';
 import { buildLazyVirtualMessageItem } from './message-item-html.js';
 import { addStep, buildProcessBlockHtml, collapseBlock, createProcessBlock } from './process-block.js';
@@ -20,6 +20,7 @@ import { hasAgentToolBlock, normalizeAgentToolBlocks } from './process-block-dom
 import { normalizeMessageToolLog, parseToolLog, toProcessSteps, type MessageItem } from './process-log-adapter.js';
 import { canFollowAfterRestore, ensureScrollTracking, markFollowingBottom, settleChatBottomAfterInitialLoad } from './chat-scroll.js';
 import { updateStatMsgs } from './ui-status.js';
+import { seedCompletedElicitationsFromMessages } from './elicitation-state.js';
 
 export function buildVirtualHistoryItems(msgs: MessageItem[]): VirtualItem[] {
     return msgs.map((m, index) => buildLazyVirtualMessageItem(normalizeMessageToolLog(m), index));
@@ -136,6 +137,17 @@ function hydrateSmallHistory(messages: MessageItem[]): void {
     });
 }
 
+function cachedToMessage(message: CachedMessage): MessageItem {
+    const cachedId = message.message_id ?? message.id;
+    return {
+        ...(cachedId !== undefined ? { id: cachedId } : {}),
+        role: message.role,
+        content: message.content,
+        cli: message.cli ?? null,
+        tool_log: message.tool_log ?? null,
+    };
+}
+
 // Signature of the last rendered history. Channel reconnects re-run
 // loadMessages even when nothing changed — skipping the teardown+rebuild
 // keeps the virtual scroll (and the user's reading position) untouched.
@@ -176,6 +188,7 @@ async function loadMessagesOnce(): Promise<void> {
     const msgs = await api<MessageItem[]>(`/api/messages${bootMessageQuery()}`);
     if (msgs !== null) {
         const safeMsgs = msgs.map(normalizeMessageToolLog);
+        seedCompletedElicitationsFromMessages(safeMsgs);
         const hadRenderedHistory = Boolean(chatEl?.querySelector('.msg')) || vs.active;
         const signature = historySignature(nextScope, safeMsgs);
         if (hadRenderedHistory && !scopeChanged && signature === lastRenderedSignature) {
@@ -197,6 +210,7 @@ async function loadMessagesOnce(): Promise<void> {
             if (shouldForceBottom) settleChatBottomAfterInitialLoad();
         }
         cacheMessages(safeMsgs.map(m => ({
+            ...(m.id !== undefined ? { message_id: m.id } : {}),
             role: m.role, content: m.content, cli: m.cli ?? null, tool_log: m.tool_log ?? null, timestamp: Date.now(),
         }))).catch(() => {});
         updateStatMsgs(safeMsgs.length);
@@ -209,7 +223,8 @@ async function loadMessagesOnce(): Promise<void> {
     }
     const cached = await getScopedMessages();
     if (cached.length > 0) {
-        const safeCached = (cached as MessageItem[]).map(normalizeMessageToolLog);
+        const safeCached = cached.map(cachedToMessage).map(normalizeMessageToolLog);
+        seedCompletedElicitationsFromMessages(safeCached);
         if (safeCached.length >= VS_THRESHOLD) {
             bootstrapVirtualHistory(buildVirtualHistoryItems(safeCached), makeBootstrapDeps(vs, {
                 forceInitialBottom: true,

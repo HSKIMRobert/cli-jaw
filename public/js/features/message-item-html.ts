@@ -14,7 +14,7 @@ function getAgentIcon(_cli?: string | null): string {
 
 export function buildLazyVirtualMessageItem(m: MessageItem, index: number): VirtualItem {
     const role = m.role === 'assistant' ? 'agent' : m.role;
-    const messageId = generateId();
+    const messageId = String(m.id ?? generateId());
     const sourceAttrs = messageSourceAttributes({ role, messageId, turnIndex: index });
     const rawContent = stripOrchestration(
         role === 'user' ? formatUserPrompt(m.content) : m.content,
