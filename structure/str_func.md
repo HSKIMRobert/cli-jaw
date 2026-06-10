@@ -278,7 +278,7 @@ cli-jaw/
 │   │   ├── types.ts          ← TraceRunInput, TraceEventInput, TracePointer, TraceRunRow 타입 (36L)
 │   │   └── redact.ts         ← trace event redaction helpers (48L)
 │   ├── shared/               ← 공유 유틸리티 (2 files) ✨
-│   │   ├── tool-log-sanitize.ts ← tool log sanitization helpers (205L)
+│   │   ├── tool-log-sanitize.ts ← tool log sanitization helpers (237L)
 │   │   └── shell-command-display.ts ← shell command display formatter (48L)
 │   ├── manager/              ← Multi-instance 대시보드 매니저 (79 TS/TSX files, 13052L; board/notes/search/schedule/reminders/connector/routes/memory/git 서브모듈)
 │   ├── team/                 ← Team dispatch planner (5 files, 323L) ✨
