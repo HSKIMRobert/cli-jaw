@@ -87,6 +87,7 @@ test('CM-011: getDefaultClaudeModel returns Opus 4.8 full ID', () => {
 test('CM-012: getDefaultClaudeChoices returns aliases + verified pinned full IDs', () => {
     const choices = getDefaultClaudeChoices();
     assert.deepEqual([...choices].sort(), [
+        'claude-fable-5',
         'claude-haiku-4-5',
         'claude-opus-4-6',
         'claude-opus-4-6[1m]',
