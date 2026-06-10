@@ -46,7 +46,7 @@ test('dispatches message:new_message and agent:agent_done by topic:event key', (
     assert.equal(es.closed, true);
 });
 
-test('4xx error marks the worker unsupported permanently (no retry, no disconnect)', () => {
+test('404 marks the worker unsupported permanently (no retry, no disconnect)', () => {
     const calls: string[] = [];
     const { es } = setup({
         onUnsupported: (port) => calls.push(`unsupported:${port}`),
@@ -57,6 +57,18 @@ test('4xx error marks the worker unsupported permanently (no retry, no disconnec
     assert.equal(es.closed, true);
     es.onerror?.({ code: 404 }); // after close — must not double-notify
     assert.deepEqual(calls, ['unsupported:3457']);
+});
+
+test('429 (shared rate limiter) is a disconnect, never a permanent unsupported mark', () => {
+    const calls: string[] = [];
+    const { es } = setup({
+        onUnsupported: () => calls.push('unsupported'),
+        onDisconnect: () => calls.push('disconnect'),
+    });
+    es.readyState = 2; // eventsource@3 closes on any non-2xx before onerror
+    es.onerror?.({ code: 429 });
+    assert.deepEqual(calls, ['disconnect']);
+    assert.equal(es.closed, true);
 });
 
 test('transient errors disconnect only after exhausting the retry budget', () => {

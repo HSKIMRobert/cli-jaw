@@ -52,6 +52,10 @@ function schedulePrefetch(s: BridgeState, port: number): void {
         void (async () => {
             try {
                 const res = await s.deps.fetchImpl(`http://127.0.0.1:${port}/api/messages/latest?includeContent=1`);
+                // A drop() may have raced this in-flight fetch — a late cache.set
+                // would resurrect pre-disconnect data and get served as a hit
+                // after the next reconnect. Only live streams may populate.
+                if (!s.conns.has(port)) return;
                 if (!res.ok) { s.cache.delete(port); return; }
                 const body = await res.json() as { data?: WorkerLatestData };
                 s.cache.set(port, body?.data ?? null);
@@ -102,8 +106,19 @@ function onDiff(s: BridgeState, diff: InstanceDiff): void {
     const online = diff.next?.status === 'online';
     if (diff.change === 'appeared' && online) { s.unsupported.delete(diff.port); connect(s, diff.port); return; }
     if (diff.change === 'status') {
-        if (online) connect(s, diff.port);
-        else drop(s, diff.port);
+        if (online) {
+            // The realistic upgrade flow (stop legacy → start new build) shows up
+            // as two 'status' diffs with the version change swallowed (offline
+            // rows carry version:null, and computeDiffs prefers status) — so a
+            // 'version' diff may never fire. Any transition back to online means
+            // the worker process restarted: retire the unsupported mark and
+            // re-probe ONCE. A stable worker emits no diffs, so a legacy worker
+            // costs exactly one 404 per restart — not a retry loop.
+            s.unsupported.delete(diff.port);
+            connect(s, diff.port);
+        } else {
+            drop(s, diff.port);
+        }
     }
 }
 
