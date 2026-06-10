@@ -193,6 +193,36 @@ const __dirname = dirname(__filename);
 const PRELOAD_PATH = join(__dirname, '..', 'preload', 'index.js');
 const DESKTOP_USER_AGENT_TOKEN = 'cli-jaw-desktop';
 const EMBEDDED_BROWSER_PARTITION = 'persist:cli-jaw-browser';
+
+// #229: the webview tag sets a clean per-webview UA, but service workers and other
+// background requests in the partition fall back to the session UA, which carries the
+// Electron/cli-jaw tokens that search providers flag. Pin the whole session to a plain
+// Chrome UA (same shape the renderer builds) plus real Accept-Language so the embedded
+// browser presents one consistent, ordinary-browser fingerprint.
+function embeddedBrowserUserAgent(): string {
+  const chromeVersion = process.versions.chrome;
+  const osToken = process.platform === 'darwin'
+    ? 'Macintosh; Intel Mac OS X 10_15_7'
+    : process.platform === 'win32'
+      ? 'Windows NT 10.0; Win64; x64'
+      : 'X11; Linux x86_64';
+  return `Mozilla/5.0 (${osToken}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
+}
+
+function embeddedBrowserAcceptLanguages(): string {
+  let preferred: string[] = [];
+  try {
+    preferred = app.getPreferredSystemLanguages();
+  } catch {
+    // fall through to defaults
+  }
+  return [...new Set([...preferred, 'en-US', 'en'])].join(',');
+}
+
+function configureEmbeddedBrowserSession(): void {
+  const ses = session.fromPartition(EMBEDDED_BROWSER_PARTITION);
+  ses.setUserAgent(embeddedBrowserUserAgent(), embeddedBrowserAcceptLanguages());
+}
 const AUTOMATION_SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Automation';
 
 const gotLock = app.requestSingleInstanceLock();
@@ -221,6 +251,7 @@ if (!gotLock) {
   });
 
   app.whenReady().then(async () => {
+    configureEmbeddedBrowserSession();
     await bootstrapOnce();
     promptInstallCli().catch(() => {});
     if (!metricsCollector) {
@@ -302,6 +333,13 @@ async function requestApplicationQuit(reason: string): Promise<void> {
   }
   cleanupTerminals();
   cleanupFolderWatchers();
+  try {
+    // #229: cookies persist via the partition, but an explicit flush protects
+    // fresh logins from being lost when quit follows shortly after sign-in.
+    await session.fromPartition(EMBEDDED_BROWSER_PARTITION).cookies.flushStore();
+  } catch {
+    // best-effort — quit must not block on cookie flush
+  }
   const child = managerProcess;
   managerProcess = null;
   try {
