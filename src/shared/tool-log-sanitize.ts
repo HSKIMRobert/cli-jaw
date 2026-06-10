@@ -140,19 +140,22 @@ export function sanitizeToolLogForDurableStorage(entries: unknown): SanitizedToo
         if (dropped > 0) source = source.slice(dropped);
     }
     const omittedTotal = priorOmitted + dropped;
-    const output: SanitizedToolLogEntry[] = [];
+    const normalized: SanitizableToolLogEntry[] = source.map((raw) =>
+        (raw && typeof raw === 'object') ? raw as SanitizableToolLogEntry : { label: raw });
+    // Allocate the shared detail budget NEWEST-first: the entry cap above keeps the
+    // newest entries because those are what the user inspects on navigate-back, and
+    // front-to-back allocation let old entries exhaust the 24K pool and blank the
+    // newest details in detail-heavy runs (doc 86 §7).
+    const budgets = new Array<number>(normalized.length).fill(0);
     let detailBudgetLeft = MAX_TOOL_LOG_TOTAL_DETAIL_CHARS;
-    for (const raw of source) {
-        const entry: SanitizableToolLogEntry = (raw && typeof raw === 'object')
-            ? raw as SanitizableToolLogEntry
-            : { label: raw };
-        const detailRawLength = entry.detail == null ? 0 : String(entry.detail).length;
+    for (let i = normalized.length - 1; i >= 0; i--) {
+        const detail = normalized[i]!.detail;
+        const detailRawLength = detail == null ? 0 : String(detail).length;
         const detailBudget = Math.min(MAX_TOOL_LOG_DETAIL_CHARS, detailBudgetLeft);
-        const sanitized = sanitizeToolLogEntry(entry, detailBudget);
-        output.push(sanitized);
+        budgets[i] = detailBudget;
         detailBudgetLeft = Math.max(0, detailBudgetLeft - Math.min(detailRawLength, detailBudget));
-        if (detailBudgetLeft <= 0) detailBudgetLeft = 0;
     }
+    const output = normalized.map((entry, i) => sanitizeToolLogEntry(entry, budgets[i]!));
     if (omittedTotal > 0) output.unshift(makeOverflowEntry(omittedTotal));
     return fitToolLogToJsonCap(output);
 }
