@@ -517,6 +517,12 @@ export class VirtualScroll {
             releaseProcessBlockDetails(el);
         }
         this.mounted.clear();
+        // innerEl is a reused singleton: emptying the container detaches it but
+        // leaves its children alive. Without this, the next activate() re-attaches
+        // those ghosts at stale translateY offsets UNDER the new items (mounted was
+        // cleared, so renderItems can never unmount them) — every reconnect reload
+        // stacked one more overlapping copy of the history.
+        this.innerEl.replaceChildren();
         this.container.classList.remove('vs-active');
         this.container.innerHTML = '';
     }

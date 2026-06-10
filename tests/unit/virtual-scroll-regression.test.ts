@@ -192,3 +192,23 @@ describe('bootstrapVirtualHistory', () => {
         assert.ok(virtualScrollSource.includes('restoreScrollAnchor(anchor)'), 'mutation helper should restore row-top anchor after mutation');
     });
 });
+
+describe('reconnect reload regressions (260610 ghost overlap)', () => {
+    const messageHistorySource = readFileSync(join(__dirname, '../../public/js/features/message-history.ts'), 'utf8');
+
+    it('deactivate empties the reused innerEl before detaching it', () => {
+        const start = virtualScrollSource.indexOf('private deactivate()');
+        assert.ok(start >= 0, 'deactivate should exist');
+        const block = virtualScrollSource.slice(start, start + 1200);
+        assert.ok(block.includes('this.innerEl.replaceChildren()'),
+            'deactivate must clear innerEl children — the singleton re-attaches on the '
+            + 'next activate, so stale children become overlapping ghost messages');
+    });
+
+    it('loadMessages keeps the live DOM when the fetched history is unchanged', () => {
+        assert.ok(messageHistorySource.includes('lastRenderedSignature'),
+            'loadMessages must skip teardown+rebuild for identical history (reconnect churn)');
+        assert.ok(messageHistorySource.includes('signature === lastRenderedSignature'),
+            'skip must compare against the rendered signature');
+    });
+});
