@@ -7,15 +7,12 @@ export const AGY_ANTIGRAVITY_HOME = path.join(os.homedir(), '.gemini', 'antigrav
 export const AGY_BRAIN_ROOT = path.join(AGY_ANTIGRAVITY_HOME, 'brain');
 export const AGY_LAST_CONVERSATIONS = path.join(AGY_ANTIGRAVITY_HOME, 'cache', 'last_conversations.json');
 
-const TOOL_STEP_TYPES = new Set([
-    'RUN_COMMAND',
-    'VIEW_FILE',
-    'LIST_DIRECTORY',
-    'GREP_SEARCH',
-    'READ_FILE',
-    'WRITE_FILE',
-    'EDIT_FILE',
-    'CODE_ACTION',
+const NON_TOOL_TYPES = new Set([
+    'USER_INPUT',
+    'CONVERSATION_HISTORY',
+    'CHECKPOINT',
+    'SYSTEM_MESSAGE',
+    'PLANNER_RESPONSE',
 ]);
 
 const LABEL_MAX = 120;
@@ -25,7 +22,13 @@ export function resolveAgyConversationIdFromCache(cwd: string): string | null {
     try {
         if (!fs.existsSync(AGY_LAST_CONVERSATIONS)) return null;
         const map = JSON.parse(fs.readFileSync(AGY_LAST_CONVERSATIONS, 'utf8')) as Record<string, string>;
-        const id = map[cwd];
+        // agy records the realpath (e.g. /private/tmp/... on macOS) while callers may
+        // pass the symlinked form (/tmp/...) — try both before giving up.
+        let id = map[cwd];
+        if (!id) {
+            try { id = map[fs.realpathSync(cwd)]; }
+            catch { /* cwd may not exist anymore */ }
+        }
         return typeof id === 'string' && id.length > 0 ? id : null;
     } catch {
         return null;
@@ -57,11 +60,21 @@ function promptNeedle(prompt?: string): string {
     return String(prompt || '').replace(/\s+/g, ' ').trim().slice(0, 160);
 }
 
-function transcriptContainsPrompt(transcriptPath: string, prompt?: string): boolean {
+// Transcript rows are raw JSONL: the prompt appears JSON-escaped (\n, \", \t as two-char
+// sequences), so a plain-text needle spanning newlines or containing quotes never matches.
+// Canonicalize the escaped text back before comparing.
+function canonicalizeTranscriptText(raw: string): string {
+    return raw
+        .replace(/\\[nrt]/g, ' ')
+        .replace(/\\"/g, '"')
+        .replace(/\s+/g, ' ');
+}
+
+export function transcriptContainsPrompt(transcriptPath: string, prompt?: string): boolean {
     const needle = promptNeedle(prompt);
     if (needle.length < 12) return true;
     try {
-        const text = fs.readFileSync(transcriptPath, 'utf8').slice(0, 96_000).replace(/\s+/g, ' ');
+        const text = canonicalizeTranscriptText(fs.readFileSync(transcriptPath, 'utf8').slice(0, 96_000));
         return text.includes(needle);
     } catch {
         return false;
@@ -127,6 +140,10 @@ function labelForStep(type: string, content: string): { label: string; detail: s
             return { icon: '📂', toolType: 'tool', label: 'list directory', detail: snippet };
         case 'GREP_SEARCH':
             return { icon: '🔍', toolType: 'search', label: 'grep search', detail: snippet };
+        case 'SEARCH_WEB':
+            return { icon: '🌐', toolType: 'search', label: 'web search', detail: snippet };
+        case 'READ_URL_CONTENT':
+            return { icon: '🔗', toolType: 'search', label: 'read url', detail: snippet };
         case 'CODE_ACTION':
             return { icon: '📝', toolType: 'tool', label: sanitizeSnippet(snippet, LABEL_MAX) || 'code action', detail: snippet };
         case 'PLANNER_RESPONSE':
@@ -150,8 +167,7 @@ export function parseTranscriptLine(line: string): ToolEntry | null {
         return null;
     }
     const type = typeof row['type'] === 'string' ? row['type'] : '';
-    if (type === 'PLANNER_RESPONSE') return null;
-    if (!TOOL_STEP_TYPES.has(type)) return null;
+    if (!type || NON_TOOL_TYPES.has(type)) return null;
 
     let content = typeof row['content'] === 'string' ? row['content'] : '';
     const stepIndex = row['step_index'];
@@ -167,6 +183,36 @@ export function parseTranscriptLine(line: string): ToolEntry | null {
     if (statusRaw === 'DONE') entry.status = 'done';
     else if (statusRaw) entry.status = 'running';
     return entry;
+}
+
+export type AgyTranscriptRowKind = 'tool' | 'final-planner' | 'planner' | 'meta' | 'invalid';
+
+function hasEmptyToolCalls(row: Record<string, unknown>): boolean {
+    const toolCalls = row['tool_calls'];
+    if (toolCalls === null || toolCalls === undefined || toolCalls === '') return true;
+    if (Array.isArray(toolCalls)) return toolCalls.length === 0;
+    if (typeof toolCalls === 'object') return Object.keys(toolCalls as object).length === 0;
+    return false;
+}
+
+export function classifyAgyTranscriptRow(line: string): { kind: AgyTranscriptRowKind; tool?: ToolEntry } {
+    const trimmed = line.trim();
+    if (!trimmed) return { kind: 'invalid' };
+    let row: Record<string, unknown>;
+    try {
+        row = JSON.parse(trimmed) as Record<string, unknown>;
+    } catch {
+        return { kind: 'invalid' };
+    }
+    const type = typeof row['type'] === 'string' ? row['type'] : '';
+    if (!type) return { kind: 'invalid' };
+    if (type === 'PLANNER_RESPONSE') {
+        const content = typeof row['content'] === 'string' ? row['content'].trim() : '';
+        return { kind: content && hasEmptyToolCalls(row) ? 'final-planner' : 'planner' };
+    }
+    if (NON_TOOL_TYPES.has(type)) return { kind: 'meta' };
+    const tool = parseTranscriptLine(trimmed);
+    return tool ? { kind: 'tool', tool } : { kind: 'tool' };
 }
 
 export function readTranscriptDelta(transcriptPath: string, offset: number): { offset: number; lines: string[] } {

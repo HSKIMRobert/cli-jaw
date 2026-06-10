@@ -90,6 +90,8 @@ export interface SpawnContext {
   stallWatchdog?: WatchdogHandle;
   agyResumeOffset?: number;
   agyBytesReceived?: number;
+  agyTranscriptActive?: boolean;
+  agyFinalPlannerSeen?: boolean;
   kiroDisplayedText?: string;
   kiroLineBuffer?: string;
   kiroToolSeq?: number;

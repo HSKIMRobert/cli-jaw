@@ -1997,6 +1997,9 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 broadcast('agent_tool', { agentId: label, ...tool, ...tag }, audience);
                 scheduleAgyQuietCompletion();
             },
+            onActivity: () => {
+                scheduleAgyQuietCompletion();
+            },
         });
     }
 

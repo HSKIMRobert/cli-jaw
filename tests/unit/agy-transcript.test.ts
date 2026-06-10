@@ -6,8 +6,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
     agyTranscriptStepKey,
+    classifyAgyTranscriptRow,
     parseTranscriptLine,
     readTranscriptDelta,
+    transcriptContainsPrompt,
 } from '../../src/agent/agy-transcript.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -99,6 +101,94 @@ test('AGY-TR-009: spawn captures AGY session id before final transcript drain', 
     const watcherStopIdx = closeBlock.indexOf('agyTranscriptWatcher?.stop()');
     assert.ok(sessionIdx >= 0, 'AGY close path must extract session id');
     assert.ok(watcherStopIdx > sessionIdx, 'AGY transcript final drain must run after session id extraction');
+});
+
+test('AGY-TR-011: parseTranscriptLine maps SEARCH_WEB and READ_URL_CONTENT to search tools', () => {
+    const search = parseTranscriptLine(JSON.stringify({
+        step_index: 12,
+        source: 'MODEL',
+        type: 'SEARCH_WEB',
+        status: 'DONE',
+        content: 'Created At: 2026-06-10T15:10:47Z\nThe search found 8 results for "claude fable 5"',
+    }));
+    assert.ok(search);
+    assert.equal(search!.toolType, 'search');
+    assert.equal(search!.icon, '🌐');
+    assert.equal(search!.label, 'web search');
+    assert.match(search!.stepRef ?? '', /^agy:transcript:12:SEARCH_WEB$/);
+    const readUrl = parseTranscriptLine(JSON.stringify({
+        step_index: 13,
+        source: 'MODEL',
+        type: 'READ_URL_CONTENT',
+        status: 'DONE',
+        content: 'https://example.com/article',
+    }));
+    assert.ok(readUrl);
+    assert.equal(readUrl!.toolType, 'search');
+    assert.equal(readUrl!.icon, '🔗');
+    assert.equal(readUrl!.label, 'read url');
+});
+
+test('AGY-TR-012: parseTranscriptLine renders unknown future tool types generically', () => {
+    const tool = parseTranscriptLine(JSON.stringify({
+        step_index: 21,
+        source: 'MODEL',
+        type: 'BROWSER_ACTION',
+        status: 'DONE',
+        content: 'clicked element #submit',
+    }));
+    assert.ok(tool);
+    assert.equal(tool!.label, 'browser action');
+    assert.match(tool!.stepRef ?? '', /^agy:transcript:21:BROWSER_ACTION$/);
+    assert.equal(parseTranscriptLine(JSON.stringify({ step_index: 22, type: 'USER_INPUT', status: 'DONE', content: 'hi' })), null);
+    assert.equal(parseTranscriptLine(JSON.stringify({ step_index: 23, type: 'CHECKPOINT', status: 'DONE', content: '{{ CHECKPOINT 1 }}' })), null);
+});
+
+test('AGY-TR-013: classifyAgyTranscriptRow separates final planner rows from intermediate ones', () => {
+    // Final answer: non-empty content, no tool_calls.
+    assert.equal(classifyAgyTranscriptRow(JSON.stringify({
+        type: 'PLANNER_RESPONSE', status: 'DONE', content: '최종 답변입니다. FINAL_SENTINEL',
+    })).kind, 'final-planner');
+    assert.equal(classifyAgyTranscriptRow(JSON.stringify({
+        type: 'PLANNER_RESPONSE', status: 'DONE', content: 'done', tool_calls: [],
+    })).kind, 'final-planner');
+    // Intermediate planner: carries tool_calls.
+    assert.equal(classifyAgyTranscriptRow(JSON.stringify({
+        type: 'PLANNER_RESPONSE', status: 'DONE', content: '이제 파일을 읽겠습니다.',
+        tool_calls: [{ name: 'view_file' }],
+    })).kind, 'planner');
+    // Empty-content planner without tool_calls is NOT a final answer.
+    assert.equal(classifyAgyTranscriptRow(JSON.stringify({
+        type: 'PLANNER_RESPONSE', status: 'DONE', content: '',
+    })).kind, 'planner');
+    // Meta rows and tools.
+    assert.equal(classifyAgyTranscriptRow(JSON.stringify({ type: 'USER_INPUT', content: 'q' })).kind, 'meta');
+    assert.equal(classifyAgyTranscriptRow(JSON.stringify({ type: 'SYSTEM_MESSAGE', content: 's' })).kind, 'meta');
+    const toolRow = classifyAgyTranscriptRow(JSON.stringify({
+        step_index: 5, type: 'SEARCH_WEB', status: 'DONE', content: 'results',
+    }));
+    assert.equal(toolRow.kind, 'tool');
+    assert.equal(toolRow.tool?.icon, '🌐');
+    // Garbage lines.
+    assert.equal(classifyAgyTranscriptRow('not json').kind, 'invalid');
+    assert.equal(classifyAgyTranscriptRow('').kind, 'invalid');
+    assert.equal(classifyAgyTranscriptRow('{"content":"no type"}').kind, 'invalid');
+});
+
+test('AGY-TR-014: transcriptContainsPrompt matches JSON-escaped multiline prompts', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-tr14-'));
+    const p = path.join(tmp, 'transcript.jsonl');
+    const prompt = '[Current cli-jaw task]\n260611-12:59AM.\n반드시 웹 검색 도구(search_web)를 사용해서 "Anthropic Claude 최신 모델"을 검색해. 검색 시작 전에 진행 상황을 말해.';
+    fs.writeFileSync(p, JSON.stringify({
+        step_index: 0,
+        type: 'USER_INPUT',
+        status: 'DONE',
+        content: `<USER_REQUEST>\n${prompt}\n</USER_REQUEST>`,
+    }) + '\n');
+    // Raw JSONL stores the prompt with \n and \" escapes — must still match.
+    assert.equal(transcriptContainsPrompt(p, prompt), true);
+    assert.equal(transcriptContainsPrompt(p, '완전히 다른 프롬프트입니다. 이 내용은 transcript 어디에도 존재하지 않는 문장이어야 합니다.'), false);
+    fs.rmSync(tmp, { recursive: true, force: true });
 });
 
 test('AGY-TR-010: parseTranscriptLine maps CODE_ACTION write_to_file completion to tool entry', () => {
