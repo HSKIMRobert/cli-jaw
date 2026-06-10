@@ -70,6 +70,20 @@ function resolveVirtualDefaults(cliValue: unknown, modelValue: unknown): { cli: 
     };
 }
 
+function firstProjectDir(value: unknown): string | null {
+    if (!Array.isArray(value)) return null;
+    const first = value.find(item => typeof item === 'string' && item.trim());
+    return typeof first === 'string' ? first : null;
+}
+
+function resolveDispatchProjectRoot(dispatchCtx: ReturnType<typeof getCtx> | null | undefined): string {
+    return firstProjectDir(dispatchCtx?.projectDirs)
+        || firstProjectDir(settings["projectDirs"])
+        || dispatchCtx?.workingDir
+        || settings["workingDir"]
+        || process.cwd();
+}
+
 function resolveDispatchTarget(
     input: Record<string, unknown>,
     emps: readonly EmployeeRow[],
@@ -292,20 +306,21 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
         if (!task) return fail(res, 400, 'Missing task');
         const allowWrite = mutable === true;
 
-        // Scope fail-fast: validate scope path before any work
-        if (allowWrite && scope) {
-            try {
-                normalizeScope(settings["workingDir"] || process.cwd(), scope);
-            } catch (e) {
-                return fail(res, 400, (e as Error).message);
-            }
-        }
-
         const PABCD_PHASE_MAP: Record<string, number> = { A: 2, B: 4, C: 4 };
         const dispatchScope = resolveOrcScope({ origin: 'web', workingDir: settings["workingDir"] || null });
         const currentOrcState = getState(dispatchScope);
         const resolvedPhase = allowWrite ? 3 : (phase ?? PABCD_PHASE_MAP[currentOrcState] ?? 3);
         const dispatchCtx = getCtx(dispatchScope);
+        const dispatchProjectRoot = resolveDispatchProjectRoot(dispatchCtx);
+
+        // Scope fail-fast: validate scope path before any work
+        if (allowWrite && scope) {
+            try {
+                normalizeScope(dispatchProjectRoot, scope);
+            } catch (e) {
+                return fail(res, 400, (e as Error).message);
+            }
+        }
 
         // Unified delegation guard via validateDispatchTask
         const validation = validateDispatchTask({
@@ -441,8 +456,7 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
             // Post-dispatch scope violation check
             if (allowWrite && scope) {
                 try {
-                    const workDir = dispatchCtx?.workingDir || settings["workingDir"] || process.cwd();
-                    const diffResult = postDispatchDiffCheck(String(workDir), scope);
+                    const diffResult = postDispatchDiffCheck(dispatchProjectRoot, scope);
                     if (!diffResult.ok) {
                         getSecurityAuditLog().append('scope_violation', String(req.ip || 'local'), {
                             agent: emp.name, agentId: slot.agentId,
@@ -591,7 +605,7 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
             const allowWrite = item?.mutable === true;
             const scope = typeof item?.scope === 'string' ? item.scope : null;
             if (allowWrite && scope) {
-                try { normalizeScope(settings["workingDir"] || process.cwd(), scope); }
+                try { normalizeScope(resolveDispatchProjectRoot(dispatchCtx), scope); }
                 catch (e) { return fail(res, 400, (e as Error).message); }
             }
             const target = resolveDispatchTarget(item || {}, emps);

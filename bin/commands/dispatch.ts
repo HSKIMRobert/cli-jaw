@@ -30,7 +30,6 @@ if (shouldShowHelp(process.argv)) printAndExit(`
     --scope <path>    Restrict writes to a subdirectory (optional, requires --mutable)
     --watch           Print live sanitized employee progress until completion
     --json            JSON output
-
   Batch mode:
     --batch           Enable batch parallel dispatch
     --agents <json>   JSON array of {agent|virtual, task, role?, cli?, model?, parallel?, mutable?, scope?, affected_files?}
@@ -490,7 +489,12 @@ try {
         console.error(`  recover:  cli-jaw dispatch ${agent ? '--agent' : '--virtual'} "${e.agentName || targetName}" --task "(resume polling)"`);
         console.error(`  poll:     curl -s ${BASE}/api/orchestrate/worker/${encodeURIComponent(e.agentId)}/result`);
     } else {
-        console.error(`❌ Error: ${errString(e)}`);
+        const message = errString(e);
+        console.error(`❌ Error: ${message}`);
+        if (message.includes('fetch failed')) {
+            console.error(`  status:  cli-jaw worker status`);
+            console.error(`  target:  cli-jaw worker status "${targetName}"`);
+        }
     }
     process.exit(1);
 }

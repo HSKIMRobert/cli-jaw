@@ -132,6 +132,37 @@ test('batch dispatch route accepts virtual employees', () => {
     assert.ok(batchBlock.includes('emp: target.emp'), 'batch entries should execute resolved virtual/static/db row');
 });
 
+test('dispatch mutable scope validation uses projectDirs before Jaw workingDir', () => {
+    assert.ok(
+        orchestrateSrc.includes('function resolveDispatchProjectRoot'),
+        'dispatch route should centralize project root resolution',
+    );
+    assert.ok(
+        orchestrateSrc.includes('firstProjectDir(dispatchCtx?.projectDirs)'),
+        'dispatch route should prefer orchestration projectDirs for scope sandboxing',
+    );
+    assert.ok(
+        orchestrateSrc.includes('firstProjectDir(settings.projectDirs)'),
+        'dispatch route should fall back to persisted projectDirs for scope sandboxing',
+    );
+    assert.ok(
+        orchestrateSrc.includes('normalizeScope(dispatchProjectRoot, scope)'),
+        'single dispatch should validate mutable scope against the resolved project root',
+    );
+    assert.ok(
+        orchestrateSrc.includes('postDispatchDiffCheck(dispatchProjectRoot, scope)'),
+        'single dispatch post-check should use the same project root as preflight',
+    );
+    assert.ok(
+        orchestrateSrc.includes('normalizeScope(resolveDispatchProjectRoot(dispatchCtx), scope)'),
+        'batch dispatch should validate mutable scope against the resolved project root',
+    );
+    assert.ok(
+        !orchestrateSrc.includes('normalizeScope(settings["workingDir"] || process.cwd(), scope)'),
+        'dispatch routes must not validate mutable scope against the Jaw identity workingDir',
+    );
+});
+
 test('pipeline.ts no longer contains parseSubtasks worker dispatch', () => {
     const pipelineSrc = readSource(join(projectRoot, 'src/orchestrator/pipeline.ts'), 'utf8');
 

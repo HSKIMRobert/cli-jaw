@@ -230,7 +230,7 @@ cli-jaw/
 │   │   ├── jaw-memory.ts     ← jaw memory search/read/list/save/init/reflect/flush/soul/soul-activate/bootstrap 라우트 (352L)
 │   │   ├── jaw-ceo.ts        ← Jaw CEO channel/session support routes (321L) ✨
 │   │   ├── i18n.ts           ← locale bundle 라우트 (35L)
-│   │   ├── orchestrate.ts    ← IPABCD reset/state/workers/snapshot/queue cancel/queue steer async accept/dispatch/virtual dispatch/worker result/state PUT 라우트 (813L)
+│   │   ├── orchestrate.ts    ← IPABCD reset/state/workers/snapshot/queue cancel/queue steer async accept/dispatch/virtual dispatch/worker result/state PUT 라우트 (827L)
 │   │   ├── memory.ts         ← memory status/KV/files/settings 라우트 (191L)
 │   │   ├── settings.ts       ← settings/prompt/heartbeat-md/MCP/registry/status/quota/copilot + Pi profile register/model discovery 라우트 + CLI_KEYS 기반 quota parity/status-only metadata (425L)
 │   │   ├── messaging.ts      ← upload/file-open/voice/telegram/channel/discord send 라우트 (259L)
@@ -346,7 +346,7 @@ cli-jaw/
 │   ├── helpers/help.ts       ← CLI help text helper (9L)
 │   └── commands/             ← 30 top-level ts files + `tui/` 10 helper 모듈
 │       ├── serve.ts          ← 서버 시작 (--port/--host/--open) + SIGINT child.kill('SIGINT') orphan fix (121L)
-│       ├── dispatch.ts       ← 직원 호출 (pipe mode 호환) + virtual employee dispatch + batch dispatch + stale/non-JSON route diagnostics + worker result polling + ECONNREFUSED retry (496L)
+│       ├── dispatch.ts       ← 직원 호출 (pipe mode 호환) + virtual employee dispatch + batch dispatch + stale/non-JSON route diagnostics + worker result polling + ECONNREFUSED retry (500L)
 │       ├── chat.ts           ← 터미널 채팅 TUI (3모드, locale bootstrap, refreshInfo, active model 표시, no-arg `/model`·`/cli` selector intercept, transcript 축적, overlay wiring, 288L)
 │       ├── chat-search.ts    ← 채팅 메시지 히스토리 검색 (--days/--recent/--context/--limit, 70L)
 │       ├── goal.ts           ← goal autonomy CLI (start/status/pause/resume/stop) (182L) ✨
