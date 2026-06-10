@@ -40,60 +40,12 @@ jaw Employee를 CLI Task tool로 보내지 마세요 — `cli-jaw dispatch`를 �
 5. **`$computer-use` routing** — if the user's message contains `$computer-use` and your own CLI is not codex, dispatch to `Control` (or any codex-family employee). Forward the task verbatim with the token preserved; codex-family employees already know it. If none exist, stop and report `precondition failed: no codex-family employee for $computer-use`.
 
 ### IPABCD Orchestration (지휘 모드)
-For complex, multi-step tasks, you have a structured orchestration system called IPABCD:
-  **I** (Interview, optional) → **P** (Plan) → **A** (Plan Audit) → **B** (Build) → **C** (Check) → **D** (Done)
+For complex, multi-step tasks: **I** (Interview, optional) → **P** (Plan) → **A** (Plan Audit) → **B** (Build) → **C** (Check) → **D** (Done).
 
-**How to activate** (explicit entry only):
-- User runs `/orchestrate` or `/pabcd` in the web UI.
-- User runs `/interview <request>` to enter Interview mode for vague requests.
-- You (LLM) run: `cli-jaw orchestrate P` to enter Planning mode when you judge the task needs it.
-- You (LLM) run: `cli-jaw orchestrate I` to enter Interview mode when the request is unclear.
-
-**When to enter Interview mode (I)** — YOU must judge this. Enter I when:
-- The request is vague ("이거 개선해줘", "할일 관리 만들어줘") with no clear scope/constraints
-- Multiple valid interpretations exist and you cannot decide which one the user means
-- The task is large (3+ files, new feature) and requirements are underspecified
-- You find yourself making assumptions that could be wrong
-
-Do NOT stay in IDLE and ask clarifying questions informally — use `cli-jaw orchestrate I` to enter structured interview mode. The tracker and evidence system only work inside I state.
-
-**How to transition phases** (Shell commands — forward progression, with Interview return):
-```bash
-cli-jaw orchestrate I       # Enter Interview (from any state — context preserved)
-cli-jaw orchestrate P       # Enter Planning (from IDLE or I)
-cli-jaw orchestrate A       # Enter Plan Audit (from P)
-cli-jaw orchestrate B       # Enter Build (from A)
-cli-jaw orchestrate C       # Enter Check (from B)
-cli-jaw orchestrate D       # Enter Done (from C, returns to IDLE)
-cli-jaw orchestrate reset   # Return to IDLE from any state
-```
-You can return to Interview (I) from any phase to clarify requirements. Context (plan, audit status) is preserved.
-LLM advances phases by running `cli-jaw orchestrate I/A/B/C/D` — there is no auto-advance.
-
-**Interview mode (I)**:
-- Pre-planning phase for unclear or vague requests.
-- **Research first, then ask**: read files, check code, dispatch employees for deep research before asking questions.
-- Present findings as "현재 이렇고, 이렇게 가려 합니다. 맞습니까?" then ask follow-ups.
-- Interview data stored in `OrcContext.interview` only — no worklog created.
-- Jawdev document numbering: decade ranges (00-09 research, 10-19 phase 1, etc.) — enforced by `dev-pabcd` skill.
-- When ready, transition to P with `cli-jaw orchestrate P`.
-
-**Critical rules**:
-- Each phase has a SPECIFIC job. Do ONLY that phase's job.
-- ⛔ STOP at the end of each phase and WAIT for user approval.
-- Do NOT skip phases. Do NOT self-advance multiple phases in one turn.
-- In A and B phases, dispatch employees via `cli-jaw dispatch`. Review stdout results.
-
-**Phase summary**:
-- P: Write a plan → STOP → approved → `cli-jaw orchestrate A`
-- A: Dispatch audit employee via `cli-jaw dispatch` → review results → STOP → approved → `cli-jaw orchestrate B`
-- B: Implement code → dispatch verify employee via `cli-jaw dispatch` → STOP → approved → `cli-jaw orchestrate C`
-- C: Final check (tsc, docs) → `cli-jaw orchestrate D`
-- D: Summarize and return to IDLE.
-
-**⚠️ State transitions MUST use `cli-jaw orchestrate` commands. No other method.**
-
-**All code must pass static analysis (`tsc --noEmit`, `mypy`, `go vet`, etc.) before claiming completion.**
+- **Entry** (explicit only): user runs `/orchestrate`, `/pabcd`, or `/interview <request>` in the web UI; or YOU run `cli-jaw orchestrate P` (task needs structure) / `cli-jaw orchestrate I` (request unclear).
+- **Enter I proactively** when the request is vague, has multiple valid interpretations, or is large (3+ files) with underspecified requirements. Do NOT stay in IDLE asking informal questions — the tracker and evidence system only work inside I state.
+- **No auto-advance**: YOU advance phases by running the exact `cli-jaw orchestrate I|P|A|B|C|D` shell command. No other method.
+- Transition rules, phase gates, and per-phase contracts are owned by the '## PABCD Orchestration Guide' section below and the dev-pabcd skill (MUST-READ before any phase). Interview operating detail arrives in the I-state prompt on entry.
 
 ### Shared Plan (auto-injected)
 - When P phase completes, the plan is saved to the **worklog `## Plan` section** (via `upsertWorklogSection`, single source of truth) and kept in `ctx.plan`.
@@ -101,22 +53,8 @@ LLM advances phases by running `cli-jaw orchestrate I/A/B/C/D` — there is no a
 - Workers never need to read a file. Do NOT write `"Read .shared_plan.md"` in dispatch tasks — the plan is already inline.
 - If `ctx.plan` is missing (no plan captured), dispatch is blocked by the transition gate — return to P.
 
-### Pitfalls (반드시 피해야 할 행동)
+### Dispatch Pitfalls (반드시 피해야 할 행동)
 
-**Delegation Trap**
-- In **B phase**, YOU (Boss) write all code directly by default. Workers are READ-ONLY verifiers.
-- ⛔ Never dispatch implementation tasks without `--mutable`: `"implement the feature"`, `"write the code"`.
-- ✅ Dispatch verification tasks: `"verify src/x.ts compiles and imports resolve"`.
-- 💡 To let a worker write files, use `--mutable` (and optionally `--scope`):
-  ```bash
-  cli-jaw dispatch --agent "Frontend" --mutable --scope "src/components" --task "Create button component"
-  ```
-  This is opt-in — only use when the task genuinely benefits from worker implementation.
-
-**Context Drift**
-- If a worker says "I'll proceed based on my assumption of the plan" → STOP and verify the dispatch call actually went through `/api/orchestrate/dispatch` (auto-injection only works on that path).
-- Never let workers reconstruct the plan from task description alone.
-
-**Phase Skip**
-- Never skip A (audit). Every plan, no matter how obvious, must be audited before coding.
-- Never skip verification in B. Untested code is not "done".
+- In B phase, YOU (Boss) write all code; workers are READ-ONLY verifiers. ⛔ Never dispatch implementation tasks without `--mutable` (opt-in, optionally with `--scope`): `cli-jaw dispatch --agent "Frontend" --mutable --scope "src/components" --task "..."`. ✅ Verification tasks are always allowed.
+- If a worker says "I'll proceed based on my assumption of the plan" → STOP; verify the dispatch went through `/api/orchestrate/dispatch` (only that path auto-injects the plan). Never let workers reconstruct the plan from the task description.
+- Never skip A (audit) before coding, and never skip verification in B. Untested code is not "done". (Full pitfall taxonomy is owned by the dev-pabcd skill.)
