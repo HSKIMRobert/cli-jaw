@@ -49,7 +49,7 @@ export const CLI_META: Record<string, CliMeta> = {
         models: ['opus', 'sonnet', 'haiku', 'gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gemini-3-flash-preview', 'grok-build', 'grok-composer-2.5-fast', 'gpt-5-mini'],
         efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
         modelsByProvider: {
-            claude: ['claude-opus-4-8', 'opus', 'sonnet', 'haiku'],
+            claude: ['claude-fable-5', 'claude-opus-4-8', 'opus', 'sonnet', 'haiku'],
             codex: ['gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini'],
             gemini: ['gemini-3-flash-preview'],
             grok: ['grok-build', 'grok-composer-2.5-fast'],
@@ -80,6 +80,7 @@ export const CLI_META: Record<string, CliMeta> = {
             'sonnet',
             'sonnet[1m]',
             'haiku',
+            'claude-fable-5',
             'claude-opus-4-8',
             'claude-opus-4-8[1m]',
             'claude-opus-4-7',
@@ -96,7 +97,7 @@ export const CLI_META: Record<string, CliMeta> = {
         label: 'Claude E',
         models: [
             'opus', 'sonnet', 'haiku',
-            'claude-opus-4-8', 'claude-opus-4-7', 'claude-sonnet-4-6', 'claude-haiku-4-5',
+            'claude-fable-5', 'claude-opus-4-8', 'claude-opus-4-7', 'claude-sonnet-4-6', 'claude-haiku-4-5',
         ],
         efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
     },

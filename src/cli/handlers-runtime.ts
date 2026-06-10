@@ -363,6 +363,7 @@ export async function flushHandler(args: string[], ctx: CliCommandContext): Prom
             'sonnet[1m]': 'claude',
             'haiku': 'claude',
             // Legacy full IDs (preserved for backward compat)
+            'claude-fable-5': 'claude',
             'claude-sonnet-4-6': 'claude',
             'claude-opus-4-8': 'claude',
             'claude-opus-4-8[1m]': 'claude',

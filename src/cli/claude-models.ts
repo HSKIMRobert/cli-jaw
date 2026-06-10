@@ -18,6 +18,8 @@ export type ClaudeCanonicalModel = (typeof CLAUDE_CANONICAL_MODELS)[number];
 // Verified 2026-05-01 via Grok web research (4 rounds, sources cited in
 // devlog/_plan/260501_claude_model_passthrough/02_grok_research_response.md).
 export const CLAUDE_PINNED_FULL_IDS = [
+  // Fable 5 has no [1m] variant here: 1M-context support is unverified.
+  'claude-fable-5',
   'claude-opus-4-8',
   'claude-opus-4-8[1m]',
   'claude-opus-4-7',
