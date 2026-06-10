@@ -45,6 +45,56 @@ test('renderer maps elicitation and choice-buttons fences to sanitizer-safe plac
     assert.match(aliasHtml, /data-elicitation-kind="choice-buttons"/);
 });
 
+test('streaming render keeps structured fences inert until final render', async () => {
+    setupWebUiDom();
+    const { renderMarkdown } = await import('../../public/js/render.ts');
+    const spec = JSON.stringify({
+        questions: [{ question: '선택?', options: ['A', 'B'] }],
+    });
+
+    const streamingHtml = renderMarkdown(`\`\`\`elicitation\n${spec}\n\`\`\``, true);
+    const finalHtml = renderMarkdown(`\`\`\`elicitation\n${spec}\n\`\`\``);
+
+    assert.doesNotMatch(streamingHtml, /class="elicitation-pending"/);
+    assert.doesNotMatch(streamingHtml, /질문 형식을 읽을 수 없습니다/);
+    assert.match(streamingHtml, /<pre><code/);
+    assert.match(finalHtml, /class="elicitation-pending"/);
+});
+
+test('incomplete structured fence remains inert and does not render parse-error widget', async () => {
+    setupWebUiDom();
+    const { renderMarkdown } = await import('../../public/js/render.ts');
+    const truncated = '```elicitation\n{"questions":[{"id":"q","question":"unfinished';
+
+    const streamingHtml = renderMarkdown(truncated, true);
+    const finalHtml = renderMarkdown(truncated);
+
+    assert.doesNotMatch(streamingHtml, /class="elicitation-pending"/);
+    assert.doesNotMatch(streamingHtml, /질문 형식을 읽을 수 없습니다/);
+    assert.doesNotMatch(finalHtml, /class="elicitation-pending"/);
+    assert.doesNotMatch(finalHtml, /질문 형식을 읽을 수 없습니다/);
+});
+
+test('malformed final structured spec fails closed with developer diagnostic', async () => {
+    setupWebUiDom();
+    const { renderMarkdown } = await import('../../public/js/render.ts');
+    const { hydrateElicitationBlocks } = await import('../../public/js/features/elicitation.ts');
+    const wrapper = document.createElement('div');
+    const warnings: unknown[] = [];
+    const originalWarn = console.warn;
+    console.warn = (...args: unknown[]) => { warnings.push(args); };
+    try {
+        wrapper.innerHTML = renderMarkdown('```elicitation\nnot-json\n```');
+        document.body.appendChild(wrapper);
+        hydrateElicitationBlocks(wrapper);
+    } finally {
+        console.warn = originalWarn;
+    }
+
+    assert.match(wrapper.innerHTML, /질문 형식을 읽을 수 없습니다/);
+    assert.ok(warnings.some(args => String((args as unknown[])[0]).includes('[elicitation] invalid structured question spec')));
+});
+
 test('sanitizer preserves only the placeholder data attributes required for hydration', () => {
     assert.match(sanitizeSrc, /'data-elicitation-kind'/);
     assert.match(sanitizeSrc, /'data-elicitation-spec'/);

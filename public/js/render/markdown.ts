@@ -12,9 +12,18 @@ import { schedulePostRender } from './post-render.js';
 import { ensureRenderDelegations } from './delegations.js';
 import { API_BASE } from '../api.js';
 import { renderElicitationPlaceholder } from '../features/elicitation.js';
+import { hasIncompleteStructuredFence } from '../../../src/shared/structured-fence.js';
 
 // ── marked.js configuration (ES module — always available) ──
 let markedReady = false;
+let renderContextIsStreaming = false;
+
+function renderCodeBlock(text: string, lang?: string): string {
+    const highlighted = highlightCode(text, lang);
+    const langDisplay = lang ? escapeHtml(lang) : '';
+    const copyLabel = t('code.copy') || 'Copy';
+    return `<div class="code-block"><div class="code-header"><span class="code-lang">${langDisplay}</span><button class="code-copy-btn" type="button" aria-label="${escapeHtml(copyLabel)}">${escapeHtml(copyLabel)}</button></div><pre><code class="hljs${lang ? ` language-${escapeHtml(lang)}` : ''}">${highlighted}</code></pre></div>`;
+}
 
 function ensureMarked(): boolean {
     if (markedReady) return true;
@@ -44,12 +53,10 @@ function ensureMarked(): boolean {
             </div>`;
         }
         if (normalizedLang === 'elicitation' || normalizedLang === 'choice-buttons') {
+            if (renderContextIsStreaming) return renderCodeBlock(text, lang);
             return renderElicitationPlaceholder(text, normalizedLang);
         }
-        const highlighted = highlightCode(text, lang);
-        const langDisplay = lang ? escapeHtml(lang) : '';
-        const copyLabel = t('code.copy') || 'Copy';
-        return `<div class="code-block"><div class="code-header"><span class="code-lang">${langDisplay}</span><button class="code-copy-btn" type="button" aria-label="${escapeHtml(copyLabel)}">${escapeHtml(copyLabel)}</button></div><pre><code class="hljs${lang ? ` language-${escapeHtml(lang)}` : ''}">${highlighted}</code></pre></div>`;
+        return renderCodeBlock(text, lang);
     };
 
     // Inline media: rewrite absolute paths to /media/ URL, detect video
@@ -87,6 +94,7 @@ export function renderMarkdown(text: string, isStreaming = false): string {
     const rawCleaned = stripOrchestration(text);
     if (!rawCleaned) return '<em class="text-dim orchestrate-placeholder">' + escapeHtml(t('orchestrator.dispatching')) + '</em>';
     const cleaned = rawCleaned.replace(/\n{3,}/g, '\n\n');
+    const structuredFenceIncomplete = hasIncompleteStructuredFence(cleaned);
 
     const { text: fenceShielded, fences } = shieldCodeFenceSvg(cleaned);
     const { text: svgShielded, blocks: svgBlocks } = extractTopLevelSvg(fenceShielded, isStreaming);
@@ -96,7 +104,13 @@ export function renderMarkdown(text: string, isStreaming = false): string {
     ensureHighlightLanguages();
     ensureMarked();
     const fixed = fixCjkPunctuationBoundary(shielded);
-    let html = marked.parse(fixed) as string;
+    let html = '';
+    renderContextIsStreaming = isStreaming || structuredFenceIncomplete;
+    try {
+        html = marked.parse(fixed) as string;
+    } finally {
+        renderContextIsStreaming = false;
+    }
     html = html.replace(/<table/g, '<div class="table-wrapper"><table').replace(/<\/table>/g, '</table></div>');
     html = unshieldMath(html, mathBlocks, isStreaming);
     html = sanitizeHtml(html);

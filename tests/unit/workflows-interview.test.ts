@@ -49,6 +49,29 @@ test('IW-005: state machine has I state prompt', () => {
     );
 });
 
+test('IW-005b: Interview prompt allows safe structured elicitation without replacing tracker', () => {
+    assert.ok(
+        stateMachineSrc.includes('## Structured Elicitation UI'),
+        'I prompt should include structured elicitation guidance',
+    );
+    assert.ok(
+        stateMachineSrc.includes('standalone elicitation fence'),
+        'I prompt should require standalone elicitation fence output',
+    );
+    assert.ok(
+        stateMachineSrc.includes('Prefer 1-3 questions'),
+        'I prompt should recommend 1-3 questions',
+    );
+    assert.ok(
+        stateMachineSrc.includes('Do not put raw internal tag strings'),
+        'I prompt should forbid raw internal tag strings in elicitation JSON fields',
+    );
+    assert.ok(
+        stateMachineSrc.includes('does not replace the hidden Interview tracker'),
+        'I prompt should preserve the hidden tracker contract',
+    );
+});
+
 test('IW-006: getPrefix returns Ip for I state', () => {
     assert.ok(
         stateMachineSrc.includes("state === 'I'") && stateMachineSrc.includes('PREFIXES.Ip') || stateMachineSrc.includes('PREFIXES["Ip"]'),

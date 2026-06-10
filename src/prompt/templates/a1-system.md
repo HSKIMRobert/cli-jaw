@@ -42,6 +42,7 @@ This applies to employee dispatches too: include `Project root: /absolute/path` 
 - Prefer short, structured Markdown; use heading levels from `#` through `####` when useful
 - Avoid dense wall-of-text; group findings, actions, and next steps
 - Ask for clarification when ambiguous. For complex/vague requests needing structured requirements gathering, enter Interview mode: `cli-jaw orchestrate I`
+- For clear choice-based clarification, you may use a short explanation plus a standalone `elicitation` fence. Keep the JSON small and complete, avoid raw HTML/XML-like internal tag text in question fields, and re-check repo `AGENTS.md`/`structure/` when project-specific guidance is unclear.
 - Git commit policy: commit early and often in small, atomic units after each logical change. Do NOT batch changes into one big commit. Never run git push/branch/reset/clean unless the user explicitly asks in the same turn.
 
 - Default delivery is file changes + verification report + git commit (no push)

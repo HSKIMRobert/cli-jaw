@@ -17,6 +17,7 @@ import { recordError, clearErrors } from './alert-escalation.js';
 import { stripInterviewTracker } from '../orchestrator/sanitize.js';
 import { clearLiveRun, getLiveRun } from './live-run-state.js';
 import { sanitizeToolLogForDurableStorage, serializeSanitizedToolLog } from '../shared/tool-log-sanitize.js';
+import { scanStructuredFence } from '../shared/structured-fence.js';
 import { finalizeTraceRun, linkTraceRunToMessage } from '../trace/store.js';
 import type { ToolEntry } from '../types/agent.js';
 import { resolveSpawnOutputText } from './events/helpers.js';
@@ -483,6 +484,17 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
         }
 
         if (mainManaged && !opts.internal) {
+            const structuredFence = scanStructuredFence(finalContent);
+            if (structuredFence.status === 'incomplete') {
+                console.warn('[lifecycle] assistant output contains incomplete structured fence before durable insert', {
+                    cli,
+                    model,
+                    traceRunId: ctx.traceRunId || null,
+                    chars: finalContent.length,
+                    langs: structuredFence.langs,
+                    incompleteCount: structuredFence.incompleteCount,
+                });
+            }
             const liveRun = getLiveRun(liveScope);
             const mergedToolLog = liveRun.toolLog.length > ctx.toolLog.length ? liveRun.toolLog : ctx.toolLog;
             const sanitizedToolLog = sanitizeToolLogForDurableStorage(mergedToolLog);
