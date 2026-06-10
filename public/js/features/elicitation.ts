@@ -352,13 +352,27 @@ function handleKeydown(event: KeyboardEvent): void {
     handleSubmitCustom(block);
 }
 
+function answeredQuestions(answers: ElicitationAnswer[]): ElicitationAnswer[] {
+    return answers.filter((answer): answer is ElicitationAnswer => Boolean(answer));
+}
+
 function composePrompt(answers: ElicitationAnswer[]): string {
-    const lines = answers.map(answer => {
+    const lines = answeredQuestions(answers).map(answer => {
         const label = answer.skipped ? 'skip' : answer.labels.join(', ');
         const values = answer.values.length > 0 ? ` (값: ${answer.values.join(', ')})` : '';
         return `- ${answer.question.question}: ${label}${values}`;
     });
     return `구조화 질문 응답:\n\n${lines.join('\n')}\n\n${DEFAULT_FINAL_INSTRUCTION}`;
+}
+
+function renderSubmittedSummary(block: HTMLElement, answers: ElicitationAnswer[]): void {
+    const rows = answeredQuestions(answers).map(answer => {
+        const label = answer.skipped ? 'skip' : answer.labels.join(', ');
+        return `<li><span class="elicitation-complete-question">${escapeHtml(answer.question.question)}</span><span class="elicitation-complete-answer">${escapeHtml(label)}</span></li>`;
+    }).join('');
+    block.className = 'elicitation-block elicitation-complete';
+    block.dataset['elicitationState'] = 'complete';
+    block.innerHTML = `<div class="elicitation-complete-title">구조화 질문 응답 전송됨</div><ul class="elicitation-complete-list">${rows}</ul>`;
 }
 
 function createInputEvent(input: Element, type: string): Event {
@@ -379,7 +393,7 @@ function submitComposedPrompt(block: HTMLElement, state: ElicitationState): void
     input.dispatchEvent(createInputEvent(input, 'input'));
     input.dispatchEvent(createInputEvent(input, 'cmd-execute'));
     blockStates.delete(block);
-    block.remove();
+    renderSubmittedSummary(block, state.answers);
 }
 
 export function ensureElicitationDelegation(): void {
