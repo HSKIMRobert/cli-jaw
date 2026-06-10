@@ -126,7 +126,7 @@ cli-jaw/
 │   │   ├── worker-monitor.ts ← Worker stall detection — activity timestamps + stall/disconnect/timeout callbacks (58L)
 │   │   ├── worker-progress.ts ← 직원 progress safe-summary sanitizer + current/previous snapshot types (58L)
 │   │   ├── worker-registry.ts ← Worker 프로세스 레지스트리 + progress current/previous memory retention (241L)
-│   │   ├── workspace-context.ts ← Project root/path hint resolver for employee dispatch context (95L)
+│   │   ├── workspace-context.ts ← Project root/path hint resolver for employee dispatch context (136L)
 │   │   ├── friction.ts       ← Interview friction/stagnation detector (76L)
 │   │   ├── seed.ts           ← Interview seed/ontology builder (107L)
 │   │   └── sanitize.ts       ← Interview tracker strip helper (51L)

@@ -20,10 +20,14 @@ test('workspace context block includes authoritative project paths and cwd warni
         workingDir: root,
         worklogPath: join(root, 'devlog/worklog.md'),
         task: 'check src/orchestrator/distribute.ts and devlog/structure',
+        now: new Date('2026-06-10T16:40:00.000Z'),
     });
 
     assert.ok(block.includes('## Workspace Context (authoritative)'));
     assert.ok(block.includes(`Project root: ${JSON.stringify(root)}`));
+    assert.match(block, /Current time: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}/);
+    assert.match(block, /Timezone: \S+/);
+    assert.ok(block.includes('UTC time: 2026-06-10T16:40:00.000Z'));
     assert.ok(block.includes(`Devlog root: ${JSON.stringify(join(root, 'devlog'))}`));
     assert.ok(block.includes(`Worklog path: ${join(root, 'devlog/worklog.md')}`));
     assert.ok(block.includes('Employee runtime cwd: isolated temporary directory'));
