@@ -11,6 +11,7 @@ import { highlightCode, ensureHighlightLanguages } from './highlight.js';
 import { schedulePostRender } from './post-render.js';
 import { ensureRenderDelegations } from './delegations.js';
 import { API_BASE } from '../api.js';
+import { renderElicitationPlaceholder } from '../features/elicitation.js';
 
 // ── marked.js configuration (ES module — always available) ──
 let markedReady = false;
@@ -20,9 +21,10 @@ function ensureMarked(): boolean {
 
     const renderer = new Renderer();
 
-    // Code blocks: highlight.js + mermaid + diagram-html detection
+    // Code blocks: highlight.js + mermaid + diagram-html + elicitation detection
     renderer.code = function ({ text, lang }: { text: string; lang?: string }) {
-        if (lang === 'mermaid') {
+        const normalizedLang = lang?.trim().toLowerCase();
+        if (normalizedLang === 'mermaid') {
             // Phase 127-F1: store raw source in data attribute, render a skeleton
             // placeholder so users never see raw Mermaid syntax while the diagram loads.
             const encodedCode = encodeURIComponent(text);
@@ -34,12 +36,15 @@ function ensureMarked(): boolean {
             </div>`;
         }
         // diagram-html: encode as base64, Phase 2 activateWidgets() inflates to sandboxed iframe
-        if (lang?.trim().toLowerCase() === 'diagram-html') {
+        if (normalizedLang === 'diagram-html') {
             const encoded = btoa(unescape(encodeURIComponent(text)));
             return `<div class="diagram-widget-pending" data-diagram-html="${encoded}"
                 role="status" aria-label="Interactive widget loading">
                 <div class="diagram-spinner"></div>
             </div>`;
+        }
+        if (normalizedLang === 'elicitation' || normalizedLang === 'choice-buttons') {
+            return renderElicitationPlaceholder(text, normalizedLang);
         }
         const highlighted = highlightCode(text, lang);
         const langDisplay = lang ? escapeHtml(lang) : '';

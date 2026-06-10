@@ -488,6 +488,142 @@
 .msg-error .msg-content a { color: var(--error); }
 .msg-error .msg-content code { border-color: var(--error); }
 
+/* ── Structured Elicitation ── */
+.elicitation-block,
+.elicitation-pending {
+    margin: var(--space-3) 0;
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: color-mix(in oklch, var(--surface) 94%, var(--accent));
+}
+
+.elicitation-loading,
+.elicitation-error-text {
+    color: var(--text-dim);
+    font-size: var(--text-sm);
+}
+
+.elicitation-error {
+    border-color: color-mix(in oklch, var(--error) 45%, var(--border));
+    background: var(--error-dim);
+}
+
+.elicitation-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+}
+
+.elicitation-progress {
+    color: var(--text-dim);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.elicitation-question {
+    margin-bottom: var(--space-3);
+    color: var(--text);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    line-height: 1.45;
+}
+
+.elicitation-options {
+    display: grid;
+    gap: var(--space-2);
+}
+
+.elicitation-option,
+.elicitation-submit,
+.elicitation-skip {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: color-mix(in oklch, var(--surface) 96%, var(--text));
+    color: var(--text);
+    cursor: pointer;
+    font: inherit;
+    transition: border-color var(--duration-fast), background var(--duration-fast), transform var(--duration-fast);
+}
+
+.elicitation-option {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    width: 100%;
+    min-height: 36px;
+    padding: var(--space-2) var(--space-3);
+    text-align: left;
+}
+
+.elicitation-option:hover,
+.elicitation-submit:hover,
+.elicitation-skip:hover {
+    border-color: color-mix(in oklch, var(--accent) 45%, var(--border));
+    background: color-mix(in oklch, var(--accent) 8%, var(--surface));
+}
+
+.elicitation-option:focus-visible,
+.elicitation-submit:focus-visible,
+.elicitation-skip:focus-visible,
+.elicitation-input:focus-visible {
+    outline: 2px solid color-mix(in oklch, var(--accent) 70%, white);
+    outline-offset: 2px;
+}
+
+.elicitation-option.is-selected,
+.elicitation-option[aria-pressed="true"] {
+    border-color: color-mix(in oklch, var(--accent) 60%, var(--border));
+    background: color-mix(in oklch, var(--accent) 12%, var(--surface));
+}
+
+.elicitation-option-label {
+    font-size: var(--text-sm);
+    font-weight: 600;
+}
+
+.elicitation-option-description {
+    color: var(--text-dim);
+    font-size: var(--text-xs);
+    line-height: 1.4;
+}
+
+.elicitation-input-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+}
+
+.elicitation-input {
+    min-width: 0;
+    min-height: 36px;
+    padding: 0 var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+}
+
+.elicitation-submit,
+.elicitation-skip {
+    min-height: 32px;
+    padding: 0 var(--space-3);
+    font-size: var(--text-xs);
+    font-weight: 700;
+}
+
+.elicitation-block > .elicitation-submit {
+    width: 100%;
+    margin-top: var(--space-2);
+}
+
 /* ── Message Actions ── */
 .msg-actions {
     position: absolute;

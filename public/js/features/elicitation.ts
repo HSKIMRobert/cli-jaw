@@ -1,0 +1,339 @@
+type ElicitationKind = 'elicitation' | 'choice-buttons';
+type QuestionType = 'single_select' | 'multi_select' | 'rank_priorities';
+
+interface RawOption {
+    id?: unknown;
+    value?: unknown;
+    label?: unknown;
+    description?: unknown;
+    submitText?: unknown;
+}
+
+interface NormalizedOption {
+    id: string;
+    value: string;
+    label: string;
+    description: string;
+    submitText: string;
+}
+
+interface RawQuestion {
+    id?: unknown;
+    type?: unknown;
+    question?: unknown;
+    title?: unknown;
+    prompt?: unknown;
+    options?: unknown;
+}
+
+interface NormalizedQuestion {
+    id: string;
+    type: QuestionType;
+    question: string;
+    options: NormalizedOption[];
+}
+
+interface NormalizedSpec {
+    questions: NormalizedQuestion[];
+}
+
+interface ElicitationAnswer {
+    question: NormalizedQuestion;
+    skipped: boolean;
+    values: string[];
+    labels: string[];
+}
+
+interface ElicitationState {
+    spec: NormalizedSpec;
+    index: number;
+    answers: ElicitationAnswer[];
+}
+
+const PENDING_SELECTOR = '.elicitation-pending';
+const BLOCK_SELECTOR = '.elicitation-block';
+const SUBMITTING_STATE = 'submitting';
+const DEFAULT_FINAL_INSTRUCTION = '위 응답을 기준으로 계속 진행해줘.';
+
+const blockStates = new WeakMap<HTMLElement, ElicitationState>();
+let delegatedDocument: Document | null = null;
+let blockSequence = 0;
+
+function escapeAttr(value: string): string {
+    return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function escapeHtml(value: string): string {
+    return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function asString(value: unknown): string {
+    return typeof value === 'string' ? value.trim() : '';
+}
+
+function parseSpec(raw: string): unknown {
+    try {
+        return JSON.parse(raw);
+    } catch {
+        return null;
+    }
+}
+
+function normalizeType(value: unknown): QuestionType {
+    const raw = asString(value);
+    if (raw === 'multi_select' || raw === 'multi' || raw === 'checkbox') return 'multi_select';
+    if (raw === 'rank_priorities' || raw === 'rank' || raw === 'ranking') return 'rank_priorities';
+    return 'single_select';
+}
+
+function normalizeOptions(rawOptions: unknown): NormalizedOption[] {
+    if (!Array.isArray(rawOptions)) return [];
+    return rawOptions.map((option, index): NormalizedOption | null => {
+        if (typeof option === 'string') {
+            const label = option.trim();
+            if (!label) return null;
+            return {
+                id: `option_${index + 1}`,
+                value: label,
+                label,
+                description: '',
+                submitText: '',
+            };
+        }
+        if (!option || typeof option !== 'object') return null;
+        const raw = option as RawOption;
+        const label = asString(raw.label) || asString(raw.value) || asString(raw.id);
+        if (!label) return null;
+        const value = asString(raw.value) || label;
+        return {
+            id: asString(raw.id) || value || `option_${index + 1}`,
+            value,
+            label,
+            description: asString(raw.description),
+            submitText: asString(raw.submitText),
+        };
+    }).filter((option): option is NormalizedOption => Boolean(option));
+}
+
+function normalizeQuestion(rawQuestion: unknown, index: number): NormalizedQuestion | null {
+    if (!rawQuestion || typeof rawQuestion !== 'object') return null;
+    const raw = rawQuestion as RawQuestion;
+    const question = asString(raw.question) || asString(raw.title) || asString(raw.prompt);
+    if (!question) return null;
+    return {
+        id: asString(raw.id) || `q${index + 1}`,
+        type: normalizeType(raw.type),
+        question,
+        options: normalizeOptions(raw.options),
+    };
+}
+
+function normalizeSpec(rawSpec: unknown): NormalizedSpec | null {
+    if (!rawSpec || typeof rawSpec !== 'object') return null;
+    const spec = rawSpec as { questions?: unknown; question?: unknown; options?: unknown; type?: unknown };
+    const questions = Array.isArray(spec.questions)
+        ? spec.questions
+        : [{ question: spec.question, options: spec.options, type: spec.type }];
+    const normalized = questions
+        .map((question, index) => normalizeQuestion(question, index))
+        .filter((question): question is NormalizedQuestion => Boolean(question));
+    return normalized.length > 0 ? { questions: normalized } : null;
+}
+
+export function renderElicitationPlaceholder(raw: string, kind: ElicitationKind): string {
+    const encoded = encodeURIComponent(raw);
+    return `<div class="elicitation-pending" data-elicitation-kind="${escapeAttr(kind)}" data-elicitation-spec="${escapeAttr(encoded)}" role="status" aria-label="Structured question loading">
+        <div class="elicitation-loading">질문을 준비하는 중...</div>
+    </div>`;
+}
+
+function getAllPendingBlocks(root: ParentNode): HTMLElement[] {
+    const blocks: HTMLElement[] = [];
+    if (root instanceof HTMLElement && root.matches(PENDING_SELECTOR)) blocks.push(root);
+    blocks.push(...Array.from(root.querySelectorAll<HTMLElement>(PENDING_SELECTOR)));
+    return blocks;
+}
+
+export function hydrateElicitationBlocks(root: ParentNode = document): void {
+    for (const block of getAllPendingBlocks(root)) {
+        if (block.dataset.elicitationHydrated === 'true') continue;
+        const encoded = block.dataset.elicitationSpec || '';
+        let decoded = '';
+        try {
+            decoded = decodeURIComponent(encoded);
+        } catch {
+            decoded = '';
+        }
+        const parsed = normalizeSpec(parseSpec(decoded));
+        block.dataset.elicitationHydrated = 'true';
+        if (!parsed) {
+            block.className = 'elicitation-block elicitation-error';
+            block.innerHTML = '<div class="elicitation-error-text">질문 형식을 읽을 수 없습니다.</div>';
+            continue;
+        }
+        blockStates.set(block, { spec: parsed, index: 0, answers: [] });
+        renderCurrentQuestion(block);
+    }
+}
+
+function renderCurrentQuestion(block: HTMLElement): void {
+    const state = blockStates.get(block);
+    if (!state) return;
+    const question = state.spec.questions[state.index];
+    if (!question) {
+        submitComposedPrompt(block, state);
+        return;
+    }
+    const total = state.spec.questions.length;
+    const blockId = block.id || `elicitation-${++blockSequence}`;
+    block.id = blockId;
+    block.className = 'elicitation-block';
+    block.dataset.elicitationState = 'active';
+    block.innerHTML = `
+        <div class="elicitation-top">
+            <div class="elicitation-progress">Q${state.index + 1} ${state.index + 1}/${total}</div>
+            <button class="elicitation-skip" type="button" data-elicitation-action="skip">skip</button>
+        </div>
+        <div class="elicitation-question" id="${escapeAttr(blockId)}-question">${escapeHtml(question.question)}</div>
+        <div class="elicitation-options" role="group" aria-labelledby="${escapeAttr(blockId)}-question">
+            ${question.options.map(option => renderOption(question, option)).join('')}
+        </div>
+        ${question.type === 'multi_select' ? '<button class="elicitation-submit" type="button" data-elicitation-action="submit-multi">선택 완료</button>' : ''}
+        <div class="elicitation-input-row">
+            <input class="elicitation-input" type="text" placeholder="직접 입력" aria-label="직접 입력">
+            <button class="elicitation-submit" type="button" data-elicitation-action="submit-custom">입력</button>
+        </div>`;
+}
+
+function renderOption(question: NormalizedQuestion, option: NormalizedOption): string {
+    const pressed = question.type === 'multi_select' ? ' aria-pressed="false"' : '';
+    const description = option.description ? `<span class="elicitation-option-description">${escapeHtml(option.description)}</span>` : '';
+    return `<button class="elicitation-option" type="button" data-elicitation-action="select-option" data-option-id="${escapeAttr(option.id)}"${pressed}>
+        <span class="elicitation-option-label">${escapeHtml(option.label)}</span>${description}
+    </button>`;
+}
+
+function findBlock(target: EventTarget | null): HTMLElement | null {
+    return target instanceof HTMLElement ? target.closest<HTMLElement>(BLOCK_SELECTOR) : null;
+}
+
+function currentQuestion(state: ElicitationState): NormalizedQuestion | null {
+    return state.spec.questions[state.index] || null;
+}
+
+function currentOption(state: ElicitationState, optionId: string): NormalizedOption | null {
+    const question = currentQuestion(state);
+    return question?.options.find(option => option.id === optionId) || null;
+}
+
+function recordAnswer(block: HTMLElement, answer: Omit<ElicitationAnswer, 'question'>): void {
+    const state = blockStates.get(block);
+    const question = state ? currentQuestion(state) : null;
+    if (!state || !question || block.dataset.elicitationState === SUBMITTING_STATE) return;
+    state.answers[state.index] = { question, ...answer };
+    state.index += 1;
+    renderCurrentQuestion(block);
+}
+
+function handleSelectOption(button: HTMLElement, block: HTMLElement, state: ElicitationState): void {
+    const option = currentOption(state, button.dataset.optionId || '');
+    const question = currentQuestion(state);
+    if (!option || !question) return;
+    if (question.type === 'multi_select') {
+        const nextPressed = button.getAttribute('aria-pressed') !== 'true';
+        button.setAttribute('aria-pressed', String(nextPressed));
+        button.classList.toggle('is-selected', nextPressed);
+        return;
+    }
+    recordAnswer(block, {
+        skipped: false,
+        values: [option.value],
+        labels: [option.submitText || option.label],
+    });
+}
+
+function handleSubmitMulti(block: HTMLElement, state: ElicitationState): void {
+    const selected = Array.from(block.querySelectorAll<HTMLElement>('.elicitation-option[aria-pressed="true"]'))
+        .map(button => currentOption(state, button.dataset.optionId || ''))
+        .filter((option): option is NormalizedOption => Boolean(option));
+    if (selected.length === 0) return;
+    recordAnswer(block, {
+        skipped: false,
+        values: selected.map(option => option.value),
+        labels: selected.map(option => option.submitText || option.label),
+    });
+}
+
+function handleSubmitCustom(block: HTMLElement): void {
+    const input = block.querySelector<HTMLInputElement>('.elicitation-input');
+    const value = input?.value.trim() || '';
+    if (!value) {
+        input?.focus();
+        return;
+    }
+    recordAnswer(block, { skipped: false, values: [value], labels: [value] });
+}
+
+function handleClick(event: MouseEvent): void {
+    const actionEl = event.target instanceof HTMLElement
+        ? event.target.closest<HTMLElement>('[data-elicitation-action]')
+        : null;
+    if (!actionEl) return;
+    const block = findBlock(actionEl);
+    const state = block ? blockStates.get(block) : null;
+    if (!block || !state || block.dataset.elicitationState === SUBMITTING_STATE) return;
+    event.preventDefault();
+    const action = actionEl.dataset.elicitationAction;
+    if (action === 'select-option') handleSelectOption(actionEl, block, state);
+    if (action === 'submit-multi') handleSubmitMulti(block, state);
+    if (action === 'submit-custom') handleSubmitCustom(block);
+    if (action === 'skip') recordAnswer(block, { skipped: true, values: [], labels: ['skip'] });
+}
+
+function handleKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Enter') return;
+    const target = event.target;
+    if (!(target instanceof HTMLElement) || target.tagName !== 'INPUT' || !target.classList.contains('elicitation-input')) return;
+    const block = findBlock(target);
+    if (!block) return;
+    event.preventDefault();
+    handleSubmitCustom(block);
+}
+
+function composePrompt(answers: ElicitationAnswer[]): string {
+    const lines = answers.map(answer => {
+        const label = answer.skipped ? 'skip' : answer.labels.join(', ');
+        const values = answer.values.length > 0 ? ` (값: ${answer.values.join(', ')})` : '';
+        return `- ${answer.question.question}: ${label}${values}`;
+    });
+    return `구조화 질문 응답:\n\n${lines.join('\n')}\n\n${DEFAULT_FINAL_INSTRUCTION}`;
+}
+
+function createInputEvent(input: Element, type: string): Event {
+    const eventCtor = input.ownerDocument.defaultView?.Event || Event;
+    return new eventCtor(type, { bubbles: true });
+}
+
+function submitComposedPrompt(block: HTMLElement, state: ElicitationState): void {
+    if (block.dataset.elicitationState === SUBMITTING_STATE) return;
+    block.dataset.elicitationState = SUBMITTING_STATE;
+    const input = document.getElementById('chatInput') as HTMLTextAreaElement | HTMLInputElement | null;
+    if (!input) {
+        block.classList.add('elicitation-error');
+        block.innerHTML = '<div class="elicitation-error-text">입력창을 찾을 수 없습니다.</div>';
+        return;
+    }
+    input.value = composePrompt(state.answers);
+    input.dispatchEvent(createInputEvent(input, 'input'));
+    input.dispatchEvent(createInputEvent(input, 'cmd-execute'));
+    blockStates.delete(block);
+    block.remove();
+}
+
+export function ensureElicitationDelegation(): void {
+    if (delegatedDocument === document) return;
+    document.addEventListener('click', handleClick);
+    document.addEventListener('keydown', handleKeydown);
+    delegatedDocument = document;
+}
