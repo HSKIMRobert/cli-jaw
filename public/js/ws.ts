@@ -177,7 +177,9 @@ function shouldReloadMessagesForRestore(reason: string): boolean {
 function syncAfterBrowserRestore(reason: string): void {
     showChatRestoreIndicator(reason);
     void import('./ui.js').then(async m => {
-        if (shouldReloadMessagesForRestore(reason)) {
+        // 83: lastLoadTs > 0 — the boot channel-up load owns first paint; the
+        // onLoad visibility ping must not race it during an iframe remount.
+        if (shouldReloadMessagesForRestore(reason) && lastLoadTs > 0) {
             try {
                 await m.loadMessages();
                 lastLoadTs = Date.now();
