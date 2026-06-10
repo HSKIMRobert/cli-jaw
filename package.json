@@ -132,6 +132,7 @@
     "d3": "^7.9.0",
     "discord.js": "^14.25.1",
     "dompurify": "^3.3.3",
+    "eventsource": "^3.0.7",
     "express": "^5.2.1",
     "fast-glob": "^3.3.3",
     "grammy": "^1.40.0",

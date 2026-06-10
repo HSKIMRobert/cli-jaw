@@ -51,6 +51,10 @@ import type { EmbeddingConfig } from './memory/embedding/index.js';
 import { addBroadcastListener } from '../core/bus.js';
 import { resolveDashboardHome } from './dashboard-home.js';
 import { fetchWorkerAssistantTextById } from './worker-messages.js';
+import {
+    startWorkerEventBridge, stopWorkerEventBridge,
+    getCachedLatestMessage, type WorkerLatestData,
+} from './worker-events.js';
 import { openUrlInBrowser } from '../core/browser-open.js';
 import { ensureDirs, loadSettings } from '../core/config.js';
 import { createJawCeoRouter } from '../routes/jaw-ceo.js';
@@ -359,16 +363,19 @@ app.use('/api/jaw-ceo', createJawCeoRouter({
         }));
     },
     fetchLatestMessage: async (targetPort) => {
-        const response = await fetch(`http://127.0.0.1:${targetPort}/api/messages/latest?includeContent=1`);
-        if (!response.ok) return null;
-        const body = await response.json() as {
-            ok?: boolean;
-            data?: {
-                latestAssistant?: { id?: number; role?: string; created_at?: string; text?: string; content?: string } | null;
-                activity?: { messageId?: number; role?: string; title?: string; updatedAt?: string } | null;
-            } | null;
-        };
-        const latest = body.data?.latestAssistant;
+        // P4-full (devlog 260609, 50 §2): serve from the SSE-fed cache while the
+        // worker's event stream is live; otherwise fall back to on-demand fetch.
+        const cached = getCachedLatestMessage(targetPort);
+        let data: WorkerLatestData;
+        if (cached !== undefined) {
+            data = cached;
+        } else {
+            const response = await fetch(`http://127.0.0.1:${targetPort}/api/messages/latest?includeContent=1`);
+            if (!response.ok) return null;
+            const body = await response.json() as { ok?: boolean; data?: WorkerLatestData };
+            data = body.data ?? null;
+        }
+        const latest = data?.latestAssistant;
         const latestId = latest?.id ? Number(latest.id) : null;
         const directText = latest && typeof latest.text === 'string' ? latest.text : String(latest?.content || '');
         const fallbackText = latestId && !directText.trim()
@@ -381,11 +388,11 @@ app.use('/api/jaw-ceo', createJawCeoRouter({
                 ...(latest.created_at ? { created_at: String(latest.created_at) } : {}),
                 text: directText || fallbackText,
             } : null,
-            activity: body.data?.activity?.messageId ? {
-                messageId: Number(body.data.activity.messageId),
-                role: String(body.data.activity.role || ''),
-                ...(body.data.activity.title ? { title: String(body.data.activity.title) } : {}),
-                ...(body.data.activity.updatedAt ? { updatedAt: String(body.data.activity.updatedAt) } : {}),
+            activity: data?.activity?.messageId ? {
+                messageId: Number(data.activity.messageId),
+                role: String(data.activity.role || ''),
+                ...(data.activity.title ? { title: String(data.activity.title) } : {}),
+                ...(data.activity.updatedAt ? { updatedAt: String(data.activity.updatedAt) } : {}),
             } : null,
         };
     },
@@ -792,6 +799,7 @@ const shutdown = createDashboardShutdown({
 });
 
 async function shutdownDashboard(mode?: 'full' | 'locked-skip'): Promise<void> {
+    stopWorkerEventBridge();
     instanceRegistry.stop();
     stopRemindersScheduler?.();
     noteWsServer.close();
@@ -829,6 +837,9 @@ async function main(): Promise<void> {
             log: msg => console.log(msg),
         });
         // Phase 4a: background scan loop feeding the instance cache (devlog 260609, 40)
+        // P4-full: bridge must subscribe BEFORE the first scan publishes
+        // 'appeared' diffs, or initial workers would never get SSE streams.
+        startWorkerEventBridge();
         instanceRegistry.start();
         if (process.env["JAW_REMINDERS_SCHEDULER"] === '1') {
             stopRemindersScheduler = startRemindersScheduler({
