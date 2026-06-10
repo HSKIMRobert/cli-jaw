@@ -95,7 +95,7 @@ public/
 | `js/render/notes-vault-path.ts` | — | notes vault path resolution |
 | `js/render/delegations.ts` | — | render delegation registry |
 | `js/render/search-results.ts` | — | `search-results` fenced JSON placeholder hydration. Final-render only; malformed specs fail closed, unsafe URLs are dropped, and results render as compact native cards. |
-| `js/render/link-preview.ts` | — | External URL link preview lazy hydration. Skips internal/private/media links, fetches `/api/link-preview`, renders proxied images through `/api/link-preview/image`, and caps concurrent preview fetches. |
+| `js/render/link-preview.ts` | — | External URL link preview lazy hydration. Skips internal/private/media links, fetches `/api/link-preview`, renders proxied images through `/api/link-preview/image`, caps concurrent preview fetches, and renders compact cards with favicon/site/URL metadata on the first line plus clamped title/description text. |
 | `js/features/elicitation.ts` | — | `elicitation` / `choice-buttons` structured question placeholder hydration. Supports sequential wizard answers, skip/direct input, auto-injection, submitted read-only summaries, and 21 Advanced `visibleWhen` prior-answer branching. Final-render oriented; malformed final specs fail closed with user-safe error + console diagnostic, and incomplete fences stay inert. |
 | `src/shared/structured-fence.ts` | — | shared syntax-light scanner for `elicitation` / `choice-buttons` / `search-results` fenced block completeness; used by frontend render guards and server lifecycle diagnostics. |
 | `js/ui.ts` | 441L | 메시지 렌더링, skeleton/empty state, virtual scroll 연동, ProcessBlock 오케스트레이션, copy button, avatar markup 주입, message finalization, `scrollIntent` 기반 bottom-follow/restore policy |
