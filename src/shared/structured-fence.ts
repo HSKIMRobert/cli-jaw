@@ -7,7 +7,7 @@ export interface StructuredFenceScan {
     langs: string[];
 }
 
-const DEFAULT_STRUCTURED_FENCE_LANGS = ['elicitation', 'choice-buttons'];
+const DEFAULT_STRUCTURED_FENCE_LANGS = ['elicitation', 'choice-buttons', 'search-results'];
 const FENCE_OPEN_RE = /^ {0,3}(`{3,}|~{3,})([A-Za-z0-9_-]+)?[^\n]*$/;
 
 function normalizeLangs(langs: readonly string[]): Set<string> {

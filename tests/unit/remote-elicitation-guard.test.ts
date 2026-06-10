@@ -36,7 +36,9 @@ test('remote channel elicitation guard forbids structured fences for Telegram an
         assert.match(guard, new RegExp(`Current origin is ${origin}`));
         assert.match(guard, /Do not output standalone ```elicitation/);
         assert.match(guard, /```choice-buttons/);
+        assert.match(guard, /```search-results/);
         assert.match(guard, /numbered options/);
+        assert.match(guard, /search results/);
     }
 });
 
@@ -115,4 +117,23 @@ test('web output normalization preserves structured fences', () => {
     const raw = '```elicitation\n{"questions":[{"question":"선택?","options":["A"]}]}\n```';
 
     assert.equal(normalizeRemoteChannelElicitationOutput(raw, 'web'), raw);
+});
+
+test('remote channel output normalization converts search-results fence to plain text', () => {
+    const spec = JSON.stringify({
+        schemaVersion: 'search-results-v1',
+        query: 'cli-jaw',
+        results: [
+            { title: 'cli-jaw repo', url: 'https://example.com/cli-jaw' },
+            { title: 'docs', url: 'https://example.com/docs' },
+        ],
+    });
+    const output = normalizeRemoteChannelElicitationOutput(`검색\n\n\`\`\`search-results\n${spec}\n\`\`\``, 'telegram');
+
+    assert.doesNotMatch(output, /```search-results/);
+    assert.doesNotMatch(output, /"schemaVersion"/);
+    assert.match(output, /일반 텍스트로 표시합니다/);
+    assert.match(output, /검색어: cli-jaw/);
+    assert.match(output, /1\. cli-jaw repo/);
+    assert.match(output, /2\. docs/);
 });

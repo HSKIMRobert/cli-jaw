@@ -7,6 +7,8 @@ import { activateWidgets } from '../diagram/iframe-renderer.js';
 import { getAppName } from './appname.js';
 import { getAgentAvatarMarkup, getUserAvatarMarkup } from './avatar.js';
 import { hydrateElicitationBlocks } from './elicitation.js';
+import { hydrateSearchResultsBlocks } from '../render/search-results.js';
+import { hydrateLinkPreviewCards } from '../render/link-preview.js';
 import { t } from './i18n.js';
 import { renderMessageActionsHtml } from './message-actions.js';
 import { API_BASE } from '../api.js';
@@ -125,6 +127,8 @@ export function addMessage(role: string, text: string, cli?: string | null): HTM
         container?.appendChild(div);
         activateWidgets(div);
         hydrateElicitationBlocks(div);
+        hydrateSearchResultsBlocks(div);
+        hydrateLinkPreviewCards(div);
         if (!vs.active && !isStreamingPlaceholder && container) {
             const msgCount = container.querySelectorAll('.msg').length;
             if (msgCount >= VS_THRESHOLD) {
@@ -135,6 +139,8 @@ export function addMessage(role: string, text: string, cli?: string | null): HTM
                 vs.onPostRender = (viewport: HTMLElement) => {
                     activateWidgets(viewport);
                     hydrateElicitationBlocks(viewport);
+                    hydrateSearchResultsBlocks(viewport);
+                    hydrateLinkPreviewCards(viewport);
                     void linkifyFilePathsWithNotesRoot(viewport);
                     void renderMermaidBlocks(viewport, { immediate: true });
                 };

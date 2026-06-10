@@ -23,8 +23,23 @@ test('structured fence scanner classifies complete choice-buttons fence', () => 
     assert.deepEqual(scan.langs, ['choice-buttons']);
 });
 
+test('structured fence scanner classifies complete search-results fence', () => {
+    const scan = scanStructuredFence('```search-results\n{"schemaVersion":"search-results-v1","results":[]}\n```');
+    assert.equal(scan.status, 'complete');
+    assert.equal(scan.completeCount, 1);
+    assert.deepEqual(scan.langs, ['search-results']);
+});
+
 test('structured fence scanner classifies unclosed elicitation fence as incomplete', () => {
     const text = '```elicitation\n{"questions":[{"id":"q","question":"unfinished';
+    const scan = scanStructuredFence(text);
+    assert.equal(scan.status, 'incomplete');
+    assert.equal(scan.incompleteCount, 1);
+    assert.equal(hasIncompleteStructuredFence(text), true);
+});
+
+test('structured fence scanner classifies unclosed search-results fence as incomplete', () => {
+    const text = '```search-results\n{"schemaVersion":"search-results-v1","results":[';
     const scan = scanStructuredFence(text);
     assert.equal(scan.status, 'incomplete');
     assert.equal(scan.incompleteCount, 1);

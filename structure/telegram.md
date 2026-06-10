@@ -33,9 +33,10 @@ aliases: [Telegram and Heartbeat, CLI-JAW Telegram, messaging runtime]
 ### Remote channel structured elicitation guard
 
 - 21 Elicitation은 Web UI main DOM 전용 상호작용이다.
-- Telegram/Discord origin은 `src/orchestrator/pipeline.ts`에서 per-turn prompt guard를 받아 `elicitation` / `choice-buttons` fenced block 출력을 금지한다.
+- Telegram/Discord origin은 `src/orchestrator/pipeline.ts`에서 per-turn prompt guard를 받아 `elicitation` / `choice-buttons` / `search-results` fenced block 출력을 금지한다.
 - A1 system prompt는 이 채널별 규칙 때문에 수정하지 않는다. prompt-cache 안정성을 유지하기 위해 origin-aware guard는 user prompt 조립 경로에서만 붙는다.
 - 모델이 그래도 remote 응답에 `elicitation` / `choice-buttons` fence를 출력하면 `orchestrate_done` broadcast 직전에 plain text numbered question fallback으로 변환한다.
+- 모델이 remote 응답에 `search-results` fence를 출력하면 raw JSON fence를 그대로 보내지 않고 일반 텍스트 검색 결과 목록 또는 경고 fallback으로 변환한다.
 - 현재 Telegram `callback_query` / inline keyboard와 Discord message components는 구현하지 않는다. native remote buttons는 후속 별도 기능이다.
 
 ### `core/runtime-settings.ts`

@@ -6,6 +6,8 @@ import { bootstrapVirtualHistory, type VirtualHistoryBootstrapDeps } from '../vi
 import { activateWidgets } from '../diagram/iframe-renderer.js';
 import { ICONS } from '../icons.js';
 import { hydrateElicitationBlocks } from './elicitation.js';
+import { hydrateSearchResultsBlocks } from '../render/search-results.js';
+import { hydrateLinkPreviewCards } from '../render/link-preview.js';
 import { t } from './i18n.js';
 import { cacheMessages, getMessageScope, getScopedMessages, setMessageScope } from './idb-cache.js';
 import { addMessage, addSystemMsg, showEmptyState } from './chat-messages.js';
@@ -72,12 +74,16 @@ export function registerVirtualScrollCallbacks(vs: ReturnType<typeof getVirtualS
             el.classList.remove('lazy-pending');
             activateWidgets(el);
             hydrateElicitationBlocks(el);
+            hydrateSearchResultsBlocks(el);
+            hydrateLinkPreviewCards(el);
             void renderMermaidBlocks(el, { immediate: true });
         }
     };
     vs.onPostRender = (viewport: HTMLElement) => {
         activateWidgets(viewport);
         hydrateElicitationBlocks(viewport);
+        hydrateSearchResultsBlocks(viewport);
+        hydrateLinkPreviewCards(viewport);
         void linkifyFilePathsWithNotesRoot(viewport);
         void renderMermaidBlocks(viewport, { immediate: true });
     };

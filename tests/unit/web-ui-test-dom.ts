@@ -65,6 +65,7 @@ export function setupWebUiDom(): void {
     installGlobal('window', win);
     installGlobal('document', win.document);
     installGlobal('HTMLElement', win.HTMLElement);
+    installGlobal('HTMLAnchorElement', win.HTMLAnchorElement);
     installGlobal('Element', win.Element);
     installGlobal('Node', win.Node);
     installGlobal('NodeFilter', win.NodeFilter);

@@ -55,6 +55,7 @@ export function sanitizeHtml(html: string): string {
         ADD_ATTR: ['aria-hidden', 'xmlns', 'viewBox', 'role', 'aria-label',
                    'data-jaw-svg', 'data-jaw-kind', 'data-mermaid-code-raw',
                    'data-elicitation-kind', 'data-elicitation-spec', 'data-elicitation-hydrated',
+                   'data-search-results-kind', 'data-search-results-spec', 'data-search-results-hydrated',
                    'href', 'xlink:href', 'dominant-baseline'],
     });
     return sanitizeCssInStyleTags(clean);
