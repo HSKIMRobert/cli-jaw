@@ -46,6 +46,21 @@ git add devlog && git commit -m "chore: update devlog ref" && git push
 - Keep `README.md`, root `AGENTS.md`, root `CLAUDE.md`, and `structure/AGENTS.md` synchronized when command/API/orchestration surfaces change.
 - Recent non-strict hotspots: explicit `/continue`, workflow helper slash commands (`/plan` as PABCD P compatibility guide, `/interview`, `/deliberate`, `/planaudit`, `/review` as projectDirs/recent-context repo review with no JAW_HOME fallback, optional user focus text, and current-conversation-first scope resolution backed by recent goal/chat + git history/diff/worktree evidence, gated `/goal`; `/goal plan` and `/goalplan` store user direction as `planHint` and require `/goal refine` before checkpoints; bounded automation is `/goal run ...`, not top-level `/autopilot`), Pi top-level `pi --mode rpc` runtime with isolated `PI_CODING_AGENT_DIR` profiles, Gemini `--skip-trust --approval-mode yolo`, AGY `-p` print-mode runtime, SSE-first `GET /api/events` event channel with WebSocket fallback, bounded tool-log sanitizer, worker progress query/watch, canonical `/api/channel/send`, heartbeat `every`/`cron` schedules, browser runtime diagnostics/session lifecycle, Electron Node sidecar packaging, and `npm run gate:all`.
 
+### Build & Deploy Contract (서버 코드 변경 시 필수)
+
+**실행 중인 서버는 TS 소스가 아니라 컴파일된 `dist/`를 실행한다** (`jaw serve` → `dist/server.js`, CLI → `dist/bin/cli-jaw.js`). 소스만 커밋하고 빌드를 빼먹으면 서버를 재시작해도 변경이 반영되지 않는다 (260610 `/api/project/pick` 404 사고의 원인).
+
+서버/CLI 코드(`server.ts`, `src/**`, `bin/**`)를 변경했다면:
+
+```bash
+npm run build           # tsc → dist/ atomic swap (prebuild: ensure:native 포함)
+npm run build:frontend  # public/js·public/manager 변경 시 (→ public/dist)
+```
+
+- 변경 반영 단위 = **커밋 + 해당 빌드 + 서버 재시작** 3종 세트. 빌드 없이 "재시작하면 됩니다"라고 안내하지 말 것.
+- 프론트엔드(`public/js/*.ts`, `public/manager/src/**`)는 `build:frontend`만으로 충분하며 서버 재시작 없이 브라우저 새로고침으로 반영된다 (`public/dist` 정적 서빙).
+- 반영 여부 검증: `grep <new-symbol> dist/...` 또는 해당 엔드포인트 curl로 확인 후 안내.
+
 ### Line Count Format (`str_func.md`)
 
 File tree の行数は **`(NNNL)`** 형식으로 기재. 두 가지 변형 허용:
