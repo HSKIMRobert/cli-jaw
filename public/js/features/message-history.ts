@@ -118,6 +118,16 @@ function hydrateSmallHistory(messages: MessageItem[]): void {
     });
 }
 
+// Signature of the last rendered history. Channel reconnects re-run
+// loadMessages even when nothing changed — skipping the teardown+rebuild
+// keeps the virtual scroll (and the user's reading position) untouched.
+let lastRenderedSignature = '';
+
+function historySignature(scope: string, msgs: MessageItem[]): string {
+    const last = msgs.length > 0 ? msgs[msgs.length - 1] : null;
+    return `${scope}|${msgs.length}|${last ? JSON.stringify(last) : ''}`;
+}
+
 export async function loadMessages(): Promise<void> {
     const vs = getVirtualScroll();
     const chatEl = document.getElementById('chatMessages');
@@ -135,6 +145,12 @@ export async function loadMessages(): Promise<void> {
     if (msgs !== null) {
         const safeMsgs = msgs.map(normalizeMessageToolLog);
         const hadRenderedHistory = Boolean(chatEl?.querySelector('.msg')) || vs.active;
+        const signature = historySignature(nextScope, safeMsgs);
+        if (hadRenderedHistory && !scopeChanged && signature === lastRenderedSignature) {
+            updateStatMsgs(safeMsgs.length);
+            return; // identical history — keep the live DOM and scroll state
+        }
+        lastRenderedSignature = signature;
         const shouldForceBottom = scopeChanged || !hadRenderedHistory;
         const savedIndex = !shouldForceBottom && vs.active ? vs.firstVisibleIndex() : null;
         vs.clear();
