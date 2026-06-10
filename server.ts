@@ -5,7 +5,6 @@ import express from 'express';
 import helmet from 'helmet';
 import { log } from './src/core/logger.js';
 import { createServer } from 'http';
-import { WebSocketServer } from 'ws';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import crypto from 'crypto';
@@ -15,7 +14,7 @@ import { registerBrowserRoutes } from './src/routes/browser.js';
 import { registerEmployeeRoutes } from './src/routes/employees.js';
 import { registerHeartbeatRoutes } from './src/routes/heartbeat.js';
 import { registerSkillRoutes } from './src/routes/skills.js';
-import { registerJawMemoryRoutes, buildMemorySyncPayload } from './src/routes/jaw-memory.js';
+import { registerJawMemoryRoutes } from './src/routes/jaw-memory.js';
 import { registerI18nRoutes } from './src/routes/i18n.js';
 import { registerOrchestrateRoutes } from './src/routes/orchestrate.js';
 import { registerGoalRoutes } from './src/routes/goal.js';
@@ -50,14 +49,13 @@ import {
 
 import { errorHandler } from './src/http/error-middleware.js';
 
-import { setWss, broadcast } from './src/core/bus.js';
 import { isAllowedHost, isAllowedOrigin, isPrivateIP } from './src/security/network-acl.js';
 import { initBossToken } from './src/core/boss-auth.js';
 import * as browser from './src/browser/index.js';
 
 import { ensureMemoryRuntimeReady, hasSoulFile } from './src/memory/runtime.js';
 
-import { loadLocales, t } from './src/core/i18n.js';
+import { loadLocales } from './src/core/i18n.js';
 import {
     PROMPTS_DIR, DB_PATH,
     settings, loadSettings, saveSettings,
@@ -72,16 +70,11 @@ import {
     initPromptFiles, regenerateB,
 } from './src/prompt/builder.js';
 
-import {
-    isAgentBusy, killAllAgents,
-    messageQueue, getQueuedMessageSnapshotForScope,
-} from './src/agent/spawn.js';
-import { getState, resetAllStaleStates } from './src/orchestrator/state-machine.js';
-import { resolveOrcScope } from './src/orchestrator/scope.js';
+import { killAllAgents } from './src/agent/spawn.js';
+import { resetAllStaleStates } from './src/orchestrator/state-machine.js';
 
 import { submitMessage } from './src/orchestrator/gateway.js';
 
-import { resolveRequestLocale } from './src/http/locale.js';
 import { applySettingsPatch } from './src/core/session-ops.js';
 import { makeWebCommandCtx } from './src/cli/web-command-ctx.js';
 
@@ -197,7 +190,7 @@ const traceMaxRows = settings["trace"]?.maxRows ?? 50000;
 pruneTraceEvents(traceRetentionDays, traceMaxRows);
 setInterval(() => pruneTraceEvents(traceRetentionDays, traceMaxRows), 6 * 60 * 60 * 1000).unref();
 
-// ─── Express + WebSocket ─────────────────────────────
+// ─── Express ─────────────────────────────────────────
 
 type RemoteAccessSettings = {
     mode?: string;
@@ -211,22 +204,6 @@ if (remoteAccess.mode === 'reverse-proxy' && remoteAccess.trustProxies && remote
     app.set('trust proxy', 'loopback');
 }
 const server = createServer(app);
-const wss = new WebSocketServer({
-    server,
-    verifyClient: (info, cb) => {
-        const host = info.req.headers.host;
-        if (host && !isAllowedHost(host, lanAllowed())) {
-            return cb(false, 403, 'Host not allowed (LAN bypass disabled)');
-        }
-        const origin = info.origin || (info.req.headers.origin as string);
-        if (origin && !isAllowedOrigin(origin, host, lanAllowed())) {
-            return cb(false, 403, 'Origin not allowed');
-        }
-        cb(true);
-    }
-});
-
-setWss(wss);
 
 // ─── Security Headers ───────────────────────────────
 app.use(helmet({
@@ -320,52 +297,9 @@ registerStaticRoutes(app, requireAuth, { projectRoot });
 
 app.use(express.static(join(projectRoot, 'public')));
 
-// WebSocket incoming messages
-wss.on('connection', (ws) => {
-    if (isAgentBusy()) {
-        ws.send(JSON.stringify({ type: 'agent_status', status: 'running', agentId: 'active' }));
-    }
-    if (messageQueue.length > 0) {
-        ws.send(JSON.stringify({
-            type: 'queue_update',
-            pending: messageQueue.length,
-            queued: getQueuedMessageSnapshotForScope('default'),
-        }));
-    }
-    // Send current PABCD state so page refresh preserves glow
-    const webScope = resolveOrcScope({ origin: 'web', workingDir: settings["workingDir"] || null });
-    const orcState = getState(webScope);
-    if (orcState && orcState !== 'IDLE') {
-        ws.send(JSON.stringify({ type: 'orc_state', state: orcState, scope: webScope, ts: Date.now() }));
-    }
-    // Push current memory status so the sidebar badge hydrates without button click
-    try {
-        const payload = buildMemorySyncPayload('ws_connect');
-        ws.send(JSON.stringify({ type: 'memory_status', ...payload }));
-    } catch (e) {
-        console.warn('[ws:memory_status] initial push failed:', (e as Error).message);
-    }
-
-    ws.on('message', (raw) => {
-        try {
-            const msg = JSON.parse(raw.toString());
-            if (msg.type === 'send_message' && msg.text) {
-                const text = String(msg.text || '').trim();
-                if (!text) return;
-                console.log(`[ws:in] ${text.slice(0, 80)}`);
-
-                const result = submitMessage(text, { origin: 'web' });
-                if (result.action === 'rejected' && result.reason === 'busy') {
-                    broadcast('agent_done', {
-                        text: t('ws.agentBusy', {}, resolveRequestLocale(null, settings["locale"])),
-                        error: true,
-                    });
-                }
-            }
-            if (msg.type === 'stop') killAllAgents('ws');
-        } catch (e) { console.warn('[ws:parse] message parse failed', { preview: String(raw).slice(0, 80) }); }
-    });
-});
+// Live updates flow through GET /api/events (SSE) — the legacy WebSocket
+// channel was removed in X-01 (devlog 260609, 50). Inbound equivalents:
+// send_message → POST /api/message, stop → POST /api/stop.
 
 // ─── API Routes ──────────────────────────────────────
 // Phase 2 extraction (devlog 260609, 20): inline handlers/helpers moved to
@@ -495,7 +429,6 @@ const shutdown = async (sig: string) => {
     }
     console.log('[server] messaging stopped (or timed out)');
 
-    wss.close();
     await new Promise<void>(resolve => {
         server.close(() => resolve());
         if (server.closeAllConnections) server.closeAllConnections();

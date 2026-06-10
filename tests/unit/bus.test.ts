@@ -4,7 +4,6 @@ import {
     broadcast,
     addBroadcastListener,
     removeBroadcastListener,
-    setWss,
 } from '../../src/core/bus.ts';
 
 test('addBroadcastListener receives broadcast events', () => {
@@ -34,33 +33,8 @@ test('removeBroadcastListener stops receiving events', () => {
     assert.equal(received.length, 1, 'should not receive after removal');
 });
 
-test('broadcast works without WS server set', () => {
-    // setWss(null) is the default — should not throw
-    setWss(null);
+test('broadcast with no listeners does not throw (X-01: no WS server anymore)', () => {
     assert.doesNotThrow(() => broadcast('safe', {}));
-});
-
-test('broadcast sends to WS clients with readyState 1', () => {
-    const sent = [];
-    const mockWss = {
-        clients: [
-            { readyState: 1, send: (msg) => sent.push(msg) },
-            { readyState: 0, send: () => { throw new Error('should not send'); } },
-            { readyState: 1, send: (msg) => sent.push(msg) },
-        ],
-    };
-    setWss(mockWss as any);
-    broadcast('ws_test', { val: 42 });
-
-    assert.equal(sent.length, 2);
-    for (const msg of sent) {
-        const parsed = JSON.parse(msg);
-        assert.equal(parsed.type, 'ws_test');
-        assert.equal(parsed.val, 42);
-        assert.ok(parsed.ts, 'should have timestamp');
-    }
-
-    setWss(null); // cleanup
 });
 
 test('multiple listeners all receive the same broadcast', () => {

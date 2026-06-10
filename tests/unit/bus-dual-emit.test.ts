@@ -1,10 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { broadcast, inferTopic, setWss, clearAllBroadcastListeners } from '../../src/core/bus.ts';
+import { broadcast, inferTopic, clearAllBroadcastListeners } from '../../src/core/bus.ts';
 import { subscribe, type BusEvent } from '../../src/core/event-bus.ts';
 
-// Isolate the WS/listener side so only the SSE dual-emit path is observed.
-setWss(null);
+// Isolate the listener side so only the SSE emit path is observed.
 clearAllBroadcastListeners();
 
 test('inferTopic routes claude-e traces to trace BEFORE the agent prefix', () => {

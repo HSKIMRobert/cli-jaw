@@ -5,7 +5,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { flushClaudeBuffers } from '../../src/agent/events.ts';
 import { activeProcesses, isAgentBusy } from '../../src/agent/spawn.ts';
-import { clearAllBroadcastListeners, setWss } from '../../src/core/bus.ts';
+import { clearAllBroadcastListeners } from '../../src/core/bus.ts';
+import { subscribe } from '../../src/core/event-bus.ts';
 import type { SpawnContext } from '../../src/types/agent.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -85,13 +86,11 @@ test('internal sidecars do not inherit parent live-run tool ownership', () => {
     );
 });
 
-test('flushClaudeBuffers emits internal tool events without sending public WebSocket messages', () => {
-    const sent: string[] = [];
-    setWss({
-        clients: [
-            { readyState: 1, send: (msg: string): void => { sent.push(msg); } },
-        ],
-    } as any);
+test('flushClaudeBuffers emits internal tool events without publishing to the public SSE event-bus', () => {
+    // X-01: the public browser surface is the SSE event-bus (WS path removed).
+    // Internal-audience events must never be published there.
+    const published: unknown[] = [];
+    const unsub = subscribe(e => { published.push(e); });
     clearAllBroadcastListeners();
     const ctx: SpawnContext = {
         fullText: '',
@@ -112,8 +111,8 @@ test('flushClaudeBuffers emits internal tool events without sending public WebSo
     flushClaudeBuffers(ctx, 'memory-flush', { isEmployee: true });
 
     assert.equal(ctx.toolLog.length, 1, 'internal flush thinking still records toolLog internally');
-    assert.equal(sent.length, 0, 'internal flush tool event must not reach public WebSocket clients');
-    setWss(null);
+    assert.equal(published.length, 0, 'internal flush tool event must not reach the public SSE event-bus');
+    unsub();
     clearAllBroadcastListeners();
 });
 
