@@ -20,6 +20,8 @@ export interface WorkerEventHandlers {
     onMessage?: (port: number, data: WorkerBusEvent) => void;
     /** agent:agent_done — the worker's agent finished a turn. */
     onAgentDone?: (port: number, data: WorkerBusEvent) => void;
+    /** settings:settings_change — worker cli/model/projectDirs changed (#233). */
+    onSettingsChange?: (port: number, data: WorkerBusEvent) => void;
     /** Worker answered 4xx (legacy server without /api/events). Permanent. */
     onUnsupported?: (port: number) => void;
     /** Connection gave up after exhausting transient retries. */
@@ -62,6 +64,7 @@ export function subscribeToWorker(
         const key = `${data.topic}:${data.event}`;
         if (key === 'message:new_message') handlers.onMessage?.(port, data);
         else if (key === 'agent:agent_done') handlers.onAgentDone?.(port, data);
+        else if (key === 'settings:settings_change') handlers.onSettingsChange?.(port, data);
         // unknown topic:event ignored on purpose (forward compat)
     };
 

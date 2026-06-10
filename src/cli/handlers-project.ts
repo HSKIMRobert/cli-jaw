@@ -1,8 +1,19 @@
 import { getProjectDirs, setProjectDirs, clearProjectDirs } from '../core/config.js';
+import { broadcast } from '../core/bus.js';
 import { resolveHomePath } from '../core/path-expand.js';
 import path from 'node:path';
 import fs from 'node:fs';
 import type { SlashHandler } from './types.js';
+
+// In-server slash path needs an explicit event: setProjectDirs writes the file
+// without touching the apply chokepoint, so manager/web UI would stay stale.
+function broadcastProjectDirsChange(): void {
+    broadcast('settings_change', {
+        changedKeys: ['projectDirs'],
+        projectDirs: getProjectDirs(),
+        source: 'project-cli',
+    });
+}
 
 export const projectHandler: SlashHandler = async (args) => {
     const sub = (args[0] || 'list').toLowerCase();
@@ -32,6 +43,7 @@ export const projectHandler: SlashHandler = async (args) => {
             if (applied.length === 0) {
                 return { text: '❌ All paths were rejected during normalization. No project directories set.' };
             }
+            broadcastProjectDirsChange();
             const lines = ['✅ projectDirs set:', ...applied.map(d => `   ${d}`)];
             if (applied.length < deduped.length) {
                 lines.push('', `⚠ ${deduped.length - applied.length} path(s) were rejected during normalization.`);
@@ -42,6 +54,7 @@ export const projectHandler: SlashHandler = async (args) => {
         case 'reset':
         case 'clear': {
             clearProjectDirs();
+            broadcastProjectDirsChange();
             return { text: '✅ projectDirs cleared' };
         }
         case 'list':

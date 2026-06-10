@@ -35,6 +35,7 @@ export interface SettingsData {
     channel?: 'telegram' | 'discord';
     fallbackOrder?: string[];
     memory?: { cli?: string };
+    projectDirs?: string[] | null;
     stt?: { engine?: string; geminiKeySet?: boolean; geminiKeyLast4?: string; geminiModel?: string; whisperModel?: string; openaiKeySet?: boolean; openaiKeyLast4?: string };
     pi?: PiSettingsView;
 }

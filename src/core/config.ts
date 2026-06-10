@@ -485,9 +485,19 @@ export function loadSettings() {
     }
 }
 
+// Self-write fingerprint for the settings watcher: external writers (a separate
+// `cli-jaw project set` process) produce content that won't match this string.
+let lastSavedSettingsRaw: string | null = null;
+
 export function saveSettings(s: Record<string, any>) {
     settings = s;
-    fs.writeFileSync(SETTINGS_PATH, JSON.stringify(s, null, 2));
+    const raw = JSON.stringify(s, null, 2);
+    lastSavedSettingsRaw = raw;
+    fs.writeFileSync(SETTINGS_PATH, raw);
+}
+
+export function getLastSavedSettingsRaw(): string | null {
+    return lastSavedSettingsRaw;
 }
 
 /** Replace settings object (for API PUT /api/settings deep merge) */

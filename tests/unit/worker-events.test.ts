@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { publish } from '../../src/core/event-bus.ts';
+import { publish, subscribe, type BusEvent } from '../../src/core/event-bus.ts';
 import {
     startWorkerEventBridge, stopWorkerEventBridge, getCachedLatestMessage,
 } from '../../src/manager/worker-events.ts';
@@ -110,6 +110,22 @@ test('getCachedLatestMessage returns undefined without a live stream', async () 
     assert.ok(getCachedLatestMessage(3470));
     diff({ port: 3470, change: 'status', prev: { status: 'online', version: '2.2.0' }, next: { status: 'offline', version: '2.2.0' } });
     assert.equal(getCachedLatestMessage(3470), undefined, 'offline drops the stream and cache');
+    stopWorkerEventBridge();
+});
+
+test('settings_change from a worker republishes as worker_settings_change (#233)', async () => {
+    freshBridge(null);
+    diff({ port: 3463, change: 'appeared', next: { status: 'online', version: '2.2.0' } });
+    const es = FakeEventSource.instances[0]!;
+    const seen: BusEvent[] = [];
+    const unsub = subscribe((entry) => {
+        if (entry.topic === 'worker' && entry.event === 'worker_settings_change') seen.push(entry);
+    });
+    es.emit({ topic: 'settings', event: 'settings_change', changedKeys: ['projectDirs'], projectDirs: ['/tmp/x'] });
+    unsub();
+    assert.equal(seen.length, 1, 'one relay publish per worker settings_change');
+    assert.equal(seen[0]!.data["port"], 3463);
+    assert.deepEqual(seen[0]!.data["changedKeys"], ['projectDirs']);
     stopWorkerEventBridge();
 });
 
