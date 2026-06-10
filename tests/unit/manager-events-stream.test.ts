@@ -33,9 +33,12 @@ test('MES-002: relay forwards only worker_settings_change and cleans up on close
 
 test('MES-003: hook subscribes to the stream and guards the payload', () => {
     assert.ok(hookSrc.includes("new EventSource('/api/manager/events/stream')"), 'hook must open the relay stream');
+    assert.ok(hookSrc.includes('document.hidden'), 'hook must avoid open streams while hidden');
+    assert.ok(hookSrc.includes("addEventListener('visibilitychange'"), 'hook must listen for visibility changes');
+    assert.ok(hookSrc.includes("removeEventListener('visibilitychange'"), 'hook must remove visibility listener on unmount');
     assert.ok(hookSrc.includes("frame.event !== 'worker_settings_change'"), 'hook must filter events');
     assert.ok(hookSrc.includes('Number.isInteger(port)'), 'hook must validate the port');
-    assert.ok(hookSrc.includes('source.close()'), 'hook must close the stream on unmount');
+    assert.ok(hookSrc.includes('source?.close()'), 'hook must close the stream on hidden/unmount');
 });
 
 test('MES-004: App wires the stream to refreshInstance + invalidation', () => {

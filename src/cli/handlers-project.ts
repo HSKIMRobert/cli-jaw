@@ -1,5 +1,6 @@
-import { getProjectDirs, setProjectDirs, clearProjectDirs } from '../core/config.js';
+import { getProjectDirs, setProjectDirs, clearProjectDirs, settings } from '../core/config.js';
 import { broadcast } from '../core/bus.js';
+import { getCliModelAndEffort } from '../core/main-session.js';
 import { resolveHomePath } from '../core/path-expand.js';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -8,8 +9,11 @@ import type { SlashHandler } from './types.js';
 // In-server slash path needs an explicit event: setProjectDirs writes the file
 // without touching the apply chokepoint, so manager/web UI would stay stale.
 function broadcastProjectDirsChange(): void {
+    const cli = settings["cli"] || 'claude';
     broadcast('settings_change', {
         changedKeys: ['projectDirs'],
+        cli,
+        model: getCliModelAndEffort(cli, settings).model,
         projectDirs: getProjectDirs(),
         source: 'project-cli',
     });
