@@ -37,7 +37,7 @@ function run(label, command, args, options = {}) {
 }
 
 function runPackageContentsCheck() {
-  const label = 'npm package includes installer/verifier scripts';
+  const label = 'npm package includes installer/verifier scripts and excludes nested frontend output';
   console.log(`[install-risk] RUN  ${label}`);
   const result = spawnSync(npm, ['pack', '--dry-run', '--json'], {
     cwd: process.cwd(),
@@ -77,6 +77,20 @@ function runPackageContentsCheck() {
   const missing = required.filter((file) => !files.has(file));
   if (missing.length) {
     console.error(`[install-risk] FAIL ${label}: missing ${missing.join(', ')}`);
+    return false;
+  }
+
+  const forbiddenPackagePrefixes = [
+    'public/public/',
+    'public/dist/dist/',
+  ];
+  const forbidden = [...files]
+    .filter((file) => forbiddenPackagePrefixes.some((prefix) => file.startsWith(prefix)))
+    .sort();
+  if (forbidden.length) {
+    const sample = forbidden.slice(0, 10).join(', ');
+    const suffix = forbidden.length > 10 ? `, ... (${forbidden.length} total)` : '';
+    console.error(`[install-risk] FAIL ${label}: forbidden frontend build output ${sample}${suffix}`);
     return false;
   }
 
