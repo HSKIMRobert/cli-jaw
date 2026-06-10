@@ -30,6 +30,14 @@ aliases: [Telegram and Heartbeat, CLI-JAW Telegram, messaging runtime]
 - `validateTarget()`는 Telegram allowedChatIds와 Discord channelIds / thread parent 허용을 둘 다 검사한다
 - `registerSendTransport()`로 채널별 outbound sender를 주입한다
 
+### Remote channel structured elicitation guard
+
+- 21 Elicitation은 Web UI main DOM 전용 상호작용이다.
+- Telegram/Discord origin은 `src/orchestrator/pipeline.ts`에서 per-turn prompt guard를 받아 `elicitation` / `choice-buttons` fenced block 출력을 금지한다.
+- A1 system prompt는 이 채널별 규칙 때문에 수정하지 않는다. prompt-cache 안정성을 유지하기 위해 origin-aware guard는 user prompt 조립 경로에서만 붙는다.
+- 모델이 그래도 remote 응답에 `elicitation` / `choice-buttons` fence를 출력하면 `orchestrate_done` broadcast 직전에 plain text numbered question fallback으로 변환한다.
+- 현재 Telegram `callback_query` / inline keyboard와 Discord message components는 구현하지 않는다. native remote buttons는 후속 별도 기능이다.
+
 ### `core/runtime-settings.ts`
 
 - `applyRuntimeSettingsPatch()`는 `telegram`, `discord`, `messaging` 패치를 deep merge 하고 runtime restart를 트리거한다
