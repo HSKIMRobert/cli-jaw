@@ -464,6 +464,10 @@ test('Electron terminal uses xterm plus a PTY backend and representative shortcu
     assert.ok(preload.includes("ipcRenderer.on('manager:shortcut', handler)"), 'preload must expose desktop shortcut events');
     assert.ok(desktopBridge.includes('shortcuts?: ShortcutBridgeApi'), 'frontend desktop bridge type must include shortcut events');
     assert.ok(app.includes("getDesktop()?.shortcuts?.onAction"), 'manager app must subscribe to Electron desktop shortcut events');
+    assert.ok(
+        app.includes("document.activeElement?.tagName === 'IFRAME' && action !== 'browserReload' && action !== 'browserHardReload'"),
+        'iframe focus must keep blocking manager chrome shortcuts while allowing Cmd+R/Cmd+Shift+R to refresh the preview',
+    );
     assert.ok(previewBridge.includes("e.code === 'Backquote'"), 'classic preview iframe bridge must forward Ctrl+Shift+Backquote');
     assert.ok(previewMessages.includes('ctrlKey: !!data.ctrlKey'), 'manager preview shortcut bridge must preserve Ctrl modifier');
     assert.ok(previewMessages.includes('metaKey: !!data.metaKey'), 'manager preview shortcut bridge must preserve Meta modifier');
