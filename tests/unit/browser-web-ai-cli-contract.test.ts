@@ -12,7 +12,7 @@ const routeSrc = readSource(join(root, 'src/routes/browser.ts'), 'utf8');
 const indexSrc = readSource(join(root, 'src/browser/index.ts'), 'utf8');
 
 test('BWCLI-001: CLI exposes closed web-ai command surface', () => {
-    assert.match(cliWebAiSrc, /const WEB_AI_COMMANDS = new Set\(\['render', 'status', 'send', 'poll', 'query', 'watch', 'watchers', 'sessions', 'sessions-prune', 'resume', 'reattach', 'notifications', 'capabilities', 'stop', 'diagnose', 'doctor', 'context-dry-run', 'context-render'\]\)/);
+    assert.match(cliWebAiSrc, /const WEB_AI_COMMANDS = new Set\(\['render', 'status', 'send', 'poll', 'query', 'watch', 'watchers', 'sessions', 'sessions-prune', 'resume', 'reattach', 'notifications', 'capabilities', 'stop', 'diagnose', 'doctor', 'context-dry-run', 'context-render', 'code', 'code-extract'\]\)/);
     assert.match(cliSrc, /case 'web-ai'/);
     assert.match(cliSrc, /runWebAiCommand/);
 });
@@ -33,11 +33,13 @@ test('BWCLI-002: send and query gating + flag rejection (32.7B live)', () => {
     assert.match(cliWebAiSrc, /--source-audit-scope <text>/);
     assert.match(cliWebAiSrc, /--source-audit-date <text>/);
     assert.match(cliWebAiSrc, /Code artifacts:/);
-    assert.match(cliWebAiSrc, /agbrowse web-ai code-extract --vendor chatgpt/);
+    assert.match(cliWebAiSrc, /Automatically uploads the\s+saved GPT dev-agent context zip first/);
+    assert.match(cliWebAiSrc, /requires PLAN\.md\s+or 00_plan\.md/);
+    assert.match(cliWebAiSrc, /code-extract\s+Re-retrieve existing ChatGPT code-mode zip artifacts/);
 });
 
 test('BWCLI-003: web-ai routes are authenticated', () => {
-    for (const route of ['render', 'context-dry-run', 'context-render', 'status', 'send', 'poll', 'watch', 'watchers', 'sessions', 'notifications', 'capabilities', 'query', 'stop', 'diagnose']) {
+    for (const route of ['render', 'context-dry-run', 'context-render', 'status', 'send', 'poll', 'watch', 'watchers', 'sessions', 'notifications', 'capabilities', 'query', 'code', 'code-extract', 'stop', 'diagnose']) {
         assert.match(routeSrc, new RegExp(`/api/browser/web-ai/${route}', requireAuth`));
     }
 });
@@ -73,6 +75,18 @@ test('BWCLI-006: web-ai CLI exposes context packaging flags', () => {
     assert.match(routeSrc, /\/api\/browser\/web-ai\/context-render', requireAuth/);
 });
 
+test('BWCLI-006b: web-ai CLI exposes code-mode artifact flags and repeatable uploads', () => {
+    assert.match(cliWebAiSrc, /file: \{ type: 'string', multiple: true \}/);
+    assert.match(cliWebAiSrc, /const filePaths = \(Array\.isArray\(values\.file\)/);
+    assert.match(cliWebAiSrc, /\.\.\.\(filePaths\.length \? \{ filePath: filePaths\[0\], filePaths \} : \{\}\)/);
+    assert.match(cliWebAiSrc, /'output-zip': \{ type: 'string' \}/);
+    assert.match(cliWebAiSrc, /'output-dir': \{ type: 'string' \}/);
+    assert.match(cliWebAiSrc, /'multi-zip': \{ type: 'boolean', default: false \}/);
+    assert.match(cliWebAiSrc, /conversation: \{ type: 'string' \}/);
+    assert.match(cliWebAiSrc, /if \(command === 'context-dry-run' \|\| command === 'context-render'\)/);
+    assert.match(cliWebAiSrc, /return deps\.api\('POST', `\/web-ai\/\$\{command\}`, body\)/);
+});
+
 test('BWCLI-007: copy-markdown fallback flag is wired through CLI and routes', () => {
     assert.match(cliWebAiSrc, /'allow-copy-markdown-fallback': \{ type: 'boolean', default: false \}/);
     assert.match(cliWebAiSrc, /Explicitly permit provider Copy button capture; no OS clipboard read/);
@@ -95,9 +109,11 @@ test('BWCLI-004: browser index exports webAi namespace', () => {
     assert.match(indexSrc, /export type \* from '\.\/web-ai\/index\.js'/);
 });
 
-test('BWCLI-009: cli-jaw skill documents agbrowse code artifact extraction boundary', () => {
+test('BWCLI-009: cli-jaw skill documents native code artifact generation and extraction', () => {
     const skillSrc = readSource(join(root, 'skills_ref/web-ai/SKILL.md'), 'utf8');
     assert.match(skillSrc, /ChatGPT Code Artifact Extraction/);
-    assert.match(skillSrc, /agbrowse web-ai code-extract/);
-    assert.match(skillSrc, /copied `\/mnt\/data\/result\.zip` line alone/);
+    assert.match(skillSrc, /cli-jaw browser web-ai code/);
+    assert.match(skillSrc, /gpt-dev-agent-context\.zip/);
+    assert.match(skillSrc, /PLAN\.md|00_plan\.md/);
+    assert.match(skillSrc, /cli-jaw browser web-ai code-extract/);
 });

@@ -5,7 +5,7 @@ import type { ContextDryRunMode, ContextPackResult } from '../../src/browser/web
 type BrowserApi = (method: string, path: string, body?: unknown) => Promise<unknown>;
 type QueryString = (params: Record<string, unknown>) => string;
 
-const WEB_AI_COMMANDS = new Set(['render', 'status', 'send', 'poll', 'query', 'watch', 'watchers', 'sessions', 'sessions-prune', 'resume', 'reattach', 'notifications', 'capabilities', 'stop', 'diagnose', 'doctor', 'context-dry-run', 'context-render']);
+const WEB_AI_COMMANDS = new Set(['render', 'status', 'send', 'poll', 'query', 'watch', 'watchers', 'sessions', 'sessions-prune', 'resume', 'reattach', 'notifications', 'capabilities', 'stop', 'diagnose', 'doctor', 'context-dry-run', 'context-render', 'code', 'code-extract']);
 
 function parseContextDryRunMode(value: unknown): ContextDryRunMode {
     return value === 'json' || value === 'full' || value === 'summary' ? value : 'summary';
@@ -30,6 +30,11 @@ Commands:
   stop                Stop current provider generation with Escape
   context-dry-run     Build a context package without sending
   context-render      Render full prompt/context package text
+  code                ChatGPT-only code generation. Automatically uploads the
+                      saved GPT dev-agent context zip first, requires PLAN.md
+                      or 00_plan.md in new artifacts, and retrieves zip output.
+  code-extract        Re-retrieve existing ChatGPT code-mode zip artifacts
+                      from a conversation without sending a new prompt.
 
 Provider:
   --vendor <name>     chatgpt | gemini | grok (default: chatgpt)
@@ -52,7 +57,7 @@ Provider:
 Prompt and context:
   --prompt <text>     Main prompt/question
   --inline-only       Required for send/query without files
-  --file <path>       Upload a single file
+  --file <path>       Upload a file; repeatable for mixed files
   --context-from-files <glob|path>
   --context-exclude <glob>
   --context-file <path>
@@ -83,12 +88,11 @@ Output:
   --full              Print full context dry-run/render output
 
 Code artifacts:
-  ChatGPT code-mode zip generation and later artifact extraction are currently
-  standalone agbrowse surfaces. To re-retrieve /mnt/data/result.zip from an
-  old ChatGPT conversation, run:
-    agbrowse web-ai code-extract --vendor chatgpt \\
-      --url "https://chatgpt.com/c/<conversation-id>" \\
-      --output-zip ./result.zip
+  --output-zip <path> Save a single code artifact zip
+  --multi-zip        Retrieve several named /mnt/data/*.zip artifacts
+  --output-dir <dir> Save multi-zip artifacts into this directory
+  --conversation <id|url>
+                      Existing ChatGPT conversation for code-extract
 
 Examples:
   cli-jaw browser web-ai render --vendor chatgpt --prompt "hello" --json
@@ -176,7 +180,11 @@ export async function runWebAiCommand(
             'source-audit-scope': { type: 'string' },
             'source-audit-date': { type: 'string' },
             notify: { type: 'boolean', default: true },
-            file: { type: 'string' },
+            file: { type: 'string', multiple: true },
+            'output-zip': { type: 'string' },
+            'output-dir': { type: 'string' },
+            'multi-zip': { type: 'boolean', default: false },
+            conversation: { type: 'string' },
             model: { type: 'string' },
             effort: { type: 'string' },
             'reasoning-effort': { type: 'string' },
@@ -204,7 +212,8 @@ export async function runWebAiCommand(
     });
     rejectFutureWebAiFlags(values);
     const hasContextPackage = Boolean(values['context-file'] || (Array.isArray(values['context-from-files']) && values['context-from-files'].length > 0));
-    if (['send', 'query'].includes(command) && !values['inline-only'] && !values.file && !hasContextPackage) {
+    const filePaths = (Array.isArray(values.file) ? values.file : (values.file ? [values.file] : [])).filter((value): value is string => typeof value === 'string');
+    if (['send', 'query'].includes(command) && !values['inline-only'] && filePaths.length === 0 && !hasContextPackage) {
         throw new Error('web-ai send/query require --inline-only or --file=<path>');
     }
     const body = {
@@ -219,8 +228,12 @@ export async function runWebAiCommand(
         output: values.output,
         constraints: values.constraints,
         timeout: values.timeout,
-        attachmentPolicy: values.file ? 'upload' : 'inline-only',
-        ...(values.file ? { filePath: values.file } : {}),
+        attachmentPolicy: filePaths.length ? 'upload' : 'inline-only',
+        ...(filePaths.length ? { filePath: filePaths[0], filePaths } : {}),
+        ...(values['output-zip'] ? { outputZip: values['output-zip'] } : {}),
+        ...(values['output-dir'] ? { outputDir: values['output-dir'] } : {}),
+        ...(values['multi-zip'] ? { multiZip: true } : {}),
+        ...(values.conversation ? { conversation: values.conversation } : {}),
         ...(values['thinking-time'] ? { thinkingTime: values['thinking-time'] } : {}),
         ...(values.model ? { model: values.model } : {}),
         ...(values.effort || values['reasoning-effort'] ? { reasoningEffort: values.effort || values['reasoning-effort'] } : {}),
@@ -308,6 +321,15 @@ function printWebAiHuman(command: string, result: Record<string, unknown>): void
     }
     if (result["answerText"]) {
         console.log(result["answerText"]);
+        return;
+    }
+    const artifact = result["artifact"] as { savedPath?: string } | undefined;
+    if (artifact?.savedPath) {
+        console.log(artifact.savedPath);
+        return;
+    }
+    if (result["outputDir"]) {
+        console.log(String(result["outputDir"]));
         return;
     }
     for (const key of ['sessions', 'notifications', 'watchers', 'capabilities']) {

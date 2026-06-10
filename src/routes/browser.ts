@@ -411,6 +411,16 @@ export function registerBrowserRoutes(app: Express, requireAuth: (req: Request, 
         catch (e: unknown) { res.status(500).json(toWebAiHttpError(e)); }
     });
 
+    app.post('/api/browser/web-ai/code', requireAuth, async (req: Request, res: Response) => {
+        try { res.json(await browser.webAi.codeWebAi(cdpPort(req), req.body)); }
+        catch (e: unknown) { res.status(500).json(toWebAiHttpError(e)); }
+    });
+
+    app.post('/api/browser/web-ai/code-extract', requireAuth, async (req: Request, res: Response) => {
+        try { res.json(await browser.webAi.extractCodeArtifacts(cdpPort(req), req.body)); }
+        catch (e: unknown) { res.status(500).json(toWebAiHttpError(e)); }
+    });
+
     app.post('/api/browser/web-ai/stop', requireAuth, async (req: Request, res: Response) => {
         try { res.json(await browser.webAi.stop(cdpPort(req), req.body)); }
         catch (e: unknown) { res.status(500).json(toWebAiHttpError(e)); }

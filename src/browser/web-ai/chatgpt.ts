@@ -304,20 +304,26 @@ export async function send(port: number, input: QuestionEnvelopeInput = {}): Pro
         const commitBaseline = { turnsCount: await countConversationTurns(page).catch(() => assistantCount) };
         await adapter.insertPrompt(rendered.composerText);
         const contextAttachmentPath = contextPack?.attachments?.[0]?.path;
-        if (contextAttachmentPath && input.filePath) {
+        const requestedPaths = Array.isArray(input.filePaths) && input.filePaths.length
+            ? input.filePaths
+            : (input.filePath ? [input.filePath] : []);
+        if (contextAttachmentPath && requestedPaths.length) {
             throw new Error('context package upload and --file upload cannot be combined yet');
         }
-        const uploadPath = input.filePath || contextAttachmentPath;
-        if (uploadPath) {
+        const uploadPaths = requestedPaths.length ? requestedPaths : (contextAttachmentPath ? [contextAttachmentPath] : []);
+        if (uploadPaths.length) {
             await resolveTargetForIntent(page, {
                 provider: envelope.vendor,
                 intentId: 'upload.attach',
             }).catch(() => null);
-            const info = localFileInfo(uploadPath);
-            const uploaded = await attachLocalFileLive(page, info);
-            if (!uploaded.ok) throw new Error(uploaded.error);
-            usedFallbacks.push(...uploaded.usedFallbacks);
-            attachmentWarnings.push(...uploaded.warnings);
+            for (const uploadPath of uploadPaths) {
+                const info = localFileInfo(uploadPath);
+                // eslint-disable-next-line no-await-in-loop -- UI uploads must preserve caller order.
+                const uploaded = await attachLocalFileLive(page, info);
+                if (!uploaded.ok) throw new Error(uploaded.error);
+                usedFallbacks.push(...uploaded.usedFallbacks);
+                attachmentWarnings.push(...uploaded.warnings);
+            }
         }
         const sendTarget = await resolveTargetForIntent(page, {
             provider: envelope.vendor,
@@ -328,7 +334,8 @@ export async function send(port: number, input: QuestionEnvelopeInput = {}): Pro
         }
         await adapter.submitPrompt();
         await adapter.verifyPromptCommitted(rendered.composerText, commitBaseline);
-        if (uploadPath) {
+        for (const uploadPath of uploadPaths) {
+            // eslint-disable-next-line no-await-in-loop -- evidence follows upload order.
             const sentAttachment = await verifySentTurnAttachmentLive(page, localFileInfo(uploadPath));
             if (!sentAttachment.ok) {
                 usedFallbacks.push('sent-attachment-evidence-unavailable');

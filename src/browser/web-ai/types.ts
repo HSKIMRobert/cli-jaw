@@ -34,6 +34,7 @@ export interface QuestionEnvelopeInput {
     constraints?: string;
     attachmentPolicy?: string;
     filePath?: string;
+    filePaths?: string[];
     thinkingTime?: string;
     model?: string;
     reasoningEffort?: string;
