@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import {
     buildVirtualEmployeeRow,
@@ -9,6 +11,9 @@ import {
     VIRTUAL_ROLE_PRESETS,
 } from '../../src/core/employees.ts';
 import { ROLE_PRESETS } from '../../public/js/constants.ts';
+
+const projectRoot = join(import.meta.dirname, '../..');
+const distributeSrc = readFileSync(join(projectRoot, 'src/orchestrator/distribute.ts'), 'utf8');
 
 test('virtual employee builder creates ephemeral synthetic rows from role presets', () => {
     const row = buildVirtualEmployeeRow(
@@ -57,4 +62,31 @@ test('findVirtualRolePreset resolves values and labels case-insensitively', () =
     assert.equal(findVirtualRolePreset('testing')?.value, 'testing');
     assert.equal(findVirtualRolePreset('Security')?.value, 'security');
     assert.equal(findVirtualRolePreset('unknown'), null);
+});
+
+test('virtual employees never reuse or persist employee sessions', () => {
+    assert.ok(
+        distributeSrc.includes('const isVirtualEmployee = isVirtualEmployeeId(empId)'),
+        'runSingleAgent should identify virtual employees from the worker id',
+    );
+    assert.ok(
+        distributeSrc.includes('const empSession = isVirtualEmployee ? undefined : getEmployeeSession.get(empId)'),
+        'virtual employees should skip employee session lookup',
+    );
+    assert.ok(
+        distributeSrc.includes('const clearedStaleResumeKey = isVirtualEmployee ? false : clearStaleEmployeeSessionIfResumeKeyMismatch'),
+        'virtual employees should skip stale resume-key clearing',
+    );
+    assert.ok(
+        distributeSrc.includes('!isVirtualEmployee\n        && isSessionPersistingCli'),
+        'virtual employees should never enter the resume path',
+    );
+    assert.ok(
+        distributeSrc.includes('!isVirtualEmployee && isSuccess && r["sessionId"] && isSessionPersistingCli'),
+        'virtual employees should never persist employee sessions',
+    );
+    assert.ok(
+        distributeSrc.includes('!isVirtualEmployee && !isSessionPersistingCli'),
+        'virtual employees should not clear durable employee session rows either',
+    );
 });
