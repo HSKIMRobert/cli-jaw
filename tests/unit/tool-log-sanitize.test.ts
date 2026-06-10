@@ -46,6 +46,23 @@ test('tool log sanitizer hard-caps fields, entry count, and serialized JSON', ()
     assert.ok(!serialized!.includes(huge.slice(0, 1000)));
 });
 
+test('shared detail budget favors the NEWEST entries on exhaustion (doc 86 §7)', () => {
+    // 12 × 3000-char details = 36K raw against the 24K pool: the 8 NEWEST entries
+    // must keep full detail; the oldest starve. Front-to-back allocation (the old
+    // behavior) blanked the newest details instead — the entries the user actually
+    // inspects on navigate-back.
+    const big = 'x'.repeat(3_000);
+    const entries = Array.from({ length: 12 }, (_v, i) => ({
+        icon: '🔧', label: `tool-${i}`, detail: big, toolType: 'tool', status: 'done',
+    }));
+    const sanitized = sanitizeToolLogForDurableStorage(entries);
+
+    assert.equal(sanitized.length, 12);
+    assert.equal(sanitized[11]!.detail, big, 'newest entry keeps full detail');
+    assert.equal(sanitized[4]!.detail, big, 'all 8 newest entries keep full detail');
+    assert.notEqual(sanitized[3]!.detail, big, 'oldest entries starve once the pool is spent');
+});
+
 test('entries under the JSON cap keep full detail (no unconditional 180-char shrink)', () => {
     // doc 86 regression: every persisted row had detail capped at exactly 180
     // because fitToolLogToJsonCap shrank unconditionally.
