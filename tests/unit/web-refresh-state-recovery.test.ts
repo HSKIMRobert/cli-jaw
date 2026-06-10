@@ -210,3 +210,25 @@ test('WRS-009: replay gap hydrates messages and runtime snapshot', { skip: !hasW
     assert.ok(handlerBlock.includes("syncOrchestrateSnapshot('replay_gap', { hydrateRun: true })"), 'replay gap should hydrate runtime snapshot');
     assert.ok(handlerBlock.includes("reconcileChatBottomAfterRestore('replay_gap')"), 'replay gap should restore the bottom anchor after hydration');
 });
+
+test('WRS-010: browser/preview restore reloads messages before snapshot hydration', { skip: !hasWs && 'public/js/ws source not found' }, () => {
+    const wsSrc = readFileSync(wsPath, 'utf8');
+    assert.ok(wsSrc.includes('function shouldReloadMessagesForRestore'),
+        'restore path should classify which browser/preview restores require message history');
+    const classifierStart = wsSrc.indexOf('function shouldReloadMessagesForRestore');
+    const classifierBlock = wsSrc.slice(classifierStart, wsSrc.indexOf('function syncAfterBrowserRestore', classifierStart));
+    for (const reason of ['iframe-visible', 'pageshow', 'discard', 'visibilitychange']) {
+        assert.ok(classifierBlock.includes(`'${reason}'`), `${reason} restore must be history-sensitive`);
+    }
+    assert.ok(!classifierBlock.includes("'focus'"), 'focus restores stay snapshot-only (reload churn)');
+    const wrapperStart = wsSrc.indexOf('function syncAfterBrowserRestore');
+    const wrapper = wsSrc.slice(wrapperStart, wsSrc.indexOf('function requestBrowserRestoreSync', wrapperStart));
+    assert.ok(wrapper.includes('shouldReloadMessagesForRestore(reason)'),
+        'restore wrapper must consult the history-sensitivity classifier');
+    assert.ok(wrapper.includes('m.loadMessages()'),
+        'history-sensitive restore paths must reload durable chat history');
+    assert.ok(wrapper.indexOf('m.loadMessages()') < wrapper.indexOf("syncOrchestrateSnapshot(reason, { hydrateRun: true })"),
+        'durable history must load before transient snapshot hydration');
+    assert.ok(wrapper.includes('lastLoadTs = Date.now()'),
+        'restore history load should update the reconnect reload throttle');
+});
