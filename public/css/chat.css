@@ -740,6 +740,10 @@
 
 .search-result-title,
 .link-preview-title {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
     overflow-wrap: anywhere;
     color: var(--text);
     font-size: var(--text-sm);
@@ -749,6 +753,10 @@
 
 .search-result-snippet,
 .link-preview-description {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
     overflow-wrap: anywhere;
     color: var(--text-dim);
     font-size: var(--text-xs);
@@ -774,6 +782,7 @@
         "image url";
     gap: var(--space-2);
     max-width: min(560px, 100%);
+    min-height: 82px;
     padding: var(--space-2);
     color: var(--text);
     text-decoration: none;
