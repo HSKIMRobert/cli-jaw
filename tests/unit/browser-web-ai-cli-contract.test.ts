@@ -32,6 +32,8 @@ test('BWCLI-002: send and query gating + flag rejection (32.7B live)', () => {
     assert.match(cliWebAiSrc, /--source-audit-ratio <0\.\.1>/);
     assert.match(cliWebAiSrc, /--source-audit-scope <text>/);
     assert.match(cliWebAiSrc, /--source-audit-date <text>/);
+    assert.match(cliWebAiSrc, /Code artifacts:/);
+    assert.match(cliWebAiSrc, /agbrowse web-ai code-extract --vendor chatgpt/);
 });
 
 test('BWCLI-003: web-ai routes are authenticated', () => {
@@ -91,4 +93,11 @@ test('BWCLI-008: source audit flags are wired through CLI and routes', () => {
 test('BWCLI-004: browser index exports webAi namespace', () => {
     assert.match(indexSrc, /export \* as webAi from '\.\/web-ai\/index\.js'/);
     assert.match(indexSrc, /export type \* from '\.\/web-ai\/index\.js'/);
+});
+
+test('BWCLI-009: cli-jaw skill documents agbrowse code artifact extraction boundary', () => {
+    const skillSrc = readSource(join(root, 'skills_ref/web-ai/SKILL.md'), 'utf8');
+    assert.match(skillSrc, /ChatGPT Code Artifact Extraction/);
+    assert.match(skillSrc, /agbrowse web-ai code-extract/);
+    assert.match(skillSrc, /copied `\/mnt\/data\/result\.zip` line alone/);
 });
