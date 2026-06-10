@@ -99,6 +99,8 @@ function renderPreview(data: LinkPreviewData, sourceUrl: string): HTMLElement | 
     const description = String(data.description || '').trim();
     const siteName = String(data.siteName || data.domain || '').trim();
     const finalUrl = String(data.canonicalUrl || data.finalUrl || sourceUrl).trim();
+    const displayUrl = new URL(finalUrl || sourceUrl).hostname;
+    const metaLabel = siteName && siteName.toLowerCase() !== displayUrl.toLowerCase() ? siteName : '';
     const image = String(data.image || '').trim();
     const favicon = String(data.favicon || '').trim();
     if (!title && !description && !image && !favicon) return null;
@@ -117,11 +119,10 @@ function renderPreview(data: LinkPreviewData, sourceUrl: string): HTMLElement | 
     card.innerHTML = `
         ${media}
         <span class="link-preview-body">
-            <span class="link-preview-meta">${icon}<span>${escapeHtml(siteName)}</span></span>
+            <span class="link-preview-meta">${icon}${metaLabel ? `<span>${escapeHtml(metaLabel)}</span><span class="link-preview-separator">-</span>` : ''}<span class="link-preview-url">${escapeHtml(displayUrl)}</span></span>
             ${title ? `<span class="link-preview-title">${escapeHtml(title)}</span>` : ''}
             ${description ? `<span class="link-preview-description">${escapeHtml(description)}</span>` : ''}
-        </span>
-        <span class="link-preview-url">${escapeHtml(new URL(finalUrl || sourceUrl).hostname)}</span>`;
+        </span>`;
     card.href = finalUrl || sourceUrl;
     return card;
 }
