@@ -20,7 +20,7 @@ test('PS-001: resetAllStaleStates exists in state-machine.ts', () => {
 test('PS-002: server.ts calls resetAllStaleStates on startup', () => {
     assert.ok(serverSrc.includes('resetAllStaleStates()'),
         'server must call resetAllStaleStates during startup');
-    assert.ok(serverSrc.includes("import { getState, resetAllStaleStates }"),
+    assert.ok(serverSrc.includes("import { resetAllStaleStates }"),
         'server must import resetAllStaleStates');
 });
 

@@ -11,7 +11,7 @@ afterEach(() => { resetState('default'); resetState('legacy:scope'); });
 test('SOS-001: startup calls resetAllStaleStates (single-scope)', () => {
     assert.ok(serverSrc.includes('resetAllStaleStates()'),
         'server must call resetAllStaleStates on startup');
-    assert.ok(serverSrc.includes("import { getState, resetAllStaleStates }"),
+    assert.ok(serverSrc.includes("import { resetAllStaleStates }"),
         'server must import resetAllStaleStates');
 });
 
@@ -24,8 +24,18 @@ test('SOS-002: snapshot endpoint includes scope', () => {
     assert.ok(snapBlock.includes('state: getState(scope)'), 'snapshot should include state from getState(scope)');
 });
 
-test('SOS-003: WebSocket initial state includes scope', () => {
-    assert.ok(serverSrc.includes("scope: webScope, ts: Date.now()"), 'WS initial orc_state should include scope');
+test('SOS-003: channel-up hydration pulls scope state from the snapshot (X-01)', () => {
+    // devlog 260609, 50: the WS connect-time orc_state push was removed —
+    // reload recovery now flows through /api/orchestrate/snapshot (SOS-002)
+    // fetched by handleChannelUp on every (re)connect, for SSE and WS alike.
+    const wsSrc = readFileSync(new URL('../../public/js/ws.ts', import.meta.url), 'utf8');
+    const upIdx = wsSrc.indexOf('function handleChannelUp');
+    assert.ok(upIdx >= 0, 'handleChannelUp should exist');
+    const block = wsSrc.slice(upIdx, upIdx + 1500);
+    assert.ok(block.includes("syncOrchestrateSnapshot('reconnect'"),
+        'channel-up must sync the orchestrate snapshot (orc scope/state source)');
+    assert.ok(block.includes('refreshMemorySidebar'),
+        'channel-up must hydrate the memory badge (was a WS connect push)');
 });
 
 test('SOS-004: resetAllStaleStates preserves recent states and resets stale ones', () => {
