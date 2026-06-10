@@ -336,7 +336,12 @@ async function requestApplicationQuit(reason: string): Promise<void> {
   try {
     // #229: cookies persist via the partition, but an explicit flush protects
     // fresh logins from being lost when quit follows shortly after sign-in.
-    await session.fromPartition(EMBEDDED_BROWSER_PARTITION).cookies.flushStore();
+    // Raced against a short timeout so a pathological cookie-store hang can
+    // never delay application quit.
+    await Promise.race([
+      session.fromPartition(EMBEDDED_BROWSER_PARTITION).cookies.flushStore(),
+      new Promise<void>((resolve) => setTimeout(resolve, 1_500)),
+    ]);
   } catch {
     // best-effort — quit must not block on cookie flush
   }
