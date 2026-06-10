@@ -23,7 +23,7 @@ import { mergeExplicitAndLiveToolLogs, normalizeMessageToolLog, parseToolLog, sa
 import { setStatus, updateQueueBadge, updateStatMsgs, loadStats } from './features/ui-status.js';
 import { ICONS, emojiToIcon, emojiToStatus, isCompletionEmoji } from './icons.js';
 import { providerIcon } from './provider-icons.js';
-import { findRunningProcessStepMatch } from './features/process-step-match.js';
+import { findProcessStepByIdentity, findRunningProcessStepMatch, sameProcessStepIdentity } from './features/process-step-match.js';
 import {
     parseToolLogBounded,
     sanitizeToolLogForDurableStorage,
@@ -99,6 +99,13 @@ function currentAgentDivForActiveRun(): HTMLElement | null {
     state.currentProcessBlock = null;
     currentStream = null;
     return null;
+}
+
+function latestAgentDivForActiveRun(): HTMLElement | null {
+    const agents = Array.from(document.querySelectorAll<HTMLElement>('.msg-agent'));
+    const latest = agents.at(-1) ?? null;
+    if (!latest || hasFollowingUserMessage(latest)) return null;
+    return latest;
 }
 
 export function showLiveToolActivity(label: string): void {
@@ -197,6 +204,30 @@ export function showProcessStep(step: ProcessStep): void {
                 return;
             }
         }
+        const identityMatch = findProcessStepByIdentity(state.currentProcessBlock.steps, step, { includeDone: true });
+        if (identityMatch) {
+            step.rawIcon = rawIcon;
+            step.icon = emojiToIcon(step.icon);
+            const incomingDetail = step.detail || '';
+            const existingDetail = getStoredProcessStepDetail(identityMatch.id) || identityMatch.detail || identityMatch.detailPreview || '';
+            const detail = incomingDetail.length >= existingDetail.length ? incomingDetail : existingDetail;
+            const detailPreview = setStoredProcessStepDetail(identityMatch.id, detail);
+            const nextStatus = (identityMatch.status === 'done' || identityMatch.status === 'error') && resolvedStatus === 'running'
+                ? identityMatch.status
+                : resolvedStatus;
+            replaceStep(state.currentProcessBlock, identityMatch.id, {
+                ...identityMatch,
+                ...step,
+                id: identityMatch.id,
+                rawIcon,
+                status: nextStatus,
+                detail: detailPreview,
+                detailPreview,
+                label: step.label || identityMatch.label,
+            });
+            scrollToBottom();
+            return;
+        }
         // Dedupe: detail이 있는 재broadcast → 같은 label+type의 detail 없는 유령 교체
         if (step.detail) {
             const ghost = [...state.currentProcessBlock.steps].reverse()
@@ -231,11 +262,43 @@ function removeStaleHydratedActiveRuns(keep?: HTMLElement | null): void {
 }
 
 function ensureActiveRunMessage(cli?: string | null): HTMLElement {
-    const existing = currentAgentDivForActiveRun();
+    const existing = currentAgentDivForActiveRun() ?? latestAgentDivForActiveRun();
     removeStaleHydratedActiveRuns(existing);
     const div = existing || addMessage('agent', '', cli || null);
     div.setAttribute(ACTIVE_RUN_HYDRATED_ATTR, 'true');
     return div;
+}
+
+function richerDetail(existing: ProcessStep, incoming: ProcessStep): string {
+    const existingDetail = getStoredProcessStepDetail(existing.id) || existing.detail || existing.detailPreview || '';
+    const incomingDetail = incoming.detail || incoming.detailPreview || '';
+    return incomingDetail.length >= existingDetail.length ? incomingDetail : existingDetail;
+}
+
+function mergeHydratedProcessSteps(pb: ProcessBlockState, steps: ProcessStep[]): void {
+    for (const step of steps) {
+        const match = pb.steps.find(existing => sameProcessStepIdentity(existing, step))
+            ?? (() => {
+                const matches = pb.steps.filter(existing => existing.label === step.label
+                    && existing.type === step.type
+                    && existing.status === step.status
+                    && Boolean(existing.isEmployee) === Boolean(step.isEmployee));
+                return matches.length === 1 ? matches[0]! : null;
+            })();
+        if (!match) {
+            addStep(pb, step);
+            continue;
+        }
+        const detailPreview = setStoredProcessStepDetail(match.id, richerDetail(match, step));
+        replaceStep(pb, match.id, {
+            ...match,
+            ...step,
+            id: match.id,
+            detail: detailPreview,
+            detailPreview,
+            label: step.label || match.label,
+        });
+    }
 }
 
 /**
@@ -257,17 +320,17 @@ export function hydrateActiveRun(snapshot?: ActiveRunSnapshot | null): void {
     cleanupToolElements();
     removeSkeleton();
     state.currentAgentDiv = ensureActiveRunMessage(snapshot.cli || null);
-    state.currentProcessBlock = null;
     const body = state.currentAgentDiv.querySelector('.agent-body') as HTMLElement | null;
     const snapshotToolLog = sanitizedToolLogEntries(snapshot.toolLog || []);
+    normalizeAgentToolBlocks(state.currentAgentDiv);
+    state.currentProcessBlock = currentProcessBlockFromDom(state.currentAgentDiv);
     if (body && snapshotToolLog.length) {
-        normalizeAgentToolBlocks(state.currentAgentDiv);
-        removeAgentToolBlocks(state.currentAgentDiv);
-        const pb = createProcessBlock(body);
-        for (const tool of toProcessSteps(snapshotToolLog, snapshot.startedAt)) addStep(pb, tool);
-        state.currentProcessBlock = pb;
+        if (!state.currentProcessBlock) {
+            removeAgentToolBlocks(state.currentAgentDiv);
+            state.currentProcessBlock = createProcessBlock(body);
+        }
+        mergeHydratedProcessSteps(state.currentProcessBlock, toProcessSteps(snapshotToolLog, snapshot.startedAt));
     } else {
-        normalizeAgentToolBlocks(state.currentAgentDiv);
         state.currentProcessBlock = currentProcessBlockFromDom(state.currentAgentDiv);
     }
     const content = state.currentAgentDiv.querySelector('.msg-content') as HTMLElement | null;

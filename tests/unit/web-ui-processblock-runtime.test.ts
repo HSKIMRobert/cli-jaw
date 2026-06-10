@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { setupWebUiDom, resetWebUiDom } from './web-ui-test-dom.ts';
 import { bindProcessBlockInteractions, stopBlockTicker } from '../../public/js/features/process-block.ts';
 
@@ -304,4 +305,151 @@ test('normalization keeps top-level process-block over top-level tool-group', as
     assert.equal(body.querySelectorAll(':scope > .process-block, :scope > .tool-group').length, 1);
     assert.equal(body.querySelector(':scope > .process-block')?.textContent, 'canonical');
     assert.equal(content.querySelectorAll(':scope > .process-block, :scope > .tool-group').length, 0);
+});
+
+test('hydrateActiveRun reuses a restored latest assistant bubble instead of adding a second one', async () => {
+    setupWebUiDom();
+    const ui = await import('../../public/js/ui.ts');
+    const { state } = await import('../../public/js/state.ts');
+    const container = document.getElementById('chatMessages');
+    assert.ok(container);
+    container.innerHTML = `
+        <div class="msg msg-user"><div class="user-body"><div class="msg-content">prompt</div></div></div>
+        <div class="msg msg-agent">
+            <div class="agent-body">
+                <div class="process-block">
+                    <button class="process-summary" aria-expanded="true"></button>
+                    <div class="process-details"><div class="process-steps-inner"></div></div>
+                </div>
+                <div class="msg-content">partial answer</div>
+            </div>
+        </div>`;
+    state.currentAgentDiv = null;
+    state.currentProcessBlock = null;
+
+    ui.hydrateActiveRun({
+        running: true,
+        cli: 'codex',
+        text: 'partial answer',
+        toolLog: [
+            { toolType: 'thinking', label: 'Thinking', detail: 'snapshot', status: 'running', stepRef: 'think-1' },
+        ],
+    });
+
+    assert.equal(document.querySelectorAll('.msg-agent').length, 1);
+    assert.equal(document.querySelectorAll('.msg-agent .agent-body > .process-block').length, 1);
+    assert.equal(document.querySelectorAll('.msg-agent .msg-content > .process-block').length, 0);
+});
+
+test('hydrateActiveRun merges snapshot rows without clobbering richer live detail', async () => {
+    setupWebUiDom();
+    const ui = await import('../../public/js/ui.ts');
+
+    ui.showProcessStep({
+        id: 'live-tool',
+        type: 'tool',
+        icon: 'tool',
+        label: 'Tool',
+        detail: 'live detail is longer and should remain visible',
+        stepRef: 'tool-1',
+        status: 'running',
+        startTime: Date.now(),
+    });
+
+    ui.hydrateActiveRun({
+        running: true,
+        cli: 'codex',
+        text: 'working',
+        toolLog: [
+            { toolType: 'tool', label: 'Tool', detail: 'done', status: 'done', stepRef: 'tool-1' },
+            { toolType: 'thinking', label: 'Thinking', detail: 'reasoning', status: 'running', stepRef: 'think-1' },
+        ],
+    });
+
+    assert.equal(document.querySelectorAll('.msg-agent .agent-body > .process-block').length, 1);
+    assert.equal(document.querySelectorAll('.process-step').length, 2);
+    assert.equal(document.querySelectorAll('.process-step[data-step-ref="tool-1"]').length, 1);
+    assert.match(document.querySelector('.process-step[data-step-ref="tool-1"]')?.textContent || '', /live detail is longer/);
+});
+
+test('live generic tool event after hydration reuses trace identity when stepRef is absent', async () => {
+    setupWebUiDom();
+    const ui = await import('../../public/js/ui.ts');
+
+    ui.hydrateActiveRun({
+        running: true,
+        cli: 'codex',
+        text: 'working',
+        toolLog: [
+            { toolType: 'tool', label: 'Tool', detail: 'snapshot done', status: 'done', traceRunId: 'tr_abcdefghijklmnop', traceSeq: 7 },
+        ],
+    });
+    ui.showProcessStep({
+        id: 'live-tool',
+        type: 'tool',
+        icon: 'tool',
+        label: 'Tool',
+        detail: 'live replay detail',
+        traceRunId: 'tr_abcdefghijklmnop',
+        traceSeq: 7,
+        status: 'running',
+        startTime: Date.now(),
+    });
+
+    assert.equal(document.querySelectorAll('.msg-agent .agent-body > .process-block').length, 1);
+    assert.equal(document.querySelectorAll('.msg-agent .msg-content > .process-block').length, 0);
+    assert.equal(document.querySelectorAll('.process-step').length, 1);
+    assert.equal(document.querySelectorAll('.process-step-label')[0]?.textContent, 'Tool');
+});
+
+test('finalizeAgent keeps one process block after hydrated tools and explicit toolLog merge', async () => {
+    setupWebUiDom();
+    const ui = await import('../../public/js/ui.ts');
+
+    ui.hydrateActiveRun({
+        running: true,
+        cli: 'codex',
+        text: 'working',
+        toolLog: [
+            { toolType: 'thinking', label: 'Thinking', detail: 'snapshot', status: 'running', stepRef: 'think-1' },
+        ],
+    });
+    ui.showProcessStep({
+        id: 'live-tool',
+        type: 'tool',
+        icon: 'tool',
+        label: 'Tool',
+        detail: 'live',
+        stepRef: 'tool-1',
+        status: 'running',
+        startTime: Date.now(),
+    });
+    ui.finalizeAgent('final answer', [
+        { toolType: 'thinking', label: 'Thinking', detail: 'snapshot', status: 'done', stepRef: 'think-1' },
+        { toolType: 'tool', label: 'Tool', detail: 'live', status: 'done', stepRef: 'tool-1' },
+    ]);
+
+    assert.equal(document.querySelectorAll('.msg-agent .agent-body > .process-block').length, 1);
+    assert.equal(document.querySelectorAll('.msg-agent .msg-content > .process-block').length, 0);
+    assert.equal(document.querySelectorAll('.process-step').length, 2);
+});
+
+test('finalizeAgent serializes merged process state before virtual-scroll promotion', () => {
+    const uiSrc = readFileSync(new URL('../../public/js/ui.ts', import.meta.url), 'utf8');
+    const idx = uiSrc.indexOf('export function finalizeAgent');
+    assert.ok(idx >= 0, 'finalizeAgent must exist');
+    const block = uiSrc.slice(idx, uiSrc.indexOf('export function switchTab', idx));
+
+    assert.ok(
+        block.indexOf('serializeProcessStepsForToolLog(') < block.indexOf('const willPromoteToVirtualScroll'),
+        'finalizeAgent must serialize merged live process state before VS promotion',
+    );
+    assert.ok(
+        block.includes('state.currentProcessBlock ?? state.currentAgentDiv'),
+        'finalizeAgent must serialize from the current block or owning agent DOM',
+    );
+    assert.ok(
+        block.indexOf('durableToolLogJson') < block.indexOf('vs.appendItem'),
+        'VS appendItem must receive already-merged durable tool log JSON',
+    );
 });
