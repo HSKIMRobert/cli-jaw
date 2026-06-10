@@ -24,16 +24,22 @@ export function liveScopeOf(ctx: SpawnContext): string | null {
 
 export function syncLiveTools(ctx: SpawnContext): void {
     stampTraceToolEntries(ctx);
+    // Capture the unsynced tail BEFORE replaceLiveRunTools splices the durable
+    // sanitize back into ctx.toolLog: once the entry cap engages, the splice pins
+    // the array length at the cap, so an after-splice slice(synced) is empty on
+    // every pass and the parent mirror freezes past the cap (doc 86 §4 follow-up).
+    const synced = ctx._parentSyncedCount || 0;
+    const newTools = ctx.parentLiveScope ? ctx.toolLog.slice(synced) : [];
     const scope = liveScopeOf(ctx);
     if (scope) replaceLiveRunTools(scope, ctx.toolLog);
     if (ctx.parentLiveScope) {
-        const synced = ctx._parentSyncedCount || 0;
-        const total = ctx.toolLog.length;
-        const parentTools = sanitizeWorkerProgressTools(ctx.toolLog.slice(synced, total));
+        const parentTools = sanitizeWorkerProgressTools(newTools);
         for (const tool of parentTools) {
             appendLiveRunTool(ctx.parentLiveScope, { ...tool, isEmployee: true });
         }
-        ctx._parentSyncedCount = total;
+        // Post-splice length: appends land at the tail and the sanitizer only
+        // drops from the head, so the next unsynced run starts exactly here.
+        ctx._parentSyncedCount = ctx.toolLog.length;
     }
 }
 
