@@ -12,6 +12,7 @@ import { schedulePostRender } from './post-render.js';
 import { ensureRenderDelegations } from './delegations.js';
 import { API_BASE } from '../api.js';
 import { renderElicitationPlaceholder } from '../features/elicitation.js';
+import { renderSearchResultsPlaceholder } from './search-results.js';
 import { hasIncompleteStructuredFence } from '../../../src/shared/structured-fence.js';
 
 // ── marked.js configuration (ES module — always available) ──
@@ -55,6 +56,10 @@ function ensureMarked(): boolean {
         if (normalizedLang === 'elicitation' || normalizedLang === 'choice-buttons') {
             if (renderContextIsStreaming) return renderCodeBlock(text, lang);
             return renderElicitationPlaceholder(text, normalizedLang);
+        }
+        if (normalizedLang === 'search-results') {
+            if (renderContextIsStreaming) return renderCodeBlock(text, lang);
+            return renderSearchResultsPlaceholder(text);
         }
         return renderCodeBlock(text, lang);
     };

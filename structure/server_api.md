@@ -40,6 +40,7 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 | `src/routes/skills.ts` | 89L | 5 | skills list/read/enable/disable/reset |
 | `src/routes/avatar.ts` | 146L | 4 | avatar summary + agent/user image upload/delete/read |
 | `src/routes/traces.ts` | 80L | 3 | public trace summary/event read routes |
+| `src/routes/link-preview.ts` | — | 2 | Rich link preview metadata fetch + guarded image proxy |
 | `src/routes/heartbeat.ts` | 47L | 2 | heartbeat GET + validated PUT |
 | `src/routes/jaw-ceo.ts` | 321L | 20 | Jaw CEO coordinator: state/message/query/docs-edit/settings/events/pending/watch/audit/voice/confirmations |
 | `src/routes/runtime-context.ts` | 46L | 4 | runtime context entry CRUD (ephemeral prompt injection), mounted at `/api/runtime-context` |
@@ -64,7 +65,7 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 static → employees → heartbeat → skills → jaw-memory → orchestrate
 → goal → task → events(SSE) → instance → chat-sessions → messages
 → system → agent-control → command → goal-run → memory → settings
-→ messaging → avatar → traces → jaw-ceo → runtime-context
+→ messaging → avatar → traces → link-preview → jaw-ceo → runtime-context
 → security-audit → dashboard board/schedule → browser → i18n
 ```
 
@@ -127,6 +128,7 @@ static → employees → heartbeat → skills → jaw-memory → orchestrate
 | Messaging | `POST /api/upload` `POST /api/file/open` `POST /api/voice` `POST /api/telegram/send` `POST /api/channel/send` `POST /api/discord/send` |
 | Avatar | `GET /api/avatar` `POST /api/avatar/:target/upload` `DELETE /api/avatar/:target/image` `GET /api/avatar/:target/image` |
 | Traces | `GET /api/traces/:runId` `GET /api/traces/:runId/events` `GET /api/traces/:runId/events/:seq` |
+| Link Preview | `GET /api/link-preview?url=` `GET /api/link-preview/image?url=` |
 | Dashboard Board | `GET /api/dashboard/board/tasks` `POST /api/dashboard/board/tasks` `PATCH /api/dashboard/board/tasks/:id` `DELETE /api/dashboard/board/tasks/:id` `POST /api/dashboard/board/tasks/from-message` |
 | Dashboard Schedule | `GET /api/dashboard/schedule/work` `POST /api/dashboard/schedule/work` `PATCH /api/dashboard/schedule/work/:id` `DELETE /api/dashboard/schedule/work/:id` `POST /api/dashboard/schedule/work/:id/dispatch` |
 | i18n | `GET /api/i18n/languages` `GET /api/i18n/:lang` |

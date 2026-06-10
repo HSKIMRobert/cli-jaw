@@ -4,6 +4,8 @@ import { rehighlightAll } from './highlight.js';
 import { bindDiagramZoom } from './svg-actions.js';
 import { linkifyFilePathsWithNotesRoot } from './file-links.js';
 import { hydrateElicitationBlocks } from '../features/elicitation.js';
+import { hydrateSearchResultsBlocks } from './search-results.js';
+import { hydrateLinkPreviewCards } from './link-preview.js';
 
 let postRenderRAF: number | null = null;
 let postRenderTimer: ReturnType<typeof setTimeout> | null = null;
@@ -21,6 +23,8 @@ export function schedulePostRender(): void {
             const msgContainer = document.getElementById('chatMessages');
             if (msgContainer) {
                 hydrateElicitationBlocks(msgContainer);
+                hydrateSearchResultsBlocks(msgContainer);
+                hydrateLinkPreviewCards(msgContainer);
                 void linkifyFilePathsWithNotesRoot(msgContainer);
             }
         });

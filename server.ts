@@ -33,6 +33,7 @@ import { registerSettingsRoutes } from './src/routes/settings.js';
 import { registerMessagingRoutes } from './src/routes/messaging.js';
 import { registerAvatarRoutes } from './src/routes/avatar.js';
 import { registerTraceRoutes } from './src/routes/traces.js';
+import { registerLinkPreviewRoutes } from './src/routes/link-preview.js';
 import { registerJawCeoRoutes } from './src/routes/jaw-ceo.js';
 import { createRuntimeContextRouter } from './src/routes/runtime-context.js';
 import { createSecurityAuditRouter } from './src/routes/security-audit.js';
@@ -331,6 +332,7 @@ registerSettingsRoutes(app, requireAuth, applySettingsPatch, projectRoot);
 registerMessagingRoutes(app, requireAuth);
 registerAvatarRoutes(app, requireAuth);
 registerTraceRoutes(app, requireAuth);
+registerLinkPreviewRoutes(app, requireAuth);
 registerJawCeoRoutes(app, requireAuth, {
     repoRoot: projectRoot,
     listInstances: async () => [{

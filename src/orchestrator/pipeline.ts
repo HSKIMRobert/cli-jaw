@@ -51,7 +51,7 @@ export {
 type SpawnAgentLike = typeof spawnAgent;
 
 const REMOTE_ELICITATION_BLOCKED_ORIGINS = new Set(['telegram', 'discord']);
-const STRUCTURED_ELICITATION_FENCE_RE = /```(?:elicitation|choice-buttons)[^\n]*\n([\s\S]*?)```/g;
+const STRUCTURED_REMOTE_FENCE_RE = /```(elicitation|choice-buttons|search-results)[^\n]*\n([\s\S]*?)```/g;
 
 type PlainQuestion = {
     question: string;
@@ -69,8 +69,9 @@ export function buildRemoteChannelElicitationGuard(origin: unknown): string {
         '## Remote Channel Capability Override',
         `Current origin is ${channel}.`,
         'Telegram/Discord do not render Web UI structured elicitation widgets in this turn.',
-        'Do not output standalone ```elicitation or ```choice-buttons fenced blocks.',
+        'Do not output standalone ```elicitation, ```choice-buttons, or ```search-results fenced blocks.',
         'Ask clear choice-based clarification as plain text with numbered options instead.',
+        'For search results, write a concise numbered plain-text list instead of a Web UI fence.',
         'If other instructions suggest structured elicitation, this origin-specific channel rule narrows them for the current turn.',
     ].join('\n');
 }
@@ -131,10 +132,41 @@ function renderRemoteElicitationFallback(rawJson: string): string {
     ].join('\n');
 }
 
+function renderRemoteSearchResultsFallback(rawJson: string): string {
+    try {
+        const parsed = JSON.parse(rawJson.trim()) as Record<string, unknown>;
+        const query = String(parsed['query'] || '').trim();
+        const rawResults = Array.isArray(parsed['results']) ? parsed['results'] : [];
+        const rows = rawResults.slice(0, 5).map((item, index) => {
+            if (!item || typeof item !== 'object') return '';
+            const obj = item as Record<string, unknown>;
+            const title = String(obj['title'] || obj['url'] || obj['link'] || '').trim();
+            const url = String(obj['url'] || obj['link'] || '').trim();
+            if (!title && !url) return '';
+            return `${index + 1}. ${title}${url && url !== title ? ` — ${url}` : ''}`;
+        }).filter(Boolean);
+        if (rows.length > 0) {
+            return [
+                '검색 결과 카드는 이 채널에서 Web UI로 표시되지 않습니다. 일반 텍스트로 표시합니다.',
+                query ? `검색어: ${query}` : '',
+                '',
+                ...rows,
+            ].filter(Boolean).join('\n');
+        }
+    } catch {
+        // Fall through to generic fallback.
+    }
+    return '검색 결과 카드는 Telegram/Discord에서 Web UI로 표시되지 않습니다. 검색 결과를 일반 텍스트 목록으로 다시 작성해주세요.';
+}
+
 export function normalizeRemoteChannelElicitationOutput(text: string, origin: unknown): string {
     if (!isRemoteElicitationBlockedOrigin(origin)) return text;
     if (scanStructuredFence(text).status === 'absent') return text;
-    return text.replace(STRUCTURED_ELICITATION_FENCE_RE, (_match, rawJson: string) => renderRemoteElicitationFallback(rawJson));
+    return text.replace(STRUCTURED_REMOTE_FENCE_RE, (_match, lang: string, rawJson: string) => {
+        return lang === 'search-results'
+            ? renderRemoteSearchResultsFallback(rawJson)
+            : renderRemoteElicitationFallback(rawJson);
+    });
 }
 
 function pickPlanningTask(userText: string, _prompt: string, ctx: Record<string, any> | null) {
