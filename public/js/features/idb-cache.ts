@@ -86,10 +86,23 @@ export async function cacheMessages(messages: CachedMessage[]): Promise<void> {
         const db = await openDB();
         const tx = db.transaction(STORE, 'readwrite');
         const store = tx.objectStore(STORE);
-        store.clear();
-        for (const msg of messages) {
-            store.add({ role: msg.role, content: msg.content, cli: msg.cli ?? null, tool_log: msg.tool_log ?? null, timestamp: msg.timestamp || Date.now(), scope: currentScope });
-        }
+        // devlog 260609 79/82: replace only the current scope — a global clear
+        // here erased every other scope's offline fallback on each load, while
+        // reads stay scoped via getScopedMessages(). Delete-then-add runs in
+        // one transaction, so the scope swap stays atomic.
+        const targetScope = currentScope || 'default';
+        const cursorReq = store.index('scope').openCursor(IDBKeyRange.only(targetScope));
+        cursorReq.onsuccess = () => {
+            const cursor = cursorReq.result;
+            if (cursor) {
+                cursor.delete();
+                cursor.continue();
+                return;
+            }
+            for (const msg of messages) {
+                store.add({ role: msg.role, content: msg.content, cli: msg.cli ?? null, tool_log: msg.tool_log ?? null, timestamp: msg.timestamp || Date.now(), scope: targetScope });
+            }
+        };
         await new Promise<void>((resolve, reject) => {
             tx.oncomplete = () => resolve();
             tx.onerror = () => reject(tx.error);
@@ -118,7 +131,7 @@ export async function appendCachedMessage(role: string, content: string): Promis
     try {
         const db = await openDB();
         const tx = db.transaction(STORE, 'readwrite');
-        tx.objectStore(STORE).add({ role, content, timestamp: Date.now() });
+        tx.objectStore(STORE).add({ role, content, timestamp: Date.now(), scope: currentScope });
     } catch (e) {
         console.warn('[idb-cache] appendCachedMessage failed:', e);
     }
