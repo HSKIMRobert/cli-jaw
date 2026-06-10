@@ -8,6 +8,10 @@ This repository is a Node.js ESM orchestration runtime for boss/employee dispatc
 - Keep `README.md`, `AGENTS.md`, this file, and `structure/AGENTS.md` aligned when command/API/orchestration behavior changes.
 - Do not use the old `devlog/structure/` path for architecture docs; the active folder is `structure/`.
 
+## Build & Deploy Contract
+
+- The running server executes compiled `dist/` (`jaw serve` → `dist/server.js`), never the TS sources. After changing `server.ts`/`src/**`/`bin/**`, run `npm run build` before telling anyone to restart; frontend changes additionally need `npm run build:frontend`. Full rules: `AGENTS.md` § Build & Deploy Contract.
+
 ## Current Runtime Notes
 
 - PABCD entry is explicit: `jaw orchestrate`, `/orchestrate`, or `/pabcd`. Resume is explicit `/continue`; natural-language “continue/계속/이어서” remains a normal prompt.
