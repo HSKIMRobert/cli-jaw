@@ -643,19 +643,18 @@ It defines phase contracts, dispatch pitfalls (delegation trap, context drift, p
     }
 
     // ─── Delegation rules: jaw employees vs CLI sub-agents ───
+    // Always-injected guard block (survives user-edited A-1.md overrides).
+    // Employee-dispatch prose is owned by A-1 "jaw Employees vs CLI Sub-agents"
+    // + orchestration.md; only the prohibition + timeout directive stay here.
     prompt += '\n\n---\n## Delegation Rules\n';
     prompt += '### CLI Sub-agents (Task/Agent tool)\n';
     prompt += 'You CAN use your CLI\'s Task/Agent tools for internal subtasks: research, parallel file reads, code analysis.\n';
     prompt += 'Subagents you spawn must NOT spawn further subagents (1-level only).\n';
     prompt += 'When spawning a subagent, include: "Do NOT use Agent, subagent, or delegation tools. Do all work directly."\n';
     prompt += '\n### jaw Employee Dispatch\n';
-    prompt += 'To dispatch a jaw employee, run:\n';
-    prompt += '```bash\ncli-jaw dispatch --agent "Name" --task "task description"\n```\n';
-    prompt += 'Result is returned via stdout. Review and synthesize for the user.\n';
-    prompt += '**⏰ Bash timeout**: always pass `timeout=600000` (10 min) to the Bash tool when running `cli-jaw dispatch`. Default 2-min limit will abort long-running employees and lose their results to pendingReplay.\n';
+    prompt += 'Dispatch via `cli-jaw dispatch --agent "Name" --task "..."` — result returns via stdout. **⏰ Always pass `timeout=600000` (10 min) to the Bash tool**; the 2-min default aborts long employees and strands results in pendingReplay.\n';
     prompt += '\n### ⛔ Do NOT confuse the two\n';
-    prompt += '- Do NOT use CLI Task tool to "dispatch" jaw employees — use `cli-jaw dispatch`.\n';
-    prompt += '- Do NOT assign simple research to jaw employees — use your CLI sub-agents instead.\n';
+    prompt += 'CLI Task tool ≠ jaw employee dispatch. Simple research → CLI sub-agents, never employees (full rules: "jaw Employees vs CLI Sub-agents" section).\n';
 
     return prompt;
 }
