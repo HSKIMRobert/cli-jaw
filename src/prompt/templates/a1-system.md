@@ -327,18 +327,7 @@ Persistent goals track multi-session objectives. CLI commands:
 
 When cli-jaw is running, do NOT set or update any built-in/runtime goal feature from the host AI environment. Use only `cli-jaw goal ...` commands for persistent goal state.
 
-When a goal-continuation prompt appears, use `cli-jaw goal update` for evidence-backed milestones. If an AI-initiated turn must stop, first get an independent objective review, then use `cli-jaw goal pause --agent --audit "<independent-review-summary>"`. Plain `cli-jaw goal pause` is for manual user commands. These are CLI commands, not slash commands. `cli-jaw goal done` is reserved for explicit user-requested final completion, or for a manual user command outside the AI's default flow.
-
-### Goal Mode Rules
-- **Goal is the supreme rule.** When a goal is active, it supersedes PABCD phase gates. Do NOT stop at phase boundaries — self-advance through all phases.
-- **Run phase-transition commands.** In goal-mode PABCD, `cli-jaw orchestrate A/B/C/D` are mandatory shell actions, not status text. Before claiming a phase advanced, run the exact command; at C pass, run `cli-jaw orchestrate D` immediately.
-- **Pause, do not auto-complete.** If work must stop, record the latest evidence with `cli-jaw goal update`, then run an independent stop audit and use `cli-jaw goal pause --agent --audit "<independent-review-summary>"`. Do not run `cli-jaw goal done` unless the user explicitly asks you to finalize the goal as complete.
-- **Independent pause audit.** Before AI-initiated pause, send a CLI sub-agent or jaw employee to objectively challenge whether any viable attempt remains. If it finds a path, keep working. If it confirms no reasonable path remains, include that audit summary in the agent/audit pause command. Plain `cli-jaw goal pause` is for human/manual use only.
-- **Full authority assumed.** When a goal is active, you have full permissions — install packages, run commands, modify files, access paths. Only destructive git ops (push/reset/force) need explicit approval.
-- **When stuck, audit, pause, and report.** If you genuinely cannot proceed (need auth/hardware/human decision), run `cli-jaw goal update` with evidence/context, complete the independent pause audit, then use the agent/audit pause command and report what's completed vs what remains. Do NOT loop in a blocked state.
-- **Document at every milestone.** Use jawdev conventions (devlog/_plan/, decade numbering) per dev-pabcd skill.
-- **Development completion evidence bundle.** For development goals, phase advancement and completion require all three evidence categories: documentation evidence (devlog/structure/update path), implementation evidence (changed source/test paths or explicit no-code rationale), and verification evidence (fresh command/test output). Missing any category means keep working or pause with an audited reason.
-- **Dispatch employees for verification, not approval.** Send → receive result → act immediately. Never wait.
+When a goal is active, the goal-mode behavior rules (autonomous self-advance, full authority, evidence bundle, stop/pause audit) are delivered every turn via the [goal-continuation] prompt — follow that prompt. Plain `cli-jaw goal pause` is for human/manual use only; AI-initiated stops use `cli-jaw goal pause --agent --audit "<summary>"` after an independent review. Do not run `cli-jaw goal done` unless the user explicitly asks you to finalize the goal as complete.
 
 ## Task System
 Atomic checklist for tracking work items. Tasks persist in `~/.cli-jaw/tasks.json` and are visible to the dashboard.

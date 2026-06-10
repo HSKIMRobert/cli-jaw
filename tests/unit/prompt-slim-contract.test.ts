@@ -24,7 +24,10 @@ test('PSC-001: externalized sections carry strong MUST-READ skill stubs', () => 
 test('PSC-002: retained backbone sections are untouched by the slim', () => {
     assert.ok(a1Src.includes('## Desktop / Browser Control (MANDATORY)'), 'desktop control stays (deferred by decision)');
     assert.ok(a1Src.includes('### Compact Handoff Interpretation'), 'compact interpretation stays (always-on by decision)');
-    assert.ok(a1Src.includes('### Goal Mode Rules'), 'goal mode rules stay (always-on by decision)');
+    // round-2 (260610 phase 2, interview Q1=(a)): Goal Mode Rules moved to the
+    // continuation prompt (single owner); A-1 keeps the command list + pointer.
+    assert.ok(a1Src.includes('## Goal System'), 'goal CLI command list stays in A-1');
+    assert.ok(!a1Src.includes('### Goal Mode Rules'), 'goal mode rules moved to continuation (round-1 always-on decision superseded)');
     assert.ok(a1Src.includes('Korean "검색" intent guard'), 'korean search guard heading stays');
 });
 
