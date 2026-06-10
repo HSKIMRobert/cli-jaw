@@ -194,12 +194,17 @@ test('manager frontend exposes one-instance preview controls', () => {
 
 test('manager frontend exposes lifecycle controls without hiding discovery actions', () => {
     const app = read('public/manager/src/App.tsx');
+    const api = read('public/manager/src/api.ts');
     const row = read('public/manager/src/components/InstanceRow.tsx');
     const types = read('public/manager/src/types.ts');
 
     assert.ok(types.includes('DashboardLifecycleCapability'), 'frontend types must include lifecycle capability');
     assert.ok(types.includes("'manager'"), 'frontend service mode must represent manager-owned instances');
     assert.ok(app.includes('handleLifecycle'), 'manager UI must keep lifecycle controller');
+    assert.ok(api.includes('fresh'), 'manager instance API must support cache-busting fresh scans');
+    assert.ok(app.includes('await load(showHidden, true)'), 'lifecycle completion must refresh the full scan with ?fresh=1');
+    assert.ok(app.includes('if (polled.instance)'), 'lifecycle polling must patch the row with live single-port status before full reload');
+    assert.ok(app.includes('view.setSelectedPort(instance.port);'), 'lifecycle actions must focus the target instance immediately');
     assert.ok(row.includes("onLifecycle('start'"), 'manager UI must expose Start action');
     assert.ok(row.includes("onLifecycle('stop'"), 'manager UI must expose Stop action');
     assert.ok(row.includes('Open'), 'manager UI must keep Open action');

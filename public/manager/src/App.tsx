@@ -156,11 +156,11 @@ export function App() {
         return () => document.removeEventListener('keydown', onKeyDown);
     }, [openHelpTopic]);
 
-    async function load(nextShowHidden = showHidden): Promise<void> {
+    async function load(nextShowHidden = showHidden, forceFresh = false): Promise<void> {
         setLoading(true);
         setError(null);
         try {
-            const result = await fetchInstances(nextShowHidden);
+            const result = await fetchInstances(nextShowHidden, { fresh: forceFresh });
             const nextProfileIds = reconcileActiveProfileFilter(activeProfileIds, result.manager.profiles || []);
             if (nextProfileIds !== activeProfileIds) { setActiveProfileIds(nextProfileIds); void registry.save({ activeProfileFilter: nextProfileIds }); }
             setData(result);
@@ -422,6 +422,8 @@ export function App() {
         if (!canLeaveDirtySettings()) return;
         setSettingsDirty(false);
         const previousUptime = instance.uptime;
+        view.setSelectedPort(instance.port);
+        void saveUi({ selectedPort: instance.port });
         setLifecycleBusyPort(instance.port);
         setLifecycleMessage(null);
         setTransitioningPort(instance.port);
@@ -440,9 +442,11 @@ export function App() {
             if (!polled.settled) {
                 setLifecycleMessage(`${result.message} (not yet reachable, refresh manually if needed)`);
             }
-            await load();
+            if (polled.instance) {
+                setData((current) => current ? { ...current, instances: current.instances.map(row => row.port === instance.port ? polled.instance! : row) } : current);
+            }
+            await load(showHidden, true);
             publishInvalidation({ topics: ['instances'], reason: 'instance:lifecycle', source: 'ui', sourceId: 'app' });
-            view.setSelectedPort(instance.port);
         } catch (err) {
             setLifecycleMessage((err as Error).message);
         } finally {

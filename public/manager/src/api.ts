@@ -33,8 +33,12 @@ export class DashboardApiError extends Error {
     }
 }
 
-export async function fetchInstances(showHidden = false): Promise<DashboardScanResult> {
-    const path = showHidden ? '/api/dashboard/instances?showHidden=1' : '/api/dashboard/instances';
+export async function fetchInstances(showHidden = false, options: { fresh?: boolean } = {}): Promise<DashboardScanResult> {
+    const params = new URLSearchParams();
+    if (showHidden) params.set('showHidden', '1');
+    if (options.fresh) params.set('fresh', '1');
+    const query = params.toString();
+    const path = query ? `/api/dashboard/instances?${query}` : '/api/dashboard/instances';
     const response = await fetch(path);
     if (!response.ok) throw new Error(`scan failed: ${response.status}`);
     return await response.json() as DashboardScanResult;
