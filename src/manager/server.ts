@@ -49,6 +49,7 @@ import { createDashboardGitRouter } from './routes/dashboard-git.js';
 import { VecStore, getVecDbPath, createProvider, syncAllInstances } from './memory/embedding/index.js';
 import type { EmbeddingConfig } from './memory/embedding/index.js';
 import { addBroadcastListener } from '../core/bus.js';
+import { subscribe as subscribeManagerBus } from '../core/event-bus.js';
 import { resolveDashboardHome } from './dashboard-home.js';
 import { fetchWorkerAssistantTextById } from './worker-messages.js';
 import {
@@ -560,6 +561,29 @@ app.get('/api/manager/events', (req, res) => {
         return;
     }
     res.json({ ok: true, events: observability.drain(since) });
+});
+
+// #233: live relay of manager-process bus events (worker_settings_change) so
+// the manager UI refreshes instance metadata without waiting for a poll.
+// Same exposure level as /api/manager/events above (local dashboard, no auth).
+app.get('/api/manager/events/stream', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+    res.write(': connected\n\n');
+
+    const unsubscribe = subscribeManagerBus((entry) => {
+        if (entry.topic !== 'worker' || entry.event !== 'worker_settings_change') return;
+        res.write(`data: ${JSON.stringify({ topic: entry.topic, event: entry.event, data: entry.data })}\n\n`);
+    });
+    const ping = setInterval(() => { res.write(': ping\n\n'); }, 30_000);
+    ping.unref?.();
+
+    req.on('close', () => {
+        clearInterval(ping);
+        unsubscribe();
+    });
 });
 
 app.get('/api/manager/health-history/:port', (req, res) => {

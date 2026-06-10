@@ -9,7 +9,7 @@
 // payload once (debounced), so jaw-ceo reads are served from cache while
 // the stream is live. Cache misses fall back to the caller's HTTP path.
 
-import { subscribe as subscribeBus } from '../core/event-bus.js';
+import { subscribe as subscribeBus, publish } from '../core/event-bus.js';
 import {
     subscribeToWorker,
     type EventSourceCtor,
@@ -73,6 +73,14 @@ function connect(s: BridgeState, port: number): void {
     const handlers: WorkerEventHandlers = {
         onMessage: () => schedulePrefetch(s, port),
         onAgentDone: () => schedulePrefetch(s, port),
+        // #233: worker cli/model/projectDirs changed — relay to the manager UI
+        // (the /api/manager/events/stream route forwards this bus event).
+        onSettingsChange: (p, data) => {
+            publish('worker', 'worker_settings_change', {
+                port: p,
+                changedKeys: data["changedKeys"] ?? null,
+            });
+        },
         onUnsupported: () => { s.unsupported.add(port); drop(s, port); },
         onDisconnect: () => drop(s, port),
     };

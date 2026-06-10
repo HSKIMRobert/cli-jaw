@@ -13,6 +13,7 @@ import { loadActiveChannel, loadFallbackOrder } from './settings-channel.js';
 import { loadMcpServers } from './settings-mcp.js';
 import { providerIcon, providerLabel } from '../provider-icons.js';
 import { postPreviewInvalidate } from '../preview-parent-origin.js';
+import { formatProjectLabel } from './project-label.js';
 
 let activeSettingsSave: Promise<void> | null = null;
 
@@ -22,6 +23,28 @@ function setHeaderCli(cli: string): void {
     const ico = providerIcon(cli);
     const label = cliDisplayLabel(cli);
     hdr.innerHTML = ico ? `${ico} ${escapeHtml(label)}` : escapeHtml(label);
+}
+
+function setHeaderProject(dirs: readonly string[] | null | undefined): void {
+    const el = document.getElementById('headerProject');
+    if (!el) return;
+    const label = formatProjectLabel(dirs);
+    if (!label) {
+        el.hidden = true;
+        el.textContent = '';
+        el.removeAttribute('title');
+        return;
+    }
+    el.hidden = false;
+    el.textContent = `Project ${label.text}`;
+    el.title = label.title;
+}
+
+/** SSE settings_change payload → header-only refresh (#233). Never re-runs
+ *  loadSettings(): the event may fire on every settings save. */
+export function refreshHeaderFromSettingsChange(msg: { cli?: string; projectDirs?: string[] | null }): void {
+    if (typeof msg.cli === 'string' && msg.cli) setHeaderCli(msg.cli);
+    if ('projectDirs' in msg) setHeaderProject(msg.projectDirs);
 }
 
 function cliDisplayLabel(cli: string): string {
@@ -271,6 +294,7 @@ export async function loadSettings(): Promise<void> {
         const label = cliDisplayLabel(s.cli);
         headerEl.innerHTML = icon ? `${icon} ${escapeHtml(label)}` : escapeHtml(label);
     }
+    setHeaderProject(s.projectDirs);
     setPerm(s.permissions, false);
 
     if (s.perCli) {

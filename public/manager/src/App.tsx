@@ -29,6 +29,7 @@ import { useCommandPalette } from './hooks/useCommandPalette';
 import { useInstanceLabelEditor } from './hooks/useInstanceLabelEditor';
 import { useInstanceMessageEvents } from './hooks/useInstanceMessageEvents';
 import { useManagerEvents } from './hooks/useManagerEvents';
+import { useManagerEventStream } from './hooks/useManagerEventStream';
 import { usePreviewSttLifecycle } from './usePreviewSttLifecycle';
 import { usePreviewShortcutMessages } from './usePreviewShortcutMessages';
 import { formatUptime, instanceLabel } from './instance-label';
@@ -172,6 +173,12 @@ export function App() {
         setData((current) => current ? { ...current, instances: current.instances.map(row => row.port === port ? instance : row) } : current);
     }
     useInvalidationSubscription('instances', () => void load(), 'app');
+    // #233: worker settings changed (cli/model/projectDirs) — refresh that row
+    // immediately instead of waiting for a manual reload.
+    useManagerEventStream((port) => {
+        void refreshInstance(port);
+        publishInvalidation({ topics: ['instances'], reason: 'instance:settings-change', source: 'ui', sourceId: 'app' });
+    });
     useEffect(() => {
         async function initialize(): Promise<void> {
             try {

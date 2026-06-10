@@ -866,6 +866,9 @@ function handleServerEvent(msg: WsMessage): void {
         addSystemMsg(`⚠️ Goal continuation failed: ${escapeHtml(msg.error || '')}`, 'tool-activity');
     } else if (msg.type === 'settings_change') {
         syncOrchestrateSnapshot('settings_change').catch(() => {});
+        import('./features/settings-core.js')
+            .then(m => m.refreshHeaderFromSettingsChange(msg as { cli?: string; projectDirs?: string[] | null }))
+            .catch(() => { /* header refresh is cosmetic — next loadSettings corrects it */ });
     } else if (msg.type === 'session_switched' || msg.type === 'session_created') {
         // Reload messages for the new active session
         window.location.reload();

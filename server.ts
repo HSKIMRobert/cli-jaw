@@ -61,6 +61,7 @@ import {
     settings, loadSettings, saveSettings,
     ensureDirs, runMigration,
 } from './src/core/config.js';
+import { startSettingsWatch } from './src/core/settings-watch.js';
 import {
     db, getLatestAssistantMessage, closeDb,
     clearAllEmployeeSessions,
@@ -474,6 +475,9 @@ server.listen(PORT, bindHost, async () => {
         settings["port"] = portStr;
         saveSettings(settings);
     }
+
+    // #233: pick up external settings writes (terminal `cli-jaw project set`)
+    startSettingsWatch();
 
     // Bootstrap i18n locale dictionaries
     loadLocales(join(projectRoot, 'public', 'locales'));
