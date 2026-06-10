@@ -16,3 +16,7 @@ node_modules/
 # Prevent stale legacy dist artifacts
 dist/bin/cli-claw.js
 dist/bin/cli-claw.js.map
+
+# Prevent nested Vite publicDir/build artifacts
+public/public/
+public/dist/dist/

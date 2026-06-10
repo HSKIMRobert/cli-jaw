@@ -49,3 +49,12 @@ test('build output guard fails when entry bytes exceed budget', () => {
     assert.equal(result.ok, false);
     assert.match(result.errors.join('\n'), /exceed budget/);
 });
+
+test('build output guard fails nested Vite publicDir artifacts', () => {
+    const dist = makeDist('<script type="module" src="/assets/app-test.js"></script>', 'console.log("ok");');
+    mkdirSync(join(dist, 'dist'));
+    writeFileSync(join(dist, 'dist', 'index.html'), '<!doctype html>');
+    const result = checkWebUiBuildOutput({ distDir: dist });
+    assert.equal(result.ok, false);
+    assert.match(result.errors.join('\n'), /Forbidden nested build output/);
+});

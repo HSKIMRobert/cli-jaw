@@ -59,11 +59,34 @@ test('RH-006: .npmignore excludes dist/bin/cli-claw.js', () => {
     );
 });
 
+// ── RH-006b: stale nested frontend build output is excluded from npm package ──
+
+test('RH-006b: .npmignore excludes nested frontend build artifacts', () => {
+    const npmignore = fs.readFileSync(join(root, '.npmignore'), 'utf8');
+    const publicNpmignore = fs.readFileSync(join(root, 'public', '.npmignore'), 'utf8');
+    assert.ok(
+        npmignore.includes('public/public/'),
+        '.npmignore should exclude stale Vite publicDir output',
+    );
+    assert.ok(
+        npmignore.includes('public/dist/dist/'),
+        '.npmignore should exclude stale nested frontend dist output',
+    );
+    assert.ok(
+        publicNpmignore.includes('public/'),
+        'public/.npmignore should prune public/public/ when package.json files includes public/',
+    );
+    assert.ok(
+        publicNpmignore.includes('dist/dist/'),
+        'public/.npmignore should prune public/dist/dist/ when package.json files includes public/',
+    );
+});
+
 // ── RH-007: build is race-free for concurrent server reads ──
 //
 // Build compiles to .dist-staging/ then swaps into dist/ with rollback.
-// Uses rsync for template/prompt dirs (atomic per file).
-test('RH-007: build avoids destructive clean:dist (rsync-based template copy)', () => {
+// Copies template/prompt dirs from fresh staging without destructive clean:dist.
+test('RH-007: build avoids destructive clean:dist (staged template copy)', () => {
     const pkg = JSON.parse(fs.readFileSync(join(root, 'package.json'), 'utf8'));
     const build = pkg.scripts?.build || '';
     assert.ok(!build.startsWith('npm run clean:dist'), 'build must NOT lead with clean:dist (races with running server)');
@@ -74,7 +97,7 @@ test('RH-007: build avoids destructive clean:dist (rsync-based template copy)', 
         if (fs.existsSync(scriptPath)) buildContent = fs.readFileSync(scriptPath, 'utf8');
     }
     assert.ok(buildContent.includes('tsc'), 'build must still invoke tsc');
-    assert.ok(buildContent.includes('rsync'), 'build must use rsync for template copy (atomic per-file)');
+    assert.ok(buildContent.includes('cp -R'), 'build must copy templates from a fresh staging directory');
 });
 
 // ── RH-008: Electron desktop app stays out of the npm CLI package ──

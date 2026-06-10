@@ -482,6 +482,8 @@ test('SAF-004i: install risk gate covers fresh-machine installer regressions', (
     assert.ok(gateSrc.includes("npm, ['pack', '--dry-run', '--json']"), 'gate should verify npm package contents');
     assert.ok(gateSrc.includes('scripts/postinstall-guard.cjs'), 'gate should ensure postinstall guard is packed');
     assert.ok(gateSrc.includes('scripts/require-release-evidence.mjs'), 'gate should ensure publish-time release evidence guard is packed');
+    assert.ok(gateSrc.includes("'public/public/'"), 'gate should reject nested Vite publicDir artifacts');
+    assert.ok(gateSrc.includes("'public/dist/dist/'"), 'gate should reject nested frontend build output');
     assert.ok(gateSrc.includes('structure/verify-counts.sh'), 'gate should enforce repository structure sync');
     assert.ok(gateSrc.includes("commandExists('rg')"), 'structure sync should require ripgrep before running');
     assert.ok(gateSrc.includes("existsSync('public/dist')"), 'structure sync should wait for frontend build output before running');
@@ -505,9 +507,9 @@ test('SAF-004j2: fresh-machine evidence collector documents supported release ev
     assert.equal(packageJson.scripts?.['collect:fresh-install-evidence'], 'bash scripts/collect-fresh-install-evidence.sh');
     assert.equal(packageJson.scripts?.['audit:fresh-install-evidence'], 'node scripts/audit-fresh-install-evidence.mjs');
     assert.equal(packageJson.scripts?.['verify:release-evidence'], 'node scripts/verify-release-evidence.mjs');
-    // Evidence gate runs via release.sh/release-preview.sh (asserted in SAF-004j3),
-    // not the npm prepublishOnly hook — removed in ce8e5ca4 to avoid double-blocking.
-    assert.equal(packageJson.scripts?.prepublishOnly, 'npm run build && npm run build:frontend');
+    // Evidence gates still run via release.sh/release-preview.sh (asserted in SAF-004j3);
+    // prepublishOnly only adds the frontend build-output integrity check.
+    assert.equal(packageJson.scripts?.prepublishOnly, 'npm run build && npm run build:frontend && npm run check:frontend-build-output');
     assert.ok(freshInstallEvidenceSrc.includes('--target macos|wsl|linux|auto'), 'collector should require explicit supported target wording');
     assert.ok(freshInstallEvidenceSrc.includes('--install-script FILE'), 'collector should allow branch/local installer verification before release');
     assert.ok(freshInstallEvidenceSrc.includes('--verifier-script FILE'), 'collector should allow local verifier validation before release');
@@ -761,4 +763,3 @@ test('OFF-002: PowerShell installer exists for win32 postinstall', () => {
     assert.ok(officeCliPowerShellSrc.includes('officecli-win-x64.exe'), 'PowerShell installer should map Windows x64 asset');
     assert.ok(officeCliPowerShellSrc.includes('$env:LOCALAPPDATA'), 'PowerShell installer should install under LOCALAPPDATA');
 });
-

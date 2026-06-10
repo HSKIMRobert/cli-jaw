@@ -9,6 +9,9 @@ const FORBIDDEN_ENTRY_CHUNKS = [
     'vendor-mermaid',
     'mermaid',
 ];
+const FORBIDDEN_NESTED_OUTPUT_DIRS = [
+    'dist',
+];
 
 export interface BuildOutputCheckOptions {
     distDir?: string;
@@ -83,6 +86,12 @@ export function checkWebUiBuildOutput(options: BuildOutputCheckOptions = {}): Bu
     const indexPath = join(distDir, 'index.html');
     const assetsDir = join(distDir, 'assets');
 
+    for (const dirname of FORBIDDEN_NESTED_OUTPUT_DIRS) {
+        const nestedPath = join(distDir, dirname);
+        if (existsSync(nestedPath)) {
+            errors.push(`Forbidden nested build output ${nestedPath}; check Vite publicDir and stale public/public artifacts`);
+        }
+    }
     if (!existsSync(indexPath)) errors.push(`Missing ${indexPath}`);
     if (!existsSync(assetsDir)) errors.push(`Missing ${assetsDir}`);
     if (errors.length > 0) return { ok: false, errors, appFiles: [], eagerBytes: 0 };
