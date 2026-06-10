@@ -4,9 +4,9 @@ tags: [cli-jaw, sse, websocket, ndjson, stream-events, parser]
 aliases: [CLI Stream Event Reference, stream events, SSE event channel, NDJSON parser]
 ---
 
-# CLI Stream Event Reference (SSE + WS + Provider Streams)
+# CLI Stream Event Reference (SSE + Legacy WS + Provider Streams)
 
-> 각 CLI의 NDJSON/ACP/stream-json 이벤트를 `src/agent/events/`가 파싱하고, AGY plain-text output은 `spawn.ts`가 직접 처리한다. `broadcast()`는 WebSocket payload를 유지하면서 `src/core/event-bus.ts`로 dual-emit하고, Web UI는 `GET /api/events` SSE event channel을 primary transport로 사용한다.
+> 각 CLI의 NDJSON/ACP/stream-json 이벤트를 `src/agent/events/`가 파싱하고, AGY plain-text output은 `spawn.ts`가 직접 처리한다. X-01 이후 current server의 public Web delivery는 `src/core/event-bus.ts` + `GET /api/events` SSE channel이 담당한다. WebSocket은 current server broadcast path가 아니라 `/api/events`가 한 번도 열리지 않는 pre-X-01 server용 client/TUI fallback이다.
 > 마지막 코드 대조: 2026-06-10 (`src/core/bus.ts`, `src/core/event-bus.ts`, `src/routes/events.ts`, `src/agent/spawn.ts`, `src/agent/events/*`, `src/agent/agy-runtime.ts`, `src/agent/claude-e-runtime.ts`, `src/agent/lifecycle-handler.ts`, `public/js/event-channel.ts`, `public/js/ws.ts`)
 
 ---
@@ -22,22 +22,26 @@ CLI spawn / ACP session
       - extractFromEvent()
       - extractOutputChunk()
   → broadcast(type, data, audience)  // src/core/bus.ts
-      - public WebSocket payload when audience === "public"
-      - internal listeners regardless of audience
       - public SSE topic/event publish through src/core/event-bus.ts
+      - internal listeners regardless of audience
   → public/js/event-channel.ts
       - EventSource singleton
       - Last-Event-ID / ?lastEventId replay
       - replay_gap notice
       - legacy WebSocket fallback only when /api/events is unavailable
   → public/js/ws.ts
-      - legacy WebSocket compatibility + UI event handlers
+      - shared UI event handlers
+      - legacy WebSocket compatibility only for pre-X-01 servers
+  → bin/commands/tui/channel.ts
+      - SSE-first terminal chat transport
+      - outbound REST to /api/message and /api/stop
+      - legacy WebSocket fallback only for pre-X-01 servers
   → orchestrator listeners
       - collect.ts
       - telegram/discord forwarders
 ```
 
-`broadcast()`는 `audience === 'public'`일 때 WebSocket으로 push하고 SSE event bus에도 publish한다. audience와 무관하게 internal listener callback은 수행된다. Employee/internal 이벤트는 public WebSocket/SSE를 건너뛰지만 collector/forwarder listener에는 전달된다.
+`broadcast()`는 `audience === 'public'`일 때 SSE event bus에 publish한다. X-01 이후 서버의 legacy WebSocket public broadcast path는 제거되었다. audience와 무관하게 internal listener callback은 수행된다. Employee/internal 이벤트는 public SSE를 건너뛰지만 collector/forwarder listener에는 전달된다.
 
 `GET /api/events`는 data-only SSE wire format이다. 서버는 `event:` field를 쓰지 않고, `data:` JSON payload 안에 `{ topic, event, ...payload }`를 넣는다. 클라이언트는 단일 `onmessage` handler로 모든 topic/event를 받아 dispatch한다.
 
@@ -51,13 +55,18 @@ SSE behavior:
 | Listener cap | `MAX_SSE_LISTENERS = 256`, overflow returns `503 { error: "SSE_CAPACITY" }` |
 | Heartbeat | comment ping every 15 seconds |
 | Replay gap | `data: {"topic":"system","event":"replay_gap"}` |
-| Client fallback | `public/js/event-channel.ts` fires unavailable once when SSE errors before first open, then `public/js/ws.ts` uses legacy WebSocket |
+| Client fallback | `public/js/event-channel.ts` fires unavailable once when SSE errors before first open, then `public/js/ws.ts` uses legacy WebSocket fallback |
+| Transient drop UX | `public/js/ws.ts` waits `CHANNEL_DOWN_TOAST_GRACE_MS = 8000` before showing a disconnected system message; fast SSE reconnects stay silent |
+
+### Manager worker SSE bridge
+
+`jaw dashboard serve` does not make the React manager browser subscribe directly to every worker's EventSource. The manager server starts `src/manager/worker-events.ts`, which listens for worker lifecycle changes and uses `src/manager/worker-sse-client.ts` to subscribe to each live worker's `http://127.0.0.1:{port}/api/events` stream. Worker SSE updates feed a debounced latest-message cache used by manager/Jaw CEO surfaces; the React manager still consumes manager HTTP polling endpoints such as `/api/manager/events` and `/api/dashboard/instances`.
 
 ---
 
 ## 2. 실제 Broadcast / SSE / WebSocket 이벤트 Surface
 
-`src/core/bus.ts`의 `broadcast(type, data, audience = 'public')`가 단일 fan-out 지점이다. WebSocket payload는 항상 `{ type, ...data, ts: Date.now() }` 형태이며, SSE payload는 `{ topic, event: type, type, ...data, ts }` 형태다. 내부 listener(`addBroadcastListener`)는 public/internal 여부와 무관하게 호출된다.
+`src/core/bus.ts`의 `broadcast(type, data, audience = 'public')`가 단일 fan-out 지점이다. Current server의 public Web delivery는 SSE-only이며, `src/routes/events.ts`의 `formatSse()`가 `{ ...entry.data, topic, event }`를 `data:` JSON payload로 쓴다. 내부 listener(`addBroadcastListener`)는 public/internal 여부와 무관하게 호출된다. Legacy WebSocket payload shape `{ type, ...payload }`는 client/TUI fallback이 pre-X-01 server에 붙을 때만 의미가 있다.
 
 ### 현재 코드에서 실제 emit되는 이벤트 (47종)
 
@@ -118,8 +127,8 @@ SSE behavior:
 
 | Type | 현재 처리 경로 |
 | --- | --- |
-| `worker_stalled` / `worker_disconnected` / `worker_timeout` | bus/internal listener에는 전달되지만 `public/js/ws.ts` 직접 분기는 없다 |
-| `system_notice` | WS public emit은 되지만 `public/js/ws.ts` 직접 분기는 없다 |
+| `worker_stalled` / `worker_disconnected` / `worker_timeout` | `public/js/ws.ts`에서 disconnected/timeout/stalled handler로 처리하고, manager server는 worker-SSE bridge/cache로 별도 추적 |
+| `system_notice` | SSE public emit은 되지만 `public/js/ws.ts` 직접 분기는 없다 |
 | `agent:claude-e:*` | native helper lifecycle/status telemetry. 현재 Web UI 직접 분기는 없고, trace/internal listener와 외부 observer용이다 |
 
 ### Web UI에 legacy 분기만 남은 타입
