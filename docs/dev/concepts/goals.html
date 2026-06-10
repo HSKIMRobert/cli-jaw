@@ -142,6 +142,7 @@ jaw goal reset</code></pre>
 <div class="callout callout-info">Budget enforcement is currently tracking-only. The system tracks run duration and continuation count but does not yet enforce hard budget limits.</div>
 
 <h3>Goal Mode Rules</h3>
+<p>These rules are delivered to the agent exclusively by the goal-continuation prompt (<code>src/goal/heartbeat.ts</code>) on every goal-active turn. The boss system prompt keeps only the goal CLI command list plus a pointer (single-owner design, 2026-06-10 slim).</p>
 <ul>
 <li><strong>Goal is the supreme rule.</strong> When a goal is active, it supersedes PABCD phase gates. The agent self-advances through all phases without waiting for user approval.</li>
 <li><strong>Plan-mode guard.</strong> <code>/goal plan</code> and <code>/goalplan</code> store the user's hint as <code>planHint</code>; the agent must refine it into a specific objective before checkpoint updates count.</li>

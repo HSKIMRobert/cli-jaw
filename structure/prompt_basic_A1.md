@@ -9,7 +9,7 @@ aliases: [A1 system prompt, CLI-JAW A1, system prompt template]
 # prompt_basic_A1 — 시스템 프롬프트 기본값
 
 > 경로: `~/.cli-jaw/prompts/A-1.md`
-> 소스: `src/prompt/templates/a1-system.md` (388L)
+> 소스: `src/prompt/templates/a1-system.md` (392L)
 > 구현: `src/prompt/builder.ts` → `getA1Content()` / `initPromptFiles()` / `getSystemPrompt()`
 > 파일 우선: `A-1.md`가 있으면 사용자 편집본 사용, 없으면 템플릿 렌더 결과 사용
 > `A1_CONTENT` 상수는 더 이상 없음
@@ -43,7 +43,7 @@ aliases: [A1 system prompt, CLI-JAW A1, system prompt template]
 - `Long-term Memory (MANDATORY)`: `{{JAW_HOME}}/memory/structured/` 경로, L1 `cli-jaw memory ...` current-instance read/write, L2 `cli-jaw dashboard memory ...` cross-instance read-only 경계, 저장 가이드
   - **Compact Handoff Interpretation**: `/compact` 핸드오프 후 trust table(section별 High/Medium/Low) + decision tree(goal 검증 → memory search → file open 순서)
 - `Search routing — file vs web`: 로컬 코드/로그/심볼은 file search, 외부·현재 정보는 active `search` skill 또는 web/official-docs 경로를 사용한다. `agbrowse research plan`은 query-planning 보조일 뿐 provider 실행 경로가 아니며, `k-thread-gen`/`lecture-stt` 같은 private runtime skills는 public `skills_ref` surface로 문서화하지 않는다.
-- `Goal System` + `Goal Mode Rules`: goal CLI 명령어, autonomous phase advance, independent pause audit, evidence bundle 요구사항
+- `Goal System`: goal CLI 명령어 + `[goal-continuation]` 포인터 스텁. goal-mode 행동 규칙(autonomous advance, pause audit, evidence bundle)은 continuation 프롬프트(`src/goal/heartbeat.ts`)가 단일 소유 (260610 2차 슬림)
 - `Heartbeat System`: `heartbeat.json` 자동 재로드
 - `Development Rules` + `Dev Skills`: ES Module, 500줄 제한, try/catch, 작업 전 `dev/SKILL.md` 읽기
 - `Diagrams (MANDATORY)`: 다이어그램·SVG·Mermaid를 위한 skill 우선 규칙과 인라인 전달 규칙
