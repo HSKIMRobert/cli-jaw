@@ -1,6 +1,7 @@
 import type { SpawnContext, ToolEntry } from '../types/agent.js';
 import {
     agyTranscriptStepKey,
+    classifyAgyTranscriptRow,
     parseTranscriptLine,
     readTranscriptDelta,
     resolveRecentAgyTranscriptPath,
@@ -20,6 +21,44 @@ export type AgyTranscriptEmit = (
 
 const POLL_MS = 800;
 const WAIT_PATH_MS = 120_000;
+
+function updateFinalPlannerFlag(ctx: SpawnContext, line: string, minCreatedAtMs: number): void {
+    let rowType = '';
+    let createdAtMs: number | null = null;
+    try {
+        const parsed = JSON.parse(line) as { created_at?: unknown; type?: unknown };
+        rowType = typeof parsed.type === 'string' ? parsed.type : '';
+        if (typeof parsed.created_at === 'string') {
+            const createdAt = Date.parse(parsed.created_at);
+            if (Number.isFinite(createdAt)) {
+                createdAtMs = createdAt;
+                if (createdAt < minCreatedAtMs) return;
+            }
+        }
+    } catch {
+        return;
+    }
+    // A USER_INPUT row marks the current turn's start: any final-planner flag set by a
+    // previous turn's row that slipped inside the lookback buffer (fast resume) is stale.
+    if (rowType === 'USER_INPUT') {
+        ctx.agyFinalPlannerSeen = false;
+        return;
+    }
+    const { kind } = classifyAgyTranscriptRow(line);
+    if (kind === 'final-planner') {
+        // The current turn's final answer row is always written after spawn, so require a
+        // fresh timestamp (1s allowance for second-truncation). The wider minCreatedAtMs
+        // lookback stays for tool display, but a previous turn's final planner inside that
+        // buffer must never arm completion — agy may not have flushed any current-turn row
+        // yet when the run resumes quickly (reproduced live in the v2 smoke).
+        const freshThresholdMs = minCreatedAtMs + 4_000;
+        if (createdAtMs !== null && createdAtMs >= freshThresholdMs) {
+            ctx.agyFinalPlannerSeen = true;
+        }
+    } else if (kind === 'tool' || kind === 'planner') {
+        ctx.agyFinalPlannerSeen = false;
+    }
+}
 
 function applyTranscriptTool(
     ctx: SpawnContext,
@@ -66,6 +105,7 @@ export function startAgyTranscriptWatcher(options: {
     empTag: Record<string, unknown>;
     traceAudience: 'public' | 'internal';
     onEmit: AgyTranscriptEmit;
+    onActivity?: () => void;
 }): AgyTranscriptWatcherHandle {
     let offset = 0;
     let transcriptPath: string | null = null;
@@ -80,6 +120,7 @@ export function startAgyTranscriptWatcher(options: {
             transcriptPath = null;
             conversationId = null;
             offset = 0;
+            options.ctx.agyFinalPlannerSeen = false;
         }
         if (!transcriptPath) {
             const resolved = resolveAgyTranscriptPath(options.cwd, currentSessionId);
@@ -98,9 +139,11 @@ export function startAgyTranscriptWatcher(options: {
             console.log(`[jaw:agy:transcript] tailing ${transcriptPath} (current-turn filter from ${new Date(startedAt).toISOString()})`);
         }
         try {
+            const previousOffset = offset;
             const delta = readTranscriptDelta(transcriptPath, offset);
             offset = delta.offset;
             for (const line of delta.lines) {
+                updateFinalPlannerFlag(options.ctx, line, startedAt - 5_000);
                 applyTranscriptTool(
                     options.ctx,
                     line,
@@ -111,6 +154,12 @@ export function startAgyTranscriptWatcher(options: {
                     options.empTag,
                     options.traceAudience,
                 );
+            }
+            if (delta.offset > previousOffset) {
+                // Transcript growth = AGY is still working, regardless of row type
+                // (planner/thinking rows are dropped by the tool parser but still count).
+                options.ctx.agyTranscriptActive = true;
+                options.onActivity?.();
             }
         } catch (e) {
             console.warn('[jaw:agy:transcript] read failed:', (e as Error).message);
@@ -136,6 +185,7 @@ export function startAgyTranscriptWatcher(options: {
             try {
                 const delta = readTranscriptDelta(transcriptPath, offset);
                 for (const line of delta.lines) {
+                    updateFinalPlannerFlag(options.ctx, line, startedAt - 5_000);
                     applyTranscriptTool(
                         options.ctx,
                         line,

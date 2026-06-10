@@ -5,12 +5,12 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
     AGY_COMPLETE_KILL_REASON,
+    AGY_FALLBACK_QUIET_COMPLETION_MS,
     AGY_PRINT_QUIET_COMPLETION_MS,
     extractAgyConversationId,
     formatAgyTimeoutMessage,
     getAgyQuietCompletionDelayMs,
     hasRunningAgyTranscriptTool,
-    isAgyInterimProgressOutput,
     isAgyTimeoutOutput,
     shouldCompleteAgyPrintRun,
     stripAgyResumeReplayPrefix,
@@ -199,94 +199,74 @@ test('AGY-RT-013b: AGY resume strips multi-turn replay before live quiet complet
     assert.match(spawnSrc, /ctx\.outputTextStarted\s*=\s*Boolean\(displayFullText\.trim\(\)\)/);
 });
 
-test('AGY-RT-014: AGY interim progress output does not trigger quiet completion', () => {
-    const englishProgress = 'I will search the git log to identify recent changes related to AGY completion hardening.';
-    const koreanProgress = 'Neo-Brutalism 웹 목업을 세부페이지 에셋 포함해서 만들게요! 먼저 이미지 서버 상태 확인하고 에셋 생성부터 시작합니다.';
-    const koreanMultiLineProgress = [
-        '먼저 agents.md 파일을 찾아 읽겠습니다. 현재 인스턴스의 AGENTS.md를 읽겠습니다. AGENTS.md 읽었습니다. Jaw 에이전트 시스템의 전체 아키텍처를 파악했으니, 이걸 기반으로 사이버펑크 웹사이트 목업을 만들겠습니다.',
-        '',
-        '핵심 컨셉:',
-        '',
-        '- Jaw Agent System — Boss + Employees (Frontend/Backend/Docs) 아키텍처',
-        '- PABCD 오케스트레이션 워크플로우 시각화',
-        '- Memory / Heartbeat / Goal / Desktop Control 시스템',
-        '',
-        '바로 만들어보겠습니다.',
-    ].join('\n');
-    const multilineProgress = [
-        'I need to search the related commits to understand the completion hardening changes.',
-        'I will examine the git commits one by one to extract exact details of the completion hardening. First, checking `85c7344b`, `48455201`, `f1cda491`, `ea6c5a87`.',
-    ].join('\n');
-    const resumedProgress = 'AGENTS.md was already read earlier in this conversation. Proceeding directly to create the directory and files.';
-    const resumedProgressVariant = 'AGENTS.md already read in this conversation. Creating directory and all three files now.';
-    const agyStepProgress = 'Steps 1–8 (all independent):';
-    const agyStepProgressPartial = 'Steps 1–4 (independent):';
-    const agyStepProgressChunk = 'Steps';
-    const agyStepProgressMulti = 'Steps 1–4 (all independent):\n\nSteps 5–7 (write files, depend on step 4):';
-    const finalAfterProgress = [
-        'AGENTS.md was already read earlier in this conversation. Proceeding directly to create the directory and files.',
-        'Let me verify all three files exist:',
-        'FINAL_AGY_COMPLEX_SMOKE_DONE',
-    ].join('\n');
-    assert.equal(isAgyInterimProgressOutput(englishProgress), true);
-    assert.equal(isAgyInterimProgressOutput(koreanProgress), true);
-    assert.equal(isAgyInterimProgressOutput(koreanMultiLineProgress), true);
-    assert.equal(isAgyInterimProgressOutput(multilineProgress), true);
-    assert.equal(isAgyInterimProgressOutput(resumedProgress), true);
-    assert.equal(isAgyInterimProgressOutput(resumedProgressVariant), true);
-    assert.equal(isAgyInterimProgressOutput(agyStepProgress), true);
-    assert.equal(isAgyInterimProgressOutput(agyStepProgressPartial), true);
-    assert.equal(isAgyInterimProgressOutput(agyStepProgressChunk), true);
-    assert.equal(isAgyInterimProgressOutput(agyStepProgressMulti), true);
-    assert.equal(isAgyInterimProgressOutput(finalAfterProgress), false);
+test('AGY-RT-014: AGY quiet completion is anchored on the final transcript planner row', () => {
+    const interimProgress = '이전 턴에서 리서치가 다 끝났어요. 바로 쓰레드를 작성하고 저장할게요.';
+    // Transcript active but final planner not seen: never complete, regardless of text shape.
     assert.equal(getAgyQuietCompletionDelayMs({
         outputTextStarted: true,
-        liveOutputText: englishProgress,
-        fullText: englishProgress,
+        liveOutputText: interimProgress,
+        fullText: interimProgress,
         toolLog: [],
+        agyTranscriptActive: true,
+        agyFinalPlannerSeen: false,
     }), null);
-    assert.equal(getAgyQuietCompletionDelayMs({
-        outputTextStarted: true,
-        liveOutputText: koreanMultiLineProgress,
-        fullText: koreanMultiLineProgress,
-        toolLog: [],
-    }), null);
-    assert.equal(getAgyQuietCompletionDelayMs({
-        outputTextStarted: true,
-        liveOutputText: resumedProgress,
-        fullText: resumedProgress,
-        toolLog: [],
-    }), null);
-    assert.equal(getAgyQuietCompletionDelayMs({
-        outputTextStarted: true,
-        liveOutputText: resumedProgressVariant,
-        fullText: resumedProgressVariant,
-        toolLog: [],
-    }), null);
-    assert.equal(getAgyQuietCompletionDelayMs({
-        outputTextStarted: true,
-        liveOutputText: agyStepProgress,
-        fullText: agyStepProgress,
-        toolLog: [],
-    }), null);
-    assert.equal(getAgyQuietCompletionDelayMs({
-        outputTextStarted: true,
-        liveOutputText: agyStepProgressMulti,
-        fullText: agyStepProgressMulti,
-        toolLog: [],
-    }), null);
+    // Transcript active + final planner row seen: complete after the short safety window.
     assert.equal(getAgyQuietCompletionDelayMs({
         outputTextStarted: true,
         liveOutputText: '최종 답변입니다.\nFINAL_SENTINEL',
         fullText: '최종 답변입니다.\nFINAL_SENTINEL',
         toolLog: [],
+        agyTranscriptActive: true,
+        agyFinalPlannerSeen: true,
     }), AGY_PRINT_QUIET_COMPLETION_MS);
+    // Final planner seen but a transcript tool still running: blocked.
     assert.equal(getAgyQuietCompletionDelayMs({
         outputTextStarted: true,
-        liveOutputText: englishProgress,
-        fullText: englishProgress,
+        liveOutputText: 'partial',
+        fullText: 'partial',
         toolLog: [{ icon: '🔧', label: 'cmd', toolType: 'tool', stepRef: 'agy:transcript:1:RUN_COMMAND', status: 'running' }],
+        agyTranscriptActive: true,
+        agyFinalPlannerSeen: true,
+    }), null);
+    // Transcript never resolved: legacy stdout-quiet fallback with a wide window.
+    assert.equal(getAgyQuietCompletionDelayMs({
+        outputTextStarted: true,
+        liveOutputText: 'answer without transcript',
+        fullText: 'answer without transcript',
+        toolLog: [],
+    }), AGY_FALLBACK_QUIET_COMPLETION_MS);
+    // Timeout-only output stays an error in both modes.
+    assert.equal(getAgyQuietCompletionDelayMs({
+        outputTextStarted: true,
+        liveOutputText: 'Error: timed out waiting for response',
+        fullText: 'Error: timed out waiting for response',
+        toolLog: [],
+        agyTranscriptActive: true,
+        agyFinalPlannerSeen: true,
+    }), null);
+    // No visible output yet: never complete.
+    assert.equal(getAgyQuietCompletionDelayMs({
+        outputTextStarted: false,
+        liveOutputText: '',
+        fullText: '',
+        toolLog: [],
+        agyTranscriptActive: true,
+        agyFinalPlannerSeen: true,
     }), null);
     const spawnSrc = readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
     assert.match(spawnSrc, /getAgyQuietCompletionDelayMs\(ctx\)/);
+    assert.match(spawnSrc, /onActivity:\s*\(\)\s*=>\s*\{\s*scheduleAgyQuietCompletion\(\);\s*\}/);
+});
+
+test('AGY-RT-015: transcript watcher drives the final planner flag and growth activity', () => {
+    const watcherSrc = readFileSync(join(__dirname, '../../src/agent/agy-transcript-watcher.ts'), 'utf8');
+    assert.match(watcherSrc, /updateFinalPlannerFlag\(options\.ctx, line, startedAt - 5_000\)/);
+    assert.match(watcherSrc, /agyFinalPlannerSeen = true/);
+    assert.match(watcherSrc, /agyFinalPlannerSeen = false/);
+    assert.match(watcherSrc, /delta\.offset > previousOffset/);
+    assert.match(watcherSrc, /agyTranscriptActive = true/);
+    assert.match(watcherSrc, /options\.onActivity\?\.\(\)/);
+    // Fast-resume regression: a USER_INPUT row must clear a stale final-planner flag set
+    // by the previous turn's row inside the lookback buffer.
+    assert.match(watcherSrc, /rowType === 'USER_INPUT'/);
 });
