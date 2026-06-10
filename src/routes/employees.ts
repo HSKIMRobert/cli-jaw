@@ -8,6 +8,7 @@ import { regenerateB } from '../prompt/builder.js';
 import { CLI_REGISTRY } from '../cli/registry.js';
 import {
     clearEmployeeSessionIfResumeKeyChanged,
+    type EmployeeResumeKeyLike,
     resetEmployeeSessions,
     seedDefaultEmployees,
     listEmployees,
@@ -81,7 +82,7 @@ export function registerEmployeeRoutes(app: Express, requireAuth: AuthMiddleware
             return;
         }
 
-        const before = db.prepare('SELECT * FROM employees WHERE id = ?').get(employeeId) as Record<string, any> | undefined;
+        const before = db.prepare('SELECT * FROM employees WHERE id = ?').get(employeeId) as EmployeeResumeKeyLike | undefined;
         const allowed = ['name', 'cli', 'model', 'role', 'status'];
         const keys = Object.keys(updates).filter(k => allowed.includes(k));
         const sets = keys.map(k => `${k} = ?`);
@@ -106,7 +107,7 @@ export function registerEmployeeRoutes(app: Express, requireAuth: AuthMiddleware
             res.status(400).json({ error: 'static employees cannot be deleted' });
             return;
         }
-        const before = db.prepare('SELECT * FROM employees WHERE id = ?').get(employeeId) as Record<string, any> | undefined;
+        const before = db.prepare('SELECT * FROM employees WHERE id = ?').get(employeeId) as EmployeeResumeKeyLike | undefined;
         deleteEmployee.run(employeeId);
         clearEmployeeSessionIfResumeKeyChanged(employeeId, before, { cli: '', model: '' });
         broadcast('agent_deleted', { id: employeeId });
