@@ -125,10 +125,11 @@ test('elicitation feature avoids chat imports and submits through cmd-execute', 
     assert.match(elicitationSrc, /data-elicitation-action="skip"/);
     assert.match(elicitationSrc, /data-elicitation-action="submit-custom"/);
     assert.match(elicitationSrc, /SUBMITTING_STATE/);
-    assert.match(elicitationSrc, /block\.remove\(\)/);
+    assert.match(elicitationSrc, /elicitation-complete/);
+    assert.doesNotMatch(elicitationSrc, /block\.remove\(\)/);
 });
 
-test('hydrated single-question option click composes a user message and removes wizard', async () => {
+test('hydrated single-question option click composes a user message and keeps submitted context visible', async () => {
     setupWebUiDom();
     const input = document.createElement('textarea');
     input.id = 'chatInput';
@@ -164,7 +165,9 @@ test('hydrated single-question option click composes a user message and removes 
     option.click();
 
     assert.equal(sent, 1);
-    assert.equal(wrapper.querySelector('.elicitation-block'), null);
+    assert.ok(wrapper.querySelector('.elicitation-complete'), 'completed wizard should stay visible as read-only context');
+    assert.match(wrapper.textContent || '', /구현 범위/);
+    assert.match(wrapper.textContent || '', /single_select MVP/);
     assert.match(input.value, /구조화 질문 응답:/);
     assert.match(input.value, /- 구현 범위: single_select MVP \(값: single_select MVP\)/);
     assert.match(input.value, /위 응답을 기준으로 계속 진행해줘\./);
