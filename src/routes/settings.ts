@@ -21,6 +21,7 @@ import { buildLiveCliRegistry } from '../cli/registry-live.js';
 import { fetchCopilotQuota, refreshCopilotFromKeychain } from '../../lib/quota-copilot.js';
 import { extractOpenAiApiKey, hasInvalidOpenAiApiKeyInput } from '../jaw-ceo/openai-key.js';
 import { getSecurityAuditLog } from '../security/security-audit-log.js';
+import { pickFolderNative } from '../core/folder-picker.js';
 import {
     listPiModels,
     normalizePiProfile,
@@ -135,6 +136,30 @@ export function registerSettingsRoutes(
         } catch { /* non-fatal */ }
         const safe = redactRuntimeSettings(result);
         ok(res, safe);
+    }));
+
+    // #233 follow-up: open the OS folder chooser and apply the picked folder
+    // as the project root. The dialog blocks until the user answers, so the
+    // request can stay open for minutes — that is expected.
+    app.post('/api/project/pick', requireAuth, asyncHandler(async (req, res) => {
+        const result = await pickFolderNative();
+        if (result.status === 'busy') {
+            res.status(409).json({ ok: false, error: 'folder dialog already open' });
+            return;
+        }
+        if (result.status === 'cancelled') {
+            ok(res, { cancelled: true });
+            return;
+        }
+        if (result.status === 'unavailable') {
+            res.status(500).json({ ok: false, error: result.reason });
+            return;
+        }
+        const applied = await applySettings({ projectDirs: [result.path] }) as Record<string, unknown>;
+        try {
+            getSecurityAuditLog().append('settings_change', String(req.ip || 'local'), { keys: ['projectDirs'] });
+        } catch { /* non-fatal */ }
+        ok(res, { projectDirs: applied["projectDirs"] ?? null });
     }));
 
     app.get('/api/codex-context', (_, res) => {

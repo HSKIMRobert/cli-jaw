@@ -137,6 +137,27 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     flex-shrink: 1;
+    cursor: pointer;
+    border-radius: 6px;
+    padding: 2px 8px;
+    border: 1px solid transparent;
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.header-project:hover {
+    color: var(--text, #ddd);
+    border-color: var(--border, #444);
+    background: rgba(128, 128, 128, 0.08);
+}
+
+.header-project.is-empty {
+    border: 1px dashed var(--border, #555);
+    opacity: 0.8;
+}
+
+.header-project.is-picking {
+    opacity: 0.5;
+    pointer-events: none;
 }
 
 .chat-messages {

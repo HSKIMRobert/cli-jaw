@@ -554,6 +554,28 @@ app.post('/api/dashboard/instances/:port/message', async (req, res) => {
     }
 });
 
+// #233 follow-up: relay the native folder chooser to a worker so the manager
+// UI can (re)assign that instance's project root. The worker's dialog blocks
+// until the user answers — the long-lived request is expected.
+app.post('/api/dashboard/instances/:port/project/pick', async (req, res) => {
+    const portValue = Number(req.params.port);
+    if (!Number.isInteger(portValue) || portValue < scanFrom || portValue >= scanFrom + scanCount) {
+        res.status(400).json({ ok: false, error: 'port out of configured scan range' });
+        return;
+    }
+    try {
+        const response = await fetch(`http://127.0.0.1:${portValue}/api/project/pick`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: '{}',
+        });
+        const data = await response.json().catch(() => ({ error: `worker returned ${response.status}` })) as unknown;
+        res.status(response.status).json(data);
+    } catch (error) {
+        res.status(502).json({ ok: false, error: (error as Error).message });
+    }
+});
+
 app.get('/api/manager/events', (req, res) => {
     const since = typeof req.query["since"] === 'string' && req.query["since"] ? req.query["since"] : null;
     if (since && Number.isNaN(Date.parse(since))) {

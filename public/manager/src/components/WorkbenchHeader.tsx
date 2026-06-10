@@ -9,6 +9,9 @@ type WorkbenchHeaderProps = {
     onPreviewEnabledChange: (enabled: boolean) => void;
     onPreviewRefresh: () => void;
     onOpenHelpTopic?: (topic: HelpTopicId) => void;
+    /** #233 follow-up: open the native folder chooser for this instance. */
+    onPickProject?: (port: number) => void;
+    projectPickBusy?: boolean;
 };
 
 function compactPath(path: string): string {
@@ -39,6 +42,17 @@ export function WorkbenchHeader(props: WorkbenchHeaderProps) {
                         )) : (
                             <span className="project-dir">Not set</span>
                         )}
+                        {props.onPickProject && instance.ok ? (
+                            <button
+                                type="button"
+                                className="project-pick-button"
+                                disabled={props.projectPickBusy}
+                                title="Open the folder chooser on this machine and set the project root"
+                                onClick={() => props.onPickProject?.(instance.port)}
+                            >
+                                {props.projectPickBusy ? 'Choosing…' : projectDirs.length ? 'Change' : 'Choose…'}
+                            </button>
+                        ) : null}
                     </div>
                 ) : (
                     <span>Select an online instance to inspect it.</span>

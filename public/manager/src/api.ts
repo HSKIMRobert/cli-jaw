@@ -107,6 +107,16 @@ export async function fetchInstanceStatus(port: number, options: { signal?: Abor
     return body.instance;
 }
 
+/** #233 follow-up: open the worker's native folder chooser and apply the
+ *  picked folder as that instance's project root. Resolves when the user
+ *  answers the dialog (can take minutes). */
+export async function pickInstanceProjectFolder(port: number): Promise<{ projectDirs?: string[] | null; cancelled?: boolean }> {
+    const response = await fetch(`/api/dashboard/instances/${port}/project/pick`, { method: 'POST' });
+    const body = await response.json().catch(() => ({})) as { ok?: boolean; data?: { projectDirs?: string[] | null; cancelled?: boolean }; error?: string; projectDirs?: string[] | null; cancelled?: boolean };
+    if (!response.ok) throw new Error(body.error || `project pick failed: ${response.status}`);
+    return body.data ?? body;
+}
+
 export async function sendInstanceMessage(
     port: number,
     prompt: string,
