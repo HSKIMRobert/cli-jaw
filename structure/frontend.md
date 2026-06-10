@@ -30,10 +30,10 @@ public/
 ├── css/                  ← 12 CSS files
 ├── icons/                ← 3 PWA icons
 ├── img/                  ← shark sprite
-├── js/                   ← 86 TypeScript modules
+├── js/                   ← 90 TypeScript modules
 │   ├── diagram/          ← 3 diagram pipeline modules
 │   ├── features/         ← 50 feature modules
-│   └── render/           ← 14 markdown/diagram rendering modules
+│   └── render/           ← 18 markdown/diagram rendering modules
 ├── locales/              ← ko/en/ja/zh JSON bundles
 ├── manager/              ← React manager dashboard (300 source files under src)
 │   ├── index.html        ← Manager HTML entry
@@ -48,7 +48,7 @@ public/
 | `public/` source/assets (generated 제외) | 434 | `public/dist/*`, `public/public/dist/*` 모두 제외 |
 | `public/js/` root | 19 | TypeScript ES modules |
 | `public/js/diagram/` | 3 | SVG/iframe diagram pipeline |
-| `public/js/render/` | 14 | markdown/KaTeX/Mermaid/SVG/file-link/post-render 책임 분리 |
+| `public/js/render/` | 18 | markdown/KaTeX/Mermaid/SVG/file-link/post-render/structured card renderer 책임 분리 |
 | `public/js/features/` | 50 | settings 분해 + help/attention/orchestrate scope + process-step-match + preview shortcut/invalidate bridge + MCP registry + chat-search + workflow-event-adapter + media-lightbox + Pi settings 포함 |
 | `public/manager/src/` | 300 | React 19 manager dashboard |
 | `public/css/` | 12 | theme/layout/chat/markdown/tool UI/diagram/trace drawer/workflow cockpit/chat-search |
@@ -96,8 +96,12 @@ public/
 | `js/render/delegations.ts` | — | render delegation registry |
 | `js/render/search-results.ts` | — | `search-results` fenced JSON placeholder hydration. Final-render only; malformed specs fail closed, unsafe URLs are dropped, and results render as compact native cards. |
 | `js/render/link-preview.ts` | — | External URL link preview lazy hydration. Skips internal/private/media links, fetches `/api/link-preview`, renders proxied images through `/api/link-preview/image`, caps concurrent preview fetches, and renders compact cards with favicon/site/URL metadata on the first line plus clamped title/description text. |
+| `js/render/compose-block.ts` | — | `compose-block` fenced JSON placeholder hydration. Renders editable draft cards with variants, copy/open actions, final-render-only activation, and malformed-spec fail-closed errors. |
+| `js/render/diff-viewer.ts` | — | Unified diff native renderer. Supports explicit `diff` fences and no-language unified diff auto-detect, escapes all content, caps large diffs, and keeps streaming code blocks inert. |
+| `js/render/dataframe.ts` | — | `dataframe` fenced JSON placeholder hydration. Renders searchable/sortable/paginated read-only tables with cell copy, row/column caps, final-render-only activation, and malformed-spec fail-closed errors. |
+| `js/render/chart-json.ts` | — | `chart-json` fenced JSON placeholder hydration. Renders dependency-free SVG bar/line/pie cards with legend swatches, data caps, final-render-only activation, and malformed-spec fail-closed errors. |
 | `js/features/elicitation.ts` | — | `elicitation` / `choice-buttons` structured question placeholder hydration. Supports sequential wizard answers, skip/direct input, auto-injection, submitted read-only summaries, and 21 Advanced `visibleWhen` prior-answer branching. Final-render oriented; malformed final specs fail closed with user-safe error + console diagnostic, and incomplete fences stay inert. |
-| `src/shared/structured-fence.ts` | — | shared syntax-light scanner for `elicitation` / `choice-buttons` / `search-results` fenced block completeness; used by frontend render guards and server lifecycle diagnostics. |
+| `src/shared/structured-fence.ts` | — | shared syntax-light scanner for `elicitation` / `choice-buttons` / `search-results` / `compose-block` / `dataframe` / `chart-json` fenced block completeness; used by frontend render guards and server lifecycle diagnostics. |
 | `js/ui.ts` | 441L | 메시지 렌더링, skeleton/empty state, virtual scroll 연동, ProcessBlock 오케스트레이션, copy button, avatar markup 주입, message finalization, `scrollIntent` 기반 bottom-follow/restore policy |
 | `js/ws.ts` | 877L | SSE/WS 공용 메시지 dispatcher + legacy WebSocket fallback. agent status, queue update, `agent_tool`→typed ProcessStep, agent output/done, orchestration state, interview panel, Telegram/Discord new message, reconnect snapshot, 10초 reload dedup, 8초 disconnect-toast grace, reconnect 후 bottom anchor reconciliation |
 | `js/streaming-render.ts` | — | 스트리밍 텍스트 렌더러 |

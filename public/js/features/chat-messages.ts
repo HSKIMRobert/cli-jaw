@@ -8,6 +8,9 @@ import { getAppName } from './appname.js';
 import { getAgentAvatarMarkup, getUserAvatarMarkup } from './avatar.js';
 import { hydrateElicitationBlocks } from './elicitation.js';
 import { hydrateSearchResultsBlocks } from '../render/search-results.js';
+import { hydrateComposeBlocks } from '../render/compose-block.js';
+import { hydrateDataframeBlocks } from '../render/dataframe.js';
+import { hydrateChartJsonBlocks } from '../render/chart-json.js';
 import { hydrateLinkPreviewCards } from '../render/link-preview.js';
 import { t } from './i18n.js';
 import { renderMessageActionsHtml } from './message-actions.js';
@@ -128,6 +131,9 @@ export function addMessage(role: string, text: string, cli?: string | null): HTM
         activateWidgets(div);
         hydrateElicitationBlocks(div);
         hydrateSearchResultsBlocks(div);
+        hydrateComposeBlocks(div);
+        hydrateDataframeBlocks(div);
+        hydrateChartJsonBlocks(div);
         hydrateLinkPreviewCards(div);
         if (!vs.active && !isStreamingPlaceholder && container) {
             const msgCount = container.querySelectorAll('.msg').length;
@@ -140,6 +146,9 @@ export function addMessage(role: string, text: string, cli?: string | null): HTM
                     activateWidgets(viewport);
                     hydrateElicitationBlocks(viewport);
                     hydrateSearchResultsBlocks(viewport);
+                    hydrateComposeBlocks(viewport);
+                    hydrateDataframeBlocks(viewport);
+                    hydrateChartJsonBlocks(viewport);
                     hydrateLinkPreviewCards(viewport);
                     void linkifyFilePathsWithNotesRoot(viewport);
                     void renderMermaidBlocks(viewport, { immediate: true });

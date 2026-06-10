@@ -838,6 +838,309 @@
     }
 }
 
+/* ── Structured Renderer Cards ── */
+.compose-block-pending,
+.compose-block,
+.diff-viewer,
+.dataframe-pending,
+.dataframe-block,
+.chart-json-pending,
+.chart-json-block {
+    margin: var(--space-3) 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: color-mix(in oklch, var(--surface) 96%, var(--text));
+    color: var(--text);
+}
+
+.compose-block-pending,
+.compose-block,
+.dataframe-pending,
+.dataframe-block,
+.chart-json-pending,
+.chart-json-block {
+    padding: var(--space-3);
+}
+
+.compose-loading,
+.dataframe-loading,
+.chart-json-loading,
+.compose-error-text,
+.dataframe-error-text,
+.chart-json-error-text {
+    color: var(--text-dim);
+    font-size: var(--text-sm);
+}
+
+.compose-block {
+    display: grid;
+    gap: var(--space-2);
+}
+
+.compose-block-header,
+.dataframe-toolbar,
+.chart-json-header {
+    display: grid;
+    gap: 2px;
+}
+
+.compose-title,
+.dataframe-title,
+.chart-json-title {
+    color: var(--text);
+    font-size: var(--text-sm);
+    font-weight: 700;
+}
+
+.compose-kind,
+.chart-json-description {
+    color: var(--text-dim);
+    font-size: var(--text-xs);
+}
+
+.compose-subject-row {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--text-dim);
+    font-size: var(--text-xs);
+}
+
+.compose-subject-input,
+.compose-body,
+.dataframe-filter {
+    min-width: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+}
+
+.compose-subject-input,
+.dataframe-filter {
+    height: 32px;
+    padding: 0 var(--space-2);
+}
+
+.compose-body {
+    width: 100%;
+    min-height: 132px;
+    max-height: 260px;
+    padding: var(--space-2);
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.compose-tabs,
+.compose-actions,
+.dataframe-pagination,
+.chart-json-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.compose-tab,
+.compose-btn,
+.dataframe-page-btn,
+.dataframe-sort-btn,
+.dataframe-cell {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+}
+
+.compose-tab,
+.compose-btn,
+.dataframe-page-btn {
+    min-height: 30px;
+    padding: 0 var(--space-2);
+    font-size: var(--text-xs);
+    font-weight: 700;
+}
+
+.compose-tab.is-active {
+    border-color: color-mix(in oklch, var(--accent) 55%, var(--border));
+    background: color-mix(in oklch, var(--accent) 12%, var(--surface));
+}
+
+.compose-subject-input:focus-visible,
+.compose-body:focus-visible,
+.compose-tab:focus-visible,
+.compose-btn:focus-visible,
+.dataframe-filter:focus-visible,
+.dataframe-page-btn:focus-visible,
+.dataframe-sort-btn:focus-visible,
+.dataframe-cell:focus-visible {
+    outline: 2px solid color-mix(in oklch, var(--accent) 70%, white);
+    outline-offset: 2px;
+}
+
+.diff-viewer {
+    overflow: auto;
+    max-height: 460px;
+    padding: var(--space-2) 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+}
+
+.diff-line {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr);
+    min-width: max-content;
+    line-height: 1.45;
+}
+
+.diff-ln {
+    padding: 0 var(--space-2);
+    color: var(--text-dim);
+    text-align: right;
+    user-select: none;
+}
+
+.diff-code {
+    padding: 0 var(--space-3) 0 var(--space-2);
+    white-space: pre;
+}
+
+.diff-file,
+.diff-hunk {
+    color: var(--text);
+    font-weight: 700;
+}
+
+.diff-add { background: color-mix(in oklch, #16a34a 12%, transparent); }
+.diff-del { background: color-mix(in oklch, #dc2626 12%, transparent); }
+.diff-hunk { background: color-mix(in oklch, var(--accent) 10%, transparent); }
+
+.diff-omitted {
+    padding: var(--space-2) var(--space-3);
+    color: var(--text-dim);
+}
+
+.dataframe-block {
+    display: grid;
+    gap: var(--space-2);
+}
+
+.dataframe-toolbar {
+    grid-template-columns: minmax(0, 1fr) minmax(140px, 220px);
+    align-items: center;
+}
+
+.dataframe-table-wrap {
+    overflow: auto;
+    max-height: 360px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+}
+
+.dataframe-table {
+    width: 100%;
+    min-width: 420px;
+    border-collapse: collapse;
+    font-size: var(--text-xs);
+}
+
+.dataframe-table th,
+.dataframe-table td {
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    vertical-align: top;
+}
+
+.dataframe-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--surface);
+}
+
+.dataframe-sort-btn,
+.dataframe-cell {
+    display: block;
+    width: 100%;
+    padding: var(--space-2);
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    text-align: left;
+}
+
+.dataframe-cell {
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dataframe-page-info {
+    color: var(--text-dim);
+    font-size: var(--text-xs);
+}
+
+.dataframe-empty {
+    padding: var(--space-3);
+    color: var(--text-dim);
+}
+
+.chart-json-block {
+    display: grid;
+    max-width: min(560px, 100%);
+    gap: var(--space-2);
+}
+
+.chart-json-frame {
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+}
+
+.chart-json-svg {
+    display: block;
+    width: 100%;
+    height: 190px;
+}
+
+.chart-json-legend {
+    color: var(--text-dim);
+    font-size: var(--text-xs);
+}
+
+.chart-json-legend-item {
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+    gap: var(--space-1);
+}
+
+.chart-json-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    flex: 0 0 auto;
+}
+
+.chart-json-swatch-0 { background: #2563eb; }
+.chart-json-swatch-1 { background: #16a34a; }
+.chart-json-swatch-2 { background: #dc2626; }
+.chart-json-swatch-3 { background: #9333ea; }
+.chart-json-swatch-4 { background: #ca8a04; }
+.chart-json-swatch-5 { background: #0891b2; }
+
+@media (max-width: 520px) {
+    .compose-subject-row,
+    .dataframe-toolbar {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* ── Message Actions ── */
 .msg-actions {
     position: absolute;

@@ -56,6 +56,9 @@ export function sanitizeHtml(html: string): string {
                    'data-jaw-svg', 'data-jaw-kind', 'data-mermaid-code-raw',
                    'data-elicitation-kind', 'data-elicitation-spec', 'data-elicitation-hydrated',
                    'data-search-results-kind', 'data-search-results-spec', 'data-search-results-hydrated',
+                   'data-compose-block-kind', 'data-compose-block-spec', 'data-compose-block-hydrated',
+                   'data-dataframe-kind', 'data-dataframe-spec', 'data-dataframe-hydrated',
+                   'data-chart-json-kind', 'data-chart-json-spec', 'data-chart-json-hydrated',
                    'href', 'xlink:href', 'dominant-baseline'],
     });
     return sanitizeCssInStyleTags(clean);
