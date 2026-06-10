@@ -410,7 +410,7 @@ jaw skill list              # 사용 가능한 스킬 목록
 | **Chrome DevTools Protocol** | 탐색, 클릭, 입력, 스크린샷, JS 실행, 스크롤, 키 입력 — Chrome 원격 제어 |
 | **Vision-click** | 화면 캡처 → AI가 대상 좌표 추출 → 클릭. `jaw browser vision-click "로그인 버튼"` |
 | **Computer Use** | Codex Computer Use를 통한 데스크톱 앱 자동화. Safari로 localhost에 접속하면 Codex 앱처럼 동작 |
-| **Web-AI 벤더** | `jaw browser web-ai --vendor chatgpt\|gemini\|grok` — 세션 생명주기, 진단, 소스 감사 지원 |
+| **Web-AI 벤더** | `jaw browser web-ai --vendor chatgpt\|gemini\|grok` — 세션 생명주기, 진단, 소스 감사, ChatGPT code-mode zip 회수 지원 |
 | **Diagram 스킬** | SVG 다이어그램과 인터랙티브 시각화 생성, 채팅 안에서 인라인 렌더링 |
 
 Computer Use로 Finder, Safari, 시스템 설정, Xcode 등 모든 macOS 앱을 자연어로 제어할 수 있습니다.
@@ -506,6 +506,7 @@ jaw browser fetch "https://example.com" --json --trace  # URL 적응형 읽기
 jaw browser snapshot              # 페이지 상태 캡처
 jaw browser vision-click "로그인"  # AI 기반 클릭
 jaw browser web-ai status         # ChatGPT/Gemini/Grok web-AI 세션 도구
+jaw browser web-ai code --vendor chatgpt --model thinking --effort heavy --prompt "MVP 만들기" --output-zip ./result.zip
 
 # 대시보드 커넥터
 jaw dashboard memory search "query"  # read-only cross-instance memory search
