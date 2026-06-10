@@ -3,7 +3,6 @@
  * Three modes: default (raw stdin, persistent footer), --raw (JSON in UI), --simple (plain readline)
  */
 import { parseArgs } from 'node:util';
-import WebSocket from 'ws';
 import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { resolve as resolvePath, dirname, join } from 'node:path';
@@ -45,6 +44,7 @@ import { handleKeyInput, flushPendingEscape } from './tui/input-handler.js';
 import { runFullscreenMode } from './tui/fullscreen-mode.js';
 import { resolveTuiDisplayMode } from '../../src/cli/tui/mode.js';
 import { handleWsMessage } from './tui/ws-handler.js';
+import { connectChannel, type ChatChannel } from './tui/channel.js';
 import { asRecord, fieldString } from '../_http-client.js';
 
 // ─── Init ────────────────────────────────────
@@ -77,19 +77,15 @@ const { values } = parseArgs({
     strict: false,
 });
 
-// ─── Connect ─────────────────────────────────
+// ─── Connect (SSE first, legacy WS fallback — X-01) ──
 const wsUrl = getWsUrl(values.port as string);
 const apiUrl = getServerUrl(values.port as string);
 
-let ws: WebSocket;
+let ws: ChatChannel;
 try {
-    ws = await new Promise<WebSocket>((resolve, reject) => {
-        const s = new WebSocket(wsUrl);
-        s.on('open', () => resolve(s));
-        s.on('error', reject);
-    });
+    ws = await connectChannel(values.port as string);
 } catch {
-    console.error(`\n  ${c.red}x${c.reset} Cannot connect to ${wsUrl}`);
+    console.error(`\n  ${c.red}x${c.reset} Cannot connect to ${apiUrl}/api/events or ${wsUrl}`);
     console.error(`  Run ${c.cyan}cli-jaw serve${c.reset} first\n`);
     process.exit(1);
 }
@@ -261,8 +257,8 @@ if (values.simple) {
         for (const token of tokens) handleKeyInput(ctx, token);
     });
 
-    // ─── WS messages ─────────────────────────
-    ws.on('message', (data: WebSocket.RawData) => handleWsMessage(ctx, data));
+    // ─── Channel messages (SSE or legacy WS) ─
+    ws.on('message', (data) => handleWsMessage(ctx, data));
 
     ws.on('close', () => {
         cleanupScrollRegion(resolveShellLayout(process.stdout.columns || 80, getRows(), ctx.store.panes));

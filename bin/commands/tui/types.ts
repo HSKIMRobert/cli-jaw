@@ -4,7 +4,7 @@
 import type { TuiStore } from '../../../src/cli/tui/store.js';
 import type { StreamSink } from '../../../src/cli/tui/stream.js';
 import type { IdeType } from '../../../src/ide/diff.js';
-import type WebSocket from 'ws';
+import type { ChatChannel } from './channel.js';
 
 // ─── ANSI color codes ────────────────────────
 export const c = {
@@ -68,7 +68,7 @@ export function formatFooter(
 
 // ─── Shared state interface ──────────────────
 export interface TuiContext {
-    ws: WebSocket;
+    ws: ChatChannel;
     apiUrl: string;
 
     info: { cli: string; workingDir: string; model: string };

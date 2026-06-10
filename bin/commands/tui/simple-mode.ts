@@ -10,7 +10,6 @@ import type { ParsedSlashCommand } from '../../../src/cli/types.js';
 import { captureFileSet, diffFileSets, openDiffInIde, getIdeCli } from '../../../src/ide/diff.js';
 import { c, renderCommandText, type TuiContext } from './types.js';
 import { makeCliCommandCtx } from './api.js';
-import type WebSocket from 'ws';
 
 export async function runSimpleMode(ctx: TuiContext): Promise<void> {
     const { ws } = ctx;
@@ -45,7 +44,7 @@ export async function runSimpleMode(ctx: TuiContext): Promise<void> {
         rl.prompt();
     }
 
-    ws.on('message', (data: WebSocket.RawData) => {
+    ws.on('message', (data) => {
         try {
             const msg = JSON.parse(data.toString());
             if (msg.type === 'agent_chunk' || msg.type === 'agent_output') { if (!streaming) streaming = true; process.stdout.write(msg.text || ''); }
