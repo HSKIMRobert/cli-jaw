@@ -196,3 +196,17 @@ test('WRS-008: channel-down toast waits out micro-drops (grace period)', () => {
     assert.ok(upBlock.includes('clearChannelDownToastTimer()'),
         'reconnect within grace must cancel the pending toast');
 });
+
+test('WRS-009: replay gap hydrates messages and runtime snapshot', { skip: !hasWs && 'public/js/ws source not found' }, () => {
+    const wsSrc = readFileSync(wsPath, 'utf8');
+    const branchIdx = wsSrc.indexOf("msg.type === 'replay_gap'");
+    const handlerIdx = wsSrc.indexOf('function handleReplayGap');
+    assert.ok(branchIdx > 0, 'ws dispatcher should handle replay_gap events');
+    assert.ok(handlerIdx > 0, 'ws should centralize replay gap recovery');
+    const handlerBlock = wsSrc.slice(handlerIdx, wsSrc.indexOf('function handleChannelDown', handlerIdx));
+    assert.ok(handlerBlock.includes('showChatRestoreIndicator'), 'replay gap should show restore feedback');
+    assert.ok(handlerBlock.includes('m.loadMessages()'), 'replay gap should reload chat history');
+    assert.ok(handlerBlock.includes('lastLoadTs = Date.now()'), 'replay gap should update the reload throttle timestamp');
+    assert.ok(handlerBlock.includes("syncOrchestrateSnapshot('replay_gap', { hydrateRun: true })"), 'replay gap should hydrate runtime snapshot');
+    assert.ok(handlerBlock.includes("reconcileChatBottomAfterRestore('replay_gap')"), 'replay gap should restore the bottom anchor after hydration');
+});
