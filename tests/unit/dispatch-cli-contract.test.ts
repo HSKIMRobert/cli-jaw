@@ -74,3 +74,18 @@ test('dispatch CLI reports stale or missing server routes for non-JSON responses
     assert.match(dispatchSrc, /server may be stale or missing this route/);
     assert.doesNotMatch(dispatchSrc, /\.json\(\)/);
 });
+
+test('dispatch CLI prints worker-status recovery hints for initial fetch failures', () => {
+    assert.ok(
+        dispatchSrc.includes("message.includes('fetch failed')"),
+        'dispatch CLI should classify initial fetch failures for recovery guidance',
+    );
+    assert.ok(
+        dispatchSrc.includes('cli-jaw worker status'),
+        'dispatch CLI should tell users how to inspect possibly accepted workers after fetch failed',
+    );
+    assert.ok(
+        dispatchSrc.includes('cli-jaw worker status "${targetName}"'),
+        'dispatch CLI should include a target-specific worker status command',
+    );
+});

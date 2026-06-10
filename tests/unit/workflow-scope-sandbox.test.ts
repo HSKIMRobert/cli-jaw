@@ -24,6 +24,17 @@ test('normalizeScope rejects sibling paths with the same prefix', () => {
     }
 });
 
+test('normalizeScope accepts absolute child paths inside project root', () => {
+    const root = makeTempRoot();
+    try {
+        const child = path.join(root, '.ab-compare', 'frontend-employee');
+        fs.mkdirSync(child, { recursive: true });
+        assert.equal(normalizeScope(root, child), child);
+    } finally {
+        fs.rmSync(root, { recursive: true, force: true });
+    }
+});
+
 test('normalizeScope rejects symlink scopes outside project root', () => {
     const base = makeTempRoot();
     const root = path.join(base, 'app');
