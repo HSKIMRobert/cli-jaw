@@ -7,7 +7,7 @@ import type { Request } from 'express';
 import { makeCommandCtx } from './command-context.js';
 import { resolveRequestLocale } from '../http/locale.js';
 import { applySettingsPatch, clearSessionState, resetSessionOnly } from '../core/session-ops.js';
-import { seedDefaultEmployees } from '../core/employees.js';
+import { resetEmployeeSessions, seedDefaultEmployees } from '../core/employees.js';
 
 export function makeWebCommandCtx(req: Request, localeOverride: string | null = null) {
     return makeCommandCtx('web', resolveRequestLocale(req, localeOverride), {
@@ -15,5 +15,6 @@ export function makeWebCommandCtx(req: Request, localeOverride: string | null = 
         clearSession: () => clearSessionState(),
         resetSession: () => resetSessionOnly(),
         resetEmployees: () => seedDefaultEmployees({ reset: true, notify: true }),
+        resetEmployeeSessions: () => resetEmployeeSessions(),
     });
 }

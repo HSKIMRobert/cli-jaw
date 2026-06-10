@@ -4,6 +4,7 @@
 import { broadcast } from '../core/bus.js';
 import { settings, normalizeProjectDirs } from '../core/config.js';
 import { clearEmployeeSession, getEmployeeSession, upsertEmployeeSession } from '../core/db.js';
+import { clearStaleEmployeeSessionIfResumeKeyMismatch } from '../core/employees.js';
 import { getEmployeePromptV2 } from '../prompt/builder.js';
 import { spawnAgent, killAgentById } from '../agent/spawn.js';
 import { appendToWorklog } from '../memory/worklog.js';
@@ -84,6 +85,10 @@ type AgentRunResult = {
     code?: unknown;
     text?: unknown;
     sessionId?: unknown;
+    cli?: unknown;
+    model?: unknown;
+    session_id?: unknown;
+    output_len?: unknown;
     diagnostic?: unknown;
     tools?: unknown;
     [key: string]: unknown;
@@ -457,8 +462,14 @@ ${worklogBlock}`.trim();
 
     const employeeModel = String(emp["model"] || '');
     const empSession = getEmployeeSession.get(empId) as AgentRunResult | undefined;
+    const clearedStaleResumeKey = clearStaleEmployeeSessionIfResumeKeyMismatch(empId, empSession, {
+        cli: emp["cli"],
+        model: employeeModel,
+    });
     const empSessionId = text(empSession?.["session_id"]);
     const canResume = !!(
+        !clearedStaleResumeKey
+        &&
         isSessionPersistingCli(String(emp["cli"] || ''))
         && empSessionId
         && empSession?.["cli"] === emp["cli"]

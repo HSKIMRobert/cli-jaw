@@ -3,6 +3,7 @@
  * Usage:
  *   cli-jaw employee list [--port 3457] [--json]
  *   cli-jaw employee reset [--port 3457]
+ *   cli-jaw employee sessions-reset [--port 3457]
  */
 import { parseArgs } from 'node:util';
 import { getServerUrl } from '../../src/core/config.js';
@@ -27,9 +28,11 @@ function printHelp() {
   Usage:
     cli-jaw employee list [--port 3457] [--json]
     cli-jaw employee reset [--port 3457]
+    cli-jaw employee sessions-reset [--port 3457]
 
   Description:
     List employees or reset DB employees to built-in defaults.
+    sessions-reset clears only persisted employee resume sessions.
     Static employees such as Control are merged into the list by the server.
 `);
 }
@@ -136,6 +139,18 @@ switch (sub) {
             console.log(`✅ employees reset complete (${result.seeded ?? 0} seeded)`);
         } catch (err) {
             console.error(`❌ employee reset failed: ${(err as Error).message}`);
+            process.exitCode = 1;
+        }
+        break;
+    }
+    case 'sessions-reset':
+    case 'session-reset':
+    case 'reset-sessions': {
+        try {
+            const result = await apiJson<{ cleared?: number }>(baseUrl, '/api/employees/sessions/reset', { method: 'POST' });
+            console.log(`✅ employee sessions reset complete (${result.cleared ?? 0} cleared)`);
+        } catch (err) {
+            console.error(`❌ employee sessions reset failed: ${(err as Error).message}`);
             process.exitCode = 1;
         }
         break;

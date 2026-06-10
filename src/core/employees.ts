@@ -2,7 +2,7 @@
 // Shared employee seeding logic for web, telegram, discord contexts.
 
 import crypto from 'node:crypto';
-import { getEmployees, deleteEmployee, insertEmployee, db } from './db.js';
+import { getEmployees, deleteEmployee, insertEmployee, db, clearEmployeeSession, clearAllEmployeeSessions } from './db.js';
 import { settings } from './config.js';
 import { stripUndefined } from './strip-undefined.js';
 import { broadcast } from './bus.js';
@@ -62,6 +62,50 @@ export interface EmployeeRow {
     model: string | null;
     role: string | null;
     [k: string]: unknown; // allow forward-compatible columns
+}
+
+export interface EmployeeResumeKeyLike {
+    cli?: unknown;
+    model?: unknown;
+}
+
+function resumeKeyPart(value: unknown): string {
+    return String(value ?? '');
+}
+
+export function employeeResumeKeyChanged(
+    before: EmployeeResumeKeyLike | null | undefined,
+    after: EmployeeResumeKeyLike | null | undefined,
+): boolean {
+    if (!before || !after) return false;
+    return resumeKeyPart(before.cli) !== resumeKeyPart(after.cli)
+        || resumeKeyPart(before.model) !== resumeKeyPart(after.model);
+}
+
+export function clearEmployeeSessionIfResumeKeyChanged(
+    employeeId: string,
+    before: EmployeeResumeKeyLike | null | undefined,
+    after: EmployeeResumeKeyLike | null | undefined,
+): boolean {
+    if (!employeeId || !employeeResumeKeyChanged(before, after)) return false;
+    clearEmployeeSession.run(employeeId);
+    return true;
+}
+
+export function clearStaleEmployeeSessionIfResumeKeyMismatch(
+    employeeId: string,
+    stored: EmployeeResumeKeyLike | null | undefined,
+    current: EmployeeResumeKeyLike | null | undefined,
+): boolean {
+    if (!employeeId || !stored || !current) return false;
+    if (!employeeResumeKeyChanged(stored, current)) return false;
+    clearEmployeeSession.run(employeeId);
+    return true;
+}
+
+export function resetEmployeeSessions(): { cleared: number } {
+    const result = clearAllEmployeeSessions.run();
+    return { cleared: Number(result.changes || 0) };
 }
 
 /**
@@ -249,6 +293,7 @@ export function seedDefaultEmployees({ reset = false, notify = false } = {}) {
     if (!db.open) return { seeded: 0, cli: settings["cli"], skipped: true };
     const existing = getEmployees.all() as EmployeeRow[];
     if (reset) {
+        clearAllEmployeeSessions.run();
         for (const emp of existing) deleteEmployee.run(emp.id);
     } else if (existing.length > 0) {
         return { seeded: 0, cli: settings["cli"], skipped: true };

@@ -78,6 +78,7 @@ export function makeCliCommandCtx(ctx: TuiContext) {
         getBrowserStatus: () => api('/api/browser/status'),
         getBrowserTabs: () => api('/api/browser/tabs'),
         resetEmployees: () => api('/api/employees/reset', { method: 'POST' }),
+        resetEmployeeSessions: () => api('/api/employees/sessions/reset', { method: 'POST' }),
         getPrompt: () => api('/api/prompt'),
         resetSkills: () => api('/api/skills/reset', { method: 'POST' }).catch(() => { }),
     };

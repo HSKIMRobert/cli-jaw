@@ -13,7 +13,7 @@ import { bumpSessionOwnershipGeneration } from '../agent/session-persistence.js'
 import { clearMainSessionState, resetSessionPreservingHistory } from '../core/main-session.js';
 import { getVisibleCommands } from '../command-contract/policy.js';
 import type { DiscordSendableChannel } from './channel-types.js';
-import { seedDefaultEmployees } from '../core/employees.js';
+import { resetEmployeeSessions, seedDefaultEmployees } from '../core/employees.js';
 
 export async function registerDiscordSlashCommands(client: Client) {
     if (!settings["discord"]?.guildId) {
@@ -66,6 +66,7 @@ function makeDiscordCommandCtx() {
             resetSessionPreservingHistory();
         },
         resetEmployees: () => seedDefaultEmployees({ reset: true, notify: true }),
+        resetEmployeeSessions: () => resetEmployeeSessions(),
     });
 }
 

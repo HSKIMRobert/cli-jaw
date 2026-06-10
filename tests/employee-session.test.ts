@@ -123,6 +123,69 @@ test('P100-ES-006: clearAllEmployeeSessions가 main session 테이블을 건드�
     assert.equal(after.session_id, before.session_id, 'main session session_id 보존');
 });
 
+test('P100-ES-006b: employee resume-key change clears only the affected employee session', async () => {
+    const { upsertEmployeeSession, getEmployeeSession, clearAllEmployeeSessions } = await import('../src/core/db.ts');
+    const { clearEmployeeSessionIfResumeKeyChanged } = await import('../src/core/employees.ts');
+
+    const id1 = `test_resume_key_1_${Date.now()}`;
+    const id2 = `test_resume_key_2_${Date.now()}`;
+
+    try {
+        upsertEmployeeSession.run(id1, 'sid1', 'codex', 'gpt-5.4', 0);
+        upsertEmployeeSession.run(id2, 'sid2', 'codex', 'gpt-5.4', 0);
+
+        const cleared = clearEmployeeSessionIfResumeKeyChanged(
+            id1,
+            { cli: 'codex', model: 'gpt-5.4' },
+            { cli: 'grok', model: 'grok-composer-2.5-fast' },
+        );
+
+        assert.equal(cleared, true, 'resume-key change should clear the stale session');
+        assert.equal(getEmployeeSession.get(id1), undefined, 'changed employee session is cleared');
+        assert.ok(getEmployeeSession.get(id2), 'unrelated employee session remains');
+    } finally {
+        clearAllEmployeeSessions.run();
+    }
+});
+
+test('P100-ES-006c: dispatch-time stale employee session mismatch is cleared', async () => {
+    const { upsertEmployeeSession, getEmployeeSession, clearAllEmployeeSessions } = await import('../src/core/db.ts');
+    const { clearStaleEmployeeSessionIfResumeKeyMismatch } = await import('../src/core/employees.ts');
+
+    const id = `test_stale_dispatch_${Date.now()}`;
+    try {
+        upsertEmployeeSession.run(id, 'sid-stale', 'grok', 'grok-composer-2.5-fast', 0);
+        const cleared = clearStaleEmployeeSessionIfResumeKeyMismatch(
+            id,
+            { cli: 'grok', model: 'grok-composer-2.5-fast' },
+            { cli: 'codex', model: 'gpt-5.3-codex-spark' },
+        );
+
+        assert.equal(cleared, true, 'stale dispatch resume key should be cleared');
+        assert.equal(getEmployeeSession.get(id), undefined);
+    } finally {
+        clearAllEmployeeSessions.run();
+    }
+});
+
+test('P100-ES-006d: manual employee session reset clears sessions without touching employees', async () => {
+    const { getEmployees, upsertEmployeeSession, getEmployeeSession, clearAllEmployeeSessions } = await import('../src/core/db.ts');
+    const { resetEmployeeSessions } = await import('../src/core/employees.ts');
+
+    const id = `test_manual_reset_${Date.now()}`;
+    const beforeEmployees = getEmployees.all().length;
+    try {
+        upsertEmployeeSession.run(id, 'sid-manual', 'codex', 'gpt-5.4', 0);
+        const result = resetEmployeeSessions();
+
+        assert.ok(result.cleared >= 1, 'reset should report at least the inserted row');
+        assert.equal(getEmployeeSession.get(id), undefined);
+        assert.equal(getEmployees.all().length, beforeEmployees, 'employee definitions are preserved');
+    } finally {
+        clearAllEmployeeSessions.run();
+    }
+});
+
 // ─── 7. Phase 합치기 프롬프트에 '적극 권장' 문구 존재 확인 ──
 
 test('P100-ES-007: Phase Merging prompt includes recommendation', () => {

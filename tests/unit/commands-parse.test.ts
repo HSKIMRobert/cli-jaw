@@ -266,3 +266,20 @@ test('executeCommand: compact returns busy error when runtime is active', async 
     assert.equal(r.ok, false);
     assert.equal(r.code, 'compact_busy');
 });
+
+test('executeCommand: /employee sessions-reset clears employee resume sessions only', async () => {
+    const parsed = parseCommand('/employee sessions-reset');
+    let called = false;
+    const r = await executeCommand(parsed, {
+        interface: 'web',
+        locale: 'en',
+        resetEmployeeSessions: async () => {
+            called = true;
+            return { cleared: 2 };
+        },
+    });
+
+    assert.equal(r.ok, true);
+    assert.equal(called, true);
+    assert.equal(r.text, 'cmd.employee.sessionsResetDone');
+});

@@ -3,10 +3,16 @@ import type { AuthMiddleware } from './types.js';
 import crypto from 'crypto';
 import { ok } from '../http/response.js';
 import { broadcast } from '../core/bus.js';
-import { clearEmployeeSession, db, insertEmployee, deleteEmployee } from '../core/db.js';
+import { db, insertEmployee, deleteEmployee } from '../core/db.js';
 import { regenerateB } from '../prompt/builder.js';
 import { CLI_REGISTRY } from '../cli/registry.js';
-import { seedDefaultEmployees, listEmployees, findStaticEmployee } from '../core/employees.js';
+import {
+    clearEmployeeSessionIfResumeKeyChanged,
+    resetEmployeeSessions,
+    seedDefaultEmployees,
+    listEmployees,
+    findStaticEmployee,
+} from '../core/employees.js';
 import { settings, saveSettings } from '../core/config.js';
 
 // Static employee IDs look like `static:control` — routes use this prefix to
@@ -34,9 +40,15 @@ export function registerEmployeeRoutes(app: Express, requireAuth: AuthMiddleware
         res.json(emp);
     });
 
+    app.post('/api/employees/sessions/reset', requireAuth, (_req, res) => {
+        const result = resetEmployeeSessions();
+        res.json({ ok: true, ...result });
+    });
+
     app.put('/api/employees/:id', requireAuth, (req, res) => {
         const updates = req.body || {};
-        const staticSlug = parseStaticId(String(req.params["id"]));
+        const employeeId = String(req.params["id"] || '');
+        const staticSlug = parseStaticId(employeeId);
 
         // Static employees: only `model` is mutable; CLI and name are locked to the
         // registry definition. Overrides persist in settings.staticEmployees[Name].
@@ -51,19 +63,25 @@ export function registerEmployeeRoutes(app: Express, requireAuth: AuthMiddleware
                 res.status(400).json({ error: 'static employees only allow model updates' });
                 return;
             }
+            const before = {
+                cli: spec.cli,
+                model: ((settings["staticEmployees"] as Record<string, { model?: string }> | undefined)?.[spec.name])?.model
+                    ?? spec.model
+                    ?? 'default',
+            };
             const overrides = (settings["staticEmployees"] as Record<string, { model?: string }>) || {};
             overrides[spec.name] = { ...overrides[spec.name], model: newModel };
             settings["staticEmployees"] = overrides;
             saveSettings(settings);
-            clearEmployeeSession.run(req.params["id"]);
-            const merged = listEmployees().find(e => e.id === req.params["id"]);
+            clearEmployeeSessionIfResumeKeyChanged(employeeId, before, { cli: spec.cli, model: newModel });
+            const merged = listEmployees().find(e => e.id === employeeId);
             if (merged) broadcast('agent_updated', merged as Record<string, any>);
             regenerateB();
             res.json(merged);
             return;
         }
 
-        const before = db.prepare('SELECT * FROM employees WHERE id = ?').get(req.params["id"]) as Record<string, any> | undefined;
+        const before = db.prepare('SELECT * FROM employees WHERE id = ?').get(employeeId) as Record<string, any> | undefined;
         const allowed = ['name', 'cli', 'model', 'role', 'status'];
         const keys = Object.keys(updates).filter(k => allowed.includes(k));
         const sets = keys.map(k => `${k} = ?`);
@@ -72,27 +90,26 @@ export function registerEmployeeRoutes(app: Express, requireAuth: AuthMiddleware
             return;
         }
         const vals = keys.map(k => (updates as Record<string, any>)[k]);
-        db.prepare(`UPDATE employees SET ${sets.join(', ')} WHERE id = ?`).run(...vals, req.params["id"]);
-        const changedResumeKey = before && (
-            (keys.includes('cli') && String(before["cli"] || '') !== String(updates.cli || ''))
-            || (keys.includes('model') && String(before["model"] || '') !== String(updates.model || ''))
-        );
-        if (changedResumeKey) clearEmployeeSession.run(req.params["id"]);
-        const emp = db.prepare('SELECT * FROM employees WHERE id = ?').get(req.params["id"]) as Record<string, any>;
+        db.prepare(`UPDATE employees SET ${sets.join(', ')} WHERE id = ?`).run(...vals, employeeId);
+        const emp = db.prepare('SELECT * FROM employees WHERE id = ?').get(employeeId) as Record<string, any>;
+        clearEmployeeSessionIfResumeKeyChanged(employeeId, before, emp);
         broadcast('agent_updated', emp);
         regenerateB();
         res.json(emp);
     });
 
     app.delete('/api/employees/:id', requireAuth, (req, res) => {
+        const employeeId = String(req.params["id"] || '');
         // Static employees cannot be deleted (they're baked into the binary) —
         // reject explicitly so the frontend can show the correct UX.
-        if (parseStaticId(String(req.params["id"]))) {
+        if (parseStaticId(employeeId)) {
             res.status(400).json({ error: 'static employees cannot be deleted' });
             return;
         }
-        deleteEmployee.run(req.params["id"]);
-        broadcast('agent_deleted', { id: req.params["id"] });
+        const before = db.prepare('SELECT * FROM employees WHERE id = ?').get(employeeId) as Record<string, any> | undefined;
+        deleteEmployee.run(employeeId);
+        clearEmployeeSessionIfResumeKeyChanged(employeeId, before, { cli: '', model: '' });
+        broadcast('agent_deleted', { id: employeeId });
         regenerateB();
         res.json({ ok: true });
     });
