@@ -31,6 +31,23 @@ export type ReloadOptions = {
     lastSavedRaw?: string | null;
 };
 
+function selectedModelForCli(cli: unknown, currentSettings: Record<string, unknown>): string {
+    const key = typeof cli === 'string' && cli ? cli : 'claude';
+    const activeOverrides = currentSettings["activeOverrides"];
+    const perCli = currentSettings["perCli"];
+    const activeModel = activeOverrides && typeof activeOverrides === 'object'
+        ? (activeOverrides as Record<string, Record<string, unknown> | undefined>)[key]?.["model"]
+        : null;
+    const perCliModel = perCli && typeof perCli === 'object'
+        ? (perCli as Record<string, Record<string, unknown> | undefined>)[key]?.["model"]
+        : null;
+    return typeof activeModel === 'string' && activeModel
+        ? activeModel
+        : typeof perCliModel === 'string' && perCliModel
+        ? perCliModel
+        : 'default';
+}
+
 /** Re-read settings.json after an external write and broadcast the change.
  *  Exported for direct unit testing without timers. Returns true when a
  *  reload actually happened (false: self-write, unchanged, or bad JSON). */
@@ -60,6 +77,7 @@ export function reloadSettingsFromDisk(options: ReloadOptions = {}): boolean {
     broadcast('settings_change', {
         changedKeys: Object.keys(parsed),
         cli: settings["cli"],
+        model: selectedModelForCli(settings["cli"], settings),
         projectDirs: settings["projectDirs"] ?? null,
         source: 'external',
     });
