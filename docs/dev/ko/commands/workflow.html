@@ -127,7 +127,7 @@
 
 <h3>사용 예시</h3>
 <pre><code># Plan a new feature
-/plan add WebSocket-based real-time notifications
+/plan add SSE-first real-time notifications
 
 # Plan a refactor
 /plan refactor the authentication middleware to support multiple providers
@@ -168,7 +168,7 @@
 /interview migrate the monolith to microservices</code></pre>
 
 <p>인터뷰에서 생성될 수 있는 일반적인 질문 예시:</p>
-<pre><code>1. Should notifications be real-time (WebSocket/SSE) or polling-based?
+<pre><code>1. Should notifications use the SSE-first event channel or polling?
    This affects architecture, infrastructure, and client complexity.
 
 2. What notification channels are in scope -- in-app only, or also
@@ -289,14 +289,14 @@ Overall score: 7/10
 
 <h3>사용 예시</h3>
 <pre><code># Create a goal
-/goal set Implement WebSocket notification system with read/unread tracking
+/goal set Implement SSE-first notification system with read/unread tracking
 
 # Check progress
 /goal status
 
 # Record incremental progress
 /goal update Phase 1 complete -- schema and migrations are in place
-/goal update Phase 2 in progress -- WebSocket server handler done, client pending
+/goal update Phase 2 in progress -- SSE event publisher done, client pending
 
 # Complete the goal
 /goal done
@@ -400,10 +400,10 @@ Overall score: 7/10
 /planaudit
 
 # 4. Deliberate on key design decisions
-/deliberate WebSocket vs SSE for our notification delivery
+/deliberate SSE event channel vs polling for our notification delivery
 
 # 5. Set a persistent goal
-/goal set Implement real-time notification system (WebSocket)
+/goal set Implement real-time notification system (SSE-first)
 
 # 6. Execute with a parallel team (for large tasks)
 /team plan Implement notification system -- server, client, tests, docs

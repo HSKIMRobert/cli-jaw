@@ -403,7 +403,7 @@ jaw reset --port 3458 --yes</code></pre>
   <h3><code>jaw chat</code></h3>
   <span class="cmd-badge cmd-badge-orch">Orchestration</span>
 </div>
-<p class="cmd-desc">대화형 터미널 REPL입니다. WebSocket을 통해 실행 중인 서버에 연결하여 실시간 대화를 지원합니다. 영구 푸터가 있는 리치 TUI 모드, UI 통합을 위한 원시 JSON 프로토콜 모드, 최소한의 일반 readline 모드를 지원합니다.</p>
+<p class="cmd-desc">대화형 터미널 REPL입니다. SSE-first TUI 채널로 실행 중인 서버에 연결하고, 오래된 서버에서는 legacy WebSocket fallback을 사용합니다. 영구 푸터가 있는 리치 TUI 모드, UI 통합을 위한 원시 JSON 프로토콜 모드, 최소한의 일반 readline 모드를 지원합니다.</p>
 <pre><code>jaw chat [--port &lt;N&gt;] [--raw] [--simple]</code></pre>
 <table>
 <tr><th>옵션</th><th>기본값</th><th>설명</th></tr>
@@ -489,7 +489,7 @@ jaw employee reset --port 3458</code></pre>
   <h3><code>jaw orchestrate</code></h3>
   <span class="cmd-badge cmd-badge-orch">Orchestration</span>
 </div>
-<p class="cmd-desc">PABCD 상태 머신 전환입니다. Interview, Planning, Audit, Build, Check, Done 단계를 거쳐 워크플로우를 진행합니다. 실행 중인 서버의 API를 호출하므로 SSE/WebSocket 이벤트가 연결된 클라이언트에 실시간으로 전달됩니다.</p>
+<p class="cmd-desc">PABCD 상태 머신 전환입니다. Interview, Planning, Audit, Build, Check, Done 단계를 거쳐 워크플로우를 진행합니다. 실행 중인 서버의 API를 호출하므로 SSE-first 이벤트 업데이트가 연결된 클라이언트에 실시간으로 전달됩니다.</p>
 <pre><code>jaw orchestrate &lt;phase&gt; [--force] [--json] [--port &lt;N&gt;]</code></pre>
 <table>
 <tr><th>단계</th><th>설명</th></tr>

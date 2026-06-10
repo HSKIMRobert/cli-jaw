@@ -1,11 +1,19 @@
 <!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>이벤트 — CLI-JAW 문서</title><link rel="stylesheet" href="../../_shell.css"></head><body><button class="docs-menu-toggle" onclick="document.querySelector('.docs-sidebar').classList.toggle('is-open');document.querySelector('.docs-sidebar-backdrop').classList.toggle('is-open')">☰</button><div class="docs-sidebar-backdrop" onclick="document.querySelector('.docs-sidebar').classList.remove('is-open');this.classList.remove('is-open')"></div><div class="docs-layout"><nav class="docs-sidebar"><div class="docs-logo"><a href="../">CLI-JAW</a></div><div class="docs-nav"><div class="docs-nav-section"><div class="docs-nav-title">Getting Started</div><a class="docs-nav-link" href="../">Overview</a><a class="docs-nav-link" href="../quickstart.html">Quickstart</a><a class="docs-nav-link" href="../quickstart-first-run.html">First Run</a></div><div class="docs-nav-section"><div class="docs-nav-title">Concepts</div><a class="docs-nav-link" href="../concepts/architecture.html">Architecture</a><a class="docs-nav-link" href="../concepts/employees.html">Employees</a><a class="docs-nav-link" href="../concepts/pabcd.html">PABCD</a><a class="docs-nav-link" href="../concepts/goals.html">Goals</a><a class="docs-nav-link" href="../concepts/skills.html">Skills</a><a class="docs-nav-link" href="../concepts/memory.html">Memory</a><a class="docs-nav-link" href="../concepts/prompts.html">Prompts</a></div><div class="docs-nav-section"><div class="docs-nav-title">Guides</div><a class="docs-nav-link" href="../guides/dashboard.html">Dashboard</a><a class="docs-nav-link" href="../guides/notes.html">Notes (Jawsidian)</a><a class="docs-nav-link" href="../guides/kanban.html">Kanban Board</a><a class="docs-nav-link" href="../guides/telegram.html">Telegram</a><a class="docs-nav-link" href="../guides/discord.html">Discord</a><a class="docs-nav-link" href="../guides/computer-use.html">Computer Use</a><a class="docs-nav-link" href="../guides/electron.html">Electron Desktop</a><a class="docs-nav-link" href="../guides/web-ai.html">Web AI</a></div><div class="docs-nav-section"><div class="docs-nav-title">Reference</div><a class="docs-nav-link" href="../reference/cli.html">CLI Commands</a><a class="docs-nav-link" href="../reference/api.html">Server API</a><a class="docs-nav-link" href="../reference/config.html">Configuration</a><a class="docs-nav-link" href="../reference/keyboard.html">Keyboard Shortcuts</a><a class="docs-nav-link active" href="../reference/events.html">Events</a></div><div class="docs-nav-section"><a class="docs-nav-link" href="../changelog.html">Changelog</a></div></div><div class="docs-lang"><a href="../../">EN</a><a class="active" href="../">한국어</a><a href="../zh/">中文</a></div><div class="docs-nav-footer"><a href="https://github.com/lidge-jun/cli-jaw">GitHub</a><a href="../../../">Landing Page</a></div></nav><main class="docs-main">
 <h1>이벤트</h1>
-<p class="lead">CLI-JAW의 브라우저 UI는 SSE를 기본 실시간 채널로 사용합니다. 에이전트 응답은 provider별 NDJSON 스트림으로 전달되고, 실행 이력은 trace 파일에 저장됩니다.</p>
-<h2>SSE 연결</h2>
+<p class="lead">CLI-JAW의 브라우저 UI는 SSE-first 이벤트 채널을 사용합니다. Provider 출력은 내부 NDJSON/stream-json 파서로 정규화되고, public Web 이벤트는 <code>GET /api/events</code>로 전달됩니다.</p>
+<h2>SSE 이벤트 채널</h2>
 <pre><code>GET /api/events
 Accept: text/event-stream
 Last-Event-ID: &lt;last-seen-id&gt;</code></pre>
-<p><code>/api/events</code>는 연결 직후 백로그를 재전송하고, 이후 서버 이벤트를 순서대로 push합니다. WebSocket은 레거시/보조 경로이며 새 UI는 SSE를 우선 사용합니다.</p>
+<p><code>/api/events</code>는 data-only SSE stream입니다. 서버는 SSE <code>event:</code> 필드를 쓰지 않고, JSON <code>data:</code> payload 안에 <code>topic</code>과 <code>event</code>를 넣습니다.</p>
+<table><tr><th>동작</th><th>계약</th></tr>
+<tr><td>Replay cursor</td><td><code>Last-Event-ID</code> header 또는 <code>?lastEventId=</code> query</td></tr>
+<tr><td>Replay buffer</td><td><code>src/core/event-bus.ts</code>의 최근 1000개 이벤트</td></tr>
+<tr><td>Listener cap</td><td>동시 SSE listener 256개. 초과 시 <code>503 {"error":"SSE_CAPACITY"}</code></td></tr>
+<tr><td>Heartbeat</td><td>15초마다 comment ping</td></tr>
+<tr><td>Replay gap</td><td><code>{"topic":"system","event":"replay_gap"}</code></td></tr>
+<tr><td>Fallback</td><td>WebSocket은 <code>/api/events</code>가 한 번도 열리지 않는 pre-X-01 server에서만 client/TUI fallback</td></tr>
+<tr><td>Transient drop UX</td><td>빠른 SSE 재연결은 조용히 복구하고, 8초 이상 지속되는 끊김만 disconnected 메시지로 표시</td></tr></table>
 <h2>주요 이벤트</h2>
 <table><tr><th>이벤트</th><th>페이로드</th><th>설명</th></tr>
 <tr><td><code>message</code></td><td><code>{id, role, content}</code></td><td>저장된 채팅 메시지</td></tr>
@@ -21,7 +29,7 @@ Last-Event-ID: &lt;last-seen-id&gt;</code></pre>
 <tr><td><code>session_switched</code></td><td><code>{sessionId}</code></td><td>활성 세션 전환</td></tr>
 <tr><td><code>agent:claude-e:*</code></td><td><code>{event}</code></td><td>Claude employee 런타임 이벤트 네임스페이스</td></tr></table>
 <h2>Provider NDJSON 스트림</h2>
-<p>메시지 전송과 명령 실행은 REST 요청으로 시작되며, provider 출력은 줄바꿈으로 구분된 JSON 이벤트로 스트리밍됩니다.</p>
+<p>메시지 전송과 명령 실행은 REST 요청으로 시작되며, provider 출력은 줄바꿈으로 구분된 JSON 이벤트로 스트리밍됩니다. 정규화된 이벤트는 <code>src/core/bus.ts</code>를 거쳐 public 이벤트는 SSE event bus로 publish되고, collector/forwarder용 internal listener에도 fan-out됩니다.</p>
 <pre><code>POST /api/message
 POST /api/command
 
@@ -29,6 +37,8 @@ POST /api/command
 {"type":"text","content":"Hello! "}
 {"type":"tool","name":"Bash","input":{...}}
 {"type":"done","status":"ok"}</code></pre>
+<h2>Manager worker SSE</h2>
+<p><code>jaw dashboard serve</code>의 React manager app은 manager HTTP endpoint를 polling합니다. Worker instance의 live progress는 manager server가 <code>src/manager/worker-events.ts</code>와 <code>src/manager/worker-sse-client.ts</code>로 각 worker의 <code>GET /api/events</code>를 server-side 구독하고 latest-message cache를 갱신합니다.</p>
 <h2>트레이스 파일</h2>
 <p>세션 trace는 <code>~/.cli-jaw/traces/</code>에 NDJSON 파일로 저장됩니다. 각 줄은 타임스탬프와 trace 식별자가 포함된 이벤트입니다.</p>
 <div class="page-nav"><a class="prev" href="keyboard.html">Keyboard Shortcuts</a><a class="next" href="../changelog.html">Changelog</a></div>

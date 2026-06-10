@@ -36,7 +36,7 @@ npm install -g cli-jaw
 jaw dashboard
 ```
 
-完成。打开 **http://localhost:3457** 即可拥有你的个人 AI 助手。需要 [Node.js 22.4+](https://nodejs.org)。
+完成。打开 **http://localhost:24576** 进入管理仪表盘。单个 agent Web UI 在运行 `jaw serve` 时仍从 **http://localhost:3457** 提供。需要 [Node.js 22.4+](https://nodejs.org)。
 
 > **第一次用？** 默认 npm 安装会初始化 CLI-JAW，并尝试配置原生 Claude。其他 AI CLI 是可选项；在 macOS/Linux 上如需安装全部工具，可运行 `CLI_JAW_INSTALL_CLI_TOOLS=1 npm install -g cli-jaw`。Windows 请使用下方 WSL 安装路径。
 
@@ -217,7 +217,8 @@ grok login --oauth   # xAI Grok / Grok Heavy
 
 ## 仪表盘
 
-仪表盘是你的指挥中心——一个运行在 `http://localhost:3457` 的本地 Web 应用。
+仪表盘是你的指挥中心：`jaw dashboard` 会在 `http://localhost:24576` 启动管理器；单个 agent Web UI 由 `jaw serve` 在 `http://localhost:3457` 及相邻 managed ports 提供。
+Web/TUI 实时更新使用 SSE-first `GET /api/events` 通道；WebSocket 只作为旧服务器在 SSE 从未打开时的 fallback。
 
 ### 实例管理器
 
@@ -289,6 +290,8 @@ Boss（Claude）思考中...
 ```bash
 # 底层就是一条命令：
 jaw dispatch --agent "Frontend" --task "修复 dashboard.tsx 中的 CSS grid 布局"
+jaw dispatch --agent "Backend" --task "运行只读验证" --watch
+jaw worker status Backend
 ```
 
 员工是在你的设置中配置的其他 AI CLI。每个有自己的会话、模型和上下文。Boss 审核它们的输出后再呈现给你。
@@ -356,7 +359,7 @@ P (Plan) → A (Audit) → B (Build) → C (Check) → D (Done) → IDLE
 | **C — Check** | 类型检查（`tsc --noEmit`）、文档更新、一致性检查 |
 | **D — Done** | 汇总所有变更。返回空闲状态 |
 
-状态持久化在数据库中，服务器重启后仍然保留。工作者不能修改文件——只能验证。用 `jaw orchestrate`、`/orchestrate` 或 `/pabcd` 启动。
+状态持久化在数据库中，服务器重启后仍然保留。工作者不能修改文件——只能验证。用 `jaw orchestrate`、`/orchestrate` 或 `/pabcd` 启动，并用 `/continue` 显式恢复进行中的 worklog。Workflow helper slash commands 包括 `/plan`、`/interview`、`/deliberate`、`/planaudit`、`/goal`。`/goal run ...` 是 bounded automation preview；durable goal 会保留 `update`/`done`/`cancel`/`pause`/`resume` 状态。
 
 ---
 
@@ -478,12 +481,14 @@ jaw project set ~/repo            # 为 review/orchestration 设置 projectDirs
 jaw lock                          # 保护当前实例不被 stop-all 流程停止
 
 # AI 和编排
+jaw employee list                         # 列出已配置员工 + static 员工
 jaw dispatch --agent "Backend" --task "..."  # 分派员工
 jaw dispatch --agent "Backend" --task "..." --watch  # 分派并流式查看安全进度
 jaw worker status Backend            # 查看当前/上一轮员工进度
 jaw orchestrate                   # 进入/控制 PABCD 工作流
 jaw goal status                   # 持久 goal 生命周期
 jaw task list                     # 代理原生任务清单
+# 聊天中：/continue                 # 显式恢复 worklog/PABCD
 
 # 技能和 MCP
 jaw skill install <name>          # 激活技能
@@ -570,7 +575,8 @@ bash structure/check-doc-drift.sh
 | `EADDRINUSE: port 3457` | 另一个实例正在运行。使用 `--port 3458` 或先停止 |
 | Telegram / Discord 认证失败 | 运行 `jaw doctor`，检查 token，重启 `jaw serve` |
 | 浏览器命令失败 | 安装 Chrome/Chromium。先运行 `jaw browser start` |
-| 员工分派挂起 | 确保员工 CLI 已认证（`jaw doctor`） |
+| 员工分派挂起 | 运行 `jaw employee list`，确认员工 CLI 已认证（`jaw doctor`），然后用 `jaw dispatch --watch` 重试 |
+| 员工分派返回 non-JSON 或 HTML | 服务器可能过旧或缺少 route。运行 `npm run build`，或重启 manager/dashboard 进程 |
 | Computer Use 不工作 | 仅限 macOS。需要 Codex CLI。在系统设置中检查自动化权限 |
 
 ---
@@ -578,8 +584,9 @@ bash structure/check-doc-drift.sh
 ## 参与贡献
 
 1. 从 `master` Fork 并创建分支
-2. `npm run build && npm test`
-3. 提交 PR
+2. `npm run build && npm run build:frontend && npm test`
+3. release-sensitive 修改还要运行 `npm run gate:all` 和 touched surface focused checks
+4. 提交 PR
 
 Bug 报告和功能建议：[Open an issue](https://github.com/lidge-jun/cli-jaw/issues)
 

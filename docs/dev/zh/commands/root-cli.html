@@ -403,7 +403,7 @@ jaw reset --port 3458 --yes</code></pre>
   <h3><code>jaw chat</code></h3>
   <span class="cmd-badge cmd-badge-orch">Orchestration</span>
 </div>
-<p class="cmd-desc">交互式终端 REPL。通过 WebSocket 连接到正在运行的服务器进行实时对话。支持带有持久底栏的富 TUI 模式、用于 UI 集成的原始 JSON 协议模式，以及最简化的纯 readline 模式。</p>
+<p class="cmd-desc">交互式终端 REPL。通过 SSE-first TUI 通道连接正在运行的服务器，旧版服务器使用 legacy WebSocket fallback。支持带有持久底栏的富 TUI 模式、用于 UI 集成的原始 JSON 协议模式，以及最简化的纯 readline 模式。</p>
 <pre><code>jaw chat [--port &lt;N&gt;] [--raw] [--simple]</code></pre>
 <table>
 <tr><th>选项</th><th>默认值</th><th>说明</th></tr>
@@ -489,7 +489,7 @@ jaw employee reset --port 3458</code></pre>
   <h3><code>jaw orchestrate</code></h3>
   <span class="cmd-badge cmd-badge-orch">Orchestration</span>
 </div>
-<p class="cmd-desc">PABCD 状态机转换。驱动工作流经历面谈、规划、审计、构建、检查和完成各阶段。它调用运行中服务器的 API，因此 SSE/WebSocket 事件会实时发送到已连接的客户端。</p>
+<p class="cmd-desc">PABCD 状态机转换。驱动工作流经历面谈、规划、审计、构建、检查和完成各阶段。它调用运行中服务器的 API，因此 SSE-first 事件更新会实时发送到已连接的客户端。</p>
 <pre><code>jaw orchestrate &lt;phase&gt; [--force] [--json] [--port &lt;N&gt;]</code></pre>
 <table>
 <tr><th>阶段</th><th>说明</th></tr>

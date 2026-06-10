@@ -36,7 +36,7 @@ npm install -g cli-jaw
 jaw dashboard
 ```
 
-끝입니다. **http://localhost:3457** 을 열면 나만의 AI 에이전트가 준비됩니다. [Node.js 22.4+](https://nodejs.org) 필요.
+끝입니다. 매니저 대시보드는 **http://localhost:24576** 에서 열립니다. 개별 에이전트 Web UI는 `jaw serve` 실행 시 **http://localhost:3457** 에서 동작합니다. [Node.js 22.4+](https://nodejs.org) 필요.
 
 > **처음이세요?** 기본 npm 설치는 CLI-JAW 초기화와 네이티브 Claude 설정을 시도합니다. 다른 AI CLI는 선택 사항입니다. macOS/Linux에서 npm 설치 중 모두 설치하려면 `CLI_JAW_INSTALL_CLI_TOOLS=1 npm install -g cli-jaw`를 사용하세요. Windows에서는 아래 WSL 설치 경로를 사용하세요.
 
@@ -217,7 +217,8 @@ grok login --oauth   # xAI Grok / Grok Heavy
 
 ## 대시보드
 
-대시보드는 `http://localhost:3457`에서 동작하는 로컬 웹앱 형태의 제어판입니다.
+대시보드는 `jaw dashboard`가 `http://localhost:24576`에서 띄우는 로컬 제어판입니다. 개별 에이전트 Web UI는 `jaw serve`가 `http://localhost:3457` 및 인접 managed port에서 제공합니다.
+Web/TUI 실시간 업데이트는 SSE-first `GET /api/events` 채널을 사용하며, WebSocket은 SSE가 한 번도 열리지 않는 오래된 서버용 fallback입니다.
 
 ### 인스턴스 매니저
 
@@ -289,6 +290,8 @@ Boss (Claude) 판단 중...
 ```bash
 # 내부적으로는 이 명령어 하나:
 jaw dispatch --agent "Frontend" --task "dashboard.tsx의 CSS 그리드 레이아웃 수정"
+jaw dispatch --agent "Backend" --task "읽기 전용 검증 실행" --watch
+jaw worker status Backend
 ```
 
 직원은 설정에 등록된 다른 AI CLI입니다. 각각 자체 세션, 자체 모델, 자체 컨텍스트를 가집니다. Boss가 결과를 검토한 뒤 최종 보고합니다.
@@ -356,7 +359,7 @@ P (Plan) → A (Audit) → B (Build) → C (Check) → D (Done) → IDLE
 | **C — Check** | 타입 체크 (`tsc --noEmit`), 문서 업데이트, 일관성 검사 |
 | **D — Done** | 모든 변경 사항 요약. IDLE로 복귀 |
 
-상태는 데이터베이스에 저장되므로 재시작해도 이어서 작업할 수 있습니다. 워커는 파일을 수정할 수 없습니다 — 검증만 합니다. `jaw orchestrate`, `/orchestrate`, `/pabcd`로 시작합니다.
+상태는 데이터베이스에 저장되므로 재시작해도 이어서 작업할 수 있습니다. 워커는 파일을 수정할 수 없습니다 — 검증만 합니다. `jaw orchestrate`, `/orchestrate`, `/pabcd`로 시작하고, 진행 중인 worklog는 `/continue`로 명시적으로 재개합니다. Workflow helper slash command는 `/plan`, `/interview`, `/deliberate`, `/planaudit`, `/goal`로 제공됩니다. `/goal run ...`은 bounded automation preview이며, durable goal은 `update`/`done`/`cancel`/`pause`/`resume` 상태를 보존합니다.
 
 ---
 
@@ -478,12 +481,14 @@ jaw project set ~/repo            # review/orchestration용 projectDirs 설정
 jaw lock                          # stop-all 흐름에서 현재 인스턴스 보호
 
 # AI & 오케스트레이션
+jaw employee list                         # 설정된 직원 + static 직원 목록
 jaw dispatch --agent "Backend" --task "..."  # 직원 디스패치
 jaw dispatch --agent "Backend" --task "..." --watch  # 안전 progress 스트리밍
 jaw worker status Backend            # 현재/이전 직원 progress 확인
 jaw orchestrate                   # PABCD 워크플로 시작/제어
 jaw goal status                   # 영구 goal lifecycle
 jaw task list                     # 에이전트 네이티브 task checklist
+# 채팅 안에서는: /continue         # worklog/PABCD 명시 재개
 
 # 스킬 & MCP
 jaw skill install <name>          # 스킬 활성화
@@ -570,7 +575,8 @@ bash structure/check-doc-drift.sh
 | `EADDRINUSE: port 3457` | 다른 인스턴스 실행 중. `--port 3458` 사용 또는 기존 프로세스 종료 |
 | Telegram / Discord 인증 실패 | `jaw doctor` 실행 후 `jaw serve` 재시작 |
 | 브라우저 명령 실패 | Chrome/Chromium 설치 후 `jaw browser start` 먼저 실행 |
-| 직원 디스패치가 멈춤 | 직원 CLI가 인증됐는지 확인 (`jaw doctor`) |
+| 직원 디스패치가 멈춤 | `jaw employee list`를 실행하고, 직원 CLI가 인증됐는지 확인한 뒤(`jaw doctor`) `jaw dispatch --watch`로 다시 시도 |
+| 직원 디스패치가 non-JSON 또는 HTML을 반환 | 서버가 오래됐거나 route가 누락됐을 수 있습니다. `npm run build`를 실행하거나 manager/dashboard 프로세스를 재시작 |
 | Computer Use 안됨 | macOS 전용. Codex CLI 필요. 시스템 설정에서 자동화 권한 확인 |
 
 ---
@@ -578,8 +584,9 @@ bash structure/check-doc-drift.sh
 ## 기여하기
 
 1. `master`에서 Fork하고 브랜치를 만듭니다
-2. `npm run build && npm test`
-3. PR을 제출합니다
+2. `npm run build && npm run build:frontend && npm test`
+3. release-sensitive 변경은 `npm run gate:all`과 touched surface focused check도 실행합니다
+4. PR을 제출합니다
 
 버그 리포트, 기능 아이디어: [Issue 열기](https://github.com/lidge-jun/cli-jaw/issues)
 
