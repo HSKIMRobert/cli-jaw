@@ -359,6 +359,7 @@ async function findModelTextButton(page: Page): Promise<ReturnType<Page['locator
 
 async function findModelOption(page: Page, choice: ChatGptModelChoice): Promise<ReturnType<Page['locator']> | null> {
     const option = CHATGPT_MODEL_OPTIONS[choice];
+    await openSimplifiedIntelligenceSubmenu(page).catch(() => undefined);
     for (const testId of option.testIds) {
         const loc = page.locator(`[role="menuitemradio"][data-testid="${testId}"], [data-testid="${testId}"]`).first();
         if (!(await loc.isVisible().catch(() => false))) continue;
@@ -379,6 +380,26 @@ async function findModelOption(page: Page, choice: ChatGptModelChoice): Promise<
     if (simplified && await isSimplifiedIntelligenceMenuOpen(page, choice, null)) return simplified;
     if (simplified && await isModelOptionCandidate(simplified, choice)) return simplified;
     return null;
+}
+
+async function openSimplifiedIntelligenceSubmenu(page: Page): Promise<void> {
+    if (await isSimplifiedIntelligenceMenuOpen(page, null, null)) return;
+    const candidates = page.locator('[role="menuitem"], [role="button"], button').filter({ hasText: /^GPT[-\s]?5\.5$/i });
+    const count = await candidates.count().catch(() => 0);
+    for (let index = 0; index < count; index += 1) {
+        const loc = candidates.nth(index);
+        if (!(await loc.isVisible().catch(() => false))) continue;
+        await loc.hover({ timeout: 1_000 }).catch(() => undefined);
+        await page.waitForTimeout(150).catch(() => undefined);
+        if (await isSimplifiedIntelligenceMenuOpen(page, null, null)) return;
+        await loc.focus({ timeout: 1_000 }).catch(() => undefined);
+        await page.keyboard.press('ArrowRight').catch(() => undefined);
+        await page.waitForTimeout(250).catch(() => undefined);
+        if (await isSimplifiedIntelligenceMenuOpen(page, null, null)) return;
+        await loc.click({ timeout: 1_000 }).catch(() => undefined);
+        await page.waitForTimeout(250).catch(() => undefined);
+        if (await isSimplifiedIntelligenceMenuOpen(page, null, null)) return;
+    }
 }
 
 async function isModelOptionCandidate(loc: ReturnType<Page['locator']>, choice: ChatGptModelChoice): Promise<boolean> {
@@ -678,7 +699,12 @@ async function isModelMenuOpen(page: Page): Promise<boolean> {
             return /^(ChatGPT|GPT[-\s]?\d|((Light|Standard|Extended|Heavy)\s+)?(Instant|Fast|Thinking|Pro|Heavy)\b|Medium\b|High\b|Extra High\b|Pro Standard\b|Pro Extended\b)/i.test(text);
         }))
         .catch(() => false);
-    return legacyOpen || isSimplifiedIntelligenceMenuOpen(page, null, null);
+    if (legacyOpen || await isSimplifiedIntelligenceMenuOpen(page, null, null)) return true;
+    return page.locator('[role="menuitem"], [role="button"], button')
+        .filter({ hasText: /^GPT[-\s]?5\.5$/i })
+        .first()
+        .isVisible()
+        .catch(() => false);
 }
 
 function modelLabelPattern(choice: ChatGptModelChoice, label: string): RegExp {
