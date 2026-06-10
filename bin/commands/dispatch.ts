@@ -18,7 +18,6 @@ if (shouldShowHelp(process.argv)) printAndExit(`
   Usage: jaw dispatch --agent "Name" --task "instruction" [--watch]
          jaw dispatch --virtual "security" --task "audit this change" [--role "security"]
          jaw dispatch --batch --agents '<JSON array>'
-
   Options:
     --agent <name>    Employee name (must match settings.json employees)
     --virtual <name>  Ephemeral virtual employee name or role preset (security, testing)
@@ -33,7 +32,6 @@ if (shouldShowHelp(process.argv)) printAndExit(`
   Batch mode:
     --batch           Enable batch parallel dispatch
     --agents <json>   JSON array of {agent|virtual, task, role?, cli?, model?, parallel?, mutable?, scope?, affected_files?}
-
   Result is returned via stdout. Employee names are case-sensitive.
 
   Examples:
@@ -400,6 +398,13 @@ function printDispatchResult(agentName: string, body: DispatchResultBody, opts: 
     }
 }
 
+function printFetchErrorWithRecovery(message: string): void {
+    console.error(`❌ Error: ${message}`);
+    if (!message.includes('fetch failed')) return;
+    console.error(`  status:  cli-jaw worker status`);
+    console.error(`  target:  cli-jaw worker status "${targetName}"`);
+}
+
 await getCliAuthToken(PORT);
 try {
     console.log(`🚀 Dispatching to ${targetName}...`);
@@ -442,7 +447,7 @@ try {
                 + 'For foreground mode: jaw serve',
             );
         } else {
-        console.error(`❌ Error: ${errString(lastError)}`);
+            printFetchErrorWithRecovery(errString(lastError));
         }
         process.exit(1);
     }
@@ -489,12 +494,7 @@ try {
         console.error(`  recover:  cli-jaw dispatch ${agent ? '--agent' : '--virtual'} "${e.agentName || targetName}" --task "(resume polling)"`);
         console.error(`  poll:     curl -s ${BASE}/api/orchestrate/worker/${encodeURIComponent(e.agentId)}/result`);
     } else {
-        const message = errString(e);
-        console.error(`❌ Error: ${message}`);
-        if (message.includes('fetch failed')) {
-            console.error(`  status:  cli-jaw worker status`);
-            console.error(`  target:  cli-jaw worker status "${targetName}"`);
-        }
+        printFetchErrorWithRecovery(errString(e));
     }
     process.exit(1);
 }

@@ -77,8 +77,8 @@ test('dispatch CLI reports stale or missing server routes for non-JSON responses
 
 test('dispatch CLI prints worker-status recovery hints for initial fetch failures', () => {
     assert.ok(
-        dispatchSrc.includes("message.includes('fetch failed')"),
-        'dispatch CLI should classify initial fetch failures for recovery guidance',
+        dispatchSrc.includes('function printFetchErrorWithRecovery'),
+        'dispatch CLI should centralize fetch failure recovery guidance',
     );
     assert.ok(
         dispatchSrc.includes('cli-jaw worker status'),
@@ -87,5 +87,12 @@ test('dispatch CLI prints worker-status recovery hints for initial fetch failure
     assert.ok(
         dispatchSrc.includes('cli-jaw worker status "${targetName}"'),
         'dispatch CLI should include a target-specific worker status command',
+    );
+    const noResponseIdx = dispatchSrc.indexOf('if (!res)');
+    assert.ok(noResponseIdx >= 0, 'dispatch CLI should handle missing initial response');
+    const noResponseBlock = dispatchSrc.slice(noResponseIdx, dispatchSrc.indexOf('process.exit(1);', noResponseIdx));
+    assert.ok(
+        noResponseBlock.includes('printFetchErrorWithRecovery(errString(lastError))'),
+        'initial request failures should print fetch recovery guidance before exiting',
     );
 });
