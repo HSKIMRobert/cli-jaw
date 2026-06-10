@@ -13,6 +13,7 @@ export async function fetchTextCandidate(rawUrl: string, options: FetchTextCandi
     const safetyOpts = options.allowPrivateNetwork != null ? { allowPrivateNetwork: options.allowPrivateNetwork } : {};
     let current = validateFetchUrl(rawUrl, safetyOpts).href;
     for (let redirects = 0; redirects <= redirectLimit; redirects += 1) {
+        await options.beforeFetch?.(current);
         const response = await fetchImpl(current, {
             redirect: 'manual',
             headers: { accept: 'text/html,application/json,application/xml,text/plain,*/*;q=0.8' },

@@ -7,14 +7,18 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import { registerLinkPreviewRoutes } from '../../src/routes/link-preview.ts';
 
 const realFetch = globalThis.fetch.bind(globalThis);
+const publicResolveHost = async () => [{ address: '93.184.216.34', family: 4 }];
 
 function noAuth(_req: Request, _res: Response, next: NextFunction): void {
     next();
 }
 
-async function withServer(fn: (baseUrl: string) => Promise<void>): Promise<void> {
+async function withServer(
+    fn: (baseUrl: string) => Promise<void>,
+    options: Parameters<typeof registerLinkPreviewRoutes>[2] = { resolveHost: publicResolveHost },
+): Promise<void> {
     const app = express();
-    registerLinkPreviewRoutes(app, noAuth);
+    registerLinkPreviewRoutes(app, noAuth, options);
     const server: Server = createServer(app);
     await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
     const address = server.address();
@@ -88,6 +92,27 @@ test('link preview metadata route rejects private and sensitive URLs before fetc
         const sensitiveRes = await fetch(`${baseUrl}/api/link-preview?url=${encodeURIComponent('https://example.com/?token=secret')}`);
         assert.equal(sensitiveRes.status, 400);
         assert.equal(calls, 0);
+    });
+});
+
+test('link preview metadata route rejects DNS-resolved private hosts before fetch', async () => {
+    let calls = 0;
+    installFetchMock(async () => {
+        calls += 1;
+        return new Response('<html><head><title>SSRF DNS Proof</title></head></html>', {
+            status: 200,
+            headers: { 'content-type': 'text/html' },
+        });
+    });
+
+    await withServer(async baseUrl => {
+        const res = await fetch(`${baseUrl}/api/link-preview?url=${encodeURIComponent('http://public-looking.example/proof')}`);
+        assert.equal(res.status, 400);
+        const body = await res.json();
+        assert.equal(body.error, 'private-network');
+        assert.equal(calls, 0);
+    }, {
+        resolveHost: async () => [{ address: '127.0.0.1', family: 4 }],
     });
 });
 
@@ -185,6 +210,27 @@ test('link preview image proxy validates redirect hops before following them', a
         assert.equal(res.status, 400);
         const body = await res.json();
         assert.equal(body.error, 'private-network');
+    });
+});
+
+test('link preview image proxy rejects DNS-resolved private hosts before fetch', async () => {
+    let calls = 0;
+    installFetchMock(async () => {
+        calls += 1;
+        return new Response('img', {
+            status: 200,
+            headers: { 'content-type': 'image/png' },
+        });
+    });
+
+    await withServer(async baseUrl => {
+        const res = await fetch(`${baseUrl}/api/link-preview/image?url=${encodeURIComponent('http://public-looking.example/proof.png')}`);
+        assert.equal(res.status, 400);
+        const body = await res.json();
+        assert.equal(body.error, 'private-network');
+        assert.equal(calls, 0);
+    }, {
+        resolveHost: async () => [{ address: '127.0.0.1', family: 4 }],
     });
 });
 

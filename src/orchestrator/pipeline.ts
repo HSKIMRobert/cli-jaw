@@ -52,6 +52,7 @@ type SpawnAgentLike = typeof spawnAgent;
 
 const REMOTE_ELICITATION_BLOCKED_ORIGINS = new Set(['telegram', 'discord']);
 const STRUCTURED_REMOTE_FENCE_RE = /```(elicitation|choice-buttons|search-results)[^\n]*\n([\s\S]*?)```/g;
+const INCOMPLETE_STRUCTURED_REMOTE_FENCE_RE = /^ {0,3}(`{3,}|~{3,})(elicitation|choice-buttons|search-results)[^\n]*(?:\n[\s\S]*)?$/im;
 
 type PlainQuestion = {
     question: string;
@@ -162,10 +163,16 @@ function renderRemoteSearchResultsFallback(rawJson: string): string {
 export function normalizeRemoteChannelElicitationOutput(text: string, origin: unknown): string {
     if (!isRemoteElicitationBlockedOrigin(origin)) return text;
     if (scanStructuredFence(text).status === 'absent') return text;
-    return text.replace(STRUCTURED_REMOTE_FENCE_RE, (_match, lang: string, rawJson: string) => {
+    const converted = text.replace(STRUCTURED_REMOTE_FENCE_RE, (_match, lang: string, rawJson: string) => {
         return lang === 'search-results'
             ? renderRemoteSearchResultsFallback(rawJson)
             : renderRemoteElicitationFallback(rawJson);
+    });
+    if (scanStructuredFence(converted).status === 'absent') return converted;
+    return converted.replace(INCOMPLETE_STRUCTURED_REMOTE_FENCE_RE, (_match, _marker: string, lang: string) => {
+        return lang === 'search-results'
+            ? renderRemoteSearchResultsFallback('')
+            : renderRemoteElicitationFallback('');
     });
 }
 

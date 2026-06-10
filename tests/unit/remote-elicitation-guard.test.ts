@@ -137,3 +137,32 @@ test('remote channel output normalization converts search-results fence to plain
     assert.match(output, /1\. cli-jaw repo/);
     assert.match(output, /2\. docs/);
 });
+
+test('remote channel output normalization strips incomplete search-results fences', () => {
+    const raw = [
+        '검색 결과입니다.',
+        '',
+        '```search-results',
+        '{"schemaVersion":"search-results-v1","query":"secret","results":[{"title":"raw","url":"https://example.com"}]}',
+    ].join('\n');
+    const output = normalizeRemoteChannelElicitationOutput(raw, 'telegram');
+
+    assert.doesNotMatch(output, /```search-results/);
+    assert.doesNotMatch(output, /"schemaVersion"/);
+    assert.doesNotMatch(output, /"results"/);
+    assert.match(output, /검색 결과 카드는 Telegram\/Discord에서 Web UI로 표시되지 않습니다/);
+});
+
+test('remote channel output normalization strips incomplete elicitation fences', () => {
+    const raw = [
+        '선택해주세요.',
+        '',
+        '```elicitation',
+        '{"questions":[{"question":"비밀 선택?","options":["A","B"]}]}',
+    ].join('\n');
+    const output = normalizeRemoteChannelElicitationOutput(raw, 'discord');
+
+    assert.doesNotMatch(output, /```elicitation/);
+    assert.doesNotMatch(output, /"questions"/);
+    assert.match(output, /구조화 질문은 Telegram\/Discord에서 버튼 UI로 표시되지 않습니다/);
+});
