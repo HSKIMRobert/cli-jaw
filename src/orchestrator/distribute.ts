@@ -349,7 +349,7 @@ Every task you assign MUST be specific. Vague instructions waste cycles.
 \`\`\`
 
 **parallel field**: Optional, defaults to \`false\`. Set \`true\` only for tasks with zero file overlap.
-**task_tags field**: Optional methodology/domain overlays (tdd, bdd_acceptance, ddd, clean_arch, hexagonal, vertical_slice, adr_rfc, review, threat_model, security, testing, architecture, debugging, debugging_rca, observability, migration_backfill, product_discovery, release_cd, frontend_ui, crud_fullstack). Tags add skill guidance; the execution role stays frontend|backend|data|docs.
+**task_tags field**: Optional methodology/domain overlays (tdd, bdd_acceptance, ddd, clean_arch, hexagonal, vertical_slice, adr_rfc, review, code_review, threat_model, security, testing, architecture, debugging, debugging_rca, observability, observability_pipeline, migration_backfill, product_discovery, product_discovery_ui, release_cd, frontend_ui, crud_fullstack). Tags add skill guidance; the execution role stays frontend|backend|data|docs.
 **affected_files**: REQUIRED for all subtasks. Used by server-side parallel safety validation.
 
 worklog path: ${worklogPath}
