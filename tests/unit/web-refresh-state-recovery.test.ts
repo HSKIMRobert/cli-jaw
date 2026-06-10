@@ -232,3 +232,23 @@ test('WRS-010: browser/preview restore reloads messages before snapshot hydratio
     assert.ok(wrapper.includes('lastLoadTs = Date.now()'),
         'restore history load should update the reconnect reload throttle');
 });
+
+test('WRS-011: concurrent restore and channel-up share one history load', { skip: !hasWs && 'public/js/ws source not found' }, () => {
+    // devlog 260609 83: preview instance-switch remounts boot the iframe while
+    // the onLoad visibility ping fires — without a single-flight guard the two
+    // loadMessages() calls race and can double-bootstrap the virtual scroll,
+    // leaving the newest rows lazy-pending (invisible until a click/restore).
+    const historyPath = join(__dirname, '../../public/js/features/message-history.ts');
+    const historySrc = readFileSync(historyPath, 'utf8');
+    assert.ok(historySrc.includes('let loadMessagesInFlight'),
+        'message history must track the in-flight load promise');
+    assert.ok(historySrc.includes('if (loadMessagesInFlight) return loadMessagesInFlight;'),
+        'concurrent loadMessages callers must join the in-flight load instead of racing');
+    assert.ok(historySrc.includes('loadMessagesInFlight = null'),
+        'the single-flight slot must clear when the load settles');
+    const wsSrc = readFileSync(wsPath, 'utf8');
+    const wrapperStart = wsSrc.indexOf('function syncAfterBrowserRestore');
+    const wrapper = wsSrc.slice(wrapperStart, wsSrc.indexOf('function requestBrowserRestoreSync', wrapperStart));
+    assert.ok(wrapper.includes('lastLoadTs > 0'),
+        'restore reload must defer to the boot channel-up load for first paint');
+});
