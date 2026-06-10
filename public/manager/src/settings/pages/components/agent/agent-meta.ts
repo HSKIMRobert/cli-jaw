@@ -72,7 +72,7 @@ export const CLI_META: Record<string, CliMeta> = {
         // firstPartyNameToCanonical resolution; pinned IDs reach the API
         // verbatim for stable prompt-cache prefixes. The `[1m]` suffix is
         // parsed by Claude Code (stripped before send, enables 1M context
-        // on Opus 4.8/4.7/4.6 + Sonnet 4.6). Mirrors getDefaultClaudeChoices()
+        // on Fable 5 + Opus 4.8/4.7/4.6 + Sonnet 4.6). Mirrors getDefaultClaudeChoices()
         // in src/cli/claude-models.ts. Verified via Grok web research
         // 2026-05-01 (devlog/_plan/260501_claude_model_passthrough/).
         models: [
@@ -81,6 +81,7 @@ export const CLI_META: Record<string, CliMeta> = {
             'sonnet[1m]',
             'haiku',
             'claude-fable-5',
+            'claude-fable-5[1m]',
             'claude-opus-4-8',
             'claude-opus-4-8[1m]',
             'claude-opus-4-7',
@@ -118,6 +119,7 @@ export const CLI_META: Record<string, CliMeta> = {
             'gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-nano',
             'gpt-5.3-codex', 'gpt-5.2', 'gpt-5.2-codex',
             'gpt-5.1-codex-max', 'gpt-5.1-codex-mini', 'gpt-5.1',
+            'claude-fable-5', 'claude-fable-5-thinking',
             'claude-opus-4-8', 'claude-opus-4-8-thinking',
             'claude-opus-4-7', 'claude-opus-4-7-thinking',
             'claude-4.6-opus', 'claude-4.6-sonnet',
@@ -132,6 +134,7 @@ export const CLI_META: Record<string, CliMeta> = {
         label: 'Kiro',
         models: [
             'auto',
+            'claude-fable-5',
             'claude-opus-4.8',
             'claude-opus-4.7',
             'claude-opus-4.6',
@@ -167,7 +170,7 @@ export const CLI_META: Record<string, CliMeta> = {
     },
     copilot: {
         label: 'Copilot',
-        models: ['gpt-5.5', 'claude-opus-4.8', 'claude-opus-4.7', 'claude-sonnet-4.6', 'gpt-5.4'],
+        models: ['gpt-5.5', 'claude-fable-5', 'claude-opus-4.8', 'claude-opus-4.7', 'claude-sonnet-4.6', 'gpt-5.4'],
         efforts: ['low', 'medium', 'high'],
     },
 };

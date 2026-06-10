@@ -57,14 +57,15 @@ const FALLBACK_CLI_REGISTRY: CliRegistry = {
         efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
         // Mirrors getDefaultClaudeChoices() in src/cli/claude-models.ts —
         // aliases first, then verified pinned full IDs (hyphen form). The
-        // [1m] suffix activates Claude Code's 1M-context window (Opus 4.8,
-        // Opus 4.7, Opus 4.6, Sonnet 4.6).
+        // [1m] suffix activates Claude Code's 1M-context window (Fable 5,
+        // Opus 4.8, Opus 4.7, Opus 4.6, Sonnet 4.6).
         models: [
             'opus',
             'sonnet',
             'sonnet[1m]',
             'haiku',
             'claude-fable-5',
+            'claude-fable-5[1m]',
             'claude-opus-4-8',
             'claude-opus-4-8[1m]',
             'claude-opus-4-7',
@@ -109,6 +110,7 @@ const FALLBACK_CLI_REGISTRY: CliRegistry = {
             'gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-nano',
             'gpt-5.3-codex', 'gpt-5.2', 'gpt-5.2-codex',
             'gpt-5.1-codex-max', 'gpt-5.1-codex-mini', 'gpt-5.1',
+            'claude-fable-5', 'claude-fable-5-thinking',
             'claude-opus-4-8', 'claude-opus-4-8-thinking',
             'claude-opus-4-7', 'claude-opus-4-7-thinking',
             'claude-4.6-opus', 'claude-4.6-sonnet',
@@ -123,6 +125,7 @@ const FALLBACK_CLI_REGISTRY: CliRegistry = {
         effortNote: 'Kiro CLI has no separate effort flag',
         models: [
             'auto',
+            'claude-fable-5',
             'claude-opus-4.8',
             'claude-opus-4.7',
             'claude-opus-4.6',
@@ -169,6 +172,7 @@ const FALLBACK_CLI_REGISTRY: CliRegistry = {
         effortNote: '-> ~/.copilot/config.json',
         models: [
             'gpt-5.5',
+            'claude-fable-5',
             'claude-opus-4.8',
             'claude-sonnet-4.6',
             'claude-haiku-4.5',

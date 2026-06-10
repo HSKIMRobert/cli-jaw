@@ -58,6 +58,7 @@ export const CLI_REGISTRY = {
             copilot: ['gpt-5-mini', 'claude-sonnet-4.6', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.5'],
             kiro: [
                 'auto',
+                'claude-fable-5',
                 'claude-opus-4.8',
                 'claude-opus-4.7',
                 'claude-opus-4.6',
@@ -151,6 +152,7 @@ export const CLI_REGISTRY = {
         effortNote: 'Kiro CLI has no separate effort flag',
         models: [
             'auto',
+            'claude-fable-5',
             'claude-opus-4.8',
             'claude-opus-4.7',
             'claude-opus-4.6',
@@ -192,6 +194,7 @@ export const CLI_REGISTRY = {
         effortNote: '→ ~/.copilot/config.json',
         models: [
             'gpt-5.5',
+            'claude-fable-5',
             'claude-opus-4.8',
             'claude-opus-4.7',
             'claude-sonnet-4.6',
