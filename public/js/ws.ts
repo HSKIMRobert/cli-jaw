@@ -621,6 +621,21 @@ function handleChannelUp(transport: 'sse' | 'ws'): void {
     });
 }
 
+function handleReplayGap(): void {
+    showChatRestoreIndicator('replay_gap');
+    snapshotReady = import('./ui.js').then(async m => {
+        try {
+            await m.loadMessages();
+            lastLoadTs = Date.now();
+        } catch (error) {
+            console.error('[sse] replay gap loadMessages failed', error);
+        }
+        await syncOrchestrateSnapshot('replay_gap', { hydrateRun: true })
+            .catch(() => { /* snapshot not critical — UI recovers on next event */ })
+            .finally(() => m.reconcileChatBottomAfterRestore('replay_gap'));
+    });
+}
+
 // Grace period before announcing a drop: SSE micro-drops auto-reconnect in
 // ~2s with full lastEventId replay — the user loses nothing, so a toast on
 // every blip reads as "끊김" spam while everything actually works. Only a
@@ -835,6 +850,8 @@ function handleServerEvent(msg: WsMessage): void {
         addMessage(msg.role === 'assistant' ? 'agent' : (msg.role || 'user'), msg.content || '', msg.cli);
     } else if (msg.type === 'system_notice') {
         addSystemMsg(`ℹ️ ${escapeHtml(msg.text || '')}`, 'tool-activity');
+    } else if (msg.type === 'replay_gap') {
+        handleReplayGap();
     } else if (msg.type === 'worker_stalled') {
         addSystemMsg(`⚠️ Worker stalled: ${escapeHtml(msg.employeeName || msg.agentId || '')}`, 'tool-activity');
     } else if (msg.type === 'worker_disconnected') {
