@@ -117,7 +117,7 @@ cli-jaw/
 │   │   └── types.ts          ← MessengerChannel, OutboundType, RemoteTarget 타입 (27L)
 │   ├── orchestrator/         ← 직원 오케스트레이션 + 인터페이스 통합 (14 files)
 │   │   ├── state-machine.ts ← IPABCD 상태 머신 (I=Interview pre-plan) + broadcast(state,title) + worklog 타이틀 파싱 + employee terminology + OrcContext.workingDir + OrcContext.interview + Project root dispatch contract (616L)
-│   │   ├── pipeline.ts       ← IPABCD orchestration (explicit entry only) + interview first-turn detection + plan context persistence + memorySnapshot injection + reset clears boss session + OrcContext workingDir init + Approved Plan Project root guard (527L)
+│   │   ├── pipeline.ts       ← IPABCD orchestration (explicit entry only) + interview first-turn detection + plan context persistence + memorySnapshot injection + reset clears boss session + OrcContext workingDir init + Approved Plan Project root guard + remote-channel elicitation guard (620L)
 │   │   ├── distribute.ts     ← runSingleAgent + buildPlanPrompt + parallel helpers + tiered findEmployee + employee resume diagnostics (597L)
 │   │   ├── parser.ts         ← triage + subtask JSON + verdict 파싱 + isResetIntent (176L)
 │   │   ├── gateway.ts        ← submitMessage 통합 진입점 (WebUI+CLI+TG+Discord 공통) + working_dir scoped insertMessage (155L)

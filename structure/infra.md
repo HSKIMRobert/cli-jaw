@@ -362,6 +362,7 @@ Telegram file upload / retry helper. 텍스트가 아닌 media send와 attachmen
 - Telegram과 Discord는 모두 `src/messaging/runtime.ts`에 자기 transport를 등록한다.
 - Telegram/Discord 설정 변경은 `core/runtime-settings.ts`를 통해 같은 restart 경로를 탄다.
 - `settings.messaging.lastActive/latestSeen`는 forward 대상 복원용 공통 저장소다.
+- `src/orchestrator/pipeline.ts`는 Telegram/Discord origin에만 21 Elicitation remote-channel guard를 동적으로 붙인다. A1 system prompt는 수정하지 않으며, accidental `elicitation` / `choice-buttons` fence 출력은 remote 응답 직전에 plain text numbered question fallback으로 normalize한다.
 
 ---
 

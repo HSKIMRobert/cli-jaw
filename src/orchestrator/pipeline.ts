@@ -35,6 +35,7 @@ import {
 } from './state-machine.js';
 import { resetFriction } from './friction.js';
 import { stripInterviewTracker } from './sanitize.js';
+import { scanStructuredFence } from '../shared/structured-fence.js';
 // scope is globally 'default' — resolveOrcScope/findActiveScope no longer needed here
 
 // ─── Parser re-exports ─────────────────────────────
@@ -48,6 +49,93 @@ export {
 };
 
 type SpawnAgentLike = typeof spawnAgent;
+
+const REMOTE_ELICITATION_BLOCKED_ORIGINS = new Set(['telegram', 'discord']);
+const STRUCTURED_ELICITATION_FENCE_RE = /```(?:elicitation|choice-buttons)[^\n]*\n([\s\S]*?)```/g;
+
+type PlainQuestion = {
+    question: string;
+    options: string[];
+};
+
+export function isRemoteElicitationBlockedOrigin(origin: unknown): boolean {
+    return REMOTE_ELICITATION_BLOCKED_ORIGINS.has(String(origin || '').trim().toLowerCase());
+}
+
+export function buildRemoteChannelElicitationGuard(origin: unknown): string {
+    const channel = String(origin || '').trim().toLowerCase();
+    if (!isRemoteElicitationBlockedOrigin(channel)) return '';
+    return [
+        '## Remote Channel Capability Override',
+        `Current origin is ${channel}.`,
+        'Telegram/Discord do not render Web UI structured elicitation widgets in this turn.',
+        'Do not output standalone ```elicitation or ```choice-buttons fenced blocks.',
+        'Ask clear choice-based clarification as plain text with numbered options instead.',
+        'If other instructions suggest structured elicitation, this origin-specific channel rule narrows them for the current turn.',
+    ].join('\n');
+}
+
+function normalizePlainOption(option: unknown): string | null {
+    if (typeof option === 'string') return option.trim() || null;
+    if (!option || typeof option !== 'object') return null;
+    const obj = option as Record<string, unknown>;
+    const label = String(obj['label'] ?? obj['value'] ?? obj['id'] ?? '').trim();
+    return label || null;
+}
+
+function normalizePlainQuestion(value: unknown): PlainQuestion | null {
+    if (!value || typeof value !== 'object') return null;
+    const obj = value as Record<string, unknown>;
+    const question = String(obj['question'] ?? obj['title'] ?? '').trim();
+    if (!question) return null;
+    const options = Array.isArray(obj['options'])
+        ? obj['options'].map(normalizePlainOption).filter((v): v is string => Boolean(v))
+        : [];
+    return { question, options };
+}
+
+function parsePlainQuestionsFromStructuredFence(rawJson: string): PlainQuestion[] | null {
+    try {
+        const parsed = JSON.parse(rawJson.trim());
+        const source = parsed && typeof parsed === 'object' && Array.isArray((parsed as Record<string, unknown>)['questions'])
+            ? (parsed as Record<string, unknown>)['questions']
+            : [parsed];
+        const questions = Array.isArray(source)
+            ? source.map(normalizePlainQuestion).filter((v): v is PlainQuestion => Boolean(v))
+            : [];
+        return questions.length ? questions : null;
+    } catch {
+        return null;
+    }
+}
+
+function renderRemoteElicitationFallback(rawJson: string): string {
+    const questions = parsePlainQuestionsFromStructuredFence(rawJson);
+    if (!questions) {
+        return [
+            '구조화 질문은 Telegram/Discord에서 버튼 UI로 표시되지 않습니다.',
+            '선택지는 일반 텍스트 질문으로 다시 요청해주세요.',
+        ].join('\n');
+    }
+    const rendered = questions.map((question, questionIndex) => {
+        const header = questions.length > 1
+            ? `Q${questionIndex + 1}. ${question.question}`
+            : question.question;
+        const options = question.options.map((option, optionIndex) => `${optionIndex + 1}. ${option}`);
+        return [header, ...options].join('\n');
+    }).join('\n\n');
+    return [
+        '구조화 질문은 이 채널에서 버튼 UI로 표시되지 않습니다. 번호나 텍스트로 답해주세요.',
+        '',
+        rendered,
+    ].join('\n');
+}
+
+export function normalizeRemoteChannelElicitationOutput(text: string, origin: unknown): string {
+    if (!isRemoteElicitationBlockedOrigin(origin)) return text;
+    if (scanStructuredFence(text).status === 'absent') return text;
+    return text.replace(STRUCTURED_ELICITATION_FENCE_RE, (_match, rawJson: string) => renderRemoteElicitationFallback(rawJson));
+}
 
 function pickPlanningTask(userText: string, _prompt: string, ctx: Record<string, any> | null) {
     const ctxPrompt = String(ctx?.["originalPrompt"] || '').trim();
@@ -295,6 +383,10 @@ export async function orchestrate(
     if (approvedPlanBlock) {
         prompt = `${approvedPlanBlock}\n${prompt}`;
     }
+    const remoteChannelElicitationGuard = buildRemoteChannelElicitationGuard(origin);
+    if (remoteChannelElicitationGuard) {
+        prompt = `${prompt}\n\n${remoteChannelElicitationGuard}`;
+    }
 
     // spawn/resume agent
     console.log(`[jaw:pabcd] state=${state}, spawning/resuming agent`);
@@ -437,6 +529,7 @@ export async function orchestrate(
     // Final safety strip: shared sanitizer regardless of state
     if (typeof result["text"] === 'string') {
         result["text"] = stripInterviewTracker(result["text"]);
+        result["text"] = normalizeRemoteChannelElicitationOutput(result["text"], origin);
     }
 
     // Normal response → broadcast
