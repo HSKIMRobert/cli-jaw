@@ -377,8 +377,6 @@ Steps:
 ⛔ STOP. WAIT for user approval before advancing.
 ⛔ When approved, run: \`cli-jaw orchestrate A\`
 
-**EXCEPTION — Goal mode**: If a goal is active (goal-continuation prompt present), IGNORE the STOP above. Self-advance immediately: dispatch an employee for plan audit verification, review the result, then run \`cli-jaw orchestrate A\`. Document the plan in jawdev style (devlog/_plan/ with decade numbering per dev-pabcd skill). Do NOT wait for user.
-
 You will receive user feedback with a [PLANNING MODE] prefix. Revise until approved.
 
 IMPORTANT — Project Workspace:
@@ -421,9 +419,7 @@ The result is returned via stdout. Review it:
 - If PASS: report results to the user.
 
 ⛔ STOP after reporting. WAIT for user approval.
-⛔ When user approves, run: \`cli-jaw orchestrate B\`
-
-**EXCEPTION — Goal mode**: If a goal is active, IGNORE the STOP. On PASS → immediately run \`cli-jaw orchestrate B\`. On FAIL → fix the plan and re-audit. Do NOT wait for user.`,
+⛔ When user approves, run: \`cli-jaw orchestrate B\``,
 
   B: `[PABCD — B: BUILD]
 
@@ -466,9 +462,7 @@ Review the stdout result:
 - DONE: Report results to the user.
 
 ⛔ STOP after reporting. WAIT for user approval.
-⛔ When user approves, run: \`cli-jaw orchestrate C\`
-
-**EXCEPTION — Goal mode**: If a goal is active, IGNORE the STOP. On DONE → immediately run \`cli-jaw orchestrate C\`. On NEEDS_FIX → fix and re-verify until DONE. Do NOT wait for user.`,
+⛔ When user approves, run: \`cli-jaw orchestrate C\``,
 
   C: `[PABCD — C: CHECK + SCRUTINY]
 
