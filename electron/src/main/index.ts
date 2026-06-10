@@ -221,7 +221,15 @@ function embeddedBrowserAcceptLanguages(): string {
 
 function configureEmbeddedBrowserSession(): void {
   const ses = session.fromPartition(EMBEDDED_BROWSER_PARTITION);
-  ses.setUserAgent(embeddedBrowserUserAgent(), embeddedBrowserAcceptLanguages());
+  const userAgent = embeddedBrowserUserAgent();
+  ses.setUserAgent(userAgent, embeddedBrowserAcceptLanguages());
+  // setUserAgent does NOT cover service-worker-initiated fetches — a runtime probe
+  // showed they fall back to the Electron-flavored app UA (see devlog #229 notes).
+  // Force the header at the network layer for every request in this partition.
+  ses.webRequest.onBeforeSendHeaders((details, callback) => {
+    details.requestHeaders['User-Agent'] = userAgent;
+    callback({ requestHeaders: details.requestHeaders });
+  });
 }
 const AUTOMATION_SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Automation';
 
