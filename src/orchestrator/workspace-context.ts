@@ -19,6 +19,7 @@ export type WorkspaceContextInput = {
     worklogPath?: string | null;
     employeeName?: string | null;
     task?: string;
+    now?: Date;
 };
 
 export function resolveWorkspaceRoot(workingDir?: string | null): string {
@@ -64,6 +65,42 @@ export function buildResolvedPathHints(task: string | undefined, projectRoots: s
     return `## Resolved Path Hints\n${lines.join('\n')}`;
 }
 
+function pad2(value: number): string {
+    return String(value).padStart(2, '0');
+}
+
+function formatOffset(minutesEastOfUtc: number): string {
+    const sign = minutesEastOfUtc >= 0 ? '+' : '-';
+    const abs = Math.abs(minutesEastOfUtc);
+    return `${sign}${pad2(Math.floor(abs / 60))}:${pad2(abs % 60)}`;
+}
+
+function formatLocalTimestamp(date: Date): string {
+    const offset = formatOffset(-date.getTimezoneOffset());
+    return [
+        date.getFullYear(),
+        '-',
+        pad2(date.getMonth() + 1),
+        '-',
+        pad2(date.getDate()),
+        'T',
+        pad2(date.getHours()),
+        ':',
+        pad2(date.getMinutes()),
+        ':',
+        pad2(date.getSeconds()),
+        offset,
+    ].join('');
+}
+
+function runtimeTimezone(): string {
+    try {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone || 'local';
+    } catch {
+        return 'local';
+    }
+}
+
 export function buildWorkspaceContextBlock(input: WorkspaceContextInput): string {
     const roots = input.projectDirs?.length
         ? input.projectDirs.map(d => resolve(d))
@@ -76,10 +113,14 @@ export function buildWorkspaceContextBlock(input: WorkspaceContextInput): string
     const primaryRoot = roots[0]!;
     const devlogRoot = join(primaryRoot, 'devlog');
     const hints = buildResolvedPathHints(input.task, roots);
+    const now = input.now || new Date();
 
     return [
         '## Workspace Context (authoritative)',
         rootLines,
+        `Current time: ${formatLocalTimestamp(now)}`,
+        `Timezone: ${runtimeTimezone()}`,
+        `UTC time: ${now.toISOString()}`,
         `Devlog root: ${JSON.stringify(devlogRoot)}`,
         `Worklog path: ${input.worklogPath || '(none)'}`,
         'Employee runtime cwd: isolated temporary directory, not the project root',

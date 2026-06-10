@@ -217,7 +217,7 @@ are persisted or displayed through trace helpers.
 | `orchestrator/gateway.ts` | 155L | queue / intent gateway |
 | `orchestrator/parser.ts` | 176L | legacy subtask JSON 파서 + intent matcher + numeric reference + verdict 파서 |
 | `orchestrator/seed.ts` | 107L | ontology schema + seed metadata for interview-driven planning |
-| `orchestrator/workspace-context.ts` | 95L | task에서 repo path hint 추출, project root resolve |
+| `orchestrator/workspace-context.ts` | 136L | task에서 repo path hint 추출, project root resolve |
 | `orchestrator/friction.ts` | 76L | friction signature ledger + retry/escalate/stop verdict |
 | `orchestrator/collect.ts` | 66L | orchestrate 결과 수집 |
 | `orchestrator/worker-progress.ts` | 58L | worker progress safe-summary sanitizer + snapshot types |
