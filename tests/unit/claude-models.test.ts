@@ -88,6 +88,7 @@ test('CM-012: getDefaultClaudeChoices returns aliases + verified pinned full IDs
     const choices = getDefaultClaudeChoices();
     assert.deepEqual([...choices].sort(), [
         'claude-fable-5',
+        'claude-fable-5[1m]',
         'claude-haiku-4-5',
         'claude-opus-4-6',
         'claude-opus-4-6[1m]',

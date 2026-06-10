@@ -155,6 +155,8 @@ export const CURSOR_REGISTRY_MODELS = [
     'gpt-5.1-codex-max',
     'gpt-5.1-codex-mini',
     'gpt-5.1',
+    'claude-fable-5',
+    'claude-fable-5-thinking',
     'claude-opus-4-8',
     'claude-opus-4-8-thinking',
     'claude-opus-4-7',
