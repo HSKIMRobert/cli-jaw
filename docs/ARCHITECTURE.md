@@ -53,11 +53,11 @@ Browser and automation
 
 Current core API shape, as of June 10, 2026:
 
-- `server.ts`: 654 lines of glue/bootstrap.
+- `server.ts`: 587 lines of glue/bootstrap.
 - REST/SSE routes: 195 handlers including `/`; 194 API/media endpoints.
 - Browser API: 41 handlers in `src/routes/browser.ts`.
-- WebSocket broadcast event names: 47.
-- Primary web event channel: `GET /api/events` SSE, with legacy WebSocket fallback.
+- Public event type names: 47.
+- Primary web event channel: `GET /api/events` SSE, with legacy WebSocket fallback only for pre-X-01 servers.
 - Slash command registry: 39 commands across CLI, Web, Telegram, and Discord.
 - Runtime registry: 13 top-level runtimes.
 
@@ -101,13 +101,13 @@ User prompt
   -> provider CLI process
   -> src/agent/events/* adapter
   -> src/core/bus.ts broadcast
-  -> WebSocket clients + SSE event bus + trace/tool-log snapshots
+  -> SSE event bus + trace/tool-log snapshots + internal listeners
 ```
 
 Important boundaries:
 
-- `src/core/bus.ts` still broadcasts WebSocket payloads and now dual-emits to
-  `src/core/event-bus.ts` for SSE.
+- `src/core/bus.ts` publishes public events to `src/core/event-bus.ts` for SSE
+  and still calls internal listeners for collectors/forwarders.
 - `src/routes/events.ts` exposes `GET /api/events`, a data-only SSE stream.
   Topic and event name are JSON fields in each `data:` payload.
 - `public/js/event-channel.ts` owns the browser EventSource singleton,

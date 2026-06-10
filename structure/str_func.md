@@ -9,7 +9,7 @@ aliases: [CLI-JAW Source Structure, str_func, source structure reference]
 # CLI-JAW — Source Structure & Function Reference
 
 > 마지막 검증: 2026-06-10 (최근 500개 커밋 기준 문서/카운트 재측정)
-> `server.ts` 654L / `src/routes/` 32 TS files (registrars + helper modules + extracted base-route modules, 195 route handlers including `/`) / `src/cli/handlers*.ts` 448L + 501L + 103L + 56L + workflow 499L / `src/cli/api-auth.ts` 45L / `src/workflows/` 19 root files + 3 subdirs (checkpoint/permissions/context-map) / `src/agent/` 29 root TS + `spawn/` 3 files + `events/` 12 files (spawn.ts 2324L + pi-runtime.ts 460L + lifecycle-handler.ts 974L + kiro-runtime.ts 386L + kiro-auth.ts 230L + kiro-models.ts 98L + cursor-runtime.ts 240L) / `src/goal/` 4 files (543L) / `src/goal-run/` 5 files (337L) / `src/trace/` 3 files (279L) / `src/team/` 5 files (323L, team dispatch planner/collector/preflight) / `src/jaw-ceo/` 16 files (2614L, OpenAI Realtime CEO channel) / `src/shared/` 2 files (253L) / `src/manager/` 79 TS/TSX files (dashboard + board/notes/search/schedule/reminders/connector/routes/memory/git) / `src/browser/web-ai/` 68 TS files (12561L) + `adaptive-fetch/` 19 files (2608L) / `src/types/` 3 files (329L) / `bin/commands/` 30 top-level ts files + `tui/` 9 helper files / `electron/` Electron tray app + sidecar packaging (27 TS/TSX files, 3096L) / `native/jaw-claude-i/` 11 Rust source files (1934L)
+> `server.ts` 587L / `src/routes/` 32 TS files (registrars + helper modules + extracted base-route modules, 195 route handlers including `/`) / `src/cli/handlers*.ts` 448L + 501L + 103L + 56L + workflow 499L / `src/cli/api-auth.ts` 45L / `src/workflows/` 19 root files + 3 subdirs (checkpoint/permissions/context-map) / `src/agent/` 29 root TS + `spawn/` 3 files + `events/` 12 files (spawn.ts 2324L + pi-runtime.ts 460L + lifecycle-handler.ts 974L + kiro-runtime.ts 386L + kiro-auth.ts 230L + kiro-models.ts 98L + cursor-runtime.ts 240L) / `src/goal/` 4 files (543L) / `src/goal-run/` 5 files (337L) / `src/trace/` 3 files (279L) / `src/team/` 5 files (323L, team dispatch planner/collector/preflight) / `src/jaw-ceo/` 16 files (2614L, OpenAI Realtime CEO channel) / `src/shared/` 2 files (253L) / `src/manager/` 79 TS/TSX files (dashboard + board/notes/search/schedule/reminders/connector/routes/memory/git) / `src/browser/web-ai/` 68 TS files (12561L) + `adaptive-fetch/` 19 files (2608L) / `src/types/` 3 files (329L) / `bin/commands/` 30 top-level ts files + `tui/` 10 helper files / `electron/` Electron tray app + sidecar packaging (27 TS/TSX files, 3096L) / `native/jaw-claude-i/` 11 Rust source files (1934L)
 >
 > 상세 모듈 문서는 [서브 문서](#서브-문서)를 참조하세요.
 
@@ -43,7 +43,7 @@ cli-jaw/
 │   │   ├── instance.ts       ← 인스턴스 ID, node/jaw 경로, 유닛명 sanitize (58L)
 │   │   ├── db.ts             ← SQLite 스키마 + prepared statements + trace + tool_log + working_dir migration + closeDb() WAL checkpoint + checkOrphanedWal + busy_timeout + clearMessagesScoped + queued_messages table + model-aware clearEmployeeSession + getRecentMessagesLite + searchMessages(days+recent scope) + getMessageContext(±N range) (388L)
 │   │   ├── chat-sessions.ts  ← 채팅 세션 CRUD + 활성 세션 전환 (97L)
-│   │   ├── bus.ts            ← WS + 내부 리스너 broadcast (57L)
+│   │   ├── bus.ts            ← public SSE publish + 내부 리스너 fan-out (57L)
 │   │   ├── logger.ts         ← 로거 유틸 (27L)
 │   │   ├── i18n.ts           ← 서버사이드 번역 (90L)
 │   │   ├── employees.ts      ← Employee 시드/CRUD 공용 로직 + 정적(코드 정의) 직원(Control 등) 등록 + DEFAULT_EMPLOYEES (265L)
@@ -344,7 +344,7 @@ cli-jaw/
 │   ├── star-prompt.ts        ← `gh` 기반 GitHub star 1회 프롬프트 (129L)
 │   ├── postinstall.ts        ← npm install 후 CLI 런타임 + OfficeCLI 자동설치 + MCP + 스킬 + safe 가드 (1036L)
 │   ├── helpers/help.ts       ← CLI help text helper (9L)
-│   └── commands/             ← 30 top-level ts files + `tui/` 9 helper 모듈
+│   └── commands/             ← 30 top-level ts files + `tui/` 10 helper 모듈
 │       ├── serve.ts          ← 서버 시작 (--port/--host/--open) + SIGINT child.kill('SIGINT') orphan fix (121L)
 │       ├── dispatch.ts       ← 직원 호출 (pipe mode 호환) + batch dispatch + stale/non-JSON route diagnostics + worker result polling + ECONNREFUSED retry (469L)
 │       ├── chat.ts           ← 터미널 채팅 TUI (3모드, locale bootstrap, refreshInfo, active model 표시, no-arg `/model`·`/cli` selector intercept, transcript 축적, overlay wiring, 288L)
@@ -373,7 +373,7 @@ cli-jaw/
 │       ├── connector.ts      ← dashboard connector board/notes/reminders/audit CLI (216L)
 │       ├── reminders.ts      ← local reminders list/add/done CLI (100L)
 │       ├── dispatch-helpers.ts ← dispatch output unwrap helper (21L)
-│       └── tui/              ← chat 터미널 TUI 분리 (9 files: api 84L, fullscreen-mode 264L, input-handler 430L, overlays 350L, renderer 135L, simple-mode 103L, tui-io 12L, types 111L, ws-handler 209L)
+│       └── tui/              ← chat 터미널 TUI 분리 (10 files: api 84L, channel 115L, fullscreen-mode 263L, input-handler 430L, overlays 350L, renderer 135L, simple-mode 101L, tui-io 12L, types 111L, ws-handler 209L)
 ├── tests/                    ← 회귀 방지 테스트 (586 files: root/unit/integration/browser/fixtures/smoke)
 ├── scripts/                  ← 도구 스크립트 (TypeScript + Shell + CJS; atomic build, sidecar bundle, release gates, install-risk evidence)
 ├── officecli/                ← OfficeCLI 포크 서브모듈 (lidge-jun/OfficeCLI, Apache 2.0)
@@ -464,12 +464,12 @@ graph LR
 15. **Kiro provider**: `kiro-auth.ts` (auth store reader) + `kiro-models.ts` (live inventory) + `kiro-runtime.ts` (stdout parser) + `registry-live.ts` (dynamic merge)
 16. **Pi runtime**: `pi-runtime.ts` + `settings.pi` + `/api/pi/profiles/register` — first-class RPC runtime with isolated profile config and model discovery
 17. **Interview enhancement**: `orchestrator/friction.ts` (5-level clarity + oscillation detection) + `seed.ts` (evidence-ref ontology) + `sanitize.ts` (tracker strip) + pipeline.ts budget gate
-18. **TUI**: `src/cli/tui/` 18 files — transcript model + composer (paste collapse) + overlay (help/palette/selector) + text-buffer + theme + render/ sub-modules; `bin/commands/tui/` 9 files — fullscreen/simple mode + input-handler + ws-handler
+18. **TUI**: `src/cli/tui/` 18 files — transcript model + composer (paste collapse) + overlay (help/palette/selector) + text-buffer + theme + render/ sub-modules; `bin/commands/tui/` 10 files — SSE-first `channel.ts`, fullscreen/simple mode + input-handler + ws-handler
 19. **Electron tray**: `electron/` — sidecar-first packaged server spawn, tray CLI install flow, deep-link, terminal IPC, folder/drop path IPC, navigation policy, permission diagnostics
 20. **Adaptive fetch**: `src/browser/adaptive-fetch/` 19 files — multi-strategy web fetch (direct → reader API → browser escalation) with WAF detection + content scoring
 21. **Team dispatch**: `src/team/` — planner/collector/dispatcher/preflight for structured multi-employee coordination
 22. **Jaw CEO**: `src/jaw-ceo/` — OpenAI Realtime API sideband channel + coordinator (admin/workers/completions/realtime-tools)
-23. **SSE event channel**: `src/core/event-bus.ts` + `src/routes/events.ts` + `public/js/event-channel.ts` provide `GET /api/events` with replay; `public/js/ws.ts` remains the legacy fallback dispatcher.
+23. **SSE event channel**: `src/core/event-bus.ts` + `src/routes/events.ts` + `public/js/event-channel.ts` provide `GET /api/events` with replay; `public/js/ws.ts` remains the legacy browser fallback dispatcher and `bin/commands/tui/channel.ts` provides the SSE-first terminal chat transport.
 
 ---
 

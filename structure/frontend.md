@@ -95,7 +95,7 @@ public/
 | `js/render/notes-vault-path.ts` | — | notes vault path resolution |
 | `js/render/delegations.ts` | — | render delegation registry |
 | `js/ui.ts` | 441L | 메시지 렌더링, skeleton/empty state, virtual scroll 연동, ProcessBlock 오케스트레이션, copy button, avatar markup 주입, message finalization, `scrollIntent` 기반 bottom-follow/restore policy |
-| `js/ws.ts` | 833L | SSE/WS 공용 메시지 dispatcher + legacy WebSocket fallback. agent status, queue update, `agent_tool`→typed ProcessStep, agent output/done, orchestration state, interview panel, Telegram/Discord new message, reconnect snapshot, 10초 reload dedup, reconnect 후 bottom anchor reconciliation |
+| `js/ws.ts` | 877L | SSE/WS 공용 메시지 dispatcher + legacy WebSocket fallback. agent status, queue update, `agent_tool`→typed ProcessStep, agent output/done, orchestration state, interview panel, Telegram/Discord new message, reconnect snapshot, 10초 reload dedup, 8초 disconnect-toast grace, reconnect 후 bottom anchor reconciliation |
 | `js/streaming-render.ts` | — | 스트리밍 텍스트 렌더러 |
 | `js/virtual-scroll-bootstrap.ts` | — | virtual scroll 초기 hydrate/measure/bootstrap 오케스트레이터 |
 | `js/virtual-scroll.ts` | 596L | TanStack virtualizer 기반 DOM 풀링, mounted node 재사용, post-render hook 실행, Mermaid observer release, scroll anchor preservation |
@@ -246,13 +246,13 @@ settings.ts (barrel)
 | `manager/src/clipboard/` | copy-text utility |
 | `manager/src/lib/` | shared utilities (preview-prefs, use-hidden-unload) |
 
-Manager 서버는 `jaw dashboard serve`가 실행하는 `src/manager/server.ts`이며 기본 port는 `24576`.
+Manager 서버는 `jaw dashboard serve`가 실행하는 `src/manager/server.ts`이며 기본 port는 `24576`. React manager app은 `/api/manager/events`, `/api/dashboard/instances`, `/i/:port/api/messages/latest` 계열 polling으로 상태를 읽는다. Worker live bridge는 browser가 직접 EventSource를 여는 구조가 아니라 manager server의 `src/manager/worker-events.ts` + `src/manager/worker-sse-client.ts`가 각 worker instance `GET /api/events`를 server-side 구독하고 latest-message cache를 갱신하는 구조다.
 
 ---
 
 ## ProcessBlock / Subagent Rendering
 
-tool history의 canonical UI는 `features/process-block.ts`다. `ui.ts`는 live WS 이벤트, persisted `tool_log`, IndexedDB fallback, virtual-scroll history 모두를 `ToolLogEntry[]` → `ProcessStep[]` → ProcessBlock HTML 흐름으로 맞춘다.
+tool history의 canonical UI는 `features/process-block.ts`다. `ui.ts`는 live channel event(SSE primary / legacy WS fallback), persisted `tool_log`, IndexedDB fallback, virtual-scroll history 모두를 `ToolLogEntry[]` → `ProcessStep[]` → ProcessBlock HTML 흐름으로 맞춘다.
 
 | 관심사 | 현재 구현 |
 | --- | --- |
@@ -292,10 +292,10 @@ tool history의 canonical UI는 `features/process-block.ts`다. `ui.ts`는 live 
 | 전송 | 일반 메시지는 `/api/message`, slash command는 `/api/command`, stop 버튼은 `/api/stop` |
 | 렌더링 | `render.ts` façade → `public/js/render/*` 모듈이 markdown/KaTeX/Mermaid/code copy/diagram widget/file-path click-to-open/external web-link new-tab targeting/post-render 담당 |
 | 오프라인 | `idb-cache.ts`가 메시지 히스토리를 IndexedDB에 보관 — scope별 캐시, 실시간 upsert |
-| Event channel | `GET /api/events` SSE primary channel handles `agent_tool`→typed ProcessBlock step, `agent_output`→streaming renderer, `agent_done`→finalization; `ws.ts` is the shared dispatcher and legacy WebSocket fallback |
+| Event channel | `GET /api/events` SSE primary channel handles `agent_tool`→typed ProcessBlock step, `agent_output`→streaming renderer, `agent_done`→finalization; `ws.ts` is the shared dispatcher and legacy WebSocket fallback for pre-X-01 servers. Transient SSE drops are quiet for 8 seconds before the UI posts a disconnected message. |
 | 상태 | `agent_status`, `queue_update`, `orc_state`, `session_reset`, `clear`, Telegram/Discord `new_message` |
 | 반응형 | sidebar collapse/expand, mobile edge swipe, theme switch, PABCD roadmap, voice shortcut(`Ctrl/Cmd+Shift+Space`, `Alt/Option+M`) |
-| Manager | 별도 React 앱이 dashboard API로 Jaw 인스턴스 scan/preview/lifecycle, notes, board, reminders, schedule, CEO console 관리 |
+| Manager | 별도 React 앱이 dashboard API polling으로 Jaw 인스턴스 scan/preview/lifecycle, notes, board, reminders, schedule, CEO console을 관리하고, manager server가 worker SSE bridge/cache를 담당 |
 
 ---
 

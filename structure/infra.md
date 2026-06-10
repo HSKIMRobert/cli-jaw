@@ -269,16 +269,17 @@ jaw_ceo_transcript (id PK, at, role, text, source, created_at)
 
 ---
 
-## src/core/bus.ts — Broadcast Bus (64L)
+## src/core/bus.ts — Broadcast Bus (57L)
 
-순환 의존 방지 허브. 의존 0. WebSocket broadcast와 `src/core/event-bus.ts` SSE bridge가 함께 소비하는 내부 listener fan-out을 제공한다.
+순환 의존 방지 허브. 의존 0. Public audience는 `src/core/event-bus.ts`로 SSE publish하고, internal listener fan-out은 audience와 무관하게 수행한다. X-01 이후 current server에는 public WebSocket broadcast registration이 없다.
 
 | Function | 역할 |
 | --- | --- |
-| `setWss(w)` | WebSocket 서버 등록 |
-| `broadcast(type, data)` | WS + 내부 리스너 동시 전파 |
+| `inferTopic(type)` | broadcast type → SSE topic 매핑 |
+| `broadcast(type, data, audience?)` | public audience는 SSE publish, 모든 audience는 내부 리스너 fan-out |
 | `addBroadcastListener(fn)` | 내부 리스너 추가 |
 | `removeBroadcastListener(fn)` | 특정 핸들러 제거 |
+| `clearAllBroadcastListeners()` | 테스트/초기화용 listener set 비우기 |
 
 > `removeBroadcastListener(fn)`는 named handler lifecycle에 맞춰 정확히 해당 참조만 제거한다.
 

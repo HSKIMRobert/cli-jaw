@@ -568,8 +568,9 @@ function applyOrcState(orcState: string, title?: string) {
 // ── SSE transport (Phase 3 — devlog 260609, 30 §5) ──
 // event-channel delivers data-only payloads {…data, topic, event}; the adapter
 // aliases event → type so the dispatcher below stays byte-identical to the
-// original WS switch (30 §3 D-1). Server WS broadcast keeps running (dual-emit)
-// as a rollback safety net until X-01 cleanup.
+// original WS switch (30 §3 D-1). Since X-01, current servers publish public
+// browser events via SSE only; the WebSocket leg below is client-side fallback
+// for legacy servers where /api/events never opens.
 
 let channelWired = false;
 let snapshotReady: Promise<void> = Promise.resolve();

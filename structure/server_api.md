@@ -6,9 +6,9 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 
 > 📚 [INDEX](INDEX.md) · [체크리스트 ↗](AGENTS.md) · [커맨드 ↗](commands.md) · **서버 API**
 
-# server.ts — Glue + Route Registration (654L)
+# server.ts — Glue + Route Registration (587L)
 
-> Express/WS/SSE bootstrap + localhost/LAN opt-in 보안 가드 + `src/routes/*` registrar + mounted sub-router 등록.
+> Express/SSE bootstrap + localhost/LAN opt-in 보안 가드 + `src/routes/*` registrar + mounted sub-router 등록.
 > 현재 라이브 surface는 총 195개 route handler이며, 이 중 `/`를 제외한 API 엔드포인트는 194개다.
 > mutation route(`POST`/`PUT`/`DELETE`)는 모두 `requireAuth`를 거친다. 단, `requireAuth()`는 loopback 요청을 토큰 없이 통과시키고, `lanAllowed()`가 true일 때 private IP도 LAN bypass로 통과시킨다.
 > `GET /api/auth/token`은 Bearer bootstrap 전용이며 `Sec-Fetch-Site`가 `same-origin` 또는 `none`이 아닐 때 `403`을 반환한다.
@@ -19,7 +19,7 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 
 | Module | Lines | Routes | 역할 |
 | --- | ---: | ---: | --- |
-| `server.ts` | 654L | mount glue | Helmet/CORS/Host/rate-limit/WS/bootstrap + static middleware + route/sub-router registration |
+| `server.ts` | 587L | mount glue | Helmet/CORS/Host/rate-limit/SSE bootstrap + static middleware + route/sub-router registration |
 | `src/routes/static.ts` | 30L | 2 | root HTML + `/media/:filename` upload media serve |
 | `src/routes/system.ts` | 57L | 4 | health/session/runtime/auth-token |
 | `src/routes/messages.ts` | 107L | 4 | message list/count/search/latest |
@@ -141,7 +141,7 @@ static → employees → heartbeat → skills → jaw-memory → orchestrate
 
 - 기본 서버 bind는 `127.0.0.1`이지만 `settings.network.bindHost`, `JAW_LAN_MODE=1`, reverse-proxy mode에 따라 `0.0.0.0` bind가 가능하다.
 - `ALLOWED_HOSTS`/`ALLOWED_ORIGINS`는 loopback을 기본 허용하고, LAN mode/bypass가 켜졌을 때 private network origin/host를 허용한다.
-- WebSocket handshake도 동일한 host/origin 검사를 거친다.
+- Legacy/client fallback WebSocket paths and manager-side note WebSocket surfaces must apply the same host/origin guard model; the current core public event path is SSE.
 
 ### 인증
 
@@ -230,7 +230,7 @@ static → employees → heartbeat → skills → jaw-memory → orchestrate
 
 ## WebSocket Events
 
-연결 시 서버는 현재 상태 스냅샷을 먼저 보낸다: `agent_status`, `queue_update`, 비-IDLE `orc_state`. 현재 브로드캐스트되는 WebSocket 이벤트는 47종이다. Web UI는 우선 `GET /api/events` SSE channel을 사용하고, legacy 서버에서 `/api/events`가 열리지 않을 때만 WebSocket path로 자동 fallback한다.
+이 heading은 `structure/check-doc-drift.sh`의 anchor로 유지한다. X-01 이후 current server는 public browser events를 WebSocket으로 broadcast하지 않는다. 아래 catalog는 `src/core/bus.ts` → `src/core/event-bus.ts` → `GET /api/events`로 전달되는 public SSE event type surface다. WebSocket은 `public/js/ws.ts`와 `bin/commands/tui/channel.ts`가 `/api/events`를 한 번도 열 수 없는 pre-X-01 server에 붙을 때만 fallback path로 사용한다. Current Web UI는 reconnect 시 REST snapshot hydration으로 `agent_status`, `queue_update`, 비-IDLE `orc_state` 상태를 보강한다.
 
 | Type | 설명 |
 | --- | --- |
@@ -264,7 +264,7 @@ static → employees → heartbeat → skills → jaw-memory → orchestrate
 
 ## Manager Dashboard Server Surface
 
-`jaw dashboard serve`가 띄우는 별도 manager 서버(`src/manager/server.ts`, 852L)는 core `server.ts` route count에 포함하지 않는다. Manager instance state는 `src/manager/instance-registry.ts`(120L)가 cached scan + diff event source로 제공하며, core Web UI의 `GET /api/events` SSE channel과 같은 event-channel client가 refresh-state recovery에 사용된다.
+`jaw dashboard serve`가 띄우는 별도 manager 서버(`src/manager/server.ts`, 863L)는 core `server.ts` route count에 포함하지 않는다. Manager instance state는 `src/manager/instance-registry.ts`(120L)가 cached scan + diff event source로 제공한다. Manager React UI는 `/api/manager/events`, `/api/dashboard/instances`, `/i/:port/api/messages/latest` 계열 HTTP polling으로 상태를 읽고, manager server는 `src/manager/worker-events.ts` + `src/manager/worker-sse-client.ts`를 통해 각 worker instance의 `GET /api/events`를 server-side로 구독해 latest-message cache를 갱신한다.
 
 | Surface | Endpoints |
 | --- | --- |
