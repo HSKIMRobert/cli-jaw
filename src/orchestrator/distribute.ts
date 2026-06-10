@@ -485,7 +485,7 @@ ${worklogBlock}`.trim();
     const monitor = startWorkerMonitor({
         agentId: empId,
         stallThresholdMs: 120_000,
-        maxDurationMs: 600_000,
+        maxDurationMs: Number(process.env["JAW_WORKER_MAX_DURATION_MS"]) || 600_000,
         onStall: (id) => broadcast('worker_stalled', { agentId: id, employeeName: emp["name"], isEmployee: true }),
         onDisconnect: (id, code) => broadcast('worker_disconnected', { agentId: id, exitCode: code, isEmployee: true }),
         onTimeout: (id) => {
