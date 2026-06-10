@@ -28,16 +28,47 @@ function setHeaderCli(cli: string): void {
 function setHeaderProject(dirs: readonly string[] | null | undefined): void {
     const el = document.getElementById('headerProject');
     if (!el) return;
+    ensureHeaderProjectPicker(el);
+    el.hidden = false;
     const label = formatProjectLabel(dirs);
     if (!label) {
-        el.hidden = true;
-        el.textContent = '';
-        el.removeAttribute('title');
+        el.classList.add('is-empty');
+        el.textContent = 'Project: not set';
+        el.title = 'Click to choose the project root folder';
         return;
     }
-    el.hidden = false;
+    el.classList.remove('is-empty');
     el.textContent = `Project ${label.text}`;
-    el.title = label.title;
+    el.title = `${label.title}\n(click to change)`;
+}
+
+// #233 follow-up: the label doubles as a button — the server opens the OS
+// folder chooser (Finder) and applies the picked folder as projectDirs.
+function ensureHeaderProjectPicker(el: HTMLElement): void {
+    if (el.dataset['pickerBound']) return;
+    el.dataset['pickerBound'] = '1';
+    el.setAttribute('role', 'button');
+    el.setAttribute('tabindex', '0');
+    const pick = async (): Promise<void> => {
+        if (el.classList.contains('is-picking')) return;
+        el.classList.add('is-picking');
+        const prevText = el.textContent;
+        el.textContent = 'Choosing folder…';
+        try {
+            const result = await apiJson<{ projectDirs?: string[] | null; cancelled?: boolean }>('/api/project/pick', 'POST', {});
+            if (result && !result.cancelled && 'projectDirs' in result) {
+                el.classList.remove('is-picking');
+                setHeaderProject(result.projectDirs);
+                return;
+            }
+        } catch { /* fall through to restore */ }
+        el.classList.remove('is-picking');
+        el.textContent = prevText;
+    };
+    el.addEventListener('click', () => { void pick(); });
+    el.addEventListener('keydown', (e) => {
+        if ((e as KeyboardEvent).key === 'Enter' || (e as KeyboardEvent).key === ' ') { e.preventDefault(); void pick(); }
+    });
 }
 
 /** SSE settings_change payload → header-only refresh (#233). Never re-runs

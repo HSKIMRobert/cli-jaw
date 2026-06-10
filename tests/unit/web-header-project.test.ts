@@ -31,7 +31,18 @@ test('WHP-003: settings-core renders the project label on load and on change', (
     assert.ok(coreSrc.includes('setHeaderProject(s.projectDirs)'), 'loadSettings must render the project label');
     assert.ok(coreSrc.includes('formatProjectLabel'), 'must use the shared label formatter');
     const fnIdx = coreSrc.indexOf('function setHeaderProject');
-    const block = coreSrc.slice(fnIdx, fnIdx + 600);
-    assert.ok(block.includes('el.hidden = true'), 'unset projectDirs must hide the segment');
-    assert.ok(block.includes('el.title = label.title'), 'full paths must land in the tooltip');
+    const block = coreSrc.slice(fnIdx, fnIdx + 700);
+    assert.ok(block.includes("classList.add('is-empty')"), 'unset projectDirs must render the muted picker state');
+    assert.ok(block.includes('Project: not set'), 'unset state must stay clickable, not hidden');
+    assert.ok(block.includes('label.title'), 'full paths must land in the tooltip');
+});
+
+test('WHP-004: header label is a keyboard-accessible picker button', () => {
+    const idx = coreSrc.indexOf('function ensureHeaderProjectPicker');
+    assert.ok(idx > 0, 'picker binding must exist');
+    const block = coreSrc.slice(idx, idx + 1600);
+    assert.ok(block.includes("setAttribute('role', 'button')"), 'must expose button role');
+    assert.ok(block.includes("setAttribute('tabindex', '0')"), 'must be focusable');
+    assert.ok(block.includes("'/api/project/pick'"), 'click must call the pick endpoint');
+    assert.ok(block.includes("addEventListener('keydown'"), 'Enter/Space must work');
 });

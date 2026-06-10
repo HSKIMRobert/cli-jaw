@@ -30,6 +30,7 @@ import { useInstanceLabelEditor } from './hooks/useInstanceLabelEditor';
 import { useInstanceMessageEvents } from './hooks/useInstanceMessageEvents';
 import { useManagerEvents } from './hooks/useManagerEvents';
 import { useManagerEventStream } from './hooks/useManagerEventStream';
+import { useProjectPicker } from './hooks/useProjectPicker';
 import { usePreviewSttLifecycle } from './usePreviewSttLifecycle';
 import { usePreviewShortcutMessages } from './usePreviewShortcutMessages';
 import { formatUptime, instanceLabel } from './instance-label';
@@ -179,6 +180,14 @@ export function App() {
         void refreshInstance(port);
         publishInvalidation({ topics: ['instances'], reason: 'instance:settings-change', source: 'ui', sourceId: 'app' });
     });
+    // #233 follow-up: native folder chooser for the selected instance.
+    const projectPicker = useProjectPicker(
+        async (port) => {
+            await refreshInstance(port);
+            publishInvalidation({ topics: ['instances'], reason: 'instance:project-picked', source: 'ui', sourceId: 'app' });
+        },
+        (message) => setLifecycleMessage(`Project pick failed: ${message}`),
+    );
     useEffect(() => {
         async function initialize(): Promise<void> {
             try {
@@ -468,7 +477,7 @@ export function App() {
             onMarkActivitySeen={activityUnread.markPortSeen} onInstanceLabelSave={labelEditor.saveInstanceLabel}
             onLifecycle={(action, instance) => void handleLifecycle(action, instance)} />
     );
-    const workbenchHeader = <WorkbenchHeader instance={selectedInstance} previewEnabled={previewEnabled} onPreviewEnabledChange={setPreviewEnabled} onPreviewRefresh={() => setPreviewRefreshKey(key => key + 1)} onOpenHelpTopic={openHelpTopic} />;
+    const workbenchHeader = <WorkbenchHeader instance={selectedInstance} previewEnabled={previewEnabled} onPreviewEnabledChange={setPreviewEnabled} onPreviewRefresh={() => setPreviewRefreshKey(key => key + 1)} onOpenHelpTopic={openHelpTopic} onPickProject={(port) => void projectPicker.pick(port)} projectPickBusy={projectPicker.busyPort != null} />;
     const dashboardSettingsUi = dashboardSettingsUiFromView(view, theme.theme), titleSupport = summarizeActivityTitleSupport(messageActivity.titleSupportByPort);
     const profileChipStrip = (chipProfiles: DashboardProfile[]) => chipProfiles.length > 0 ? <div className="profile-chip-strip drawer-chip-strip" aria-label="Profile filters">{chipProfiles.map(profile => <ProfileChip key={profile.profileId} profile={profile} active={activeProfileIds.includes(profile.profileId)} count={profileCounts[profile.profileId] || 0} onToggle={toggleProfile} />)}</div> : null;
 
