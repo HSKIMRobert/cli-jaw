@@ -302,6 +302,14 @@ Every interview must explore all four dimensions. Track which are weak and steer
 - Flag all source:"assumption" items for explicit confirmation
 - Ask: "이 가정들이 맞다면 계획을 시작할 수 있습니다. 맞습니까?"
 
+## Structured Elicitation UI
+
+When a follow-up question has clear choices, you may render it as a short explanation followed by a standalone elicitation fence. Use it for A/B/C decisions, scope/priority/mode choices, or compact requirements clarification. Prefer 1-3 questions; more can parse, but 3 or fewer is the recommended UX.
+
+Keep the JSON complete and small. Do not put raw internal tag strings such as interview tracker XML tags, HTML, or XML-like angle-bracket text inside question, label, or description fields. If the UI may be unavailable, the question is not choice-based, or the payload would be large, fall back to normal text questions.
+
+The visible elicitation UI does not replace the hidden Interview tracker. Continue to append the interview_tracker block at the end of every Interview response exactly as required below.
+
 ## Per-turn Routine
 
 1. **Re-assess ambiguity objectively (every round)** — Re-evaluate each dimension from scratch, as a skeptical outsider would. Do NOT just carry forward or inflate prior dimension scores. A dimension resting on assumptions rather than confirmed facts is NOT "high" or above. Downgrade any score you cannot defend with concrete evidence, and never raise a score just to close the interview faster.

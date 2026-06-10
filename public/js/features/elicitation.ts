@@ -168,6 +168,11 @@ export function hydrateElicitationBlocks(root: ParentNode = document): void {
         const parsed = normalizeSpec(parseSpec(decoded));
         block.dataset['elicitationHydrated'] = 'true';
         if (!parsed) {
+            console.warn('[elicitation] invalid structured question spec', {
+                kind: block.dataset['elicitationKind'] || '',
+                decodedChars: decoded.length,
+                reason: decoded ? 'parse_or_normalize_failed' : 'empty_spec',
+            });
             block.className = 'elicitation-block elicitation-error';
             block.innerHTML = '<div class="elicitation-error-text">질문 형식을 읽을 수 없습니다.</div>';
             continue;
