@@ -114,8 +114,14 @@ export function FolderPanel(props: FolderPanelProps) {
                     className={`folder-entry folder-entry-${entry.kind}`}
                     role="treeitem"
                     aria-selected={entry.kind === 'file' && entry.path === props.selectedFilePath}
-                    style={{ paddingLeft: `${8 + depth * 16}px` }}
                 >
+                    {depth > 0 && (
+                        <span className="folder-indent" aria-hidden="true">
+                            {Array.from({ length: depth }, (_, level) => (
+                                <span key={level} className="folder-indent-guide" />
+                            ))}
+                        </span>
+                    )}
                     <button type="button" className="folder-entry-btn"
                         onClick={() => {
                             if (entry.kind === 'directory') toggleExpand(entry.path);
