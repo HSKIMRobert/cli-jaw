@@ -75,14 +75,18 @@ test('queue_update clears queued details when the pending row is removed', () =>
     assert.deepEqual(update.data.queued, []);
 });
 
-test('server initial queue_update includes queued details for reload recovery', () => {
-    const serverSrc = readFileSync(join(__dirname, '../../server.ts'), 'utf8');
-    const connectionIdx = serverSrc.indexOf("wss.on('connection'");
-    const queueIdx = serverSrc.indexOf("type: 'queue_update'", connectionIdx);
-    const block = serverSrc.slice(queueIdx, queueIdx + 250);
-
-    assert.ok(block.includes('pending: messageQueue.length'), 'initial websocket event must include pending count');
-    assert.ok(block.includes("queued: getQueuedMessageSnapshotForScope('default')"), 'initial websocket event must include queued rows');
+test('snapshot endpoint includes queued details for reload recovery (X-01)', () => {
+    // devlog 260609, 50: the WS connect-time queue_update push was removed —
+    // reload recovery flows through /api/orchestrate/snapshot, which the
+    // frontend fetches in handleChannelUp on every (re)connect.
+    const orcSrc = readFileSync(join(__dirname, '../../src/routes/orchestrate.ts'), 'utf8');
+    const snapStart = orcSrc.indexOf("app.get('/api/orchestrate/snapshot'");
+    assert.ok(snapStart >= 0, 'snapshot route should exist');
+    const snapBlock = orcSrc.slice(snapStart, snapStart + 3000);
+    assert.ok(orcSrc.includes('queuePending: messageQueue.length'),
+        'runtime snapshot must include the pending count');
+    assert.ok(snapBlock.includes('queued: getQueuedMessageSnapshotForScope(scope)'),
+        'snapshot must include queued rows for reload recovery');
 });
 
 test('frontend queue_update renders pending queue rows from websocket payload before snapshot fallback', () => {
