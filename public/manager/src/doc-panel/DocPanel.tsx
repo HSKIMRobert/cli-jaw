@@ -21,7 +21,7 @@ function isMarkdown(filePath: string): boolean {
     return /\.(md|mdx)$/i.test(filePath);
 }
 
-function getFileBridge(): Pick<FolderBridgeApi, 'readFile'> | null {
+function getFileBridge(): Pick<FolderBridgeApi, 'readFile' | 'getDefaultRoot'> | null {
     return getDesktop()?.folder ?? null;
 }
 
@@ -49,43 +49,54 @@ export function DocPanel(props: { filePath?: string | undefined }) {
     const [content, setContent] = useState<string>('');
     const [error, setError] = useState<string | null>(null);
     const [binary, setBinary] = useState(false);
+    const [truncated, setTruncated] = useState(false);
 
     useEffect(() => {
         if (!props.filePath) {
             setContent('');
             setError(null);
+            setTruncated(false);
             return;
         }
+        const filePath = props.filePath;
+        let cancelled = false;
         void (async () => {
             if (bridge) {
-                const result = await bridge.readFile(props.filePath!);
+                let result = await bridge.readFile(filePath);
+                // Cold start: allowed roots are seeded by FolderPanel/getDefaultRoot.
+                // If a doc link arrives before that, seed once and retry once.
+                if (!result.ok && result.error?.includes('path not allowed')) {
+                    await bridge.getDefaultRoot();
+                    if (cancelled) return;
+                    result = await bridge.readFile(filePath);
+                }
+                if (cancelled) return;
                 if (result.ok && result.content !== undefined) {
-                    if (result.binary) {
-                        setBinary(true);
-                        setContent('');
-                    } else {
-                        setBinary(false);
-                        setContent(result.content);
-                    }
+                    setBinary(result.binary === true);
+                    setTruncated(result.truncated === true && result.binary !== true);
+                    setContent(result.binary || result.truncated ? '' : result.content);
                     setError(null);
                 } else {
                     setError(result.error ?? 'Failed to read file');
                 }
                 return;
             }
-            if (!isNotesRelativePath(props.filePath!)) {
-                setError('Document preview for arbitrary local files requires Electron desktop app');
+            if (!isNotesRelativePath(filePath)) {
+                if (!cancelled) setError('Document preview for arbitrary local files requires Electron desktop app');
                 return;
             }
             try {
-                const note = await fetchNoteFile(props.filePath!);
+                const note = await fetchNoteFile(filePath);
+                if (cancelled) return;
                 setBinary(false);
+                setTruncated(false);
                 setContent(note.content);
                 setError(null);
             } catch (err) {
-                setError((err as Error).message);
+                if (!cancelled) setError((err as Error).message);
             }
         })();
+        return () => { cancelled = true; };
     }, [bridge, props.filePath]);
 
     if (!props.filePath) {
@@ -98,6 +109,10 @@ export function DocPanel(props: { filePath?: string | undefined }) {
 
     if (binary) {
         return <div className="doc-panel doc-binary">Binary file — cannot preview</div>;
+    }
+
+    if (truncated) {
+        return <div className="doc-panel doc-binary">File too large to preview (512KB cap) — open it in an editor instead.</div>;
     }
 
     return (

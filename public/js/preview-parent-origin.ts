@@ -30,6 +30,26 @@ export function previewParentOrigin(): string | null {
     return null;
 }
 
+// Parent-manager capability flags, announced via 'jaw-preview-capabilities'.
+// Defaults to false so non-Electron parents keep the openLocalPath fallback.
+let parentDocPanelCapable = false;
+let capabilityListenerReady = false;
+
+export function parentSupportsDocPanel(): boolean {
+    return parentDocPanelCapable;
+}
+
+export function ensurePreviewCapabilityListener(): void {
+    if (capabilityListenerReady) return;
+    capabilityListenerReady = true;
+    window.addEventListener('message', (event: MessageEvent) => {
+        if (!isLocalPreviewRelayOrigin(event.origin)) return;
+        const data = event.data as { type?: unknown; docPanel?: unknown } | null;
+        if (!data || data.type !== 'jaw-preview-capabilities') return;
+        parentDocPanelCapable = data.docPanel === true;
+    });
+}
+
 export function postPreviewOpenNotes(path: string): boolean {
     const targetOrigin = previewParentOrigin();
     if (!targetOrigin || !path.trim()) return false;
