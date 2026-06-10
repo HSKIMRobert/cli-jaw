@@ -1,4 +1,4 @@
-import { apiJson } from '../api.js';
+import { api } from '../api.js';
 import { escapeHtml } from '../render.js';
 import { t } from './i18n.js';
 
@@ -78,7 +78,7 @@ export async function refreshTransportStatusRow(): Promise<void> {
     const container = document.getElementById('channelTransportStatus');
     if (!container) return;
     try {
-        const payload = await apiJson<{ channels?: unknown }>('/api/health', 'GET', null);
+        const payload = await api<{ channels?: unknown }>('/api/health');
         const health = parseChannelHealth(payload);
         if (!health) {
             container.innerHTML = '';
