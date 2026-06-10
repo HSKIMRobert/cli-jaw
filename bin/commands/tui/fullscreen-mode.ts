@@ -1,7 +1,6 @@
 /**
  * Alt-screen TUI runner (Phase 4). Line-mode remains in chat.ts default path.
  */
-import type WebSocket from 'ws';
 import {
     consumePasteProtocol,
     getComposerDisplayText,
@@ -241,7 +240,7 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
         }
     });
 
-    ctx.ws.on('message', (data: WebSocket.RawData) => {
+    ctx.ws.on('message', (data) => {
         handleWsMessage(ctx, data);
         if (ctx.streaming && viewport.isFollowingTail()) {
             viewport.followTail(true, currentRegions(ctx).transcript.height);
