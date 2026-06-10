@@ -15,6 +15,7 @@ type InstancePreviewProps = {
     onOpenNotesFromPreview?: (path: string) => void;
     onOpenDocFromPreview?: (absolutePath: string) => void;
     onPreviewDroppedFiles?: (files: File[]) => void;
+    docPanelCapable?: boolean;
 };
 
 const PREVIEW_IFRAME_SANDBOX = 'allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts allow-downloads';
@@ -136,6 +137,21 @@ function postPreviewVisible(frame: HTMLIFrameElement | null, src: string): void 
         );
     } catch (error) {
         console.warn('[manager-preview] visibility sync skipped', error);
+    }
+}
+
+function postPreviewCapabilities(frame: HTMLIFrameElement | null, src: string, docPanel: boolean): void {
+    const targetWindow = frame?.contentWindow;
+    if (!targetWindow) return;
+    const targetOrigin = previewTargetOrigin(src, frame);
+    if (!targetOrigin || targetOrigin === 'null') return;
+    try {
+        targetWindow.postMessage(
+            { type: 'jaw-preview-capabilities', docPanel },
+            targetOrigin,
+        );
+    } catch (error) {
+        console.warn('[manager-preview] capability sync skipped', error);
     }
 }
 
@@ -273,8 +289,9 @@ export function InstancePreview(props: InstancePreviewProps) {
         prevActiveRef.current = props.active;
         if (!wasActive && props.active && state.src) {
             postPreviewVisible(iframeRef.current, state.src);
+            postPreviewCapabilities(iframeRef.current, state.src, props.docPanelCapable === true);
         }
-    }, [props.active, state.src]);
+    }, [props.active, state.src, props.docPanelCapable]);
 
     return (
         <aside className="preview-panel" aria-label="Instance preview">
@@ -297,7 +314,10 @@ export function InstancePreview(props: InstancePreviewProps) {
                         // an instance switch (port/key changes, active stays true)
                         // remounts without re-settling. Ping here so the embedded
                         // chat runs its jaw-preview-visibility re-settle path.
-                        if (state.src) postPreviewVisible(iframeRef.current, state.src);
+                        if (state.src) {
+                            postPreviewVisible(iframeRef.current, state.src);
+                            postPreviewCapabilities(iframeRef.current, state.src, props.docPanelCapable === true);
+                        }
                     }}
                 />
             )}

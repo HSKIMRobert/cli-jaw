@@ -1,12 +1,20 @@
 // ── File path linkification and click-to-open delegation ──
 import { apiJson } from '../api.js';
-import { postPreviewOpenNotes, postPreviewOpenDoc, previewParentOrigin } from '../preview-parent-origin.js';
+import {
+    postPreviewOpenNotes,
+    postPreviewOpenDoc,
+    previewParentOrigin,
+    parentSupportsDocPanel,
+    ensurePreviewCapabilityListener,
+} from '../preview-parent-origin.js';
 import { normalizeNotesVaultPath } from './notes-vault-path.js';
 
 const FILE_PATH_RE_G = /(?:~\/[^\s)`\]"'<>]+|\/(?:Users|home|tmp|var|opt|private)\/[^\s)`\]"'<>]+)/g;
 const REL_NOTE_PATH_RE_G = /(?:^|[\s([{"'`])([A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*\.md)\b/g;
 const TRAILING_PUNCT_RE = /[.,!?:;]+$/;
 const LOCAL_FILE_HREF_RE = /^(?:~\/|\/(?:Users|home|tmp|var|opt|private)\/)/;
+// Mirrors DocPanel EXT_LANG keys exactly (drift guarded by tests/unit/preview-doc-links.test.ts).
+const DOC_PANEL_CODE_RE = /\.(ts|tsx|js|jsx|py|rs|go|java|cpp|c|css|html|xml|json|yaml|yml|sh|bash|sql)$/i;
 
 let notesRootCache: string | null | undefined;
 let notesRootFetch: Promise<string | null> | null = null;
@@ -211,6 +219,14 @@ async function handleFilePathClick(path: string, link: HTMLElement): Promise<voi
         setTimeout(() => link.classList.remove('opened'), 1500);
         return;
     }
+    // Code files route to the manager DocPanel only when the parent announced
+    // the capability (Electron manager); browser-manager parents keep the
+    // openLocalPath fallback below.
+    if (DOC_PANEL_CODE_RE.test(path) && parentSupportsDocPanel() && previewParentOrigin() && postPreviewOpenDoc(path)) {
+        link.classList.add('opened');
+        setTimeout(() => link.classList.remove('opened'), 1500);
+        return;
+    }
     openLocalPath(path, link);
 }
 
@@ -219,6 +235,7 @@ let filePathDelegationReady = false;
 export function ensureFilePathDelegation(): void {
     if (filePathDelegationReady) return;
     filePathDelegationReady = true;
+    ensurePreviewCapabilityListener();
 
     document.addEventListener('click', (e: MouseEvent) => {
         const target = e.target as HTMLElement;
