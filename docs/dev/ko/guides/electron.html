@@ -65,12 +65,22 @@
 <main class="docs-main">
 
 <h1>Electron 데스크톱</h1>
-<p class="lead">CLI-JAW는 Electron으로 구축된 네이티브 macOS 데스크톱 애플리케이션으로도 사용할 수 있습니다. 전체 대시보드 환경을 래핑하고 터미널, diff 뷰어, 브라우저 패널, 폴더 패널을 추가로 제공합니다.</p>
+<p class="lead">CLI-JAW는 Electron 데스크톱 애플리케이션으로도 사용할 수 있습니다. 패키지 빌드는 Node.js 22 sidecar를 포함하므로 전역 npm install 없이도 대시보드 서버를 실행하고 터미널 <code>jaw</code> 명령을 설치할 수 있습니다.</p>
 
 <h2>설치</h2>
-<p>릴리스 페이지에서 DMG를 다운로드하고 CLI-JAW를 응용 프로그램 폴더로 드래그하세요. 앱에는 대시보드가 번들로 포함되어 있으며 로컬 CLI-JAW 인스턴스에 연결됩니다.</p>
+<p>릴리스 또는 수동 desktop-release workflow에서 데스크톱 아티팩트를 다운로드하세요. macOS는 DMG/ZIP, Windows는 NSIS installer/ZIP, Linux는 AppImage로 배포됩니다.</p>
 <pre><code># Build from source:
 npm run electron:dist:mac</code></pre>
+
+<h2>번들 Sidecar</h2>
+<p>릴리스 workflow는 패키징 전에 <code>scripts/bundle-sidecar.sh</code>를 실행합니다. Sidecar에는 Node.js 22.16, 컴파일된 서버 출력, 프론트엔드 assets, production dependencies, <code>better-sqlite3</code> 같은 rebuilt native modules, 그리고 <code>server/bin/jaw</code>/<code>server/bin/jaw.cmd</code> CLI shim이 포함됩니다.</p>
+<table>
+<tr><th>플랫폼</th><th>대상</th><th>아티팩트</th></tr>
+<tr><td>macOS</td><td>arm64</td><td>DMG, ZIP</td></tr>
+<tr><td>Windows</td><td>x64</td><td>NSIS installer, ZIP</td></tr>
+<tr><td>Linux</td><td>x64</td><td>AppImage</td></tr>
+</table>
+<p>Electron main process는 native server module을 직접 import하지 않습니다. 패키지 앱에서는 bundled sidecar를 먼저 찾고, 개발 모드에서는 전역 <code>jaw</code> binary로 fallback합니다.</p>
 
 <h2>패널 레이아웃</h2>
 <p>Electron 앱은 멀티 패널 작업 공간을 제공합니다:</p>
@@ -113,14 +123,17 @@ npm run electron:dist:mac</code></pre>
 </table>
 
 <h2>macOS 권한</h2>
-<p>Electron 앱이 macOS 자동화 접근 권한을 요청할 수 있습니다. 시스템 환경설정 > 개인 정보 보호 및 보안 > 자동화에서 권한을 허용하세요. 앱의 종료 과정은 시각적으로 표시되며 정리 작업을 안정적으로 처리합니다.</p>
+<p>Electron 앱이 macOS 자동화 접근 권한을 요청할 수 있습니다. 시스템 환경설정 > 개인 정보 보호 및 보안 > 자동화에서 권한을 허용하세요. 앱의 종료 과정은 시각적으로 표시되며 정리 작업을 안정적으로 처리합니다. 현재 릴리스 아티팩트는 unsigned/un-notarized이므로 macOS 첫 실행 시 우클릭 → 열기가 필요할 수 있습니다.</p>
+
+<h2>터미널 명령 설치</h2>
+<p>패키지 앱은 첫 실행 시 또는 tray menu에서 bundled sidecar shim을 가리키는 터미널 <code>jaw</code> 명령을 설치할 수 있습니다. macOS는 필요 시 admin prompt와 함께 <code>/usr/local/bin</code>에 설치하고, Linux는 <code>~/.local/bin</code>을 사용합니다. Windows PATH 등록은 NSIS installer script가 처리합니다.</p>
 
 <h2>개발</h2>
 <pre><code># Run Electron in dev mode (concurrent with jaw server):
 npm run electron:dev
 
-# Build the Electron app:
-npm run electron:build
+# Typecheck/build the Electron app:
+npm --prefix electron run build
 
 # Create macOS DMG:
 npm run electron:dist:mac</code></pre>

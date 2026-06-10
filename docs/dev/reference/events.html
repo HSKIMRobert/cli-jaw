@@ -22,11 +22,12 @@
     <tr><td>Heartbeat</td><td>comment ping every 15 seconds</td></tr>
     <tr><td>Replay gap</td><td><code>{"topic":"system","event":"replay_gap"}</code></td></tr>
     <tr><td>Fallback</td><td>WebSocket is used only when SSE never opens, usually against an older server</td></tr>
+    <tr><td>Transient drop UX</td><td>Fast SSE reconnects stay silent; only a disconnect lasting longer than 8 seconds posts a disconnected message</td></tr>
   </table>
 
   <h2>WebSocket Compatibility</h2>
   <pre><code>ws://localhost:3457/ws</code></pre>
-  <p>The WebSocket path remains for compatibility and non-browser consumers. Public payloads use <code>{type, ...payload, ts}</code>. Internal-only events are not delivered to WebSocket/SSE public clients.</p>
+  <p>The WebSocket path is a client/TUI fallback for pre-X-01 servers where <code>/api/events</code> never opens. Current servers deliver public browser events through SSE only. Internal-only events are not delivered to public SSE clients.</p>
 
   <h2>Common Event Names</h2>
   <table>
@@ -49,7 +50,10 @@
   </table>
 
   <h2>Provider Streams</h2>
-  <p>Provider CLIs still use their own stdout protocols internally. Claude, Codex, Cursor, Grok, and Copilot are normalized through <code>src/agent/events/*</code>. AGY uses plain-text print mode. The normalized events are broadcast through <code>src/core/bus.ts</code>, then dual-emitted to the SSE event bus for public Web clients.</p>
+  <p>Provider CLIs still use their own stdout protocols internally. Claude, Codex, Cursor, Grok, and Copilot are normalized through <code>src/agent/events/*</code>. AGY uses plain-text print mode. The normalized events pass through <code>src/core/bus.ts</code>, which publishes public events to the SSE event bus and still fans out to internal collectors/forwarders.</p>
+
+  <h2>Manager Worker SSE</h2>
+  <p>The <code>jaw dashboard serve</code> React manager app reads manager HTTP endpoints by polling. Worker instance live progress is bridged server-side: <code>src/manager/worker-events.ts</code> and <code>src/manager/worker-sse-client.ts</code> subscribe to each worker's <code>GET /api/events</code> stream and update the latest-message cache.</p>
 
   <p>Detailed source-of-truth: <code>structure/stream-events.md</code> and <code>structure/server_api.md</code>.</p>
 </main>

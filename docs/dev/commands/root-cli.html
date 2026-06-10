@@ -404,7 +404,7 @@ jaw reset --port 3458 --yes</code></pre>
   <h3><code>jaw chat</code></h3>
   <span class="cmd-badge cmd-badge-orch">Orchestration</span>
 </div>
-<p class="cmd-desc">Interactive terminal REPL. Connects to the running server via WebSocket for real-time conversation. Supports a rich TUI mode with persistent footer, a raw JSON protocol mode for UI integration, and a minimal plain readline mode.</p>
+<p class="cmd-desc">Interactive terminal REPL. Connects to the running server through the SSE-first TUI channel, with legacy WebSocket fallback for older servers. Supports a rich TUI mode with persistent footer, a raw JSON protocol mode for UI integration, and a minimal plain readline mode.</p>
 <pre><code>jaw chat [--port &lt;N&gt;] [--raw] [--simple]</code></pre>
 <table>
 <tr><th>Option</th><th>Default</th><th>Description</th></tr>
@@ -490,7 +490,7 @@ jaw employee reset --port 3458</code></pre>
   <h3><code>jaw orchestrate</code></h3>
   <span class="cmd-badge cmd-badge-orch">Orchestration</span>
 </div>
-<p class="cmd-desc">PABCD state machine transitions. Drives the workflow through Interview, Planning, Audit, Build, Check, and Done phases. Calls the running server's API so WebSocket broadcasts reach all connected clients in real-time.</p>
+<p class="cmd-desc">PABCD state machine transitions. Drives the workflow through Interview, Planning, Audit, Build, Check, and Done phases. Calls the running server's API so SSE-first event updates reach connected clients in real time.</p>
 <pre><code>jaw orchestrate &lt;phase&gt; [--force] [--json] [--port &lt;N&gt;]</code></pre>
 <table>
 <tr><th>Phase</th><th>Description</th></tr>

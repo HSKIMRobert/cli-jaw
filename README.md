@@ -36,7 +36,7 @@ npm install -g cli-jaw
 jaw dashboard
 ```
 
-That's it. Open **http://localhost:3457** and you have a personal AI agent. Requires [Node.js 22.4+](https://nodejs.org).
+That's it. Open **http://localhost:24576** for the manager dashboard. Per-instance agent Web UIs still run from **http://localhost:3457** when you start `jaw serve`. Requires [Node.js 22.4+](https://nodejs.org).
 
 > **First time?** The default npm install initializes CLI-JAW and attempts native Claude setup. Other AI CLIs are optional; install them all during npm setup with `CLI_JAW_INSTALL_CLI_TOOLS=1 npm install -g cli-jaw` on macOS/Linux. On Windows, use the WSL install path below.
 
@@ -223,7 +223,8 @@ Check everything at once: `jaw doctor`
 
 ## The Dashboard
 
-The dashboard is your command center. It's a local web app at `http://localhost:3457`.
+The dashboard is your command center. `jaw dashboard` starts the manager at `http://localhost:24576`; individual agent Web UIs are served by `jaw serve` from `http://localhost:3457` and nearby managed ports.
+Live Web/TUI updates use the SSE-first `GET /api/events` channel, with legacy WebSocket fallback only for older servers where SSE never opens.
 
 ### Instance Manager
 
