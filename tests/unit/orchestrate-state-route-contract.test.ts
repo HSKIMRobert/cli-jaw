@@ -52,3 +52,15 @@ test('ORC-STATE-006: snapshot exposes task anchor and heartbeat runtime contract
     assert.ok(routeSrc.includes('resolvedSelection: ctx.resolvedSelection'), 'snapshot safeCtx should include resolvedSelection');
     assert.ok(routeSrc.includes('heartbeat: getHeartbeatRuntimeState()'), 'snapshot should include heartbeat runtime state');
 });
+
+test('ORC-STATE-007: D transition does not clear configured projectDirs', () => {
+    const dBranchStart = routeSrc.indexOf("if (t === 'D')");
+    const dBranchEnd = routeSrc.indexOf('} else {', dBranchStart);
+    assert.notEqual(dBranchStart, -1, 'state route should have a D transition branch');
+    assert.notEqual(dBranchEnd, -1, 'D transition branch should be followed by non-D transition setup');
+    const dBranch = routeSrc.slice(dBranchStart, dBranchEnd);
+
+    assert.ok(dBranch.includes('resetState(scope)'), 'D transition should still reset PABCD state');
+    assert.ok(!dBranch.includes('clearProjectDirs'), 'D transition must preserve persistent projectDirs');
+    assert.ok(!dBranch.includes("projectDirs: null"), 'D transition must not broadcast a projectDirs reset');
+});
