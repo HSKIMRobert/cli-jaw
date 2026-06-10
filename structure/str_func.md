@@ -232,7 +232,7 @@ cli-jaw/
 │   │   ├── i18n.ts           ← locale bundle 라우트 (35L)
 │   │   ├── orchestrate.ts    ← IPABCD reset/state/workers/snapshot/queue cancel/queue steer async accept/dispatch/worker result/state PUT 라우트 (770L)
 │   │   ├── memory.ts         ← memory status/KV/files/settings 라우트 (191L)
-│   │   ├── settings.ts       ← settings/prompt/heartbeat-md/MCP/registry/status/quota/copilot + Pi profile register/model discovery 라우트 + CLI_KEYS 기반 quota parity/status-only metadata (400L)
+│   │   ├── settings.ts       ← settings/prompt/heartbeat-md/MCP/registry/status/quota/copilot + Pi profile register/model discovery 라우트 + CLI_KEYS 기반 quota parity/status-only metadata (425L)
 │   │   ├── messaging.ts      ← upload/file-open/voice/telegram/channel/discord send 라우트 (259L)
 │   │   ├── avatar.ts         ← Agent/User 아바타 이미지 업로드/서빙/삭제 + settings.json 메타 저장 + safeResolveUnder 경로 보호 (146L)
 │   │   ├── quota.ts          ← Copilot/Claude/Codex/Gemini/OpenCode quota helper readers + Claude 429 cache (528L)
@@ -321,7 +321,7 @@ cli-jaw/
 │       ├── checkpoint/       ← checkpoint store + types (2 files, 59L) ✨
 │       ├── permissions/      ← permission policy + types (2 files, 80L) ✨
 │       └── context-map/      ← context map builder (1 file, 71L) ✨
-├── public/                   ← Web UI (Vite 8 + ES Modules, 437 files source/assets, ~71402L; generated `public/dist` and `public/public/dist` excluded)
+├── public/                   ← Web UI (Vite 8 + ES Modules, 438 files source/assets, ~71560L; generated `public/dist` and `public/public/dist` excluded)
 │   ├── index.html            ← 뼈대 (1136L)
 │   ├── manifest.json         ← PWA 매니페스트
 │   ├── sw.js                 ← Service Worker 오프라인 캐시

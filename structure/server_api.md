@@ -9,7 +9,7 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 # server.ts — Glue + Route Registration (587L)
 
 > Express/SSE bootstrap + localhost/LAN opt-in 보안 가드 + `src/routes/*` registrar + mounted sub-router 등록.
-> 현재 라이브 surface는 총 195개 route handler이며, 이 중 `/`를 제외한 API 엔드포인트는 194개다.
+> 현재 라이브 surface는 총 196개 route handler이며, 이 중 `/`를 제외한 API 엔드포인트는 195개다.
 > mutation route(`POST`/`PUT`/`DELETE`)는 모두 `requireAuth`를 거친다. 단, `requireAuth()`는 loopback 요청을 토큰 없이 통과시키고, `lanAllowed()`가 true일 때 private IP도 LAN bypass로 통과시킨다.
 > `GET /api/auth/token`은 Bearer bootstrap 전용이며 `Sec-Fetch-Site`가 `same-origin` 또는 `none`이 아닐 때 `403`을 반환한다.
 
@@ -28,7 +28,7 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 | `src/routes/chat-sessions.ts` | 30L | 3 | session list/create/switch |
 | `src/routes/task.ts` | 59L | 2 | agent-native task list/action API |
 | `src/routes/events.ts` | 82L | 1 | `/api/events` data-only SSE event channel |
-| `src/routes/settings.ts` | 400L | 21 | settings/prompt/heartbeat-md/MCP/CLI registry/quota/copilot/Pi profile registration |
+| `src/routes/settings.ts` | 425L | 22 | settings/prompt/project pick/heartbeat-md/MCP/CLI registry/quota/copilot/Pi profile registration |
 | `src/routes/memory.ts` | 191L | 13 | memory runtime + KV memory + memory files |
 | `src/routes/browser.ts` | 478L | 41 | browser primitive/tab/debug/doctor/cleanup routes + adaptive fetch + web-ai render/send/poll/watch/sessions/capabilities/context routes |
 | `src/routes/jaw-memory.ts` | 352L | 12 | jaw memory search/read/save/context/list/init/reflect/flush/soul/soul-activate/bootstrap |
@@ -109,7 +109,7 @@ static → employees → heartbeat → skills → jaw-memory → orchestrate
 | Events | `GET /api/events` |
 | Chat Sessions | `GET /api/chat-sessions` `POST /api/chat-sessions` `POST /api/chat-sessions/:id/switch` |
 | Instance Lock | `GET /api/instance/lock` `POST /api/instance/lock` `DELETE /api/instance/lock` |
-| Settings/Prompt | `GET/PUT /api/settings` `GET /api/codex-context` `GET/PUT /api/prompt` `GET /api/prompt-templates` `PUT /api/prompt-templates/:id` `GET/PUT /api/heartbeat-md` |
+| Settings/Prompt | `GET/PUT /api/settings` `POST /api/project/pick` `GET /api/codex-context` `GET/PUT /api/prompt` `GET /api/prompt-templates` `PUT /api/prompt-templates/:id` `GET/PUT /api/heartbeat-md` |
 | MCP/CLI/Quota | `GET/PUT /api/mcp` `POST /api/mcp/sync` `POST /api/mcp/install` `POST /api/mcp/reset` `GET /api/mcp/registry` `GET /api/cli-registry` `GET /api/cli-status` `GET /api/quota` `POST /api/copilot/refresh` `POST /api/pi/profiles/register` `GET /api/pi/models` |
 | Runtime Context | `GET /api/runtime-context` `POST /api/runtime-context` `DELETE /api/runtime-context/:id` `DELETE /api/runtime-context` |
 | Security Audit | `GET /api/security-audit/entries` `GET /api/security-audit/verify` |
@@ -131,7 +131,7 @@ static → employees → heartbeat → skills → jaw-memory → orchestrate
 | Dashboard Schedule | `GET /api/dashboard/schedule/work` `POST /api/dashboard/schedule/work` `PATCH /api/dashboard/schedule/work/:id` `DELETE /api/dashboard/schedule/work/:id` `POST /api/dashboard/schedule/work/:id/dispatch` |
 | i18n | `GET /api/i18n/languages` `GET /api/i18n/:lang` |
 
-> 실제 코드(`server.ts` + `src/routes/*.ts` + mounted runtime/security/Jaw CEO/dashboard sub-router)에서 추출한 총 195개 route handler 기준이다. 이 중 API 엔드포인트는 194개이고, 나머지 1개는 `/` 엔트리이다. Browser API 41개는 `src/routes/browser.ts`에서 등록된다. Jaw CEO 20개는 `src/routes/jaw-ceo.ts`에서 sub-router로 등록된다.
+> 실제 코드(`server.ts` + `src/routes/*.ts` + mounted runtime/security/Jaw CEO/dashboard sub-router)에서 추출한 총 196개 route handler 기준이다. 이 중 API 엔드포인트는 195개이고, 나머지 1개는 `/` 엔트리이다. Browser API 41개는 `src/routes/browser.ts`에서 등록된다. Jaw CEO 20개는 `src/routes/jaw-ceo.ts`에서 sub-router로 등록된다.
 
 ---
 
@@ -264,7 +264,7 @@ static → employees → heartbeat → skills → jaw-memory → orchestrate
 
 ## Manager Dashboard Server Surface
 
-`jaw dashboard serve`가 띄우는 별도 manager 서버(`src/manager/server.ts`, 887L)는 core `server.ts` route count에 포함하지 않는다. Manager instance state는 `src/manager/instance-registry.ts`(120L)가 cached scan + diff event source로 제공한다. Manager React UI는 `/api/manager/events`, `/api/dashboard/instances`, `/i/:port/api/messages/latest` 계열 HTTP polling으로 상태를 읽고, manager server는 `src/manager/worker-events.ts` + `src/manager/worker-sse-client.ts`를 통해 각 worker instance의 `GET /api/events`를 server-side로 구독해 latest-message cache를 갱신한다. #233부터 worker의 `settings:settings_change`(cli/model/projectDirs 변경)는 `worker_settings_change`로 재발행되어 `GET /api/manager/events/stream`(SSE)으로 manager UI에 live 전달되고, UI(`useManagerEventStream`)는 해당 instance row를 즉시 재조회한다.
+`jaw dashboard serve`가 띄우는 별도 manager 서버(`src/manager/server.ts`, 909L)는 core `server.ts` route count에 포함하지 않는다. Manager instance state는 `src/manager/instance-registry.ts`(120L)가 cached scan + diff event source로 제공한다. Manager React UI는 `/api/manager/events`, `/api/dashboard/instances`, `/i/:port/api/messages/latest` 계열 HTTP polling으로 상태를 읽고, manager server는 `src/manager/worker-events.ts` + `src/manager/worker-sse-client.ts`를 통해 각 worker instance의 `GET /api/events`를 server-side로 구독해 latest-message cache를 갱신한다. #233부터 worker의 `settings:settings_change`(cli/model/projectDirs 변경)는 `worker_settings_change`로 재발행되어 `GET /api/manager/events/stream`(SSE)으로 manager UI에 live 전달되고, UI(`useManagerEventStream`)는 해당 instance row를 즉시 재조회한다.
 
 | Surface | Endpoints |
 | --- | --- |
