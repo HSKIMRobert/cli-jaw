@@ -756,7 +756,7 @@
     display: -webkit-box;
     overflow: hidden;
     -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 1;
     overflow-wrap: anywhere;
     color: var(--text-dim);
     font-size: var(--text-xs);
@@ -777,12 +777,11 @@
 .link-preview-card {
     display: grid;
     grid-template-columns: 88px minmax(0, 1fr);
-    grid-template-areas:
-        "image body"
-        "image url";
+    grid-template-areas: "image body";
+    align-items: center;
     gap: var(--space-2);
     max-width: min(560px, 100%);
-    min-height: 82px;
+    min-height: 74px;
     padding: var(--space-2);
     color: var(--text);
     text-decoration: none;
@@ -805,14 +804,21 @@
     grid-area: body;
 }
 
-.link-preview-url {
-    grid-area: url;
-}
-
 .link-preview-meta {
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
+    min-width: 0;
+}
+
+.link-preview-meta > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.link-preview-separator {
+    flex: 0 0 auto;
 }
 
 .link-preview-favicon {
