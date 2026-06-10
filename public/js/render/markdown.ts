@@ -13,6 +13,10 @@ import { ensureRenderDelegations } from './delegations.js';
 import { API_BASE } from '../api.js';
 import { renderElicitationPlaceholder } from '../features/elicitation.js';
 import { renderSearchResultsPlaceholder } from './search-results.js';
+import { renderComposeBlockPlaceholder } from './compose-block.js';
+import { isUnifiedDiff, renderDiffViewer } from './diff-viewer.js';
+import { renderDataframePlaceholder } from './dataframe.js';
+import { renderChartJsonPlaceholder } from './chart-json.js';
 import { hasIncompleteStructuredFence } from '../../../src/shared/structured-fence.js';
 
 // ── marked.js configuration (ES module — always available) ──
@@ -60,6 +64,21 @@ function ensureMarked(): boolean {
         if (normalizedLang === 'search-results') {
             if (renderContextIsStreaming) return renderCodeBlock(text, lang);
             return renderSearchResultsPlaceholder(text);
+        }
+        if (normalizedLang === 'compose-block') {
+            if (renderContextIsStreaming) return renderCodeBlock(text, lang);
+            return renderComposeBlockPlaceholder(text);
+        }
+        if (normalizedLang === 'dataframe') {
+            if (renderContextIsStreaming) return renderCodeBlock(text, lang);
+            return renderDataframePlaceholder(text);
+        }
+        if (normalizedLang === 'chart-json') {
+            if (renderContextIsStreaming) return renderCodeBlock(text, lang);
+            return renderChartJsonPlaceholder(text);
+        }
+        if (normalizedLang === 'diff' || (!normalizedLang && isUnifiedDiff(text))) {
+            return renderDiffViewer(text);
         }
         return renderCodeBlock(text, lang);
     };

@@ -7,6 +7,9 @@ import { activateWidgets } from '../diagram/iframe-renderer.js';
 import { ICONS } from '../icons.js';
 import { hydrateElicitationBlocks } from './elicitation.js';
 import { hydrateSearchResultsBlocks } from '../render/search-results.js';
+import { hydrateComposeBlocks } from '../render/compose-block.js';
+import { hydrateDataframeBlocks } from '../render/dataframe.js';
+import { hydrateChartJsonBlocks } from '../render/chart-json.js';
 import { hydrateLinkPreviewCards } from '../render/link-preview.js';
 import { t } from './i18n.js';
 import { cacheMessages, getMessageScope, getScopedMessages, setMessageScope } from './idb-cache.js';
@@ -75,6 +78,9 @@ export function registerVirtualScrollCallbacks(vs: ReturnType<typeof getVirtualS
             activateWidgets(el);
             hydrateElicitationBlocks(el);
             hydrateSearchResultsBlocks(el);
+            hydrateComposeBlocks(el);
+            hydrateDataframeBlocks(el);
+            hydrateChartJsonBlocks(el);
             hydrateLinkPreviewCards(el);
             void renderMermaidBlocks(el, { immediate: true });
         }
@@ -83,6 +89,9 @@ export function registerVirtualScrollCallbacks(vs: ReturnType<typeof getVirtualS
         activateWidgets(viewport);
         hydrateElicitationBlocks(viewport);
         hydrateSearchResultsBlocks(viewport);
+        hydrateComposeBlocks(viewport);
+        hydrateDataframeBlocks(viewport);
+        hydrateChartJsonBlocks(viewport);
         hydrateLinkPreviewCards(viewport);
         void linkifyFilePathsWithNotesRoot(viewport);
         void renderMermaidBlocks(viewport, { immediate: true });

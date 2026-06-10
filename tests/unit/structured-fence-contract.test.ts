@@ -30,6 +30,27 @@ test('structured fence scanner classifies complete search-results fence', () => 
     assert.deepEqual(scan.langs, ['search-results']);
 });
 
+test('structured fence scanner classifies complete compose-block fence', () => {
+    const scan = scanStructuredFence('```compose-block\n{"schemaVersion":"compose-block-v1","variants":[]}\n```');
+    assert.equal(scan.status, 'complete');
+    assert.equal(scan.completeCount, 1);
+    assert.deepEqual(scan.langs, ['compose-block']);
+});
+
+test('structured fence scanner classifies complete dataframe fence', () => {
+    const scan = scanStructuredFence('```dataframe\n{"schemaVersion":"dataframe-v1","columns":[],"rows":[]}\n```');
+    assert.equal(scan.status, 'complete');
+    assert.equal(scan.completeCount, 1);
+    assert.deepEqual(scan.langs, ['dataframe']);
+});
+
+test('structured fence scanner classifies complete chart-json fence', () => {
+    const scan = scanStructuredFence('```chart-json\n{"schemaVersion":"chart-json-v1","labels":[],"data":[]}\n```');
+    assert.equal(scan.status, 'complete');
+    assert.equal(scan.completeCount, 1);
+    assert.deepEqual(scan.langs, ['chart-json']);
+});
+
 test('structured fence scanner classifies unclosed elicitation fence as incomplete', () => {
     const text = '```elicitation\n{"questions":[{"id":"q","question":"unfinished';
     const scan = scanStructuredFence(text);
@@ -44,6 +65,16 @@ test('structured fence scanner classifies unclosed search-results fence as incom
     assert.equal(scan.status, 'incomplete');
     assert.equal(scan.incompleteCount, 1);
     assert.equal(hasIncompleteStructuredFence(text), true);
+});
+
+test('structured fence scanner classifies new unclosed renderer fences as incomplete', () => {
+    for (const lang of ['compose-block', 'dataframe', 'chart-json']) {
+        const text = `\`\`\`${lang}\n{"schemaVersion":`;
+        const scan = scanStructuredFence(text);
+        assert.equal(scan.status, 'incomplete');
+        assert.equal(scan.incompleteCount, 1);
+        assert.equal(hasIncompleteStructuredFence(text), true);
+    }
 });
 
 test('structured fence scanner ignores ordinary unclosed code fences', () => {

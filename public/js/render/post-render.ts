@@ -5,6 +5,9 @@ import { bindDiagramZoom } from './svg-actions.js';
 import { linkifyFilePathsWithNotesRoot } from './file-links.js';
 import { hydrateElicitationBlocks } from '../features/elicitation.js';
 import { hydrateSearchResultsBlocks } from './search-results.js';
+import { hydrateComposeBlocks } from './compose-block.js';
+import { hydrateDataframeBlocks } from './dataframe.js';
+import { hydrateChartJsonBlocks } from './chart-json.js';
 import { hydrateLinkPreviewCards } from './link-preview.js';
 
 let postRenderRAF: number | null = null;
@@ -24,6 +27,9 @@ export function schedulePostRender(): void {
             if (msgContainer) {
                 hydrateElicitationBlocks(msgContainer);
                 hydrateSearchResultsBlocks(msgContainer);
+                hydrateComposeBlocks(msgContainer);
+                hydrateDataframeBlocks(msgContainer);
+                hydrateChartJsonBlocks(msgContainer);
                 hydrateLinkPreviewCards(msgContainer);
                 void linkifyFilePathsWithNotesRoot(msgContainer);
             }
