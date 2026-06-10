@@ -41,8 +41,8 @@ test('dispatch CLI resolves agent id from /api/employees only for watch or worke
     assert.ok(resolveIdx > status409Idx, 'resolveAgentId should only run inside the 409 branch');
     const watchBlock = dispatchSrc.slice(watchIdx, dispatchSrc.indexOf('if (!res.ok)', watchIdx));
     assert.ok(
-        watchBlock.includes('body?.worker?.agentId || await resolveAgentId(agent)'),
-        'watch 202 path should resolve agent id only if the server omits worker metadata',
+        watchBlock.includes("body?.worker?.agentId || (agent ? await resolveAgentId(agent) : null)"),
+        'watch 202 path should resolve agent id only for persisted employees if the server omits worker metadata',
     );
     assert.ok(
         dispatchSrc.includes('const parsed = await readJsonResponse<unknown>(res, \'employees endpoint\')'),
@@ -51,6 +51,19 @@ test('dispatch CLI resolves agent id from /api/employees only for watch or worke
     assert.ok(
         dispatchSrc.includes('unwrapEmployeeSummaries(parsed.body)'),
         'resolveAgentId should unwrap /api/employees envelope safely',
+    );
+});
+
+test('dispatch CLI supports virtual employees without /api/employees fallback', () => {
+    assert.ok(dispatchSrc.includes('--virtual <name>'), 'help should document --virtual');
+    assert.ok(dispatchSrc.includes('--role <text>'), 'help should document --role');
+    assert.ok(dispatchSrc.includes('--cli <name>'), 'help should document virtual --cli override');
+    assert.ok(dispatchSrc.includes('--model <name>'), 'help should document virtual --model override');
+    assert.ok(dispatchSrc.includes("const virtual = getFlag('--virtual')"), 'dispatch should parse --virtual');
+    assert.ok(dispatchSrc.includes('...(agent ? { agent } : { virtual })'), 'request body should send agent or virtual');
+    assert.ok(
+        dispatchSrc.includes("body?.existing?.agentId || (agent ? await resolveAgentId(agent) : null)"),
+        'worker-busy fallback should not call /api/employees for virtual employees',
     );
 });
 

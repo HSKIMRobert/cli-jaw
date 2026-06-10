@@ -321,10 +321,11 @@ Boss (Claude) thinks...
 # Under the hood, it's one command:
 jaw dispatch --agent "Frontend" --task "Fix the CSS grid layout in dashboard.tsx"
 jaw dispatch --agent "Backend" --task "Run read-only verification" --watch
+jaw dispatch --virtual "security" --task "Review this branch for auth and secret leaks" --watch
 jaw worker status Backend
 ```
 
-Employees are other AI CLIs configured in your settings. Each has its own session, its own model, its own context. The Boss reviews their output before presenting it to you.
+Employees are other AI CLIs configured in your settings. Each has its own session, its own model, its own context. For one-off specialist checks, the Boss can also dispatch an ephemeral virtual employee with `--virtual`; it uses the same dispatch machinery but is not saved to the employee database. The Boss reviews their output before presenting it to you.
 
 ### Employees vs. Sub-agents
 
@@ -513,6 +514,7 @@ jaw lock                          # protect this instance from stop-all flows
 jaw employee list                         # list configured + static employees
 jaw dispatch --agent "Backend" --task "..."  # dispatch employee
 jaw dispatch --agent "Backend" --task "..." --watch  # dispatch and stream safe progress
+jaw dispatch --virtual "testing" --task "..." --watch  # one-off virtual employee
 jaw worker status Backend            # inspect current/previous employee progress
 jaw orchestrate                   # enter/control PABCD workflow
 jaw goal status                   # persistent goal lifecycle

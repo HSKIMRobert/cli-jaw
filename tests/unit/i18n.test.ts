@@ -116,11 +116,16 @@ test('COMMANDS: every command still has desc string (fallback)', () => {
 });
 
 test('ROLE_PRESETS: every labelKey has matching locale entry', () => {
-    const koJson = JSON.parse(fs.readFileSync(join(LOCALES_DIR, 'ko.json'), 'utf8'));
-    const enJson = JSON.parse(fs.readFileSync(join(LOCALES_DIR, 'en.json'), 'utf8'));
+    const localeJsonByCode = new Map(
+        ['ko', 'en', 'ja', 'zh'].map((code) => [
+            code,
+            JSON.parse(fs.readFileSync(join(LOCALES_DIR, `${code}.json`), 'utf8')),
+        ]),
+    );
     for (const preset of ROLE_PRESETS) {
-        assert.ok(koJson[preset.labelKey], `Missing ko locale for ${preset.labelKey}`);
-        assert.ok(enJson[preset.labelKey], `Missing en locale for ${preset.labelKey}`);
+        for (const [code, localeJson] of localeJsonByCode) {
+            assert.ok(localeJson[preset.labelKey], `Missing ${code} locale for ${preset.labelKey}`);
+        }
     }
 });
 

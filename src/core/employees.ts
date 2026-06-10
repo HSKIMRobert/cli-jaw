@@ -121,6 +121,88 @@ export interface SyntheticEmployeeRow {
     status: 'idle';
 }
 
+export const VIRTUAL_EMPLOYEE_ID_PREFIX = 'virtual:';
+
+export interface VirtualRolePreset {
+    value: string;
+    label: string;
+    role: string;
+    skill: string;
+}
+
+export const VIRTUAL_ROLE_PRESETS: VirtualRolePreset[] = [
+    {
+        value: 'security',
+        label: 'Security',
+        role: 'Security reviewer — auth, secrets, injection, destructive-command, sandbox, and data exposure risks',
+        skill: 'dev-security',
+    },
+    {
+        value: 'testing',
+        label: 'Testing',
+        role: 'Testing reviewer — unit, integration, regression, smoke, and edge-case coverage',
+        skill: 'dev-testing',
+    },
+];
+
+export interface VirtualEmployeeInput {
+    name?: unknown;
+    role?: unknown;
+    cli?: unknown;
+    model?: unknown;
+}
+
+export interface VirtualEmployeeDefaults {
+    cli: string;
+    model: string;
+}
+
+function textValue(value: unknown): string {
+    return typeof value === 'string' ? value.trim() : '';
+}
+
+function slugifyVirtualName(name: string): string {
+    const slug = name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    return slug || 'employee';
+}
+
+export function isVirtualEmployeeId(id: unknown): boolean {
+    return typeof id === 'string' && id.startsWith(VIRTUAL_EMPLOYEE_ID_PREFIX);
+}
+
+export function findVirtualRolePreset(value: unknown): VirtualRolePreset | null {
+    const needle = textValue(value).toLowerCase();
+    if (!needle) return null;
+    return VIRTUAL_ROLE_PRESETS.find((preset) => preset.value === needle || preset.label.toLowerCase() === needle) ?? null;
+}
+
+export function buildVirtualEmployeeRow(
+    input: VirtualEmployeeInput,
+    defaults: VirtualEmployeeDefaults,
+): SyntheticEmployeeRow {
+    const rawName = textValue(input.name);
+    const explicitRole = textValue(input.role);
+    const rolePreset = findVirtualRolePreset(explicitRole) || findVirtualRolePreset(rawName);
+    const displayName = rawName || rolePreset?.label || 'Virtual';
+    const role = explicitRole
+        ? (rolePreset?.role ?? explicitRole)
+        : (rolePreset?.role ?? `${displayName} virtual employee — execute the assigned task directly.`);
+    const cli = textValue(input.cli) || defaults.cli;
+    const model = textValue(input.model) || defaults.model;
+
+    return {
+        id: `${VIRTUAL_EMPLOYEE_ID_PREFIX}${slugifyVirtualName(displayName)}:${crypto.randomUUID()}`,
+        name: `Virtual:${displayName}`,
+        cli,
+        model,
+        role,
+        status: 'idle',
+    };
+}
+
 export const STATIC_EMPLOYEES: StaticEmployee[] = [
     {
         name: 'Control',

@@ -16,10 +16,15 @@ if (shouldShowHelp(process.argv)) printAndExit(`
   jaw dispatch — send task to an employee agent
 
   Usage: jaw dispatch --agent "Name" --task "instruction" [--watch]
+         jaw dispatch --virtual "security" --task "audit this change" [--role "security"]
          jaw dispatch --batch --agents '<JSON array>'
 
   Options:
     --agent <name>    Employee name (must match settings.json employees)
+    --virtual <name>  Ephemeral virtual employee name or role preset (security, testing)
+    --role <text>     Virtual role preset or freeform role prompt
+    --cli <name>      CLI for virtual employee (default: current CLI)
+    --model <name>    Model for virtual employee (default: registry default for CLI)
     --task <text>     Task instruction to send
     --mutable         Allow employee to write/modify files (default: read-only)
     --scope <path>    Restrict writes to a subdirectory (optional, requires --mutable)
@@ -28,13 +33,14 @@ if (shouldShowHelp(process.argv)) printAndExit(`
 
   Batch mode:
     --batch           Enable batch parallel dispatch
-    --agents <json>   JSON array of {agent, task, parallel?, mutable?, scope?, affected_files?}
+    --agents <json>   JSON array of {agent|virtual, task, role?, cli?, model?, parallel?, mutable?, scope?, affected_files?}
 
   Result is returned via stdout. Employee names are case-sensitive.
 
   Examples:
     jaw dispatch --agent "Frontend" --task "Fix CSS bug in header"
     jaw dispatch --agent "Backend" --task "Add rate limiting to /api/chat"
+    jaw dispatch --virtual "security" --task "Review this branch for auth and secret leaks" --watch
     jaw dispatch --batch --agents '[{"agent":"Frontend","task":"verify CSS","parallel":true},{"agent":"Backend","task":"verify API","parallel":true}]'
 `);
 
@@ -57,6 +63,8 @@ const portIdx = process.argv.indexOf('--port');
 const PORT = (portIdx !== -1 && process.argv[portIdx + 1]) ? process.argv[portIdx + 1] : undefined;
 const BASE = getServerUrl(PORT);
 
+type BatchAgentRequest = { agent?: string; virtual?: string; role?: string; cli?: string; model?: string; task: string; parallel?: boolean; mutable?: boolean; scope?: string; affected_files?: string[] };
+
 function getFlag(name: string): string | undefined {
     const idx = process.argv.indexOf(name);
     if (idx === -1 || !process.argv[idx + 1]) return undefined;
@@ -64,6 +72,10 @@ function getFlag(name: string): string | undefined {
 }
 
 const agent = getFlag('--agent');
+const virtual = getFlag('--virtual');
+const role = getFlag('--role');
+const cli = getFlag('--cli');
+const model = getFlag('--model');
 const task = getFlag('--task');
 const mutable = process.argv.includes('--mutable');
 const scope = getFlag('--scope');
@@ -76,7 +88,7 @@ if (isBatch) {
         console.error('Usage: jaw dispatch --batch --agents \'[{"agent":"Name","task":"..."}]\'');
         process.exit(1);
     }
-    let batchAgents: { agent: string; task: string; parallel?: boolean; mutable?: boolean; scope?: string; affected_files?: string[] }[];
+    let batchAgents: BatchAgentRequest[];
     try {
         batchAgents = JSON.parse(batchAgentsRaw);
         if (!Array.isArray(batchAgents) || batchAgents.length === 0) throw new Error('empty');
@@ -112,12 +124,18 @@ if (isBatch) {
     }
 }
 
-if (!agent || !task) {
-    console.error('Usage: jaw dispatch --agent <name> --task <task>');
+if ((!agent && !virtual) || (agent && virtual) || !task) {
+    console.error('Usage: jaw dispatch (--agent <name> | --virtual <name>) --task <task>');
     console.error('  --agent   Employee name (e.g., Frontend, Backend, Data, Docs)');
+    console.error('  --virtual Ephemeral virtual employee name or role preset (security, testing)');
+    console.error('  --role    Virtual role preset or freeform role prompt');
+    console.error('  --cli     CLI for virtual employee (default: current CLI)');
+    console.error('  --model   Model for virtual employee (default: registry default for CLI)');
     console.error('  --task    Task description to assign');
     process.exit(1);
 }
+
+const targetName = virtual || agent || '';
 
 const STARTUP_RETRY_DELAYS_MS = [500, 1000, 1500, 2000, 3000];
 
@@ -385,7 +403,7 @@ function printDispatchResult(agentName: string, body: DispatchResultBody, opts: 
 
 await getCliAuthToken(PORT);
 try {
-    console.log(`🚀 Dispatching to ${agent}...`);
+    console.log(`🚀 Dispatching to ${targetName}...`);
 
     let res: Response | undefined;
     let lastError: unknown;
@@ -398,7 +416,16 @@ try {
                     'Content-Type': 'application/json',
                     'X-Jaw-Boss-Token': bossToken,
                 },
-                body: JSON.stringify({ agent, task, mutable, scope, ...(watch ? { wait: false } : {}) }),
+                body: JSON.stringify({
+                    ...(agent ? { agent } : { virtual }),
+                    task,
+                    mutable,
+                    scope,
+                    ...(role ? { role } : {}),
+                    ...(cli ? { cli } : {}),
+                    ...(model ? { model } : {}),
+                    ...(watch ? { wait: false } : {}),
+                }),
             });
             break;
         } catch (e: unknown) {
@@ -427,40 +454,40 @@ try {
         process.exit(1);
     }
     if (watch && res.status === 202) {
-        const pollAgentId = body?.worker?.agentId || await resolveAgentId(agent);
+        const pollAgentId = body?.worker?.agentId || (agent ? await resolveAgentId(agent) : null);
         if (!pollAgentId) {
             console.error('❌ dispatch started but worker id was not returned');
             process.exit(1);
         }
-        const watched = await pollAndPrintWorker(pollAgentId, agent);
-        printDispatchResult(agent, watched, { skipProcess: true });
+        const watched = await pollAndPrintWorker(pollAgentId, targetName);
+        printDispatchResult(targetName, watched, { skipProcess: true });
         process.exit(dispatchExitCode(watched));
     }
     if (!res.ok) {
         if (res.status === 409) {
-            const pollAgentId = body?.worker?.agentId || body?.existing?.agentId || await resolveAgentId(agent);
+            const pollAgentId = body?.worker?.agentId || body?.existing?.agentId || (agent ? await resolveAgentId(agent) : null);
             if (!pollAgentId) {
                 console.error(`❌ ${body.error || `Failed: ${res.status}`}`);
                 process.exit(1);
             }
-            console.error(`⏳ ${agent} is already running (agentId: ${pollAgentId}), polling worker result...`);
+            console.error(`⏳ ${targetName} is already running (agentId: ${pollAgentId}), polling worker result...`);
             const polled = watch
-                ? await pollAndPrintWorker(pollAgentId, agent)
-                : await pollWorkerResult(pollAgentId, agent);
-            printDispatchResult(agent, polled, watch ? { skipProcess: true } : {});
+                ? await pollAndPrintWorker(pollAgentId, targetName)
+                : await pollWorkerResult(pollAgentId, targetName);
+            printDispatchResult(targetName, polled, watch ? { skipProcess: true } : {});
             process.exit(dispatchExitCode(polled));
         }
         console.error(`❌ ${body.error || `Failed: ${res.status}`}`);
         process.exit(1);
     }
-    printDispatchResult(agent, body);
+    printDispatchResult(targetName, body);
     process.exit(dispatchExitCode(body));
 } catch (e: unknown) {
     if (e instanceof DispatchPollError) {
         console.error(`❌ ${e.message}`);
         console.error(`  agentId:  ${e.agentId}`);
-        console.error(`  agent:    ${e.agentName || agent}`);
-        console.error(`  recover:  cli-jaw dispatch --agent "${e.agentName || agent}" --task "(resume polling)"`);
+        console.error(`  agent:    ${e.agentName || targetName}`);
+        console.error(`  recover:  cli-jaw dispatch ${agent ? '--agent' : '--virtual'} "${e.agentName || targetName}" --task "(resume polling)"`);
         console.error(`  poll:     curl -s ${BASE}/api/orchestrate/worker/${encodeURIComponent(e.agentId)}/result`);
     } else {
         console.error(`❌ Error: ${errString(e)}`);

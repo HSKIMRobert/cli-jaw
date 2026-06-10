@@ -4,7 +4,7 @@ import { fail } from '../http/response.js';
 import { isAgentBusy, messageQueue, getQueuedMessageSnapshotForScope, removeQueuedMessage, killActiveAgent, waitForProcessEnd, getCurrentMainMeta, getSteerWaitMsForActiveAgent, setQueueHold, clearQueueHold, setSteerInProgress, isSteerInProgress } from '../agent/spawn.js';
 import { getLiveRun } from '../agent/live-run-state.js';
 import { orchestrate, orchestrateContinue, orchestrateReset, isResetIntent, isContinueIntent, drainPendingReplays } from '../orchestrator/pipeline.js';
-import { insertMessage } from '../core/db.js';
+import { getSession, insertMessage } from '../core/db.js';
 import { getActiveChatSession } from '../core/chat-sessions.js';
 import { getState, getCtx, setState, resetState, canTransition, resetAllStaleStates, parseWorkerVerdict } from '../orchestrator/state-machine.js';
 import { resetFriction } from '../orchestrator/friction.js';
@@ -29,8 +29,10 @@ import { settings } from '../core/config.js';
 import { broadcast } from '../core/bus.js';
 import { stripUndefined } from '../core/strip-undefined.js';
 import { verifyBossToken } from '../core/boss-auth.js';
-import { resolveDispatchableEmployee, checkRuntimeHints, checkModelSupport } from '../core/employees.js';
+import { buildVirtualEmployeeRow, resolveDispatchableEmployee, checkRuntimeHints, checkModelSupport } from '../core/employees.js';
 import type { EmployeeRow, SyntheticEmployeeRow } from '../core/employees.js';
+import { CLI_REGISTRY } from '../cli/registry.js';
+import { resolveMainCli } from '../core/main-session.js';
 import { getHeartbeatRuntimeState } from '../memory/heartbeat.js';
 import { sanitizeToolLogForDurableStorage } from '../shared/tool-log-sanitize.js';
 import { getSecurityAuditLog } from '../security/security-audit-log.js';
@@ -52,6 +54,56 @@ function getSafeLiveRun(scope: string) {
         ...liveRun,
         toolLog: sanitizeToolLogForDurableStorage(liveRun.toolLog),
     };
+}
+
+function requestText(value: unknown): string {
+    return typeof value === 'string' ? value.trim() : '';
+}
+
+function resolveVirtualDefaults(cliValue: unknown, modelValue: unknown): { cli: string; model: string } {
+    const requestedCli = requestText(cliValue);
+    const cli = requestedCli || resolveMainCli(null, settings, getSession() as { active_cli?: string | null } | null);
+    const registryEntry = CLI_REGISTRY[cli as keyof typeof CLI_REGISTRY];
+    return {
+        cli,
+        model: requestText(modelValue) || registryEntry?.defaultModel || 'default',
+    };
+}
+
+function resolveDispatchTarget(
+    input: Record<string, unknown>,
+    emps: readonly EmployeeRow[],
+): {
+    targetName: string;
+    emp: EmployeeRow | SyntheticEmployeeRow;
+    source: 'db' | 'static' | 'virtual';
+    staticSpec: ReturnType<typeof resolveDispatchableEmployee> | null;
+} | { error: string } {
+    const agentName = requestText(input["agent"]);
+    const virtualName = requestText(input["virtual"]);
+    if ((agentName && virtualName) || (!agentName && !virtualName)) {
+        return { error: 'Specify exactly one of agent or virtual' };
+    }
+    if (virtualName) {
+        const emp = buildVirtualEmployeeRow({
+            name: virtualName,
+            role: input["role"],
+            cli: input["cli"],
+            model: input["model"],
+        }, resolveVirtualDefaults(input["cli"], input["model"]));
+        return { targetName: emp.name, emp, source: 'virtual', staticSpec: null };
+    }
+
+    let emp = findEmployee(emps as EmployeeRow[], { agent: agentName }) as EmployeeRow | SyntheticEmployeeRow | null;
+    let staticSpec: ReturnType<typeof resolveDispatchableEmployee> | null = null;
+    if (!emp) {
+        staticSpec = resolveDispatchableEmployee(agentName, emps);
+        if (staticSpec) emp = staticSpec.row;
+    } else {
+        staticSpec = resolveDispatchableEmployee(emp.name, emps);
+    }
+    if (!emp) return { error: `Employee not found: ${agentName}` };
+    return { targetName: agentName, emp, source: staticSpec?.source ?? 'db', staticSpec };
 }
 
 export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddleware): void {
@@ -234,10 +286,10 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
             console.warn(`[dispatch:deny] ip=${req.ip} ua=${String(req.headers['user-agent'] || '').slice(0, 80)}`);
             return fail(res, 403, 'Dispatch requires boss-scoped token. Employees cannot dispatch.');
         }
-        const { agent: agentName, task: rawTask, phase, mutable, scope } = req.body || {};
+        const { task: rawTask, phase, mutable, scope } = req.body || {};
         const wait = req.body?.wait !== false;
         const task = typeof rawTask === 'string' ? rawTask.trim() : '';
-        if (!agentName || !task) return fail(res, 400, 'Missing agent or task');
+        if (!task) return fail(res, 400, 'Missing task');
         const allowWrite = mutable === true;
 
         // Scope fail-fast: validate scope path before any work
@@ -288,17 +340,12 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
         }
 
         const emps = getEmployees.all() as EmployeeRow[];
-        // Try DB first (preserves existing id-based matching), then fall
-        // through to static employees for entries like Control.
-        let emp = findEmployee(emps, { agent: agentName }) as EmployeeRow | SyntheticEmployeeRow | null;
-        let staticSpec: ReturnType<typeof resolveDispatchableEmployee> = null;
-        if (!emp) {
-            staticSpec = resolveDispatchableEmployee(agentName, emps);
-            if (staticSpec) emp = staticSpec.row;
-        } else {
-            staticSpec = resolveDispatchableEmployee(emp.name, emps);
+        const target = resolveDispatchTarget(req.body || {}, emps);
+        if ('error' in target) {
+            const status = target.error.startsWith('Employee not found:') ? 404 : 400;
+            return fail(res, status, target.error);
         }
-        if (!emp) return fail(res, 404, `Employee not found: ${agentName}`);
+        const { emp, staticSpec } = target;
 
         // Runtime preflight for static employees (platform check only).
         if (staticSpec?.spec) {
@@ -537,10 +584,9 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
 
         const entries: BatchEntry[] = [];
         for (const item of agents) {
-            const agentName = String(item?.agent || '').trim();
             const task = String(item?.task || '').trim();
-            if (!agentName || !task) {
-                return fail(res, 400, `Invalid entry: missing agent or task`);
+            if (!task) {
+                return fail(res, 400, `Invalid entry: missing task`);
             }
             const allowWrite = item?.mutable === true;
             const scope = typeof item?.scope === 'string' ? item.scope : null;
@@ -548,15 +594,14 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
                 try { normalizeScope(settings["workingDir"] || process.cwd(), scope); }
                 catch (e) { return fail(res, 400, (e as Error).message); }
             }
-            let emp = findEmployee(emps, { agent: agentName }) as EmployeeRow | SyntheticEmployeeRow | null;
-            if (!emp) {
-                const staticSpec = resolveDispatchableEmployee(agentName, emps);
-                if (staticSpec) emp = staticSpec.row;
+            const target = resolveDispatchTarget(item || {}, emps);
+            if ('error' in target) {
+                const status = target.error.startsWith('Employee not found:') ? 404 : 400;
+                return fail(res, status, `Invalid entry: ${target.error}`);
             }
-            if (!emp) return fail(res, 404, `Employee not found: ${agentName}`);
             const resolvedPhase = allowWrite ? 3 : (item?.phase ?? PABCD_PHASE_MAP[currentOrcState] ?? 3);
             entries.push({
-                agentName, task, emp, allowWrite,
+                agentName: target.targetName, task, emp: target.emp, allowWrite,
                 scope, parallel: item?.parallel === true,
                 affectedFiles: Array.isArray(item?.affected_files) ? item.affected_files.map(String) : [],
                 resolvedPhase,

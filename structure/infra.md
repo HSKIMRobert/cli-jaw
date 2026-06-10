@@ -153,7 +153,7 @@ aliases: [CLI-JAW Infra, infrastructure modules, core runtime]
 | `settings-merge.ts` | nested settings deep merge (`telegram`, `discord`, `messaging`, `memory`, `stt`, `tui`, `network`) |
 | `db.ts` | SQLite session/messages/memory/employees/employee_sessions/orc_state/jaw_ceo_transcript |
 | `bus.ts` | broadcast hub + named listener lifecycle |
-| `employees.ts` | default employee seeding + regenerate |
+| `employees.ts` | default employee seeding + static/virtual synthetic employee helpers + regenerate |
 | `i18n.ts` | locale normalize + `t()` |
 | `compact.ts` | compact marker / transcript helpers |
 | `logger.ts` | minimal console logger shim |
@@ -255,6 +255,8 @@ orc_state (id PK, state, ctx, updated_at)
 queued_messages (id PK, payload, created_at)
 jaw_ceo_transcript (id PK, at, role, text, source, created_at)
 ```
+
+Virtual employees are not written to `employees` or `employee_sessions`. `src/core/employees.ts` emits `SyntheticEmployeeRow` values with `virtual:` IDs for one-off dispatch, and `src/orchestrator/distribute.ts` skips session resume/persist for those IDs.
 
 `trace`, `tool_log`, and `working_dir` are added by in-place migration if missing. `working_dir` also gets `idx_messages_wd`; Jaw CEO transcript rows are bounded by the coordinator persistence layer.
 

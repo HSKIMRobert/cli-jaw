@@ -233,6 +233,8 @@
     "role.label.backend": "백엔드",
     "role.label.data": "데이터",
     "role.label.docs": "문서작성",
+    "role.label.security": "보안",
+    "role.label.testing": "테스트",
     "role.label.custom": "커스텀...",
     "hb.empty": "하트비트가 없습니다",
     "hb.name": "이름",

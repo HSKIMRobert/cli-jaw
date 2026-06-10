@@ -233,6 +233,8 @@
     "role.label.backend": "Backend",
     "role.label.data": "Data",
     "role.label.docs": "Docs",
+    "role.label.security": "Security",
+    "role.label.testing": "Testing",
     "role.label.custom": "Custom...",
     "hb.empty": "No heartbeats",
     "hb.name": "Name",

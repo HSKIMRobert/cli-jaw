@@ -32,7 +32,7 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 | `src/routes/memory.ts` | 191L | 13 | memory runtime + KV memory + memory files |
 | `src/routes/browser.ts` | 478L | 41 | browser primitive/tab/debug/doctor/cleanup routes + adaptive fetch + web-ai render/send/poll/watch/sessions/capabilities/context routes |
 | `src/routes/jaw-memory.ts` | 352L | 12 | jaw memory search/read/save/context/list/init/reflect/flush/soul/soul-activate/bootstrap |
-| `src/routes/orchestrate.ts` | 637L | 14 | reset/state/workers/worker-progress/snapshot/queue cancel/hold/queue steer async accept/dispatch/batch dispatch/worker result/state PUT |
+| `src/routes/orchestrate.ts` | 813L | 14 | reset/state/workers/worker-progress/snapshot/queue cancel/hold/queue steer async accept/dispatch/batch dispatch/worker result/state PUT |
 | `src/routes/goal.ts` | 177L | 3 | durable goal state get/history/set-update-complete-cancel-pause-resume-clear-reset |
 | `src/routes/goal-run.ts` | 83L | 3 | bounded goal-run state/preflight/start-pause-resume-stop |
 | `src/routes/messaging.ts` | 259L | 6 | upload/file-open/voice/telegram/channel/discord send |
@@ -187,8 +187,11 @@ static → employees → heartbeat → skills → jaw-memory → orchestrate
 ### `/api/orchestrate/dispatch`
 
 - boss-scoped `x-jaw-boss-token`이 필수다. employee spawn 환경에서는 이 토큰이 제거되므로 직원이 다시 dispatch하는 흐름은 서버에서 `403`으로 막힌다.
+- body는 정확히 하나의 target을 받는다: `{ agent, task }` 또는 `{ virtual, task, role?, cli?, model? }`.
+- `virtual` target은 `src/core/employees.ts`의 `security`/`testing` 프리셋 또는 자유 role 문자열로 `SyntheticEmployeeRow`를 만들고, DB employee row로 저장하지 않는다.
+- virtual dispatch에서 `cli`/`model`이 생략되면 현재 CLI와 `src/cli/registry.ts`의 registry default model을 사용한다.
 - 현재 plan이 있으면 dispatch body 상단에 `## Approved Plan`으로 자동 주입된다.
-- `POST /api/orchestrate/dispatch/batch`는 같은 boss token으로 여러 직원 task를 병렬 dispatch한다. 구버전 manager가 이 route 없이 HTML 404를 반환하면 `jaw dispatch --batch`는 JSON parse 예외 대신 stale/missing route 진단을 출력한다.
+- `POST /api/orchestrate/dispatch/batch`는 같은 boss token으로 여러 직원/virtual task를 병렬 dispatch한다. 각 entry는 `agent` 또는 `virtual` 중 하나를 가진다. 구버전 manager가 이 route 없이 HTML 404를 반환하면 `jaw dispatch --batch`는 JSON parse 예외 대신 stale/missing route 진단을 출력한다.
 
 ### `/api/jaw-ceo/*`
 
