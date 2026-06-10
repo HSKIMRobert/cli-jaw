@@ -593,6 +593,7 @@ export const reopenChannel = connect;
 
 function handleChannelUp(transport: 'sse' | 'ws'): void {
     console.log(`[${transport}] connected`);
+    fallbackRetryDelayMs = 2000;
     const now = Date.now();
     const skipReload = now - lastLoadTs < 10000;
     // 08 §6: orc_state events must wait for the snapshot fetch — keep the
@@ -633,6 +634,11 @@ function handleChannelDown(): void {
 
 let legacyWs: WebSocket | null = null;
 let legacySilentClose = false;
+// Backoff for the never-opened case: against a NEW server whose /api/events
+// failed transiently (503 SSE_CAPACITY, restart window) the WS leg can never
+// open — a fixed 2s loop would hammer and spam. Reset on any channel-up.
+let fallbackRetryDelayMs = 2000;
+const FALLBACK_RETRY_MAX_MS = 30_000;
 
 function closeLegacyWebSocket(): void {
     if (!legacyWs) return;
@@ -662,12 +668,26 @@ function connectLegacyWebSocket(): void {
         }
         handleServerEvent(msg);
     };
-    ws.onopen = () => handleChannelUp('ws');
+    let wsOpened = false;
+    ws.onopen = () => {
+        wsOpened = true;
+        fallbackRetryDelayMs = 2000;
+        handleChannelUp('ws');
+    };
     ws.onclose = () => {
         if (legacyWs === ws) legacyWs = null;
         if (legacySilentClose) { legacySilentClose = false; return; } // intentional close — no side effects (31 audit rule 1)
-        handleChannelDown();
-        setTimeout(connect, 2000);
+        if (wsOpened) {
+            // A real session dropped — old behavior: notify + quick retry.
+            handleChannelDown();
+            setTimeout(connect, 2000);
+            return;
+        }
+        // Never opened: not a legacy server after all (or it's gone). No
+        // channel transition happened, so skip the "disconnected" message
+        // and back off — SSE is retried first on every connect().
+        fallbackRetryDelayMs = Math.min(fallbackRetryDelayMs * 2, FALLBACK_RETRY_MAX_MS);
+        setTimeout(connect, fallbackRetryDelayMs);
     };
 }
 

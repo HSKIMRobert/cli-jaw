@@ -36,6 +36,8 @@ test('SOS-003: channel-up hydration pulls scope state from the snapshot (X-01)',
         'channel-up must sync the orchestrate snapshot (orc scope/state source)');
     assert.ok(block.includes('refreshMemorySidebar'),
         'channel-up must hydrate the memory badge (was a WS connect push)');
+    assert.ok(wsSrc.includes("onChannelOpen(() => handleChannelUp('sse'))"),
+        'handleChannelUp must be wired to the SSE channel-open callback');
 });
 
 test('SOS-004: resetAllStaleStates preserves recent states and resets stale ones', () => {
