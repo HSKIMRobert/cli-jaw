@@ -164,13 +164,33 @@ export function syncOrchestrateSnapshot(reason = 'manual', options: { hydrateRun
     return refreshRuntimeSnapshot(options);
 }
 
+// devlog 260609 75/82: these restore reasons can represent a hidden/navigated
+// document that missed history-changing events — durable history must reload
+// before snapshot hydration. focus/resume stay snapshot-only (reload churn).
+function shouldReloadMessagesForRestore(reason: string): boolean {
+    return reason === 'iframe-visible'
+        || reason === 'pageshow'
+        || reason === 'discard'
+        || reason === 'visibilitychange';
+}
+
 function syncAfterBrowserRestore(reason: string): void {
     showChatRestoreIndicator(reason);
-    syncOrchestrateSnapshot(reason, { hydrateRun: true })
+    void import('./ui.js').then(async m => {
+        if (shouldReloadMessagesForRestore(reason)) {
+            try {
+                await m.loadMessages();
+                lastLoadTs = Date.now();
+            } catch (error) {
+                console.warn(`[ws] restore loadMessages failed (${reason})`, error);
+            }
+        }
+        await syncOrchestrateSnapshot(reason, { hydrateRun: true });
+    })
+        .catch(() => { /* snapshot not critical — UI recovers on next event */ })
         .finally(() => {
             reconcileChatBottomAfterRestore(reason);
-        })
-        .catch(() => {});
+        });
 }
 
 function requestBrowserRestoreSync(reason: string): void {
@@ -178,6 +198,34 @@ function requestBrowserRestoreSync(reason: string): void {
     if (reason !== 'discard' && now - lastRestoreTriggerAt < RESTORE_TRIGGER_DEBOUNCE_MS) return;
     lastRestoreTriggerAt = now;
     syncAfterBrowserRestore(reason);
+}
+
+// devlog 260609 78/82: the settings_change payload always carries projectDirs,
+// so scope sensitivity must be read from changedKeys. workingDir keys the
+// message-history scope (origin+pathname::workingDir); projectDirs rides the
+// same path for forward-compat and resolves to a signature-skip no-op today.
+function handleSettingsChange(msg: { cli?: string; projectDirs?: string[] | null; changedKeys?: string[] }): void {
+    const changedKeys = Array.isArray(msg.changedKeys) ? msg.changedKeys : [];
+    if (changedKeys.includes('workingDir') || changedKeys.includes('projectDirs')) {
+        // 82 A-phase audit: never reassign snapshotReady here — only
+        // channel-up/replay-gap own that promise (orc_state gate awaits it).
+        void import('./ui.js').then(async m => {
+            try {
+                await m.loadMessages();
+                lastLoadTs = Date.now();
+            } catch (error) {
+                console.warn('[ws] settings scope loadMessages failed', error);
+            }
+            await syncOrchestrateSnapshot('settings_change')
+                .catch(() => { /* snapshot not critical — UI recovers on next event */ })
+                .finally(() => m.reconcileChatBottomAfterRestore('settings_change'));
+        });
+    } else {
+        syncOrchestrateSnapshot('settings_change').catch(() => {});
+    }
+    import('./features/settings-core.js')
+        .then(m => m.refreshHeaderFromSettingsChange(msg))
+        .catch(() => { /* header refresh is cosmetic — next loadSettings corrects it */ });
 }
 
 function registerOrchestrateRestoreHooks(): void {
@@ -865,10 +913,7 @@ function handleServerEvent(msg: WsMessage): void {
     } else if (msg.type === 'goal_continuation_failed') {
         addSystemMsg(`⚠️ Goal continuation failed: ${escapeHtml(msg.error || '')}`, 'tool-activity');
     } else if (msg.type === 'settings_change') {
-        syncOrchestrateSnapshot('settings_change').catch(() => {});
-        import('./features/settings-core.js')
-            .then(m => m.refreshHeaderFromSettingsChange(msg as { cli?: string; projectDirs?: string[] | null }))
-            .catch(() => { /* header refresh is cosmetic — next loadSettings corrects it */ });
+        handleSettingsChange(msg as { cli?: string; projectDirs?: string[] | null; changedKeys?: string[] });
     } else if (msg.type === 'session_switched' || msg.type === 'session_created') {
         // Reload messages for the new active session
         window.location.reload();
