@@ -1,44 +1,14 @@
+import {
+    completionKeyForBlock,
+    isElicitationCompleted,
+    markElicitationCompleted,
+    parseElicitationSpec,
+    type NormalizedOption,
+    type NormalizedQuestion,
+    type NormalizedSpec,
+} from './elicitation-state.js';
+
 type ElicitationKind = 'elicitation' | 'choice-buttons';
-type QuestionType = 'single_select' | 'multi_select' | 'rank_priorities';
-type VisibleWhen = Record<string, string[]>;
-
-interface RawOption {
-    id?: unknown;
-    value?: unknown;
-    label?: unknown;
-    description?: unknown;
-    submitText?: unknown;
-}
-
-interface NormalizedOption {
-    id: string;
-    value: string;
-    label: string;
-    description: string;
-    submitText: string;
-}
-
-interface RawQuestion {
-    id?: unknown;
-    type?: unknown;
-    question?: unknown;
-    title?: unknown;
-    prompt?: unknown;
-    options?: unknown;
-    visibleWhen?: unknown;
-}
-
-interface NormalizedQuestion {
-    id: string;
-    type: QuestionType;
-    question: string;
-    options: NormalizedOption[];
-    visibleWhen: VisibleWhen;
-}
-
-interface NormalizedSpec {
-    questions: NormalizedQuestion[];
-}
 
 interface ElicitationAnswer {
     question: NormalizedQuestion;
@@ -71,94 +41,6 @@ function escapeHtml(value: string): string {
         .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function asString(value: unknown): string {
-    return typeof value === 'string' ? value.trim() : '';
-}
-
-function parseSpec(raw: string): unknown {
-    try {
-        return JSON.parse(raw);
-    } catch {
-        return null;
-    }
-}
-
-function normalizeType(value: unknown): QuestionType {
-    const raw = asString(value);
-    if (raw === 'multi_select' || raw === 'multi' || raw === 'checkbox') return 'multi_select';
-    if (raw === 'rank_priorities' || raw === 'rank' || raw === 'ranking') return 'rank_priorities';
-    return 'single_select';
-}
-
-function normalizeOptions(rawOptions: unknown): NormalizedOption[] {
-    if (!Array.isArray(rawOptions)) return [];
-    return rawOptions.map((option, index): NormalizedOption | null => {
-        if (typeof option === 'string') {
-            const label = option.trim();
-            if (!label) return null;
-            return {
-                id: `option_${index + 1}`,
-                value: label,
-                label,
-                description: '',
-                submitText: '',
-            };
-        }
-        if (!option || typeof option !== 'object') return null;
-        const raw = option as RawOption;
-        const label = asString(raw.label) || asString(raw.value) || asString(raw.id);
-        if (!label) return null;
-        const value = asString(raw.value) || label;
-        return {
-            id: asString(raw.id) || value || `option_${index + 1}`,
-            value,
-            label,
-            description: asString(raw.description),
-            submitText: asString(raw.submitText),
-        };
-    }).filter((option): option is NormalizedOption => Boolean(option));
-}
-
-function normalizeVisibleWhen(value: unknown): VisibleWhen {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
-    const visibleWhen: VisibleWhen = {};
-    for (const [rawKey, rawAllowed] of Object.entries(value as Record<string, unknown>)) {
-        const key = rawKey.trim();
-        if (!key) continue;
-        const allowed = Array.isArray(rawAllowed)
-            ? rawAllowed.map(asString).filter(Boolean)
-            : [asString(rawAllowed)].filter(Boolean);
-        if (allowed.length > 0) visibleWhen[key] = allowed;
-    }
-    return visibleWhen;
-}
-
-function normalizeQuestion(rawQuestion: unknown, index: number): NormalizedQuestion | null {
-    if (!rawQuestion || typeof rawQuestion !== 'object') return null;
-    const raw = rawQuestion as RawQuestion;
-    const question = asString(raw.question) || asString(raw.title) || asString(raw.prompt);
-    if (!question) return null;
-    return {
-        id: asString(raw.id) || `q${index + 1}`,
-        type: normalizeType(raw.type),
-        question,
-        options: normalizeOptions(raw.options),
-        visibleWhen: normalizeVisibleWhen(raw.visibleWhen),
-    };
-}
-
-function normalizeSpec(rawSpec: unknown): NormalizedSpec | null {
-    if (!rawSpec || typeof rawSpec !== 'object') return null;
-    const spec = rawSpec as { questions?: unknown; question?: unknown; options?: unknown; type?: unknown };
-    const questions = Array.isArray(spec.questions)
-        ? spec.questions
-        : [{ question: spec.question, options: spec.options, type: spec.type }];
-    const normalized = questions
-        .map((question, index) => normalizeQuestion(question, index))
-        .filter((question): question is NormalizedQuestion => Boolean(question));
-    return normalized.length > 0 ? { questions: normalized } : null;
-}
-
 export function renderElicitationPlaceholder(raw: string, kind: ElicitationKind): string {
     const encoded = encodeURIComponent(raw);
     return `<div class="elicitation-pending" data-elicitation-kind="${escapeAttr(kind)}" data-elicitation-spec="${escapeAttr(encoded)}" role="status" aria-label="Structured question loading">
@@ -183,7 +65,7 @@ export function hydrateElicitationBlocks(root: ParentNode = document): void {
         } catch {
             decoded = '';
         }
-        const parsed = normalizeSpec(parseSpec(decoded));
+        const parsed = parseElicitationSpec(decoded);
         block.dataset['elicitationHydrated'] = 'true';
         if (!parsed) {
             console.warn('[elicitation] invalid structured question spec', {
@@ -193,6 +75,12 @@ export function hydrateElicitationBlocks(root: ParentNode = document): void {
             });
             block.className = 'elicitation-block elicitation-error';
             block.innerHTML = '<div class="elicitation-error-text">질문 형식을 읽을 수 없습니다.</div>';
+            continue;
+        }
+        const completionKey = completionKeyForBlock(block, parsed);
+        block.dataset['elicitationCompletionKey'] = completionKey || '';
+        if (isElicitationCompleted(completionKey)) {
+            renderSubmittedSummary(block);
             continue;
         }
         const state: ElicitationState = { spec: parsed, index: 0, answers: [] };
@@ -365,14 +253,10 @@ function composePrompt(answers: ElicitationAnswer[]): string {
     return `구조화 질문 응답:\n\n${lines.join('\n')}\n\n${DEFAULT_FINAL_INSTRUCTION}`;
 }
 
-function renderSubmittedSummary(block: HTMLElement, answers: ElicitationAnswer[]): void {
-    const rows = answeredQuestions(answers).map(answer => {
-        const label = answer.skipped ? 'skip' : answer.labels.join(', ');
-        return `<li><span class="elicitation-complete-question">${escapeHtml(answer.question.question)}</span><span class="elicitation-complete-answer">${escapeHtml(label)}</span></li>`;
-    }).join('');
+function renderSubmittedSummary(block: HTMLElement): void {
     block.className = 'elicitation-block elicitation-complete';
     block.dataset['elicitationState'] = 'complete';
-    block.innerHTML = `<div class="elicitation-complete-title">구조화 질문 응답 전송됨</div><ul class="elicitation-complete-list">${rows}</ul>`;
+    block.innerHTML = '<div class="elicitation-complete-row"><button class="elicitation-complete-button" type="button" disabled>응답 완료</button></div>';
 }
 
 function createInputEvent(input: Element, type: string): Event {
@@ -392,8 +276,9 @@ function submitComposedPrompt(block: HTMLElement, state: ElicitationState): void
     input.value = composePrompt(state.answers);
     input.dispatchEvent(createInputEvent(input, 'input'));
     input.dispatchEvent(createInputEvent(input, 'cmd-execute'));
+    markElicitationCompleted(block.dataset['elicitationCompletionKey'] || null);
     blockStates.delete(block);
-    renderSubmittedSummary(block, state.answers);
+    renderSubmittedSummary(block);
 }
 
 export function ensureElicitationDelegation(): void {

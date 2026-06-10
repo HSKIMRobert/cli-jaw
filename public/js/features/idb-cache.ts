@@ -20,6 +20,7 @@ export function getMessageScope(): string {
 
 export interface CachedMessage {
     id?: number;
+    message_id?: number | string;
     role: string;
     content: string;
     timestamp: number;
@@ -100,7 +101,15 @@ export async function cacheMessages(messages: CachedMessage[]): Promise<void> {
                 return;
             }
             for (const msg of messages) {
-                store.add({ role: msg.role, content: msg.content, cli: msg.cli ?? null, tool_log: msg.tool_log ?? null, timestamp: msg.timestamp || Date.now(), scope: targetScope });
+                store.add({
+                    message_id: msg.message_id ?? msg.id,
+                    role: msg.role,
+                    content: msg.content,
+                    cli: msg.cli ?? null,
+                    tool_log: msg.tool_log ?? null,
+                    timestamp: msg.timestamp || Date.now(),
+                    scope: targetScope,
+                });
             }
         };
         await new Promise<void>((resolve, reject) => {
@@ -142,6 +151,7 @@ export async function upsertMessage(msg: CachedMessage): Promise<void> {
         const db = await openDB();
         const tx = db.transaction(STORE, 'readwrite');
         tx.objectStore(STORE).add({
+            message_id: msg.message_id ?? msg.id,
             role: msg.role,
             content: msg.content,
             cli: msg.cli ?? null,

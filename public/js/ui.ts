@@ -1,4 +1,3 @@
-// ── UI Utilities ──
 import { state } from './state.js';
 import { renderMarkdown, escapeHtml, stripOrchestration, linkifyFilePaths } from './render.js';
 import { renderMermaidBlocks } from './render.js';
@@ -417,16 +416,12 @@ export function finalizeAgent(text: string, toolLog?: ToolLogEntry[]): void {
             vs.active && state.currentAgentDiv && state.currentAgentDiv.isConnected
         );
 
-        // Phase 127-F5/F9: kick off mermaid render immediately for direct DOM only.
-        // If this message will be promoted into Virtual Scroll, let the mounted VS
-        // clone render via onPostRender; otherwise we can queue a soon-detached node.
+        // Direct DOM can render Mermaid now; VS clones render in onPostRender.
         if (content && !willPromoteToVirtualScroll) {
             void renderMermaidBlocks(content as HTMLElement, { immediate: true });
         }
 
-        // Promote streaming div from real DOM into VS if active.
-        // Revert activated widgets back to pending state so VS can
-        // re-activate them after recreating the DOM from stored HTML.
+        // Revert activated widgets so VS can re-activate recreated DOM.
         if (willPromoteToVirtualScroll) {
             const div = state.currentAgentDiv;
             clearMermaidTransientState(div);
@@ -448,6 +443,8 @@ export function finalizeAgent(text: string, toolLog?: ToolLogEntry[]): void {
                 releaseProcessBlockDetails(div);
                 vs.scrollToBottom();
             } else {
+                div.dataset['turnIndex'] = String(vs.count);
+                if (!div.dataset['messageId']) div.dataset['messageId'] = generateId();
                 vs.appendLiveItem(div);
             }
             div.remove();
@@ -488,17 +485,9 @@ export function switchTab(name: string, targetBtn: Element): void {
 
 export function handleSave(): void {
     const isSettings = document.getElementById('tabSettings')?.classList.contains('active');
-    if (isSettings) {
-        import('./features/settings.js').then(m => m.savePerCli());
-    } else {
-        import('./features/settings.js').then(m => m.updateSettings());
-    }
+    import('./features/settings.js').then(m => isSettings ? m.savePerCli() : m.updateSettings());
 }
 
-// loadMemory removed — #memoryList element does not exist in HTML.
-// Memory is now handled by features/memory.ts via the modal UI.
-
-// ── Message action delegation ──
 export function initMsgCopy(): void {
     initMessageActions({ onStatus: addSystemMsg });
 }
