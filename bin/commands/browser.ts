@@ -851,6 +851,8 @@ try {
       --json
 
     Full web-ai docs: cli-jaw skill read web-ai
+    Code artifact extraction is an agbrowse-owned surface:
+      agbrowse web-ai code-extract --vendor chatgpt --url "https://chatgpt.com/c/<conversation-id>" --output-zip ./result.zip
 
     Tab lease policy:
       Completed provider tabs are runtime leases. The warm pool keeps max 1 owned

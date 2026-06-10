@@ -82,6 +82,14 @@ Output:
   --json              Print JSON
   --full              Print full context dry-run/render output
 
+Code artifacts:
+  ChatGPT code-mode zip generation and later artifact extraction are currently
+  standalone agbrowse surfaces. To re-retrieve /mnt/data/result.zip from an
+  old ChatGPT conversation, run:
+    agbrowse web-ai code-extract --vendor chatgpt \\
+      --url "https://chatgpt.com/c/<conversation-id>" \\
+      --output-zip ./result.zip
+
 Examples:
   cli-jaw browser web-ai render --vendor chatgpt --prompt "hello" --json
   cli-jaw browser web-ai query --vendor chatgpt --model pro --effort extended --inline-only --prompt "Reply OK"
