@@ -67,9 +67,12 @@ export function subscribeToWorker(
 
     es.onerror = (err: unknown) => {
         const code = (err as { code?: number })?.code;
-        // Spec-compliant clients fail permanently on non-2xx (readyState CLOSED).
-        // 4xx ⇒ legacy worker without /api/events — mark unsupported, never retry.
-        if (typeof code === 'number' && code >= 400 && code < 500) {
+        // eventsource@3 fails permanently on ANY non-2xx (readyState CLOSED
+        // before onerror, no reconnect scheduled). Only route-shape statuses
+        // mean "legacy worker without /api/events" — a 429 from the worker's
+        // shared rate limiter (or 401/5xx) must NOT earn a permanent mark;
+        // those end as 'disconnect' and get re-probed on the next status flap.
+        if (code === 404 || code === 405 || code === 410 || code === 501) {
             finish('unsupported');
             return;
         }

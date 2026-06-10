@@ -79,18 +79,26 @@ test('message events debounce into a single prefetch; disappeared invalidates', 
     stopWorkerEventBridge();
 });
 
-test('unsupported worker is never re-subscribed until its version changes', async () => {
+test('unsupported worker is re-probed only when it restarts (status/version diff)', async () => {
     freshBridge(null);
     diff({ port: 3458, change: 'appeared', next: { status: 'online', version: '2.1.3' } });
     const es = FakeEventSource.instances[0]!;
-    es.onerror?.({ code: 404 }); // legacy worker — permanent mark
+    es.onerror?.({ code: 404 }); // legacy worker — marked unsupported
     assert.equal(es.closed, true);
 
-    diff({ port: 3458, change: 'status', prev: { status: 'offline', version: '2.1.3' }, next: { status: 'online', version: '2.1.3' } });
-    assert.equal(FakeEventSource.instances.length, 1, 'no retry bombardment against legacy worker');
+    // A stable legacy worker emits no diffs → zero retries while it runs.
+    assert.equal(FakeEventSource.instances.length, 1, 'no retry without a diff');
 
-    diff({ port: 3458, change: 'version', prev: { status: 'online', version: '2.1.3' }, next: { status: 'online', version: '2.2.0' } });
-    assert.equal(FakeEventSource.instances.length, 2, 'version change clears the mark and resubscribes');
+    // The realistic upgrade flow surfaces as status diffs (offline rows carry
+    // version:null, so computeDiffs swallows the version change) — coming back
+    // online must clear the mark and re-probe once.
+    diff({ port: 3458, change: 'status', prev: { status: 'online', version: '2.1.3' }, next: { status: 'offline', version: null } });
+    diff({ port: 3458, change: 'status', prev: { status: 'offline', version: null }, next: { status: 'online', version: '2.2.0' } });
+    assert.equal(FakeEventSource.instances.length, 2, 'restart (offline→online) re-probes once');
+
+    FakeEventSource.instances[1]!.onerror?.({ code: 404 });
+    diff({ port: 3458, change: 'version', prev: { status: 'online', version: '2.2.0' }, next: { status: 'online', version: '2.3.0' } });
+    assert.equal(FakeEventSource.instances.length, 3, 'version diff also clears the mark and resubscribes');
     stopWorkerEventBridge();
 });
 
