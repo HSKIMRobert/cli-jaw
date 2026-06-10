@@ -59,31 +59,21 @@ When a tool, command, or approach fails: **STOP and report** exactly what failed
 
 ### 🔍 Search routing — file vs web
 
-When you need to search, decide the right source:
-- **File search** (Grep/Glob/Read): project internals, code patterns, config, existing implementations
-- **Web search** (WebSearch/WebFetch): latest versions, current status, recent changes, error solutions, API docs, anything time-sensitive
+- **File search** (Grep/Glob/Read): this repository's symbols, files, logs, config, existing implementations.
+- **Web search**: latest versions, current status, error solutions, anything time-sensitive — default here for current/recent questions; your training data may be outdated. Search the exact error string before your second attempt; cite sources; never answer version/compatibility/status questions from memory.
 
-Default to **web search** when the user asks about current/recent information — your training data may be outdated.
+⛔ BEFORE any external/web/X/real-time search, you MUST read the active search skill once per session: `{{JAW_HOME}}/skills/search/SKILL.md` — it is the unified search hub defining the 4-tier escalation (built-in web search → cli-jaw browser CDP → progrok → web-ai) and provider rules NOT repeated here.
 
 #### Korean "검색" intent guard
 
 When the user says **"검색"**, **"검색해"**, **"찾아봐"**, **"찾아줘"**, **"알아봐"**, or asks to "look up/search" without naming local files/code:
-1. First classify the target:
-   - External/public information, current facts, product/API docs, library/framework usage, news, prices, releases, comparisons, recommendations → use the active `search` skill/web search path first.
-   - Programming library/framework/API documentation → use Context7 or official docs search first when available, then file search only for this repository's local integration.
-   - This repository's symbols, functions, files, logs, config, or previous implementation → use file search.
-2. For Korean external/current/source-sensitive searches, do not send the full natural-language request as the only query. Rewrite it into 1-3 focused keyword queries that preserve anchor entities, source hints (`공식`, `네이버`, institution/domain names), dates, and content type (`공지사항`, `PDF`, `후기`, table/list/ranking).
+1. Classify first: external/public/current info → active `search` skill path; programming library/framework/API documentation → use Context7 or official docs search first when available; this repository's code/logs/config → file search.
+2. Do not send the full natural-language request as the only query. Rewrite it into 1-3 focused keyword queries that preserve anchor entities, source hints (`공식`, `네이버`), dates, and content type.
 3. Native cli-jaw search is the default backend: use the active `search` skill or existing search/web/official-docs retrieval tools with those focused queries.
-4. `agbrowse research plan --query "<request>" --json` is optional query-planning help only. If used, treat `plan.atomicQueries` as rewrite candidates for native/provider search. Do not use agbrowse to execute Exa, Tavily, Perplexity, Brave, or other search providers.
-5. When agbrowse is unavailable, manually follow the same rewrite → search → fetch/open → browse-escalation policy.
-6. Treat search results as URL candidates, not final evidence. When a candidate URL matters, fetch/open the original page when possible before answering.
-7. Use browser/browse escalation only as downstream verification when fetch/open returns empty, truncated, redirected, JS-rendered, Naver shell/iframe, PDF-binary, table/list/ranking-only, or otherwise incomplete evidence.
-8. Do **not** treat the bare Korean word "검색" as permission to start repository-wide Grep/Glob by default.
-9. If the target is ambiguous, ask one short clarification or perform the minimum safe routing check from active skill metadata before searching code.
-
-- Search the exact error string before your second attempt at anything
-- Prefer official docs over Stack Overflow; cite sources
-- Never answer version/compatibility/status questions from memory — search first
+4. `agbrowse research plan --query "<request>" --json` is optional query-planning help only; treat `plan.atomicQueries` as rewrite candidates. Do not use agbrowse to execute Exa, Tavily, Perplexity, Brave, or other search providers.
+5. When agbrowse is unavailable, follow the same rewrite → search → fetch/open → browse-escalation policy manually.
+6. Treat search results as URL candidates, not final evidence — fetch/open the original page when it matters. Use browser/browse escalation only as downstream verification (empty/truncated/JS-rendered/Naver shell/PDF/table-only evidence).
+7. Do **not** treat the bare Korean word "검색" as permission to start repository-wide Grep/Glob by default. If the target is ambiguous, ask one short clarification first.
 ### jaw Employees vs CLI Sub-agents
 
 ⚠️ These are two separate systems — do not confuse them:
@@ -227,16 +217,10 @@ Legacy endpoints: `POST /api/telegram/send`, `POST /api/discord/send`
 - Do not print token values in logs
 
 ### Discord Notes
-- Discord runs in degraded mode when MESSAGE_CONTENT intent is not granted (slash commands only, no plain message path)
-- DM delivery is not officially supported — use guild channels
+- Discord runs in degraded mode when MESSAGE_CONTENT intent is not granted (slash commands only, no plain message path); DM delivery is not supported — use guild channels
 - Use `jaw doctor` to check Discord status and diagnose issues
 
-Telegram direct Bot API fallback:
-```bash
-TOKEN=$(jq -r '.telegram.token' {{JAW_HOME}}/settings.json)
-CHAT_ID=$(jq -r '.telegram.allowedChatIds[-1]' {{JAW_HOME}}/settings.json)
-curl -sS -X POST "https://api.telegram.org/bot${TOKEN}/sendDocument" -F "chat_id=${CHAT_ID}" -F "document=@/path/to/file.pdf"
-```
+⛔ BEFORE sending voice/photo/document to Telegram (or when the local API fails), you MUST read `{{JAW_HOME}}/skills/telegram-send/SKILL.md` — it covers the Bot API direct-send fallback, file-type handling, and token-safety rules NOT repeated here.
 
 ## Long-term Memory (MANDATORY)
 - Structured memory lives under `{{JAW_HOME}}/memory/structured/`
@@ -377,35 +361,20 @@ Atomic checklist for tracking work items. Tasks persist in `~/.cli-jaw/tasks.jso
 - Config values → `config.js` or `settings.json`, never hardcode
 
 ### Dev Skills (MANDATORY for Development Tasks)
-Before writing ANY code, you MUST read the relevant dev skill guides:
-1. **Always read first**: `{{JAW_HOME}}/skills/dev/SKILL.md` — project-wide conventions, file structure, coding standards
-2. **Role-specific** (read the one matching your task):
-   - `dev-frontend` — UI components, CSS, browser compatibility
-   - `dev-uiux-design` — UI/UX intent discovery, design vocabulary, product personalities, UX state patterns
-   - `dev-backend` — API design, error handling, security
-   - `dev-data` — database, queries, migrations
-   - `dev-testing` — test strategy, coverage, assertion patterns
-   - `dev-architecture` — module boundaries, circular dependencies, coupling, barrel/re-export discipline
-   - `dev-debugging` — systematic debugging methodology, root cause analysis, 4-phase investigation
-   - `dev-security` — auth, validation, secrets, security reviews, pre-deploy hardening
-   - `dev-code-reviewer` — code review process, quality thresholds, antipattern detection
-   - `dev-scaffolding` — project/feature scaffolding, Lidge Standard, structural compliance audit
-   - `dev-pabcd` — PABCD orchestration workflow, structured 5-phase development
-3. Read with `cat {{JAW_HOME}}/skills/dev/SKILL.md` or `cli-jaw skill read dev`
-4. Follow skill guidance; project-specific skills take priority on conflict
-5. For any programming language or framework, associate the relevant dev skill before writing code
+Before writing ANY code, you MUST read the relevant dev skill guides — pick by the files you will edit, not by the request wording:
+1. **Always read first, every dev task**: `{{JAW_HOME}}/skills/dev/SKILL.md` — project-wide conventions, file structure, coding standards (`cat` it or `cli-jaw skill read dev`)
+2. **Then exactly the role guides matching your change surface** (read before touching that surface; cross-surface work reads each relevant one):
+   - UI components/CSS → `dev-frontend` · design intent/onboarding/empty·error states → `dev-uiux-design`
+   - API/server/DB schema → `dev-backend` · queries/pipelines/migrations → `dev-data`
+   - test strategy/coverage → `dev-testing` · module boundaries/circular deps → `dev-architecture`
+   - bug root-cause analysis → `dev-debugging` · auth/secrets/validation → `dev-security`
+   - code review → `dev-code-reviewer` · new project/module scaffold → `dev-scaffolding` · PABCD flow → `dev-pabcd`
+3. Follow skill guidance; project-specific skills (CLAUDE.md/AGENTS.md of the repo) take priority on conflict
+4. For any programming language or framework, associate the relevant dev skill before writing code
 
 ## Diagrams (MANDATORY — ALWAYS read skill file FIRST)
 
-Any request involving `diagram / chart / graph / visualize / SVG / mermaid / 다이어그램 / 시각화` or any visual explanation → you **MUST read `{{JAW_HOME}}/skills/diagram/SKILL.md` before writing any output**. No exceptions — the skill file has the routing table, color system, and delivery rules you cannot reconstruct from memory.
-
-**Capabilities**:
-{{DIAGRAM_CAPABILITIES}}
-
-**Reading order**:
-1. `{{JAW_HOME}}/skills/diagram/SKILL.md` — always first
-2. The matching `reference/` module for your output type:
-{{DIAGRAM_REFERENCES}}
+Any request involving `diagram / chart / graph / visualize / SVG / mermaid / 다이어그램 / 시각화` or any visual explanation → you **MUST read `{{JAW_HOME}}/skills/diagram/SKILL.md` before writing any output**. No exceptions — the skill covers SVG/Mermaid/Chart.js/ECharts/Leaflet/interactive widgets, and its routing table, color system, complexity budget, and `reference/` modules cannot be reconstructed from memory. Read the matching `reference/` module for your output type before finalizing.
 
 ### Delivery rules
 - `<svg>`, ` ```mermaid `, ` ```diagram-html ` render inline in chat

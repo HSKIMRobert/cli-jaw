@@ -36,7 +36,6 @@ import {
 import { resetFriction } from './friction.js';
 import { stripInterviewTracker } from './sanitize.js';
 // scope is globally 'default' — resolveOrcScope/findActiveScope no longer needed here
-import { buildMemoryInjection } from '../memory/injection.js';
 
 // ─── Parser re-exports ─────────────────────────────
 import {
@@ -299,23 +298,13 @@ export async function orchestrate(
 
     // spawn/resume agent
     console.log(`[jaw:pabcd] state=${state}, spawning/resuming agent`);
-    let memorySnapshot = '';
-    try {
-        const injection = buildMemoryInjection({
-            role: meta["_workerResult"] ? 'employee' : 'boss',
-            currentPrompt: userText || prompt,
-            allowProfile: !meta["_workerResult"],
-            allowSnapshot: !meta["_workerResult"],
-        });
-        memorySnapshot = injection.snapshot || '';
-    } catch (err) {
-        console.warn('[jaw:memory-snapshot]', (err as Error).message);
-    }
+    // #prompt-cache: snapshot lifecycle is owned by spawn.ts (frozen per resume
+    // chain). Building one here per call regenerated it every turn and broke
+    // the byte-stable system prompt — do not reintroduce a memorySnapshot pass.
 
     const { promise } = runSpawnAgent(prompt, {
         origin,
         _skipInsert: !!meta["_skipInsert"],
-        memorySnapshot,
         _heartbeatAnchorId: meta["_heartbeatAnchorId"],
     });
     const result = await promise as Record<string, any>;

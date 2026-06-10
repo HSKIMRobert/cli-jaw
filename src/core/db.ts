@@ -225,6 +225,12 @@ if (!(sessionBucketCols as Record<string, unknown>[]).some(c => c["name"] === 'r
 if (!(sessionBucketCols as Record<string, unknown>[]).some(c => c["name"] === 'output_len')) {
     db.exec('ALTER TABLE session_buckets ADD COLUMN output_len INTEGER DEFAULT 0');
 }
+// Frozen task snapshot per resume chain (#prompt-cache): regenerated only on
+// fresh spawns, reused byte-identical across resume turns so the system
+// prompt prefix stays cacheable. Dies with the bucket row on any clear.
+if (!(sessionBucketCols as Record<string, unknown>[]).some(c => c["name"] === 'memory_snapshot')) {
+    db.exec('ALTER TABLE session_buckets ADD COLUMN memory_snapshot TEXT DEFAULT NULL');
+}
 
 // ─── Prepared Statements ─────────────────────────────
 
@@ -303,7 +309,7 @@ export const clearEmployeeSession = db.prepare('DELETE FROM employee_sessions WH
 export const clearAllEmployeeSessions = db.prepare('DELETE FROM employee_sessions');
 
 // ─── Session Buckets (per-bucket resume storage) ─────
-export const getSessionBucket = db.prepare('SELECT bucket, session_id, model, resume_key, output_len, updated_at FROM session_buckets WHERE bucket = ?');
+export const getSessionBucket = db.prepare('SELECT bucket, session_id, model, resume_key, output_len, memory_snapshot, updated_at FROM session_buckets WHERE bucket = ?');
 export const upsertSessionBucket = db.prepare(`
     INSERT INTO session_buckets (bucket, session_id, model, resume_key, output_len, updated_at)
     VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -313,6 +319,16 @@ export const upsertSessionBucket = db.prepare(`
         resume_key=excluded.resume_key,
         output_len=excluded.output_len,
         updated_at=CURRENT_TIMESTAMP
+`);
+// Frozen snapshot write happens at spawn time, before the turn's session id
+// exists — the placeholder row ('' session_id stays falsy for resume checks)
+// is later completed by upsertSessionBucket, whose DO UPDATE intentionally
+// leaves memory_snapshot untouched. updated_at is NOT bumped on conflict so
+// a forceNew snapshot write cannot extend a stale bucket's resume TTL.
+export const setSessionBucketSnapshot = db.prepare(`
+    INSERT INTO session_buckets (bucket, session_id, model, memory_snapshot)
+    VALUES (?, '', ?, ?)
+    ON CONFLICT(bucket) DO UPDATE SET memory_snapshot=excluded.memory_snapshot
 `);
 export const clearSessionBucket = db.prepare('DELETE FROM session_buckets WHERE bucket = ?');
 

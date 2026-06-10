@@ -244,24 +244,9 @@ export function getMergedSkills() {
 
 /** Template variables shared across templates */
 function getTemplateVars(): Record<string, string> {
-    const vars: Record<string, string> = { JAW_HOME, CDP_PORT: String(deriveCdpPort()) };
-    try {
-        const diagramSkillPath = [
-            join(SKILLS_DIR, 'diagram', 'SKILL.md'),
-            join(SKILLS_REF_DIR, 'diagram', 'SKILL.md'),
-        ].find(p => fs.existsSync(p)) || null;
-        const meta = readSkillMetadata('diagram', diagramSkillPath);
-        vars['DIAGRAM_CAPABILITIES'] = meta.capabilities.length
-            ? meta.capabilities.map(c => `- ${c}`).join('\n')
-            : '';
-        vars['DIAGRAM_REFERENCES'] = meta.references.length
-            ? meta.references.map(r => `- ${r}`).join('\n')
-            : '';
-    } catch {
-        vars['DIAGRAM_CAPABILITIES'] = '';
-        vars['DIAGRAM_REFERENCES'] = '';
-    }
-    return vars;
+    // DIAGRAM_CAPABILITIES/REFERENCES vars removed (#prompt-cache): the A-1
+    // diagram section now defers that detail to the skill's MUST-READ body.
+    return { JAW_HOME, CDP_PORT: String(deriveCdpPort()) };
 }
 
 /** Render A1 system prompt from template */
@@ -554,10 +539,18 @@ export function getSystemPrompt(opts: { currentPrompt?: string; forDisk?: boolea
             prompt += '\n\n---\n';
             prompt += renderTemplate(loadTemplate('orchestration.md'), vars);
 
-            // PABCD orchestration skill (boss needs to know the workflow)
+            // PABCD orchestration: command summary stays inline; the full skill
+            // body is a MUST-READ path contract (#prompt-cache — was 9.4KB inline).
             const pabcdPath = join(SKILLS_DIR, 'dev-pabcd', 'SKILL.md');
             if (fs.existsSync(pabcdPath)) {
-                prompt += `\n\n## PABCD Orchestration Guide\n${fs.readFileSync(pabcdPath, 'utf8')}`;
+                prompt += `\n\n## PABCD Orchestration Guide
+PABCD is the structured 5-phase development workflow: I(Interview) → P(Plan) → A(Plan Audit) → B(Build) → C(Check) → D(Done).
+- Transitions are shell commands only: \`cli-jaw orchestrate I|P|A|B|C|D\` (forward-only; \`I\` reachable from any state, context preserved; \`reset\` → IDLE).
+- Gates: P/A/B end with ⛔ STOP — present results and WAIT for user approval before advancing (goal mode self-advances).
+- A audits the PLAN via a read-only employee dispatch; B: YOU write all code, employees verify (\`--mutable\` is the only write exception); C runs mechanical checks (tsc/tests) then D summarizes.
+- Devlog plan docs use decade numbering (00-09 research, 10-19 phase 1, ...).
+⛔ BEFORE running any PABCD phase, you MUST read the full workflow guide once per session: ${pabcdPath}
+It defines phase contracts, dispatch pitfalls (delegation trap, context drift, phase skip), worklog/plan injection rules, and repository-root contracts that are NOT repeated here.`;
             }
         }
     } catch { /* DB not ready yet */ }

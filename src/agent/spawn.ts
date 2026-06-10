@@ -13,8 +13,9 @@ import { stripUndefined } from '../core/strip-undefined.js';
 import {
     clearEmployeeSession, getSession, insertMessage, getRecentMessages,
     listQueuedMessages, insertQueuedMessage, deleteQueuedMessage,
-    getSessionBucket, clearSessionBucket,
+    getSessionBucket, clearSessionBucket, setSessionBucketSnapshot,
 } from '../core/db.js';
+import { buildTaskSnapshot } from '../memory/runtime.js';
 import { getActiveChatSession } from '../core/chat-sessions.js';
 import { getSystemPrompt, regenerateB } from '../prompt/builder.js';
 import { extractSessionId, extractFromEvent, extractFromAcpUpdate, extractOutputChunk, logEventSummary, flushClaudeBuffers, flushOpenCodeBuffers } from './events.js';
@@ -145,6 +146,7 @@ interface SessionBucketRow {
     model?: string | null;
     resume_key?: string | null;
     output_len?: number | null;
+    memory_snapshot?: string | null;
     updated_at?: string | number | null;
 }
 
@@ -795,9 +797,10 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         ? cfg.includeDirectories.filter((dir: unknown): dir is string => typeof dir === 'string' && dir.trim().length > 0)
         : [];
 
-    const sysPrompt = customSysPrompt !== undefined
-        ? customSysPrompt
-        : getSystemPrompt(stripUndefined({ currentPrompt: prompt, forDisk: false, memorySnapshot, activeCli: cli }));
+    // System prompt is computed AFTER the resume decision below (#prompt-cache):
+    // the frozen task snapshot needs `isResume`/`bucketRow` to pick stored bytes.
+    // Snapshot input must be the raw prompt before bootstrap/wrapper mutations.
+    const promptForSnapshot = prompt;
 
     // Bucket-aware resume: codex-spark is kept in its own session bucket so
     // cross-model resume (gpt-5.4 ↔ gpt-5.3-codex-spark) doesn't send a
@@ -855,6 +858,36 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             console.log(`[jaw:resume] ${cli} model changed ${bucketModel} → ${runtimeModel}; starting fresh session`);
         }
     }
+
+    // ─── Frozen task snapshot (#prompt-cache) ────────────
+    // Boss-session turns reuse the snapshot stored at the chain's fresh spawn so
+    // the system prompt stays byte-identical across resume turns (cache hits).
+    // Regenerated only here on fresh spawns; the row (and snapshot) dies on any
+    // bucket clear (compact / model change / stale TTL), matching the agreed
+    // "fresh spawn + compact" refresh triggers. Explicit opts.memorySnapshot wins.
+    let memorySnapshotForPrompt = memorySnapshot;
+    if (!opts.agentId && memorySnapshotForPrompt === undefined && customSysPrompt === undefined && currentBucket) {
+        const frozen = isResume && typeof bucketRow?.memory_snapshot === 'string' && bucketRow.memory_snapshot
+            ? bucketRow.memory_snapshot
+            : null;
+        if (frozen) {
+            memorySnapshotForPrompt = frozen;
+        } else {
+            try {
+                const built = buildTaskSnapshot(promptForSnapshot, 2800) || '';
+                if (built) {
+                    memorySnapshotForPrompt = built;
+                    setSessionBucketSnapshot.run(currentBucket, runtimeModel, built);
+                }
+            } catch (e) {
+                console.warn('[jaw:snapshot] freeze build failed:', (e as Error).message);
+            }
+        }
+    }
+
+    const sysPrompt = customSysPrompt !== undefined
+        ? customSysPrompt
+        : getSystemPrompt(stripUndefined({ currentPrompt: promptForSnapshot, forDisk: false, memorySnapshot: memorySnapshotForPrompt, activeCli: cli }));
 
     // ─── User prompt wrapper (boss main only) ───
     // #99: compact timestamp + project root (moved from builder.ts system prompt → user prompt)
