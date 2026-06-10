@@ -87,6 +87,25 @@ export class VirtualScroll {
         this.container = document.getElementById(containerId)!;
         this.innerEl = document.createElement('div');
         this.innerEl.className = 'vs-inner';
+        this.attachMediaLoadRemeasure();
+    }
+
+    /** Lazy media (img/video) finishes loading after its row was measured; remeasure
+     *  the owning row so following rows are re-positioned (doc 85 §3). Capture phase:
+     *  load/loadedmetadata don't bubble. innerEl is a process-lifetime singleton, so
+     *  the listener pair is attached once and never needs cleanup. */
+    private attachMediaLoadRemeasure(): void {
+        const remeasure = (e: Event) => {
+            const target = e.target;
+            if (!(target instanceof HTMLImageElement) && !(target instanceof HTMLVideoElement)) return;
+            if (!this._active || !this.virtualizer) return;
+            const row = target.closest<HTMLElement>('[data-vs-idx]');
+            if (!row || !row.isConnected) return;
+            syncMeasuredItemHeight(this.items, Number(row.dataset['vsIdx'] || '-1'), row);
+            this.virtualizer.measureElement(row);
+        };
+        this.innerEl.addEventListener('load', remeasure, true);
+        this.innerEl.addEventListener('loadedmetadata', remeasure, true);
     }
 
     get active(): boolean { return this._active; }
