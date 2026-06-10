@@ -52,3 +52,15 @@ test('ORC-CLI-006: dispatch CLI polls worker result endpoint for rejoin', () => 
     assert.match(dispatchSrc, /pollWorkerResult/, 'dispatch CLI should define a polling helper');
     assert.match(dispatchSrc, /status === 'failed'/, 'failed worker state should exit non-zero');
 });
+
+test('ORC-CLI-007: slash D transition does not clear configured projectDirs', () => {
+    const dBranchStart = handlerSrc.indexOf("if (t === 'D')");
+    const dBranchEnd = handlerSrc.indexOf("if (t === 'P')", dBranchStart);
+    assert.notEqual(dBranchStart, -1, 'slash orchestrate handler should have a D transition branch');
+    assert.notEqual(dBranchEnd, -1, 'slash D transition branch should end before non-D output setup');
+    const dBranch = handlerSrc.slice(dBranchStart, dBranchEnd);
+
+    assert.ok(dBranch.includes('resetState(scope)'), 'slash D transition should still reset PABCD state');
+    assert.ok(!dBranch.includes('clearProjectDirs'), 'slash D transition must preserve persistent projectDirs');
+    assert.ok(!dBranch.includes("projectDirs: null"), 'slash D transition must not broadcast a projectDirs reset');
+});
