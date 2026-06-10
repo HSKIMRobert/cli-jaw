@@ -1,7 +1,6 @@
 // ─── Broadcast Bus (EventEmitter-style) ──────────────
 // All modules import from here to avoid circular deps.
 
-import type { WebSocketServer, WebSocket } from 'ws';
 import { sanitizeToolLogEntry, sanitizeToolLogForDurableStorage } from '../shared/tool-log-sanitize.js';
 import { publish as ssePublish, type EventTopic } from './event-bus.js';
 
@@ -9,9 +8,6 @@ export type BroadcastListener = (type: string, data: Record<string, any>) => voi
 type BroadcastPayload = Parameters<BroadcastListener>[1];
 
 const broadcastListeners = new Set<BroadcastListener>();
-let wss: WebSocketServer | null = null;
-
-export function setWss(w: WebSocketServer | null) { wss = w; }
 
 export function addBroadcastListener(fn: BroadcastListener) { broadcastListeners.add(fn); }
 export function removeBroadcastListener(fn: BroadcastListener) { broadcastListeners.delete(fn); }
@@ -27,7 +23,7 @@ function sanitizeBroadcastData(type: string, data: BroadcastPayload): BroadcastP
     return data;
 }
 
-// Topic inference for the SSE dual-emit. The trace branch must stay first:
+// Topic inference for the SSE emit. The trace branch must stay first:
 // internal claude-e runtime events must never route to the public 'agent'
 // topic (devlog 260609 00_1 F2). agents CRUD precedes the generic agent_ prefix.
 export function inferTopic(type: string): EventTopic {
@@ -51,14 +47,11 @@ export function inferTopic(type: string): EventTopic {
 
 export function broadcast(type: string, data: Record<string, any>, audience: 'public' | 'internal' = 'public') {
     const safeData = sanitizeBroadcastData(type, data);
-    // Dual-emit to the SSE event-bus — public only (P1-09 audience gate),
-    // sanitized payload only (P1-08). WS behavior below is unchanged (P1-05).
+    // Public events reach browsers only via the SSE event-bus (X-01: the legacy
+    // WS broadcast path is removed) — public only (P1-09 audience gate),
+    // sanitized payload only (P1-08). Internal listeners always receive.
     if (audience === 'public') {
         ssePublish(inferTopic(type), type, safeData);
-    }
-    const msg = JSON.stringify({ type, ...safeData, ts: Date.now() });
-    if (audience === 'public' && wss) {
-        wss.clients.forEach((c: WebSocket) => { if (c.readyState === 1) c.send(msg); });
     }
     for (const fn of broadcastListeners) fn(type, safeData);
 }
