@@ -144,6 +144,23 @@ test('BWCOMP-007b3: ChatGPT selector supports simplified Intelligence menu label
     }
 });
 
+test('BWCOMP-007b4: ChatGPT selector routes Pro requests to Pro Extended when Pro Standard is absent', async () => {
+    const { selectChatGptModel } = await import('../../src/browser/web-ai/chatgpt-model.js');
+
+    for (const effort of ['standard', 'extended']) {
+        const page = createFakeModelPage({
+            model: 'thinking',
+            initialSelectedEffort: 'standard',
+            simplifiedIntelligenceMenu: true,
+            simplifiedProExtendedOnly: true,
+        });
+        const result = await selectChatGptModel(page, 'pro', { effort });
+
+        assert.equal(result?.selected, 'pro');
+        assert.equal(result?.effort, effort);
+    }
+});
+
 test('BWCOMP-007c: ChatGPT reasoning menu opens through generic effort controls for every supported effort when exact ids are absent', async () => {
     const { selectChatGptModel } = await import('../../src/browser/web-ai/chatgpt-model.js');
     const cases = [
@@ -615,6 +632,7 @@ function createFakeModelPage(input: {
     strayModelMenuTexts?: string[];
     effortOptionRole?: 'menuitemradio' | 'menuitem';
     simplifiedIntelligenceMenu?: boolean;
+    simplifiedProExtendedOnly?: boolean;
 } = {}): any {
     const effortTexts = input.effortTexts || {};
     const activePillTexts = input.activePillTexts || null;
@@ -636,6 +654,7 @@ function createFakeModelPage(input: {
     const strayModelMenuTexts = input.strayModelMenuTexts || [];
     const effortOptionRole = input.effortOptionRole || 'menuitemradio';
     const simplifiedIntelligenceMenu = input.simplifiedIntelligenceMenu ?? false;
+    const simplifiedProExtendedOnly = input.simplifiedProExtendedOnly ?? false;
     const state: any = {
         modelMenuOpen: initialModelMenuOpen,
         effortMenuOpen: false,
@@ -687,11 +706,11 @@ function createFakeModelPage(input: {
             checked: () => state.currentModel === 'thinking' && state.selectedEffort === 'heavy',
             onClick: () => setSimplifiedSelection('thinking', 'heavy'),
         }),
-        createElement({
+        ...(simplifiedProExtendedOnly ? [] : [createElement({
             text: 'Pro Standard',
             checked: () => state.currentModel === 'pro' && state.selectedEffort === 'standard',
             onClick: () => setSimplifiedSelection('pro', 'standard'),
-        }),
+        })]),
         createElement({
             text: 'Pro Extended',
             checked: () => state.currentModel === 'pro' && state.selectedEffort === 'extended',
