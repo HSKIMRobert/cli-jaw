@@ -120,6 +120,30 @@ test('BWCOMP-007b2: ChatGPT selector does not treat the closed model dropdown bu
     assert.equal(result?.effort, 'standard');
 });
 
+test('BWCOMP-007b3: ChatGPT selector supports simplified Intelligence menu labels', async () => {
+    const { selectChatGptModel } = await import('../../src/browser/web-ai/chatgpt-model.js');
+    const cases = [
+        { model: 'thinking', effort: 'light', selected: 'instant' },
+        { model: 'thinking', effort: 'standard', selected: 'thinking' },
+        { model: 'thinking', effort: 'extended', selected: 'thinking' },
+        { model: 'thinking', effort: 'heavy', selected: 'thinking' },
+        { model: 'pro', effort: 'standard', selected: 'pro' },
+        { model: 'pro', effort: 'extended', selected: 'pro' },
+    ];
+
+    for (const { model, effort, selected } of cases) {
+        const page = createFakeModelPage({
+            model: 'thinking',
+            initialSelectedEffort: 'standard',
+            simplifiedIntelligenceMenu: true,
+        });
+        const result = await selectChatGptModel(page, model, { effort });
+
+        assert.equal(result?.selected, selected);
+        assert.equal(result?.effort, effort);
+    }
+});
+
 test('BWCOMP-007c: ChatGPT reasoning menu opens through generic effort controls for every supported effort when exact ids are absent', async () => {
     const { selectChatGptModel } = await import('../../src/browser/web-ai/chatgpt-model.js');
     const cases = [
@@ -590,6 +614,7 @@ function createFakeModelPage(input: {
     exactEffortTriggerText?: string;
     strayModelMenuTexts?: string[];
     effortOptionRole?: 'menuitemradio' | 'menuitem';
+    simplifiedIntelligenceMenu?: boolean;
 } = {}): any {
     const effortTexts = input.effortTexts || {};
     const activePillTexts = input.activePillTexts || null;
@@ -610,6 +635,7 @@ function createFakeModelPage(input: {
     const exactEffortTriggerText = input.exactEffortTriggerText || 'Effort';
     const strayModelMenuTexts = input.strayModelMenuTexts || [];
     const effortOptionRole = input.effortOptionRole || 'menuitemradio';
+    const simplifiedIntelligenceMenu = input.simplifiedIntelligenceMenu ?? false;
     const state: any = {
         modelMenuOpen: initialModelMenuOpen,
         effortMenuOpen: false,
@@ -620,7 +646,7 @@ function createFakeModelPage(input: {
         exactEffortTriggerVisible: input.exactEffortTriggerVisible ?? true,
         genericEffortTrigger: input.genericEffortTrigger ?? true,
     };
-    const modelRows = [
+    const legacyModelRows = [
         createElement({
             text: 'GPT-5.3 Instant',
             testId: modelRowTestId('model-switcher-gpt-5-3'),
@@ -640,6 +666,39 @@ function createFakeModelPage(input: {
             onClick: () => setModel('pro'),
         }),
     ];
+    const simplifiedRows = [
+        createElement({
+            text: 'Instant',
+            checked: () => state.currentModel === 'instant',
+            onClick: () => setSimplifiedSelection('instant', null),
+        }),
+        createElement({
+            text: 'Medium',
+            checked: () => state.currentModel === 'thinking' && state.selectedEffort === 'standard',
+            onClick: () => setSimplifiedSelection('thinking', 'standard'),
+        }),
+        createElement({
+            text: 'High',
+            checked: () => state.currentModel === 'thinking' && state.selectedEffort === 'extended',
+            onClick: () => setSimplifiedSelection('thinking', 'extended'),
+        }),
+        createElement({
+            text: 'Extra High',
+            checked: () => state.currentModel === 'thinking' && state.selectedEffort === 'heavy',
+            onClick: () => setSimplifiedSelection('thinking', 'heavy'),
+        }),
+        createElement({
+            text: 'Pro Standard',
+            checked: () => state.currentModel === 'pro' && state.selectedEffort === 'standard',
+            onClick: () => setSimplifiedSelection('pro', 'standard'),
+        }),
+        createElement({
+            text: 'Pro Extended',
+            checked: () => state.currentModel === 'pro' && state.selectedEffort === 'extended',
+            onClick: () => setSimplifiedSelection('pro', 'extended'),
+        }),
+    ];
+    const modelRows = simplifiedIntelligenceMenu ? simplifiedRows : legacyModelRows;
     const exactTrigger = createElement({
         text: exactEffortTriggerText,
         testId: `model-switcher-gpt-5-5-${exactEffortTriggerModel}-thinking-effort`,
@@ -716,6 +775,12 @@ function createFakeModelPage(input: {
         state.currentModel = nextModel;
     }
 
+    function setSimplifiedSelection(nextModel: string, nextEffort: string | null): void {
+        state.currentModel = nextModel;
+        state.selectedEffort = nextEffort;
+        state.modelMenuOpen = false;
+    }
+
     function currentEffortTexts(): Record<string, string> {
         if (state.effortMenuSource === 'generic' && genericEffortTexts) return genericEffortTexts;
         return effortTexts;
@@ -743,6 +808,7 @@ function createFakeModelPage(input: {
         if (selector.includes('__composer-pill')) return roleButtonPill ? composerPills() : [];
         if (selector === 'button') return roleButtonPill ? [] : [dropdownButton, ...composerPills(), closedHeroPill].filter(element => element.visible && (element !== closedHeroPill || closedHeroEffortPill));
         if (selector === '[role="menu"]') {
+            if (simplifiedIntelligenceMenu && state.modelMenuOpen) return [createElement({ text: `Intelligence\n${simplifiedRows.map(row => row.text).join('\n')}\nGPT-5.5` })];
             return state.effortMenuOpen ? [createElement({ text: Object.values(currentEffortTexts()).join('\n') })] : [];
         }
         if (selector === '[data-testid^="model-switcher-"]') return state.modelMenuOpen ? modelRows.filter(element => element.testId) : (closedHeroEffortPill ? [closedHeroPill] : []);

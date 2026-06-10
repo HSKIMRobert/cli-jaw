@@ -37,9 +37,14 @@ Provider:
                       Gemini:  flash-lite, flash, pro, deepthink
                       Grok:    auto, fast, expert, thinking, heavy
   --effort <alias>    ChatGPT reasoning effort. Requires --model because
-                      Pro and Thinking expose different effort menus.
+                      ChatGPT may expose either legacy effort menus or the
+                      simplified Intelligence picker.
                       Pro: standard, extended
                       Thinking: light, standard, extended, heavy
+                      Intelligence mapping: thinking/light -> Instant,
+                      thinking/standard -> Medium, thinking/extended -> High,
+                      thinking/heavy -> Extra High, pro/standard -> Pro Standard,
+                      pro/extended -> Pro Extended.
   --reasoning-effort <alias>
                       Alias for --effort
   --timeout <sec>     Polling timeout
