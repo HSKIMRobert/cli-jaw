@@ -46,6 +46,45 @@ test('tool log sanitizer hard-caps fields, entry count, and serialized JSON', ()
     assert.ok(!serialized!.includes(huge.slice(0, 1000)));
 });
 
+test('entries under the JSON cap keep full detail (no unconditional 180-char shrink)', () => {
+    // doc 86 regression: every persisted row had detail capped at exactly 180
+    // because fitToolLogToJsonCap shrank unconditionally.
+    const detail = 'd'.repeat(1_000);
+    const sanitized = sanitizeToolLogForDurableStorage([
+        { icon: '🔧', label: 'exec', detail, toolType: 'tool', status: 'done' },
+    ]);
+    assert.equal(sanitized.length, 1);
+    assert.equal(sanitized[0]!.detail, detail);
+});
+
+test('entry cap keeps the NEWEST entries with an omitted marker at the head', () => {
+    const entries = Array.from({ length: MAX_TOOL_LOG_ENTRIES + 40 }, (_v, i) => ({
+        icon: '🔧', label: `tool-${i}`, toolType: 'tool', status: 'done',
+    }));
+    const sanitized = sanitizeToolLogForDurableStorage(entries);
+
+    assert.ok(sanitized.length <= MAX_TOOL_LOG_ENTRIES);
+    assert.match(sanitized[0]!.label, /41 tool events omitted/);
+    assert.equal(sanitized[sanitized.length - 1]!.label, `tool-${MAX_TOOL_LOG_ENTRIES + 39}`);
+});
+
+test('re-sanitizing an append-only log does not freeze the list or drop new entries', () => {
+    // doc 86 regression: live-run state re-sanitizes ctx.toolLog on every tool
+    // event; the old keep-first cap silently dropped every entry past 160 and
+    // pinned the overflow counter at "1 omitted".
+    let log: unknown[] = [];
+    const total = MAX_TOOL_LOG_ENTRIES + 25;
+    for (let i = 0; i < total; i++) {
+        log.push({ icon: '🔧', label: `tool-${i}`, toolType: 'tool', status: 'done' });
+        log = sanitizeToolLogForDurableStorage(log);
+    }
+    const last = log[log.length - 1] as { label: string };
+    const head = log[0] as { label: string };
+    assert.equal(last.label, `tool-${total - 1}`);
+    assert.match(head.label, /26 tool events omitted/);
+    assert.ok(log.length <= MAX_TOOL_LOG_ENTRIES);
+});
+
 test('bounded parse refuses oversized legacy raw JSON strings before JSON.parse', () => {
     const oversized = `[${' '.repeat(MAX_TOOL_LOG_RAW_INPUT_CHARS + 1)}]`;
     const parsed = parseToolLogBounded(oversized);

@@ -66,6 +66,19 @@ function makeOverflowEntry(omitted: number): SanitizedToolLogEntry {
     };
 }
 
+/** Omitted count carried by an overflow marker from a prior sanitize pass; 0 for real entries.
+ *  Live-run state re-sanitizes the same array on every append, so the marker must be
+ *  absorbable or repeated passes drop every new entry (devlog 260609 doc 86). */
+function omittedCountOf(entry: unknown): number {
+    if (!entry || typeof entry !== 'object') return 0;
+    const e = entry as SanitizableToolLogEntry;
+    if (e.icon !== TRUNCATION_ICON) return 0;
+    const label = String(e.label ?? '');
+    if (label === TRUNCATION_LABEL) return 1;
+    const m = /^(\d+) tool events? omitted$/.exec(label);
+    return m ? Number(m[1]) : 0;
+}
+
 function boundedNumber(value: unknown, max: number): number | undefined {
     const n = Number(value);
     if (!Number.isFinite(n) || n < 0) return undefined;
@@ -112,11 +125,24 @@ export function sanitizeToolLogEntry(
 
 export function sanitizeToolLogForDurableStorage(entries: unknown): SanitizedToolLogEntry[] {
     if (!Array.isArray(entries) || entries.length === 0) return [];
-    const overflow = Math.max(0, entries.length - MAX_TOOL_LOG_ENTRIES);
-    const cappedEntries = entries.slice(0, MAX_TOOL_LOG_ENTRIES);
+    // Absorb a head overflow marker left by a prior pass so re-sanitizing an
+    // append-only live log accumulates the omitted count instead of freezing
+    // the list and dropping every new entry (doc 86).
+    let source = entries;
+    let priorOmitted = omittedCountOf(entries[0]);
+    if (priorOmitted > 0) source = entries.slice(1);
+    // Cap keeps the NEWEST entries: on navigate-back the user must see the most
+    // recent tools, matching what the live SSE stream showed last.
+    let dropped = 0;
+    if (priorOmitted > 0 || source.length > MAX_TOOL_LOG_ENTRIES) {
+        const room = MAX_TOOL_LOG_ENTRIES - 1; // head marker takes one slot
+        dropped = Math.max(0, source.length - room);
+        if (dropped > 0) source = source.slice(dropped);
+    }
+    const omittedTotal = priorOmitted + dropped;
     const output: SanitizedToolLogEntry[] = [];
     let detailBudgetLeft = MAX_TOOL_LOG_TOTAL_DETAIL_CHARS;
-    for (const raw of cappedEntries) {
+    for (const raw of source) {
         const entry: SanitizableToolLogEntry = (raw && typeof raw === 'object')
             ? raw as SanitizableToolLogEntry
             : { label: raw };
@@ -127,10 +153,7 @@ export function sanitizeToolLogForDurableStorage(entries: unknown): SanitizedToo
         detailBudgetLeft = Math.max(0, detailBudgetLeft - Math.min(detailRawLength, detailBudget));
         if (detailBudgetLeft <= 0) detailBudgetLeft = 0;
     }
-    if (overflow > 0) {
-        if (output.length >= MAX_TOOL_LOG_ENTRIES) output.pop();
-        output.push(makeOverflowEntry(overflow));
-    }
+    if (omittedTotal > 0) output.unshift(makeOverflowEntry(omittedTotal));
     return fitToolLogToJsonCap(output);
 }
 
@@ -161,11 +184,20 @@ function shrinkEntryForJson(entry: SanitizedToolLogEntry): SanitizedToolLogEntry
 }
 
 function fitToolLogToJsonCap(entries: SanitizedToolLogEntry[]): SanitizedToolLogEntry[] {
+    // Shrinking is a last resort for oversized logs only — entries within the
+    // JSON cap keep their full per-entry detail budget (doc 86: the previous
+    // unconditional shrink abbreviated every persisted entry to 180 chars).
+    if (JSON.stringify(entries).length <= MAX_TOOL_LOG_JSON_CHARS) return entries;
     let fitted = entries.map(shrinkEntryForJson);
     let json = JSON.stringify(fitted);
     while (json.length > MAX_TOOL_LOG_JSON_CHARS && fitted.length > 1) {
-        fitted.splice(Math.max(0, fitted.length - 2), 1);
-        fitted[fitted.length - 1] = makeOverflowEntry(entries.length - fitted.length + 1);
+        // Drop the OLDEST real entry and fold it into the head marker so the
+        // newest tools survive, mirroring the entry-cap semantics above.
+        const priorOmitted = omittedCountOf(fitted[0]);
+        fitted.splice(priorOmitted > 0 ? 1 : 0, 1);
+        const marker = makeOverflowEntry(priorOmitted + 1);
+        if (priorOmitted > 0) fitted[0] = marker;
+        else fitted.unshift(marker);
         json = JSON.stringify(fitted);
     }
     if (json.length <= MAX_TOOL_LOG_JSON_CHARS) return fitted;
