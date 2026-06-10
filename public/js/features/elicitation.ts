@@ -157,8 +157,8 @@ function getAllPendingBlocks(root: ParentNode): HTMLElement[] {
 
 export function hydrateElicitationBlocks(root: ParentNode = document): void {
     for (const block of getAllPendingBlocks(root)) {
-        if (block.dataset.elicitationHydrated === 'true') continue;
-        const encoded = block.dataset.elicitationSpec || '';
+        if (block.dataset['elicitationHydrated'] === 'true') continue;
+        const encoded = block.dataset['elicitationSpec'] || '';
         let decoded = '';
         try {
             decoded = decodeURIComponent(encoded);
@@ -166,7 +166,7 @@ export function hydrateElicitationBlocks(root: ParentNode = document): void {
             decoded = '';
         }
         const parsed = normalizeSpec(parseSpec(decoded));
-        block.dataset.elicitationHydrated = 'true';
+        block.dataset['elicitationHydrated'] = 'true';
         if (!parsed) {
             block.className = 'elicitation-block elicitation-error';
             block.innerHTML = '<div class="elicitation-error-text">질문 형식을 읽을 수 없습니다.</div>';
@@ -189,7 +189,7 @@ function renderCurrentQuestion(block: HTMLElement): void {
     const blockId = block.id || `elicitation-${++blockSequence}`;
     block.id = blockId;
     block.className = 'elicitation-block';
-    block.dataset.elicitationState = 'active';
+    block.dataset['elicitationState'] = 'active';
     block.innerHTML = `
         <div class="elicitation-top">
             <div class="elicitation-progress">Q${state.index + 1} ${state.index + 1}/${total}</div>
@@ -230,14 +230,14 @@ function currentOption(state: ElicitationState, optionId: string): NormalizedOpt
 function recordAnswer(block: HTMLElement, answer: Omit<ElicitationAnswer, 'question'>): void {
     const state = blockStates.get(block);
     const question = state ? currentQuestion(state) : null;
-    if (!state || !question || block.dataset.elicitationState === SUBMITTING_STATE) return;
+    if (!state || !question || block.dataset['elicitationState'] === SUBMITTING_STATE) return;
     state.answers[state.index] = { question, ...answer };
     state.index += 1;
     renderCurrentQuestion(block);
 }
 
 function handleSelectOption(button: HTMLElement, block: HTMLElement, state: ElicitationState): void {
-    const option = currentOption(state, button.dataset.optionId || '');
+    const option = currentOption(state, button.dataset['optionId'] || '');
     const question = currentQuestion(state);
     if (!option || !question) return;
     if (question.type === 'multi_select') {
@@ -255,7 +255,7 @@ function handleSelectOption(button: HTMLElement, block: HTMLElement, state: Elic
 
 function handleSubmitMulti(block: HTMLElement, state: ElicitationState): void {
     const selected = Array.from(block.querySelectorAll<HTMLElement>('.elicitation-option[aria-pressed="true"]'))
-        .map(button => currentOption(state, button.dataset.optionId || ''))
+        .map(button => currentOption(state, button.dataset['optionId'] || ''))
         .filter((option): option is NormalizedOption => Boolean(option));
     if (selected.length === 0) return;
     recordAnswer(block, {
@@ -282,9 +282,9 @@ function handleClick(event: MouseEvent): void {
     if (!actionEl) return;
     const block = findBlock(actionEl);
     const state = block ? blockStates.get(block) : null;
-    if (!block || !state || block.dataset.elicitationState === SUBMITTING_STATE) return;
+    if (!block || !state || block.dataset['elicitationState'] === SUBMITTING_STATE) return;
     event.preventDefault();
-    const action = actionEl.dataset.elicitationAction;
+    const action = actionEl.dataset['elicitationAction'];
     if (action === 'select-option') handleSelectOption(actionEl, block, state);
     if (action === 'submit-multi') handleSubmitMulti(block, state);
     if (action === 'submit-custom') handleSubmitCustom(block);
@@ -316,8 +316,8 @@ function createInputEvent(input: Element, type: string): Event {
 }
 
 function submitComposedPrompt(block: HTMLElement, state: ElicitationState): void {
-    if (block.dataset.elicitationState === SUBMITTING_STATE) return;
-    block.dataset.elicitationState = SUBMITTING_STATE;
+    if (block.dataset['elicitationState'] === SUBMITTING_STATE) return;
+    block.dataset['elicitationState'] = SUBMITTING_STATE;
     const input = document.getElementById('chatInput') as HTMLTextAreaElement | HTMLInputElement | null;
     if (!input) {
         block.classList.add('elicitation-error');
