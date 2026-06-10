@@ -100,5 +100,14 @@ export async function employeeHandler(args: string[], ctx: CliCommandContext): P
         return { ok: true, text: t('cmd.employee.resetDone', { count: seeded }, L) };
     }
 
+    if (sub === 'sessions-reset' || sub === 'session-reset' || sub === 'reset-sessions') {
+        if (typeof ctx.resetEmployeeSessions !== 'function') {
+            return { ok: false, text: t('cmd.employee.sessionsResetUnavailable', {}, L) };
+        }
+        const result = await ctx.resetEmployeeSessions() as { cleared?: number } | undefined;
+        const count = Number.isFinite(result?.cleared) ? result!.cleared : '?';
+        return { ok: true, text: t('cmd.employee.sessionsResetDone', { count }, L) };
+    }
+
     return { ok: false, text: t('cmd.employee.usage', {}, L) };
 }

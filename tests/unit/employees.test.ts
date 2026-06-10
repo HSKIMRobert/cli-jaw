@@ -112,15 +112,26 @@ test('checkModelSupport: scaffold returns empty result for all inputs (Spark han
 
 test('employee cli/model updates clear stale employee session', () => {
     const src = fs.readFileSync(path.join(ROOT, 'src/routes/employees.ts'), 'utf8');
-    assert.match(src, /clearEmployeeSession/);
-    assert.match(src, /keys\.includes\('cli'\)/);
-    assert.match(src, /keys\.includes\('model'\)/);
+    assert.match(src, /clearEmployeeSessionIfResumeKeyChanged/);
+    assert.match(src, /const before = db\.prepare\('SELECT \* FROM employees WHERE id = \?'\)/);
+    assert.match(src, /clearEmployeeSessionIfResumeKeyChanged\(employeeId, before, emp\)/);
+    assert.match(src, /\/api\/employees\/sessions\/reset/);
+    assert.match(src, /resetEmployeeSessions\(\)/);
+});
+
+test('dispatch clears mismatched employee resume key before attempting resume', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'src/orchestrator/distribute.ts'), 'utf8');
+    assert.match(src, /clearStaleEmployeeSessionIfResumeKeyMismatch\(empId,\s*empSession/);
+    assert.match(src, /!clearedStaleResumeKey[\s\S]*?isSessionPersistingCli/);
 });
 
 test('employee CLI supports list and honest help text', () => {
     const src = fs.readFileSync(path.join(ROOT, 'bin/commands/employee.ts'), 'utf8');
     assert.match(src, /cli-jaw employee list \[--port 3457\] \[--json\]/);
+    assert.match(src, /cli-jaw employee sessions-reset \[--port 3457\]/);
     assert.match(src, /case 'list'/);
+    assert.match(src, /case 'sessions-reset'/);
+    assert.match(src, /\/api\/employees\/sessions\/reset/);
     assert.match(src, /\/api\/employees/);
     assert.match(src, /values\.json/);
     assert.doesNotMatch(src, /default 5 profiles/);

@@ -30,6 +30,8 @@ export type CommandContextDeps = {
     resetSession?: () => void;
     /** Seed default employees callback */
     resetEmployees?: () => unknown;
+    /** Clear only employee resume sessions, preserving employee definitions */
+    resetEmployeeSessions?: () => unknown;
 };
 
 // Remote interface에서 허용하는 settings patch 키
@@ -117,6 +119,9 @@ export function makeCommandCtx(
         // Employees
         resetEmployees: deps.resetEmployees
             ? async () => deps.resetEmployees!()
+            : undefined,
+        resetEmployeeSessions: deps.resetEmployeeSessions
+            ? async () => deps.resetEmployeeSessions!()
             : undefined,
 
         // Skills — unified (TG previously missing)
