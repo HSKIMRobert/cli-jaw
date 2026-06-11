@@ -19,6 +19,9 @@ import { registerI18nRoutes } from './src/routes/i18n.js';
 import { registerOrchestrateRoutes } from './src/routes/orchestrate.js';
 import { registerGoalRoutes } from './src/routes/goal.js';
 import { registerTaskRoutes } from './src/routes/task.js';
+import { registerBgtaskRoutes } from './src/routes/bgtask.js';
+import { recoverBgTasks } from './src/bgtask/recover.js';
+import { stopAllBgTasks } from './src/bgtask/runner.js';
 import { registerEventsRoutes } from './src/routes/events.js';
 import { registerInstanceRoutes } from './src/routes/instance.js';
 import { registerChatSessionRoutes } from './src/routes/chat-sessions.js';
@@ -319,6 +322,7 @@ registerJawMemoryRoutes(app, requireAuth);
 registerOrchestrateRoutes(app, requireAuth);
 registerGoalRoutes(app, requireAuth);
 registerTaskRoutes(app, requireAuth);
+registerBgtaskRoutes(app, requireAuth);
 registerEventsRoutes(app, requireAuth);
 registerInstanceRoutes(app);
 registerChatSessionRoutes(app);
@@ -415,6 +419,7 @@ const shutdown = async (sig: string) => {
         getSecurityAuditLog().append('service_stop', 'server', { signal: sig, port: PORT });
     } catch { /* non-fatal */ }
     stopHeartbeat();
+    try { stopAllBgTasks(); } catch { /* non-fatal */ }
     killAllAgents('shutdown');
 
     // No longer resetting orc_state on shutdown — 24h staleness filter handles cleanup on startup.
@@ -566,6 +571,7 @@ server.listen(PORT, bindHost, async () => {
     } catch (e: unknown) {
         log.warn(`  WebAI: watcher resume skipped (${(e as Error).message})`);
     }
+    recoverBgTasks().catch((e: Error) => log.warn(`  bgtask: recovery skipped (${e.message})`));
 
     // ─── Migrate Korean agent names → English ────────
     const NAME_MAP: Record<string, string> = { '프런트': 'Frontend', '프론트': 'Frontend', '백엔드': 'Backend', '데이터': 'Data', '문서': 'Docs', '독스': 'Docs' };
