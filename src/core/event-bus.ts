@@ -17,6 +17,7 @@ export type EventTopic =
     | 'worker'      // worker_stalled/disconnected/timeout
     | 'message'     // new_message
     | 'queue'       // queue_update
+    | 'bgtask'      // bgtask_update
     | 'heartbeat'   // heartbeat_pending
     | 'schedule'    // schedule_wakeup, schedule_wakeup_failed
     | 'session'     // clear, session_reset/switched/created/list

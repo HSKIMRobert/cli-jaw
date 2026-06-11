@@ -4,6 +4,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { db } from '../core/db.js';
+import { broadcast } from '../core/bus.js';
 import {
     dedupKeyForSpec,
     type BgTaskRow,
@@ -82,6 +83,26 @@ function toRow(raw: RawRow): BgTaskRow {
     };
 }
 
+/** UI surfacing: every externally-visible state transition emits bgtask_update
+ * (SSE topic 'bgtask'). running[] is the authoritative live set; changed carries
+ * the transitioned task so clients can flash/retain without server-side timers. */
+function emitBgtaskUpdate(changedId?: string): void {
+    try {
+        const running = (activeStmt.all() as RawRow[]).map(toRow).map((r) => ({
+            id: r.id, kind: r.kind, startedAt: r.startedAt,
+        }));
+        const changedRow = changedId ? getTask(changedId) : null;
+        broadcast('bgtask_update', {
+            running,
+            changed: changedRow
+                ? { id: changedRow.id, kind: changedRow.kind, status: changedRow.status }
+                : null,
+        });
+    } catch (err) {
+        console.error('[bgtask] broadcast failed:', (err as Error).message);
+    }
+}
+
 export class DuplicateBgTaskError extends Error {
     public existingId: string;
     constructor(existingId: string) {
@@ -113,6 +134,7 @@ export function createTask(input: { kind: string; spec: BgTaskSpec; originMeta?:
     );
     const row = getTask(id);
     if (!row) throw new Error(`bgtask insert failed for ${id}`);
+    emitBgtaskUpdate(id);
     return row;
 }
 
@@ -136,15 +158,21 @@ export function setTaskPid(id: string, pid: number | null): void {
 /** Transition running → complete/failed. Returns false if the task was not running
  * (already terminal or cancelled) — callers must not double-notify in that case. */
 export function markTerminal(id: string, status: 'complete' | 'failed', result: string | null): boolean {
-    return completeStmt.run(status, result, id).changes > 0;
+    const transitioned = completeStmt.run(status, result, id).changes > 0;
+    if (transitioned) emitBgtaskUpdate(id);
+    return transitioned;
 }
 
 export function markCancelled(id: string): boolean {
-    return cancelStmt.run(id).changes > 0;
+    const changed = cancelStmt.run(id).changes > 0;
+    if (changed) emitBgtaskUpdate(id);
+    return changed;
 }
 
 export function markOrphaned(id: string): boolean {
-    return orphanStmt.run(id).changes > 0;
+    const changed = orphanStmt.run(id).changes > 0;
+    if (changed) emitBgtaskUpdate(id);
+    return changed;
 }
 
 export function markNotified(id: string): void {
