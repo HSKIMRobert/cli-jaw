@@ -87,6 +87,7 @@ import { toggleRecording, cancelRecording } from './features/voice-recorder.js';
 import { hydrateIcons } from './icons.js';
 import { hydrateProviderIcons } from './provider-icons.js';
 import { initPendingQueue } from './features/pending-queue.js';
+import { initBgtaskBadge } from './features/bgtask-badge.js';
 import { initAttentionBadge } from './features/attention-badge.js';
 import { initHelpDialog } from './features/help-dialog.js';
 import { initChatSearch, toggleChatSearch, closeChatSearch } from './features/chat-search.js';
@@ -133,6 +134,7 @@ chatInput?.addEventListener('cmd-execute', () => {
 document.getElementById('cmdDropdown')?.addEventListener('click', handleSlashClick);
 document.addEventListener('click', handleSlashOutsideClick);
 initPendingQueue();
+initBgtaskBadge();
 document.getElementById('filePreviewClear')?.addEventListener('click', clearAttachedFiles);
 document.getElementById('filePreviewList')?.addEventListener('click', (e) => {
     const btn = (e.target as HTMLElement)?.closest('[data-file-idx]') as HTMLElement | null;

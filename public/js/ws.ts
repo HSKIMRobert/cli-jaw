@@ -668,6 +668,11 @@ function handleChannelUp(transport: 'sse' | 'ws'): void {
         import('./features/memory.js')
             .then(mem => mem.refreshMemorySidebar())
             .catch(() => { /* badge hydrates on the next memory event */ });
+        // bgtask badge: server pushes bgtask_update only on transitions —
+        // hydrate the running set from REST after (re)connect.
+        import('./features/bgtask-badge.js')
+            .then(b => b.refreshBgtaskBadge())
+            .catch(() => { /* hydrates on the next bgtask_update */ });
     });
 }
 
@@ -800,6 +805,8 @@ function handleServerEvent(msg: WsMessage): void {
             agentPhaseState[msg.agentId] = { phase: msg.phase, phaseLabel: msg.phaseLabel || '' };
             import('./features/employees.js').then(m => m.loadEmployees());
         }
+    } else if (msg.type === 'bgtask_update') {
+        import('./features/bgtask-badge.js').then(m => m.applyBgtaskUpdate(msg)).catch(() => {});
     } else if (msg.type === 'queue_update') {
         updateQueueBadge(msg.pending || 0);
         if (Array.isArray(msg.queued)) {

@@ -786,5 +786,6 @@
     "help.cliTools.subcmd.9": "/ide off — 禁用IDE diff视图（仅CLI）",
     "help.keyboardShortcuts.subcmd.1": "/help — 显示完整命令列表",
     "help.keyboardShortcuts.subcmd.2": "/help <command> — 显示特定命令的详细帮助",
-    "help.keyboardShortcuts.subcmd.3": "/commands — 打开命令面板（别名: /cmd）"
+    "help.keyboardShortcuts.subcmd.3": "/commands — 打开命令面板（别名: /cmd）",
+    "bgtask.title": "后台任务"
 }
