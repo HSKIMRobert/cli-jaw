@@ -26,3 +26,11 @@ test('elapsed is rendered when provided and > 0', () => {
     assert.ok(formatFooter('x', ACCENT, 'responding', 4200).includes('4.2s'));
     assert.ok(!formatFooter('x', ACCENT, 'idle', 0).includes('s  |')); // no elapsed at 0
 });
+
+test('bgtask count renders magenta hourglass segment only when > 0', () => {
+    const withTasks = formatFooter('x', ACCENT, 'idle', 0, 2);
+    assert.ok(withTasks.includes('⏳2'));
+    assert.ok(withTasks.includes('\x1b[35m'), 'magenta color for bgtask segment');
+    assert.ok(!formatFooter('x', ACCENT, 'idle', 0, 0).includes('⏳'));
+    assert.ok(!formatFooter('x', ACCENT, 'idle').includes('⏳'), 'omitted param stays clean');
+});

@@ -149,6 +149,8 @@ const ctx: TuiContext = {
     inputActive: true,
     streaming: false,
     streamState: 'idle',
+    bgtaskCount: 0,
+    bgtaskTasks: [],
     turnStartedAt: 0,
     streamSink: null,
     commandRunning: false,

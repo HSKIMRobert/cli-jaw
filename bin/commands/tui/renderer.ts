@@ -56,7 +56,7 @@ export function rebuildFooter(ctx: TuiContext): void {
     const elapsed = ctx.streamState !== 'idle' && ctx.turnStartedAt > 0
         ? Date.now() - ctx.turnStartedAt
         : undefined;
-    ctx.footer = formatFooter(ctx.label, ctx.accent, ctx.streamState, elapsed);
+    ctx.footer = formatFooter(ctx.label, ctx.accent, ctx.streamState, elapsed, ctx.bgtaskCount);
     ctx.promptPrefix = `  ${ctx.accent}\u276F${c.reset} `;
     if (ctx.displayMode === 'fullscreen') return;
     setupScrollRegion(

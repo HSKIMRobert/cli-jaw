@@ -29,6 +29,7 @@ export function createSelectorState(): SelectorState {
 
 export interface OverlayState {
     helpOpen: boolean;
+    bgtaskOpen: boolean;
     paletteOpen: boolean;
     paletteFilter: string;
     paletteSelected: number;
@@ -39,6 +40,7 @@ export interface OverlayState {
 export function createOverlayState(): OverlayState {
     return {
         helpOpen: false,
+        bgtaskOpen: false,
         paletteOpen: false,
         paletteFilter: '',
         paletteSelected: 0,

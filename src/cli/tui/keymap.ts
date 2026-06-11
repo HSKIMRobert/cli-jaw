@@ -18,6 +18,7 @@ export type KeyAction =
     | 'ctrl-c'
     | 'ctrl-u'
     | 'ctrl-k'
+    | 'ctrl-o'
     | 'ctrl-w'
     | 'ctrl-y'
     | 'ctrl-x'
@@ -47,6 +48,7 @@ export function classifyKeyAction(key: string): KeyAction {
     if (key === '\x03') return 'ctrl-c';
     if (key === '\x15') return 'ctrl-u';
     if (key === '\x0b') return 'ctrl-k';
+    if (key === '\x0f') return 'ctrl-o';
     if (key === '\x17') return 'ctrl-w';
     if (key === '\x19') return 'ctrl-y';
     if (key === '\x18') return 'ctrl-x';
