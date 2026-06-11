@@ -6,10 +6,10 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 
 > 📚 [INDEX](INDEX.md) · [체크리스트 ↗](AGENTS.md) · [커맨드 ↗](commands.md) · **서버 API**
 
-# server.ts — Glue + Route Registration (587L)
+# server.ts — Glue + Route Registration (593L)
 
 > Express/SSE bootstrap + localhost/LAN opt-in 보안 가드 + `src/routes/*` registrar + mounted sub-router 등록.
-> 현재 라이브 surface는 총 197개 route handler이며, 이 중 `/`를 제외한 API 엔드포인트는 196개다.
+> 현재 라이브 surface는 총 201개 route handler이며, 이 중 `/`를 제외한 API 엔드포인트는 200개다.
 > mutation route(`POST`/`PUT`/`DELETE`)는 모두 `requireAuth`를 거친다. 단, `requireAuth()`는 loopback 요청을 토큰 없이 통과시키고, `lanAllowed()`가 true일 때 private IP도 LAN bypass로 통과시킨다.
 > `GET /api/auth/token`은 Bearer bootstrap 전용이며 `Sec-Fetch-Site`가 `same-origin` 또는 `none`이 아닐 때 `403`을 반환한다.
 
@@ -19,7 +19,7 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 
 | Module | Lines | Routes | 역할 |
 | --- | ---: | ---: | --- |
-| `server.ts` | 587L | mount glue | Helmet/CORS/Host/rate-limit/SSE bootstrap + static middleware + route/sub-router registration |
+| `server.ts` | 593L | mount glue | Helmet/CORS/Host/rate-limit/SSE bootstrap + static middleware + route/sub-router registration |
 | `src/routes/static.ts` | 30L | 2 | root HTML + `/media/:filename` upload media serve |
 | `src/routes/system.ts` | 57L | 4 | health/session/runtime/auth-token |
 | `src/routes/messages.ts` | 107L | 4 | message list/count/search/latest |
@@ -30,17 +30,17 @@ aliases: [CLI-JAW Server API, server.ts reference, server_api]
 | `src/routes/events.ts` | 82L | 1 | `/api/events` data-only SSE event channel |
 | `src/routes/settings.ts` | 425L | 22 | settings/prompt/project pick/heartbeat-md/MCP/CLI registry/quota/copilot/Pi profile registration |
 | `src/routes/memory.ts` | 191L | 13 | memory runtime + KV memory + memory files |
-| `src/routes/browser.ts` | 478L | 41 | browser primitive/tab/debug/doctor/cleanup routes + adaptive fetch + web-ai render/send/poll/watch/sessions/capabilities/context routes |
+| `src/routes/browser.ts` | 488L | 43 | browser primitive/tab/debug/doctor/cleanup routes + adaptive fetch + web-ai render/send/poll/watch/sessions/capabilities/code/context routes |
 | `src/routes/jaw-memory.ts` | 352L | 12 | jaw memory search/read/save/context/list/init/reflect/flush/soul/soul-activate/bootstrap |
-| `src/routes/orchestrate.ts` | 813L | 14 | reset/state/workers/worker-progress/snapshot/queue cancel/hold/queue steer async accept/dispatch/batch dispatch/worker result/state PUT |
+| `src/routes/orchestrate.ts` | 827L | 14 | reset/state/workers/worker-progress/snapshot/queue cancel/hold/queue steer async accept/dispatch/batch dispatch/worker result/state PUT |
 | `src/routes/goal.ts` | 177L | 3 | durable goal state get/history/set-update-complete-cancel-pause-resume-clear-reset |
 | `src/routes/goal-run.ts` | 83L | 3 | bounded goal-run state/preflight/start-pause-resume-stop |
 | `src/routes/messaging.ts` | 259L | 6 | upload/file-open/voice/telegram/channel/discord send |
-| `src/routes/employees.ts` | 105L | 5 | employee CRUD + reset |
+| `src/routes/employees.ts` | 123L | 5 | employee CRUD + reset |
 | `src/routes/skills.ts` | 89L | 5 | skills list/read/enable/disable/reset |
 | `src/routes/avatar.ts` | 146L | 4 | avatar summary + agent/user image upload/delete/read |
 | `src/routes/traces.ts` | 80L | 3 | public trace summary/event read routes |
-| `src/routes/link-preview.ts` | — | 2 | Rich link preview metadata fetch + guarded image proxy |
+| `src/routes/link-preview.ts` | 319L | 2 | Rich link preview metadata fetch + guarded image proxy |
 | `src/routes/heartbeat.ts` | 47L | 2 | heartbeat GET + validated PUT |
 | `src/routes/jaw-ceo.ts` | 321L | 20 | Jaw CEO coordinator: state/message/query/docs-edit/settings/events/pending/watch/audit/voice/confirmations |
 | `src/routes/runtime-context.ts` | 46L | 4 | runtime context entry CRUD (ephemeral prompt injection), mounted at `/api/runtime-context` |
@@ -69,7 +69,7 @@ static → employees → heartbeat → skills → jaw-memory → orchestrate
 → security-audit → dashboard board/schedule → browser → i18n
 ```
 
-라우트 모듈은 `server.ts:319`와 `server.ts:379-459` 부근에서 등록된다.
+라우트 모듈은 `server.ts:298-396` 부근에서 등록된다.
 
 ---
 
@@ -115,7 +115,7 @@ static → employees → heartbeat → skills → jaw-memory → orchestrate
 | Runtime Context | `GET /api/runtime-context` `POST /api/runtime-context` `DELETE /api/runtime-context/:id` `DELETE /api/runtime-context` |
 | Security Audit | `GET /api/security-audit/entries` `GET /api/security-audit/verify` |
 | Heartbeat | `GET/PUT /api/heartbeat` |
-| Browser | `POST /api/browser/start` `POST /api/browser/stop` `GET /api/browser/status` `GET /api/browser/doctor` `POST /api/browser/cleanup-runtimes` `GET /api/browser/snapshot` `POST /api/browser/screenshot` `POST /api/browser/act` `POST /api/browser/vision-click` `POST /api/browser/navigate` `POST /api/browser/reload` `POST /api/browser/resize` `GET /api/browser/tabs` `GET /api/browser/active-tab` `POST /api/browser/tab-switch` `POST /api/browser/tab-new` `POST /api/browser/tab-close` `POST /api/browser/tab-cleanup` `POST /api/browser/evaluate` `GET /api/browser/text` `GET /api/browser/dom` `GET /api/browser/console` `GET /api/browser/network` `POST /api/browser/fetch` `POST /api/browser/wait-for-selector` `POST /api/browser/wait-for-text` `POST /api/browser/web-ai/render` `POST /api/browser/web-ai/context-dry-run` `POST /api/browser/web-ai/context-render` `GET /api/browser/web-ai/status` `POST /api/browser/web-ai/send` `GET /api/browser/web-ai/poll` `GET /api/browser/web-ai/watch` `GET /api/browser/web-ai/watchers` `GET /api/browser/web-ai/sessions` `POST /api/browser/web-ai/sessions/prune` `GET /api/browser/web-ai/notifications` `GET /api/browser/web-ai/capabilities` `POST /api/browser/web-ai/query` `POST /api/browser/web-ai/stop` `GET /api/browser/web-ai/diagnose` |
+| Browser | `POST /api/browser/start` `POST /api/browser/stop` `GET /api/browser/status` `GET /api/browser/doctor` `POST /api/browser/cleanup-runtimes` `GET /api/browser/snapshot` `POST /api/browser/screenshot` `POST /api/browser/act` `POST /api/browser/vision-click` `POST /api/browser/navigate` `POST /api/browser/reload` `POST /api/browser/resize` `GET /api/browser/tabs` `GET /api/browser/active-tab` `POST /api/browser/tab-switch` `POST /api/browser/tab-new` `POST /api/browser/tab-close` `POST /api/browser/tab-cleanup` `POST /api/browser/evaluate` `GET /api/browser/text` `GET /api/browser/dom` `GET /api/browser/console` `GET /api/browser/network` `POST /api/browser/fetch` `POST /api/browser/wait-for-selector` `POST /api/browser/wait-for-text` `POST /api/browser/web-ai/render` `POST /api/browser/web-ai/context-dry-run` `POST /api/browser/web-ai/context-render` `GET /api/browser/web-ai/status` `POST /api/browser/web-ai/send` `GET /api/browser/web-ai/poll` `GET /api/browser/web-ai/watch` `GET /api/browser/web-ai/watchers` `GET /api/browser/web-ai/sessions` `POST /api/browser/web-ai/sessions/prune` `GET /api/browser/web-ai/notifications` `GET /api/browser/web-ai/capabilities` `POST /api/browser/web-ai/query` `POST /api/browser/web-ai/code` `POST /api/browser/web-ai/code-extract` `POST /api/browser/web-ai/stop` `GET /api/browser/web-ai/diagnose` |
 | Orchestrate | `POST /api/orchestrate/reset` `GET /api/orchestrate/state` `GET /api/orchestrate/workers` `GET /api/orchestrate/worker-progress` `GET /api/orchestrate/worker-progress/:agentId` `GET /api/orchestrate/snapshot` `DELETE /api/orchestrate/queue/:id` `POST /api/orchestrate/queue/:id/hold` `DELETE /api/orchestrate/queue/:id/hold` `POST /api/orchestrate/queue/:id/steer` `POST /api/orchestrate/dispatch` `POST /api/orchestrate/dispatch/batch` `GET /api/orchestrate/worker/:agentId/result` `PUT /api/orchestrate/state` |
 | Goal | `GET /api/goal` `GET /api/goal/history` `POST /api/goal` |
 | Goal Run | `GET /api/goal-run` `GET /api/goal-run/preflight` `POST /api/goal-run` |
@@ -133,7 +133,7 @@ static → employees → heartbeat → skills → jaw-memory → orchestrate
 | Dashboard Schedule | `GET /api/dashboard/schedule/work` `POST /api/dashboard/schedule/work` `PATCH /api/dashboard/schedule/work/:id` `DELETE /api/dashboard/schedule/work/:id` `POST /api/dashboard/schedule/work/:id/dispatch` |
 | i18n | `GET /api/i18n/languages` `GET /api/i18n/:lang` |
 
-> 실제 코드(`server.ts` + `src/routes/*.ts` + mounted runtime/security/Jaw CEO/dashboard sub-router)에서 추출한 총 197개 route handler 기준이다. 이 중 API 엔드포인트는 196개이고, 나머지 1개는 `/` 엔트리이다. Browser API 41개는 `src/routes/browser.ts`에서 등록된다. Jaw CEO 20개는 `src/routes/jaw-ceo.ts`에서 sub-router로 등록된다.
+> 실제 코드(`server.ts` + `src/routes/*.ts` + mounted runtime/security/Jaw CEO/dashboard sub-router)에서 추출한 총 201개 route handler 기준이다. 이 중 API 엔드포인트는 200개이고, 나머지 1개는 `/` 엔트리이다. Browser API 43개는 `src/routes/browser.ts`에서 등록된다. Jaw CEO 20개는 `src/routes/jaw-ceo.ts`에서 sub-router로 등록된다.
 
 ---
 
