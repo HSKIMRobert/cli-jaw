@@ -97,8 +97,96 @@ Code artifacts:
 Examples:
   cli-jaw browser web-ai render --vendor chatgpt --prompt "hello" --json
   cli-jaw browser web-ai query --vendor chatgpt --model pro --effort extended --inline-only --prompt "Reply OK"
+  cli-jaw browser web-ai code --vendor chatgpt --model thinking --effort standard --prompt "Build an MVP" --output-zip ./result.zip
+  cli-jaw browser web-ai code-extract --vendor chatgpt --conversation "https://chatgpt.com/c/<conversation-id>" --output-zip ./result.zip
   cli-jaw browser web-ai query --vendor grok --inline-only --prompt "Reply OK"
 `;
+
+export const WEB_AI_CODE_USAGE = `
+Usage:
+  cli-jaw browser web-ai code --vendor chatgpt --prompt <build-spec> [options]
+
+What it does:
+  ChatGPT-only code generation through the browser web-ai runtime. This is a
+  subcommand, not a --code flag. It automatically uploads the saved GPT
+  dev-agent context zip first, sends a strict code-mode contract prompt, waits
+  for ChatGPT to create /mnt/data/*.zip in its sandbox, retrieves the archive,
+  verifies it, and writes it locally.
+
+Required:
+  --prompt <text>       Build spec for ChatGPT.
+
+Recommended model:
+  --model thinking
+  --effort <alias>      thinking: light|standard|extended|heavy
+                        pro: standard|extended
+
+Artifact options:
+  --output-zip <path>   Save one generated zip to this path.
+  --multi-zip           Retrieve several named /mnt/data/*.zip artifacts.
+  --output-dir <dir>    Save multi-zip artifacts into this directory.
+
+Optional inputs:
+  --file <path>         Repeatable upload; may mix zip, image, PDF, docs, text.
+  --context-from-files <glob|path>
+  --context-exclude <glob>
+  --context-file <path>
+  --context-transport <upload|inline>
+
+Behavior:
+  New code artifacts must include PLAN.md or 00_plan.md at the zip root.
+  A visible turn_plan.update_turn_plan checklist is best-effort and may be
+  transient; the plan file inside the zip is the durable checklist.
+
+Examples:
+  cli-jaw browser web-ai code --vendor chatgpt --model thinking --effort standard \\
+          --prompt "Create a Flask hello-world MVP." \\
+          --output-zip ./result.zip
+
+  cli-jaw browser web-ai code --vendor chatgpt --model thinking --effort heavy \\
+          --multi-zip --output-dir ./artifacts \\
+          --prompt "Create backend.zip and frontend.zip as separate deliverables."
+`;
+
+export const WEB_AI_CODE_EXTRACT_USAGE = `
+Usage:
+  cli-jaw browser web-ai code-extract --vendor chatgpt [conversation selector] [options]
+
+What it does:
+  ChatGPT-only artifact re-extraction. It does not send a new prompt. It scans
+  the saved ChatGPT conversation for /mnt/data/*.zip paths, reuses the provider
+  download flow, validates the zip, and writes it locally.
+
+Conversation selector:
+  --url <chatgpt conversation URL>
+  --conversation <id|url>
+  --session <sessionId>
+  Or omit these when the target ChatGPT conversation tab is already open.
+
+Artifact options:
+  --output-zip <path>   Save one recovered zip to this path.
+  --multi-zip           Recover every mentioned /mnt/data/*.zip artifact.
+  --output-dir <dir>    Save multi-zip artifacts into this directory.
+
+Requirements:
+  The original conversation must still be accessible in the logged-in ChatGPT
+  browser profile. A copied /mnt/data/result.zip text line alone is not enough.
+
+Examples:
+  cli-jaw browser web-ai code-extract --vendor chatgpt \\
+          --conversation "https://chatgpt.com/c/<conversation-id>" \\
+          --output-zip ./result.zip
+
+  cli-jaw browser web-ai code-extract --vendor chatgpt \\
+          --conversation "https://chatgpt.com/c/<conversation-id>" \\
+          --multi-zip --output-dir ./artifacts
+`;
+
+function usageForCommand(command: string | undefined): string {
+    if (command === 'code') return WEB_AI_CODE_USAGE.trim();
+    if (command === 'code-extract') return WEB_AI_CODE_EXTRACT_USAGE.trim();
+    return WEB_AI_USAGE.trim();
+}
 
 function rejectFutureWebAiFlags(values: Record<string, unknown>): void {
     const vendor = values["vendor"] ?? 'chatgpt';
@@ -145,8 +233,12 @@ export async function runWebAiCommand(
     deps: { api: BrowserApi; qs: QueryString },
 ): Promise<void> {
     const command = args[0];
-    if (!command || command === '--help' || command === 'help' || args.includes('--help')) {
+    if (!command || command === '--help' || command === 'help') {
         console.log(WEB_AI_USAGE.trim());
+        return;
+    }
+    if (args.includes('--help')) {
+        console.log(usageForCommand(command));
         return;
     }
     if (!command || !WEB_AI_COMMANDS.has(command)) {
