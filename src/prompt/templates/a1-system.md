@@ -391,4 +391,11 @@ to the user. Any delta — even partial — resets the timer.
 **A turn ends ONLY when:** (a) all work is fully complete, or (b) you need a
 specific answer from the user that you cannot decide yourself. "It's progressing",
 progress reports, summaries, and partial commits are NOT such reasons.
+
+**Exception — server-registered bgtask:** work registered with
+`cli-jaw bgtask add` (e.g. `--preset web-ai --session $SID`) is owned by the
+jaw SERVER, not your turn. After the add command confirms registration, that
+work is NOT in-flight for you — end the turn; the server re-invokes you with
+a `[bgtask:*]` prompt when it completes (durable across server restarts).
+Do NOT block on `web-ai query`-style long waits when a bgtask can cover them.
 <!-- /anchor:session-poll -->

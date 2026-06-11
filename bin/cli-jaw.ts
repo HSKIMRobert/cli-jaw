@@ -37,7 +37,7 @@ const _homeEqArg = process.argv.find(a => a.startsWith('--home='));
 if (_homeIdx !== -1 && process.argv[_homeIdx + 1]) {
     const _homeVal = process.argv[_homeIdx + 1]!;
     // Guard: if the "value" looks like a known subcommand, user forgot the path
-    const _knownCmds = ['serve', 'init', 'doctor', 'chat', 'employee', 'reset', 'mcp', 'skill', 'status', 'browser', 'memory', 'launchd', 'clone', 'service', 'dashboard', 'connector', 'reminders', 'orchestrate', 'dispatch', 'worker', 'project', 'goal', 'task'];
+    const _knownCmds = ['serve', 'init', 'doctor', 'chat', 'employee', 'reset', 'mcp', 'skill', 'status', 'browser', 'memory', 'launchd', 'clone', 'service', 'dashboard', 'connector', 'reminders', 'orchestrate', 'dispatch', 'worker', 'project', 'goal', 'task', 'bgtask'];
     if (_knownCmds.includes(_homeVal)) {
         console.error(`  ❌ --home requires a path argument (got subcommand '${_homeVal}')`);
         console.error(`  Usage: jaw --home <path> ${_homeVal}`);
@@ -105,6 +105,7 @@ ${c.cyan}  🦈 jaw${c.reset} — AI agent orchestration platform  ${c.dim}v${pk
     orchestrate [P|A|B|C|D|reset]       PABCD state machine
     goal <set|status|done|cancel|...>   Persistent goal lifecycle
     task <add|done|list|assign|...>     Atomic task checklist
+    bgtask <add|list|show|cancel>       Server-owned background tasks
 
   ${c.bold}Automation:${c.reset}
     browser <sub>                       Chrome CDP browser control
@@ -203,6 +204,9 @@ switch (command) {
         break;
     case 'task':
         await import('./commands/task.js');
+        break;
+    case 'bgtask':
+        await import('./commands/bgtask.js');
         break;
     case 'lock':
     case 'unlock':
