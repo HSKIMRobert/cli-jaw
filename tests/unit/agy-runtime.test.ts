@@ -13,6 +13,7 @@ import {
     hasRunningAgyTranscriptTool,
     isAgyTimeoutOutput,
     shouldCompleteAgyPrintRun,
+    stripAgyPromptEchoPrefix,
     stripAgyResumeReplayPrefix,
     stripAgyResumeReplayPrefixes,
     stripAgyTrailingTimeoutOutput,
@@ -197,6 +198,41 @@ test('AGY-RT-013b: AGY resume strips multi-turn replay before live quiet complet
     assert.match(spawnSrc, /stripAgyResumeReplayPrefixes\(ctx\.fullText,\s*agyResumeReplayPrefixes\)/);
     assert.match(spawnSrc, /ctx\.liveOutputText\s*=\s*displayFullText/);
     assert.match(spawnSrc, /ctx\.outputTextStarted\s*=\s*Boolean\(displayFullText\.trim\(\)\)/);
+});
+
+test('AGY-RT-013c: AGY prompt echo strips history/current task prefix from live and final output', () => {
+    const prompt = [
+        '[Current cli-jaw task]',
+        '[Recent Context]',
+        '[user] old request',
+        '',
+        '---',
+        '[Current Message]',
+        '260611-12:02PM.',
+        'agy 히스토리 블록도 다시 누출되고 있어 이것도 감사해봐',
+        '',
+        '---',
+        '',
+        '[Operational Context — cli-jaw Integration]',
+        'Follow the runtime rules.',
+    ].join('\n');
+    assert.deepEqual(
+        stripAgyPromptEchoPrefix(`${prompt}\n\n실제 답변입니다.`, prompt),
+        { text: '실제 답변입니다.', stripped: true, replayOnly: false },
+    );
+    assert.deepEqual(
+        stripAgyPromptEchoPrefix(`${prompt}\n`, prompt),
+        { text: '', stripped: true, replayOnly: true },
+    );
+    assert.deepEqual(
+        stripAgyPromptEchoPrefix('실제 답변입니다.', prompt),
+        { text: '실제 답변입니다.', stripped: false, replayOnly: false },
+    );
+
+    const spawnSrc = readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
+    assert.match(spawnSrc, /stripAgyPromptEchoPrefix\(visibleFullText,\s*promptForArgs\)/);
+    assert.match(spawnSrc, /stripAgyPromptEchoPrefix\(ctx\.fullText,\s*promptForArgs\)/);
+    assert.match(spawnSrc, /stripAgyPromptEchoPrefix\(ctx\.liveOutputText,\s*promptForArgs\)/);
 });
 
 test('AGY-RT-014: AGY quiet completion is anchored on the final transcript planner row', () => {

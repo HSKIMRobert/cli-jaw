@@ -56,6 +56,21 @@ export function stripAgyResumeReplayPrefixes(text: string, previousAssistantText
     return { text: current, stripped, replayOnly: stripped && !current.trim() };
 }
 
+export function stripAgyPromptEchoPrefix(text: string, prompt: string): { text: string; stripped: boolean; replayOnly: boolean } {
+    const current = String(text || '');
+    const rawPrompt = String(prompt || '');
+    const candidates = [rawPrompt, rawPrompt.trim()]
+        .map(value => value.replace(/\r\n/g, '\n'))
+        .filter(Boolean);
+    const normalizedCurrent = current.replace(/\r\n/g, '\n');
+    for (const candidate of candidates) {
+        if (!normalizedCurrent.startsWith(candidate)) continue;
+        const rest = normalizedCurrent.slice(candidate.length).replace(/^\s+/, '');
+        return { text: rest, stripped: true, replayOnly: !rest.trim() };
+    }
+    return { text: current, stripped: false, replayOnly: false };
+}
+
 export function hasRunningAgyTranscriptTool(toolLog: Pick<ToolEntry, 'status' | 'stepRef'>[]): boolean {
     return toolLog.some((tool) => {
         if (!tool.stepRef?.startsWith('agy:transcript:')) return false;

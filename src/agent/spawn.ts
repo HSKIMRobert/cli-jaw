@@ -58,6 +58,7 @@ import {
     getAgyQuietCompletionDelayMs,
     isAgyStaleSessionOutput,
     isAgyTimeoutOutput,
+    stripAgyPromptEchoPrefix,
     stripAgyResumeReplayPrefix,
     stripAgyResumeReplayPrefixes,
     stripAgyTrailingTimeoutOutput,
@@ -2127,7 +2128,8 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             const visibleFullText = isResume
                 ? stripAgyResumeReplayPrefixes(ctx.fullText, agyResumeReplayPrefixes).text
                 : ctx.fullText;
-            const displayFullText = normalizeAssistantDisplayText(visibleFullText);
+            const promptEchoStripped = stripAgyPromptEchoPrefix(visibleFullText, promptForArgs).text;
+            const displayFullText = normalizeAssistantDisplayText(promptEchoStripped);
             const previousDisplayText = ctx.liveOutputText ?? '';
             const displayText = displayFullText.startsWith(previousDisplayText)
                 ? displayFullText.slice(previousDisplayText.length)
@@ -2281,6 +2283,13 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             }
         }
         if (cli === 'agy') {
+            const strippedPromptEcho = stripAgyPromptEchoPrefix(ctx.fullText, promptForArgs);
+            if (strippedPromptEcho.stripped) {
+                ctx.fullText = strippedPromptEcho.text;
+                if (ctx.liveOutputText !== undefined) {
+                    ctx.liveOutputText = stripAgyPromptEchoPrefix(ctx.liveOutputText, promptForArgs).text;
+                }
+            }
             if (isResume && agyResumeReplayPrefixes.length > 0) {
                 const strippedReplays = stripAgyResumeReplayPrefixes(ctx.fullText, agyResumeReplayPrefixes);
                 if (strippedReplays.stripped) {
