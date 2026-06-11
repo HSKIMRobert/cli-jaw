@@ -2225,3 +2225,152 @@ div.math-placeholder {
 .media-lightbox-controls { position: absolute; top: 8px; right: 8px; display: flex; gap: 8px; }
 .media-lightbox-controls button { background: rgba(0,0,0,0.6); color: #fff; border: none; border-radius: 4px; padding: 6px 12px; cursor: pointer; font-size: 14px; }
 .media-lightbox-controls button:hover { background: rgba(0,0,0,0.9); }
+
+/* ── Background Task Badge (bgtask) ─────────────────── */
+/* Sits one slot above .pending-queue; purple accent distinguishes
+   server-owned background tasks from the message queue. */
+.bgtask-badge {
+    --bgtask-accent: color-mix(in oklch, var(--accent) 30%, oklch(0.62 0.2 305) 70%);
+    display: none;
+    padding: 3px 12px 4px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    flex-direction: column;
+}
+
+.bgtask-badge.visible {
+    display: flex;
+}
+
+.bgtask-header {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    align-self: flex-start;
+    padding: 2px 4px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 10px;
+    color: var(--bgtask-accent);
+}
+
+.bgtask-header svg {
+    width: 11px;
+    height: 11px;
+}
+
+.bgtask-count {
+    min-width: 14px;
+    padding: 0 4px;
+    border-radius: 7px;
+    background: color-mix(in oklch, var(--bgtask-accent) 20%, transparent);
+    color: var(--bgtask-accent);
+    text-align: center;
+}
+
+.bgtask-count-pop {
+    animation: bgtaskPop 0.3s ease;
+}
+
+@keyframes bgtaskPop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.4); }
+    100% { transform: scale(1); }
+}
+
+.bgtask-chevron {
+    color: var(--bgtask-accent);
+    opacity: 0.7;
+}
+
+.bgtask-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 2px 4px 0;
+    animation: bgtaskDropUp 0.15s ease;
+}
+
+@keyframes bgtaskDropUp {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.bgtask-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-size: 11px;
+    color: var(--text);
+}
+
+.bgtask-row-kind {
+    font-weight: 600;
+    color: var(--bgtask-accent);
+}
+
+.bgtask-row-id,
+.bgtask-row-elapsed,
+.bgtask-row-status {
+    color: var(--text-dim, var(--text));
+    opacity: 0.7;
+    font-variant-numeric: tabular-nums;
+}
+
+.bgtask-row-elapsed {
+    margin-left: auto;
+}
+
+.bgtask-row-recent {
+    opacity: 0.78;
+}
+
+.bgtask-spinner {
+    width: 10px;
+    height: 10px;
+    flex: none;
+    border: 2px solid var(--bgtask-accent);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: bgtaskSpin 0.8s linear infinite;
+}
+
+@keyframes bgtaskSpin {
+    to { transform: rotate(360deg); }
+}
+
+.bgtask-status-icon.ok { color: var(--success, #3da35d); }
+.bgtask-status-icon.err { color: var(--danger, #d04545); }
+.bgtask-status-icon.dim { opacity: 0.6; }
+
+.bgtask-flash-ok {
+    animation: bgtaskFlashOk 1.2s ease;
+}
+
+.bgtask-flash-err {
+    animation: bgtaskFlashErr 1.2s ease;
+}
+
+@keyframes bgtaskFlashOk {
+    0% { background: color-mix(in oklch, var(--success, #3da35d) 30%, transparent); }
+    100% { background: transparent; }
+}
+
+@keyframes bgtaskFlashErr {
+    0% { background: color-mix(in oklch, var(--danger, #d04545) 30%, transparent); }
+    100% { background: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bgtask-spinner,
+    .bgtask-count-pop,
+    .bgtask-list,
+    .bgtask-flash-ok,
+    .bgtask-flash-err {
+        animation: none;
+    }
+}

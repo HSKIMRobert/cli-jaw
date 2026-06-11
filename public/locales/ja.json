@@ -786,5 +786,6 @@
     "help.cliTools.subcmd.9": "/ide off — IDE diffビューを無効にします（CLI専用）",
     "help.keyboardShortcuts.subcmd.1": "/help — 全コマンド一覧を表示します",
     "help.keyboardShortcuts.subcmd.2": "/help <command> — 特定コマンドの詳細ヘルプを表示します",
-    "help.keyboardShortcuts.subcmd.3": "/commands — コマンドパレットを開きます（エイリアス: /cmd）"
+    "help.keyboardShortcuts.subcmd.3": "/commands — コマンドパレットを開きます（エイリアス: /cmd）",
+    "bgtask.title": "バックグラウンド"
 }

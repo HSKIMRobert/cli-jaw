@@ -797,5 +797,6 @@
     "help.cliTools.subcmd.9": "/ide off — Disable IDE diff view (CLI only)",
     "help.keyboardShortcuts.subcmd.1": "/help — Show full command list",
     "help.keyboardShortcuts.subcmd.2": "/help <command> — Show detailed help for a specific command",
-    "help.keyboardShortcuts.subcmd.3": "/commands — Open command palette (alias: /cmd)"
+    "help.keyboardShortcuts.subcmd.3": "/commands — Open command palette (alias: /cmd)",
+    "bgtask.title": "Background"
 }
