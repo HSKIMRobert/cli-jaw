@@ -239,6 +239,27 @@ export const updateSession = db.prepare(`
     UPDATE session SET active_cli=?, session_id=?, model=?, permissions=?, working_dir=?, effort=?, updated_at=CURRENT_TIMESTAMP
     WHERE id='default'
 `);
+// Background runtime hook tasks (src/bgtask/) — registration is durable so
+// server restarts can recover watchers and re-deliver unsent notifications.
+// Prepared statements live in src/bgtask/registry.ts (module-local).
+db.exec(`
+    CREATE TABLE IF NOT EXISTS background_tasks (
+        id            TEXT PRIMARY KEY,
+        kind          TEXT NOT NULL,
+        spec          TEXT NOT NULL,
+        status        TEXT NOT NULL,
+        pid           INTEGER,
+        origin_meta   TEXT,
+        result        TEXT,
+        created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+        started_at    DATETIME,
+        deadline_at   DATETIME,
+        completed_at  DATETIME,
+        notified_at   DATETIME
+    );
+    CREATE INDEX IF NOT EXISTS idx_background_tasks_status ON background_tasks(status);
+`);
+
 export const insertMessage = db.prepare('INSERT INTO messages (role, content, cli, model, trace, working_dir, session_id) VALUES (?, ?, ?, ?, NULL, ?, ?)');
 export const insertMessageWithTrace = db.prepare('INSERT INTO messages (role, content, cli, model, trace, tool_log, working_dir, session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
 export const insertMessageWithTraceRun = db.prepare('INSERT INTO messages (role, content, cli, model, trace, tool_log, working_dir, trace_run_id, session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
