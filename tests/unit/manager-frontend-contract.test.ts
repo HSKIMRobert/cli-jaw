@@ -422,6 +422,8 @@ test('manager sidebar actions stay compact and active-group owned', () => {
         assert.ok(css.includes('.manager-sidebar .instance-row:not(.priority-active):hover .instance-actions'), 'normal hovered rows must show compact actions');
         assert.ok(css.includes('.manager-sidebar .instance-row:not(.priority-active):focus-within .instance-actions'), 'normal focused rows must show compact actions');
         assert.ok(css.includes('.manager-sidebar .instance-row:not(.priority-active).is-selected .instance-row-meta'), 'normal selected rows must hide metadata when actions are shown');
+        assert.ok(css.includes('.manager-sidebar .instance-row:not(.priority-active):hover .instance-row-meta'), 'normal hovered rows must hide metadata when actions are shown');
+        assert.ok(css.includes('.manager-sidebar .instance-row:not(.priority-active):focus-within .instance-row-meta'), 'normal focused rows must hide metadata when actions are shown');
         assert.ok(css.includes('min-height: 24px'), 'sidebar action buttons must use compact button height');
         assert.ok(css.includes('font-size: 10.5px'), 'sidebar action buttons must use compact text size');
     }
