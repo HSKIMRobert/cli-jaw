@@ -92,7 +92,7 @@ jaw dashboard serve → src/manager/ → public/manager/</code></pre>
 <table>
 <tr><th>Surface</th><th>Entry Point</th><th>Notes</th></tr>
 <tr><td>Root CLI</td><td><code>bin/cli-jaw.ts</code></td><td>26 root router cases, grouped user-facing surfaces such as <code>chat search</code>, <code>browser web-ai</code>, and dashboard federation.</td></tr>
-<tr><td>Slash commands</td><td><code>src/cli/commands.ts</code></td><td>39 commands; CLI/Web/Telegram/Discord visibility is policy-driven.</td></tr>
+<tr><td>Slash commands</td><td><code>src/cli/commands.ts</code></td><td>40 commands; CLI/Web/Telegram/Discord visibility is policy-driven.</td></tr>
 <tr><td>Web UI</td><td><code>public/index.html</code></td><td>Vanilla TypeScript modules, Vite 8, SSE-first event channel.</td></tr>
 <tr><td>Manager dashboard</td><td><code>public/manager/</code></td><td>React 19 dashboard for instances, notes, board, reminders, schedule, diff, memory, and CEO panels.</td></tr>
 <tr><td>Electron desktop</td><td><code>electron/</code></td><td>Packages a Node.js 22 sidecar and prefers bundled <code>server/bin/jaw</code> before global CLI discovery.</td></tr>

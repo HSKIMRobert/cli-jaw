@@ -58,7 +58,7 @@ Current core API shape, as of June 10, 2026:
 - Browser API: 43 handlers in `src/routes/browser.ts`, including Web-AI code-mode and code-extract routes.
 - Public event type names: 47.
 - Primary web event channel: `GET /api/events` SSE, with legacy WebSocket fallback only for pre-X-01 servers.
-- Slash command registry: 39 commands across CLI, Web, Telegram, and Discord.
+- Slash command registry: 40 commands across CLI, Web, Telegram, and Discord.
 - Runtime registry: 13 top-level runtimes.
 
 ---

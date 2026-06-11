@@ -80,7 +80,7 @@ export const HELP_TOPICS: Record<HelpTopicId, HelpTopic> = {
     session: topic('session', 3, 1, 2, 8, 1, 9),
     cliTools: topic('cliTools', 3, 1, 2, 6, 1, 9),
     agentControl: topic('agentControl', 3, 1, 2, 6, 1, 6),
-    goals: topic('goals', 3, 1, 2, 10, 1, 23),
+    goals: topic('goals', 3, 1, 2, 10, 1, 25),
 };
 
 export function isHelpTopicId(value: string | null | undefined): value is HelpTopicId {

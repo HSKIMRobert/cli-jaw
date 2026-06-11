@@ -114,6 +114,21 @@ test('/goal done requires checkpoint evidence without spawning continuation text
     }
 });
 
+test('/gd aliases /goal done without spawning continuation text', async () => {
+    resetGoalStore();
+    try {
+        setGoal('terminal gd alias contract');
+        updateGoal('verified', '', ['npm test pass']);
+        const result = await runGoalCommand('/gd final note');
+        assert.equal(result?.ok, true);
+        assert.equal('steerPrompt' in result, false);
+        assert.match(result?.text ?? '', /Goal completed/);
+        assert.match(result?.text ?? '', /final note/);
+    } finally {
+        resetGoalStore();
+    }
+});
+
 test('/goal done succeeds with checkpoint evidence without spawning continuation text', async () => {
     resetGoalStore();
     try {

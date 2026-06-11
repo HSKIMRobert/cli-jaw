@@ -8,8 +8,8 @@ aliases: [CLI-JAW Commands, slash commands registry, commands.md]
 
 # src/cli/ — Slash Command Registry & Dispatcher
 
-> `commands.ts`(462L) + `handlers.ts`(448L) + `handlers-runtime.ts`(501L) + `handlers-completions.ts`(103L) + `handlers-workflows.ts`(499L) + `api-auth.ts`(45L) + `command-context.ts`(139L) + `registry.ts`(231L) + `acp-client.ts`(382L) + `claude-models.ts`(81L) + `compact.ts`(143L)
-> slash registry는 39개 커맨드이며 interface별 가시성은 CLI 37 / Web 35 / Telegram 35 / Discord 35다. root cmdline에는 workflow/interactive hidden set을 제외한 17개가 보인다. root CLI는 `bin/cli-jaw.ts` 기준 26개 root router case를 가진다. `chat search`, `browser web-ai`, `dashboard memory`, `dashboard chat search`처럼 grouped subcommand까지 포함하면 27개 user-facing surface로 문서화한다. helper까지 포함한 `bin/commands/*.ts` top-level 파일은 30개다. `browser web-ai`는 `browser-web-ai.ts`, `dashboard memory`는 `dashboard-memory.ts`, dashboard chat federation은 `dashboard-chat.ts`, task root command는 `task.ts`, dispatch unwrap 보조는 `dispatch-helpers.ts`로 분리되어 있다.
+> `commands.ts`(464L) + `handlers.ts`(448L) + `handlers-runtime.ts`(501L) + `handlers-completions.ts`(103L) + `handlers-workflows.ts`(498L) + `api-auth.ts`(45L) + `command-context.ts`(139L) + `registry.ts`(231L) + `acp-client.ts`(382L) + `claude-models.ts`(81L) + `compact.ts`(143L)
+> slash registry는 40개 커맨드이며 interface별 가시성은 CLI 38 / Web 36 / Telegram 36 / Discord 36다. root cmdline에는 workflow/interactive hidden set을 제외한 17개가 보인다. root CLI는 `bin/cli-jaw.ts` 기준 26개 root router case를 가진다. `chat search`, `browser web-ai`, `dashboard memory`, `dashboard chat search`처럼 grouped subcommand까지 포함하면 27개 user-facing surface로 문서화한다. helper까지 포함한 `bin/commands/*.ts` top-level 파일은 30개다. `browser web-ai`는 `browser-web-ai.ts`, `dashboard memory`는 `dashboard-memory.ts`, dashboard chat federation은 `dashboard-chat.ts`, task root command는 `task.ts`, dispatch unwrap 보조는 `dispatch-helpers.ts`로 분리되어 있다.
 > 모델/CLI 선택은 `registry.ts` 단일 소스를 따른다. 현재 registry 런타임은 `pi`, `agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `cursor`, `gemini`, `grok`, `kiro-code`, `opencode`, `copilot` 13개다.
 
 ---
@@ -36,11 +36,11 @@ aliases: [CLI-JAW Commands, slash commands registry, commands.md]
 
 ## Registry Snapshot
 
-### Command 목록 (39)
+### Command 목록 (40)
 
 ```text
 help, commands, status, clear, purge, compact, reset, new, switch, sessions, fork,
-plan, interview, deliberate, planaudit, review, goal, goalplan, team,
+plan, interview, deliberate, planaudit, review, goal, goalplan, gd, team,
 model, cli, fallback, forward, thought, flush,
 version, skill, employee, mcp, memory, browser, prompt, quit, file, steer,
 ide, orchestrate, project, task
@@ -58,7 +58,7 @@ ide, orchestrate, project, task
 ### 카테고리
 
 - `session`: `help`, `commands`, `status`, `clear`, `purge`, `compact`, `reset`, `steer`, `new`, `switch`, `sessions`, `fork`
-- `workflow`: `plan`, `interview`, `deliberate`, `planaudit`, `review`, `goal`, `goalplan`, `team`
+- `workflow`: `plan`, `interview`, `deliberate`, `planaudit`, `review`, `goal`, `goalplan`, `gd`, `team`
 - `model`: `model`, `cli`, `fallback`, `forward`, `thought`, `flush`
 - `tools`: `skill`, `employee`, `mcp`, `memory`, `browser`, `prompt`, `ide`, `orchestrate`, `project`, `task`
 - `cli`: `version`, `quit`, `file`
@@ -152,6 +152,7 @@ ide, orchestrate, project, task
 - `/planaudit [plan]`: PABCD A에서 직원에게 보낼 읽기 전용 감사 task text를 만든다.
 - `/review [focus] [--fix] [--dispatch]`: `projectDirs` 또는 최근 맥락에서 검증한 git 프로젝트 디렉토리를 리뷰한다. JAW_HOME/`process.cwd()` fallback은 금지한다. 사용자가 `/review 프롬프트`처럼 focus text를 주면 이를 최우선 scope signal로 반영한다. 리뷰 범위는 현재 대화에서 논의 중인 작업 초점을 먼저 잡고, 최근 goal/chat context, 커밋 히스토리, diff, worktree, untracked 파일은 그 범위를 검증하는 근거로 사용한다. `origin/master..HEAD` 같은 git range에 있다는 이유만으로 무관한 최근 커밋을 포함하지 않는다. 결과 Markdown report에는 `Scope Resolution` 근거를 저장한다. `--fix`는 검증된 프로젝트 루트 안의 Critical/High만 현재 `HEAD` 위 새 working-tree patch로 자동 수정하며 기존 커밋을 rewrite하지 않는다.
 - `/goal [set|plan|refine|status|run|done|cancel|pause|resume|clear|reset|history] [args...]`: Persistent goal lifecycle management. `/goal plan [hint]` and `/goalplan [hint]` create a pending plan-mode goal, store the raw hint separately as `planHint`, and require `/goal refine <specific objective>` or `cli-jaw goal refine "<specific objective>"` before checkpoints/execution evidence are accepted.
+- `/gd [note] [--force]`: `/goal done [note] [--force]`의 축약어. 같은 completion evidence gate와 manual force semantics를 사용한다.
 - `/team [plan|audit|status|collect|stop] [args...]`: 여러 worker를 병렬로 쓰는 team orchestration helper.
 
 ### `jaw dispatch`
