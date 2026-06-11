@@ -254,6 +254,11 @@ h2 { font-size: 13px; }
     outline-offset: 2px;
 }
 .instance-row.priority-active.is-selected { border-color: transparent; background: var(--surface-raised); }
+.instance-row:not(.priority-active).is-selected {
+    border-color: color-mix(in srgb, var(--accent) 42%, transparent);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
+    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent) 62%, transparent);
+}
 .instance-row.priority-active.is-selected::before {
     content: ""; position: absolute; left: 0; top: 7px; bottom: 7px;
     z-index: 1; width: 3px; border-radius: 3px; background: var(--accent);

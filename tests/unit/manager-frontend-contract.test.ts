@@ -413,12 +413,14 @@ test('manager sidebar actions stay compact and active-group owned', () => {
     assert.ok(row.includes('aria-label="Restart"'), 'compact Res label must preserve full Restart accessibility text');
     assert.ok(row.includes('Res'), 'row actions must use compact Res label');
     assert.ok(components.includes('.instance-row.priority-active.is-selected {'), 'selected raised background must be scoped to the top Active row');
-    assert.equal(components.includes('.instance-row.is-selected {'), false, 'ordinary selected rows must not receive the active selected background');
+    assert.ok(components.includes('.instance-row:not(.priority-active).is-selected {'), 'ordinary selected rows must get a readable selected affordance');
+    assert.ok(components.includes('box-shadow: inset 3px 0 0'), 'ordinary selected rows must keep a compact left selection rail');
+    assert.equal(components.includes('.instance-row.is-selected {'), false, 'ordinary selected rows must not receive the Active-group selected background');
     assert.ok(components.includes('.instance-row.priority-active.is-selected::before'), 'selected stripe must be scoped to the top Active row');
     assert.ok(components.includes('width: 3px'), 'selected active stripe must remain visually readable in compact rows');
     assert.ok(components.includes('z-index: 1'), 'selected active stripe must render above the compact row surface');
     assert.ok(components.includes('pointer-events: none'), 'selected active stripe must not intercept row clicks');
-    assert.equal(components.includes('.instance-row.is-selected::before'), false, 'ordinary selected rows must not receive the active stripe');
+    assert.equal(components.includes('.instance-row.is-selected::before'), false, 'ordinary selected rows must not receive the Active-group overlay stripe');
     for (const css of [polish, compact]) {
         assert.ok(css.includes('.manager-sidebar .instance-row.priority-active .instance-actions'), 'Active group rows must always expose compact actions');
         assert.equal(css.includes('.manager-sidebar .instance-row:not(.priority-active).is-selected .instance-actions'), false, 'normal selected rows must keep the three-line text state until hover or focus');
