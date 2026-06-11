@@ -256,20 +256,27 @@
     display: none;
 }
 
-.manager-sidebar .instance-row.is-selected .instance-actions,
-.manager-sidebar .instance-row:hover .instance-actions,
-.manager-sidebar .instance-row:focus-within .instance-actions {
+.manager-sidebar .instance-row.priority-active .instance-actions,
+.manager-sidebar .instance-row:not(.priority-active).is-selected .instance-actions,
+.manager-sidebar .instance-row:not(.priority-active):hover .instance-actions,
+.manager-sidebar .instance-row:not(.priority-active):focus-within .instance-actions {
     display: grid;
     grid-auto-flow: column;
     grid-auto-columns: minmax(0, 1fr);
-    gap: 6px;
+    gap: 4px;
+}
+
+.manager-sidebar .instance-row:not(.priority-active).is-selected .instance-row-meta,
+.manager-sidebar .instance-row:not(.priority-active):hover .instance-row-meta,
+.manager-sidebar .instance-row:not(.priority-active):focus-within .instance-row-meta {
+    display: none;
 }
 
 .manager-sidebar .instance-actions button,
 .manager-sidebar .instance-actions .open-link {
-    min-height: 28px;
-    padding-inline: 6px;
-    font-size: 11px;
+    min-height: 24px;
+    padding-inline: 5px;
+    font-size: 10.5px;
 }
 
 .launch-home-control input.home-input {
