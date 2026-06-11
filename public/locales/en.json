@@ -757,7 +757,7 @@
     "help.goals.subcmd.22": "/team collect — Collect team results",
     "help.goals.subcmd.23": "/team stop — Stop team execution",
     "help.goals.subcmd.24": "/goal refine <objective> — Finalize an AI-selected plan-mode goal",
-    "help.goals.subcmd.25": "/gd [note] [--force] — Alias for /goal done",
+    "help.goals.subcmd.25": "/gd [note] — Force-complete the active goal; alias for /goal done --force",
     "help.activeCli.subcmd.1": "/cli — Show the current active CLI",
     "help.activeCli.subcmd.2": "/cli <name> — Switch CLI engine (claude, codex, gemini, etc.)",
     "help.activeCli.subcmd.3": "/status — Show full system status",

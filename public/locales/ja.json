@@ -746,7 +746,7 @@
     "help.goals.subcmd.22": "/team collect — チームの結果を収集します",
     "help.goals.subcmd.23": "/team stop — チーム実行を停止します",
     "help.goals.subcmd.24": "/goal refine <目標> — AIが選択したplan-mode目標を確定します",
-    "help.goals.subcmd.25": "/gd [メモ] [--force] — /goal doneのエイリアスです",
+    "help.goals.subcmd.25": "/gd [メモ] — アクティブな目標を強制完了します。/goal done --forceのエイリアスです",
     "help.activeCli.subcmd.1": "/cli — 現在のアクティブCLIを表示します",
     "help.activeCli.subcmd.2": "/cli <名前> — CLIエンジンを切り替えます（claude, codex, gemini等）",
     "help.activeCli.subcmd.3": "/status — システム全体の状態を表示します",

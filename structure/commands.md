@@ -152,7 +152,7 @@ ide, orchestrate, project, task
 - `/planaudit [plan]`: PABCD A에서 직원에게 보낼 읽기 전용 감사 task text를 만든다.
 - `/review [focus] [--fix] [--dispatch]`: `projectDirs` 또는 최근 맥락에서 검증한 git 프로젝트 디렉토리를 리뷰한다. JAW_HOME/`process.cwd()` fallback은 금지한다. 사용자가 `/review 프롬프트`처럼 focus text를 주면 이를 최우선 scope signal로 반영한다. 리뷰 범위는 현재 대화에서 논의 중인 작업 초점을 먼저 잡고, 최근 goal/chat context, 커밋 히스토리, diff, worktree, untracked 파일은 그 범위를 검증하는 근거로 사용한다. `origin/master..HEAD` 같은 git range에 있다는 이유만으로 무관한 최근 커밋을 포함하지 않는다. 결과 Markdown report에는 `Scope Resolution` 근거를 저장한다. `--fix`는 검증된 프로젝트 루트 안의 Critical/High만 현재 `HEAD` 위 새 working-tree patch로 자동 수정하며 기존 커밋을 rewrite하지 않는다.
 - `/goal [set|plan|refine|status|run|done|cancel|pause|resume|clear|reset|history] [args...]`: Persistent goal lifecycle management. `/goal plan [hint]` and `/goalplan [hint]` create a pending plan-mode goal, store the raw hint separately as `planHint`, and require `/goal refine <specific objective>` or `cli-jaw goal refine "<specific objective>"` before checkpoints/execution evidence are accepted.
-- `/gd [note] [--force]`: `/goal done [note] [--force]`의 축약어. 같은 completion evidence gate와 manual force semantics를 사용한다.
+- `/gd [note]`: `/goal done --force [note]`의 축약어. `/goal done`의 completion evidence gate를 우회하는 명시적 quick-complete command다.
 - `/team [plan|audit|status|collect|stop] [args...]`: 여러 worker를 병렬로 쓰는 team orchestration helper.
 
 ### `jaw dispatch`
