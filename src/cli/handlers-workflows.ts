@@ -398,10 +398,9 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
     return info('No active goal. Use `/goal <objective>` to create one.\nSubcommands: status, update, done, cancel, pause, resume, clear, reset, history');
 }
 
-// ─── /goalplan handler (alias for /goal plan) ──────
-export async function goalplanHandler(args: string[], ctx: CliCommandContext): Promise<SlashResult> {
-    return goalWorkflowHandler(['plan', ...args], ctx);
-}
+// ─── /goalplan and /gd aliases ──────
+export const goalplanHandler = (args: string[], ctx: CliCommandContext): Promise<SlashResult> => goalWorkflowHandler(['plan', ...args], ctx);
+export const gdHandler = (args: string[], ctx: CliCommandContext): Promise<SlashResult> => goalWorkflowHandler(['done', ...args], ctx);
 
 // ─── /team handler ──────────────────────────────────
 import { createTeamPlan, hasOverlappingScopes } from '../team/planner.js';

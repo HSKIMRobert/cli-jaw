@@ -746,6 +746,7 @@
     "help.goals.subcmd.22": "/team collect — 收集团队结果",
     "help.goals.subcmd.23": "/team stop — 停止团队执行",
     "help.goals.subcmd.24": "/goal refine <目标> — 确定AI选择的plan-mode目标",
+    "help.goals.subcmd.25": "/gd [备注] [--force] — /goal done的别名",
     "help.activeCli.subcmd.1": "/cli — 显示当前活动CLI",
     "help.activeCli.subcmd.2": "/cli <名称> — 切换CLI引擎（claude, codex, gemini等）",
     "help.activeCli.subcmd.3": "/status — 显示完整系统状态",

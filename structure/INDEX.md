@@ -68,7 +68,7 @@ graph LR
 | [agent_spawn.md](agent_spawn.md) | CLI spawn + ACP 분기 + Pi RPC + AGY print-mode + Cursor stream-json + Claude E + Gemini + Grok + Kiro-code + Goal autonomy + 오케스트레이션 | spawn, ACP, Pi, AGY, Cursor, claude-e, Gemini, Grok, Kiro, Goal, 멀티에이전트 |
 | [memory_architecture.md](memory_architecture.md) | History Block + Flush + Advanced Runtime + Task Snapshot | 메모리, flush, runtime, snapshot |
 | [infra.md](infra.md) | config, db, bus, security 등 코어 모듈 | 인프라, SQLite, EventBus |
-| [commands.md](commands.md) | 39개 슬래시 커맨드 + workflow category(`/plan`, `/interview`, `/deliberate`, `/planaudit`, `/review`, `/goal`, `/goalplan`, `/team`; 자동 실행은 `/goal run ...`) + root CLI 26개 router case / 27개 grouped user-facing surface + 13개 CLI registry runtime | 커맨드, 디스패처, 레지스트리 |
+| [commands.md](commands.md) | 40개 슬래시 커맨드 + workflow category(`/plan`, `/interview`, `/deliberate`, `/planaudit`, `/review`, `/goal`, `/goalplan`, `/gd`, `/team`; 자동 실행은 `/goal run ...`) + root CLI 26개 router case / 27개 grouped user-facing surface + 13개 CLI registry runtime | 커맨드, 디스패처, 레지스트리 |
 | [server_api.md](server_api.md) | `server.ts` 글루 + `src/routes/`/mounted sub-router API 195 handlers + SSE `/api/events` + 47 public event types + legacy WS fallback boundary | REST, SSE, WebSocket, 라우트 |
 | [stream-events.md](stream-events.md) | SSE-first runtime event channel + WebSocket fallback + CLI NDJSON/Grok streaming-json + ProcessBlock 매핑 | SSE, WebSocket, NDJSON, stepRef, ProcessBlock, Grok |
 | [🎨 frontend.md](frontend.md) | `public/` 소스/자산 + Electron 데스크톱, slash workflow chips, Manager notes/search/settings/reminders/WYSIWYG, interview tracker panel, MCP settings page, Pi profile popup, kiro-code provider UI, ProcessBlock 렌더링 | 프론트엔드, Vite 8, PWA, Electron, ProcessBlock |
@@ -191,4 +191,4 @@ Support labels must stay aligned with agbrowse:
 
 ---
 
-*마지막 갱신: 2026-06-10 (`server.ts` 587L, `src/routes/` 32 TS files / 195 route handlers including `/`, `src/agent/` 44 TS files including spawn/events submodules, `src/goal/` 4 TS files, `src/cli/commands.ts` 39 slash commands, `src/core/event-bus.ts` + `src/routes/events.ts` SSE channel, `src/manager/` 79 TS/TSX files, `src/browser/web-ai/` 68 TS files + `adaptive-fetch/` 19 files, `bin/commands/` 30 top-level TS files, `electron/` sidecar packaging 기준)*
+*마지막 갱신: 2026-06-10 (`server.ts` 587L, `src/routes/` 32 TS files / 195 route handlers including `/`, `src/agent/` 44 TS files including spawn/events submodules, `src/goal/` 4 TS files, `src/cli/commands.ts` 40 slash commands, `src/core/event-bus.ts` + `src/routes/events.ts` SSE channel, `src/manager/` 79 TS/TSX files, `src/browser/web-ai/` 68 TS files + `adaptive-fetch/` 19 files, `bin/commands/` 30 top-level TS files, `electron/` sidecar packaging 기준)*

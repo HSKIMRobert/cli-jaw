@@ -35,6 +35,7 @@ export const COMMAND_TOPIC_MAP: Record<string, HelpTopicId> = {
     thought: 'agentControl',
     goal: 'goals',
     goalplan: 'goals',
+    gd: 'goals',
     plan: 'goals',
     interview: 'goals',
     deliberate: 'goals',
