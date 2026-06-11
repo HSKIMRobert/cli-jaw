@@ -255,7 +255,12 @@ test('AG-006h2: ai-e spawn prefers perCli provider over stale active override pr
 
 test('AG-006i: ai-e non-Claude PTY prompt providers support resume for codex/grok/kiro', () => {
     const spawnSrc = fs.readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
-    assert.match(spawnSrc, /providerSupportsResume\s*=\s*!\(cli\s*===\s*'ai-e'\s*&&\s*effectiveProvider\s*!==\s*'claude'\s*&&\s*effectiveProvider\s*!==\s*'kiro'\s*&&\s*effectiveProvider\s*!==\s*'codex'\s*&&\s*effectiveProvider\s*!==\s*'grok'\)/);
+    const resumeSupportBlock = spawnSrc.match(/const providerSupportsResume =[\s\S]*?;/)?.[0] || '';
+    assert.match(resumeSupportBlock, /cli !== 'agy'/);
+    assert.match(resumeSupportBlock, /effectiveProvider !== 'claude'/);
+    assert.match(resumeSupportBlock, /effectiveProvider !== 'kiro'/);
+    assert.match(resumeSupportBlock, /effectiveProvider !== 'codex'/);
+    assert.match(resumeSupportBlock, /effectiveProvider !== 'grok'/);
     assert.match(spawnSrc, /providerSupportsResume\s*&&\s*!\s*opts\._skipResume/);
 });
 
