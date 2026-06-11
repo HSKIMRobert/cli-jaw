@@ -35,7 +35,15 @@ test('BWCLI-002: send and query gating + flag rejection (32.7B live)', () => {
     assert.match(cliWebAiSrc, /Code artifacts:/);
     assert.match(cliWebAiSrc, /Automatically uploads the\s+saved GPT dev-agent context zip first/);
     assert.match(cliWebAiSrc, /requires PLAN\.md\s+or 00_plan\.md/);
+    assert.match(cliWebAiSrc, /WEB_AI_CODE_USAGE/);
+    assert.match(cliWebAiSrc, /subcommand, not a --code flag/);
+    assert.match(cliWebAiSrc, /cli-jaw browser web-ai code --vendor chatgpt --model thinking --effort standard/);
+    assert.match(cliWebAiSrc, /visible turn_plan\.update_turn_plan checklist is best-effort/);
+    assert.match(cliWebAiSrc, /usageForCommand\(command\)/);
     assert.match(cliWebAiSrc, /code-extract\s+Re-retrieve existing ChatGPT code-mode zip artifacts/);
+    assert.match(cliWebAiSrc, /WEB_AI_CODE_EXTRACT_USAGE/);
+    assert.match(cliWebAiSrc, /It does not send a new prompt/);
+    assert.match(cliWebAiSrc, /A copied \/mnt\/data\/result\.zip text line alone is not enough/);
 });
 
 test('BWCLI-003: web-ai routes are authenticated', () => {
