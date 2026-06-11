@@ -206,6 +206,19 @@ test('AGY-RT-012: AGY resume does not trim current stdout by prior output length
     assert.doesNotMatch(resumeOffsetBlock, /bucketRow\?\.output_len|employeeOutputLen/);
 });
 
+test('AGY-RT-012b: AGY uses cli-jaw history instead of native resume', () => {
+    const spawnSrc = readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
+    assert.match(spawnSrc, /const providerSupportsResume\s*=\s*cli !== 'agy'/);
+    assert.match(spawnSrc, /const needsHistory\s*=\s*!opts\._skipHistory && \(!isResume \|\| cli === 'pi'\)/);
+});
+
+test('AGY-RT-012c: history injection treats prior context as read-only background', () => {
+    const spawnSrc = readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
+    assert.match(spawnSrc, /Recent Context is read-only background/);
+    assert.match(spawnSrc, /Do not continue prior plans, audits, commands, questions, or goals/);
+    assert.match(spawnSrc, /\[Current Message\]/);
+});
+
 test('AGY-RT-013: AGY resume replay prefix is stripped only when new output remains', () => {
     assert.deepEqual(
         stripAgyResumeReplayPrefix('OLD_ANSWER\nNEW_ANSWER', 'OLD_ANSWER'),

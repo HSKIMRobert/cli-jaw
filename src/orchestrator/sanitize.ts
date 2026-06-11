@@ -6,6 +6,7 @@
 export function stripInterviewTracker(text: string): string {
   let result = text;
   result = result.replace(/<interview_tracker>[\s\S]*?<\/interview_tracker>/g, '');
+  result = result.replace(/<interview_tracker>[\s\S]*$/g, '');
   result = stripTrackerField(result, 'assessment', '{', '}');
   result = stripTrackerField(result, 'known', '[', ']');
   result = stripTrackerField(result, 'unknown', '[', ']');
