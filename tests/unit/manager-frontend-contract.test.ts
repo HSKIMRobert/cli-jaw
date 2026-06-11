@@ -383,6 +383,7 @@ test('manager process control panel exposes safe managed-process actions only', 
 test('manager frontend keeps rows compact while preserving model visibility', () => {
     const row = read('public/manager/src/components/InstanceRow.tsx');
     const compact = read('public/manager/src/manager-p0-1-1.css');
+    const polish = read('public/manager/src/manager-polish.css');
     const main = read('public/manager/src/main.tsx');
 
     assert.ok(row.includes('instance-row-runtime'), 'instance rows must expose CLI/model as a stable runtime line');
@@ -397,6 +398,8 @@ test('manager frontend keeps rows compact while preserving model visibility', ()
     assert.ok(compact.includes('.manager-sidebar .instance-row-version'), 'sidebar polish must hide secondary row metadata in compact mode');
     assert.ok(compact.includes('.manager-sidebar .instance-actions'), 'sidebar polish must control action-row density');
     assert.ok(compact.includes('.manager-shell.is-sidebar-collapsed .manager-workspace'), 'sidebar collapse must reclaim detail width');
+    assert.ok(polish.includes('--sidebar-width: 300px'), 'expanded sidebar must stay compact enough to leave preview room');
+    assert.ok(polish.includes('--sidebar-width: 280px'), 'mid-width sidebar must tighten by the same compact offset');
 });
 
 test('manager sidebar actions stay compact and active-group owned', () => {

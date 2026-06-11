@@ -3,7 +3,7 @@
 }
 
 .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .manager-workspace {
-    --sidebar-width: 320px;
+    --sidebar-width: 300px;
 }
 
 .manager-workspace.is-inspector-collapsed .manager-activity {
@@ -283,7 +283,7 @@
 
 @media (max-width: 1279px) and (min-width: 1024px) {
     .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .manager-workspace {
-        --sidebar-width: 300px;
+        --sidebar-width: 280px;
     }
 
     .dashboard-shell.manager-shell:not(.is-sidebar-collapsed) .manager-workspace.is-right-panel-open {
