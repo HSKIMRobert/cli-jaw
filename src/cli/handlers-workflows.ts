@@ -400,7 +400,7 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
 
 // ─── /goalplan and /gd aliases ──────
 export const goalplanHandler = (args: string[], ctx: CliCommandContext): Promise<SlashResult> => goalWorkflowHandler(['plan', ...args], ctx);
-export const gdHandler = (args: string[], ctx: CliCommandContext): Promise<SlashResult> => goalWorkflowHandler(['done', ...args], ctx);
+export const gdHandler = (args: string[], ctx: CliCommandContext): Promise<SlashResult> => goalWorkflowHandler(['done', '--force', ...args.filter(a => a !== '--force')], ctx);
 
 // ─── /team handler ──────────────────────────────────
 import { createTeamPlan, hasOverlappingScopes } from '../team/planner.js';
