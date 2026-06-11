@@ -53,9 +53,9 @@ Browser and automation
 
 Current core API shape, as of June 10, 2026:
 
-- `server.ts`: 587 lines of glue/bootstrap.
-- REST/SSE routes: 195 handlers including `/`; 194 API/media endpoints.
-- Browser API: 41 handlers in `src/routes/browser.ts`.
+- `server.ts`: 593 lines of glue/bootstrap.
+- REST/SSE routes: 201 handlers including `/`; 200 API/media endpoints.
+- Browser API: 43 handlers in `src/routes/browser.ts`, including Web-AI code-mode and code-extract routes.
 - Public event type names: 47.
 - Primary web event channel: `GET /api/events` SSE, with legacy WebSocket fallback only for pre-X-01 servers.
 - Slash command registry: 39 commands across CLI, Web, Telegram, and Discord.

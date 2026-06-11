@@ -116,7 +116,7 @@
 </table>
 
 <h2>Architecture Overview</h2>
-<p>CLI-JAW consists of a Node.js 22 server with 195 handlers, including <code>/</code> plus 194 API and media endpoints. CLI, terminal TUI, Web PWA, Electron desktop, Telegram, Discord, and the Manager dashboard connect through the server and shared SQLite-backed state. The <a href="concepts/architecture.html">Architecture</a> page covers the full system design.</p>
+<p>CLI-JAW consists of a Node.js 22 server with 201 handlers, including <code>/</code> plus 200 API and media endpoints. CLI, terminal TUI, Web PWA, Electron desktop, Telegram, Discord, and the Manager dashboard connect through the server and shared SQLite-backed state. The <a href="concepts/architecture.html">Architecture</a> page covers the full system design.</p>
 
 <pre><code>CLI/TUI/Electron/Web/Telegram/Discord ──→ server.ts ──→ src/routes/*
 Web events                              ──→ GET /api/events (SSE) ──→ event-bus
