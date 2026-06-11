@@ -64,3 +64,32 @@ test('ORC-STATE-007: D transition does not clear configured projectDirs', () => 
     assert.ok(!dBranch.includes('clearProjectDirs'), 'D transition must preserve persistent projectDirs');
     assert.ok(!dBranch.includes("projectDirs: null"), 'D transition must not broadcast a projectDirs reset');
 });
+
+test('ORC-STATE-008: P transition pins existing context before a plan exists', () => {
+    const pBranchStart = routeSrc.indexOf("if (t === 'P')");
+    const iBranchStart = routeSrc.indexOf("} else if (t === 'I')", pBranchStart);
+    assert.notEqual(pBranchStart, -1, 'state route should have a P transition branch');
+    assert.notEqual(iBranchStart, -1, 'P branch should be followed by I branch');
+    const pBranch = routeSrc.slice(pBranchStart, iBranchStart);
+
+    assert.ok(
+        pBranch.includes('let baseCtx = existingCtx'),
+        'P transition should derive base context from any existing ctx, not only existing ctx with a plan',
+    );
+    assert.ok(
+        pBranch.includes("originalPrompt: existingCtx.originalPrompt || existingCtx.interview?.request || ''"),
+        'P transition should fall back to the interview request as the pinned original prompt',
+    );
+    assert.ok(
+        pBranch.includes('workerResults: existingCtx.workerResults ?? []'),
+        'P transition should normalize missing workerResults while preserving existing context',
+    );
+    assert.ok(
+        pBranch.includes('if (current === \'I\' && existingCtx?.interview)'),
+        'I -> P should preserve interview context even when interview.known is empty',
+    );
+    assert.ok(
+        pBranch.includes('if (existingCtx.interview.known?.length)'),
+        'I -> P should only build seed/report when evidence rows exist',
+    );
+});

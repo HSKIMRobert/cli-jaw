@@ -174,6 +174,7 @@ ide, orchestrate, project, task
 ### `/orchestrate` (alias: `/pabcd`)
 
 - PABCD explicit entry. `jaw orchestrate P|A|B|C|D|I|status|reset`는 root CLI transition/control surface.
+- `I → P` 전환은 기존 orchestration ctx를 유지한다. 첫 Plan 생성 전에도 `interview.request`가 pinned `originalPrompt` fallback이 되므로, 사용자의 "진행/계속" 같은 짧은 승인 문구가 planning task를 덮어쓰지 않는다.
 
 ### `/memory`
 

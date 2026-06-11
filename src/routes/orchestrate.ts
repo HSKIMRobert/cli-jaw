@@ -757,28 +757,42 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
             let initCtx;
             if (t === 'P') {
                 const existingCtx = getCtx(scope);
-                let baseCtx = existingCtx?.plan
-                    ? { ...existingCtx, origin: 'api' as const }
+                let baseCtx = existingCtx
+                    ? {
+                        ...existingCtx,
+                        originalPrompt: existingCtx.originalPrompt || existingCtx.interview?.request || '',
+                        workingDir: existingCtx.workingDir ?? settings["workingDir"] ?? null,
+                        projectDirs: existingCtx.projectDirs ?? settings["projectDirs"] ?? null,
+                        plan: existingCtx.plan ?? null,
+                        workerResults: existingCtx.workerResults ?? [],
+                        origin: 'api' as const,
+                    }
                     : { originalPrompt: '', workingDir: settings["workingDir"] || null, projectDirs: settings["projectDirs"] || null, plan: null, workerResults: [], origin: 'api' as const };
 
                 // P1-1 + P2-1: carry interview + generate Seed on I→P
-                if (current === 'I' && existingCtx?.interview?.known?.length) {
-                    const seed = buildSeedFromEvidence(
-                        existingCtx.interview.request,
-                        existingCtx.interview.known,
-                        existingCtx.interview.round,
-                    );
-                    const evidenceLines = existingCtx.interview.known.map((e: { fact: string; source?: string }) => {
-                        const tag = e.source === 'assumption' ? '⚠️' : '✅';
-                        return `${tag} [${e.source || 'unknown'}] ${e.fact}`;
-                    });
-                    const unknownLines = (existingCtx.interview.unknown || []).map((u: string) => `- ${u}`);
+                if (current === 'I' && existingCtx?.interview) {
                     baseCtx = {
                         ...baseCtx,
                         interview: existingCtx.interview,
-                        seedSpec: seed,
-                        researchReport: `## Interview Results\n\n${evidenceLines.join('\n')}\n\n### Remaining Unknowns\n${unknownLines.join('\n') || 'None'}\n${renderSeedBlock(seed)}`,
                     };
+
+                    if (existingCtx.interview.known?.length) {
+                        const seed = buildSeedFromEvidence(
+                            existingCtx.interview.request,
+                            existingCtx.interview.known,
+                            existingCtx.interview.round,
+                        );
+                        const evidenceLines = existingCtx.interview.known.map((e: { fact: string; source?: string }) => {
+                            const tag = e.source === 'assumption' ? '⚠️' : '✅';
+                            return `${tag} [${e.source || 'unknown'}] ${e.fact}`;
+                        });
+                        const unknownLines = (existingCtx.interview.unknown || []).map((u: string) => `- ${u}`);
+                        baseCtx = {
+                            ...baseCtx,
+                            seedSpec: seed,
+                            researchReport: `## Interview Results\n\n${evidenceLines.join('\n')}\n\n### Remaining Unknowns\n${unknownLines.join('\n') || 'None'}\n${renderSeedBlock(seed)}`,
+                        };
+                    }
 
                     // P2-2: warn if assessment shows low dimensions
                     const assessment = existingCtx.interview.assessment;
