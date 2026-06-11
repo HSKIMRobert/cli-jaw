@@ -28,7 +28,7 @@ import fs from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
 import { c, getRows, ESC_WAIT_MS, type TuiContext } from './types.js';
 import { openPromptBlock, reopenPromptLine, redrawPromptLine, renderBlockSeparator, clearPromptBlock, computeComposerVisualRows } from './renderer.js';
-import { dismissOverlay, redrawInputWithAutocomplete, runSlashCommand, openHelpOverlay, openCommandPalette, refreshCommandPalette, refreshChoiceSelector, closeAutocompleteForCtx } from './overlays.js';
+import { openBgtaskOverlay, dismissOverlay, redrawInputWithAutocomplete, runSlashCommand, openHelpOverlay, openCommandPalette, refreshCommandPalette, refreshChoiceSelector, closeAutocompleteForCtx } from './overlays.js';
 
 function refreshAutocompleteNav(ctx: TuiContext): void {
     const ac = ctx.store.autocomplete;
@@ -73,7 +73,7 @@ export function flushPendingEscape(ctx: TuiContext): void {
     ctx.escPending = false;
     ctx.escTimer = null;
     const ov = ctx.store.overlay;
-    if (ov.helpOpen || ov.paletteOpen || ov.selector.open) {
+    if (ov.helpOpen || ov.paletteOpen || ov.selector.open || ov.bgtaskOpen) {
         dismissOverlay(ctx);
         return;
     }
@@ -141,6 +141,16 @@ export function handleKeyInput(ctx: TuiContext, rawKey: string): void {
     // Dismiss help on any key that isn't ?
     if (ov.helpOpen) {
         dismissOverlay(ctx);
+    }
+
+    // Background tasks overlay: Ctrl+O
+    if (action === 'ctrl-o' && !ov.helpOpen && !ov.paletteOpen && !ov.selector.open) {
+        if (ov.bgtaskOpen) {
+            dismissOverlay(ctx);
+            return;
+        }
+        void openBgtaskOverlay(ctx);
+        return;
     }
 
     // Command palette: Ctrl+K

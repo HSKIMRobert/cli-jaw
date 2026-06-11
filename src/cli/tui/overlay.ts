@@ -348,6 +348,7 @@ const HELP_ENTRIES: HelpEntry[] = [
     { key: 'Ctrl+C',       desc: 'stop agent / exit' },
     { key: 'Ctrl+U',       desc: 'clear line' },
     { key: 'Ctrl+K',       desc: 'command palette' },
+    { key: 'Ctrl+O',       desc: 'background tasks' },
     { key: '?',            desc: 'this help' },
     { key: '/',            desc: 'slash commands (type to filter)' },
     { key: 'Up/Down',      desc: 'autocomplete navigate' },
@@ -404,6 +405,59 @@ export function renderHelpOverlay(
 ): number {
     const inner = buildHelpInnerLines(dimCode, resetCode, extraCommands);
     return writeCenteredBox(write, cols, rows, '─ Help ', inner, 52);
+}
+
+export interface BgtaskOverlayItem {
+    id: string;
+    kind: string;
+    status: string;
+    elapsed: string;
+}
+
+export function buildBgtaskInnerLines(
+    dimCode: string,
+    resetCode: string,
+    items: BgtaskOverlayItem[],
+): string[] {
+    const lines: string[] = [];
+    if (items.length === 0) {
+        lines.push(`  ${dimCode}No background tasks${resetCode}`);
+    } else {
+        for (const it of items.slice(0, 10)) {
+            const marker = it.status === 'running' ? '\u23F3'
+                : it.status === 'complete' ? '\u2713'
+                    : it.status === 'cancelled' ? '\u2205' : '\u2717';
+            lines.push(`  ${marker} ${it.kind.padEnd(10).slice(0, 10)} ${it.id.slice(3, 11).padEnd(9)}${dimCode}${it.status.padEnd(9)}${it.elapsed}${resetCode}`);
+        }
+        if (items.length > 10) lines.push(`  ${dimCode}... +${items.length - 10} more (cli-jaw bgtask list)${resetCode}`);
+    }
+    lines.push('');
+    lines.push(`  ${dimCode}Press Escape or Ctrl+O to close${resetCode}`);
+    return lines;
+}
+
+export function composeBgtaskOntoFrame(
+    frameRows: string[],
+    cols: number,
+    rows: number,
+    dimCode: string,
+    resetCode: string,
+    items: BgtaskOverlayItem[],
+): void {
+    const inner = buildBgtaskInnerLines(dimCode, resetCode, items);
+    paintCenteredBox(frameRows, cols, rows, '\u2500 Background Tasks ', inner, 52);
+}
+
+export function renderBgtaskOverlay(
+    write: (chunk: string) => void,
+    cols: number,
+    rows: number,
+    dimCode: string,
+    resetCode: string,
+    items: BgtaskOverlayItem[],
+): number {
+    const inner = buildBgtaskInnerLines(dimCode, resetCode, items);
+    return writeCenteredBox(write, cols, rows, '\u2500 Background Tasks ', inner, 52);
 }
 
 export function clearOverlayBox(

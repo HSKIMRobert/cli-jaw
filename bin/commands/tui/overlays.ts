@@ -3,6 +3,7 @@
  */
 import {
     clearOverlayBox, renderHelpOverlay, renderCommandPalette, renderChoiceSelector,
+    renderBgtaskOverlay, type BgtaskOverlayItem,
     clearAutocomplete, closeAutocomplete, resolveAutocompleteState,
     applyResolvedAutocompleteState, renderAutocomplete, popupTotalRows,
     makeSelectionKey, resetAutocompleteState,
@@ -122,11 +123,58 @@ export function refreshChoiceSelector(ctx: TuiContext): void {
     ctx.overlayBoxHeight = renderChoiceSelector(selectorRenderOpts(ctx));
 }
 
+function bgtaskElapsed(startedAt: string | null): string {
+    const start = Date.parse(startedAt ? `${startedAt.replace(' ', 'T')}Z` : '');
+    if (!Number.isFinite(start)) return '';
+    const sec = Math.max(0, Math.floor((Date.now() - start) / 1000));
+    return sec < 60 ? `${sec}s` : sec < 3600 ? `${Math.floor(sec / 60)}m` : `${Math.floor(sec / 3600)}h${Math.floor((sec % 3600) / 60)}m`;
+}
+
+/** Ctrl+O — server-owned background tasks (bgtask). Fetches fresh state so the
+ * overlay is accurate even if SSE events were missed; falls back to the last
+ * ws-pushed snapshot when the API call fails. */
+export async function openBgtaskOverlay(ctx: TuiContext): Promise<void> {
+    const ov = ctx.store.overlay;
+    ov.bgtaskOpen = true;
+    closeAutocompleteForCtx(ctx);
+    let items: BgtaskOverlayItem[] = ctx.bgtaskTasks.map((t) => ({
+        id: t.id, kind: t.kind, status: 'running', elapsed: bgtaskElapsed(t.startedAt),
+    }));
+    try {
+        const res = await fetch(`${ctx.apiUrl}/api/bgtask?limit=10`);
+        if (res.ok) {
+            const body = await res.json() as { tasks?: Array<{ id: string; kind: string; status: string; startedAt: string | null }> };
+            if (Array.isArray(body.tasks)) {
+                items = body.tasks
+                    .filter((t) => t.status === 'running' || t.status === 'complete' || t.status === 'failed' || t.status === 'cancelled' || t.status === 'orphaned')
+                    .slice(0, 10)
+                    .map((t) => ({
+                        id: t.id, kind: t.kind, status: t.status,
+                        elapsed: t.status === 'running' ? bgtaskElapsed(t.startedAt) : '',
+                    }));
+            }
+        }
+    } catch { /* fall back to ws snapshot */ }
+    if (!ov.bgtaskOpen) return; // dismissed while fetching
+    if (ctx.displayMode === 'fullscreen') {
+        ctx.requestFrame?.();
+        return;
+    }
+    ctx.overlayBoxHeight = renderBgtaskOverlay(
+        (chunk) => tuiWrite(ctx, chunk),
+        process.stdout.columns || 80,
+        getRows(),
+        c.dim, c.reset,
+        items,
+    );
+}
+
 export function dismissOverlay(ctx: TuiContext): void {
     const ov = ctx.store.overlay;
-    if (!ov.helpOpen && !ov.paletteOpen && !ov.selector.open) return;
+    if (!ov.helpOpen && !ov.paletteOpen && !ov.selector.open && !ov.bgtaskOpen) return;
     if (ctx.displayMode === 'fullscreen') {
         ov.helpOpen = false;
+        ov.bgtaskOpen = false;
         ov.paletteOpen = false;
         ov.paletteFilter = '';
         ov.paletteSelected = 0;
@@ -150,6 +198,7 @@ export function dismissOverlay(ctx: TuiContext): void {
         ctx.overlayBoxHeight = 0;
     }
     ov.helpOpen = false;
+    ov.bgtaskOpen = false;
     ov.paletteOpen = false;
     ov.paletteFilter = '';
     ov.paletteSelected = 0;

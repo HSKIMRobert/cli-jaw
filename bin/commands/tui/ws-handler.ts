@@ -44,7 +44,7 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
         switch (msg.type) {
             case 'agent_chunk':
             case 'agent_output':
-                if (ov.helpOpen || ov.paletteOpen) dismissOverlay(ctx);
+                if (ov.helpOpen || ov.paletteOpen || ov.bgtaskOpen) dismissOverlay(ctx);
                 if (ctx.isRaw) {
                     console.log(`  ${c.dim}${raw}${c.reset}`);
                     break;
@@ -179,6 +179,23 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                     }
                 }
                 break;
+
+            case 'bgtask_update': {
+                const runningTasks = Array.isArray(msg.running) ? msg.running : [];
+                ctx.bgtaskCount = runningTasks.length;
+                ctx.bgtaskTasks = runningTasks;
+                const changed = msg.changed as { id: string; kind: string; status: string } | null;
+                if (changed && changed.status !== 'running' && !ctx.isRaw) {
+                    const ok = changed.status === 'complete';
+                    const mark = ok ? `${c.green}\u2713` : `${c.red}\u2717`;
+                    appendStatusItem(transcript, `bgtask ${changed.kind} ${changed.status}`);
+                    if (!isFullscreen(ctx)) {
+                        process.stdout.write(`\r\x1b[2K  ${mark} bgtask ${changed.kind} ${changed.status}${c.reset}\n`);
+                    }
+                }
+                if (isFullscreen(ctx)) ctx.requestFrame?.();
+                break;
+            }
 
             case 'queue_update':
                 if (msg.pending > 0) {

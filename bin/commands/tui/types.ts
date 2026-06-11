@@ -59,11 +59,14 @@ export function formatFooter(
     accent: string,
     state: 'idle' | 'responding' | 'tool',
     elapsedMs?: number,
+    bgtaskCount?: number,
 ): string {
     const stateLabel = state === 'responding' ? 'responding…' : state === 'tool' ? 'working…' : 'idle';
     const stateColored = state === 'idle' ? `${c.dim}${stateLabel}${c.reset}` : `${accent}${stateLabel}${c.reset}`;
     const elapsed = elapsedMs && elapsedMs > 0 ? `  ${c.dim}${(elapsedMs / 1000).toFixed(1)}s${c.reset}` : '';
-    return `  ${accent}${label}${c.reset}  ${c.dim}·${c.reset}  ${stateColored}${elapsed}  ${c.dim}|  /quit  /clear${c.reset}`;
+    // Server-owned background tasks (bgtask) — magenta to stay distinct from the queue.
+    const bgtask = bgtaskCount && bgtaskCount > 0 ? `  ${c.magenta}\u23F3${bgtaskCount}${c.reset}` : '';
+    return `  ${accent}${label}${c.reset}  ${c.dim}·${c.reset}  ${stateColored}${elapsed}${bgtask}  ${c.dim}|  /quit  /clear${c.reset}`;
 }
 
 // ─── Shared state interface ──────────────────
@@ -86,6 +89,8 @@ export interface TuiContext {
     inputActive: boolean;
     streaming: boolean;
     streamState: 'idle' | 'responding' | 'tool';
+    bgtaskCount: number;
+    bgtaskTasks: Array<{ id: string; kind: string; startedAt: string | null }>;
     turnStartedAt: number;
     streamSink: StreamSink | null;
     commandRunning: boolean;

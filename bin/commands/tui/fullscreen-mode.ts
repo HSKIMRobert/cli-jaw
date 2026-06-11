@@ -9,7 +9,7 @@ import {
 import { renderMarkdown } from '../../../src/cli/tui/markdown.js';
 import { classifyKeyAction, type KeyAction } from '../../../src/cli/tui/keymap.js';
 import { getCompletionItems } from '../../../src/cli/commands.js';
-import { composeAutocompleteLines, composeHelpOntoFrame, composePaletteOntoFrame, composeSelectorOntoFrame } from '../../../src/cli/tui/overlay.js';
+import { composeAutocompleteLines, composeHelpOntoFrame, composePaletteOntoFrame, composeSelectorOntoFrame, composeBgtaskOntoFrame } from '../../../src/cli/tui/overlay.js';
 import { createScheduler } from '../../../src/cli/tui/render/scheduler.js';
 import { Screen, registerScreenCleanup, type Frame } from '../../../src/cli/tui/render/frame.js';
 import { solveLayout, type Regions } from '../../../src/cli/tui/render/layout.js';
@@ -55,7 +55,7 @@ function currentRegions(ctx: TuiContext): Regions {
 
 function overlayBlocksScroll(ctx: TuiContext): boolean {
     const ov = ctx.store.overlay;
-    return ov.helpOpen || ov.paletteOpen || ov.selector.open;
+    return ov.helpOpen || ov.paletteOpen || ov.selector.open || ov.bgtaskOpen;
 }
 
 function handleScrollKey(ctx: TuiContext, viewport: Viewport, action: KeyAction, regions: Regions): boolean {
@@ -144,6 +144,11 @@ function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
         composeSelectorOntoFrame(
             frameRows, cols, rows, c.dim, c.reset,
             sel.title, sel.subtitle, sel.filter, sel.filteredItems, sel.selected,
+        );
+    } else if (ov.bgtaskOpen) {
+        composeBgtaskOntoFrame(
+            frameRows, cols, rows, c.dim, c.reset,
+            ctx.bgtaskTasks.map((t) => ({ id: t.id, kind: t.kind, status: 'running', elapsed: '' })),
         );
     }
 
