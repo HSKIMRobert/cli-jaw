@@ -33,6 +33,7 @@ import { sanitizeWorkerProgressTools } from '../orchestrator/worker-progress.js'
 import { handleAgentExit, setSpawnAgent, setMainMetaHandler } from './lifecycle-handler.js';
 import { buildServicePath } from '../core/runtime-path.js';
 import { resolveOrcScope } from '../orchestrator/scope.js';
+import { stripInterviewTracker } from '../orchestrator/sanitize.js';
 import { beginLiveRun, appendLiveRunText, clearLiveRun, replaceLiveRunTools, appendLiveRunTool } from './live-run-state.js';
 import {
     memoryFlushCounter as _memoryFlushCounter,
@@ -575,10 +576,16 @@ function isStaleWorklogHistoryArtifact(text: string): boolean {
     ].some(marker => value.includes(marker));
 }
 
+const HISTORY_BOUNDARY_INSTRUCTION = [
+    '[History Boundary]',
+    'Recent Context is read-only background. The Current Message below is the only task to execute now.',
+    'Do not continue prior plans, audits, commands, questions, or goals unless the Current Message explicitly asks to resume or continue them.',
+].join('\n');
+
 function withHistoryPrompt(prompt: string, historyBlock: string) {
     const body = String(prompt || '');
     if (!historyBlock) return body;
-    return `${historyBlock}\n\n---\n[Current Message]\n${body}`;
+    return `${historyBlock}\n\n${HISTORY_BOUNDARY_INSTRUCTION}\n\n---\n[Current Message]\n${body}`;
 }
 
 function getLatestAssistantContentForAgyResume(workingDir?: string | null): string | null {
@@ -815,7 +822,10 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     const bucketResumeKey = typeof bucketRow?.resume_key === 'string' ? bucketRow.resume_key : null;
     const bucketUpdatedAt = bucketRow?.updated_at ?? null;
     const resumeKey = buildSessionResumeKey(cli, spawnEnv);
-    const providerSupportsResume = !(cli === 'ai-e' && effectiveProvider !== 'claude' && effectiveProvider !== 'kiro' && effectiveProvider !== 'codex' && effectiveProvider !== 'grok');
+    // AGY native resume can replay prior stdout and continue stale mid-turn planner
+    // state. cli-jaw keeps safer cross-turn context via DB history instead.
+    const providerSupportsResume = cli !== 'agy'
+        && !(cli === 'ai-e' && effectiveProvider !== 'claude' && effectiveProvider !== 'kiro' && effectiveProvider !== 'codex' && effectiveProvider !== 'grok');
     const canResumeBucketSession = !bucketSessionId || shouldResumeBucketSession(
         cli,
         runtimeModel,
@@ -2128,7 +2138,8 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 ? stripAgyResumeReplayPrefixes(ctx.fullText, agyResumeReplayPrefixes).text
                 : ctx.fullText;
             const promptEchoStripped = stripAgyPromptEchoPrefix(visibleFullText, promptForArgs).text;
-            const displayFullText = normalizeAssistantDisplayText(promptEchoStripped);
+            const trackerStripped = stripInterviewTracker(promptEchoStripped);
+            const displayFullText = normalizeAssistantDisplayText(trackerStripped);
             const previousDisplayText = ctx.liveOutputText ?? '';
             const displayText = displayFullText.startsWith(previousDisplayText)
                 ? displayFullText.slice(previousDisplayText.length)

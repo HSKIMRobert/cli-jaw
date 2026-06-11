@@ -23,6 +23,11 @@ describe('stripInterviewTracker', () => {
     assert.equal(stripInterviewTracker(input), 'Hello  world');
   });
 
+  test('SAN-004b: strips incomplete XML-tagged tracker tail', () => {
+    const input = 'Visible\n<interview_tracker> assessment: {"goal":"medium"}';
+    assert.equal(stripInterviewTracker(input), 'Visible');
+  });
+
   test('SAN-005: does not strip prose mentioning assessment or known', () => {
     const input = 'The assessment was good. The known issues are listed.';
     assert.equal(stripInterviewTracker(input), input);

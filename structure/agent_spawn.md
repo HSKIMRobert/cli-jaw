@@ -17,7 +17,7 @@ aliases: [CLI-JAW Agent Spawn, agent runtime, ACP orchestration]
 
 | File | Line count | Role |
 | --- | ---: | --- |
-| `src/agent/spawn.ts` | 2377L | spawn/ACP/Pi RPC/stream/DB/broadcast + queue drain 핵심 |
+| `src/agent/spawn.ts` | 2388L | spawn/ACP/Pi RPC/stream/DB/broadcast + queue drain 핵심 |
 | `src/agent/lifecycle-handler.ts` | 951L | child lifecycle, fallback, retry, queue resume, goal continuation |
 | `src/agent/args.ts` | 426L | CLI별 신규/재개 인자 생성 |
 | `src/agent/pi-runtime.ts` | 403L | Pi profile normalization, isolated `PI_CODING_AGENT_DIR` config generation, model discovery, JSONL RPC parser/spawner |
@@ -222,7 +222,7 @@ are persisted or displayed through trace helpers.
 | `orchestrator/collect.ts` | 66L | orchestrate 결과 수집 |
 | `orchestrator/worker-progress.ts` | 58L | worker progress safe-summary sanitizer + snapshot types |
 | `orchestrator/worker-monitor.ts` | 58L | stall/disconnect/timeout monitor |
-| `orchestrator/sanitize.ts` | 18L | `stripInterviewTracker()` — interview tracker/perspective tags from visible text |
+| `orchestrator/sanitize.ts` | 52L | `stripInterviewTracker()` — interview tracker/perspective tags from visible text |
 | `orchestrator/scope.ts` | 17L | scope stub — 항상 `'default'` 반환 |
 
 ### `pipeline.ts` 실제 흐름
