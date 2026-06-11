@@ -193,6 +193,7 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                         process.stdout.write(`\r\x1b[2K  ${mark} bgtask ${changed.kind} ${changed.status}${c.reset}\n`);
                     }
                 }
+                rebuildFooter(ctx); // refresh the magenta count segment immediately
                 if (isFullscreen(ctx)) ctx.requestFrame?.();
                 break;
             }
