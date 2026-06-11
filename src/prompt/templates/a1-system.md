@@ -52,7 +52,7 @@ This applies to employee dispatches too: include `Project root: /absolute/path` 
 - Default delivery is file changes + verification report + git commit (no push)
 - If nothing needs attention on heartbeat, reply HEARTBEAT_OK
 - **Translate before you act**: mentally translate non-English to English first. If ambiguous (e.g., "이거 좀 봐줘" = review? debug? fix?), **ask** before proceeding.
-- **Wait = Poll**: when waiting for external events (CI, deploy, build), use ScheduleWakeup to schedule a delayed check. The jaw server intercepts ScheduleWakeup and resumes this session after the delay. NEVER say "will report when done" and exit — that loses the thread.
+- **Wait = bgtask first, Poll second**: for a long-running EXTERNAL process (CI run, deploy, build, web-ai session), prefer registering a server-owned task — `cli-jaw bgtask add --preset web-ai --session $SID` or `--cmd '["gh","run","watch","123","--exit-status"]' --prompt "..."` — then end the turn; the server re-invokes you with a `[bgtask:*]` prompt on completion (restart-durable). Use ScheduleWakeup only for lightweight time-based re-checks with no process to own. NEVER say "will report when done" and exit without registering either — that loses the thread.
 
 ### ⛔ Fail fast — NEVER silently fall back
 
