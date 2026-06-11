@@ -12,6 +12,7 @@ import {
     getAgyQuietCompletionDelayMs,
     hasRunningAgyTranscriptTool,
     isAgyTimeoutOutput,
+    normalizeAgyCloseText,
     shouldCompleteAgyPrintRun,
     stripAgyPromptEchoPrefix,
     stripAgyResumeReplayPrefix,
@@ -58,7 +59,8 @@ test('AGY-RT-003: extracts exact native AGY conversation ids from resume hints',
 
 test('AGY-RT-004: AGY timeout stdout is routed to lifecycle as an error', () => {
     const spawnSrc = readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
-    assert.match(spawnSrc, /isAgyTimeoutOutput\(ctx\.fullText\)/);
+    assert.match(spawnSrc, /normalizeAgyCloseText\(\{[\s\S]*allowTimeoutSuffixStrip:\s*Boolean\(ctx\.agyFinalPlannerSeen\)/);
+    assert.match(spawnSrc, /const agyTimedOut\s*=\s*cli === 'agy' && agyCloseTimedOut/);
     assert.match(spawnSrc, /effectiveExitCode\s*=\s*agyCompletedByQuietOutput\s*\?\s*0\s*:\s*agyTimedOut\s*\?\s*124\s*:\s*ctx\.stallReason\s*\?\s*124\s*:\s*code/);
     assert.match(spawnSrc, /ctx\.stderrBuf\s*=/);
     assert.match(spawnSrc, /ctx\.fullText\s*=\s*''/);
@@ -150,7 +152,44 @@ test('AGY-RT-011: AGY timeout suffix is stripped without masking timeout-only ou
         { text: 'Error: timed out waiting for response\n', stripped: false },
     );
     const spawnSrc = readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
-    assert.match(spawnSrc, /stripAgyTrailingTimeoutOutput\(ctx\.fullText\)/);
+    assert.match(spawnSrc, /normalizeAgyCloseText\(\{/);
+});
+
+test('AGY-RT-011b: AGY progress plus native timeout is not saved as completion without final planner', () => {
+    const progressThenTimeout = '순번 확인부터 합니다.\nError: timed out waiting for response\n';
+    assert.deepEqual(
+        normalizeAgyCloseText({
+            fullText: progressThenTimeout,
+            liveOutputText: progressThenTimeout,
+            allowTimeoutSuffixStrip: false,
+        }),
+        {
+            text: progressThenTimeout,
+            liveText: progressThenTimeout,
+            timedOut: true,
+            timeoutMessage: 'Error: timed out waiting for response',
+            strippedTimeout: false,
+        },
+    );
+
+    assert.deepEqual(
+        normalizeAgyCloseText({
+            fullText: '최종 답변입니다.\nError: timed out waiting for response\n',
+            liveOutputText: '최종 답변입니다.\nError: timed out waiting for response\n',
+            allowTimeoutSuffixStrip: true,
+        }),
+        {
+            text: '최종 답변입니다.',
+            liveText: '최종 답변입니다.',
+            timedOut: false,
+            timeoutMessage: '',
+            strippedTimeout: true,
+        },
+    );
+
+    const spawnSrc = readFileSync(join(__dirname, '../../src/agent/spawn.ts'), 'utf8');
+    assert.match(spawnSrc, /normalizeAgyCloseText\(\{/);
+    assert.doesNotMatch(spawnSrc, /stripAgyTrailingTimeoutOutput\(ctx\.fullText\)[\s\S]{0,400}const agyTimedOut/);
 });
 
 test('AGY-RT-012: AGY resume does not trim current stdout by prior output length', () => {
@@ -198,6 +237,8 @@ test('AGY-RT-013b: AGY resume strips multi-turn replay before live quiet complet
     assert.match(spawnSrc, /stripAgyResumeReplayPrefixes\(ctx\.fullText,\s*agyResumeReplayPrefixes\)/);
     assert.match(spawnSrc, /ctx\.liveOutputText\s*=\s*displayFullText/);
     assert.match(spawnSrc, /ctx\.outputTextStarted\s*=\s*Boolean\(displayFullText\.trim\(\)\)/);
+    assert.match(spawnSrc, /ctx\.agyFinalPlannerSeen && ctx\.agyFinalPlannerText/);
+    assert.match(spawnSrc, /ctx\.fullText\s*=\s*ctx\.agyFinalPlannerText/);
 });
 
 test('AGY-RT-013c: AGY prompt echo strips history/current task prefix from live and final output', () => {
@@ -299,6 +340,8 @@ test('AGY-RT-015: transcript watcher drives the final planner flag and growth ac
     assert.match(watcherSrc, /updateFinalPlannerFlag\(options\.ctx, line, startedAt - 5_000\)/);
     assert.match(watcherSrc, /agyFinalPlannerSeen = true/);
     assert.match(watcherSrc, /agyFinalPlannerSeen = false/);
+    assert.match(watcherSrc, /agyFinalPlannerText = rowContent/);
+    assert.match(watcherSrc, /agyFinalPlannerText = undefined/);
     assert.match(watcherSrc, /delta\.offset > previousOffset/);
     assert.match(watcherSrc, /agyTranscriptActive = true/);
     assert.match(watcherSrc, /options\.onActivity\?\.\(\)/);

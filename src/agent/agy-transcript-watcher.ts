@@ -25,9 +25,11 @@ const WAIT_PATH_MS = 120_000;
 function updateFinalPlannerFlag(ctx: SpawnContext, line: string, minCreatedAtMs: number): void {
     let rowType = '';
     let createdAtMs: number | null = null;
+    let rowContent = '';
     try {
-        const parsed = JSON.parse(line) as { created_at?: unknown; type?: unknown };
+        const parsed = JSON.parse(line) as { content?: unknown; created_at?: unknown; type?: unknown };
         rowType = typeof parsed.type === 'string' ? parsed.type : '';
+        rowContent = typeof parsed.content === 'string' ? parsed.content.trim() : '';
         if (typeof parsed.created_at === 'string') {
             const createdAt = Date.parse(parsed.created_at);
             if (Number.isFinite(createdAt)) {
@@ -42,6 +44,7 @@ function updateFinalPlannerFlag(ctx: SpawnContext, line: string, minCreatedAtMs:
     // previous turn's row that slipped inside the lookback buffer (fast resume) is stale.
     if (rowType === 'USER_INPUT') {
         ctx.agyFinalPlannerSeen = false;
+        ctx.agyFinalPlannerText = undefined;
         return;
     }
     const { kind } = classifyAgyTranscriptRow(line);
@@ -54,9 +57,11 @@ function updateFinalPlannerFlag(ctx: SpawnContext, line: string, minCreatedAtMs:
         const freshThresholdMs = minCreatedAtMs + 4_000;
         if (createdAtMs !== null && createdAtMs >= freshThresholdMs) {
             ctx.agyFinalPlannerSeen = true;
+            ctx.agyFinalPlannerText = rowContent;
         }
     } else if (kind === 'tool' || kind === 'planner') {
         ctx.agyFinalPlannerSeen = false;
+        ctx.agyFinalPlannerText = undefined;
     }
 }
 

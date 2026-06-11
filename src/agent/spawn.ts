@@ -57,11 +57,10 @@ import {
     formatAgyTimeoutMessage,
     getAgyQuietCompletionDelayMs,
     isAgyStaleSessionOutput,
-    isAgyTimeoutOutput,
+    normalizeAgyCloseText,
     stripAgyPromptEchoPrefix,
     stripAgyResumeReplayPrefix,
     stripAgyResumeReplayPrefixes,
-    stripAgyTrailingTimeoutOutput,
 } from './agy-runtime.js';
 import { startAgyTranscriptWatcher, type AgyTranscriptWatcherHandle } from './agy-transcript-watcher.js';
 import { appendAssistantTextSegment, normalizeAssistantDisplayText } from './events/helpers.js';
@@ -2282,6 +2281,8 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 console.log(`[jaw:ai-e:${effectiveProvider}] session capture id=${fromStderr.slice(0, 16)}...`);
             }
         }
+        let agyCloseTimedOut = false;
+        let agyTimeoutMessage = '';
         if (cli === 'agy') {
             const strippedPromptEcho = stripAgyPromptEchoPrefix(ctx.fullText, promptForArgs);
             if (strippedPromptEcho.stripped) {
@@ -2308,18 +2309,24 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                     }
                 }
             }
-            const stripped = stripAgyTrailingTimeoutOutput(ctx.fullText);
-            if (stripped.stripped) {
-                ctx.fullText = stripped.text;
-                if (ctx.liveOutputText !== undefined) {
-                    ctx.liveOutputText = stripAgyTrailingTimeoutOutput(ctx.liveOutputText).text;
-                }
+            if (ctx.agyFinalPlannerSeen && ctx.agyFinalPlannerText) {
+                ctx.fullText = ctx.agyFinalPlannerText;
+                if (ctx.liveOutputText !== undefined) ctx.liveOutputText = ctx.agyFinalPlannerText;
             }
+            const normalizedCloseText = normalizeAgyCloseText({
+                fullText: ctx.fullText,
+                liveOutputText: ctx.liveOutputText,
+                allowTimeoutSuffixStrip: Boolean(ctx.agyFinalPlannerSeen),
+            });
+            ctx.fullText = normalizedCloseText.text;
+            if (normalizedCloseText.liveText !== undefined) ctx.liveOutputText = normalizedCloseText.liveText;
+            agyCloseTimedOut = normalizedCloseText.timedOut;
+            agyTimeoutMessage = normalizedCloseText.timeoutMessage;
         }
-        const agyTimedOut = cli === 'agy' && isAgyTimeoutOutput(ctx.fullText);
+        const agyTimedOut = cli === 'agy' && agyCloseTimedOut;
         const effectiveExitCode = agyCompletedByQuietOutput ? 0 : agyTimedOut ? 124 : ctx.stallReason ? 124 : code;
         if (agyTimedOut) {
-            const message = formatAgyTimeoutMessage(ctx.fullText);
+            const message = formatAgyTimeoutMessage(agyTimeoutMessage);
             ctx.stderrBuf = ctx.stderrBuf ? `${ctx.stderrBuf}\n${message}` : message;
             ctx.fullText = '';
             appendTraceEvent({ runId: ctx.traceRunId, source: 'cli_raw', eventType: 'runtime_error', raw: message });
