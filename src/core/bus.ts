@@ -38,6 +38,7 @@ export function inferTopic(type: string): EventTopic {
     if (type.startsWith('worker_')) return 'worker';
     if (type === 'new_message') return 'message';
     if (type === 'queue_update') return 'queue';
+    if (type === 'bgtask_update') return 'bgtask';
     if (type === 'heartbeat_pending') return 'heartbeat';
     if (type.startsWith('schedule_')) return 'schedule';
     if (type === 'clear' || type.startsWith('session_')) return 'session';
