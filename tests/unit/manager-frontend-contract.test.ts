@@ -399,6 +399,34 @@ test('manager frontend keeps rows compact while preserving model visibility', ()
     assert.ok(compact.includes('.manager-shell.is-sidebar-collapsed .manager-workspace'), 'sidebar collapse must reclaim detail width');
 });
 
+test('manager sidebar actions stay compact and active-group owned', () => {
+    const groups = read('public/manager/src/components/InstanceGroups.tsx');
+    const row = read('public/manager/src/components/InstanceRow.tsx');
+    const components = read('public/manager/src/manager-components.css');
+    const polish = read('public/manager/src/manager-polish.css');
+    const compact = read('public/manager/src/manager-p0-1-1.css');
+
+    assert.ok(groups.includes("group.id === 'active' ? 'active' : 'normal'"), 'only the synthetic Active group should mark rows priority-active');
+    assert.ok(groups.includes('priority={priority}'), 'InstanceGroups must pass row priority into InstanceRow');
+    assert.ok(row.includes('aria-label="Preview"'), 'compact Prev label must preserve full Preview accessibility text');
+    assert.ok(row.includes('Prev'), 'row actions must use compact Prev label');
+    assert.ok(row.includes('aria-label="Restart"'), 'compact Res label must preserve full Restart accessibility text');
+    assert.ok(row.includes('Res'), 'row actions must use compact Res label');
+    assert.ok(components.includes('.instance-row.priority-active.is-selected {'), 'selected raised background must be scoped to the top Active row');
+    assert.equal(components.includes('.instance-row.is-selected {'), false, 'ordinary selected rows must not receive the active selected background');
+    assert.ok(components.includes('.instance-row.priority-active.is-selected::before'), 'selected stripe must be scoped to the top Active row');
+    assert.equal(components.includes('.instance-row.is-selected::before'), false, 'ordinary selected rows must not receive the active stripe');
+    for (const css of [polish, compact]) {
+        assert.ok(css.includes('.manager-sidebar .instance-row.priority-active .instance-actions'), 'Active group rows must always expose compact actions');
+        assert.ok(css.includes('.manager-sidebar .instance-row:not(.priority-active).is-selected .instance-actions'), 'normal selected rows must show compact actions');
+        assert.ok(css.includes('.manager-sidebar .instance-row:not(.priority-active):hover .instance-actions'), 'normal hovered rows must show compact actions');
+        assert.ok(css.includes('.manager-sidebar .instance-row:not(.priority-active):focus-within .instance-actions'), 'normal focused rows must show compact actions');
+        assert.ok(css.includes('.manager-sidebar .instance-row:not(.priority-active).is-selected .instance-row-meta'), 'normal selected rows must hide metadata when actions are shown');
+        assert.ok(css.includes('min-height: 24px'), 'sidebar action buttons must use compact button height');
+        assert.ok(css.includes('font-size: 10.5px'), 'sidebar action buttons must use compact text size');
+    }
+});
+
 test('manager dashboard settings workspace controls sidebar display preferences', () => {
     const app = read('public/manager/src/App.tsx');
     const appChrome = read('public/manager/src/AppChrome.tsx');

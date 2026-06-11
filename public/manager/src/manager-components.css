@@ -253,8 +253,8 @@ h2 { font-size: 13px; }
     outline: 2px solid var(--accent);
     outline-offset: 2px;
 }
-.instance-row.is-selected { border-color: transparent; background: var(--surface-raised); }
-.instance-row.is-selected::before {
+.instance-row.priority-active.is-selected { border-color: transparent; background: var(--surface-raised); }
+.instance-row.priority-active.is-selected::before {
     content: ""; position: absolute; left: 0; top: 8px; bottom: 8px;
     width: 2px; border-radius: 2px; background: var(--accent);
 }

@@ -193,17 +193,20 @@ export function InstanceRow(props: InstanceRowProps) {
             <div className="instance-actions">
                 <button
                     type="button"
+                    aria-label="Preview"
+                    title="Preview"
                     onClick={(event) => {
                         stopAction(event);
                         props.onPreview(props.instance);
                     }}
                     disabled={!props.instance.ok}
                 >
-                    Preview
+                    Prev
                 </button>
                 <button
                     type="button"
                     className="action-start"
+                    aria-label="Start"
                     onClick={(event) => {
                         stopAction(event);
                         props.onLifecycle('start', props.instance);
@@ -215,6 +218,7 @@ export function InstanceRow(props: InstanceRowProps) {
                 </button>
                 <button
                     type="button"
+                    aria-label="Register as persistent service"
                     onClick={(event) => {
                         stopAction(event);
                         props.onLifecycle('perm', props.instance);
@@ -226,13 +230,15 @@ export function InstanceRow(props: InstanceRowProps) {
                 </button>
                 <button
                     type="button"
+                    aria-label="Restart"
+                    title="Restart"
                     onClick={(event) => {
                         stopAction(event);
                         props.onLifecycle('restart', props.instance);
                     }}
                     disabled={!lifecycle?.canRestart || props.busy}
                 >
-                    Restart
+                    Res
                 </button>
             </div>
             )}

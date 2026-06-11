@@ -74,6 +74,7 @@ function renderInstanceRow(
     props: InstanceGroupsProps,
     instance: DashboardInstance,
     profile?: DashboardProfile,
+    priority: 'active' | 'normal' = 'normal',
 ) {
     return (
         <InstanceRow
@@ -90,6 +91,7 @@ function renderInstanceRow(
             {...(props.showInlineLabelEditor !== undefined ? { showInlineLabelEditor: props.showInlineLabelEditor } : {})}
             {...(props.showSidebarRuntimeLine !== undefined ? { showRuntimeLine: props.showSidebarRuntimeLine } : {})}
             {...(props.showSelectedRowActions !== undefined ? { showSelectedActions: props.showSelectedRowActions } : {})}
+            priority={priority}
             label={props.getLabel(instance)}
             uptime={props.formatUptime(instance.uptime)}
             onSelect={props.onSelect}
@@ -116,6 +118,7 @@ function renderRows(
                 props,
                 instance,
                 instance.profileId ? profileMap.get(instance.profileId) : undefined,
+                group.id === 'active' ? 'active' : 'normal',
             ))}
         </section>
     ));
