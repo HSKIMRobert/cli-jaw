@@ -255,8 +255,9 @@ h2 { font-size: 13px; }
 }
 .instance-row.priority-active.is-selected { border-color: transparent; background: var(--surface-raised); }
 .instance-row.priority-active.is-selected::before {
-    content: ""; position: absolute; left: 0; top: 8px; bottom: 8px;
-    width: 2px; border-radius: 2px; background: var(--accent);
+    content: ""; position: absolute; left: 0; top: 7px; bottom: 7px;
+    z-index: 1; width: 3px; border-radius: 3px; background: var(--accent);
+    pointer-events: none;
 }
 .instance-row-main {
     width: 100%;

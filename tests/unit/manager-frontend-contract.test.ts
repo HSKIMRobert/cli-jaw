@@ -415,6 +415,9 @@ test('manager sidebar actions stay compact and active-group owned', () => {
     assert.ok(components.includes('.instance-row.priority-active.is-selected {'), 'selected raised background must be scoped to the top Active row');
     assert.equal(components.includes('.instance-row.is-selected {'), false, 'ordinary selected rows must not receive the active selected background');
     assert.ok(components.includes('.instance-row.priority-active.is-selected::before'), 'selected stripe must be scoped to the top Active row');
+    assert.ok(components.includes('width: 3px'), 'selected active stripe must remain visually readable in compact rows');
+    assert.ok(components.includes('z-index: 1'), 'selected active stripe must render above the compact row surface');
+    assert.ok(components.includes('pointer-events: none'), 'selected active stripe must not intercept row clicks');
     assert.equal(components.includes('.instance-row.is-selected::before'), false, 'ordinary selected rows must not receive the active stripe');
     for (const css of [polish, compact]) {
         assert.ok(css.includes('.manager-sidebar .instance-row.priority-active .instance-actions'), 'Active group rows must always expose compact actions');
