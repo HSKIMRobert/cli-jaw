@@ -7,7 +7,7 @@ aliases: [CLI Stream Event Reference, stream events, SSE event channel, NDJSON p
 # CLI Stream Event Reference (SSE + Legacy WS + Provider Streams)
 
 > 각 CLI의 NDJSON/ACP/stream-json 이벤트를 `src/agent/events/`가 파싱하고, AGY plain-text output은 `spawn.ts`가 직접 처리한다. X-01 이후 current server의 public Web delivery는 `src/core/event-bus.ts` + `GET /api/events` SSE channel이 담당한다. WebSocket은 current server broadcast path가 아니라 `/api/events`가 한 번도 열리지 않는 pre-X-01 server용 client/TUI fallback이다.
-> 마지막 코드 대조: 2026-06-10 (`src/core/bus.ts`, `src/core/event-bus.ts`, `src/routes/events.ts`, `src/agent/spawn.ts`, `src/agent/events/*`, `src/agent/agy-runtime.ts`, `src/agent/claude-e-runtime.ts`, `src/agent/lifecycle-handler.ts`, `public/js/event-channel.ts`, `public/js/ws.ts`)
+> 마지막 코드 대조: 2026-06-11 (`src/core/bus.ts`, `src/core/event-bus.ts`, `src/routes/events.ts`, `src/agent/spawn.ts`, `src/agent/events/*`, `src/agent/agy-runtime.ts`, `src/agent/claude-e-runtime.ts`, `src/agent/lifecycle-handler.ts`, `public/js/event-channel.ts`, `public/js/ws.ts`)
 
 ---
 
@@ -291,7 +291,7 @@ agy --conversation <sessionId> -p <prompt> --print-timeout 10m --log-file <tmp> 
 
 `spawn.ts` routes AGY stdout as plain text: each chunk is appended to `ctx.fullText`, scanned for `--conversation=<id>` resume hints, recorded as a trace `plain_text` event, emitted through `agent_output`, and skipped from `events.ts` JSON parsing. Because `agy -p` normally prints only the answer, close handling also scans the per-run log for `Created conversation <id>` / `conversation=<id>` before removing that log. `spawn-env.ts` sets `NO_COLOR=1` by default so chunks remain preview-safe.
 
-Timeout handling is stdout-based. If AGY prints `Error: timed out waiting for response`, `agy-runtime.ts` classifies the run as effective exit code `124`, records a trace `runtime_error`, clears final text, and lets lifecycle/fallback/smoke handling see the timeout as a runtime failure.
+Timeout handling is stdout-based and anchored to the transcript final-planner signal. If AGY prints only `Error: timed out waiting for response`, or prints progress text followed by that timeout before a fresh final `PLANNER_RESPONSE` row is observed, `agy-runtime.ts` classifies the run as effective exit code `124`, records a trace `runtime_error`, clears final text, and lets lifecycle/fallback/smoke handling see the timeout as a runtime failure. Once a fresh final planner row is seen, its `content` is the authoritative final text; this strips native resume replay such as previous-turn answers before persistence. A trailing timeout can be stripped only after that final-planner anchor has been seen, preserving completed answers without saving progress-only resume turns as completion.
 
 ## 6. Cursor CLI (`--output-format stream-json`)
 

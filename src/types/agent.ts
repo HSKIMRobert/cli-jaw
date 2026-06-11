@@ -92,6 +92,7 @@ export interface SpawnContext {
   agyBytesReceived?: number;
   agyTranscriptActive?: boolean;
   agyFinalPlannerSeen?: boolean;
+  agyFinalPlannerText?: string | undefined;
   kiroDisplayedText?: string;
   kiroLineBuffer?: string;
   kiroToolSeq?: number;

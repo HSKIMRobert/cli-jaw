@@ -40,7 +40,7 @@ aliases: [CLI-JAW Agent Spawn, agent runtime, ACP orchestration]
 | `src/agent/claude-e-runtime.ts` | 44L | `jaw_runtime` helper event → legacy `agent:claude-e:*` runtime broadcast 변환 |
 | `src/agent/error-classifier.ts` | 38L | stderr/result 기반 에러 분류 helper |
 | `src/agent/tool-timeout.ts` | 33L | tool inactivity timeout helper |
-| `src/agent/agy-runtime.ts` | 20L | AGY timeout stdout 판별/메시지 정규화 + session id 추출 |
+| `src/agent/agy-runtime.ts` | 160L | AGY timeout stdout/close-text 판별 + 최종 planner 기준 timeout suffix 정규화 + session id 추출 |
 | `src/agent/cli-helpers.ts` | 7L | Claude-like CLI 판별 helper |
 
 ### src/agent/spawn/ — Extracted Submodules

@@ -27,6 +27,52 @@ export function stripAgyTrailingTimeoutOutput(text: string): { text: string; str
     return { text: before, stripped: true };
 }
 
+export type AgyCloseTextNormalization = {
+    text: string;
+    liveText: string | undefined;
+    timedOut: boolean;
+    timeoutMessage: string;
+    strippedTimeout: boolean;
+};
+
+function hasAgyTimeoutMarker(text: string): boolean {
+    return text.includes(AGY_TIMEOUT_PREFIX);
+}
+
+export function normalizeAgyCloseText(options: {
+    fullText: string;
+    liveOutputText?: string | undefined;
+    allowTimeoutSuffixStrip: boolean;
+}): AgyCloseTextNormalization {
+    const fullText = options.fullText;
+    const liveText = options.liveOutputText;
+    const fullHasTimeout = hasAgyTimeoutMarker(fullText);
+    const liveHasTimeout = liveText !== undefined && hasAgyTimeoutMarker(liveText);
+    if (!fullHasTimeout && !liveHasTimeout) {
+        return { text: fullText, liveText, timedOut: false, timeoutMessage: '', strippedTimeout: false };
+    }
+    if (options.allowTimeoutSuffixStrip) {
+        const strippedFull = stripAgyTrailingTimeoutOutput(fullText);
+        const strippedLive = liveText === undefined ? undefined : stripAgyTrailingTimeoutOutput(liveText);
+        if (strippedFull.stripped || strippedLive?.stripped) {
+            return {
+                text: strippedFull.text,
+                liveText: strippedLive?.text ?? liveText,
+                timedOut: false,
+                timeoutMessage: '',
+                strippedTimeout: true,
+            };
+        }
+    }
+    return {
+        text: fullText,
+        liveText,
+        timedOut: true,
+        timeoutMessage: AGY_TIMEOUT_PREFIX,
+        strippedTimeout: false,
+    };
+}
+
 export function stripAgyResumeReplayPrefix(text: string, previousAssistantText: string | null | undefined): { text: string; stripped: boolean } {
     const previous = String(previousAssistantText || '').trim();
     if (!previous) return { text, stripped: false };
