@@ -99,6 +99,7 @@ test('plain-text runtime display branches normalize escaped newlines before broa
     assert.match(spawnSrc, /const segment = normalizeAssistantDisplayText\(event\.text\)/);
     assert.match(spawnSrc, /const displayDelta = normalizeAssistantDisplayText\(delta\)/);
     assert.match(spawnSrc, /const newText = normalizeAssistantDisplayText\(/);
-    assert.match(spawnSrc, /const displayFullText = normalizeAssistantDisplayText\(visibleFullText\)/);
+    assert.match(spawnSrc, /const promptEchoStripped = stripAgyPromptEchoPrefix\(visibleFullText, promptForArgs\)\.text/);
+    assert.match(spawnSrc, /const displayFullText = normalizeAssistantDisplayText\(promptEchoStripped\)/);
     assert.match(spawnSrc, /cli === 'agy' \|\| cli === 'pi'/);
 });
