@@ -418,10 +418,10 @@ test('manager sidebar actions stay compact and active-group owned', () => {
     assert.equal(components.includes('.instance-row.is-selected::before'), false, 'ordinary selected rows must not receive the active stripe');
     for (const css of [polish, compact]) {
         assert.ok(css.includes('.manager-sidebar .instance-row.priority-active .instance-actions'), 'Active group rows must always expose compact actions');
-        assert.ok(css.includes('.manager-sidebar .instance-row:not(.priority-active).is-selected .instance-actions'), 'normal selected rows must show compact actions');
+        assert.equal(css.includes('.manager-sidebar .instance-row:not(.priority-active).is-selected .instance-actions'), false, 'normal selected rows must keep the three-line text state until hover or focus');
         assert.ok(css.includes('.manager-sidebar .instance-row:not(.priority-active):hover .instance-actions'), 'normal hovered rows must show compact actions');
         assert.ok(css.includes('.manager-sidebar .instance-row:not(.priority-active):focus-within .instance-actions'), 'normal focused rows must show compact actions');
-        assert.ok(css.includes('.manager-sidebar .instance-row:not(.priority-active).is-selected .instance-row-meta'), 'normal selected rows must hide metadata when actions are shown');
+        assert.equal(css.includes('.manager-sidebar .instance-row:not(.priority-active).is-selected .instance-row-meta'), false, 'normal selected rows must keep activity/runtime metadata visible');
         assert.ok(css.includes('.manager-sidebar .instance-row:not(.priority-active):hover .instance-row-meta'), 'normal hovered rows must hide metadata when actions are shown');
         assert.ok(css.includes('.manager-sidebar .instance-row:not(.priority-active):focus-within .instance-row-meta'), 'normal focused rows must hide metadata when actions are shown');
         assert.ok(css.includes('min-height: 24px'), 'sidebar action buttons must use compact button height');
