@@ -17,7 +17,7 @@ aliases: [CLI-JAW Agent Spawn, agent runtime, ACP orchestration]
 
 | File | Line count | Role |
 | --- | ---: | --- |
-| `src/agent/spawn.ts` | 2138L | spawn/ACP/Pi RPC/stream/DB/broadcast + queue drain 핵심 |
+| `src/agent/spawn.ts` | 2377L | spawn/ACP/Pi RPC/stream/DB/broadcast + queue drain 핵심 |
 | `src/agent/lifecycle-handler.ts` | 951L | child lifecycle, fallback, retry, queue resume, goal continuation |
 | `src/agent/args.ts` | 426L | CLI별 신규/재개 인자 생성 |
 | `src/agent/pi-runtime.ts` | 403L | Pi profile normalization, isolated `PI_CODING_AGENT_DIR` config generation, model discovery, JSONL RPC parser/spawner |

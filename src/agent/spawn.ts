@@ -2104,7 +2104,6 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             if (ctx.fullText.length < 102_400) ctx.fullText += text;
             else if (ctx.fullText.length < 102_500) ctx.fullText += text.slice(0, 102_400 - ctx.fullText.length);
             if (!ctx.sessionId) ctx.sessionId = extractAgyConversationId(ctx.fullText);
-            appendTraceEvent({ runId: ctx.traceRunId, source: 'cli_raw', eventType: 'plain_text', raw: text });
             if (ctx.agyResumeOffset && ctx.agyResumeOffset > 0) {
                 ctx.agyBytesReceived = (ctx.agyBytesReceived ?? 0) + text.length;
                 if (ctx.agyBytesReceived <= ctx.agyResumeOffset) return;
@@ -2114,6 +2113,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 if (!newText) return;
                 if (ctx.liveOutputText !== undefined) ctx.liveOutputText += newText;
                 ctx.outputTextStarted = true;
+                appendTraceEvent({ runId: ctx.traceRunId, source: 'cli_raw', eventType: 'plain_text', raw: newText });
                 if (ctx.liveScope) appendLiveRunText(ctx.liveScope, newText);
                 broadcast('agent_output', {
                     agentId: agentLabel,
@@ -2139,6 +2139,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 scheduleAgyQuietCompletion();
                 return;
             }
+            appendTraceEvent({ runId: ctx.traceRunId, source: 'cli_raw', eventType: 'plain_text', raw: displayText });
             if (ctx.liveScope) appendLiveRunText(ctx.liveScope, displayText);
             broadcast('agent_output', {
                 agentId: agentLabel,
