@@ -92,7 +92,7 @@
 </table>
 
 <h2>아키텍처 개요</h2>
-<p>CLI-JAW는 루트 핸들러와 194개의 API/미디어 엔드포인트를 포함하는 Node.js 22 서버로 구성됩니다. CLI, 터미널 TUI, Web PWA, Electron 데스크톱, Telegram, Discord, Manager 대시보드가 서버와 공유 SQLite 상태를 통해 연결됩니다. 전체 시스템 설계는 <a href="concepts/architecture.html">아키텍처</a> 페이지에서 확인하세요.</p>
+<p>CLI-JAW는 루트 핸들러와 200개의 API/미디어 엔드포인트를 포함하는 Node.js 22 서버로 구성됩니다. CLI, 터미널 TUI, Web PWA, Electron 데스크톱, Telegram, Discord, Manager 대시보드가 서버와 공유 SQLite 상태를 통해 연결됩니다. 전체 시스템 설계는 <a href="concepts/architecture.html">아키텍처</a> 페이지에서 확인하세요.</p>
 
 <pre><code>CLI/TUI/Electron/Web/Telegram/Discord ──→ server.ts ──→ src/routes/*
 Web events                              ──→ GET /api/events (SSE) ──→ event-bus

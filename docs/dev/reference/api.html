@@ -9,7 +9,7 @@
 <body>
 <main class="docs-main">
   <h1>Server API</h1>
-  <p class="lead">CLI-JAW exposes 195 route handlers including the root page, with 194 API/media endpoints across extracted route modules and mounted sub-routers.</p>
+  <p class="lead">CLI-JAW exposes 201 route handlers including the root page, with 200 API/media endpoints across extracted route modules and mounted sub-routers.</p>
 
   <h2>Base URLs</h2>
   <pre><code>http://localhost:3457    # Core server (jaw serve)
@@ -31,7 +31,7 @@ http://localhost:24576   # Manager dashboard (jaw dashboard serve)</code></pre>
     <tr><td>Settings/runtime</td><td><code>GET|PUT /api/settings</code>, <code>GET /api/cli-registry</code>, <code>GET /api/cli-status</code>, <code>GET /api/quota</code>, <code>POST /api/pi/profiles/register</code></td></tr>
     <tr><td>MCP/skills</td><td><code>GET|PUT /api/mcp</code>, <code>POST /api/mcp/sync</code>, <code>POST /api/mcp/install</code>, <code>GET /api/skills</code>, <code>POST /api/skills/enable</code></td></tr>
     <tr><td>Memory</td><td><code>GET /api/jaw-memory/search</code>, <code>GET /api/jaw-memory/context</code>, <code>POST /api/jaw-memory/save</code>, <code>GET /api/memory/status</code>, <code>POST /api/memory/reindex</code></td></tr>
-    <tr><td>Browser/CDP</td><td><code>POST /api/browser/start</code>, <code>GET /api/browser/status</code>, <code>GET /api/browser/snapshot</code>, <code>POST /api/browser/act</code>, <code>POST /api/browser/fetch</code>, tab/debug endpoints, and <code>/api/browser/web-ai/*</code></td></tr>
+    <tr><td>Browser/CDP</td><td><code>POST /api/browser/start</code>, <code>GET /api/browser/status</code>, <code>GET /api/browser/snapshot</code>, <code>POST /api/browser/act</code>, <code>POST /api/browser/fetch</code>, tab/debug endpoints, <code>POST /api/browser/web-ai/code</code>, <code>POST /api/browser/web-ai/code-extract</code>, and other <code>/api/browser/web-ai/*</code> routes</td></tr>
     <tr><td>Messaging/media</td><td><code>POST /api/upload</code>, <code>POST /api/voice</code>, <code>POST /api/channel/send</code>, <code>POST /api/telegram/send</code>, <code>POST /api/discord/send</code>, <code>GET /media/:filename</code></td></tr>
     <tr><td>Traces/security</td><td><code>GET /api/traces/:runId</code>, <code>GET /api/traces/:runId/events</code>, <code>GET /api/security-audit/entries</code>, <code>GET /api/security-audit/verify</code></td></tr>
     <tr><td>Jaw CEO</td><td><code>GET /api/jaw-ceo/state</code>, message/query/docs edit, settings, events, pending, watch/audit, voice, confirmations</td></tr>

@@ -92,7 +92,7 @@
 </table>
 
 <h2>架构概览</h2>
-<p>CLI-JAW 由一个 Node.js 22 服务器组成，包含根处理器和 194 个 API/媒体端点。CLI、终端 TUI、Web PWA、Electron 桌面、Telegram、Discord 和 Manager Dashboard 都通过服务器与共享 SQLite 状态连接。完整系统设计请参阅<a href="concepts/architecture.html">架构</a>页面。</p>
+<p>CLI-JAW 由一个 Node.js 22 服务器组成，包含根处理器和 200 个 API/媒体端点。CLI、终端 TUI、Web PWA、Electron 桌面、Telegram、Discord 和 Manager Dashboard 都通过服务器与共享 SQLite 状态连接。完整系统设计请参阅<a href="concepts/architecture.html">架构</a>页面。</p>
 
 <pre><code>CLI/TUI/Electron/Web/Telegram/Discord ──→ server.ts ──→ src/routes/*
 Web events                              ──→ GET /api/events (SSE) ──→ event-bus

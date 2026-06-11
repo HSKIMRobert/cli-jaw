@@ -69,7 +69,7 @@
 <p class="lead">CLI-JAW is a Node.js 22 orchestration runtime with CLI, TUI, Web, Telegram, Discord, Dashboard, and Electron desktop surfaces. The canonical internal map lives in <code>structure/</code>; this page is a public overview.</p>
 
 <h2>System Overview</h2>
-<p>The core server is a small Express glue layer. <code>server.ts</code> is 654 lines and delegates to extracted route modules plus mounted sub-routers. The current surface is 195 handlers including the root page, with 194 API/media endpoints.</p>
+<p>The core server is a small Express glue layer. <code>server.ts</code> is 593 lines and delegates to extracted route modules plus mounted sub-routers. The current surface is 201 handlers including the root page, with 200 API/media endpoints.</p>
 <pre><code>CLI / TUI / Web / Telegram / Discord / Electron
         │
         ├─ HTTP commands and REST APIs
@@ -105,7 +105,7 @@ jaw dashboard serve → src/manager/ → public/manager/</code></pre>
 <h2>Current Counts</h2>
 <table>
 <tr><th>Area</th><th>Current Count</th></tr>
-<tr><td><code>src/routes/</code></td><td>32 TypeScript files, 195 handlers including <code>/</code></td></tr>
+<tr><td><code>src/routes/</code></td><td>32 TypeScript files, 201 handlers including <code>/</code></td></tr>
 <tr><td><code>src/core/</code></td><td>30 files, 3803 lines</td></tr>
 <tr><td><code>src/agent/</code></td><td>29 root TS files plus spawn/events submodules</td></tr>
 <tr><td><code>src/browser/web-ai/</code></td><td>68 TypeScript files</td></tr>

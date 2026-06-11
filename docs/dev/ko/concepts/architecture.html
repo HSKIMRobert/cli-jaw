@@ -65,7 +65,7 @@
 <main class="docs-main">
 
 <h1>아키텍처</h1>
-<p class="lead">CLI-JAW는 Node.js 22 기반의 다중 AI 런타임 서버입니다. 루트 핸들러와 194개의 API/미디어 엔드포인트가 CLI, TUI, Web PWA, Electron 데스크톱, Telegram, Discord, Manager 대시보드에 동일한 세션, 메모리, 프로젝트 컨텍스트를 제공합니다.</p>
+<p class="lead">CLI-JAW는 Node.js 22 기반의 다중 AI 런타임 서버입니다. 루트 핸들러와 200개의 API/미디어 엔드포인트가 CLI, TUI, Web PWA, Electron 데스크톱, Telegram, Discord, Manager 대시보드에 동일한 세션, 메모리, 프로젝트 컨텍스트를 제공합니다.</p>
 
 <h2>시스템 개요</h2>
 <p>모든 런타임 표면은 <code>server.ts</code>를 거칩니다. 서버는 인증, 보안, SSE 이벤트, 부트스트랩을 처리한 뒤 <code>src/routes/</code>와 핵심 하위 시스템으로 위임합니다.</p>
@@ -90,12 +90,12 @@ server.ts ──→ src/routes/* ──→ src/core/ | src/agent/ | src/orchestr
 </table>
 
 <h2>라우트 모듈</h2>
-<p>서버는 루트 핸들러와 라우트 모듈을 합쳐 195개의 핸들러를 등록합니다. 각 모듈은 Express 앱과 인증 미들웨어를 받는 독립적인 등록 함수입니다.</p>
+<p>서버는 루트 핸들러와 라우트 모듈을 합쳐 201개의 핸들러를 등록합니다. 각 모듈은 Express 앱과 인증 미들웨어를 받는 독립적인 등록 함수입니다.</p>
 <table>
 <tr><th>모듈</th><th>라우트 수</th><th>역할</th></tr>
 <tr><td><code>server.ts</code> (기본)</td><td>14</td><td>헬스체크, 세션, 메시지, 인증, 명령, 중지, 초기화</td></tr>
 <tr><td><code>settings.ts</code></td><td>18</td><td>설정, 프롬프트, heartbeat-md, MCP, CLI 레지스트리, 쿼터</td></tr>
-<tr><td><code>browser.ts</code></td><td>41</td><td>브라우저 기본 동작, 탭 관리, web-ai 자동화</td></tr>
+<tr><td><code>browser.ts</code></td><td>43</td><td>브라우저 기본 동작, 탭 관리, web-ai 자동화 및 code-mode 회수</td></tr>
 <tr><td><code>memory.ts</code></td><td>13</td><td>메모리 런타임, KV 저장소, 메모리 파일</td></tr>
 <tr><td><code>jaw-memory.ts</code></td><td>11</td><td>Jaw 메모리 검색, 읽기, 저장, 소울, 플러시, 리플렉션</td></tr>
 <tr><td><code>orchestrate.ts</code></td><td>11</td><td>PABCD 상태, 워커, 디스패치, 큐 관리</td></tr>
@@ -115,7 +115,7 @@ server.ts ──→ src/routes/* ──→ src/core/ | src/agent/ | src/orchestr
 ├── bin/                    # CLI entry + 30 command files
 │   ├── cli-jaw.ts          # Root CLI router
 │   └── commands/           # serve, init, doctor, chat, browser, ...
-├── server.ts               # Express/SSE bootstrap (587L)
+├── server.ts               # Express/SSE bootstrap (593L)
 ├── src/
 │   ├── core/               # 30 files — config, DB, bus, i18n, employees
 │   ├── agent/              # 37 files — spawn, events, lifecycle, ACP

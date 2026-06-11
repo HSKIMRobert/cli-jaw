@@ -65,7 +65,7 @@
 <main class="docs-main">
 
 <h1>架构</h1>
-<p class="lead">CLI-JAW 是一个基于 Node.js 22 的多 AI 运行时服务器。根处理器和 194 个 API/媒体端点为 CLI、TUI、Web PWA、Electron 桌面、Telegram、Discord 和 Manager Dashboard 提供同一套会话、记忆和项目上下文。</p>
+<p class="lead">CLI-JAW 是一个基于 Node.js 22 的多 AI 运行时服务器。根处理器和 200 个 API/媒体端点为 CLI、TUI、Web PWA、Electron 桌面、Telegram、Discord 和 Manager Dashboard 提供同一套会话、记忆和项目上下文。</p>
 
 <h2>系统概览</h2>
 <p>所有运行表面都经过 <code>server.ts</code>。服务器处理认证、安全、SSE 事件和启动引导，然后委托给 <code>src/routes/</code> 与核心子系统。</p>
@@ -90,12 +90,12 @@ server.ts ──→ src/routes/* ──→ src/core/ | src/agent/ | src/orchestr
 </table>
 
 <h2>路由模块</h2>
-<p>服务器合计注册 195 个根处理器和路由处理器。每个模块都是一个独立的注册函数，接收 Express 应用和认证中间件。</p>
+<p>服务器合计注册 201 个根处理器和路由处理器。每个模块都是一个独立的注册函数，接收 Express 应用和认证中间件。</p>
 <table>
 <tr><th>模块</th><th>路由数</th><th>职责</th></tr>
 <tr><td><code>server.ts</code>（基础）</td><td>14</td><td>健康检查、会话、消息、认证、命令、停止、清除</td></tr>
 <tr><td><code>settings.ts</code></td><td>18</td><td>设置、提示词、heartbeat-md、MCP、CLI 注册表、配额</td></tr>
-<tr><td><code>browser.ts</code></td><td>41</td><td>浏览器原语、标签页管理、web-ai 自动化</td></tr>
+<tr><td><code>browser.ts</code></td><td>43</td><td>浏览器原语、标签页管理、web-ai 自动化和 code-mode 回收</td></tr>
 <tr><td><code>memory.ts</code></td><td>13</td><td>记忆运行时、KV 存储、记忆文件</td></tr>
 <tr><td><code>jaw-memory.ts</code></td><td>11</td><td>Jaw 记忆搜索、读取、保存、soul、刷新、反思</td></tr>
 <tr><td><code>orchestrate.ts</code></td><td>11</td><td>PABCD 状态、工作者、调度、队列管理</td></tr>
@@ -115,7 +115,7 @@ server.ts ──→ src/routes/* ──→ src/core/ | src/agent/ | src/orchestr
 ├── bin/                    # CLI entry + 30 command files
 │   ├── cli-jaw.ts          # Root CLI router
 │   └── commands/           # serve, init, doctor, chat, browser, ...
-├── server.ts               # Express/SSE bootstrap (587L)
+├── server.ts               # Express/SSE bootstrap (593L)
 ├── src/
 │   ├── core/               # 30 files — config, DB, bus, i18n, employees
 │   ├── agent/              # 37 files — spawn, events, lifecycle, ACP

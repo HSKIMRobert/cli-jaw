@@ -506,6 +506,7 @@ jaw browser fetch "https://example.com" --json --trace  # 自适应 URL 读取
 jaw browser snapshot              # 捕获页面状态
 jaw browser vision-click "Login"  # AI 驱动的点击
 jaw browser web-ai status         # ChatGPT/Gemini/Grok web-AI 会话工具
+jaw browser web-ai code --vendor chatgpt --model thinking --effort heavy --prompt "Build an MVP" --output-zip ./result.zip
 
 # 仪表盘连接器
 jaw dashboard memory search "query"  # 只读跨实例记忆搜索
