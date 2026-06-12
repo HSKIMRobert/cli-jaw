@@ -26,8 +26,18 @@ export function buildVirtualHistoryItems(msgs: MessageItem[]): VirtualItem[] {
     return msgs.map((m, index) => buildLazyVirtualMessageItem(normalizeMessageToolLog(m), index));
 }
 
+// 260613 06/50 5b: the virtual scroll retains every loaded message's rendered
+// HTML for the tab's lifetime — a full-history load made `items[]` the largest
+// client allocation in long sessions. The server supports a recent-window
+// (`routes/messages.ts ?limit=`, capped 5000); 3000 keeps weeks of scrollback
+// while bounding the heap. Old servers ignore the param (full history).
+// Mid-session appends stay uncapped on purpose: dropping the oldest item
+// would shift every vsIdx/height index; each reload/restore re-applies the
+// window instead.
+const BOOT_MESSAGE_WINDOW = 3000;
+
 export function bootMessageQuery(): string {
-    return '';
+    return `?limit=${BOOT_MESSAGE_WINDOW}`;
 }
 
 function normalizeMessageScopePart(value: string | null | undefined): string {
