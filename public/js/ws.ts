@@ -108,10 +108,61 @@ interface WsMessage {
     message?: string;
     steered?: boolean;
     steerWaitMs?: number;
+    textLen?: number;
 }
 
 // Agent phase state (populated by agent_status events from orchestrator)
 const agentPhaseState: Record<string, { phase: string; phaseLabel: string }> = {};
+
+// ── Run-scoped SSE replay idempotency ─────────────────────────────────
+// SSE reconnects replay ring-buffer events the page may have already
+// processed (event-channel `?lastEventId=` → routes/events replaySince).
+// The dispatcher used to apply replays as live: a replayed agent_done from
+// a FINISHED turn would mid-turn-finalize the in-flight live block (freezing
+// a partial copy as a VS item) and replayed agent_output chunks re-appended
+// text the block already showed. Guards below scope the agent stream to the
+// trace run that owns it (devlog 260612 manager_stream_hidden_state_audit
+// 06_rca + 08_patch).
+const FINALIZED_RUN_MEMORY = 8;
+let liveTraceRunId: string | null = null;
+let liveAppliedTextLen = 0;
+const finalizedTraceRuns: string[] = [];
+
+function isFinalizedRun(runId: string | null): boolean {
+    return runId !== null && finalizedTraceRuns.includes(runId);
+}
+
+/** Record the turn that just finalized and reset the live cursors. Pass the
+ *  event's runId when present; falls back to the adopted live run id. */
+function markRunFinalized(runId: string | null): void {
+    const finalized = runId ?? liveTraceRunId;
+    liveTraceRunId = null;
+    liveAppliedTextLen = 0;
+    if (finalized && !finalizedTraceRuns.includes(finalized)) {
+        finalizedTraceRuns.push(finalized);
+        if (finalizedTraceRuns.length > FINALIZED_RUN_MEMORY) finalizedTraceRuns.shift();
+    }
+}
+
+/** Adopt the run id carried by a live agent_* event. A different id means a
+ *  new turn started — the text cursor restarts from zero. */
+function adoptLiveRun(runId: string | null): void {
+    if (!runId || runId === liveTraceRunId) return;
+    liveTraceRunId = runId;
+    liveAppliedTextLen = 0;
+}
+
+/** Align the cursors with the authoritative orchestrate snapshot after a
+ *  reconnect/restore hydration: the hydrated block already renders the full
+ *  cumulative `snapshot.text`, so replayed chunks at or below that length
+ *  must be dropped, not re-appended. */
+function syncLiveRunCursor(activeRun?: { running?: boolean; traceRunId?: string; text?: string } | null): void {
+    if (!activeRun?.running) return;
+    if (typeof activeRun.traceRunId === 'string' && activeRun.traceRunId) {
+        liveTraceRunId = activeRun.traceRunId;
+    }
+    liveAppliedTextLen = (activeRun.text || '').length;
+}
 
 let currentOrcScope = '';
 let lastLoadTs = 0;
@@ -133,7 +184,13 @@ async function refreshRuntimeSnapshot(options: { hydrateRun?: boolean } = {}): P
     updateQueueBadge(snap.runtime.queuePending);
     applyQueuedOverlay(snap.queued || []);
     renderPendingQueue(snap.queued || []);
-    if (options.hydrateRun) hydrateActiveRun(snap.activeRun);
+    if (options.hydrateRun) {
+        hydrateActiveRun(snap.activeRun);
+        // The hydrated block now renders the snapshot's cumulative state —
+        // move the replay cursors there so replayed chunks older than the
+        // snapshot are dropped instead of re-appended.
+        syncLiveRunCursor(snap.activeRun);
+    }
     hydrateGoalState();
     if (snap.runtime.busy) {
         setStatus('running');
@@ -822,6 +879,12 @@ function handleServerEvent(msg: WsMessage): void {
         syncOrchestrateSnapshot('queue_update').catch(() => { /* snapshot not critical — UI recovers on next event */ });
     } else if (msg.type === 'agent_tool') {
         if (isRecentSteer()) return;
+        const toolRunId = typeof msg.traceRunId === 'string' && msg.traceRunId ? msg.traceRunId : null;
+        // SSE replay of a turn that already finalized: its steps live inside
+        // the promoted history item — re-adding them would rebuild a second
+        // process block on the live placeholder.
+        if (isFinalizedRun(toolRunId)) return;
+        adoptLiveRun(toolRunId);
         const stepType = msg.toolType === 'thinking' ? 'thinking'
             : msg.toolType === 'search' ? 'search'
                 : msg.toolType === 'subagent' ? 'subagent' : 'tool';
@@ -844,7 +907,20 @@ function handleServerEvent(msg: WsMessage): void {
         });
     } else if (msg.type === 'agent_output' || msg.type === 'agent_chunk') {
         if (isRecentSteer()) return;
-        appendAgentText(msg.text || '');
+        const outputRunId = typeof msg.traceRunId === 'string' && msg.traceRunId ? msg.traceRunId : null;
+        if (isFinalizedRun(outputRunId)) return; // replayed chunk of a finished turn
+        adoptLiveRun(outputRunId);
+        let outputText = msg.text || '';
+        if (outputRunId && typeof msg.textLen === 'number') {
+            // `textLen` is the server-side cumulative length AFTER this chunk.
+            // At or below the applied cursor → the block already renders it
+            // (SSE replay). A partial overlap appends only the unseen tail.
+            if (msg.textLen <= liveAppliedTextLen) return;
+            const missing = msg.textLen - liveAppliedTextLen;
+            if (missing < outputText.length) outputText = outputText.slice(-missing);
+            liveAppliedTextLen = msg.textLen;
+        }
+        appendAgentText(outputText);
     } else if (msg.type === 'agent_retry') {
         const retryDelay = Number(msg.delay ?? 0);
         const retryReasonValue = (msg as WsMessage & { reason?: unknown }).reason;
@@ -874,10 +950,19 @@ function handleServerEvent(msg: WsMessage): void {
             // Suppress agent_done from steered (killed) process.
             // Server sets steered:true; isRecentSteer is fallback for edge cases.
         } else {
+            const doneRunId = typeof msg.traceRunId === 'string' && msg.traceRunId ? msg.traceRunId : null;
+            // Replayed done of an already-finalized turn — drop, the history
+            // item exists. A done carrying a DIFFERENT run id than the live
+            // stream is a stale replay from a previous turn: finalizing here
+            // froze the in-flight block mid-turn (260612 duplicate-block RCA).
+            if (isFinalizedRun(doneRunId)) return;
+            if (doneRunId && liveTraceRunId && doneRunId !== liveTraceRunId) return;
+            markRunFinalized(doneRunId);
             finalizeAgent(msg.text || '', msg.toolLog);
             notifyUnreadResponse();
         }
     } else if (msg.type === 'orchestrate_done') {
+        markRunFinalized(null);
         finalizeAgent(msg.text || '');
         notifyUnreadResponse();
     } else if (msg.type === 'clear') {
@@ -908,6 +993,7 @@ function handleServerEvent(msg: WsMessage): void {
         import('./features/memory.js').then(m => m.refreshMemorySidebar());
     } else if (msg.type === 'steer_started') {
         markSteered();
+        markRunFinalized(null); // killed run — drop its replayed stream too
         finalizeAgent('');
         setStatus('steering');
     } else if (msg.type === 'new_message' && (msg.source === 'telegram' || msg.source === 'discord' || msg.fromQueue === true)) {

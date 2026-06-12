@@ -165,6 +165,13 @@ function lifecycleRuntimeCli(cli: string, provider?: string): string {
     return provider === 'claude' ? 'claude-e' : (provider || cli);
 }
 
+/** Tag agent_done with the trace run that produced it so the web UI can drop
+ *  SSE replays of already-finished turns instead of mid-turn-finalizing the
+ *  in-flight one (devlog 260612 manager_stream_hidden_state_audit 06-08). */
+function runTag(ctx: { traceRunId?: string | null }): Record<string, unknown> {
+    return ctx.traceRunId ? { traceRunId: ctx.traceRunId } : {};
+}
+
 export interface ExitContext {
     fullText: string;
     sessionId: string | null;
@@ -290,7 +297,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
             ...opts, _isSmokeContinuation: true, _skipInsert: true,
         });
         contPromise.then((r) => resolve(r)).catch(() => {
-            broadcast('agent_done', {
+            broadcast('agent_done', { ...runTag(ctx),
                 text: `❌ Smoke continuation failed. Original: ${ctx.fullText.slice(0, 200)}`,
                 error: true, origin,
                 ...empTag,
@@ -449,7 +456,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
             _skipInsert: true,
         });
         retryP.then(resolve).catch(() => {
-            broadcast('agent_done', {
+            broadcast('agent_done', { ...runTag(ctx),
                 text: '❌ kiro stale resume and fresh retry failed',
                 error: true,
                 origin,
@@ -506,7 +513,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
             );
             const messageId = Number(info.lastInsertRowid || 0);
             if (ctx.traceRunId && Number.isInteger(messageId) && messageId > 0) linkTraceRunToMessage(ctx.traceRunId, messageId);
-            broadcast('agent_done', { text: finalContent, toolLog: sanitizedToolLog, origin, ...empTag, ...(wasSteer ? { steered: true } : {}) });
+            broadcast('agent_done', { ...runTag(ctx), text: finalContent, toolLog: sanitizedToolLog, origin, ...empTag, ...(wasSteer ? { steered: true } : {}) });
 
             if (opts._heartbeatAnchorId) {
                 try {
@@ -573,7 +580,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
                 _skipInsert: true,
             }) as { promise: Promise<{ text: string; code: number }> };
             retryP.then(resolve).catch(() => {
-                broadcast('agent_done', { text: `❌ ${errMsg} (fresh-session retry failed)`, error: true, origin, ...empTag, ...(wasSteer ? { steered: true } : {}) }, isEmployee ? 'internal' : 'public');
+                broadcast('agent_done', { ...runTag(ctx), text: `❌ ${errMsg} (fresh-session retry failed)`, error: true, origin, ...empTag, ...(wasSteer ? { steered: true } : {}) }, isEmployee ? 'internal' : 'public');
                 resolve({ text: '', code: 1 });
                 if (mainManaged && !opts.internal) processQueue();
             });
@@ -582,7 +589,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
 
         // ─── Stall kills: do NOT retry — escalate immediately ───
         if (isStall) {
-            broadcast('agent_done', { text: `❌ ${errMsg}`, error: true, origin, ...empTag, ...(wasSteer ? { steered: true } : {}) }, isEmployee ? 'internal' : 'public');
+            broadcast('agent_done', { ...runTag(ctx), text: `❌ ${errMsg}`, error: true, origin, ...empTag, ...(wasSteer ? { steered: true } : {}) }, isEmployee ? 'internal' : 'public');
             finalizeTraceRun(ctx.traceRunId, 'error', errMsg);
             resolve({ text: '', code: 1 });
             if (mainManaged && !opts.internal) processQueue();
@@ -618,7 +625,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
                 _skipSessionPersist: true,
             }) as { promise: Promise<{ text: string; code: number }> };
             retryP.then(resolve).catch(() => {
-                broadcast('agent_done', { text: `❌ ${errMsg} (Gemini fresh-session retry failed)`, error: true, origin, ...empTag }, isEmployee ? 'internal' : 'public');
+                broadcast('agent_done', { ...runTag(ctx), text: `❌ ${errMsg} (Gemini fresh-session retry failed)`, error: true, origin, ...empTag }, isEmployee ? 'internal' : 'public');
                 resolve({ text: '', code: 1 });
                 if (mainManaged && !opts.internal) processQueue();
             });
@@ -653,7 +660,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
                 _skipSessionPersist: true,
             }) as { promise: Promise<{ text: string; code: number }> };
             retryP.then(resolve).catch(() => {
-                broadcast('agent_done', { text: `❌ ${errMsg} (Auto fallback failed)`, error: true, origin, ...empTag }, isEmployee ? 'internal' : 'public');
+                broadcast('agent_done', { ...runTag(ctx), text: `❌ ${errMsg} (Auto fallback failed)`, error: true, origin, ...empTag }, isEmployee ? 'internal' : 'public');
                 resolve({ text: '', code: 1 });
                 if (mainManaged && !opts.internal) processQueue();
             });
@@ -679,7 +686,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
                     ...opts, _retryAttempt: mainAttempt + 1, _skipInsert: true,
                 });
                 retryP.then((r) => resolve(r)).catch(() => {
-                    broadcast('agent_done', { text: `❌ ${errMsg} (재시도 실패, attempt ${mainAttempt + 1})`, error: true, origin, ...empTag }, isEmployee ? 'internal' : 'public');
+                    broadcast('agent_done', { ...runTag(ctx), text: `❌ ${errMsg} (재시도 실패, attempt ${mainAttempt + 1})`, error: true, origin, ...empTag }, isEmployee ? 'internal' : 'public');
                     resolve({ text: '', code: 1 });
                     if (mainManaged && !opts.internal) processQueue();
                 });
@@ -706,7 +713,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
                     ...opts, cli: fallbackCli, _isFallback: true, _skipInsert: true,
                 });
                 retryP.then((r) => resolve(r)).catch(() => {
-                    broadcast('agent_done', {
+                    broadcast('agent_done', { ...runTag(ctx),
                         text: `❌ Fallback (${fallbackCli}) failed`, error: true, origin,
                         ...empTag,
                     }, isEmployee ? 'internal' : 'public');
@@ -716,7 +723,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
                 return;
             }
         }
-        broadcast('agent_done', { text: `❌ ${errMsg}`, error: true, origin, ...empTag }, isEmployee ? 'internal' : 'public');
+        broadcast('agent_done', { ...runTag(ctx), text: `❌ ${errMsg}`, error: true, origin, ...empTag }, isEmployee ? 'internal' : 'public');
     } else if (isEmployee && code !== 0 && !wasKilled && !opts._isFallback) {
         // ─── Employee transient retry (exponential backoff, up to EMP_MAX_RETRIES) ───
         const diagnosticText = `${ctx.fullText}\n${ctx.traceLog.join('\n')}`;
@@ -740,7 +747,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
                     ...opts, _retryAttempt: empAttempt + 1, _skipInsert: true, _skipResume: true,
                 });
                 retryP.then((r) => resolve(r)).catch(() => {
-                    broadcast('agent_done', { text: `❌ ${cls.message} (재시도 실패, attempt ${empAttempt + 1})`, error: true, origin, isEmployee: true }, 'internal');
+                    broadcast('agent_done', { ...runTag(ctx), text: `❌ ${cls.message} (재시도 실패, attempt ${empAttempt + 1})`, error: true, origin, isEmployee: true }, 'internal');
                     resolve({ text: '', code: 1, diagnostic: cls.message });
                 });
             }, empDelayMs));
@@ -783,7 +790,7 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
             _skipSessionPersist: true,
         });
         retryP.then(resolve).catch(() => {
-            broadcast('agent_done', {
+            broadcast('agent_done', { ...runTag(ctx),
                 text: '❌ kiro resume empty and fresh retry failed',
                 error: true,
                 origin,

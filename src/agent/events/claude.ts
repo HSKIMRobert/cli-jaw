@@ -19,9 +19,7 @@ import {
     claudeRateLimitWaitMs,
     appendDetail,
     extractText,
-    liveScopeOf,
 } from './helpers.js';
-import { appendLiveRunText } from '../live-run-state.js';
 
 // ─── Claude rate-limit tool management ───────────────
 
@@ -221,9 +219,11 @@ export function handleClaudeEvent(
             for (const block of evt.message.content) {
                 if (block.type === 'text') {
                     const segment = appendAssistantTextSegment(ctx, block.text);
+                    // Live-run accumulation happens once in the dispatcher's
+                    // broadcastAgentOutput when pendingOutputChunk drains —
+                    // appending here too doubled the snapshot text for the
+                    // plain `claude` CLI (260612 audit 07 F-T4).
                     ctx.pendingOutputChunk = (ctx.pendingOutputChunk || '') + segment;
-                    const scope = liveScopeOf(ctx);
-                    if (scope) appendLiveRunText(scope, segment);
                 }
             }
         }

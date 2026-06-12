@@ -34,7 +34,7 @@ import { handleAgentExit, setSpawnAgent, setMainMetaHandler } from './lifecycle-
 import { buildServicePath } from '../core/runtime-path.js';
 import { resolveOrcScope } from '../orchestrator/scope.js';
 import { stripInterviewTracker } from '../orchestrator/sanitize.js';
-import { beginLiveRun, appendLiveRunText, clearLiveRun, replaceLiveRunTools, appendLiveRunTool } from './live-run-state.js';
+import { beginLiveRun, appendLiveRunText, setLiveRunTraceId, clearLiveRun, replaceLiveRunTools, appendLiveRunTool } from './live-run-state.js';
 import {
     memoryFlushCounter as _memoryFlushCounter,
     flushCycleCount as _flushCycleCount,
@@ -159,6 +159,31 @@ interface CopilotSpawnContext extends SpawnContext {
 
 import { killProcessTree } from './spawn/process-kill.js';
 
+/** Single choke point for streamed assistant text: appends to the live-run
+ *  accumulator and broadcasts agent_output tagged with the owning trace run
+ *  id plus the cumulative text length (`textLen`). The web UI uses the pair
+ *  as a replay-dedup cursor — SSE reconnect replays re-deliver chunks the
+ *  client already rendered (devlog 260612 manager_stream_hidden_state_audit
+ *  06-08). */
+function broadcastAgentOutput(
+    ctx: SpawnContext,
+    agentLabel: string,
+    cli: string,
+    text: string,
+    empTag: Record<string, unknown>,
+    audience: 'public' | 'internal',
+): void {
+    const textLen = ctx.liveScope ? appendLiveRunText(ctx.liveScope, text) : null;
+    broadcast('agent_output', {
+        agentId: agentLabel,
+        cli,
+        text,
+        ...(ctx.traceRunId ? { traceRunId: ctx.traceRunId } : {}),
+        ...(textLen !== null ? { textLen } : {}),
+        ...empTag,
+    }, audience);
+}
+
 function appendParentLiveRunTool(ctx: SpawnContext, tool: ToolEntry): void {
     if (!ctx.parentLiveScope) return;
     const [safeTool] = sanitizeWorkerProgressTools([{ ...tool, isEmployee: true }]);
@@ -185,13 +210,7 @@ function emitKiroStreamEvents(
                 ctx.liveOutputText += segment;
             }
             ctx.outputTextStarted = true;
-            if (ctx.liveScope) appendLiveRunText(ctx.liveScope, segment);
-            broadcast('agent_output', {
-                agentId: agentLabel,
-                cli,
-                text: segment,
-                ...empTag,
-            }, traceAudience);
+            broadcastAgentOutput(ctx, agentLabel, cli, segment, empTag, traceAudience);
             continue;
         }
         const tool: ToolEntry = {
@@ -1107,6 +1126,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         if (!opts.internal) broadcast('agent_status', { status: 'running', cli, agentId: agentLabel, ...empTag }, traceAudience);
 
         const traceRunId = startTraceRun({ cli, model, workingDir: settings["workingDir"] || null, agentLabel, audience: traceAudience });
+        if (mainManaged && !opts.internal) setLiveRunTraceId(liveScope, traceRunId);
         const ctx: CopilotSpawnContext = {
             fullText: '', traceLog: [], toolLog: [], seenToolKeys: new Set<string>(),
             hasClaudeStreamEvents: false, sessionId: null as string | null, cost: null as number | null,
@@ -1175,13 +1195,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 flushThinking();
                 const segment = appendAssistantTextSegment(ctx, parsed.text);
                 if (segment) {
-                    if (ctx.liveScope) appendLiveRunText(ctx.liveScope, segment);
-                    broadcast('agent_output', {
-                        agentId: agentLabel,
-                        cli,
-                        text: segment,
-                        ...empTag,
-                    }, traceAudience);
+                    broadcastAgentOutput(ctx, agentLabel, cli, segment, empTag, traceAudience);
                     lastVisibleBroadcastTs = Date.now();
                     heartbeatSent = false;
                 }
@@ -1274,7 +1288,10 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 ctx.toolLog = [];
                 ctx.seenToolKeys.clear();
                 ctx.thinkingBuf = '';  // Phase 17.2: clear replay thinking too
-                if (mainManaged && !opts.internal) beginLiveRun(liveScope, cli);
+                if (mainManaged && !opts.internal) {
+                    beginLiveRun(liveScope, cli);
+                    if (ctx.traceRunId) setLiveRunTraceId(liveScope, ctx.traceRunId);
+                }
 
                 // If loadSession failed (or not resuming), inject history into prompt
                 const needsHistoryFallback = isResume && !loadSessionOk;
@@ -1433,13 +1450,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                     const displayDelta = normalizeAssistantDisplayText(delta);
                     if (ctx.liveOutputText !== undefined) ctx.liveOutputText += displayDelta;
                     if (!ctx.outputTextStarted) ctx.outputTextStarted = true;
-                    if (ctx.liveScope) appendLiveRunText(ctx.liveScope, displayDelta);
-                    broadcast('agent_output', {
-                        agentId: agentLabel,
-                        cli,
-                        text: displayDelta,
-                        ...empTag,
-                    }, traceAudience);
+                    broadcastAgentOutput(ctx, agentLabel, cli, displayDelta, empTag, traceAudience);
                     return;
                 }
                 if (event.kind === 'tool') {
@@ -1476,7 +1487,10 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         }
         activeProcesses.set(agentLabel, child);
         if (!opts.internal) broadcast('agent_status', { running: true, agentId: agentLabel, cli, provider: profile.id, ...empTag });
-        if (mainManaged && !opts.internal) beginLiveRun(liveScope, cli);
+        if (mainManaged && !opts.internal) {
+            beginLiveRun(liveScope, cli);
+            setLiveRunTraceId(liveScope, traceRunId);
+        }
         if (mainManaged && !opts.internal && !opts._skipInsert) {
             insertMessage.run('user', prompt, cli, runtimeModel, settings["workingDir"] || null, getActiveChatSession());
         }
@@ -1582,6 +1596,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         if (!opts.internal) broadcast('agent_status', { status: 'running', cli, agentId: agentLabel, ...empTag }, traceAudience);
 
         const traceRunId = startTraceRun({ cli, model, workingDir: settings["workingDir"] || null, agentLabel, audience: traceAudience });
+        if (mainManaged && !opts.internal) setLiveRunTraceId(liveScope, traceRunId);
         const ctx: CopilotSpawnContext = {
             fullText: '', traceLog: [], toolLog: [], seenToolKeys: new Set<string>(),
             hasClaudeStreamEvents: false, sessionId: null as string | null, cost: null as number | null,
@@ -1647,13 +1662,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 flushCodexAppThinking();
                 const segment = appendAssistantTextSegment(ctx, parsed.text);
                 if (segment) {
-                    if (ctx.liveScope) appendLiveRunText(ctx.liveScope, segment);
-                    broadcast('agent_output', {
-                        agentId: agentLabel,
-                        cli,
-                        text: segment,
-                        ...empTag,
-                    }, traceAudience);
+                    broadcastAgentOutput(ctx, agentLabel, cli, segment, empTag, traceAudience);
                     lastVisibleBroadcastTs = Date.now();
                     heartbeatSent = false;
                 }
@@ -1905,6 +1914,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     if (!opts.internal) broadcast('agent_status', { status: 'running', cli, agentId: agentLabel, ...runtimeStatusMeta, ...empTag }, traceAudience);
 
     const traceRunId = startTraceRun({ cli, model: runtimeModel, workingDir: settings["workingDir"] || null, agentLabel, audience: traceAudience });
+    if (mainManaged && !opts.internal) setLiveRunTraceId(liveScope, traceRunId);
     const kiroPlainText = isKiroPlainTextCli(cli, effectiveProvider);
     const kiroSpawnStartedAt = kiroPlainText ? Date.now() - 1000 : 0;
     const kiroConversationIdsBefore = (kiroPlainText && !isResume && !empSid)
@@ -2080,13 +2090,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         }
         const outputChunk = extractOutputChunk(dispatchCli, event, ctx);
         if (outputChunk) {
-            if (ctx.liveScope) appendLiveRunText(ctx.liveScope, outputChunk);
-            broadcast('agent_output', {
-                agentId: agentLabel,
-                cli,
-                text: outputChunk,
-                ...empTag,
-            }, (opts.internal || isEmployee) ? 'internal' : 'public');
+            broadcastAgentOutput(ctx, agentLabel, cli, outputChunk, empTag, (opts.internal || isEmployee) ? 'internal' : 'public');
         }
     };
     if (cli === 'opencode') {
@@ -2124,13 +2128,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 if (ctx.liveOutputText !== undefined) ctx.liveOutputText += newText;
                 ctx.outputTextStarted = true;
                 appendTraceEvent({ runId: ctx.traceRunId, source: 'cli_raw', eventType: 'plain_text', raw: newText });
-                if (ctx.liveScope) appendLiveRunText(ctx.liveScope, newText);
-                broadcast('agent_output', {
-                    agentId: agentLabel,
-                    cli,
-                    text: newText,
-                    ...empTag,
-                }, traceAudience);
+                broadcastAgentOutput(ctx, agentLabel, cli, newText, empTag, traceAudience);
                 scheduleAgyQuietCompletion();
                 return;
             }
@@ -2151,13 +2149,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 return;
             }
             appendTraceEvent({ runId: ctx.traceRunId, source: 'cli_raw', eventType: 'plain_text', raw: displayText });
-            if (ctx.liveScope) appendLiveRunText(ctx.liveScope, displayText);
-            broadcast('agent_output', {
-                agentId: agentLabel,
-                cli,
-                text: displayText,
-                ...empTag,
-            }, traceAudience);
+            broadcastAgentOutput(ctx, agentLabel, cli, displayText, empTag, traceAudience);
             scheduleAgyQuietCompletion();
             return;
         }

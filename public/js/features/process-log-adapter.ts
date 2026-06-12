@@ -14,7 +14,7 @@ import type { ToolLogEntry } from './tool-ui.js';
 
 export interface MessageItem { id?: number | string; role: string; content: string; tool_log?: string | null; trace_run_id?: string | null; cli?: string | null; }
 export interface QueuedOverlayItem { id: string; prompt: string; source?: string; ts?: number; }
-export interface ActiveRunSnapshot { running?: boolean; cli?: string; text?: string; toolLog?: ToolLogEntry[]; startedAt?: number; }
+export interface ActiveRunSnapshot { running?: boolean; cli?: string; text?: string; toolLog?: ToolLogEntry[]; startedAt?: number; traceRunId?: string; }
 
 function processStepType(toolType?: string): ProcessStep['type'] {
     return toolType === 'thinking' || toolType === 'search' || toolType === 'subagent'

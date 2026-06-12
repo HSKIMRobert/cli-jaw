@@ -4,7 +4,7 @@
 
 import type { Router, Request, Response, RequestHandler } from 'express';
 import {
-    subscribe, replaySince, hasReplayGap,
+    subscribe, replaySince, hasReplayGap, currentSeq,
     MAX_SSE_LISTENERS, type BusEvent,
 } from '../core/event-bus.js';
 
@@ -44,10 +44,15 @@ export function registerEventsRoutes(app: Router, requireAuth: RequestHandler): 
         // fetch/EventSource would hang until the 15s heartbeat.
         res.write(': connected\n\n');
 
-        // Replay missed events (Last-Event-ID header or ?lastEventId= query)
+        // Replay missed events (Last-Event-ID header or ?lastEventId= query).
+        // A cursor AHEAD of the current seq means the client kept a lastEventId
+        // from a previous server process (ids reset to 0 on restart) — without
+        // the explicit gap signal it would be treated as "caught up" and every
+        // event since the restart would be silently lost (devlog 260612
+        // manager_stream_hidden_state_audit 07 F-W2).
         const lastId = parseLastEventId(req);
         if (lastId > 0) {
-            if (hasReplayGap(lastId)) {
+            if (lastId > currentSeq() || hasReplayGap(lastId)) {
                 res.write(`data: ${JSON.stringify({ topic: 'system', event: 'replay_gap' })}\n\n`);
             }
             for (const entry of replaySince(lastId)) res.write(formatSse(entry));
