@@ -73,6 +73,10 @@ function connect(s: BridgeState, port: number): void {
     const handlers: WorkerEventHandlers = {
         onMessage: () => schedulePrefetch(s, port),
         onAgentDone: () => schedulePrefetch(s, port),
+        // Internal eventsource reconnect: agent_done/new_message pings during
+        // the gap were lost (ping-style client, no replay) — refresh the
+        // latest-message cache so jaw-ceo reads don't serve pre-gap data.
+        onReopen: () => schedulePrefetch(s, port),
         // #233: worker cli/model/projectDirs changed — relay to the manager UI
         // (the /api/manager/events/stream route forwards this bus event).
         onSettingsChange: (p, data) => {

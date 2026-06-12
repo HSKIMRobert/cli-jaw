@@ -11,6 +11,11 @@ export type LiveRunEntry = {
     text: string;
     toolLog: SanitizedToolLogEntry[];
     startedAt?: number;
+    /** Trace run id of the spawn that owns this live run. Rides on
+     *  agent_output/agent_done broadcasts and the orchestrate snapshot so the
+     *  web UI can scope SSE replays to the run they belong to (devlog 260612
+     *  manager_stream_hidden_state_audit 06-08). */
+    traceRunId?: string;
 };
 
 const EMPTY_LIVE_RUN: LiveRunEntry = {
@@ -38,11 +43,22 @@ export function beginLiveRun(scope: string, cli: string): void {
     });
 }
 
-export function appendLiveRunText(scope: string, text: string): void {
-    if (!text) return;
+/** Append a streamed segment. Returns the cumulative text length after the
+ *  append (the replay-dedup cursor broadcast as `textLen`), or null when no
+ *  live run is active for the scope. */
+export function appendLiveRunText(scope: string, text: string): number | null {
     const current = liveRuns.get(scope);
-    if (!current?.running) return;
-    current.text += text;
+    if (!current?.running) return null;
+    if (text) current.text += text;
+    return current.text.length;
+}
+
+/** Bind the trace run id once startTraceRun has produced it (beginLiveRun
+ *  runs earlier in every spawn path, so the id arrives via this setter). */
+export function setLiveRunTraceId(scope: string, traceRunId: string): void {
+    const current = liveRuns.get(scope);
+    if (!current?.running || !traceRunId) return;
+    current.traceRunId = traceRunId;
 }
 
 export function replaceLiveRunTools(scope: string, toolLog: unknown[]): void {

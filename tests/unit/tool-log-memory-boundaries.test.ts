@@ -12,7 +12,8 @@ test('backend agent_done DB and broadcast boundaries use sanitized tool logs', (
 
     assert.ok(source.includes('sanitizeToolLogForDurableStorage(mergedToolLog)'));
     assert.ok(source.includes('serializeSanitizedToolLog(sanitizedToolLog)'));
-    assert.ok(source.includes("broadcast('agent_done', { text: finalContent, toolLog: sanitizedToolLog"));
+    // runTag(ctx) rides first since the replay-idempotency patch (260612 audit 08).
+    assert.ok(source.includes("broadcast('agent_done', { ...runTag(ctx), text: finalContent, toolLog: sanitizedToolLog"));
     assert.ok(!source.includes('const toolLogJson = mergedToolLog.length ? JSON.stringify(mergedToolLog) : null'));
 });
 

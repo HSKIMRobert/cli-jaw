@@ -26,6 +26,11 @@ export interface WorkerEventHandlers {
     onUnsupported?: (port: number) => void;
     /** Connection gave up after exhausting transient retries. */
     onDisconnect?: (port: number) => void;
+    /** Stream re-opened after an internal eventsource reconnect. Events
+     *  emitted during the gap were never delivered (no lastEventId replay on
+     *  this ping-style client) — consumers must re-sync derived state
+     *  (devlog 260612 manager_stream_hidden_state_audit 07 F-W1). */
+    onReopen?: (port: number) => void;
 }
 
 export const MAX_TRANSIENT_RETRIES = 10;
@@ -43,6 +48,7 @@ export function subscribeToWorker(
     const es = new EventSourceImpl(`http://127.0.0.1:${port}/api/events`);
     let retryCount = 0;
     let done = false;
+    let openedOnce = false;
 
     const finish = (notify: 'unsupported' | 'disconnect' | null) => {
         if (done) return;
@@ -52,7 +58,11 @@ export function subscribeToWorker(
         if (notify === 'disconnect') handlers.onDisconnect?.(port);
     };
 
-    es.onopen = () => { retryCount = 0; };
+    es.onopen = () => {
+        retryCount = 0;
+        if (openedOnce) handlers.onReopen?.(port);
+        openedOnce = true;
+    };
 
     es.onmessage = (e) => {
         let data: WorkerBusEvent;

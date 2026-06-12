@@ -109,3 +109,23 @@ test('SSE signals replay_gap when lastEventId was evicted', async () => {
         assert.ok(!/^event: /m.test(out));
     });
 });
+
+test('SSE signals replay_gap when the cursor is AHEAD of the current seq (pre-restart cursor)', async () => {
+    await withServer(async baseUrl => {
+        // A client that survived a server restart holds a lastEventId from the
+        // previous process. The new ring's ids restart near 0, so replaySince
+        // finds nothing and the eviction check stays false — without the
+        // explicit ahead-of-seq guard the client is silently treated as
+        // caught-up and every event since the restart is lost (260612 audit
+        // 07 F-W2).
+        const staleCursor = currentSeq() + 100_000;
+
+        const ac = new AbortController();
+        const res = await fetch(`${baseUrl}/api/events?lastEventId=${staleCursor}`, { signal: ac.signal });
+        assert.ok(res.body);
+        const out = await readUntil(res.body, buf => buf.includes('replay_gap'));
+        ac.abort();
+
+        assert.ok(out.includes('"event":"replay_gap"'), `expected replay_gap for ahead-of-seq cursor, got: ${out.slice(0, 200)}`);
+    });
+});

@@ -100,3 +100,15 @@ test('CLOSED readyState without 4xx reports disconnect immediately', () => {
     es.onerror?.({});
     assert.deepEqual(calls, ['disconnect']);
 });
+
+test('internal eventsource reconnect fires onReopen (cache resync ping), first open does not', () => {
+    const calls: string[] = [];
+    const { es } = setup({ onReopen: (port) => calls.push(`reopen:${port}`) });
+    es.onopen?.({});                       // initial connect — connect() already prefetches
+    assert.deepEqual(calls, []);
+    es.onerror?.({});                      // transient drop, internal retry
+    es.onopen?.({});                       // stream re-established — gap events were lost
+    assert.deepEqual(calls, ['reopen:3457']);
+    es.onopen?.({});                       // every subsequent reopen re-syncs too
+    assert.deepEqual(calls, ['reopen:3457', 'reopen:3457']);
+});
