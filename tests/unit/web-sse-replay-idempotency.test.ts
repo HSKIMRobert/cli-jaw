@@ -71,13 +71,26 @@ test('RID-007: replayed agent_tool events of finalized runs are dropped', () => 
     assert.ok(toolBlock.includes('if (isFinalizedRun(toolRunId)) return'), 'steps of finalized runs must not rebuild a second process block');
 });
 
-test('RID-008: snapshot hydration moves the replay cursors to the hydrated state', () => {
+test('RID-008: replayed same-run agent_tool events already covered by snapshot hydration are dropped', () => {
+    const toolBlock = wsSrc.slice(wsSrc.indexOf("msg.type === 'agent_tool'"), wsSrc.indexOf("msg.type === 'agent_output'"));
+    assert.ok(wsSrc.includes('const liveAppliedToolSeqByRun = new Map'), 'tool replay guard should track applied traceSeq by run');
+    assert.ok(wsSrc.includes('function shouldDropReplayedTool('), 'tool replay guard helper should exist');
+    assert.ok(toolBlock.includes('const toolSeq = positiveSeq(msg.traceSeq)'), 'agent_tool should normalize traceSeq');
+    assert.ok(toolBlock.includes('shouldDropReplayedTool(toolRunId, toolSeq, msg.sseReplay === true)'), 'only SSE replayed tool events at/below cursor should be dropped');
+    assert.ok(toolBlock.indexOf('shouldDropReplayedTool(') < toolBlock.indexOf('showProcessStep({'),
+        'replayed hydrated tools must be dropped before rendering');
+    assert.ok(toolBlock.includes('rememberAppliedToolSeq(toolRunId, toolSeq)'), 'accepted tool events should advance the cursor for later replay suppression');
+});
+
+test('RID-009: snapshot hydration moves the replay cursors to the hydrated state', () => {
     assert.ok(wsSrc.includes('function syncLiveRunCursor('), 'cursor sync helper should exist');
     assert.ok(wsSrc.includes('syncLiveRunCursor(snap.activeRun)'), 'hydrateRun snapshots must sync the cursors');
     assert.ok(wsSrc.includes("liveAppliedTextLen = (activeRun.text || '').length"), 'cursor must align with the hydrated cumulative text');
+    assert.ok(wsSrc.includes('rememberAppliedToolSeq(activeRun.traceRunId || null, maxAppliedToolSeq(activeRun))'),
+        'cursor must align with hydrated tool traceSeq state');
 });
 
-test('RID-009: steer and orchestrate_done retire the live run from replay', () => {
+test('RID-010: steer and orchestrate_done retire the live run from replay', () => {
     const steerBlock = wsSrc.slice(wsSrc.indexOf("msg.type === 'steer_started'"), wsSrc.indexOf("msg.type === 'new_message'"));
     assert.ok(steerBlock.includes('markRunFinalized(null)'), 'steer must retire the killed run');
     const orchBlock = wsSrc.slice(wsSrc.indexOf("msg.type === 'orchestrate_done'"), wsSrc.indexOf("msg.type === 'clear'"));
@@ -86,7 +99,7 @@ test('RID-009: steer and orchestrate_done retire the live run from replay', () =
 
 // ─── Behavior: live-run-state cursor semantics ───
 
-test('RID-010: appendLiveRunText returns the cumulative cursor and setLiveRunTraceId rides the snapshot', async () => {
+test('RID-011: appendLiveRunText returns the cumulative cursor and setLiveRunTraceId rides the snapshot', async () => {
     const { beginLiveRun, appendLiveRunText, setLiveRunTraceId, getLiveRun, clearLiveRun } =
         await import('../../src/agent/live-run-state.ts');
     const scope = 'unit-replay-meta';

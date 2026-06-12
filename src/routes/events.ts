@@ -13,8 +13,8 @@ let activeConnections = 0;
 
 export function getActiveSseConnections(): number { return activeConnections; }
 
-function formatSse(entry: BusEvent): string {
-    return `id: ${entry.id}\ndata: ${JSON.stringify({ ...entry.data, topic: entry.topic, event: entry.event })}\n\n`;
+function formatSse(entry: BusEvent, replay = false): string {
+    return `id: ${entry.id}\ndata: ${JSON.stringify({ ...entry.data, topic: entry.topic, event: entry.event, ...(replay ? { sseReplay: true } : {}) })}\n\n`;
 }
 
 function parseLastEventId(req: Request): number {
@@ -55,7 +55,7 @@ export function registerEventsRoutes(app: Router, requireAuth: RequestHandler): 
             if (lastId > currentSeq() || hasReplayGap(lastId)) {
                 res.write(`data: ${JSON.stringify({ topic: 'system', event: 'replay_gap' })}\n\n`);
             }
-            for (const entry of replaySince(lastId)) res.write(formatSse(entry));
+            for (const entry of replaySince(lastId)) res.write(formatSse(entry, true));
         }
 
         // Live delivery

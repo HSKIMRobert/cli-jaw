@@ -89,7 +89,25 @@ test('SSE replays events after lastEventId on reconnect', async () => {
 
         assert.ok(out.includes('"replayed":1'));
         assert.ok(out.includes('"replayed":2'));
+        assert.ok(out.includes('"sseReplay":true'), `expected replay marker on replayed events, got: ${out}`);
         assert.ok(!/^event: /m.test(out));
+    });
+});
+
+test('SSE live events do not carry the replay marker', async () => {
+    await withServer(async baseUrl => {
+        const ac = new AbortController();
+        const res = await fetch(`${baseUrl}/api/events`, { signal: ac.signal });
+        assert.equal(res.status, 200);
+        assert.ok(res.body);
+
+        setTimeout(() => publish('system', 'system_notice', { liveReplayMarkerCheck: true }), 50);
+
+        const out = await readUntil(res.body, buf => buf.includes('"liveReplayMarkerCheck":true'));
+        ac.abort();
+
+        assert.ok(out.includes('"liveReplayMarkerCheck":true'), `expected live event, got: ${out}`);
+        assert.ok(!out.includes('"sseReplay":true'), `live event must not be marked as replay: ${out}`);
     });
 });
 

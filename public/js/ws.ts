@@ -109,6 +109,7 @@ interface WsMessage {
     steered?: boolean;
     steerWaitMs?: number;
     textLen?: number;
+    sseReplay?: boolean;
 }
 
 // Agent phase state (populated by agent_status events from orchestrator)
@@ -124,12 +125,48 @@ const agentPhaseState: Record<string, { phase: string; phaseLabel: string }> = {
 // trace run that owns it (devlog 260612 manager_stream_hidden_state_audit
 // 06_rca + 08_patch).
 const FINALIZED_RUN_MEMORY = 8;
+const TOOL_SEQ_RUN_MEMORY = 16;
 let liveTraceRunId: string | null = null;
 let liveAppliedTextLen = 0;
 const finalizedTraceRuns: string[] = [];
+const liveAppliedToolSeqByRun = new Map<string, number>();
 
 function isFinalizedRun(runId: string | null): boolean {
     return runId !== null && finalizedTraceRuns.includes(runId);
+}
+
+function positiveSeq(value: unknown): number | null {
+    const n = Number(value);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : null;
+}
+
+function rememberAppliedToolSeq(runId: string | null, seq: number | null): void {
+    if (!runId || seq == null) return;
+    const prev = liveAppliedToolSeqByRun.get(runId) || 0;
+    if (seq > prev) liveAppliedToolSeqByRun.set(runId, seq);
+    while (liveAppliedToolSeqByRun.size > TOOL_SEQ_RUN_MEMORY) {
+        const oldest = liveAppliedToolSeqByRun.keys().next().value;
+        if (!oldest) break;
+        liveAppliedToolSeqByRun.delete(oldest);
+    }
+}
+
+function maxAppliedToolSeq(activeRun?: { traceRunId?: string; toolLog?: Array<{ traceRunId?: string; traceSeq?: number }> } | null): number | null {
+    const runId = typeof activeRun?.traceRunId === 'string' && activeRun.traceRunId ? activeRun.traceRunId : null;
+    if (!runId || !Array.isArray(activeRun?.toolLog)) return null;
+    let maxSeq = 0;
+    for (const tool of activeRun.toolLog) {
+        if (tool?.traceRunId !== runId) continue;
+        const seq = positiveSeq(tool.traceSeq);
+        if (seq != null && seq > maxSeq) maxSeq = seq;
+    }
+    return maxSeq > 0 ? maxSeq : null;
+}
+
+function shouldDropReplayedTool(runId: string | null, seq: number | null, replay?: boolean): boolean {
+    if (!replay || !runId || seq == null) return false;
+    const applied = liveAppliedToolSeqByRun.get(runId) || 0;
+    return seq <= applied;
 }
 
 /** Record the turn that just finalized and reset the live cursors. Pass the
@@ -156,12 +193,13 @@ function adoptLiveRun(runId: string | null): void {
  *  reconnect/restore hydration: the hydrated block already renders the full
  *  cumulative `snapshot.text`, so replayed chunks at or below that length
  *  must be dropped, not re-appended. */
-function syncLiveRunCursor(activeRun?: { running?: boolean; traceRunId?: string; text?: string } | null): void {
+function syncLiveRunCursor(activeRun?: { running?: boolean; traceRunId?: string; text?: string; toolLog?: Array<{ traceRunId?: string; traceSeq?: number }> } | null): void {
     if (!activeRun?.running) return;
     if (typeof activeRun.traceRunId === 'string' && activeRun.traceRunId) {
         liveTraceRunId = activeRun.traceRunId;
     }
     liveAppliedTextLen = (activeRun.text || '').length;
+    rememberAppliedToolSeq(activeRun.traceRunId || null, maxAppliedToolSeq(activeRun));
 }
 
 let currentOrcScope = '';
@@ -880,10 +918,12 @@ function handleServerEvent(msg: WsMessage): void {
     } else if (msg.type === 'agent_tool') {
         if (isRecentSteer()) return;
         const toolRunId = typeof msg.traceRunId === 'string' && msg.traceRunId ? msg.traceRunId : null;
+        const toolSeq = positiveSeq(msg.traceSeq);
         // SSE replay of a turn that already finalized: its steps live inside
         // the promoted history item — re-adding them would rebuild a second
         // process block on the live placeholder.
         if (isFinalizedRun(toolRunId)) return;
+        if (shouldDropReplayedTool(toolRunId, toolSeq, msg.sseReplay === true)) return;
         adoptLiveRun(toolRunId);
         const stepType = msg.toolType === 'thinking' ? 'thinking'
             : msg.toolType === 'search' ? 'search'
@@ -905,6 +945,7 @@ function handleServerEvent(msg: WsMessage): void {
             status: (msg.status as 'running' | 'done' | 'error') || 'running',
             startTime: Date.now(),
         });
+        rememberAppliedToolSeq(toolRunId, toolSeq);
     } else if (msg.type === 'agent_output' || msg.type === 'agent_chunk') {
         if (isRecentSteer()) return;
         const outputRunId = typeof msg.traceRunId === 'string' && msg.traceRunId ? msg.traceRunId : null;
