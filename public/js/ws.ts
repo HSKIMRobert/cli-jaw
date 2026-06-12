@@ -125,7 +125,10 @@ const agentPhaseState: Record<string, { phase: string; phaseLabel: string }> = {
 // trace run that owns it (devlog 260612 manager_stream_hidden_state_audit
 // 06_rca + 08_patch).
 const FINALIZED_RUN_MEMORY = 8;
-const TOOL_SEQ_RUN_MEMORY = 16;
+// 64: with public employee tool mirrors (260613 20 P2-i) every employee run
+// contributes a traceRunId — 16 could evict the BOSS run's cursor mid-run and
+// silently disable the replay guard (260613 04 §3).
+const TOOL_SEQ_RUN_MEMORY = 64;
 let liveTraceRunId: string | null = null;
 let liveAppliedTextLen = 0;
 const finalizedTraceRuns: string[] = [];
@@ -145,7 +148,12 @@ function rememberAppliedToolSeq(runId: string | null, seq: number | null): void 
     const prev = liveAppliedToolSeqByRun.get(runId) || 0;
     if (seq > prev) liveAppliedToolSeqByRun.set(runId, seq);
     while (liveAppliedToolSeqByRun.size > TOOL_SEQ_RUN_MEMORY) {
-        const oldest = liveAppliedToolSeqByRun.keys().next().value;
+        // Pin the live boss run: evicting its cursor mid-run would disable
+        // the replay guard exactly when it matters (260613 04 §3).
+        let oldest: string | null = null;
+        for (const key of liveAppliedToolSeqByRun.keys()) {
+            if (key !== liveTraceRunId) { oldest = key; break; }
+        }
         if (!oldest) break;
         liveAppliedToolSeqByRun.delete(oldest);
     }
@@ -924,7 +932,10 @@ function handleServerEvent(msg: WsMessage): void {
         // process block on the live placeholder.
         if (isFinalizedRun(toolRunId)) return;
         if (shouldDropReplayedTool(toolRunId, toolSeq, msg.sseReplay === true)) return;
-        adoptLiveRun(toolRunId);
+        // Employee mirror events carry the EMPLOYEE's run id — adopting it
+        // would reset the boss text cursor and weaken replay protection
+        // during interleave (260613 20 P2-i). Only boss tools adopt.
+        if (msg.isEmployee !== true) adoptLiveRun(toolRunId);
         const stepType = msg.toolType === 'thinking' ? 'thinking'
             : msg.toolType === 'search' ? 'search'
                 : msg.toolType === 'subagent' ? 'subagent' : 'tool';

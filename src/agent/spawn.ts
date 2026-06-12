@@ -7,6 +7,7 @@ import { join } from 'path';
 import { spawn, type ChildProcess } from 'child_process';
 import { StringDecoder } from 'node:string_decoder';
 import { broadcast } from '../core/bus.js';
+import { publish as ssePublish } from '../core/event-bus.js';
 import { settings, UPLOADS_DIR, detectCli, getProjectDirs } from '../core/config.js';
 import { migrateLegacyClaudeValue } from '../cli/claude-models.js';
 import { stripUndefined } from '../core/strip-undefined.js';
@@ -189,6 +190,12 @@ function appendParentLiveRunTool(ctx: SpawnContext, tool: ToolEntry): void {
     const [safeTool] = sanitizeWorkerProgressTools([{ ...tool, isEmployee: true }]);
     if (!safeTool) return;
     appendLiveRunTool(ctx.parentLiveScope, { ...safeTool, isEmployee: true });
+    // 260613 20 P2-i: employee runs are internal-audience, so without this the
+    // web UI paints employee progress only on interaction-triggered snapshot
+    // hydration. Surface the SAME sanitized mirror entry on the SSE bus only —
+    // ssePublish (not broadcast) so internal listeners are not notified twice;
+    // the call sites already broadcast the raw tool internally.
+    ssePublish('agent', 'agent_tool', { ...safeTool, isEmployee: true });
 }
 
 function emitKiroStreamEvents(
