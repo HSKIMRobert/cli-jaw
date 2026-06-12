@@ -57,7 +57,7 @@ export function getServerUrl(port?: string | number) {
     return `http://127.0.0.1:${port || process.env["PORT"] || settings["port"] || DEFAULT_PORT}`;
 }
 export function getWsUrl(port?: string | number) {
-    return `ws://localhost:${port || process.env["PORT"] || settings["port"] || DEFAULT_PORT}`;
+    return `ws://127.0.0.1:${port || process.env["PORT"] || settings["port"] || DEFAULT_PORT}`;
 }
 
 /** Locate the cli-jaw package root (for bundled skills_ref/) */

@@ -43,6 +43,11 @@ export interface WorkerSlot {
     progressUpdatedAt: number | null;
     /** Origin/target/chatId of the Boss session that dispatched this worker. */
     replayMeta?: WorkerReplayMeta;
+    /** Verdict/persistence block computed at completion. Stored BEFORE the
+     *  state flips to done so pollers can never observe a verdict-less done
+     *  result (260613 review fix — the always-poll CLI lost the verdict the
+     *  old blocking response used to carry). */
+    orchestration?: Record<string, unknown>;
 }
 
 // Phase 7: thrown when a worker slot with the same agentId is already running.
@@ -124,6 +129,12 @@ function rememberCompletedRun(slot: WorkerSlot): void {
         if (!oldest) break;
         previousRuns.delete(oldest);
     }
+}
+
+export function setWorkerOrchestration(agentId: string, orchestration: Record<string, unknown>): void {
+    const slot = workers.get(agentId);
+    if (!slot) return;
+    slot.orchestration = orchestration;
 }
 
 export function updateWorkerTools(agentId: string, tools: unknown[]): void {

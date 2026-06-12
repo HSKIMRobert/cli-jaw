@@ -35,8 +35,12 @@ test('DTH-002: poll fetches retry transient failures before DispatchPollError', 
 test('DTH-003: server keep-alive outlives pollers and worker polls skip the rate limiter', () => {
     assert.ok(serverSrc.includes('server.keepAliveTimeout = 65_000'), 'keepAlive must exceed poll intervals');
     assert.ok(serverSrc.includes('server.headersTimeout = 66_000'), 'headersTimeout must exceed keepAliveTimeout');
-    assert.ok(serverSrc.includes("req.path.startsWith('/api/orchestrate/worker')) return next()"),
+    assert.ok(serverSrc.includes("req.path.startsWith('/api/orchestrate/worker/')"),
         'bounded 2s dispatch polling must not consume the shared localhost bucket');
+    assert.ok(serverSrc.includes("req.path.startsWith('/api/orchestrate/worker-progress')"),
+        'progress polls share the exemption');
+    assert.ok(!serverSrc.includes("req.path.startsWith('/api/orchestrate/worker')) return next()"),
+        'the workers LIST endpoint must stay rate-limited (review #3)');
 });
 
 test('DTH-004: delayed worker replays carry an explicit marker', () => {
@@ -46,4 +50,15 @@ test('DTH-004: delayed worker replays carry an explicit marker', () => {
 
 test('DTH-005: CLI base URL skips the dual-stack localhost lookup', () => {
     assert.ok(configSrc.includes('http://127.0.0.1:'), 'getServerUrl must use the IPv4 loopback literal');
+    assert.ok(configSrc.includes('ws://127.0.0.1:'), 'getWsUrl stays consistent (review #5)');
+});
+
+test('DTH-006: poll result endpoint carries the orchestration verdict, stored before done', () => {
+    const orchSrc = readFileSync(join(__dirname, '../../src/routes/orchestrate.ts'), 'utf8');
+    assert.ok(orchSrc.includes('...(slot.orchestration ? { orchestration: slot.orchestration } : {})'),
+        'pollers must receive the verdict the old blocking response carried (review #1)');
+    const setIdx = orchSrc.indexOf('setWorkerOrchestration(slot.agentId, orchestration)');
+    const finishIdx = orchSrc.indexOf('finishWorker(slot.agentId,');
+    assert.ok(setIdx >= 0 && finishIdx >= 0 && setIdx < finishIdx,
+        'the verdict must land on the slot BEFORE state flips to done — no verdict-less poll window');
 });

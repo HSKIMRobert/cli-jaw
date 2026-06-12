@@ -89,6 +89,9 @@ async function evictStaleScopes(db: IDBDatabase): Promise<void> {
     try {
         const cutoff = Date.now() - STALE_SCOPE_MAX_AGE_MS;
         const tx = db.transaction(STORE, 'readwrite');
+        // Legacy v2 stores may predate the timestamp index — skip rather
+        // than throw into the catch every session (adversarial review #9).
+        if (!tx.objectStore(STORE).indexNames.contains('timestamp')) return;
         const cursorReq = tx.objectStore(STORE).index('timestamp').openCursor(IDBKeyRange.upperBound(cutoff));
         cursorReq.onsuccess = () => {
             const cursor = cursorReq.result;

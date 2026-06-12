@@ -297,8 +297,10 @@ app.use((req, res, next) => {
     // Dispatch pollers (jaw dispatch / worker watch) poll two endpoints every
     // 2s — bounded internal traffic that shares the localhost bucket with the
     // manager scan and the browser. A 429 mid-poll aborts a worker watch for
-    // no protective gain (260613 doc 60).
-    if (req.path.startsWith('/api/orchestrate/worker')) return next();
+    // no protective gain (260613 doc 60). Exact poll prefixes only — the
+    // workers LIST endpoint stays limited (adversarial review #3).
+    if (req.path.startsWith('/api/orchestrate/worker/')
+        || req.path.startsWith('/api/orchestrate/worker-progress')) return next();
     const ip = req.ip;
     const now = Date.now();
     const window = rateLimitMap.get(ip) || { count: 0, start: now, logged: false };

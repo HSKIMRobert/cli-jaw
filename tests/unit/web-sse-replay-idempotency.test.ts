@@ -117,8 +117,8 @@ test('RID-009: snapshot hydration moves the replay cursors to the hydrated state
     assert.ok(wsSrc.includes('syncLiveRunCursor(snap.activeRun)'), 'hydrateRun snapshots must sync the cursors');
     assert.ok(wsSrc.includes("? activeRun.textLen"), 'cursor must prefer the server uncapped cumulative counter');
     assert.ok(wsSrc.includes(": (activeRun.text || '').length"), 'text length stays the fallback for old servers');
-    assert.ok(wsSrc.includes('rememberAppliedToolSeq(activeRun.traceRunId || null, maxAppliedToolSeq(activeRun))'),
-        'cursor must align with hydrated tool traceSeq state');
+    assert.ok(wsSrc.includes('for (const [runId, seq] of appliedToolSeqByRun(activeRun))'),
+        'cursors must seed EVERY run id in the hydrated toolLog — employee mirrors carry their own traceRunId (review #7)');
 });
 
 test('RID-015: live-run text is tail-capped while textLen reports the uncapped cursor (260613 50 5a)', async () => {

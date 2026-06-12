@@ -22,6 +22,7 @@ import {
     WorkerBusyError,
     getWorkerProgressSnapshot,
     listWorkerProgressSnapshots,
+    setWorkerOrchestration,
 } from '../orchestrator/worker-registry.js';
 import { findEmployee, runSingleAgent, validateParallelSafety } from '../orchestrator/distribute.js';
 import { getEmployees } from '../core/db.js';
@@ -450,30 +451,13 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
             const result = await runSingleAgent(ap, emp, worklog, 1, { origin: 'api', projectDirs: dispatchCtx?.projectDirs }, []);
             const resultTools = Array.isArray(result["tools"]) ? result["tools"] : [];
             updateWorkerTools(slot.agentId, resultTools);
-            finishWorker(slot.agentId, String(result["text"] || ''), resultTools);
-            recordDispatch();
-
-            // Post-dispatch scope violation check
-            if (allowWrite && scope) {
-                try {
-                    const diffResult = postDispatchDiffCheck(dispatchProjectRoot, scope);
-                    if (!diffResult.ok) {
-                        getSecurityAuditLog().append('scope_violation', String(req.ip || 'local'), {
-                            agent: emp.name, agentId: slot.agentId,
-                            modifiedOutside: diffResult.modifiedOutside,
-                        });
-                    }
-                } catch { /* non-fatal — git might not be available */ }
-            }
-
-            try {
-                getSecurityAuditLog().append('dispatch_end', String(req.ip || 'local'), {
-                    agent: emp.name, agentId: slot.agentId, status: 'success',
-                });
-            } catch { /* non-fatal */ }
 
             // Phase 58: Auto-update audit/verification status from worker verdict.
             // 'A' phase verdicts → auditStatus; 'B' phase verdicts → verificationStatus.
+            // Computed and stored on the slot BEFORE finishWorker flips state to
+            // done — the always-poll CLI reads the verdict from the result
+            // endpoint, and a poll landing between done and a later verdict
+            // write would lose it (260613 adversarial review).
             const verdict = parseWorkerVerdict(String(result["text"] || ''));
             let statusPersisted = false;
             let statusPersistReason: 'persisted' | 'state_changed' | 'not_applicable' | null = null;
@@ -510,6 +494,30 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
                 statusPersistReason,
                 persistedField,
             };
+            setWorkerOrchestration(slot.agentId, orchestration);
+
+            finishWorker(slot.agentId, String(result["text"] || ''), resultTools);
+            recordDispatch();
+
+            // Post-dispatch scope violation check
+            if (allowWrite && scope) {
+                try {
+                    const diffResult = postDispatchDiffCheck(dispatchProjectRoot, scope);
+                    if (!diffResult.ok) {
+                        getSecurityAuditLog().append('scope_violation', String(req.ip || 'local'), {
+                            agent: emp.name, agentId: slot.agentId,
+                            modifiedOutside: diffResult.modifiedOutside,
+                        });
+                    }
+                } catch { /* non-fatal — git might not be available */ }
+            }
+
+            try {
+                getSecurityAuditLog().append('dispatch_end', String(req.ip || 'local'), {
+                    agent: emp.name, agentId: slot.agentId, status: 'success',
+                });
+            } catch { /* non-fatal */ }
+
             if (clientDisconnected) {
                 console.warn(`[dispatch] client disconnected — keeping pendingReplay for ${slot.agentId}`);
                 // Proactive drain: if Boss died before receiving the result, user input
@@ -714,6 +722,9 @@ export function registerOrchestrateRoutes(app: Express, requireAuth: AuthMiddlew
             state: slot.state,
             result: slot.result,
             tools: slot.tools,
+            // Verdict/persistence block — the always-poll CLI prints this
+            // (the old blocking wait:true response used to carry it).
+            ...(slot.orchestration ? { orchestration: slot.orchestration } : {}),
             progress: getWorkerProgressSnapshot(slot.agentId),
         });
     });

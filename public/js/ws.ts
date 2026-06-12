@@ -159,16 +159,19 @@ function rememberAppliedToolSeq(runId: string | null, seq: number | null): void 
     }
 }
 
-function maxAppliedToolSeq(activeRun?: { traceRunId?: string; toolLog?: Array<{ traceRunId?: string; traceSeq?: number }> } | null): number | null {
-    const runId = typeof activeRun?.traceRunId === 'string' && activeRun.traceRunId ? activeRun.traceRunId : null;
-    if (!runId || !Array.isArray(activeRun?.toolLog)) return null;
-    let maxSeq = 0;
-    for (const tool of activeRun.toolLog) {
-        if (tool?.traceRunId !== runId) continue;
-        const seq = positiveSeq(tool.traceSeq);
-        if (seq != null && seq > maxSeq) maxSeq = seq;
+/** Max applied traceSeq per run id in the hydrated toolLog. The parent's
+ *  toolLog interleaves boss tools AND employee-mirror tools (each employee
+ *  run has its own traceRunId) — seeding only the boss run left replayed
+ *  employee tools unguarded after reconnect (adversarial review #7). */
+function appliedToolSeqByRun(activeRun?: { toolLog?: Array<{ traceRunId?: string; traceSeq?: number }> } | null): Map<string, number> {
+    const maxByRun = new Map<string, number>();
+    for (const tool of activeRun?.toolLog || []) {
+        const runId = typeof tool?.traceRunId === 'string' && tool.traceRunId ? tool.traceRunId : null;
+        const seq = positiveSeq(tool?.traceSeq);
+        if (!runId || seq == null) continue;
+        if (seq > (maxByRun.get(runId) || 0)) maxByRun.set(runId, seq);
     }
-    return maxSeq > 0 ? maxSeq : null;
+    return maxByRun;
 }
 
 function shouldDropReplayedTool(runId: string | null, seq: number | null, replay?: boolean): boolean {
@@ -212,7 +215,9 @@ function syncLiveRunCursor(activeRun?: { running?: boolean; traceRunId?: string;
     liveAppliedTextLen = typeof activeRun.textLen === 'number'
         ? activeRun.textLen
         : (activeRun.text || '').length;
-    rememberAppliedToolSeq(activeRun.traceRunId || null, maxAppliedToolSeq(activeRun));
+    for (const [runId, seq] of appliedToolSeqByRun(activeRun)) {
+        rememberAppliedToolSeq(runId, seq);
+    }
 }
 
 let currentOrcScope = '';

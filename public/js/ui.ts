@@ -286,16 +286,25 @@ function hasDurableStepIdentity(step: ProcessStep): boolean {
 function mergeHydratedProcessSteps(pb: ProcessBlockState, steps: ProcessStep[]): void {
     const ordinalSteps = pb.steps.filter(existing => !hasDurableStepIdentity(existing));
     let ordinal = 0;
+    // Ordinal matching assumes both sides saw the SAME append-only sequence.
+    // On the first type/isEmployee mismatch the sequences have diverged —
+    // keep consuming positions and every later step pairs off-by-one,
+    // cascading duplicates (adversarial review #3). Abandon the tier instead.
+    let ordinalAligned = true;
     for (const step of steps) {
         let match = pb.steps.find(existing => sameProcessStepIdentity(existing, step)) ?? null;
-        if (!match && !hasDurableStepIdentity(step)) {
+        if (!match && !hasDurableStepIdentity(step) && ordinalAligned) {
             // Ordinal match (doc 01 F1/F3): same position among identity-less
             // steps, same type/isEmployee — label may have been re-sanitized.
             const candidate = ordinalSteps[ordinal] ?? null;
-            ordinal++;
-            if (candidate && candidate.type === step.type
+            if (!candidate) {
+                ordinal++; // past the end: a genuinely new tail entry
+            } else if (candidate.type === step.type
                 && Boolean(candidate.isEmployee) === Boolean(step.isEmployee)) {
                 match = candidate;
+                ordinal++;
+            } else {
+                ordinalAligned = false;
             }
         }
         if (!match) {
@@ -308,7 +317,7 @@ function mergeHydratedProcessSteps(pb: ProcessBlockState, steps: ProcessStep[]):
         }
         if (!match) {
             addStep(pb, step);
-            if (!hasDurableStepIdentity(step)) {
+            if (!hasDurableStepIdentity(step) && ordinalAligned) {
                 // Keep ordinal alignment for the rest of this pass: the added
                 // step IS the identity-less entry at this position now.
                 const added = pb.steps[pb.steps.length - 1];
@@ -346,8 +355,11 @@ let lastHydrationSignature = '';
 
 function hydrationSignature(snapshot: ActiveRunSnapshot): string {
     const tools = Array.isArray(snapshot.toolLog) ? snapshot.toolLog : [];
+    // detail length included: server-side enrichment of a running tool can be
+    // the ONLY delta between snapshots (adversarial review #4) — a signature
+    // without it would no-op-skip the update.
     const toolSig = tools
-        .map(t => `${t.stepRef || ''}~${t.traceRunId || ''}~${t.traceSeq ?? ''}~${t.status || ''}~${t.label || ''}`)
+        .map(t => `${t.stepRef || ''}~${t.traceRunId || ''}~${t.traceSeq ?? ''}~${t.status || ''}~${t.label || ''}~${(t.detail || '').length}`)
         .join('|');
     return `${snapshot.traceRunId || ''}:${snapshot.cli || ''}:${(snapshot.text || '').length}:${tools.length}:${toolSig}`;
 }
