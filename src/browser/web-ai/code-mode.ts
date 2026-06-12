@@ -16,16 +16,22 @@ export function extractConversationId(url: string | null | undefined): string | 
     return BARE_CONVERSATION_ID_RE.test(value) ? value : null;
 }
 
-export async function codeWebAi(port: number, input: QuestionEnvelopeInput & { outputZip?: string; outputDir?: string; multiZip?: boolean; timeout?: string | number } = {}): Promise<Record<string, unknown>> {
+export async function codeWebAi(port: number, input: QuestionEnvelopeInput & { outputZip?: string; outputDir?: string; multiZip?: boolean; contextRefresh?: boolean; timeout?: string | number } = {}): Promise<Record<string, unknown>> {
     if (input.vendor && input.vendor !== 'chatgpt') throw new Error('web-ai code is ChatGPT-only (container tool contract)');
-    const contextZip = await ensureCodeDevContextZip();
+    // Continuation turns (existing conversation via url/conversation, or a resumed
+    // recorded session) reuse the same ChatGPT container: the dev-agent context zip
+    // from the first turn is already in /mnt/data and its contract lives in the
+    // conversation history — skip the re-upload unless contextRefresh forces it.
+    const continuation = Boolean(extractConversationId((input as Record<string, any>)['conversation'] || input.url) || (input as Record<string, any>)['session']);
+    const attachContext = !continuation || input.contextRefresh === true;
+    const contextZip = attachContext ? await ensureCodeDevContextZip() : null;
     const callerFilePaths = Array.isArray(input.filePaths) && input.filePaths.length ? input.filePaths : (input.filePath ? [input.filePath] : []);
-    const filePaths = [contextZip.path, ...callerFilePaths];
+    const filePaths = [...(contextZip ? [contextZip.path] : []), ...callerFilePaths];
     const queryInput = {
         ...input,
         prompt: buildCodeModePrompt(String(input.prompt || ''), { multiZip: input.multiZip === true }),
         inlineOnly: false,
-        attachmentPolicy: 'upload',
+        attachmentPolicy: filePaths.length ? 'upload' : 'inline-only',
         filePaths,
         ...(filePaths[0] ? { filePath: filePaths[0] } : {}),
     };
@@ -44,17 +50,17 @@ export async function codeWebAi(port: number, input: QuestionEnvelopeInput & { o
     const conversationId = extractConversationId(session?.conversationUrl)
         || extractConversationId(session?.url)
         || extractConversationId(pageUrl);
-    if (!conversationId) return { ...result, ok: false, errorCode: 'code-mode.conversation-id-missing', warnings, codeContextZip: contextZip.path, codeContextAttached: true };
+    if (!conversationId) return { ...result, ok: false, errorCode: 'code-mode.conversation-id-missing', warnings, codeContextZip: contextZip?.path ?? null, codeContextAttached: attachContext };
     if (input.multiZip === true) {
         const outputDir = input.outputDir || `${process.cwd()}/code-artifacts-${conversationId.slice(0, 8)}`;
         const multi = await retrieveAllCodeArtifacts(page as any, { conversationId, outputDir, requirePlan: true });
-        if (!multi.ok) return { ...result, ok: false, errorCode: multi.reason || 'code-mode.retrieval-failed', artifacts: multi.artifacts, warnings, codeContextZip: contextZip.path, codeContextAttached: true };
-        return { ...result, ok: true, artifacts: multi.artifacts, outputDir, warnings, codeContextZip: contextZip.path, codeContextAttached: true };
+        if (!multi.ok) return { ...result, ok: false, errorCode: multi.reason || 'code-mode.retrieval-failed', artifacts: multi.artifacts, warnings, codeContextZip: contextZip?.path ?? null, codeContextAttached: attachContext };
+        return { ...result, ok: true, artifacts: multi.artifacts, outputDir, warnings, codeContextZip: contextZip?.path ?? null, codeContextAttached: attachContext };
     }
     const outputPath = input.outputZip || `${process.cwd()}/code-artifact-${conversationId.slice(0, 8)}.zip`;
     const artifact = await retrieveCodeArtifact(page as any, { conversationId, outputPath, requirePlan: true });
-    if (!artifact.ok) return { ...result, ok: false, errorCode: artifact.reason || 'code-mode.retrieval-failed', artifact, warnings, codeContextZip: contextZip.path, codeContextAttached: true };
-    return { ...result, ok: true, artifact, warnings, codeContextZip: contextZip.path, codeContextAttached: true };
+    if (!artifact.ok) return { ...result, ok: false, errorCode: artifact.reason || 'code-mode.retrieval-failed', artifact, warnings, codeContextZip: contextZip?.path ?? null, codeContextAttached: attachContext };
+    return { ...result, ok: true, artifact, warnings, codeContextZip: contextZip?.path ?? null, codeContextAttached: attachContext };
 }
 
 export async function extractCodeArtifacts(port: number, input: { vendor?: string; url?: string; conversation?: string; session?: string; outputZip?: string; outputDir?: string; multiZip?: boolean } = {}): Promise<Record<string, unknown>> {
