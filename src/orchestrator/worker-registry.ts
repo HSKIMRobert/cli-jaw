@@ -111,9 +111,19 @@ function toProgressRun(slot: WorkerSlot): WorkerProgressRun {
     };
 }
 
+// Completed-run history is memory-only; failed/cancelled slots were never
+// individually evicted, so persistent uptime accumulated one entry per
+// dispatched agentId (260613 05 finding 4).
+const PREVIOUS_RUNS_MAX = 100;
+
 function rememberCompletedRun(slot: WorkerSlot): void {
     if (slot.state === 'running') return;
     previousRuns.set(slot.agentId, toProgressRun(slot));
+    while (previousRuns.size > PREVIOUS_RUNS_MAX) {
+        const oldest = previousRuns.keys().next().value;
+        if (!oldest) break;
+        previousRuns.delete(oldest);
+    }
 }
 
 export function updateWorkerTools(agentId: string, tools: unknown[]): void {

@@ -65,7 +65,7 @@ import {
     stripAgyResumeReplayPrefixes,
 } from './agy-runtime.js';
 import { startAgyTranscriptWatcher, type AgyTranscriptWatcherHandle } from './agy-transcript-watcher.js';
-import { appendAssistantTextSegment, normalizeAssistantDisplayText } from './events/helpers.js';
+import { appendAssistantTextSegment, normalizeAssistantDisplayText, pushTrace } from './events/helpers.js';
 import { listKiroConversationIdsForCwd } from './kiro-auth.js';
 import {
     captureKiroSessionIdAfterExit,
@@ -1332,7 +1332,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 await acp.shutdown();
             } catch (err: unknown) {
                 console.error(`[acp:error] ${(err as Error).message}`);
-                ctx.stderrBuf += (err as Error).message;
+                if (ctx.stderrBuf.length < 4000) ctx.stderrBuf += (err as Error).message;
                 acp.kill();
             }
         })();
@@ -1506,7 +1506,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         done.then((result) => {
             piWatchdog.stop();
             flushPiThinking();
-            ctx.stderrBuf += result.stderr || '';
+            if (ctx.stderrBuf.length < 4000) ctx.stderrBuf += result.stderr || '';
             if (result.sessionId) ctx.sessionId = result.sessionId;
             if (!ctx.fullText && result.text) ctx.fullText = result.text;
             cleanupEmployeeTmpDir(spawnCwd, settings["workingDir"], agentLabel);
@@ -1531,7 +1531,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             });
         }).catch((err: Error) => {
             piWatchdog.stop();
-            ctx.stderrBuf += err.message;
+            if (ctx.stderrBuf.length < 4000) ctx.stderrBuf += err.message;
             console.error('[jaw:pi] runtime failed:', err.message);
             handleAgentExit({
                 ctx, code: 1, cli, model: runtimeModel, effectiveProvider: profile.id, agentLabel, mainManaged, origin,
@@ -1792,7 +1792,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 await appClient.closeGracefully();
             } catch (err: unknown) {
                 console.error(`[codex-app:error] ${(err as Error).message}`);
-                ctx.stderrBuf += (err as Error).message;
+                if (ctx.stderrBuf.length < 4000) ctx.stderrBuf += (err as Error).message;
                 appClient.kill();
             }
         })();
@@ -2062,8 +2062,8 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             }
             if (evtName === 'error' && typeof rtEvt['message'] === 'string') {
                 const message = `[jaw:${cli}:error] ${rtEvt['message']}`;
-                ctx.stderrBuf = ctx.stderrBuf ? `${ctx.stderrBuf}\n${message}` : message;
-                ctx.traceLog.push(message);
+                if (ctx.stderrBuf.length < 4000) ctx.stderrBuf = ctx.stderrBuf ? `${ctx.stderrBuf}\n${message}` : message;
+                pushTrace(ctx, message);
             }
             return;
         }
@@ -2073,7 +2073,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
         const event = discriminate(dispatchCli, raw);
         if (!event) {
             const type = fieldString(asCliEventRecord(raw).type, '<no-type>');
-            ctx.traceLog.push(`[cli:unknown-event] cli=${cli} provider=${dispatchCli} type=${type} preview=${JSON.stringify(raw).slice(0, 200)}`);
+            pushTrace(ctx, `[cli:unknown-event] cli=${cli} provider=${dispatchCli} type=${type} preview=${JSON.stringify(raw).slice(0, 200)}`);
             return;
         }
         recordOpencodeEvent(line, event);
@@ -2107,7 +2107,7 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
             const snapshot = buildOpencodeRuntimeSnapshot(ctx);
             const line = `[jaw:opencode:idle] ${idleMs}ms ${JSON.stringify(snapshot)}`;
             console.warn(line);
-            ctx.traceLog.push(line);
+            pushTrace(ctx, line);
         }, 30_000);
     }
 

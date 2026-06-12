@@ -60,9 +60,17 @@ export function emitAgentTool(
     );
 }
 
+// Within-run debug log. Long runs (opencode idle pings, unknown-event spam)
+// accumulated tens of MB before release at run end — keep the newest tail
+// (260613 05 finding 1).
+const MAX_TRACE_LOG_LINES = 2000;
+
 export function pushTrace(ctx: SpawnContext | null | undefined, line: string) {
     if (!ctx?.traceLog || !line) return;
     ctx.traceLog.push(line);
+    if (ctx.traceLog.length > MAX_TRACE_LOG_LINES) {
+        ctx.traceLog.splice(0, ctx.traceLog.length - MAX_TRACE_LOG_LINES);
+    }
 }
 
 export function logLine(line: string, ctx: SpawnContext | null | undefined) {

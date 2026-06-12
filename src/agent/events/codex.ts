@@ -59,7 +59,8 @@ export function handleCodexEvent(
                     detectedTimeout.timeoutMs + bufferMs,
                     detectedTimeout.commandKind,
                 );
-                ctx.traceLog.push(
+                pushTrace(
+                    ctx,
                     `[watchdog] extended for ${detectedTimeout.commandKind} by ${Math.round((detectedTimeout.timeoutMs + bufferMs) / 1000)}s`,
                 );
             }

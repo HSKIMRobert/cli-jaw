@@ -144,7 +144,13 @@ export function linkTraceRunToMessage(runId: string | null | undefined, messageI
     if (!runId || !TRACE_ID_RE.test(runId) || !Number.isInteger(messageId)) return;
     linkRunStmt.run(messageId, runId);
 }
-export function markStaleTraceRunsInterrupted(): void { interruptStaleStmt.run(Date.now()); }
+export function markStaleTraceRunsInterrupted(): void {
+    interruptStaleStmt.run(Date.now());
+    // Interrupted runs never reach finalizeTraceRun, so their seq cursors
+    // stayed in seqCache forever. They receive no further events — the cache
+    // can drop wholesale at this boot-time sweep (260613 05 finding 2).
+    seqCache.clear();
+}
 
 // Remove on-disk spill dirs whose run no longer exists in trace_runs.
 function pruneOrphanTraceDirs(): void {
