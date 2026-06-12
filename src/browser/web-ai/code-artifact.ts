@@ -2,9 +2,12 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import { inflateRawSync } from 'node:zlib';
 
-type PageLike = {
+export type PageLike = {
+    // @strict-allow-any(playwright evaluate interop boundary — in-page callbacks and results are untyped by design)
     evaluate: (fn: (...args: any[]) => unknown, arg?: unknown) => Promise<any>;
 };
+
+export type ConversationJson = { mapping?: Record<string, { message?: { id?: string; content?: { content_type?: string } } }> };
 
 export interface RetrieveResult {
     ok: boolean;
@@ -20,7 +23,7 @@ export interface RetrieveResult {
 const ZIP_PATH_RE = /\/mnt\/data\/[A-Za-z0-9_\-./]+\.zip/;
 const ZIP_PATH_RE_GLOBAL = /\/mnt\/data\/[A-Za-z0-9_\-./]+\.zip/g;
 
-export function scanConversationForZip(conversation: { mapping?: Record<string, { message?: { id?: string; content?: { content_type?: string } } }> }): { zipPath: string | null; candidateMids: string[] } {
+export function scanConversationForZip(conversation: ConversationJson): { zipPath: string | null; candidateMids: string[] } {
     let zipPath: string | null = null;
     const candidateMids: string[] = [];
     for (const node of Object.values(conversation?.mapping || {})) {
@@ -35,7 +38,7 @@ export function scanConversationForZip(conversation: { mapping?: Record<string, 
     return { zipPath, candidateMids };
 }
 
-export function scanConversationForAllZips(conversation: { mapping?: Record<string, { message?: { id?: string; content?: { content_type?: string } } }> }): { zipPaths: string[]; candidateMids: string[] } {
+export function scanConversationForAllZips(conversation: ConversationJson): { zipPaths: string[]; candidateMids: string[] } {
     const zipPaths: string[] = [];
     const seen = new Set<string>();
     const candidateMids: string[] = [];
@@ -103,7 +106,7 @@ function readZipCentralDirectory(buffer: Buffer): Array<{ name: string; method: 
     return entries;
 }
 
-export async function fetchConversationJson(page: PageLike, conversationId: string): Promise<Record<string, unknown> | null> {
+export async function fetchConversationJson(page: PageLike, conversationId: string): Promise<ConversationJson | null> {
     return page.evaluate(async (convId: string) => {
         const session = await fetch('/api/auth/session').then(r => r.json()).catch(() => null);
         if (!session?.accessToken) return null;
@@ -144,7 +147,7 @@ export async function retrieveCodeArtifact(page: PageLike, params: { conversatio
     const result: RetrieveResult = { ok: false, reason: null, zipPath: null, savedPath: null, sizeBytes: 0, files: [] };
     const conversation = await fetchConversationJson(page, params.conversationId);
     if (!conversation) return { ...result, reason: 'code-artifact:conversation-unavailable' };
-    const { zipPath, candidateMids } = scanConversationForZip(conversation as any);
+    const { zipPath, candidateMids } = scanConversationForZip(conversation);
     if (!zipPath) return { ...result, reason: 'code-artifact:missing' };
     if (!candidateMids.length) return { ...result, zipPath, reason: 'code-artifact:no-tool-messages' };
     return downloadAndSaveZip(page, { ...params, zipPath, candidateMids });
@@ -153,7 +156,7 @@ export async function retrieveCodeArtifact(page: PageLike, params: { conversatio
 export async function retrieveAllCodeArtifacts(page: PageLike, params: { conversationId: string; outputDir: string; requirePlan?: boolean }): Promise<{ ok: boolean; reason: string | null; artifacts: RetrieveResult[] }> {
     const conversation = await fetchConversationJson(page, params.conversationId);
     if (!conversation) return { ok: false, reason: 'code-artifact:conversation-unavailable', artifacts: [] };
-    const { zipPaths, candidateMids } = scanConversationForAllZips(conversation as any);
+    const { zipPaths, candidateMids } = scanConversationForAllZips(conversation);
     if (!zipPaths.length) return { ok: false, reason: 'code-artifact:missing', artifacts: [] };
     if (!candidateMids.length) return { ok: false, reason: 'code-artifact:no-tool-messages', artifacts: [] };
     const artifacts: RetrieveResult[] = [];
