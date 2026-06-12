@@ -274,18 +274,46 @@ function richerDetail(existing: ProcessStep, incoming: ProcessStep): string {
     return incomingDetail.length >= existingDetail.length ? incomingDetail : existingDetail;
 }
 
+// 260613 30 P3: a step with neither stepRef nor positive trace identity can
+// only be matched positionally. The parent toolLog is append-only, so the
+// ordinal among identity-less steps is stable across hydrations.
+function hasDurableStepIdentity(step: ProcessStep): boolean {
+    if (step.stepRef) return true;
+    return Boolean(step.traceRunId)
+        && typeof step.traceSeq === 'number' && Number.isFinite(step.traceSeq) && step.traceSeq > 0;
+}
+
 function mergeHydratedProcessSteps(pb: ProcessBlockState, steps: ProcessStep[]): void {
+    const ordinalSteps = pb.steps.filter(existing => !hasDurableStepIdentity(existing));
+    let ordinal = 0;
     for (const step of steps) {
-        const match = pb.steps.find(existing => sameProcessStepIdentity(existing, step))
-            ?? (() => {
-                const matches = pb.steps.filter(existing => existing.label === step.label
-                    && existing.type === step.type
-                    && existing.status === step.status
-                    && Boolean(existing.isEmployee) === Boolean(step.isEmployee));
-                return matches.length === 1 ? matches[0]! : null;
-            })();
+        let match = pb.steps.find(existing => sameProcessStepIdentity(existing, step)) ?? null;
+        if (!match && !hasDurableStepIdentity(step)) {
+            // Ordinal match (doc 01 F1/F3): same position among identity-less
+            // steps, same type/isEmployee — label may have been re-sanitized.
+            const candidate = ordinalSteps[ordinal] ?? null;
+            ordinal++;
+            if (candidate && candidate.type === step.type
+                && Boolean(candidate.isEmployee) === Boolean(step.isEmployee)) {
+                match = candidate;
+            }
+        }
+        if (!match) {
+            // Status-agnostic fuzzy fallback (doc 01 F2): running→done must
+            // upgrade in place, not duplicate. Single-candidate rule kept.
+            const matches = pb.steps.filter(existing => existing.label === step.label
+                && existing.type === step.type
+                && Boolean(existing.isEmployee) === Boolean(step.isEmployee));
+            match = matches.length === 1 ? matches[0]! : null;
+        }
         if (!match) {
             addStep(pb, step);
+            if (!hasDurableStepIdentity(step)) {
+                // Keep ordinal alignment for the rest of this pass: the added
+                // step IS the identity-less entry at this position now.
+                const added = pb.steps[pb.steps.length - 1];
+                if (added) ordinalSteps.push(added);
+            }
             continue;
         }
         const detailPreview = setStoredProcessStepDetail(match.id, richerDetail(match, step));
