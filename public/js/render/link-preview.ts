@@ -13,6 +13,10 @@ type LinkPreviewData = {
 
 const PREVIEW_CLASS = 'link-preview-card';
 const MAX_IN_FLIGHT_PREVIEWS = 4;
+// LRU-capped: one entry per unique URL would grow for the tab's lifetime in
+// link-heavy sessions (260613 06 finding). Map iteration order = insertion
+// order; re-set on hit keeps hot URLs resident.
+const MAX_PREVIEW_CACHE = 200;
 const previewCache = new Map<string, Promise<LinkPreviewData | null>>();
 const previewQueue: Array<() => void> = [];
 let inFlight = 0;
@@ -74,7 +78,11 @@ async function withPreviewSlot<T>(work: () => Promise<T>): Promise<T> {
 
 function fetchPreview(url: string): Promise<LinkPreviewData | null> {
     const cached = previewCache.get(url);
-    if (cached) return cached;
+    if (cached) {
+        previewCache.delete(url);
+        previewCache.set(url, cached); // LRU touch
+        return cached;
+    }
     const promise = withPreviewSlot(async () => {
         try {
             const response = await fetch(`${API_BASE}/api/link-preview?url=${encodeURIComponent(url)}`);
@@ -87,6 +95,11 @@ function fetchPreview(url: string): Promise<LinkPreviewData | null> {
         }
     });
     previewCache.set(url, promise);
+    while (previewCache.size > MAX_PREVIEW_CACHE) {
+        const oldest = previewCache.keys().next().value;
+        if (!oldest) break;
+        previewCache.delete(oldest);
+    }
     return promise;
 }
 
@@ -146,7 +159,9 @@ function observeAnchor(anchor: HTMLAnchorElement): void {
     const observer = new IntersectionObserver((entries) => {
         for (const entry of entries) {
             if (!entry.isIntersecting) continue;
-            observer.unobserve(anchor);
+            // disconnect, not just unobserve — a per-anchor observer kept
+            // alive pins its closure until the anchor is GC'd (260613 06).
+            observer.disconnect();
             void attachPreview(anchor);
         }
     }, { rootMargin: '160px' });

@@ -77,6 +77,31 @@ function openDB(): Promise<IDBDatabase> {
     return dbPromise;
 }
 
+// Scopes key on origin+path::workingDir — every past instance/workingDir
+// leaves rows that nothing deletes (260613 06 finding). Sweep non-current
+// scopes older than 30 days, once per page session.
+const STALE_SCOPE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+let staleScopeSweepDone = false;
+
+async function evictStaleScopes(db: IDBDatabase): Promise<void> {
+    if (staleScopeSweepDone) return;
+    staleScopeSweepDone = true;
+    try {
+        const cutoff = Date.now() - STALE_SCOPE_MAX_AGE_MS;
+        const tx = db.transaction(STORE, 'readwrite');
+        const cursorReq = tx.objectStore(STORE).index('timestamp').openCursor(IDBKeyRange.upperBound(cutoff));
+        cursorReq.onsuccess = () => {
+            const cursor = cursorReq.result;
+            if (!cursor) return;
+            const row = cursor.value as CachedMessage;
+            if ((row.scope || 'default') !== currentScope) cursor.delete();
+            cursor.continue();
+        };
+    } catch (e) {
+        console.warn('[idb-cache] stale-scope sweep failed:', e);
+    }
+}
+
 export async function cacheMessages(messages: CachedMessage[]): Promise<void> {
     try {
         // Guard: never wipe the cache with an empty array — only a deliberate
@@ -85,6 +110,7 @@ export async function cacheMessages(messages: CachedMessage[]): Promise<void> {
         if (messages.length === 0) return;
 
         const db = await openDB();
+        void evictStaleScopes(db);
         const tx = db.transaction(STORE, 'readwrite');
         const store = tx.objectStore(STORE);
         // devlog 260609 79/82: replace only the current scope — a global clear

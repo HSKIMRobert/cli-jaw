@@ -1,6 +1,11 @@
 // ── Media Lightbox — click inline image → modal popup, dblclick/button → open in browser ──
 
+let lightboxInitialized = false;
+
 export function initMediaLightbox(): void {
+    // document-level listeners stack if init ever re-runs (260613 06).
+    if (lightboxInitialized) return;
+    lightboxInitialized = true;
     const overlay = document.createElement('div');
     overlay.id = 'mediaLightbox';
     overlay.className = 'media-lightbox hidden';

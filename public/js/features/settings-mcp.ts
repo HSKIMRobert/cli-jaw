@@ -547,7 +547,12 @@ export function closeMcpModal(): void {
     document.getElementById('mcpHelpOverlay')?.remove();
 }
 
+let mcpModalInitialized = false;
+
 export function initMcpModal(): void {
+    // capture-phase document listener stacks if init ever re-runs (260613 06).
+    if (mcpModalInitialized) return;
+    mcpModalInitialized = true;
     document.addEventListener('keydown', (e) => {
         if (document.getElementById('mcpHelpOverlay')) {
             if (e.key === 'Escape') { e.preventDefault(); document.getElementById('mcpHelpOverlay')?.remove(); return; }

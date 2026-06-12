@@ -19,12 +19,17 @@ let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 let lastQuery = '';
 let messageIdToVsIndex: Map<number, number> | null = null;
 
+let chatSearchInitialized = false;
+
 export function initChatSearch(): void {
     const input = document.getElementById('chatSearchInput') as HTMLInputElement | null;
     const closeBtn = document.getElementById('chatSearchClose');
     const resultsEl = document.getElementById('chatSearchResults');
     const countEl = document.getElementById('chatSearchCount');
     if (!input || !closeBtn || !resultsEl || !countEl) return;
+    // window/message listeners stack if init ever re-runs (260613 06).
+    if (chatSearchInitialized) return;
+    chatSearchInitialized = true;
 
     window.addEventListener('message', (e) => {
         if (e.data?.type === 'jaw-preview-search') toggleChatSearch();
