@@ -62,8 +62,38 @@ test('RID-005: stale agent_done (different run id) is dropped instead of finaliz
 test('RID-006: replayed agent_output chunks dedupe on the cumulative textLen cursor', () => {
     const outBlock = wsSrc.slice(wsSrc.indexOf("msg.type === 'agent_output'"), wsSrc.indexOf("msg.type === 'agent_retry'"));
     assert.ok(outBlock.includes('if (isFinalizedRun(outputRunId)) return'), 'chunks of finalized runs must be dropped');
-    assert.ok(outBlock.includes('msg.textLen <= liveAppliedTextLen) return'), 'chunks at/below the applied cursor must be dropped');
+    assert.ok(outBlock.includes('if (msg.textLen <= liveAppliedTextLen) {'), 'chunks at/below the applied cursor must not append');
     assert.ok(outBlock.includes('outputText.slice(-missing)'), 'partial overlaps must append only the unseen tail');
+});
+
+test('RID-012: live agent_output behind the cursor resyncs instead of freezing the stream (260613 10 P1-b)', () => {
+    const outBlock = wsSrc.slice(wsSrc.indexOf("msg.type === 'agent_output'"), wsSrc.indexOf("msg.type === 'agent_retry'"));
+    assert.ok(outBlock.includes("msg.sseReplay !== true && msg.textLen < liveAppliedTextLen"),
+        'only live (non-replay) chunks strictly behind the cursor trigger the resync path');
+    const resyncIdx = outBlock.indexOf('msg.sseReplay !== true');
+    const resyncBlock = outBlock.slice(resyncIdx, outBlock.indexOf('}', resyncIdx + 200));
+    assert.ok(resyncBlock.includes('liveAppliedTextLen = msg.textLen'),
+        'a live chunk behind the cursor must re-base the cursor to the server cumulative length');
+});
+
+test('RID-013: bgtask-origin new_message renders in the web UI (260613 10 P1-a)', () => {
+    const nmIdx = wsSrc.indexOf("msg.type === 'new_message'");
+    const nmCond = wsSrc.slice(nmIdx, wsSrc.indexOf('{', nmIdx));
+    assert.ok(nmCond.includes("msg.source === 'bgtask'"), 'bgtask completion turns must not be filtered out');
+    assert.ok(nmCond.includes("msg.source === 'telegram'") && nmCond.includes("msg.source === 'discord'"),
+        'existing remote-origin rendering must stay intact');
+});
+
+test('RID-014: identical active-run snapshots are a hydration no-op (260613 10 P1-c)', () => {
+    const uiSrc = readFileSync(join(__dirname, '../../public/js/ui.ts'), 'utf8');
+    assert.ok(uiSrc.includes('function hydrationSignature('), 'hydration signature helper should exist');
+    assert.ok(uiSrc.includes('signature === lastHydrationSignature && currentAgentDivForActiveRun()) return'),
+        'unchanged snapshots with a live hydrated block must skip the merge + stream reset');
+    assert.ok(uiSrc.includes('lastHydrationSignature = signature'),
+        'a real hydration must record its signature');
+    const finalizeBlock = uiSrc.slice(uiSrc.indexOf('export function finalizeAgent('));
+    assert.ok(finalizeBlock.includes("lastHydrationSignature = ''"),
+        'finalize must reset the signature so the next run hydrates fresh');
 });
 
 test('RID-007: replayed agent_tool events of finalized runs are dropped', () => {

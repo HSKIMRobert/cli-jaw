@@ -311,11 +311,29 @@ export function applyQueuedOverlay(_items: QueuedOverlayItem[] = []): void {
     document.querySelectorAll('[data-queued-overlay="true"]').forEach(el => el.remove());
 }
 
+// 260613 10 P1-c: restore hooks re-hydrate on every focus/click; identical
+// snapshots must be a no-op or the merge + stream-renderer reset reads as a
+// constant flicker loop (and compounds the doc-01 duplicate growth).
+let lastHydrationSignature = '';
+
+function hydrationSignature(snapshot: ActiveRunSnapshot): string {
+    const tools = Array.isArray(snapshot.toolLog) ? snapshot.toolLog : [];
+    const toolSig = tools
+        .map(t => `${t.stepRef || ''}~${t.traceRunId || ''}~${t.traceSeq ?? ''}~${t.status || ''}~${t.label || ''}`)
+        .join('|');
+    return `${snapshot.traceRunId || ''}:${snapshot.cli || ''}:${(snapshot.text || '').length}:${tools.length}:${toolSig}`;
+}
+
+export function resetHydrationSignature(): void { lastHydrationSignature = ''; }
+
 export function hydrateActiveRun(snapshot?: ActiveRunSnapshot | null): void {
     if (!snapshot?.running) {
+        lastHydrationSignature = '';
         removeStaleHydratedActiveRuns();
         return;
     }
+    const signature = hydrationSignature(snapshot);
+    if (signature === lastHydrationSignature && currentAgentDivForActiveRun()) return;
     cleanupToolElements();
     removeSkeleton();
     state.currentAgentDiv = ensureActiveRunMessage(snapshot.cli || null);
@@ -336,6 +354,7 @@ export function hydrateActiveRun(snapshot?: ActiveRunSnapshot | null): void {
     if (content) {
         currentStream = hydrateStreamRenderer(content, snapshot.text || '');
     }
+    lastHydrationSignature = signature;
 }
 
 export function appendAgentText(text: string): void {
@@ -366,6 +385,7 @@ export function finalizeAgent(text: string, toolLog?: ToolLogEntry[]): void {
     // Guard: prevent double-render when both agent_done + orchestrate_done fire
     const now = Date.now();
     if (!state.currentAgentDiv && now - lastFinalizeTs < 500) return;
+    lastHydrationSignature = ''; // run over — the next run must hydrate fresh
 
     cleanupToolElements();
     removeSkeleton();

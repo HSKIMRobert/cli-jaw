@@ -956,7 +956,18 @@ function handleServerEvent(msg: WsMessage): void {
             // `textLen` is the server-side cumulative length AFTER this chunk.
             // At or below the applied cursor → the block already renders it
             // (SSE replay). A partial overlap appends only the unseen tail.
-            if (msg.textLen <= liveAppliedTextLen) return;
+            if (msg.textLen <= liveAppliedTextLen) {
+                // A LIVE chunk behind the cursor means cursor desync (snapshot
+                // text and textLen share one accumulator — getSafeLiveRun).
+                // Never freeze the stream on it: resync to the server's
+                // cumulative length so the next chunk appends its tail, and
+                // drop only this already-rendered content (260613 10 P1-b).
+                if (msg.sseReplay !== true && msg.textLen < liveAppliedTextLen) {
+                    console.warn(`[ws] live agent_output behind applied cursor — resync (${msg.textLen} < ${liveAppliedTextLen})`);
+                    liveAppliedTextLen = msg.textLen;
+                }
+                return;
+            }
             const missing = msg.textLen - liveAppliedTextLen;
             if (missing < outputText.length) outputText = outputText.slice(-missing);
             liveAppliedTextLen = msg.textLen;
@@ -1037,7 +1048,7 @@ function handleServerEvent(msg: WsMessage): void {
         markRunFinalized(null); // killed run — drop its replayed stream too
         finalizeAgent('');
         setStatus('steering');
-    } else if (msg.type === 'new_message' && (msg.source === 'telegram' || msg.source === 'discord' || msg.fromQueue === true)) {
+    } else if (msg.type === 'new_message' && (msg.source === 'telegram' || msg.source === 'discord' || msg.source === 'bgtask' || msg.fromQueue === true)) {
         const newMessageRole = msg.role === 'assistant' ? 'agent' : (msg.role || 'user');
         const newMessageContent = msg.content || '';
         const newMessageCli = msg.cli;
