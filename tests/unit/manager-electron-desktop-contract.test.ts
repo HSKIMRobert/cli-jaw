@@ -602,7 +602,7 @@ test('workspace polish keeps current center/right/bottom grid areas intact', () 
         'collapsed inspector polish must collapse the dock without replacing the workspace grid template',
     );
     assert.ok(
-        polish.includes('--sidebar-width: 320px'),
+        polish.includes('--sidebar-width: 300px'),
         'wide-sidebar polish must adjust the sidebar variable instead of replacing grid columns',
     );
     assert.ok(
