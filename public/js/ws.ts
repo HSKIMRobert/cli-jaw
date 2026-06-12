@@ -201,12 +201,17 @@ function adoptLiveRun(runId: string | null): void {
  *  reconnect/restore hydration: the hydrated block already renders the full
  *  cumulative `snapshot.text`, so replayed chunks at or below that length
  *  must be dropped, not re-appended. */
-function syncLiveRunCursor(activeRun?: { running?: boolean; traceRunId?: string; text?: string; toolLog?: Array<{ traceRunId?: string; traceSeq?: number }> } | null): void {
+function syncLiveRunCursor(activeRun?: { running?: boolean; traceRunId?: string; text?: string; textLen?: number; toolLog?: Array<{ traceRunId?: string; traceSeq?: number }> } | null): void {
     if (!activeRun?.running) return;
     if (typeof activeRun.traceRunId === 'string' && activeRun.traceRunId) {
         liveTraceRunId = activeRun.traceRunId;
     }
-    liveAppliedTextLen = (activeRun.text || '').length;
+    // Prefer the server's uncapped cumulative counter: `text` is tail-capped
+    // (live-run-state MAX_LIVE_TEXT_CHARS), so its length under-reports the
+    // cursor once a run streams past the cap (260613 05 finding 9).
+    liveAppliedTextLen = typeof activeRun.textLen === 'number'
+        ? activeRun.textLen
+        : (activeRun.text || '').length;
     rememberAppliedToolSeq(activeRun.traceRunId || null, maxAppliedToolSeq(activeRun));
 }
 

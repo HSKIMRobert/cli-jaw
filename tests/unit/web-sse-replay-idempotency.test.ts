@@ -115,9 +115,29 @@ test('RID-008: replayed same-run agent_tool events already covered by snapshot h
 test('RID-009: snapshot hydration moves the replay cursors to the hydrated state', () => {
     assert.ok(wsSrc.includes('function syncLiveRunCursor('), 'cursor sync helper should exist');
     assert.ok(wsSrc.includes('syncLiveRunCursor(snap.activeRun)'), 'hydrateRun snapshots must sync the cursors');
-    assert.ok(wsSrc.includes("liveAppliedTextLen = (activeRun.text || '').length"), 'cursor must align with the hydrated cumulative text');
+    assert.ok(wsSrc.includes("? activeRun.textLen"), 'cursor must prefer the server uncapped cumulative counter');
+    assert.ok(wsSrc.includes(": (activeRun.text || '').length"), 'text length stays the fallback for old servers');
     assert.ok(wsSrc.includes('rememberAppliedToolSeq(activeRun.traceRunId || null, maxAppliedToolSeq(activeRun))'),
         'cursor must align with hydrated tool traceSeq state');
+});
+
+test('RID-015: live-run text is tail-capped while textLen reports the uncapped cursor (260613 50 5a)', async () => {
+    const { beginLiveRun, appendLiveRunText, getLiveRun, clearLiveRun } =
+        await import('../../src/agent/live-run-state.ts');
+    const scope = 'unit-text-cap';
+    try {
+        beginLiveRun(scope, 'claude-e');
+        const chunk = 'x'.repeat(60_000);
+        let cursor: number | null = 0;
+        for (let i = 0; i < 5; i++) cursor = appendLiveRunText(scope, chunk);
+        assert.equal(cursor, 300_000, 'textLen must keep the uncapped cumulative length');
+        const snap = getLiveRun(scope);
+        assert.equal(snap.textLen, 300_000, 'snapshot exposes the uncapped counter');
+        assert.ok(snap.text.length <= 200_000, `text must stay tail-capped (got ${snap.text.length})`);
+        assert.ok(snap.text.endsWith('x'), 'the retained text is the newest tail');
+    } finally {
+        clearLiveRun(scope);
+    }
 });
 
 test('RID-010: steer and orchestrate_done retire the live run from replay', () => {

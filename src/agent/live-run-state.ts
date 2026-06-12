@@ -16,7 +16,15 @@ export type LiveRunEntry = {
      *  web UI can scope SSE replays to the run they belong to (devlog 260612
      *  manager_stream_hidden_state_audit 06-08). */
     traceRunId?: string;
+    /** Cumulative streamed length, UNCAPPED — the replay-cursor unit. `text`
+     *  keeps only the newest MAX_LIVE_TEXT_CHARS tail (260613 05 finding 9),
+     *  so cursor math must never use `text.length` once the cap engages. */
+    textLen?: number;
 };
+
+/** Within-run spike cap for the hydration text. A 50MB-output run used to
+ *  hold 50MB here until clearLiveRun; the UI only ever renders the tail. */
+const MAX_LIVE_TEXT_CHARS = 200_000;
 
 const EMPTY_LIVE_RUN: LiveRunEntry = {
     running: false,
@@ -38,6 +46,7 @@ export function beginLiveRun(scope: string, cli: string): void {
         running: true,
         cli,
         text: '',
+        textLen: 0,
         toolLog: [],
         startedAt: Date.now(),
     });
@@ -49,8 +58,14 @@ export function beginLiveRun(scope: string, cli: string): void {
 export function appendLiveRunText(scope: string, text: string): number | null {
     const current = liveRuns.get(scope);
     if (!current?.running) return null;
-    if (text) current.text += text;
-    return current.text.length;
+    current.textLen = (current.textLen ?? current.text.length) + (text ? text.length : 0);
+    if (text) {
+        current.text += text;
+        if (current.text.length > MAX_LIVE_TEXT_CHARS) {
+            current.text = current.text.slice(-MAX_LIVE_TEXT_CHARS);
+        }
+    }
+    return current.textLen;
 }
 
 /** Bind the trace run id once startTraceRun has produced it (beginLiveRun
