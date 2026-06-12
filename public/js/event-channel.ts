@@ -26,6 +26,32 @@ let reconnectDelay = 2000;
 const MAX_RECONNECT_DELAY = 30_000;
 const RECONNECT_BACKOFF = 1.5;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+// ── Staleness watchdog (devlog 260613 doc 40) ──
+// EventSource only reconnects on onerror; a silently dead socket (sleep,
+// network change) never fires it — the channel looks open while delivering
+// nothing, and the UI freezes until a focus-triggered snapshot. The server
+// pings a DATA event every 15s; if pings stop, force a reconnect. Armed only
+// after the first ping is seen (old servers ping via invisible comments —
+// without the gate an idle channel would reconnect-churn every cycle).
+const PING_STALL_MS = 40_000; // ~2.5 × 15s server heartbeat
+const STALL_CHECK_MS = 10_000;
+let lastMessageAt = 0;
+let pingCapable = false;
+let stallTimer: ReturnType<typeof setInterval> | null = null;
+
+function armStallWatchdog(): void {
+    if (stallTimer) return;
+    stallTimer = setInterval(() => {
+        if (!source || !wasConnected || !pingCapable) return;
+        if (Date.now() - lastMessageAt <= PING_STALL_MS) return;
+        console.warn('[sse] stalled channel (no ping in', PING_STALL_MS, 'ms) — forcing reconnect');
+        source.close();
+        source = null;
+        wasConnected = false;
+        onDisconnectCb?.();
+        connectEventChannel(currentLang);
+    }, STALL_CHECK_MS);
+}
 let currentLang = '';
 let wasConnected = false;
 let closedByApp = false;
@@ -90,11 +116,14 @@ export function connectEventChannel(lang: string): void {
     unavailableFiredThisAttempt = false;
     source = new EventSource(url);
 
+    armStallWatchdog();
+
     source.onopen = () => {
         reconnectDelay = 2000;
         wasConnected = true;
         everConnected = true;
         openedThisAttempt = true;
+        lastMessageAt = Date.now();
         onOpenCb?.();
     };
 
@@ -131,6 +160,11 @@ export function connectEventChannel(lang: string): void {
             console.warn('[sse] invalid message shape:', data);
             return;
         }
+        lastMessageAt = Date.now();
+        if (data['topic'] === 'system' && data['event'] === 'ping') {
+            pingCapable = true; // liveness-capable server — watchdog active
+            return; // keep-alive only, nothing to dispatch
+        }
         dispatch(data['topic'], data['event'], data);
     };
 }
@@ -138,6 +172,7 @@ export function connectEventChannel(lang: string): void {
 export function closeEventChannel(): void {
     closedByApp = true;
     if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+    if (stallTimer) { clearInterval(stallTimer); stallTimer = null; }
     source?.close();
     source = null;
     wasConnected = false;

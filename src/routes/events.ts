@@ -63,9 +63,13 @@ export function registerEventsRoutes(app: Router, requireAuth: RequestHandler): 
             if (!res.writableEnded) res.write(formatSse(entry));
         });
 
-        // Keep-alive comment ping (proxies + browser idle timeout)
+        // Keep-alive ping. A DATA event, not an SSE comment: comments are
+        // invisible to client JS, so a silently dead socket (sleep, network
+        // change, proxy restart) was indistinguishable from a quiet healthy
+        // channel. The client staleness watchdog keys off this event
+        // (260613 doc 40). No id: pings must not advance lastEventId.
         const hb = setInterval(() => {
-            if (!res.writableEnded) res.write(': ping\n\n');
+            if (!res.writableEnded) res.write(`data: ${JSON.stringify({ topic: 'system', event: 'ping' })}\n\n`);
         }, HEARTBEAT_MS);
         hb.unref();
 
