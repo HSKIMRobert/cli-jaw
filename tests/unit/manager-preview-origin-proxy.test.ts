@@ -329,6 +329,52 @@ test('websocket proxy does not apply HTTP request timeout after upgrade', async 
     }
 });
 
+test('sse stream is not severed by the request deadline', async () => {
+    const { targetPort, previewFrom } = await freePortPair();
+    const responses = new Set<http.ServerResponse>();
+    const server = http.createServer((_req, res) => {
+        responses.add(res);
+        res.writeHead(200, {
+            'content-type': 'text/event-stream',
+            'cache-control': 'no-cache',
+        });
+        res.write(': connected\n\n');
+    });
+    await new Promise<void>(resolve => server.listen(targetPort, '127.0.0.1', () => resolve()));
+    const controller = createPreviewOriginProxyController({
+        scanFrom: targetPort,
+        scanCount: 1,
+        previewFrom,
+        managerPort: 24576,
+        requestTimeoutMs: 30,
+    });
+    try {
+        await controller.ensureTarget(targetPort);
+        let ended = false;
+        let received = '';
+        await new Promise<void>((resolve, reject) => {
+            const req = http.request({ hostname: '127.0.0.1', port: previewFrom, path: '/api/events' }, (res) => {
+                assert.equal(res.statusCode, 200);
+                res.setEncoding('utf8');
+                res.on('data', chunk => {
+                    received += chunk;
+                    resolve();
+                });
+                res.on('end', () => { ended = true; });
+            });
+            req.on('error', reject);
+            req.end();
+        });
+        await new Promise(resolve => setTimeout(resolve, 120));
+        assert.equal(ended, false);
+        assert.match(received, /: connected/);
+    } finally {
+        for (const res of responses) res.destroy();
+        await controller.close();
+        await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+});
+
 test('slow upstream response completes before end-to-end deadline', async () => {
     const { targetPort, previewFrom } = await freePortPair();
     const server = http.createServer((_req, res) => {

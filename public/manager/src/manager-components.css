@@ -462,6 +462,7 @@ h2 { font-size: 13px; }
     flex: 1;
     min-height: 0;
     overflow: hidden;
+    position: relative;
 }
 .workbench-panel {
     height: 100%;
@@ -470,6 +471,16 @@ h2 { font-size: 13px; }
 }
 .workbench-panel[hidden] {
     display: none;
+}
+/* Same constraint as .workspace-surface:has(persistent preview): the preview
+   iframe stays mounted across tab switches and must keep real layout size
+   while hidden, or content rendered meanwhile measures against a 0×0 box. */
+.workbench-body .workbench-panel-preview[hidden] {
+    display: block;
+    position: absolute;
+    inset: 0;
+    visibility: hidden;
+    pointer-events: none;
 }
 .workbench-panel > .detail-panel,
 .workbench-panel > .preview-panel {

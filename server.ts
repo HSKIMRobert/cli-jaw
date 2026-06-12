@@ -284,13 +284,24 @@ app.use((req, res, next) => {
     // A single page load can fan out into many static asset requests and
     // self-trigger 429s before the UI even boots.
     if (!req.path.startsWith('/api/')) return next();
+    // SSE reconnects must never be locked out by burst traffic from the same
+    // IP (all localhost clients — manager polling, CLI, agent — share one
+    // bucket). A 429 here extends a drop past the toast grace and the UI
+    // reads as "disconnected" while the server is healthy.
+    if (req.path === '/api/events') return next();
     const ip = req.ip;
     const now = Date.now();
-    const window = rateLimitMap.get(ip) || { count: 0, start: now };
-    if (now - window.start > 60_000) { window.count = 0; window.start = now; }
+    const window = rateLimitMap.get(ip) || { count: 0, start: now, logged: false };
+    if (now - window.start > 60_000) { window.count = 0; window.start = now; window.logged = false; }
     window.count++;
     rateLimitMap.set(ip, window);
-    if (window.count > 120) return res.status(429).json({ error: 'rate_limit' });
+    if (window.count > 120) {
+        if (!window.logged) {
+            window.logged = true;
+            console.warn(`[rate-limit] ${ip} exceeded 120 req/min (first blocked: ${req.method} ${req.path})`);
+        }
+        return res.status(429).json({ error: 'rate_limit' });
+    }
     next();
 });
 

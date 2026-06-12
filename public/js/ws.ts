@@ -197,7 +197,14 @@ function syncAfterBrowserRestore(reason: string): void {
 
 function requestBrowserRestoreSync(reason: string): void {
     const now = Date.now();
-    if (reason !== 'discard' && now - lastRestoreTriggerAt < RESTORE_TRIGGER_DEBOUNCE_MS) return;
+    // History-reloading restores (iframe-visible/pageshow/discard/…) must not
+    // be swallowed by a snapshot-only restore that fired just before them —
+    // e.g. 'focus' lands ~100ms ahead of the manager's iframe-visible ping
+    // and would otherwise consume the debounce slot, leaving stale history.
+    // Only snapshot-only restores debounce; heavy reloads coalesce via the
+    // loadMessages single-flight instead.
+    if (!shouldReloadMessagesForRestore(reason)
+        && now - lastRestoreTriggerAt < RESTORE_TRIGGER_DEBOUNCE_MS) return;
     lastRestoreTriggerAt = now;
     syncAfterBrowserRestore(reason);
 }
@@ -904,7 +911,22 @@ function handleServerEvent(msg: WsMessage): void {
         finalizeAgent('');
         setStatus('steering');
     } else if (msg.type === 'new_message' && (msg.source === 'telegram' || msg.source === 'discord' || msg.fromQueue === true)) {
-        addMessage(msg.role === 'assistant' ? 'agent' : (msg.role || 'user'), msg.content || '', msg.cli);
+        const newMessageRole = msg.role === 'assistant' ? 'agent' : (msg.role || 'user');
+        const newMessageContent = msg.content || '';
+        const newMessageCli = msg.cli;
+        void import('./features/message-history.js').then(m => {
+            if (m.historyReloadInFlight()) {
+                // A snapshot rebuild is mid-flight (reconnect/restore reload):
+                // appending now either gets wiped by the rebuild or lands out
+                // of order against rows the snapshot already contains. Reload
+                // after the flight settles — DB order wins over append order.
+                void m.loadMessages()
+                    .then(() => m.loadMessages())
+                    .catch(err => console.warn('[ws] new_message reload after in-flight failed', err));
+                return;
+            }
+            addMessage(newMessageRole, newMessageContent, newMessageCli);
+        });
     } else if (msg.type === 'system_notice') {
         addSystemMsg(`ℹ️ ${escapeHtml(msg.text || '')}`, 'tool-activity');
     } else if (msg.type === 'replay_gap') {
