@@ -4,7 +4,14 @@ import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { join, basename } from 'path';
 import fs from 'node:fs';
 import net from 'node:net';
-import { chromium, type Browser, type CDPSession, type Page } from 'playwright-core';
+import type { Browser, CDPSession, Page } from 'playwright-core';
+
+// playwright-core costs ~46MB RSS at import (260613 docs 07/51) and has
+// exactly one runtime consumer (connectOverCDP below) — load it on first
+// browser connection instead of at server boot.
+async function loadChromium() {
+    return (await import('playwright-core')).chromium;
+}
 import { resolveLaunchPolicy, type BrowserStartMode } from './launch-policy.js';
 import os from 'node:os';
 import {
@@ -529,7 +536,7 @@ export async function connectCdp(port = getActivePort(), retries = 3) {
     let lastError: Error | null = null;
     for (let i = 0; i < retries; i++) {
         try {
-            const browser = await chromium.connectOverCDP(cdpUrl, { timeout: 10000 });
+            const browser = await (await loadChromium()).connectOverCDP(cdpUrl, { timeout: 10000 });
             cached = { browser, cdpUrl };
             browser.on('disconnected', () => { cached = null; });
             return cached;

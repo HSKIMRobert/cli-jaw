@@ -83,7 +83,7 @@ import { submitMessage } from './src/orchestrator/gateway.js';
 import { applySettingsPatch } from './src/core/session-ops.js';
 import { makeWebCommandCtx } from './src/cli/web-command-ctx.js';
 
-import './src/discord/bot.js'; // side-effect: registers discord transport
+import './src/discord/register.js'; // side-effect: registers discord transport (bot.js + discord.js load lazily on first use)
 import { initActiveMessagingRuntime, shutdownMessagingRuntime, hydrateTargetsFromSettings } from './src/messaging/runtime.js';
 
 import { startHeartbeat, stopHeartbeat, watchHeartbeatFile } from './src/memory/heartbeat.js';

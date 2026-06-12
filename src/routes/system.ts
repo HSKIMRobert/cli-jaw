@@ -35,6 +35,25 @@ export function registerSystemRoutes(app: Router, deps: { jawAuthToken: string }
 
     app.get('/api/session', (_, res) => ok(res, getSession(), getSession() as Record<string, unknown> | undefined));
 
+    // Memory composition probe (devlog 260613 docs 07/50 5c): splits the JS
+    // heap from native/mmap so RSS investigations can tell "V8 objects" apart
+    // from "sqlite-mapped pages + native addons" without a debugger attach.
+    app.get('/api/debug/mem', (_req, res) => {
+        const m = process.memoryUsage();
+        const mb = (n: number) => Math.round(n / 1024 / 1024);
+        res.json({
+            ok: true,
+            rss_mb: mb(m.rss),
+            heapTotal_mb: mb(m.heapTotal),
+            heapUsed_mb: mb(m.heapUsed),
+            external_mb: mb(m.external),
+            arrayBuffers_mb: mb(m.arrayBuffers),
+            // rough native/mmap share: better-sqlite3 mapped pages, addon code
+            native_mmap_mb: mb(Math.max(0, m.rss - m.heapTotal - m.external)),
+            uptimeSec: Math.floor(process.uptime()),
+        });
+    });
+
     app.get('/api/runtime', (req, res) => {
         if (req.query["logs"] === 'tail') {
             const lines = drainLogRing();

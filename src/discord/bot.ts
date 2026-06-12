@@ -9,8 +9,7 @@ import { orchestrateAndCollect } from '../orchestrator/collect.js';
 import { isResetIntent } from '../orchestrator/pipeline.js';
 import { addBroadcastListener, removeBroadcastListener, type BroadcastListener } from '../core/bus.js';
 import { saveUpload, buildMediaPromptMany } from '../agent/spawn.js';
-import { registerTransport, setLastActiveTarget, setLatestSeenTarget, getLastActiveTarget } from '../messaging/runtime.js';
-import { registerSendTransport } from '../messaging/send.js';
+import { setLastActiveTarget, setLatestSeenTarget, getLastActiveTarget } from '../messaging/runtime.js';
 import { t, normalizeLocale } from '../core/i18n.js';
 import type { RemoteTarget } from '../messaging/types.js';
 import type { ChannelSendRequest } from '../messaging/send.js';
@@ -343,7 +342,7 @@ export async function shutdownDiscord() {
 
 // ─── Send Handler ───────────────────────────────────
 
-async function discordSendHandler(req: ChannelSendRequest): Promise<{ ok: boolean; error?: string; [k: string]: unknown }> {
+export async function discordSendHandler(req: ChannelSendRequest): Promise<{ ok: boolean; error?: string; [k: string]: unknown }> {
     const channelId = req.chatId || req.target?.threadId || req.target?.targetId
         || (Array.from(discordActiveChannelIds).at(-1))
         || settings["discord"]?.channelIds?.[0];
@@ -401,7 +400,5 @@ async function discordSendHandler(req: ChannelSendRequest): Promise<{ ok: boolea
     return { ok: true, channel_id: channelId, type: req.type };
 }
 
-// ─── Register Transport ─────────────────────────────
-
-registerTransport('discord', { init: initDiscord, shutdown: shutdownDiscord });
-registerSendTransport('discord', discordSendHandler);
+// Transport registration moved to ./register.js (lazy loader) so importing
+// this module — and discord.js's ~48MB with it — happens on first use only.
