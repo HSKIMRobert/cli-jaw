@@ -10,6 +10,7 @@ import {
 } from './constants.js';
 import {
     injectPreviewLinkPolicy,
+    MAX_INJECT_BUFFER_CHARS,
     preferIdentityEncoding,
     prepareInjectedPreviewHeaders,
     shouldInjectPreviewLinkPolicy,
@@ -174,9 +175,32 @@ function proxyHttpRequest(req: Request, res: Response, range: ProxyPortRange): v
         });
         if (shouldInjectPreviewLinkPolicy(req.method, upstreamRes.statusCode, upstreamRes.headers)) {
             const chunks: string[] = [];
+            let buffered = 0;
+            let bailed = false;
             upstreamRes.setEncoding('utf8');
-            upstreamRes.on('data', chunk => chunks.push(String(chunk)));
+            upstreamRes.on('data', chunk => {
+                const text = String(chunk);
+                if (bailed) {
+                    if (!res.writableEnded && !res.destroyed) res.write(text);
+                    return;
+                }
+                chunks.push(text);
+                buffered += text.length;
+                if (buffered > MAX_INJECT_BUFFER_CHARS) {
+                    // Past the cap, injection would buffer unboundedly —
+                    // flush and stream the rest uninjected.
+                    bailed = true;
+                    delete headers['content-length'];
+                    res.writeHead(upstreamRes.statusCode || 502, upstreamRes.statusMessage, headers);
+                    res.write(chunks.join(''));
+                    chunks.length = 0;
+                }
+            });
             upstreamRes.on('end', () => {
+                if (bailed) {
+                    res.end();
+                    return;
+                }
                 res.writeHead(
                     upstreamRes.statusCode || 502,
                     upstreamRes.statusMessage,

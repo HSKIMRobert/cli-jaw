@@ -13,6 +13,7 @@ import {
 } from './proxy.js';
 import {
     injectPreviewLinkPolicy,
+    MAX_INJECT_BUFFER_CHARS,
     preferIdentityEncoding,
     prepareInjectedPreviewHeaders,
     shouldInjectPreviewLinkPolicy,
@@ -186,6 +187,10 @@ export function createPreviewOriginProxyController(
             path: req.url || '/',
             headers: preferIdentityEncoding(rewriteUpstreamRequestHeaders(req.headers, state.targetPort)),
         }, (upstreamRes) => {
+            // The deadline diagnoses unreachable instances (504). Any response
+            // proves reachability, so disarm it here — long-lived bodies (SSE
+            // streams, large downloads) must not be severed mid-stream.
+            clearDeadline();
             const headers = sanitizeProxyResponseHeaders(upstreamRes.headers, {
                 targetOrigin: targetOriginForPort(state.targetPort),
                 publicBase: publicBase(state),
@@ -195,10 +200,32 @@ export function createPreviewOriginProxyController(
             headers['x-jaw-target-port'] = String(state.targetPort);
             if (shouldInjectPreviewLinkPolicy(req.method, upstreamRes.statusCode, upstreamRes.headers)) {
                 const chunks: string[] = [];
+                let buffered = 0;
+                let bailed = false;
                 upstreamRes.setEncoding('utf8');
-                upstreamRes.on('data', chunk => chunks.push(String(chunk)));
+                upstreamRes.on('data', chunk => {
+                    const text = String(chunk);
+                    if (bailed) {
+                        if (!res.writableEnded && !res.destroyed) res.write(text);
+                        return;
+                    }
+                    chunks.push(text);
+                    buffered += text.length;
+                    if (buffered > MAX_INJECT_BUFFER_CHARS) {
+                        // Past the cap, injection would buffer unboundedly —
+                        // flush and stream the rest uninjected.
+                        bailed = true;
+                        delete headers['content-length'];
+                        res.writeHead(upstreamRes.statusCode || 502, upstreamRes.statusMessage, headers);
+                        res.write(chunks.join(''));
+                        chunks.length = 0;
+                    }
+                });
                 upstreamRes.on('end', () => {
-                    clearDeadline();
+                    if (bailed) {
+                        res.end();
+                        return;
+                    }
                     res.writeHead(
                         upstreamRes.statusCode || 502,
                         upstreamRes.statusMessage,
@@ -206,18 +233,25 @@ export function createPreviewOriginProxyController(
                     );
                     res.end(injectPreviewLinkPolicy(chunks.join('')));
                 });
-                upstreamRes.on('close', clearDeadline);
                 return;
             }
             res.writeHead(upstreamRes.statusCode || 502, upstreamRes.statusMessage, headers);
-            upstreamRes.on('end', clearDeadline);
-            upstreamRes.on('close', clearDeadline);
             upstreamRes.pipe(res);
         });
 
-        deadlineTimer = setTimeout(() => {
-            upstream.destroy(new Error('preview proxy timeout'));
-        }, timeoutMs);
+        const armDeadline = () => {
+            clearDeadline();
+            deadlineTimer = setTimeout(() => {
+                upstream.destroy(new Error('preview proxy timeout'));
+            }, timeoutMs);
+        };
+        armDeadline();
+        // A slow upload legitimately holds the request open past the deadline;
+        // body progress is liveness, so each chunk restarts the clock. Only a
+        // target that stays silent for a full window still 504s.
+        req.on('data', () => {
+            if (deadlineTimer) armDeadline();
+        });
 
         upstream.on('error', (error: Error) => {
             clearDeadline();

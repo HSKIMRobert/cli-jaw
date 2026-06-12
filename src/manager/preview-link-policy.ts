@@ -7,6 +7,10 @@ const PREVIEW_LINK_POLICY_SCRIPT = `<script ${LINK_POLICY_MARKER}>(function(){fu
 const PREVIEW_DROP_OBSERVER_SCRIPT = `<script ${DROP_OBSERVER_MARKER}>(function(){function t(){try{return document.referrer?new URL(document.referrer).origin:"*"}catch{return"*"}}document.addEventListener("drop",function(e){try{var r=e.dataTransfer&&e.dataTransfer.files?Array.prototype.slice.call(e.dataTransfer.files):[];if(!r.length||!window.parent||window.parent===window)return;setTimeout(function(){try{window.parent.postMessage({type:"jaw-preview-dropped-files",files:r},t())}catch(e){}},0)}catch(e){}},true);})();</script>`;
 const PREVIEW_INJECTED_SCRIPTS = `${PREVIEW_LINK_POLICY_SCRIPT}${PREVIEW_DROP_OBSERVER_SCRIPT}`;
 
+/** Injection buffers the whole HTML body in memory. Documents past this size
+ *  are streamed through uninjected instead of risking unbounded heap growth. */
+export const MAX_INJECT_BUFFER_CHARS = 2_000_000;
+
 function headerValue(headers: IncomingHttpHeaders | OutgoingHttpHeaders, key: string): string {
     const value = headers[key] ?? headers[key.toLowerCase()];
     if (Array.isArray(value)) return value.join(', ');

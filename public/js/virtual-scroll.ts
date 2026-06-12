@@ -369,12 +369,14 @@ export class VirtualScroll {
     private activate(toBottom = false): void {
         this._active = true;
 
-        // Measure real heights from existing DOM before replacing
+        // Measure real heights from existing DOM before replacing. A hidden
+        // container measures 0 — keep the EST_HEIGHT seed instead of poisoning
+        // every item with a zero estimate (same guard as syncMeasuredItemHeight).
         const existing = this.container.querySelectorAll('.msg');
         existing.forEach((el, i) => {
-            if (this.items[i]) {
-                this.items[i].height = el.getBoundingClientRect().height;
-            }
+            if (!this.items[i]) return;
+            const measured = el.getBoundingClientRect().height;
+            if (measured > 0) this.items[i].height = measured;
         });
 
         this.container.classList.add('vs-active');

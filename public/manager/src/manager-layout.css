@@ -95,6 +95,7 @@
     min-width: 0;
     min-height: 0;
     height: 100%;
+    position: relative;
 }
 .workspace-surface {
     min-width: 0;
@@ -103,6 +104,17 @@
 }
 .workspace-surface[hidden] {
     display: none;
+}
+/* The surface hosting the persistent preview iframe must never collapse to
+   display:none — the embedded chat keeps rendering while hidden, and 0×0
+   layout poisons its virtual-scroll/diagram measurements until a reload.
+   Keep it laid out at full size, just invisible. */
+.workspace-surface[hidden]:has([data-preview-host="persistent"]) {
+    display: block;
+    position: absolute;
+    inset: 0;
+    visibility: hidden;
+    pointer-events: none;
 }
 .manager-activity {
     grid-area: bottom; min-width: 0; min-height: 0; overflow: hidden;

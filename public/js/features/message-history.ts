@@ -172,6 +172,15 @@ export async function loadMessages(): Promise<void> {
     return loadMessagesInFlight;
 }
 
+/** True while a history snapshot fetch/rebuild is mid-flight. A live append
+ *  during this window races the rebuild — the fetched snapshot may not
+ *  contain the row yet, and the rebuild wipes whatever was appended, so the
+ *  row is lost or lands out of order. Callers should reload after the
+ *  in-flight load settles instead of appending. */
+export function historyReloadInFlight(): boolean {
+    return loadMessagesInFlight !== null;
+}
+
 async function loadMessagesOnce(): Promise<void> {
     const vs = getVirtualScroll();
     const chatEl = document.getElementById('chatMessages');
