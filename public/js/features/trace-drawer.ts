@@ -18,8 +18,18 @@ let currentRunId = '';
 let loadedCount = 0;
 let totalCount = 0;
 let loading = false;
+let openRequestId = 0;
+let selectedSeq: number | null = null;
 
 function eventTypeOf(event: TraceEventListItem): string { return event.eventType || event.event_type || 'event'; }
+function isCurrentRequest(requestId: number, runId = currentRunId): boolean {
+    return requestId === openRequestId && runId === currentRunId;
+}
+
+function requestedOffset(seq?: number): number {
+    if (!seq || !Number.isInteger(seq) || seq < 1) return 0;
+    return Math.floor((seq - 1) / PAGE_SIZE) * PAGE_SIZE;
+}
 
 function ensureDrawer(): HTMLElement {
     let overlay = document.getElementById('traceDrawerOverlay') as HTMLElement | null;
@@ -45,8 +55,14 @@ function ensureDrawer(): HTMLElement {
         if (!target) return;
         if (target === overlay || target.closest('.trace-drawer-close')) closeTraceDrawer();
         const row = target.closest('.trace-event-row') as HTMLElement | null;
-        if (row) void loadEventDetail(row.dataset['runId'] || '', Number(row.dataset['seq'] || 0));
-        if (target.closest('.trace-load-more')) void loadNextPage();
+        if (row) {
+            const runId = row.dataset['runId'] || '';
+            const seq = Number(row.dataset['seq'] || 0);
+            selectedSeq = Number.isInteger(seq) && seq > 0 ? seq : null;
+            markSelectedRow(selectedSeq);
+            void loadEventDetail(runId, seq, openRequestId);
+        }
+        if (target.closest('.trace-load-more')) void loadNextPage(openRequestId, currentRunId);
     });
     document.addEventListener('keydown', event => {
         if (event.key === 'Escape' && overlay?.classList.contains('open')) closeTraceDrawer();
@@ -72,52 +88,91 @@ function renderSummary(summary: TraceSummary): void {
     ].map(([label, value]) => `<span><b>${escapeHtml(label)}</b>${escapeHtml(value)}</span>`).join('');
 }
 
-function renderEventRows(events: TraceEventListItem[]): void {
+function markSelectedRow(seq: number | null): void {
+    document.querySelectorAll<HTMLElement>('.trace-event-row[aria-current="true"]').forEach(row => {
+        row.removeAttribute('aria-current');
+        row.classList.remove('selected');
+    });
+    if (!seq) return;
+    const row = Array.from(document.querySelectorAll<HTMLElement>('.trace-event-row'))
+        .find(candidate => Number(candidate.dataset['seq'] || 0) === seq) || null;
+    if (!row) return;
+    row.setAttribute('aria-current', 'true');
+    row.classList.add('selected');
+    row.scrollIntoView?.({ block: 'nearest' });
+}
+
+function renderEventRows(events: TraceEventListItem[], runId: string): void {
     const list = document.getElementById('traceEventList');
     if (!list) return;
     const html = events.map(event => {
         const seq = Number(event.seq || 0);
-        return `<button class="trace-event-row" type="button" data-run-id="${escapeHtml(currentRunId)}" data-seq="${seq}">
+        const selected = selectedSeq === seq ? ' aria-current="true"' : '';
+        const selectedClass = selectedSeq === seq ? ' selected' : '';
+        return `<button class="trace-event-row${selectedClass}" type="button" data-run-id="${escapeHtml(runId)}" data-seq="${seq}"${selected}>
             <span class="trace-event-seq">#${seq}</span><span class="trace-event-source">${escapeHtml(event.source || 'trace')}</span>
             <span class="trace-event-type">${escapeHtml(eventTypeOf(event))}</span><span class="trace-event-preview">${escapeHtml(event.preview || '')}</span>
         </button>`;
     }).join('');
     list.insertAdjacentHTML('beforeend', html);
+    markSelectedRow(selectedSeq);
 }
 
-async function loadNextPage(): Promise<void> {
-    if (!currentRunId || loading || (loadedCount >= totalCount && totalCount > 0)) return;
+async function loadNextPage(requestId = openRequestId, runId = currentRunId, offset = loadedCount): Promise<void> {
+    if (!runId || loading || (loadedCount >= totalCount && totalCount > 0 && offset >= loadedCount)) return;
     loading = true;
-    const page = await api<TraceEventsPage>(`/api/traces/${encodeURIComponent(currentRunId)}/events?offset=${loadedCount}&limit=${PAGE_SIZE}`);
+    const page = await api<TraceEventsPage>(`/api/traces/${encodeURIComponent(runId)}/events?offset=${offset}&limit=${PAGE_SIZE}`);
     loading = false;
-    if (!page) { setRaw('Trace events could not be loaded.'); return; }
+    if (!isCurrentRequest(requestId, runId)) return;
+    if (!page) {
+        if (!selectedSeq) setRaw('Trace events could not be loaded.');
+        return;
+    }
     totalCount = page.total || 0;
-    loadedCount += page.events.length;
-    renderEventRows(page.events);
+    loadedCount = Math.max(loadedCount, offset + page.events.length);
+    renderEventRows(page.events, runId);
     const more = document.querySelector('.trace-load-more') as HTMLButtonElement | null;
     if (more) more.disabled = loadedCount >= totalCount;
 }
 
-async function loadEventDetail(runId: string, seq: number): Promise<void> {
+async function loadEventDetail(runId: string, seq: number, requestId = openRequestId): Promise<void> {
     if (!runId || !Number.isInteger(seq) || seq < 1) return;
+    if (!isCurrentRequest(requestId, runId)) return;
     setRaw('Loading event...');
     const detail = await api<TraceEventDetail>(`/api/traces/${encodeURIComponent(runId)}/events/${seq}`);
+    if (!isCurrentRequest(requestId, runId) || selectedSeq !== seq) return;
     setRaw(detail?.raw || (detail ? '(empty trace event)' : 'Trace event could not be loaded.'));
 }
 
 export async function openTraceDrawer(runId: string, seq?: number): Promise<void> {
     const overlay = ensureDrawer();
+    const requestId = ++openRequestId;
+    const startOffset = requestedOffset(seq);
     currentRunId = runId;
-    loadedCount = 0;
+    loadedCount = startOffset;
     totalCount = 0;
+    loading = false;
+    selectedSeq = seq && Number.isInteger(seq) && seq > 0 ? seq : null;
     const list = document.getElementById('traceEventList');
     if (list) list.innerHTML = '';
     setRaw('Loading trace...');
     overlay.classList.add('open');
     const summary = await api<TraceSummary>(`/api/traces/${encodeURIComponent(runId)}`);
+    if (!isCurrentRequest(requestId, runId)) return;
     if (!summary) { setRaw('Trace is unavailable or internal-only.'); return; }
     renderSummary(summary);
     totalCount = summary.eventCount || 0;
-    await loadNextPage();
-    if (seq) await loadEventDetail(runId, seq);
+    if (selectedSeq) {
+        void loadEventDetail(runId, selectedSeq, requestId);
+    }
+    await loadNextPage(requestId, runId, startOffset);
+    if (!selectedSeq && totalCount > 0) {
+        const firstRow = document.querySelector<HTMLElement>('.trace-event-row');
+        const firstSeq = Number(firstRow?.dataset['seq'] || 0);
+        if (firstSeq > 0) {
+            selectedSeq = firstSeq;
+            markSelectedRow(selectedSeq);
+            await loadEventDetail(runId, firstSeq, requestId);
+        }
+    }
 }

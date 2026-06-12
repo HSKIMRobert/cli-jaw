@@ -31,6 +31,10 @@
     background: transparent; color: var(--text); text-align: left; cursor: pointer;
 }
 .trace-event-row:hover, .process-step-trace:hover { background: var(--surface-hover); }
+.trace-event-row.selected, .trace-event-row[aria-current="true"] {
+    background: color-mix(in oklch, var(--accent) 14%, transparent);
+    box-shadow: inset 3px 0 0 var(--accent);
+}
 .trace-event-seq, .trace-event-source, .trace-event-type { color: var(--text-dim); font: 600 var(--text-xs)/1.4 var(--font-mono); }
 .trace-event-preview { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--text-sm); }
 .trace-event-raw {
