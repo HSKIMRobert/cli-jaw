@@ -76,6 +76,29 @@ test('code artifact retrieval saves valid zip and fails closed on missing plan w
     assert.equal(planRequired.reason, 'code-artifact:plan-missing');
 });
 
+test('code artifact retrieval prefers the NEWEST mid when several runs minted the same sandbox path (drop10 stale incident)', async () => {
+    const outputPath = join(tmpdir(), 'jaw-code-artifact-test', 'newest.zip');
+    rmSync(outputPath, { force: true });
+    // Both mids mint a URL for /mnt/data/result.zip: the older snapshot lacks
+    // PLAN.md (FIXTURE zip), the latest rebuild has it (PLAN zip). Oldest-first
+    // selection used to return the stale snapshot — newest-first must win.
+    const page = makeRetrievalPage({
+        conversation: conversationFixture(),
+        urlByMid: {
+            'mid-code': 'https://chatgpt.com/stale',
+            'mid-output': 'https://chatgpt.com/fresh',
+        },
+        binaryByUrl: {
+            'https://chatgpt.com/stale': { status: 200, base64: FIXTURE_ZIP_B64 },
+            'https://chatgpt.com/fresh': { status: 200, base64: PLAN_ZIP_B64 },
+        },
+    });
+    const result = await retrieveCodeArtifact(page, { conversationId: 'conv-1', outputPath });
+    assert.equal(result.ok, true);
+    assert.equal(result.mintedMessageId, 'mid-output');
+    assert.ok(result.files.includes('PLAN.md'));
+});
+
 test('code artifact retrieval reports clear unavailable/missing/download errors', async () => {
     const outputPath = join(tmpdir(), 'jaw-code-artifact-test', 'errors.zip');
     assert.equal((await retrieveCodeArtifact({ evaluate: async () => null }, { conversationId: 'conv-1', outputPath })).reason, 'code-artifact:conversation-unavailable');

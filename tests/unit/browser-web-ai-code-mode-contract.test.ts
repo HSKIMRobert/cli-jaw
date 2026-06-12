@@ -17,14 +17,17 @@ test('code mode extracts ChatGPT conversation ids from urls and bare ids', () =>
     assert.equal(extractConversationId(null), null);
 });
 
-test('code mode prepends automatic dev-agent context zip and requires plans on new artifacts', () => {
-    assert.match(codeModeSrc, /const contextZip = await ensureCodeDevContextZip\(\)/);
-    assert.match(codeModeSrc, /const filePaths = \[contextZip\.path, \.\.\.callerFilePaths\]/);
-    assert.match(codeModeSrc, /attachmentPolicy: 'upload'/);
+test('code mode attaches the dev-agent context zip on first turns only and requires plans on new artifacts', () => {
+    // First turn: attach the context zip; continuation (--url/--conversation/--session)
+    // skips it unless contextRefresh forces a re-upload (sandbox /mnt persists).
+    assert.match(codeModeSrc, /const attachContext = !continuation \|\| input\.contextRefresh === true/);
+    assert.match(codeModeSrc, /const contextZip = attachContext \? await ensureCodeDevContextZip\(\) : null/);
+    assert.match(codeModeSrc, /const filePaths = \[\.\.\.\(contextZip \? \[contextZip\.path\] : \[\]\), \.\.\.callerFilePaths\]/);
+    assert.match(codeModeSrc, /attachmentPolicy: filePaths\.length \? 'upload' : 'inline-only'/);
     assert.match(codeModeSrc, /buildCodeModePrompt\(String\(input\.prompt \|\| ''\), \{ multiZip: input\.multiZip === true \}\)/);
     assert.match(codeModeSrc, /retrieveCodeArtifact\(page as any, \{ conversationId, outputPath, requirePlan: true \}\)/);
     assert.match(codeModeSrc, /retrieveAllCodeArtifacts\(page as any, \{ conversationId, outputDir, requirePlan: true \}\)/);
-    assert.match(codeModeSrc, /codeContextAttached: true/);
+    assert.match(codeModeSrc, /codeContextAttached: attachContext/);
 });
 
 test('code extract reuses conversation text later without requiring plan artifacts', () => {

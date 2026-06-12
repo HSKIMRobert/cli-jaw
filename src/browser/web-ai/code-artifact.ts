@@ -14,6 +14,7 @@ export interface RetrieveResult {
     sizeBytes: number;
     files: string[];
     hasPlanArtifact?: boolean;
+    mintedMessageId?: string | null;
 }
 
 const ZIP_PATH_RE = /\/mnt\/data\/[A-Za-z0-9_\-./]+\.zip/;
@@ -165,17 +166,23 @@ export async function retrieveAllCodeArtifacts(page: PageLike, params: { convers
 }
 
 async function downloadAndSaveZip(page: PageLike, params: { conversationId: string; zipPath: string; candidateMids: string[]; outputPath: string; requirePlan?: boolean }): Promise<RetrieveResult> {
-    const result: RetrieveResult = { ok: false, reason: null, zipPath: params.zipPath, savedPath: null, sizeBytes: 0, files: [] };
+    const result: RetrieveResult = { ok: false, reason: null, zipPath: params.zipPath, savedPath: null, sizeBytes: 0, files: [], mintedMessageId: null };
     let payload: { status: number; base64: string } | null = null;
-    for (const messageId of params.candidateMids) {
+    let mintedMessageId: string | null = null;
+    // Newest-first: when one conversation rebuilds the same sandbox path across
+    // several code runs, interpreter/download serves the snapshot tied to the
+    // message id — oldest-first minted a STALE artifact (drop10 incident,
+    // 2026-06-11; mirrors agbrowse 02f03cc).
+    for (const messageId of [...params.candidateMids].reverse()) {
         // eslint-disable-next-line no-await-in-loop
         const downloadUrl = await mintDownloadUrl(page, { conversationId: params.conversationId, messageId, sandboxPath: params.zipPath });
         if (!downloadUrl) continue;
         // eslint-disable-next-line no-await-in-loop
         const fetched = await fetchBinaryBase64(page, downloadUrl);
-        if (fetched?.base64) { payload = fetched; break; }
+        if (fetched?.base64) { payload = fetched; mintedMessageId = messageId; break; }
     }
     if (!payload) return { ...result, reason: 'code-artifact:download-failed' };
+    result.mintedMessageId = mintedMessageId;
     const buffer = Buffer.from(payload.base64, 'base64');
     const verified = verifyZipBuffer(buffer);
     if (!verified) return { ...result, sizeBytes: buffer.length, reason: 'code-artifact:invalid-zip' };
@@ -183,5 +190,5 @@ async function downloadAndSaveZip(page: PageLike, params: { conversationId: stri
     if (params.requirePlan && !hasPlan) return { ...result, sizeBytes: buffer.length, files: verified.files, hasPlanArtifact: false, reason: 'code-artifact:plan-missing' };
     await mkdir(dirname(params.outputPath), { recursive: true });
     await writeFile(params.outputPath, buffer);
-    return { ok: true, reason: null, zipPath: params.zipPath, savedPath: params.outputPath, sizeBytes: buffer.length, files: verified.files, hasPlanArtifact: hasPlan };
+    return { ok: true, reason: null, zipPath: params.zipPath, savedPath: params.outputPath, sizeBytes: buffer.length, files: verified.files, hasPlanArtifact: hasPlan, mintedMessageId };
 }
