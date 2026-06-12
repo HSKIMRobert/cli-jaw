@@ -25,16 +25,16 @@ test('code mode attaches the dev-agent context zip on first turns only and requi
     assert.match(codeModeSrc, /const filePaths = \[\.\.\.\(contextZip \? \[contextZip\.path\] : \[\]\), \.\.\.callerFilePaths\]/);
     assert.match(codeModeSrc, /attachmentPolicy: filePaths\.length \? 'upload' : 'inline-only'/);
     assert.match(codeModeSrc, /buildCodeModePrompt\(String\(input\.prompt \|\| ''\), \{ multiZip: input\.multiZip === true \}\)/);
-    assert.match(codeModeSrc, /retrieveCodeArtifact\(page as any, \{ conversationId, outputPath, requirePlan: true \}\)/);
-    assert.match(codeModeSrc, /retrieveAllCodeArtifacts\(page as any, \{ conversationId, outputDir, requirePlan: true \}\)/);
+    assert.match(codeModeSrc, /retrieveCodeArtifact\(page as unknown as PageLike, \{ conversationId, outputPath, requirePlan: true \}\)/);
+    assert.match(codeModeSrc, /retrieveAllCodeArtifacts\(page as unknown as PageLike, \{ conversationId, outputDir, requirePlan: true \}\)/);
     assert.match(codeModeSrc, /codeContextAttached: attachContext/);
 });
 
 test('code extract reuses conversation text later without requiring plan artifacts', () => {
     assert.match(codeModeSrc, /extractCodeArtifacts/);
     assert.match(codeModeSrc, /conversationRef = input\.conversation \|\| input\.url \|\| session\?\.conversationUrl \|\| session\?\.url \|\| pageUrl/);
-    assert.match(codeModeSrc, /retrieveCodeArtifact\(page as any, \{ conversationId, outputPath, requirePlan: false \}\)/);
-    assert.match(codeModeSrc, /retrieveAllCodeArtifacts\(page as any, \{ conversationId, outputDir, requirePlan: false \}\)/);
+    assert.match(codeModeSrc, /retrieveCodeArtifact\(page as unknown as PageLike, \{ conversationId, outputPath, requirePlan: false \}\)/);
+    assert.match(codeModeSrc, /retrieveAllCodeArtifacts\(page as unknown as PageLike, \{ conversationId, outputDir, requirePlan: false \}\)/);
 });
 
 test('chatgpt send supports multiple live file uploads in caller order', () => {
