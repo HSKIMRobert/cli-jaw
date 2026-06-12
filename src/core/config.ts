@@ -52,7 +52,9 @@ export function deriveCdpPort(serverPort?: number | string): number {
 }
 
 export function getServerUrl(port?: string | number) {
-    return `http://localhost:${port || process.env["PORT"] || settings["port"] || DEFAULT_PORT}`;
+    // 127.0.0.1, not localhost: skips the dual-stack (::1-first) lookup and
+    // the happy-eyeballs fallback on every new connection (260613 doc 60).
+    return `http://127.0.0.1:${port || process.env["PORT"] || settings["port"] || DEFAULT_PORT}`;
 }
 export function getWsUrl(port?: string | number) {
     return `ws://localhost:${port || process.env["PORT"] || settings["port"] || DEFAULT_PORT}`;

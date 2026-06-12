@@ -209,6 +209,11 @@ if (remoteAccess.mode === 'reverse-proxy' && remoteAccess.trustProxies && remote
     app.set('trust proxy', 'loopback');
 }
 const server = createServer(app);
+// 65s > any sane client/poller interval; headers > keepAlive per Node
+// guidance. Defaults (5s/60s) raced undici connection reuse on transient
+// stalls (260613 doc 60).
+server.keepAliveTimeout = 65_000;
+server.headersTimeout = 66_000;
 
 // ─── Security Headers ───────────────────────────────
 app.use(helmet({
@@ -289,6 +294,11 @@ app.use((req, res, next) => {
     // bucket). A 429 here extends a drop past the toast grace and the UI
     // reads as "disconnected" while the server is healthy.
     if (req.path === '/api/events') return next();
+    // Dispatch pollers (jaw dispatch / worker watch) poll two endpoints every
+    // 2s — bounded internal traffic that shares the localhost bucket with the
+    // manager scan and the browser. A 429 mid-poll aborts a worker watch for
+    // no protective gain (260613 doc 60).
+    if (req.path.startsWith('/api/orchestrate/worker')) return next();
     const ip = req.ip;
     const now = Date.now();
     const window = rateLimitMap.get(ip) || { count: 0, start: now, logged: false };

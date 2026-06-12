@@ -245,7 +245,11 @@ export async function drainPendingReplays(fallbackMeta: Record<string, any> = {}
             ...(slotMeta.requestId ? { requestId: slotMeta.requestId } : {}),
         };
         try {
-            await orchestrate(pr.text, { ...meta, _workerResult: true, _skipInsert: true, _skipReplayDrain: true });
+            // Marker line: the boss that fired the original dispatch may have
+            // already compensated for the lost result (devlog 260613 doc 08
+            // §2.3) — a late re-injection must be recognizable as such.
+            const replayText = `[worker-replay agent=${pr.agentId} — delayed result: the original dispatch connection dropped before delivery]\n${pr.text}`;
+            await orchestrate(replayText, { ...meta, _workerResult: true, _skipInsert: true, _skipReplayDrain: true });
             markWorkerReplayed(pr.agentId);
             processQueue();
         } catch {

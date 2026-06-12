@@ -229,20 +229,28 @@ class DispatchPollError extends Error {
     }
 }
 
+// A single transient fetch failure (ECONNRESET, brief event-loop stall) used
+// to kill a 10-minute poll loop on its first throw (devlog 260613 doc 08).
+const POLL_RETRY_DELAYS_MS = [500, 1000, 2000];
+
+async function pollFetch(url: string, agentId: string, agentName: string, label: string): Promise<Response> {
+    let lastErr: unknown;
+    for (let attempt = 0; attempt <= POLL_RETRY_DELAYS_MS.length; attempt++) {
+        try {
+            return await cliFetch(url);
+        } catch (fetchErr) {
+            lastErr = fetchErr;
+            if (attempt < POLL_RETRY_DELAYS_MS.length) await sleep(POLL_RETRY_DELAYS_MS[attempt]!);
+        }
+    }
+    throw new DispatchPollError(`${label}: ${errString(lastErr)}`, agentId, agentName);
+}
+
 async function pollWorkerResult(agentId: string, agentName = ''): Promise<DispatchResultBody> {
     const deadline = Date.now() + 600_000;
     let lastState = 'unknown';
     while (Date.now() < deadline) {
-        let res: Response;
-        try {
-            res = await cliFetch(`${BASE}/api/orchestrate/worker/${encodeURIComponent(agentId)}/result`);
-        } catch (fetchErr) {
-            throw new DispatchPollError(
-                `dispatch poll failed: ${errString(fetchErr)}`,
-                agentId,
-                agentName,
-            );
-        }
+        const res = await pollFetch(`${BASE}/api/orchestrate/worker/${encodeURIComponent(agentId)}/result`, agentId, agentName, 'dispatch poll failed');
         const { body, nonJsonError } = await readJsonResponse<DispatchResultBody>(res, 'worker result endpoint');
         if (nonJsonError) throw new DispatchPollError(nonJsonError, agentId, agentName);
         if (!res.ok) throw new DispatchPollError(body.error || `poll failed: ${res.status}`, agentId, agentName);
@@ -254,16 +262,7 @@ async function pollWorkerResult(agentId: string, agentName = ''): Promise<Dispat
 }
 
 async function fetchWorkerProgress(agentId: string, agentName = ''): Promise<WorkerProgressSnapshotBody | null> {
-    let res: Response;
-    try {
-        res = await cliFetch(`${BASE}/api/orchestrate/worker-progress/${encodeURIComponent(agentId)}`);
-    } catch (fetchErr) {
-        throw new DispatchPollError(
-            `worker progress fetch failed: ${errString(fetchErr)}`,
-            agentId,
-            agentName,
-        );
-    }
+    const res = await pollFetch(`${BASE}/api/orchestrate/worker-progress/${encodeURIComponent(agentId)}`, agentId, agentName, 'worker progress fetch failed');
     const { body, nonJsonError } = await readJsonResponse<WorkerProgressResponseBody>(res, 'worker progress endpoint');
     if (nonJsonError) throw new DispatchPollError(nonJsonError, agentId, agentName);
     if (res.status === 404) return null;
@@ -364,16 +363,7 @@ async function pollAndPrintWorker(agentId: string, agentName: string): Promise<D
 }
 
 async function pollWorkerResultOnce(agentId: string, agentName = ''): Promise<DispatchResultBody> {
-    let res: Response;
-    try {
-        res = await cliFetch(`${BASE}/api/orchestrate/worker/${encodeURIComponent(agentId)}/result`);
-    } catch (fetchErr) {
-        throw new DispatchPollError(
-            `dispatch poll failed: ${errString(fetchErr)}`,
-            agentId,
-            agentName,
-        );
-    }
+    const res = await pollFetch(`${BASE}/api/orchestrate/worker/${encodeURIComponent(agentId)}/result`, agentId, agentName, 'dispatch poll failed');
     const { body, nonJsonError } = await readJsonResponse<DispatchResultBody>(res, 'worker result endpoint');
     if (nonJsonError) throw new DispatchPollError(nonJsonError, agentId, agentName);
     if (!res.ok) throw new DispatchPollError(body.error || `poll failed: ${res.status}`, agentId, agentName);
@@ -428,7 +418,12 @@ try {
                     ...(role ? { role } : {}),
                     ...(cli ? { cli } : {}),
                     ...(model ? { model } : {}),
-                    ...(watch ? { wait: false } : {}),
+                    // 260613 60: always poll. Blocking wait=true held the
+                    // response past undici's 5-min headersTimeout for long
+                    // workers — CLI died with "fetch failed" while the worker
+                    // kept running, and the result came back later as a
+                    // confusing pendingReplay re-injection (devlog doc 08).
+                    wait: false,
                 }),
             });
             break;
@@ -457,15 +452,17 @@ try {
         console.error(`❌ ${nonJsonError}`);
         process.exit(1);
     }
-    if (watch && res.status === 202) {
+    if (res.status === 202) {
         const pollAgentId = body?.worker?.agentId || (agent ? await resolveAgentId(agent) : null);
         if (!pollAgentId) {
             console.error('❌ dispatch started but worker id was not returned');
             process.exit(1);
         }
-        const watched = await pollAndPrintWorker(pollAgentId, targetName);
-        printDispatchResult(targetName, watched, { skipProcess: true });
-        process.exit(dispatchExitCode(watched));
+        const polled = watch
+            ? await pollAndPrintWorker(pollAgentId, targetName)
+            : await pollWorkerResult(pollAgentId, targetName);
+        printDispatchResult(targetName, polled, watch ? { skipProcess: true } : {});
+        process.exit(dispatchExitCode(polled));
     }
     if (!res.ok) {
         if (res.status === 409) {

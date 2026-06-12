@@ -28,8 +28,10 @@ test('dispatch helper returns an empty list for malformed employee payloads', ()
 });
 
 test('dispatch CLI resolves agent id from /api/employees only for watch or worker-busy polling', () => {
-    const watchIdx = dispatchSrc.indexOf('if (watch && res.status === 202)');
-    assert.ok(watchIdx >= 0, 'watch path should handle async 202 response');
+    // 260613 60: every dispatch is wait:false now — 202 + poll is the single
+    // result path for both watch and quiet modes.
+    const watchIdx = dispatchSrc.indexOf('if (res.status === 202)');
+    assert.ok(watchIdx >= 0, '202 path should handle the async dispatch response');
 
     const nonOkIdx = dispatchSrc.indexOf('if (!res.ok)', watchIdx);
     assert.ok(nonOkIdx >= 0, 'dispatch.ts should handle non-ok dispatch responses');
