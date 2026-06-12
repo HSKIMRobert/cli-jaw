@@ -38,7 +38,10 @@ test('ws-resume: restore sync reloads history only for history-sensitive reasons
 
 test('ws-resume: requestBrowserRestoreSync debounces repeated restore triggers', () => {
     const block = functionBlock(wsSrc, 'function requestBrowserRestoreSync(reason: string): void');
-    assert.ok(block.includes("reason !== 'discard'"), 'discard should bypass debounce');
+    // History-reloading reasons (iframe-visible/pageshow/discard/visibilitychange)
+    // bypass the debounce so a snapshot-only restore (e.g. focus ~100ms earlier)
+    // cannot swallow them — a strict superset of the old discard-only bypass.
+    assert.ok(block.includes('!shouldReloadMessagesForRestore(reason)'), 'history-reloading restores (incl. discard) should bypass debounce');
     assert.ok(block.includes('RESTORE_TRIGGER_DEBOUNCE_MS'), 'must reference restore debounce constant');
     assert.ok(block.includes('lastRestoreTriggerAt = now;'), 'must stamp accepted restore trigger');
     assert.ok(block.includes('syncAfterBrowserRestore(reason)'), 'must call restore sync after debounce');
