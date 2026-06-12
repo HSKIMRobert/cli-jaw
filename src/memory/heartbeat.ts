@@ -1,6 +1,7 @@
 // ─── Heartbeat (Scheduled Jobs + fs.watch) ───────────
 
 import fs from 'fs';
+import { basename, dirname } from 'path';
 import crypto from 'crypto';
 import { settings, HEARTBEAT_JOBS_PATH, loadHeartbeatFile, saveHeartbeatFile } from '../core/config.js';
 import { stripUndefined } from '../core/strip-undefined.js';
@@ -195,14 +196,23 @@ function msUntilNextMinute(): number {
 export function watchHeartbeatFile() {
     try {
         let watchDebounce: ReturnType<typeof setTimeout> | undefined;
-        fs.watch(HEARTBEAT_JOBS_PATH, () => {
+        // Watch the parent directory, not the file: editors/agents replace the
+        // file via atomic write+rename, which permanently detaches a single-file
+        // fs.watch on macOS (it keeps following the old inode and never fires
+        // again — observed 2026-06-12: enabled:false edits were ignored until a
+        // manual PUT /api/heartbeat). A null filename can occur on some
+        // platforms; treat it as a potential match.
+        const dir = dirname(HEARTBEAT_JOBS_PATH);
+        const name = basename(HEARTBEAT_JOBS_PATH);
+        fs.watch(dir, (_event, changed) => {
+            if (changed && changed !== name) return;
             clearTimeout(watchDebounce);
             watchDebounce = setTimeout(() => {
                 console.log('[heartbeat] file changed — reloading');
                 startHeartbeat();
             }, 500);
         });
-    } catch { /* expected: heartbeat file doesn't exist yet — created on first save */ }
+    } catch { /* expected: home dir missing in tests — heartbeat file is created on first save */ }
 }
 
 // Re-export for route handlers
