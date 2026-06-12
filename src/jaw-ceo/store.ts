@@ -72,6 +72,11 @@ export function createJawCeoStore(options: JawCeoStoreOptions = {}) {
             const oldest = completions.keys().next().value as string | undefined;
             if (!oldest) break;
             completions.delete(oldest);
+            // Aliases pointing at an ejected canonical are unreachable —
+            // without this they leak ~one entry per dispatch (260613 05 f.5).
+            for (const [alias, canonical] of completionAliases) {
+                if (canonical === oldest) completionAliases.delete(alias);
+            }
         }
     }
 
@@ -223,6 +228,15 @@ export function createJawCeoStore(options: JawCeoStoreOptions = {}) {
             if (!record) return null;
             const next = { ...record, ...patch };
             confirmations.set(id, next);
+            // Consumed records must stay queryable (double-consume rejects with
+            // confirmation_consumed) but not forever: sweep the oldest consumed
+            // entries past a small retention cap (260613 05 finding 6).
+            if (next.consumedAt && confirmations.size > 50) {
+                for (const [oldId, old] of confirmations) {
+                    if (confirmations.size <= 50) break;
+                    if (old.consumedAt && oldId !== id) confirmations.delete(oldId);
+                }
+            }
             return { ...next };
         },
     };

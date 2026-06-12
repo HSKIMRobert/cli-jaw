@@ -241,11 +241,21 @@ export function enqueueWebAiSessionNotification(input: {
     return event;
 }
 
+// Notifications are keyed `${sessionId}:${type}` — when a session goes away
+// its notifications must too, or the map grows one orphan per session for the
+// process lifetime (260613 05 finding 7).
+function pruneNotificationsForSession(sessionId: string): void {
+    for (const eventId of notifications.keys()) {
+        if (eventId.startsWith(`${sessionId}:`)) notifications.delete(eventId);
+    }
+}
+
 export function clearSession(sessionId: string): void {
     loadPersistentStore();
     const record = sessions.get(sessionId);
     if (!record) return;
     sessions.delete(sessionId);
+    pruneNotificationsForSession(sessionId);
     const targetKey = makeBaselineKey(record.vendor, record.targetId);
     if (sessionsByTarget.get(targetKey) === sessionId) sessionsByTarget.delete(targetKey);
     savePersistentStore();
@@ -273,6 +283,7 @@ export function pruneSessions(input: {
     for (const sessionId of toRemove) {
         const record = sessions.get(sessionId);
         sessions.delete(sessionId);
+        pruneNotificationsForSession(sessionId);
         if (record) {
             const targetKey = makeBaselineKey(record.vendor, record.targetId);
             if (sessionsByTarget.get(targetKey) === sessionId) sessionsByTarget.delete(targetKey);
