@@ -72,8 +72,12 @@ function renderBlocks(tokens: Token[], gutter: string, width: number): string {
                 } else {
                     const body = highlightCode(c.text, c.lang || undefined)
                         .split('\n').map(l => gutter + '  ' + l).join('\n');
-                    out += paint('code.fence', gutter + '```' + (c.lang ?? '')) + '\n'
-                        + body + '\n' + paint('code.fence', gutter + '```') + '\n';
+                    const fenceW = Math.max(20, width - gutter.length);
+                    const langLabel = c.lang ? ` ${c.lang} ` : '';
+                    const topBar = `┌─${langLabel}${'─'.repeat(Math.max(0, fenceW - langLabel.length - 3))}┐`;
+                    const botBar = `└${'─'.repeat(fenceW - 2)}┘`;
+                    out += paint('code.fence', gutter + topBar, DIM) + '\n'
+                        + body + '\n' + paint('code.fence', gutter + botBar, DIM) + '\n';
                 }
                 break;
             }

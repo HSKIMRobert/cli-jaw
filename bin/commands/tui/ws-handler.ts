@@ -138,9 +138,9 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                     console.log(`  ${c.dim}${raw}${c.reset}`);
                 } else if (msg.status === 'running') {
                     const name = msg.agentName || msg.agentId || 'agent';
-                    appendStatusItem(transcript, `${name} working...`);
+                    appendStatusItem(transcript, `${name} thinking\u2026`);
                     if (!isFullscreen(ctx)) {
-                        process.stdout.write(`\r  ${c.yellow}\u25CF${c.reset} ${c.dim}${name} working...${c.reset}          \r`);
+                        process.stdout.write(`\r  ${c.dim}\u25CC ${name} thinking\u2026${c.reset}          \r`);
                     } else {
                         ctx.requestFrame?.();
                     }
@@ -160,7 +160,7 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                     ctx.streamState = 'tool';
                     rebuildFooter(ctx);
                     if (!isFullscreen(ctx)) {
-                        process.stdout.write(`\r\x1b[2K  ${c.dim}${msg.icon} ${msg.label}${toolDetail}${c.reset}\n`);
+                        process.stdout.write(`\r\x1b[2K  ${c.dim}▸${c.reset} ${c.cyan}${msg.icon} ${msg.label}${c.reset}${c.dim}${toolDetail}${c.reset}\n`);
                     } else {
                         ctx.requestFrame?.();
                     }

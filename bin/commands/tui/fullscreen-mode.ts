@@ -39,9 +39,12 @@ function renderTranscriptItem(item: TranscriptItem, width: number): string[] {
                 : (agentPrefix ? `${gutter}${agentPrefix}\n` : '') + renderMarkdown(item.text, { width: w, gutter });
             return body.split('\n');
         }
-        case 'tool':
-            if (item.collapsed) return [`${gutter}${c.dim}  ┄ ${item.text.split(':')[0]}${c.reset}`];
-            return [`${gutter}${c.dim}${item.text}${c.reset}`];
+        case 'tool': {
+            const [toolHead, ...toolRest] = item.text.split(':');
+            const toolTail = toolRest.length ? `:${toolRest.join(':')}` : '';
+            if (item.collapsed) return [`${gutter}${c.dim}  ▸ ${toolHead}${c.reset}`];
+            return [`${gutter}  ${c.dim}▸${c.reset} ${c.cyan}${toolHead}${c.reset}${c.dim}${toolTail}${c.reset}`];
+        }
         case 'status':
             return [`${gutter}${c.yellow}${item.text}${c.reset}`];
         default:

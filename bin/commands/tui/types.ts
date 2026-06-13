@@ -46,11 +46,15 @@ export const ESC_WAIT_MS = 70;
 
 // ─── Terminal dimension helpers ──────────────
 export const W = () => Math.max(20, Math.min((process.stdout.columns || 60) - 4, 60));
-export const hrLine = () => '-'.repeat(W());
+export const hrLine = () => `${c.dim}${'─'.repeat(W())}${c.reset}`;
 export const getRows = () => process.stdout.rows || 24;
 
 export function renderCommandText(text: string) {
     return String(text || '').replace(/\n/g, '\n  ');
+}
+
+export function renderError(msg: string): string {
+    return `  ${c.red}✖${c.reset} ${c.bold}${msg}${c.reset}`;
 }
 
 /** Footer string with a live state segment. Pure — used by rebuildFooter. */
@@ -66,7 +70,8 @@ export function formatFooter(
     const elapsed = elapsedMs && elapsedMs > 0 ? `  ${c.dim}${(elapsedMs / 1000).toFixed(1)}s${c.reset}` : '';
     // Server-owned background tasks (bgtask) — magenta to stay distinct from the queue.
     const bgtask = bgtaskCount && bgtaskCount > 0 ? `  ${c.magenta}\u23F3${bgtaskCount}${c.reset}` : '';
-    return `  ${accent}${label}${c.reset}  ${c.dim}·${c.reset}  ${stateColored}${elapsed}${bgtask}  ${c.dim}|  /quit  /clear${c.reset}`;
+    const sep = `${c.dim} │ ${c.reset}`;
+    return `  ${accent}${c.bold}${label}${c.reset}${sep}${stateColored}${elapsed}${bgtask}${sep}${c.dim}/quit  /clear${c.reset}`;
 }
 
 // ─── Shared state interface ──────────────────
