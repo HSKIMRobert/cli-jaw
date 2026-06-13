@@ -8,7 +8,7 @@ import {
 } from '../../../src/cli/tui/composer.js';
 import { renderMarkdown } from '../../../src/cli/tui/markdown.js';
 import { renderMarkdownJawcode, isInitialized } from '../../../src/cli/tui/jawcode-render.js';
-import { renderToolLine } from '../../../src/cli/tui/jawcode-adapter.js';
+import { renderToolLine, renderThinkingCollapse } from '../../../src/cli/tui/jawcode-adapter.js';
 import { classifyKeyAction, type KeyAction } from '../../../src/cli/tui/keymap.js';
 import { getCompletionItems } from '../../../src/cli/commands.js';
 import { composeAutocompleteLines, composeHelpOntoFrame, composePaletteOntoFrame, composeSelectorOntoFrame, composeBgtaskOntoFrame } from '../../../src/cli/tui/overlay.js';
@@ -41,6 +41,12 @@ function renderTranscriptItem(item: TranscriptItem, width: number): string[] {
             }
             const cursor = item.streaming ? `${c.cyan}▍${c.reset}` : '';
             const header = agentLabel ? `${gutter}${agentLabel}\n` : '';
+            // Thinking block detection — jawcode collapses thinking to 1 line when not streaming
+            const thinkMatch = !item.streaming && item.text.startsWith('<think');
+            if (thinkMatch) {
+                const thinkLines = item.text.split('\n').length;
+                return [`${gutter}${header}${renderThinkingCollapse(item.text, thinkLines, false)}`];
+            }
             const mdText = item.text + (cursor ? ` ${cursor}` : '');
             const body = isInitialized()
                 ? renderMarkdownJawcode(mdText, w).join('\n')
