@@ -141,15 +141,16 @@ function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
         }
     }
 
-    // jawcode-style input box with border
-    const innerW = cols - 4;
+    // jawcode-style input box with border — safe for narrow terminals
+    const innerW = Math.max(6, cols - 4);
     const box = isInitialized() ? (() => { try { return getInteractive().theme?.boxSharp; } catch { return null; } })() : null;
     const bTL = box?.topLeft ?? '┌'; const bTR = box?.topRight ?? '┐';
     const bBL = box?.bottomLeft ?? '└'; const bBR = box?.bottomRight ?? '┘';
     const bH = box?.horizontal ?? '─'; const bV = box?.vertical ?? '│';
+    const borderFill = Math.max(0, innerW + 2);
     const topBorderRow = regions.composer.y - 1;
     if (topBorderRow >= 1 && topBorderRow <= rows) {
-        frameRows[topBorderRow - 1] = `${c.dim}${bTL}${bH.repeat(innerW + 2)}${bTR}${c.reset}`;
+        frameRows[topBorderRow - 1] = clipTextToCols(`${c.dim}${bTL}${bH.repeat(borderFill)}${bTR}${c.reset}`, cols);
     }
 
     const prefix = `${c.dim}${bV}${c.reset} ${ctx.accent}${c.bold}>${c.reset} `;
@@ -159,26 +160,28 @@ function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
         const row = regions.composer.y + i;
         if (row < 1 || row > rows) continue;
         const rawLine = compLines[i] ?? '';
-        const maxTextW = innerW - 4;
+        const maxTextW = Math.max(1, innerW - 4);
         const clipped = clipTextToCols(rawLine, maxTextW);
         const lineVisW = visualWidth(clipped);
         const padW = Math.max(0, innerW - 3 - lineVisW);
         const suffix = `${' '.repeat(padW)}${c.dim}${bV}${c.reset}`;
         if (i === 0 && !hasInput) {
-            frameRows[row - 1] = `${prefix}${c.dim}Type your message...${c.reset}${suffix}`;
+            const placeholder = clipTextToCols('Type your message...', maxTextW);
+            frameRows[row - 1] = clipTextToCols(`${prefix}${c.dim}${placeholder}${c.reset}${suffix}`, cols);
         } else {
-            frameRows[row - 1] = i === 0 ? `${prefix}${clipped}${suffix}` : `${c.dim}${bV}${c.reset}   ${clipped}${suffix}`;
+            const content = i === 0 ? `${prefix}${clipped}${suffix}` : `${c.dim}${bV}${c.reset}   ${clipped}${suffix}`;
+            frameRows[row - 1] = clipTextToCols(content, cols);
         }
     }
 
     const botBorderRow = regions.composer.y + regions.composer.height;
     if (botBorderRow >= 1 && botBorderRow <= rows) {
-        frameRows[botBorderRow - 1] = `${c.dim}${bBL}${bH.repeat(innerW + 2)}${bBR}${c.reset}`;
+        frameRows[botBorderRow - 1] = clipTextToCols(`${c.dim}${bBL}${bH.repeat(borderFill)}${bBR}${c.reset}`, cols);
     }
 
     const footerRow = regions.footer.y;
     if (footerRow >= 1 && footerRow <= rows) {
-        frameRows[footerRow - 1] = ctx.footer;
+        frameRows[footerRow - 1] = clipTextToCols(ctx.footer, cols);
     }
 
     const ov = ctx.store.overlay;
@@ -235,6 +238,7 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
         ctx.resizeTimer = setTimeout(() => {
             ctx.resizeTimer = null;
             viewport.setWidth(process.stdout.columns || 80);
+            screen.forceRedraw();
             scheduler.request();
         }, 50);
     });

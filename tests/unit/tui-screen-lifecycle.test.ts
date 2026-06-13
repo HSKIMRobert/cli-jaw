@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Screen, diffFrames, type Frame } from '../../src/cli/tui/render/frame.ts';
 
-test('Screen enter/exit emits alt-screen sequences', () => {
+test('Screen enter/exit — inline mode (no alt-screen)', () => {
     let output = '';
     const origWrite = process.stdout.write.bind(process.stdout);
     process.stdout.write = ((chunk: string | Uint8Array) => {
@@ -15,16 +15,18 @@ test('Screen enter/exit emits alt-screen sequences', () => {
         assert.equal(screen.active, false);
         screen.enter();
         assert.equal(screen.active, true);
-        assert.ok(output.includes('\x1b[?1049h'), 'enters alt-screen');
+        assert.ok(output.includes('\x1b[?25l'), 'hides cursor');
+        assert.ok(!output.includes('\x1b[?1049h'), 'does NOT enter alt-screen');
         screen.exit();
         assert.equal(screen.active, false);
-        assert.ok(output.includes('\x1b[?1049l'), 'leaves alt-screen');
+        assert.ok(output.includes('\x1b[?25h'), 'shows cursor');
+        assert.ok(!output.includes('\x1b[?1049l'), 'does NOT leave alt-screen');
     } finally {
         process.stdout.write = origWrite;
     }
 });
 
-test('Screen render uses diffFrames for incremental updates', () => {
+test('Screen render uses inline diff for incremental updates', () => {
     let output = '';
     const origWrite = process.stdout.write.bind(process.stdout);
     process.stdout.write = ((chunk: string | Uint8Array) => {
