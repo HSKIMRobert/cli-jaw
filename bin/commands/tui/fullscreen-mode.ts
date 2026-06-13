@@ -129,22 +129,35 @@ function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
         }
     }
 
-    const prefix = ctx.promptPrefix || `  ${ctx.accent}${c.bold}>${c.reset} `;
+    // jawcode-style input box with border
+    const innerW = cols - 4;
+    const topBorderRow = regions.composer.y - 1;
+    if (topBorderRow >= 1 && topBorderRow <= rows) {
+        frameRows[topBorderRow - 1] = `${c.dim}┌${'─'.repeat(innerW + 2)}┐${c.reset}`;
+    }
+
+    const prefix = `${c.dim}│${c.reset} ${ctx.accent}${c.bold}>${c.reset} `;
     const compLines = composerText.split('\n');
     const hasInput = composerText.trim().length > 0;
     for (let i = 0; i < regions.composer.height; i++) {
         const row = regions.composer.y + i;
         if (row < 1 || row > rows) continue;
         const line = compLines[i] ?? '';
+        const suffix = `${' '.repeat(Math.max(0, innerW - 3 - line.length))}${c.dim}│${c.reset}`;
         if (i === 0 && !hasInput) {
-            frameRows[row - 1] = `${prefix}${c.dim}Type your message...${c.reset}`;
+            frameRows[row - 1] = `${prefix}${c.dim}Type your message...${c.reset}${suffix}`;
         } else {
-            frameRows[row - 1] = i === 0 ? prefix + line : `  ${c.dim}· ${c.reset}${line}`;
+            frameRows[row - 1] = i === 0 ? `${prefix}${line}${suffix}` : `${c.dim}│${c.reset}   ${line}${suffix}`;
         }
     }
 
-    // Hint line below composer
-    const hintRow = regions.composer.y + regions.composer.height;
+    const botBorderRow = regions.composer.y + regions.composer.height;
+    if (botBorderRow >= 1 && botBorderRow <= rows) {
+        frameRows[botBorderRow - 1] = `${c.dim}└${'─'.repeat(innerW + 2)}┘${c.reset}`;
+    }
+
+    // Hint line below input box
+    const hintRow = botBorderRow + 1;
     if (hintRow >= 1 && hintRow <= rows) {
         frameRows[hintRow - 1] = `  ${c.dim}? for shortcuts · /help for commands${c.reset}`;
     }
