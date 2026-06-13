@@ -347,6 +347,52 @@ export async function runSlashCommand(ctx: TuiContext, parsed: ParsedSlashComman
         return;
     }
 
+    if (parsed.name === 'effort' && !parsed.args.length) {
+        const levels = ['off', 'low', 'medium', 'high', 'max'];
+        openChoiceSelector(ctx, () => {
+            const sel = ov.selector;
+            sel.open = true;
+            sel.commandName = 'effort';
+            sel.title = 'Reasoning Effort';
+            sel.subtitle = 'Select thinking level';
+            sel.filter = '';
+            sel.selected = 2;
+            sel.allItems = levels.map(l => ({ value: l, label: '', current: false }));
+            sel.filteredItems = sel.allItems;
+        });
+        ctx.commandRunning = false;
+        ctx.inputActive = true;
+        return;
+    }
+
+    if (parsed.name === 'resume' && !parsed.args.length) {
+        try {
+            const r = await fetch(`${ctx.apiUrl}/api/chat-sessions`, { signal: AbortSignal.timeout(3000) });
+            if (r.ok) {
+                const data = (await r.json()) as { sessions?: Array<{ id: string; label?: string; createdAt?: string }> };
+                const sessions = data.sessions || [];
+                openChoiceSelector(ctx, () => {
+                    const sel = ov.selector;
+                    sel.open = true;
+                    sel.commandName = 'resume';
+                    sel.title = 'Resume Session';
+                    sel.subtitle = `${sessions.length} sessions`;
+                    sel.filter = '';
+                    sel.selected = 0;
+                    sel.allItems = sessions.map(s => ({
+                        value: s.id,
+                        label: s.label || s.createdAt || '',
+                        current: false,
+                    }));
+                    sel.filteredItems = sel.allItems;
+                });
+                ctx.commandRunning = false;
+                ctx.inputActive = true;
+                return;
+            }
+        } catch { /* fallthrough to text handler */ }
+    }
+
     if (parsed.name === 'commands') {
         openCommandPalette(ctx);
         ctx.commandRunning = false;

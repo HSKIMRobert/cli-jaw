@@ -5,7 +5,7 @@ import { getComposerDisplayText, getDisplayCursorOffset } from '../../../src/cli
 import { closeAutocomplete } from '../../../src/cli/tui/overlay.js';
 import { visualWidth, cursorScreenPos } from '../../../src/cli/tui/renderers.js';
 import { resolveShellLayout, setupScrollRegion } from '../../../src/cli/tui/shell.js';
-import { c, hrLine, getRows, formatFooterFull, type TuiContext } from './types.js';
+import { c, hrLine, getRows, type TuiContext } from './types.js';
 
 const contPrefixFor = () => `  ${c.dim}\u00B7 ${c.reset}`;
 
@@ -56,12 +56,14 @@ export function rebuildFooter(ctx: TuiContext): void {
     const elapsed = ctx.streamState !== 'idle' && ctx.turnStartedAt > 0
         ? Date.now() - ctx.turnStartedAt
         : undefined;
-    ctx.footer = formatFooterFull(ctx.label, ctx.accent, ctx.streamState, {
-        elapsedMs: elapsed,
-        bgtaskCount: ctx.bgtaskCount,
-        model: ctx.info?.model,
-        cwd: ctx.info?.workingDir,
-    });
+    const stateStr = ctx.streamState === 'responding' ? 'responding\u2026' : ctx.streamState === 'tool' ? 'working\u2026' : 'idle';
+    const sep = `${c.dim} \u2502 ${c.reset}`;
+    const modelSeg = ctx.info?.model ? `${c.cyan}${ctx.info.model}${c.reset} ` : '';
+    const elapsedStr = elapsed && elapsed > 0 ? ` ${c.dim}${(elapsed / 1000).toFixed(1)}s${c.reset}` : '';
+    const bgtask = ctx.bgtaskCount > 0 ? ` ${c.magenta}\u23F3${ctx.bgtaskCount}${c.reset}` : '';
+    const pathStr = ctx.info?.workingDir ? `${sep}${c.dim}\uD83D\uDCC1 ${ctx.info.workingDir.replace(process.env['HOME'] || '', '~')}${c.reset}` : '';
+    const stateColored = ctx.streamState === 'idle' ? `${c.dim}${stateStr}${c.reset}` : `${ctx.accent}${stateStr}${c.reset}`;
+    ctx.footer = `  ${modelSeg}${ctx.accent}${c.bold}${ctx.label}${c.reset}${sep}${stateColored}${elapsedStr}${bgtask}${pathStr}${sep}${c.dim}/quit  /clear${c.reset}`;
     ctx.promptPrefix = `  ${ctx.accent}${c.bold}\u276F${c.reset} `;
     if (ctx.displayMode === 'fullscreen') return;
     setupScrollRegion(

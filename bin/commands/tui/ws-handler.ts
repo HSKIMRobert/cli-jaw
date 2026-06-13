@@ -247,7 +247,9 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                 break;
 
             case 'alert_escalation':
-                if (!isFullscreen(ctx)) console.log(`\n  ${c.red}🚨 ${msg.text || 'Alert escalation'}${c.reset}`);
+                console.log(`\n  ${c.red}${c.bold}┌─ Error ─────────────────────────┐${c.reset}`);
+                console.log(`  ${c.red}│${c.reset} 🚨 ${msg.text || 'Alert escalation'}`);
+                console.log(`  ${c.red}${c.bold}└─────────────────────────────────┘${c.reset}`);
                 break;
 
             case 'settings_change':
