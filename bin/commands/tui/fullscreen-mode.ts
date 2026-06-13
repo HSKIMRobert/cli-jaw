@@ -7,6 +7,7 @@ import {
     setBracketedPaste,
 } from '../../../src/cli/tui/composer.js';
 import { renderMarkdown } from '../../../src/cli/tui/markdown.js';
+import { renderToolBlock } from '../../../src/cli/tui/jawcode-render.js';
 import { classifyKeyAction, type KeyAction } from '../../../src/cli/tui/keymap.js';
 import { getCompletionItems } from '../../../src/cli/commands.js';
 import { composeAutocompleteLines, composeHelpOntoFrame, composePaletteOntoFrame, composeSelectorOntoFrame, composeBgtaskOntoFrame } from '../../../src/cli/tui/overlay.js';
@@ -41,9 +42,10 @@ function renderTranscriptItem(item: TranscriptItem, width: number): string[] {
         }
         case 'tool': {
             const [toolHead, ...toolRest] = item.text.split(':');
-            const toolTail = toolRest.length ? `:${toolRest.join(':')}` : '';
+            const toolDetail = toolRest.join(':').trim();
+            const state = item.collapsed ? 'done' as const : 'pending' as const;
             if (item.collapsed) return [`${gutter}${c.dim}  ▸ ${toolHead}${c.reset}`];
-            return [`${gutter}  ${c.dim}▸${c.reset} ${c.cyan}${toolHead}${c.reset}${c.dim}${toolTail}${c.reset}`];
+            return [`${gutter}${renderToolBlock(toolHead?.split(' ')[0] || '', toolHead?.split(' ').slice(1).join(' ') || '', toolDetail, state)}`];
         }
         case 'status':
             return [`${gutter}${c.yellow}${item.text}${c.reset}`];
