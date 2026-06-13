@@ -158,13 +158,16 @@ function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
     for (let i = 0; i < regions.composer.height; i++) {
         const row = regions.composer.y + i;
         if (row < 1 || row > rows) continue;
-        const line = compLines[i] ?? '';
-        const lineVisW = visualWidth(line);
-        const suffix = `${' '.repeat(Math.max(0, innerW - 3 - lineVisW))}${c.dim}${bV}${c.reset}`;
+        const rawLine = compLines[i] ?? '';
+        const maxTextW = innerW - 4;
+        const clipped = clipTextToCols(rawLine, maxTextW);
+        const lineVisW = visualWidth(clipped);
+        const padW = Math.max(0, innerW - 3 - lineVisW);
+        const suffix = `${' '.repeat(padW)}${c.dim}${bV}${c.reset}`;
         if (i === 0 && !hasInput) {
             frameRows[row - 1] = `${prefix}${c.dim}Type your message...${c.reset}${suffix}`;
         } else {
-            frameRows[row - 1] = i === 0 ? `${prefix}${line}${suffix}` : `${c.dim}${bV}${c.reset}   ${line}${suffix}`;
+            frameRows[row - 1] = i === 0 ? `${prefix}${clipped}${suffix}` : `${c.dim}${bV}${c.reset}   ${clipped}${suffix}`;
         }
     }
 

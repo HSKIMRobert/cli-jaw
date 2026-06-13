@@ -140,8 +140,19 @@ export function renderStatusBar(segments: {
     parts.push(theme.fg('muted', '/quit  /clear'));
     const cols = process.stdout.columns || 80;
     const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '');
+    const charWidth = (s: string) => {
+        const stripped = stripAnsi(s);
+        let w = 0;
+        for (const ch of stripped) {
+            const cp = ch.codePointAt(0) ?? 0;
+            w += (cp >= 0x1100 && cp <= 0x115F) || (cp >= 0x2E80 && cp <= 0xD7FF) ||
+                 (cp >= 0xF900 && cp <= 0xFAFF) || (cp >= 0xFE30 && cp <= 0xFE6F) ||
+                 (cp >= 0xFF01 && cp <= 0xFF60) || (cp >= 0x20000 && cp <= 0x2FA1F) ? 2 : 1;
+        }
+        return w;
+    };
     let result = `  ${parts.join(sep)}`;
-    while (stripAnsi(result).length > cols && parts.length > 3) {
+    while (charWidth(result) > cols && parts.length > 3) {
         parts.splice(-2, 1);
         result = `  ${parts.join(sep)}`;
     }

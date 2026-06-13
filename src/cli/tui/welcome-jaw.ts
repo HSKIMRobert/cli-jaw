@@ -63,8 +63,19 @@ export function renderJawWelcome(opts: {
     if (rows < 20) {
         const icon = sharkIcon();
         const BLUE = '\x1b[38;2;59;130;246m';
+        const LTBLUE = '\x1b[38;2;96;165;250m';
+        const MUTED = '\x1b[38;2;51;65;85m';
+        const BOLD = '\x1b[1m';
         const RST = '\x1b[0m';
-        return [`${BLUE}${icon} jaw v${opts.version}${RST} — ${opts.model} — bite anything!`];
+        const lines = [
+            `${BLUE}${BOLD}${icon} jaw${RST} ${MUTED}v${opts.version}${RST}  ${MUTED}bite anything!${RST}`,
+            `${LTBLUE}⬢${RST} ${opts.model}  ${MUTED}engine:${RST} ${LTBLUE}${opts.engine}${RST}`,
+        ];
+        if (opts.projectRoot) {
+            const display = opts.projectRoot.replace(process.env['HOME'] || '', '~');
+            lines.push(`${MUTED}📁 ${display}${opts.gitBranch ? `  ⴲ ${opts.gitBranch}` : ''}${opts.port ? `  :${opts.port}` : ''}${RST}`);
+        }
+        return lines;
     }
     const DIM = '\x1b[2m';
     const BOLD = '\x1b[1m';
