@@ -11,7 +11,7 @@
  *   Copilot       → ~/.copilot/mcp-config.json            (JSON, mcpServers)
  *   Cursor        → ~/.cursor/mcp.json                    (JSON, mcpServers)
  *   Antigravity   → ~/.gemini/antigravity/mcp_config.json (JSON, mcpServers)
- *   Kiro          → ~/.kiro/agents/agent_config.json      (JSON, mcpServers)
+ *   Kiro          → ~/.kiro/settings/mcp.json              (JSON, mcpServers)
  *   Grok          — reads ~/.cursor/mcp.json via compat scan (no dedicated target)
  *
  * Per-target exclusions: codex omits `computer-use` (ships bundled Sky).

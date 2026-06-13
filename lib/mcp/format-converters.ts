@@ -244,18 +244,17 @@ export function syncToAll(config: UnifiedMcpConfig) {
         console.log(`[mcp-sync] ✅ Antigravity: ${antigravityPath}`);
     } catch (e: unknown) { console.error(`[mcp-sync] ❌ Antigravity:`, (e as Error).message); }
 
-    // 8. Kiro: ~/.kiro/agents/agent_config.json (JSON mcpServers — same format as Claude)
+    // 8. Kiro: ~/.kiro/settings/mcp.json (JSON mcpServers — same format as Claude)
+    // This is the global MCP config; per-agent override is ~/.kiro/agents/<name>.json.
     // Grok is NOT a dedicated target — it reads ~/.cursor/mcp.json via compat scan (#6).
     try {
-        const kiroPath = join(os.homedir(), '.kiro', 'agents', 'agent_config.json');
-        if (fs.existsSync(kiroPath)) {
-            const kiroData = toClaudeMcp(config);
-            patchJsonFile(kiroPath, { mcpServers: kiroData.mcpServers });
-            results.kiro = true;
-            console.log(`[mcp-sync] ✅ Kiro: ${kiroPath}`);
-        } else {
-            console.log(`[mcp-sync] ⏭️ Kiro: agent_config.json not found, skipping`);
-        }
+        const kiroDir = join(os.homedir(), '.kiro', 'settings');
+        const kiroPath = join(kiroDir, 'mcp.json');
+        const kiroData = toClaudeMcp(config);
+        fs.mkdirSync(kiroDir, { recursive: true });
+        patchJsonFile(kiroPath, { mcpServers: kiroData.mcpServers });
+        results.kiro = true;
+        console.log(`[mcp-sync] ✅ Kiro: ${kiroPath}`);
     } catch (e: unknown) { console.error(`[mcp-sync] ❌ Kiro:`, (e as Error).message); }
 
     return results;
