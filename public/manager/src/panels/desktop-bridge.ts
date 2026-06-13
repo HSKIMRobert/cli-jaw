@@ -1,4 +1,5 @@
 import type { DashboardShortcutAction } from '../types';
+import type { GitStatusMapResult } from '../folder-panel/folder-git-types';
 
 export type TerminalBridgeApi = {
     create: (opts?: { cwd?: string; cols?: number; rows?: number }) => Promise<{ ok: boolean; id?: string; shell?: string; cwd?: string; error?: string }>;
@@ -35,6 +36,14 @@ export type DiffBridgeApi = {
     getRepoCandidates: (candidates: DiffRootCandidate[]) => Promise<{ ok: boolean; candidates?: DiffResolvedRoot[]; error?: string }>;
     getDiffSummary: (repoRoot: string, options: DiffOptions) => Promise<{ ok: boolean; files?: Array<{ path: string; status: string; insertions: number; deletions: number }>; error?: string }>;
     getFileDiff: (repoRoot: string, filePath: string, options: DiffOptions) => Promise<{ ok: boolean; diff?: string; error?: string }>;
+};
+
+export type GitBridgeApi = {
+    getStatusMap: (
+        folderPanelRoot: string,
+        repoRoot?: string,
+        options?: { includeIgnored?: boolean; includeUntracked?: boolean },
+    ) => Promise<{ ok: boolean; status?: GitStatusMapResult; error?: string }>;
 };
 
 export type FolderBridgeApi = {
@@ -90,7 +99,7 @@ export type PermissionDiagnosticsBridgeApi = {
     getLastDenials: () => Promise<{ ok: boolean; denials?: PermissionDenial[]; error?: string }>;
 };
 
-export type DesktopShellCapability = 'terminal' | 'diff' | 'folder' | 'shortcuts' | 'browser' | 'clipboard' | 'permissions';
+export type DesktopShellCapability = 'terminal' | 'diff' | 'git' | 'folder' | 'shortcuts' | 'browser' | 'clipboard' | 'permissions';
 
 /**
  * Electron shell-only bridge.
@@ -105,6 +114,7 @@ export type CliJawDesktopApi = {
     getHomePath?: (() => string) | undefined;
     terminal?: TerminalBridgeApi | undefined;
     diff?: DiffBridgeApi | undefined;
+    git?: GitBridgeApi | undefined;
     folder?: FolderBridgeApi | undefined;
     dragDrop?: DragDropBridgeApi | undefined;
     clipboard?: ClipboardBridgeApi | undefined;

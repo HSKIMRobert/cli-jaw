@@ -1,10 +1,9 @@
-import { execFile } from 'node:child_process';
-import { existsSync, realpathSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { isAbsolute, relative, resolve, sep } from 'node:path';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import type { DashboardDiffMode, DashboardDiffRootPolicy, DashboardInstance } from '../types.js';
+import { assertContainedLexical, isValidRef, isWithinHome } from './git-guards.js';
+import { runGit } from './git-runner.js';
 
-const OUTPUT_CAP = 1024 * 1024;
 const DIFF_MODES = new Set(['unstaged', 'staged', 'head', 'base']);
 const CANDIDATE_SOURCES = new Set(['project', 'working-dir', 'pinned', 'recent', 'home']);
 
@@ -41,63 +40,8 @@ export type DiffFileSummary = {
     deletions: number;
 };
 
-function git(args: string[], cwd: string, allowExitCodes: number[] = [0]): Promise<string> {
-    return new Promise((res, rej) => {
-        execFile('git', args, { cwd, maxBuffer: OUTPUT_CAP, timeout: 30_000 }, (err, stdout, stderr) => {
-            if (!err) {
-                res(stdout);
-                return;
-            }
-            const exitCode = typeof err.code === 'number' ? err.code : null;
-            if (exitCode !== null && allowExitCodes.includes(exitCode)) {
-                res(stdout);
-                return;
-            }
-            rej(new Error(stderr.trim() || err.message));
-        });
-    });
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
     return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
-function resolvedHome(): string {
-    try {
-        return realpathSync(homedir());
-    } catch {
-        return resolve(homedir());
-    }
-}
-
-export function isWithinHome(target: string): boolean {
-    const home = resolvedHome();
-    let realTarget: string;
-    try {
-        realTarget = realpathSync(resolve(target));
-    } catch {
-        const resolved = resolve(target);
-        return resolved === home || resolved.startsWith(home + sep);
-    }
-    return realTarget === home || realTarget.startsWith(home + sep);
-}
-
-export function assertContainedLexical(base: string, target: string): boolean {
-    let realBase: string;
-    try {
-        realBase = realpathSync(resolve(base));
-    } catch {
-        return false;
-    }
-    const resolved = resolve(realBase, target);
-    const rel = relative(realBase, resolved);
-    if (!rel || rel === '.') return false;
-    return !rel.startsWith('..') && !isAbsolute(rel);
-}
-
-export function isValidRef(ref: string): boolean {
-    if (!ref || ref.startsWith('-')) return false;
-    return /^[a-zA-Z0-9_.\/~^@{}\-]+$/.test(ref);
 }
 
 export function readDiffOptions(value: unknown): { ok: true; options: DiffOptions } | { ok: false; error: string } {
@@ -171,12 +115,12 @@ function parseNumstat(output: string): DiffFileSummary[] {
 }
 
 async function listUntracked(repoRoot: string): Promise<DiffFileSummary[]> {
-    const output = await git(['-c', 'core.quotepath=false', 'ls-files', '--others', '--exclude-standard'], repoRoot);
+    const output = await runGit(['-c', 'core.quotepath=false', 'ls-files', '--others', '--exclude-standard'], repoRoot);
     return output.trim().split('\n').filter(Boolean).map(path => ({ path, status: 'untracked', insertions: 0, deletions: 0 }));
 }
 
 async function isUntracked(repoRoot: string, filePath: string): Promise<boolean> {
-    const output = await git(['-c', 'core.quotepath=false', 'ls-files', '--others', '--exclude-standard', '--', filePath], repoRoot);
+    const output = await runGit(['-c', 'core.quotepath=false', 'ls-files', '--others', '--exclude-standard', '--', filePath], repoRoot);
     return output.trim().split('\n').includes(filePath);
 }
 
@@ -188,12 +132,12 @@ export async function resolveRepoCandidates(candidates: DiffRootCandidate[]): Pr
         const resolved = resolve(candidate.path);
         if (!existsSync(resolved)) continue;
         try {
-            const root = (await git(['rev-parse', '--show-toplevel'], resolved)).trim();
+            const root = (await runGit(['rev-parse', '--show-toplevel'], resolved)).trim();
             if (!root || seen.has(root) || !isWithinHome(root)) continue;
             seen.add(root);
-            const branch = (await git(['branch', '--show-current'], root).catch(() => '')).trim() || null;
-            const head = (await git(['rev-parse', '--short', 'HEAD'], root).catch(() => '')).trim() || null;
-            const dirty = Boolean((await git(['status', '--porcelain'], root).catch(() => '')).trim());
+            const branch = (await runGit(['branch', '--show-current'], root).catch(() => '')).trim() || null;
+            const head = (await runGit(['rev-parse', '--short', 'HEAD'], root).catch(() => '')).trim() || null;
+            const dirty = Boolean((await runGit(['status', '--porcelain'], root).catch(() => '')).trim());
             resolvedCandidates.push({ ...candidate, root, branch, head, dirty });
         } catch {
             // Candidate is not a git repository.
@@ -206,7 +150,7 @@ export async function getRepoRoot(cwd: string): Promise<string> {
     if (!isWithinHome(cwd)) throw new Error('path not allowed');
     const resolved = resolve(cwd);
     if (!existsSync(resolved)) throw new Error('path does not exist');
-    return (await git(['rev-parse', '--show-toplevel'], resolved)).trim();
+    return (await runGit(['rev-parse', '--show-toplevel'], resolved)).trim();
 }
 
 export async function getDiffSummary(repoRoot: string, options: DiffOptions): Promise<DiffFileSummary[]> {
@@ -214,7 +158,7 @@ export async function getDiffSummary(repoRoot: string, options: DiffOptions): Pr
     const args = ['-c', 'core.quotepath=false', 'diff', '--numstat'];
     pushDiffModeArgs(args, options);
     args.push('--');
-    const output = await git(args, repoRoot);
+    const output = await runGit(args, repoRoot);
     const files = parseNumstat(output);
     if (options.includeUntracked) files.push(...await listUntracked(repoRoot));
     return files;
@@ -224,10 +168,10 @@ export async function getFileDiff(repoRoot: string, filePath: string, options: D
     if (!isWithinHome(repoRoot)) throw new Error('path not allowed');
     if (!assertContainedLexical(repoRoot, filePath)) throw new Error('path traversal');
     if (await isUntracked(repoRoot, filePath)) {
-        return await git(['-c', 'core.quotepath=false', 'diff', '--no-color', '--no-index', '--', '/dev/null', filePath], repoRoot, [0, 1]);
+        return await runGit(['-c', 'core.quotepath=false', 'diff', '--no-color', '--no-index', '--', '/dev/null', filePath], repoRoot, [0, 1]);
     }
     const args = ['-c', 'core.quotepath=false', 'diff', '--no-color'];
     pushDiffModeArgs(args, options);
     args.push('--', filePath);
-    return await git(args, repoRoot);
+    return await runGit(args, repoRoot);
 }

@@ -70,6 +70,10 @@ contextBridge.exposeInMainWorld('cliJawDesktop', {
     getDiffSummary: (repoRoot: string, options: { mode: string; ref?: string; includeUntracked?: boolean }) => ipcRenderer.invoke('diff:getDiffSummary', repoRoot, options),
     getFileDiff: (repoRoot: string, filePath: string, options: { mode: string; ref?: string; includeUntracked?: boolean }) => ipcRenderer.invoke('diff:getFileDiff', repoRoot, filePath, options),
   },
+  git: {
+    getStatusMap: (folderPanelRoot: string, repoRoot?: string, options?: { includeIgnored?: boolean; includeUntracked?: boolean }) =>
+      ipcRenderer.invoke('git:getStatusMap', folderPanelRoot, repoRoot, options),
+  },
   folder: {
     getDefaultRoot: () => ipcRenderer.invoke('folder:getDefaultRoot'),
     pickFolder: () => ipcRenderer.invoke('folder:pick'),
