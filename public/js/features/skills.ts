@@ -3,7 +3,7 @@ import { state } from '../state.js';
 import { t, fetchWithLocale } from './i18n.js';
 import { apiJson } from '../api.js';
 import { escapeHtml } from '../render.js';
-import { ICONS, emojiToIcon } from '../icons.js';
+import { ICONS, resolveIcon } from '../icons.js';
 
 interface SkillItem {
     id: string;
@@ -76,7 +76,7 @@ export function renderSkills(): void {
         return `
         <div class="skill-card ${s.enabled ? 'enabled' : ''}">
             <div class="skill-card-header">
-                <span class="skill-emoji">${s.emoji ? emojiToIcon(s.emoji) : ICONS.tool}</span>
+                <span class="skill-emoji">${s.emoji ? resolveIcon(s.emoji) : ICONS.tool}</span>
                 <span class="skill-name">${escapeHtml(s.name || s.id)}</span>
                 <button class="skill-toggle ${s.enabled ? 'on' : 'off'}"
                         data-skill-id="${escapeHtml(s.id)}" data-skill-enabled="${s.enabled}"

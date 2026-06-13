@@ -20,7 +20,7 @@ import { isChatNearBottom, reconcileChatBottomAfterLayout, showChatRestoreIndica
 import { currentProcessBlockFromDom, hasAgentToolBlock, normalizeAgentToolBlocks, removeAgentToolBlocks, serializeProcessStepsForToolLog } from './features/process-block-dom.js';
 import { mergeExplicitAndLiveToolLogs, normalizeMessageToolLog, parseToolLog, sanitizedToolLogEntries, sanitizedToolLogJson, sanitizedToolLogJsonFromEntries, toProcessSteps, type ActiveRunSnapshot, type MessageItem, type QueuedOverlayItem } from './features/process-log-adapter.js';
 import { setStatus, updateQueueBadge, updateStatMsgs, loadStats } from './features/ui-status.js';
-import { ICONS, emojiToIcon, emojiToStatus, isCompletionEmoji } from './icons.js';
+import { ICONS, resolveIcon, emojiToStatus, isCompletionEmoji } from './icons.js';
 import { providerIcon } from './provider-icons.js';
 import { findProcessStepByIdentity, findRunningProcessStepMatch, sameProcessStepIdentity } from './features/process-step-match.js';
 import {
@@ -143,7 +143,7 @@ export function showProcessStep(step: ProcessStep): void {
             // Prefer matching by stepRef (stable correlation), fall back to label
             const match = findRunningProcessStepMatch(state.currentProcessBlock.steps, step);
             if (match) {
-                step.icon = emojiToIcon(step.icon);
+                step.icon = resolveIcon(step.icon);
                 const detailPreview = step.type === 'thinking'
                     ? setStoredProcessStepDetail(match.id, step.detail)
                     : mergeStoredProcessStepDetail(match.id, step.detail);
@@ -164,7 +164,7 @@ export function showProcessStep(step: ProcessStep): void {
                 const existingDone = [...state.currentProcessBlock.steps].reverse()
                     .find(s => s.stepRef === step.stepRef && (s.status === 'done' || s.status === 'error'));
                 if (existingDone) {
-                    step.icon = emojiToIcon(step.icon);
+                    step.icon = resolveIcon(step.icon);
                     const detailPreview = step.type === 'thinking'
                         ? setStoredProcessStepDetail(existingDone.id, step.detail)
                         : mergeStoredProcessStepDetail(existingDone.id, step.detail);
@@ -187,7 +187,7 @@ export function showProcessStep(step: ProcessStep): void {
                 .find(s => s.stepRef === step.stepRef && s.status === 'running');
             if (existingRunning) {
                 step.rawIcon = rawIcon;
-                step.icon = emojiToIcon(step.icon);
+                step.icon = resolveIcon(step.icon);
                 const detailPreview = setStoredProcessStepDetail(existingRunning.id, step.detail);
                 replaceStep(state.currentProcessBlock, existingRunning.id, {
                     ...existingRunning,
@@ -206,7 +206,7 @@ export function showProcessStep(step: ProcessStep): void {
         const identityMatch = findProcessStepByIdentity(state.currentProcessBlock.steps, step, { includeDone: true });
         if (identityMatch) {
             step.rawIcon = rawIcon;
-            step.icon = emojiToIcon(step.icon);
+            step.icon = resolveIcon(step.icon);
             const incomingDetail = step.detail || '';
             const existingDetail = getStoredProcessStepDetail(identityMatch.id) || identityMatch.detail || identityMatch.detailPreview || '';
             const detail = incomingDetail.length >= existingDetail.length ? incomingDetail : existingDetail;
@@ -243,7 +243,7 @@ export function showProcessStep(step: ProcessStep): void {
         }
         // Convert emoji icon to SVG before adding step
         step.rawIcon = rawIcon;
-        step.icon = emojiToIcon(step.icon);
+        step.icon = resolveIcon(step.icon);
         addStep(state.currentProcessBlock, step);
     }
     scrollToBottom();

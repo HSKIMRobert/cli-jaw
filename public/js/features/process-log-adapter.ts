@@ -1,5 +1,5 @@
 import { generateId } from '../uuid.js';
-import { ICONS, emojiToIcon } from '../icons.js';
+import { ICONS, resolveIcon } from '../icons.js';
 import {
     parseToolLogBounded,
     sanitizeToolLogForDurableStorage,
@@ -54,7 +54,7 @@ export function toProcessSteps(tools: ToolLogEntry[], runStartedAt?: number): Pr
     const baseTime = runStartedAt && runStartedAt > 0 ? runStartedAt : Date.now();
     return tools.map((tool) => ({
         id: generateId(),
-        icon: tool.icon ? emojiToIcon(tool.icon) : ICONS.tool,
+        icon: tool.icon ? resolveIcon(tool.icon) : ICONS.tool,
         rawIcon: tool.rawIcon || tool.icon || '',
         label: displayToolLabel(tool),
         isEmployee: tool.isEmployee === true,

@@ -6,7 +6,7 @@ import { setStatus, updateQueueBadge, addSystemMsg, appendAgentText, finalizeAge
 import { renderPendingQueue } from './features/pending-queue.js';
 import { t, getLang } from './features/i18n.js';
 import { getVirtualScroll } from './virtual-scroll.js';
-import { ICONS, emojiToIcon } from './icons.js';
+import { ICONS } from './icons.js';
 import { escapeHtml, cancelPostRender } from './render.js';
 import type { HeartbeatRuntimeState, OrcStateName, ResolvedSelectionState } from './state.js';
 import { notifyUnreadResponse } from './features/attention-badge.js';
