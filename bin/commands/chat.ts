@@ -217,10 +217,10 @@ if (values.simple) {
     } else if (!isGit) {
         infoLines.push(`${c.dim}ide diff:${c.reset}   ${c.yellow}\u25CB${c.reset} OFF (non-git)`);
     }
-    const boxLines = await renderTextBox(`${c.cyan}cli-jaw${c.reset} ${c.dim}v${APP_VERSION}${c.reset}`, infoLines, 56);
+    infoLines.push('');
+    infoLines.push(`${c.bold}Flow keys${c.reset}${c.dim}: /  \u00B7  #  \u00B7  !  \u00B7  $  \u00B7  ?${c.reset}`);
+    const boxLines = renderTextBox(`${c.cyan}cli-jaw${c.reset} ${c.dim}v${APP_VERSION}${c.reset}`, infoLines, 56);
     for (const line of boxLines) console.log(line);
-    console.log('');
-    console.log(`  ${c.dim}${c.bold}Flow keys${c.reset}${c.dim}: /  \u00B7  #  \u00B7  !  \u00B7  $  \u00B7  ?${c.reset}`);
     console.log(`  ${c.dim}/quit  /clear  /reset confirm  /file <path>${c.reset}`);
     if (displayMode === 'fullscreen') {
         console.log(`  ${c.dim}(fullscreen alt-screen mode)${c.reset}`);

@@ -173,7 +173,7 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                     ctx.streamState = 'tool';
                     rebuildFooter(ctx);
                     if (!isFullscreen(ctx)) {
-                        process.stdout.write(`\r\x1b[2K  ${c.dim}▸${c.reset} ${c.cyan}${msg.icon} ${msg.label}${c.reset}${c.dim}${toolDetail}${c.reset}\n`);
+                        process.stdout.write(`\r\x1b[2K  ${c.cyan}⏳${c.reset} ${c.cyan}${c.bold}${msg.icon} ${msg.label}${c.reset}${c.dim}${toolDetail}${c.reset}\n`);
                     } else {
                         ctx.requestFrame?.();
                     }

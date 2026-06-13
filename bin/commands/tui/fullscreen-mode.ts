@@ -32,22 +32,28 @@ function renderTranscriptItem(item: TranscriptItem, width: number): string[] {
     const w = Math.max(20, width - gutter.length);
     switch (item.type) {
         case 'user':
-            return [`${gutter}${c.dim}you:${c.reset} ${clipTextToCols(item.displayText, w - 5)}`];
+            return [`${gutter}${c.cyan}${c.bold}❯${c.reset} ${clipTextToCols(item.displayText, w - 3)}`];
         case 'assistant': {
-            const agentPrefix = item.agentId ? `${c.dim}[${item.agentId}]${c.reset} ` : '';
-            const body = item.streaming && !item.text
-                ? `${gutter}${agentPrefix}${c.dim}…${c.reset}`
-                : (agentPrefix ? `${gutter}${agentPrefix}\n` : '') + (isInitialized() ? renderMarkdownJawcode(item.text, w).join('\n') : renderMarkdown(item.text, { width: w, gutter }));
-            return body.split('\n');
+            const agentLabel = item.agentId ? `${c.dim}[${item.agentId}]${c.reset} ` : '';
+            if (item.streaming && !item.text) {
+                return [`${gutter}${agentLabel}${c.cyan}▍${c.reset}`];
+            }
+            const cursor = item.streaming ? `${c.cyan}▍${c.reset}` : '';
+            const header = agentLabel ? `${gutter}${agentLabel}\n` : '';
+            const mdText = item.text + (cursor ? ` ${cursor}` : '');
+            const body = isInitialized()
+                ? renderMarkdownJawcode(mdText, w).join('\n')
+                : renderMarkdown(mdText, { width: w, gutter });
+            return (header + body).split('\n');
         }
         case 'tool': {
             const [toolHead, ...toolRest] = item.text.split(':');
             const toolTail = toolRest.length ? `:${toolRest.join(':')}` : '';
-            if (item.collapsed) return [`${gutter}${c.dim}  ▸ ${toolHead}${c.reset}`];
-            return [`${gutter}  ${c.dim}▸${c.reset} ${c.cyan}${toolHead}${c.reset}${c.dim}${toolTail}${c.reset}`];
+            if (item.collapsed) return [`${gutter}${c.dim}  ✔ ${toolHead}${c.reset}`];
+            return [`${gutter}  ${c.cyan}⏳${c.reset} ${c.cyan}${c.bold}${toolHead}${c.reset}${c.dim}${toolTail}${c.reset}`];
         }
         case 'status':
-            return [`${gutter}${c.yellow}${item.text}${c.reset}`];
+            return [`${gutter}${c.dim}◌ ${item.text}${c.reset}`];
         default:
             return [];
     }
