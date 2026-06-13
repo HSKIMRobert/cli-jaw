@@ -5,8 +5,7 @@ import { getComposerDisplayText, getDisplayCursorOffset } from '../../../src/cli
 import { closeAutocomplete } from '../../../src/cli/tui/overlay.js';
 import { visualWidth, cursorScreenPos } from '../../../src/cli/tui/renderers.js';
 import { resolveShellLayout, setupScrollRegion } from '../../../src/cli/tui/shell.js';
-import { c, hrLine, getRows, type TuiContext } from './types.js';
-import { renderStatusLine } from '../../../src/cli/tui/jawcode-render.js';
+import { c, hrLine, getRows, formatFooterFull, type TuiContext } from './types.js';
 
 const contPrefixFor = () => `  ${c.dim}\u00B7 ${c.reset}`;
 
@@ -57,14 +56,10 @@ export function rebuildFooter(ctx: TuiContext): void {
     const elapsed = ctx.streamState !== 'idle' && ctx.turnStartedAt > 0
         ? Date.now() - ctx.turnStartedAt
         : undefined;
-    const stateLabel = ctx.streamState === 'responding' ? 'responding…' : ctx.streamState === 'tool' ? 'working…' : 'idle';
-    ctx.footer = renderStatusLine({
+    ctx.footer = formatFooterFull(ctx.label, ctx.accent, ctx.streamState, {
+        elapsedMs: elapsed,
+        bgtaskCount: ctx.bgtaskCount,
         model: ctx.info?.model,
-        engine: ctx.label,
-        engineAccent: ctx.accent,
-        state: stateLabel,
-        elapsed: elapsed && elapsed > 0 ? `${(elapsed / 1000).toFixed(1)}s` : undefined,
-        bgtask: ctx.bgtaskCount,
         cwd: ctx.info?.workingDir,
     });
     ctx.promptPrefix = `  ${ctx.accent}${c.bold}\u276F${c.reset} `;

@@ -7,7 +7,6 @@ import {
     setBracketedPaste,
 } from '../../../src/cli/tui/composer.js';
 import { renderMarkdown } from '../../../src/cli/tui/markdown.js';
-import { renderToolBlock } from '../../../src/cli/tui/jawcode-render.js';
 import { classifyKeyAction, type KeyAction } from '../../../src/cli/tui/keymap.js';
 import { getCompletionItems } from '../../../src/cli/commands.js';
 import { composeAutocompleteLines, composeHelpOntoFrame, composePaletteOntoFrame, composeSelectorOntoFrame, composeBgtaskOntoFrame } from '../../../src/cli/tui/overlay.js';
@@ -32,26 +31,22 @@ function renderTranscriptItem(item: TranscriptItem, width: number): string[] {
     const w = Math.max(20, width - gutter.length);
     switch (item.type) {
         case 'user':
-            return [`${gutter}${c.cyan}${c.bold}❯${c.reset} ${clipTextToCols(item.displayText, w - 3)}`];
+            return [`${gutter}${c.dim}you:${c.reset} ${clipTextToCols(item.displayText, w - 5)}`];
         case 'assistant': {
-            const agentLabel = item.agentId ? `${c.dim}[${item.agentId}]${c.reset} ` : '';
-            if (item.streaming && !item.text) {
-                return [`${gutter}${agentLabel}${c.dim}▍${c.reset}`];
-            }
-            const cursor = item.streaming ? `${c.dim}▍${c.reset}` : '';
-            const header = agentLabel ? `${gutter}${agentLabel}\n` : '';
-            const body = renderMarkdown(item.text + cursor, { width: w, gutter });
-            return (header + body).split('\n');
+            const agentPrefix = item.agentId ? `${c.dim}[${item.agentId}]${c.reset} ` : '';
+            const body = item.streaming && !item.text
+                ? `${gutter}${agentPrefix}${c.dim}…${c.reset}`
+                : (agentPrefix ? `${gutter}${agentPrefix}\n` : '') + renderMarkdown(item.text, { width: w, gutter });
+            return body.split('\n');
         }
         case 'tool': {
             const [toolHead, ...toolRest] = item.text.split(':');
-            const toolDetail = toolRest.join(':').trim();
-            const state = item.collapsed ? 'done' as const : 'pending' as const;
+            const toolTail = toolRest.length ? `:${toolRest.join(':')}` : '';
             if (item.collapsed) return [`${gutter}${c.dim}  ▸ ${toolHead}${c.reset}`];
-            return [`${gutter}${renderToolBlock(toolHead?.split(' ')[0] || '', toolHead?.split(' ').slice(1).join(' ') || '', toolDetail, state)}`];
+            return [`${gutter}  ${c.dim}▸${c.reset} ${c.cyan}${toolHead}${c.reset}${c.dim}${toolTail}${c.reset}`];
         }
         case 'status':
-            return [`${gutter}${c.dim}◌ ${item.text}${c.reset}`];
+            return [`${gutter}${c.yellow}${item.text}${c.reset}`];
         default:
             return [];
     }
