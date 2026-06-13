@@ -102,7 +102,7 @@ Key rules:
 2. To dispatch, run `cli-jaw dispatch --agent "Name" --task "..."`; result arrives via stdout.
 3. Your CLI's sub-agent tools are separate from jaw employees.
 4. **⏰ Bash timeout**: always pass `timeout=600000` (10 min) when calling `cli-jaw dispatch`. Default 2-minute timeout can strand results in pendingReplay.
-5. **`$computer-use` / Computer Use routing** — binding rule is anchor:desktop-control §0 below. Tier 1: any CLI with cu-mcp registered self-serves (coordinate/screenshot). Tier 2: precise AX-tree tasks or CLIs without cu-mcp → dispatch to a codex employee (codex has Sky, AX-tree/code-signature-attested). No codex + no cu-mcp → precondition failure. Never fall back to CDP.
+5. **`$computer-use` / Computer Use routing** — binding rule is anchor:desktop-control §0 below (codex self-serves; non-codex dispatches to a codex-family employee verbatim with the token; none → report precondition failure, never fall back to CDP).
 6. **Screenshot-first in dispatch body**: every UI-task dispatch must include — *"If unsure of state, call `get_app_state` (CU) or `cli-jaw browser snapshot` (CDP) before the next action. Never chain actions through uncertainty."*
 
 <!-- anchor:desktop-control -->
@@ -114,9 +114,9 @@ Key rules:
 
 When the user's message contains **`$computer-use`**, skip intent routing entirely:
 
-- **Tier 1 — self-serve (cu-mcp)**: your CLI has the Computer Use MCP registered (codex, jwc, claude, grok, gemini, cursor, or any CLI with cu-mcp) → use cu-mcp tools directly. Coordinate/screenshot based. First action for a known app: `get_app_state(app=...)`; if the app name is unclear, call `list_apps()` first.
-- **Tier 2 — AX-tree dispatch (codex only)**: the task requires precise element-level AX-tree manipulation, OR your CLI lacks the Computer Use MCP → dispatch to a **codex** employee using the template below. Only codex has Sky (AX-tree, parent code-signature attested by team 2DC432GLL2).
-- **Neither available**: no codex employee AND your CLI lacks the CU MCP → report `precondition failed: no Computer Use MCP and no codex employee for $computer-use`. Never fall back to CDP.
+- **Codex + TCC ready** → self-serve Computer Use tools. First action for a known app: `get_app_state(app=...)`; if the app name is unclear, call `list_apps()` first.
+- **Not codex** → use the dispatch template below. Control preferred; any codex-family employee acceptable.
+- **No codex-family employee** → report `precondition failed: no codex-family employee for $computer-use`. Never fall back to CDP.
 - `desktop-control` skill is already inlined into Control's system prompt — never paste absolute skill paths (`/Users/*/.codex/skills/...` etc.) into the task body.
 
 If the token is absent but the target is clearly a desktop app (Finder, System Settings, Chrome tab bar, Spotify window, any non-DOM UI), the same dispatch logic applies.
@@ -157,8 +157,8 @@ cli-jaw browser type e5 "hello" --submit
 - Prefer the smallest state check that answers the next question: snapshot for ref/DOM truth, screenshot only when visual layout matters, console/network only for debugging.
 - For Canvas / iframe / WebGL / Shadow DOM with no ref: if Control/Computer Use is available and the target is visible, use `click(x, y)` pointer-action from the screenshot. `cli-jaw browser vision-click` remains a Codex-only legacy fallback for no-ref targets; use it only after the ref path and direct coordinate path are unsuitable.
 
-### B. Computer Use path — `mcp__computer_use__.*` (macOS, any CLI with cu-mcp)
-For desktop apps and non-DOM UI. Two surfaces: **cu-mcp** (coordinate/screenshot, available to any CLI with the MCP registered) and **Sky** (AX-tree/element_index, codex-only). Do not promise that a visible cursor overlay will appear.
+### B. Computer Use path — `mcp__computer_use__.*` (macOS, codex-only)
+For desktop apps and non-DOM UI. Operates native UI through accessibility, keyboard, and pointer actions. Do not promise that a visible cursor overlay will appear.
 
 **Workflow:** `get_app_state(app)` before the first interaction in a turn → action → re-read state after UI/focus changes, stale warnings, or uncertainty → verify.
 - Use `list_apps()` first when the app name is unknown.
@@ -179,9 +179,8 @@ For desktop apps and non-DOM UI. Two surfaces: **cu-mcp** (coordinate/screenshot
 | Canvas / iframe / Shadow DOM target | CDP or CU fallback | pointer-action / pointer-action+vision |
 
 ### B.2 Who performs it
-- **Tier 1 — self-serve**: your CLI has the Computer Use MCP registered (codex, jwc, claude, grok, gemini, cursor, etc.) + macOS TCC preconditions hold → use cu-mcp directly (coordinate/screenshot based).
-- **Tier 2 — AX-tree dispatch**: precise element-level AX-tree tasks, or your CLI lacks the CU MCP → dispatch to a **codex** employee (`Control`). Only codex has Sky (AX-tree, parent code-signature attested).
 - You may dispatch to `Control` at any time, regardless of your own CLI.
+- You may self-serve Computer Use only when your own CLI is codex and TCC preconditions hold (server launched from Terminal with Automation permission).
 - Neither self-serve nor dispatch is mandatory — pick based on task length, transcript isolation, and user intent. `$computer-use` token overrides this: the section 0 rule is binding.
 
 ### C. Transcript format (every UI action)

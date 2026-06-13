@@ -99,13 +99,6 @@ export function toOpenCodeMcp(config: UnifiedMcpConfig) {
     return mcp;
 }
 
-/** Return a config copy with named servers removed (for per-target exclusions). */
-function filterServers(config: UnifiedMcpConfig, exclude: string[]): UnifiedMcpConfig {
-    const servers = { ...getServers(config) };
-    for (const name of exclude) delete servers[name];
-    return { ...config, servers };
-}
-
 // ─── Patch helpers ─────────────────────────────────
 
 /** Replace only [mcp_servers.*] sections in existing TOML, keep everything else */
@@ -161,14 +154,11 @@ export function syncToAll(config: UnifiedMcpConfig) {
     } catch (e: unknown) { console.error(`[mcp-sync] ❌ Claude:`, (e as Error).message); }
 
     // 2. Codex: ~/.codex/config.toml
-    // Exclude `computer-use` — codex bundles Sky (AX-tree CU) natively;
-    // syncing cu-mcp here would create duplicate/conflicting tool sets.
     try {
         const codexPath = join(os.homedir(), '.codex', 'config.toml');
         if (fs.existsSync(codexPath)) {
             const existing = fs.readFileSync(codexPath, 'utf8');
-            const codexConfig = filterServers(config, ['computer-use']);
-            const mcpToml = toCodexToml(codexConfig);
+            const mcpToml = toCodexToml(config);
             fs.writeFileSync(codexPath, patchCodexToml(existing, mcpToml));
             results.codex = true;
             console.log(`[mcp-sync] ✅ Codex: ${codexPath}`);

@@ -13,8 +13,6 @@
  *   Antigravity   → ~/.gemini/antigravity/mcp_config.json (JSON, mcpServers)
  *   Kiro          → ~/.kiro/settings/mcp.json              (JSON, mcpServers)
  *   Grok          — reads ~/.cursor/mcp.json via compat scan (no dedicated target)
- *
- * Per-target exclusions: codex omits `computer-use` (ships bundled Sky).
  */
 
 // ─── unified-config ────────────────────────────────
