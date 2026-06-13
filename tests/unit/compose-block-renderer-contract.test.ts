@@ -123,7 +123,106 @@ test('compose-block malformed JSON fails closed with safe local error', async ()
 
     assert.ok(wrapper.querySelector('.compose-error'));
     assert.match(wrapper.textContent || '', /초안 형식을 읽을 수 없습니다/);
+    assert.match(wrapper.textContent || '', /strict JSON/);
     assert.doesNotMatch(wrapper.innerHTML, /not-json/);
+});
+
+test('compose-block raw newline inside JSON string fails closed with newline guidance', async () => {
+    setupWebUiDom();
+    const { renderMarkdown } = await import('../../public/js/render.ts');
+    const { hydrateComposeBlocks } = await import('../../public/js/render/compose-block.ts');
+    const wrapper = document.createElement('div');
+    const malformed = [
+        '{',
+        '  "schemaVersion": "compose-block-v1",',
+        '  "kind": "document",',
+        '  "title": "Bad multiline",',
+        '  "variants": [',
+        '    {',
+        '      "id": "bad",',
+        '      "label": "Bad",',
+        '      "body": "Line one',
+        '',
+        'Line two"',
+        '    }',
+        '  ]',
+        '}',
+    ].join('\n');
+    wrapper.innerHTML = renderMarkdown(`\`\`\`compose-block\n${malformed}\n\`\`\``);
+
+    hydrateComposeBlocks(wrapper);
+
+    assert.ok(wrapper.querySelector('.compose-error'));
+    assert.match(wrapper.textContent || '', /strict JSON/);
+    assert.match(wrapper.textContent || '', /\\n/);
+    assert.doesNotMatch(wrapper.innerHTML, /Line one/);
+});
+
+test('compose-block escaped newline body renders multiline draft text', async () => {
+    setupWebUiDom();
+    const { renderMarkdown } = await import('../../public/js/render.ts');
+    const { hydrateComposeBlocks } = await import('../../public/js/render/compose-block.ts');
+    const wrapper = document.createElement('div');
+    const spec = composeSpec();
+    spec.variants = [
+        { id: 'multi', label: 'Multiline', subject: 'Multiline subject', body: 'Line one\n\nLine two' },
+    ];
+    wrapper.innerHTML = renderMarkdown(`\`\`\`compose-block\n${JSON.stringify(spec)}\n\`\`\``);
+    document.body.appendChild(wrapper);
+
+    hydrateComposeBlocks(wrapper);
+
+    assert.equal(wrapper.querySelector<HTMLTextAreaElement>('.compose-body')?.value, 'Line one\n\nLine two');
+});
+
+test('compose-block paragraphs array renders multiline draft text without newline escapes', async () => {
+    setupWebUiDom();
+    const { renderMarkdown } = await import('../../public/js/render.ts');
+    const { hydrateComposeBlocks } = await import('../../public/js/render/compose-block.ts');
+    const wrapper = document.createElement('div');
+    const spec = {
+        schemaVersion: 'compose-block-v1',
+        kind: 'document',
+        title: 'Paragraphs draft',
+        variants: [
+            {
+                id: 'paragraphs',
+                label: 'Paragraphs',
+                paragraphs: ['First paragraph.', 'Second paragraph.'],
+            },
+        ],
+    };
+    wrapper.innerHTML = renderMarkdown(`\`\`\`compose-block\n${JSON.stringify(spec)}\n\`\`\``);
+    document.body.appendChild(wrapper);
+
+    hydrateComposeBlocks(wrapper);
+
+    assert.equal(wrapper.querySelector<HTMLTextAreaElement>('.compose-body')?.value, 'First paragraph.\n\nSecond paragraph.');
+});
+
+test('compose-block bodyLines array renders line-separated draft text', async () => {
+    setupWebUiDom();
+    const { renderMarkdown } = await import('../../public/js/render.ts');
+    const { hydrateComposeBlocks } = await import('../../public/js/render/compose-block.ts');
+    const wrapper = document.createElement('div');
+    const spec = {
+        schemaVersion: 'compose-block-v1',
+        kind: 'message',
+        title: 'Line draft',
+        variants: [
+            {
+                id: 'lines',
+                label: 'Lines',
+                bodyLines: ['Line one', 'Line two'],
+            },
+        ],
+    };
+    wrapper.innerHTML = renderMarkdown(`\`\`\`compose-block\n${JSON.stringify(spec)}\n\`\`\``);
+    document.body.appendChild(wrapper);
+
+    hydrateComposeBlocks(wrapper);
+
+    assert.equal(wrapper.querySelector<HTMLTextAreaElement>('.compose-body')?.value, 'Line one\nLine two');
 });
 
 test('compose-block wiring is present across render paths', () => {
