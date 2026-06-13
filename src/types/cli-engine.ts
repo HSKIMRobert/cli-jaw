@@ -26,6 +26,7 @@ export type CliEngine =
     | 'cursor'
     | 'gemini'
     | 'grok'
+    | 'jwc'
     | 'kiro-code'
     | 'opencode'
     | 'pi';
@@ -48,6 +49,7 @@ export const CLI_ENGINES = [
     'cursor',
     'gemini',
     'grok',
+    'jwc',
     'kiro-code',
     'opencode',
     'pi',

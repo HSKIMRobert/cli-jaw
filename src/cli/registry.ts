@@ -143,6 +143,18 @@ export const CLI_REGISTRY = {
         effortNote: 'unsupported by grok-build/composer; do not pass --effort',
         models: ['grok-build', 'grok-composer-2.5-fast'],
     },
+    jwc: {
+        label: 'jwc',
+        // In-process / resident ACP engine — no external binary spawned in the
+        // main-managed path (see JawRuntime). `binary` is used only by the dev
+        // fallback that shells out to `jwc --mode acp`.
+        binary: 'jwc',
+        experimental: true,
+        defaultModel: 'claude-fable-5',
+        defaultEffort: 'high',
+        efforts: ['off', 'min', 'low', 'medium', 'high', 'xhigh'],
+        models: ['claude-fable-5', 'claude-opus-4-8', 'claude-sonnet-4-6', 'claude-haiku-4-5'],
+    },
     'kiro-code': {
         label: 'Kiro',
         binary: 'kiro-cli',

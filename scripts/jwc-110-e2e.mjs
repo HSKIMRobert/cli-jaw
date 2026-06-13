@@ -17,7 +17,7 @@
  */
 import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { homedir, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -33,7 +33,8 @@ const distNode = process.env.JWC_SDK_PATH?.trim() || defaultBundle;
 assert.ok(existsSync(distNode), `jwc Node bundle not found: ${distNode} (run build:node, or set JWC_SDK_PATH)`);
 
 process.env.JWC_SDK_PATH = distNode;
-process.env.CLI_JAW_JWC_AGENT_DIR ??= path.join(homedir(), ".jwc", "agent");
+// No CLI_JAW_JWC_AGENT_DIR override — jaw mode's default agentDir (~/.jwc/agent,
+// 111 §e decision 0) must resolve the real credential store on its own.
 process.env.GJC_BRAND_NAME = "jwc";
 process.env.JWC_BRAND_NAME = "jwc";
 

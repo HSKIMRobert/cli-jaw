@@ -12,10 +12,11 @@ import { settings, UPLOADS_DIR, detectCli, getProjectDirs } from '../core/config
 import { migrateLegacyClaudeValue } from '../cli/claude-models.js';
 import { stripUndefined } from '../core/strip-undefined.js';
 import {
-    clearEmployeeSession, getSession, insertMessage, getRecentMessages,
+    clearEmployeeSession, getSession, insertMessage, insertMessageWithTraceRun, getRecentMessages,
     listQueuedMessages, insertQueuedMessage, deleteQueuedMessage,
     getSessionBucket, clearSessionBucket, setSessionBucketSnapshot,
 } from '../core/db.js';
+import { sanitizeToolLogForDurableStorage } from '../shared/tool-log-sanitize.js';
 import { buildTaskSnapshot } from '../memory/runtime.js';
 import { getActiveChatSession } from '../core/chat-sessions.js';
 import { getSystemPrompt, regenerateB } from '../prompt/builder.js';
@@ -35,7 +36,7 @@ import { handleAgentExit, setSpawnAgent, setMainMetaHandler } from './lifecycle-
 import { buildServicePath } from '../core/runtime-path.js';
 import { resolveOrcScope } from '../orchestrator/scope.js';
 import { stripInterviewTracker } from '../orchestrator/sanitize.js';
-import { beginLiveRun, appendLiveRunText, setLiveRunTraceId, clearLiveRun, replaceLiveRunTools, appendLiveRunTool } from './live-run-state.js';
+import { beginLiveRun, appendLiveRunText, setLiveRunTraceId, clearLiveRun, replaceLiveRunTools, appendLiveRunTool, getLiveRun } from './live-run-state.js';
 import {
     memoryFlushCounter as _memoryFlushCounter,
     flushCycleCount as _flushCycleCount,
@@ -52,6 +53,7 @@ import {
 import type { SpawnContext, ToolEntry } from '../types/agent.js';
 import { asCliEventRecord, discriminate, fieldString, type CliEventRecord } from '../types/cli-events.js';
 import { isJawRuntimeEvent, handleJawRuntimeEvent } from './claude-e-runtime.js';
+import { jawRuntime } from './jwc-runtime.js';
 import { appendTraceEvent, stampTraceTool, startTraceRun } from '../trace/store.js';
 import {
     AGY_COMPLETE_KILL_REASON,
@@ -312,7 +314,9 @@ export function isSteerInProgress(): boolean {
 }
 
 export function isAgentBusy(): boolean {
-    return !!activeProcess || queueCtrl.isRetryPending() || mainSpawnStarting || steerInProgress;
+    // jwc in-process turns hold no ChildProcess, so activeProcess stays null —
+    // fold the resident runtime's own busy flag in (110.3 §D).
+    return !!activeProcess || jawRuntime.busy || queueCtrl.isRetryPending() || mainSpawnStarting || steerInProgress;
 }
 
 // ─── Kill / Steer ────────────────────────────────────
@@ -790,6 +794,54 @@ export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
                 });
             }
         }
+    }
+
+    // ─── jwc in-process branch (110.3 §B) ───────────────────────────────
+    // Resident engine, no ChildProcess. Mirrors the main-managed lifecycle
+    // (insertMessage → beginLiveRun → run → persist → clearLiveRun → processQueue)
+    // so isAgentBusy()/queue/SSE behave identically. Employees fall through.
+    if (cli === 'jwc' && mainManaged && !opts.internal) {
+        const jwcLabel = 'main';
+        const jwcModel = settings["perCli"]?.['jwc']?.model || 'claude-fable-5';
+        const jwcCwd = settings["workingDir"] || process.cwd();
+        if (!opts._skipInsert) {
+            insertMessage.run('user', prompt, 'jwc', jwcModel, settings["workingDir"] || null, getActiveChatSession());
+        }
+        mainSpawnStarting = true;
+        beginLiveRun(liveScope, 'jwc');
+        broadcast('agent_status', { running: true, agentId: jwcLabel, cli: 'jwc' });
+        jawRuntime.setLiveScope(liveScope);
+        const settleJwcTurn = (result: { text: string; code: number }): void => {
+            const live = getLiveRun(liveScope);
+            const finalText = result.code === 0 ? live.text : result.text;
+            // Persist may throw (better-sqlite3 is sync: DB lock / schema). Cleanup MUST
+            // still run or mainSpawnStarting sticks true and the jwc queue deadlocks.
+            try {
+                insertMessageWithTraceRun.run(
+                    'assistant', finalText, 'jwc', jwcModel, null,
+                    JSON.stringify(sanitizeToolLogForDurableStorage(live.toolLog)),
+                    settings["workingDir"] || null, live.traceRunId || null, getActiveChatSession(),
+                );
+                broadcast('agent_done', { text: finalText, origin, ...(result.code === 0 ? {} : { error: true }) });
+            } catch (err) {
+                console.error('[jwc:persist]', err instanceof Error ? err.message : String(err));
+                broadcast('agent_done', { text: finalText, origin, error: true });
+            } finally {
+                clearLiveRun(liveScope);
+                broadcast('agent_status', { running: false, agentId: jwcLabel, cli: 'jwc' });
+                mainSpawnStarting = false;
+                jawRuntime.setLiveScope(undefined);
+                resolve!({ text: finalText, code: result.code });
+                processQueue();
+            }
+        };
+        // jawRuntime.prompt is designed never to reject, but guard defensively so a
+        // broken turn never leaves the queue wedged or emits an unhandled rejection.
+        jawRuntime.prompt(jwcCwd, prompt).then(settleJwcTurn, err => {
+            console.error('[jwc:turn]', err instanceof Error ? err.message : String(err));
+            settleJwcTurn({ text: `❌ jwc turn failed: ${err instanceof Error ? err.message : String(err)}`, code: 1 });
+        });
+        return { child: null, promise: resultPromise };
     }
 
     const permissions = opts.permissions || settings["permissions"] || session.permissions || 'auto';

@@ -24,6 +24,7 @@ export type EventTopic =
     | 'settings'    // settings_change
     | 'agents'      // agent_added, agent_updated, agent_deleted
     | 'trace'       // internal-only (agent:claude-e:*) — never SSE-public
+    | 'jwc'         // Code mode: jwc engine session updates (code_* events, acp-host)
     | 'system';     // system_notice, alert_escalation, fallback bucket
 
 export interface BusEvent {

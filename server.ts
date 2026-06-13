@@ -11,6 +11,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 
 import { registerBrowserRoutes } from './src/routes/browser.js';
+import { registerCodeRoutes } from './src/routes/code.js';
 import { registerEmployeeRoutes } from './src/routes/employees.js';
 import { registerHeartbeatRoutes } from './src/routes/heartbeat.js';
 import { registerSkillRoutes } from './src/routes/skills.js';
@@ -419,6 +420,8 @@ app.use('/api/dashboard/schedule', requireAuth, createDashboardScheduleRouter())
 
 // ─── Browser API (Phase 7) — see src/routes/browser.js
 registerBrowserRoutes(app, requireAuth);
+// ─── Code mode API (jwc resident ACP host) — see src/routes/code.js
+registerCodeRoutes(app, requireAuth);
 
 registerI18nRoutes(app, requireAuth, projectRoot);
 
