@@ -10,6 +10,7 @@ import { captureFileSet, diffFileSets, getDiffStat, getUnifiedDiff, getIdeCli, o
 import { createStreamSink } from '../../../src/cli/tui/stream.js';
 import { renderMarkdown } from '../../../src/cli/tui/markdown.js';
 import { renderMarkdownJawcode, isInitialized } from '../../../src/cli/tui/jawcode-render.js';
+import { renderToolLine } from '../../../src/cli/tui/jawcode-adapter.js';
 import { colorizeDiff } from '../../../src/cli/tui/diffview.js';
 import { c, type TuiContext } from './types.js';
 import { openPromptBlock, rebuildFooter } from './renderer.js';
@@ -173,7 +174,7 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                     ctx.streamState = 'tool';
                     rebuildFooter(ctx);
                     if (!isFullscreen(ctx)) {
-                        process.stdout.write(`\r\x1b[2K  ${c.cyan}⏳${c.reset} ${c.cyan}${c.bold}${msg.icon} ${msg.label}${c.reset}${c.dim}${toolDetail}${c.reset}\n`);
+                        process.stdout.write(`\r\x1b[2K${renderToolLine(msg.icon, msg.label, msg.detail || '', 'pending')}\n`);
                     } else {
                         ctx.requestFrame?.();
                     }
