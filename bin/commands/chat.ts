@@ -205,28 +205,24 @@ if (values.simple) {
         ' \u255A\u2550\u2550\u2550\u2550\u2550\u255D\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u255D\u255A\u2550\u255D \u255A\u2550\u2550\u2550\u2550\u255D \u255A\u2550\u255D  \u255A\u2550\u255D \u255A\u2550\u2550\u255D\u255A\u2550\u2550\u255D',
     ];
     // Initialize jawcode TUI components (async, once)
-    const { initJawcodeTui, renderTextBox } = await import('../../src/cli/tui/jawcode-render.js');
+    const { initJawcodeTui } = await import('../../src/cli/tui/jawcode-render.js');
+    const { renderWelcome } = await import('../../src/cli/tui/jawcode-adapter.js');
     await initJawcodeTui();
     console.log('');
     for (const line of art) console.log(`  ${c.cyan}${c.bold}${line}${c.reset}`);
-    console.log(`  ${c.dim}v${APP_VERSION}${c.reset}${ctx.isRaw ? `  ${c.dim}(raw json)${c.reset}` : ''}`);
     console.log('');
-    const infoLines = [
-        `${c.dim}engine:${c.reset}     ${ctx.accent}${c.bold}${ctx.label}${c.reset}`,
-        ...(info.model ? [`${c.dim}model:${c.reset}      ${c.bold}${info.model}${c.reset}`] : []),
-        `${c.dim}directory:${c.reset}   ${c.cyan}${ctx.dir}${c.reset}`,
-        `${c.dim}server:${c.reset}     ${c.green}\u25CF${c.reset} localhost:${values.port}`,
-    ];
-    if (ctx.ideEnabled) {
-        infoLines.push(`${c.dim}ide diff:${c.reset}   ${c.green}\u25CF${c.reset} ON (${detectedIde || 'terminal'}, git)`);
-    } else if (!isGit) {
-        infoLines.push(`${c.dim}ide diff:${c.reset}   ${c.yellow}\u25CB${c.reset} OFF (non-git)`);
-    }
-    infoLines.push('');
-    infoLines.push(`${c.bold}Flow keys${c.reset}${c.dim}: /  \u00B7  #  \u00B7  !  \u00B7  $  \u00B7  ?${c.reset}`);
-    const boxLines = renderTextBox(`${c.cyan}cli-jaw${c.reset} ${c.dim}v${APP_VERSION}${c.reset}`, infoLines, 56);
-    for (const line of boxLines) console.log(line);
-    console.log(`  ${c.dim}/quit  /clear  /reset confirm  /file <path>${c.reset}`);
+    const ideStr = ctx.ideEnabled ? `ON (${detectedIde || 'terminal'}, git)` : undefined;
+    const welcomeLines = renderWelcome({
+        version: APP_VERSION,
+        engine: ctx.label,
+        engineAccent: ctx.accent,
+        model: info.model || 'default',
+        directory: ctx.dir,
+        serverPort: Number(values.port),
+        ideDiff: ideStr,
+        gitBranch: gitBranch || undefined,
+    });
+    for (const line of welcomeLines) console.log(line);
     if (displayMode === 'fullscreen') {
         console.log(`  ${c.dim}(fullscreen alt-screen mode)${c.reset}`);
     }
