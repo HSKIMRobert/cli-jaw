@@ -129,13 +129,24 @@ function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
         }
     }
 
-    const prefix = ctx.promptPrefix || `  ${ctx.accent}❯${c.reset} `;
+    const prefix = ctx.promptPrefix || `  ${ctx.accent}${c.bold}>${c.reset} `;
     const compLines = composerText.split('\n');
+    const hasInput = composerText.trim().length > 0;
     for (let i = 0; i < regions.composer.height; i++) {
         const row = regions.composer.y + i;
         if (row < 1 || row > rows) continue;
         const line = compLines[i] ?? '';
-        frameRows[row - 1] = i === 0 ? prefix + line : `  ${c.dim}· ${c.reset}${line}`;
+        if (i === 0 && !hasInput) {
+            frameRows[row - 1] = `${prefix}${c.dim}Type your message...${c.reset}`;
+        } else {
+            frameRows[row - 1] = i === 0 ? prefix + line : `  ${c.dim}· ${c.reset}${line}`;
+        }
+    }
+
+    // Hint line below composer
+    const hintRow = regions.composer.y + regions.composer.height;
+    if (hintRow >= 1 && hintRow <= rows) {
+        frameRows[hintRow - 1] = `  ${c.dim}? for shortcuts · /help for commands${c.reset}`;
     }
 
     const footerRow = regions.footer.y;
