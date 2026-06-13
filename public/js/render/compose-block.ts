@@ -39,6 +39,32 @@ function asText(value: unknown, max: number): string {
     return text.length > max ? text.slice(0, max) : text;
 }
 
+function asTextList(value: unknown, max: number): string[] {
+    if (!Array.isArray(value)) return [];
+    const out: string[] = [];
+    let total = 0;
+    for (const item of value) {
+        const text = typeof item === 'string' ? item.trim() : '';
+        if (!text) continue;
+        const remaining = max - total;
+        if (remaining <= 0) break;
+        const clipped = text.length > remaining ? text.slice(0, remaining) : text;
+        out.push(clipped);
+        total += clipped.length;
+    }
+    return out;
+}
+
+function normalizeBody(obj: Record<string, unknown>): string {
+    const body = asText(obj['body'], MAX_BODY);
+    if (body) return body;
+    const paragraphs = asTextList(obj['paragraphs'], MAX_BODY);
+    if (paragraphs.length > 0) return paragraphs.join('\n\n');
+    const lines = asTextList(obj['bodyLines'], MAX_BODY);
+    if (lines.length > 0) return lines.join('\n');
+    return '';
+}
+
 function normalizeKind(value: unknown): ComposeKind {
     const raw = typeof value === 'string' ? value.trim() : '';
     if (raw === 'email' || raw === 'message' || raw === 'document' || raw === 'other') return raw;
@@ -72,7 +98,7 @@ function readSpecFromBlock(block: HTMLElement): ComposeBlockSpec | null {
 function normalizeVariant(raw: unknown, index: number, fallbackSubject: string): ComposeVariant | null {
     if (!raw || typeof raw !== 'object') return null;
     const obj = raw as Record<string, unknown>;
-    const body = asText(obj['body'], MAX_BODY);
+    const body = normalizeBody(obj);
     if (!body) return null;
     const label = asText(obj['label'], 40) || `Variant ${index + 1}`;
     const id = asText(obj['id'], 60) || `variant_${index + 1}`;

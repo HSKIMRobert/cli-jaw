@@ -175,6 +175,56 @@ test('compose-block escaped newline body renders multiline draft text', async ()
     assert.equal(wrapper.querySelector<HTMLTextAreaElement>('.compose-body')?.value, 'Line one\n\nLine two');
 });
 
+test('compose-block paragraphs array renders multiline draft text without newline escapes', async () => {
+    setupWebUiDom();
+    const { renderMarkdown } = await import('../../public/js/render.ts');
+    const { hydrateComposeBlocks } = await import('../../public/js/render/compose-block.ts');
+    const wrapper = document.createElement('div');
+    const spec = {
+        schemaVersion: 'compose-block-v1',
+        kind: 'document',
+        title: 'Paragraphs draft',
+        variants: [
+            {
+                id: 'paragraphs',
+                label: 'Paragraphs',
+                paragraphs: ['First paragraph.', 'Second paragraph.'],
+            },
+        ],
+    };
+    wrapper.innerHTML = renderMarkdown(`\`\`\`compose-block\n${JSON.stringify(spec)}\n\`\`\``);
+    document.body.appendChild(wrapper);
+
+    hydrateComposeBlocks(wrapper);
+
+    assert.equal(wrapper.querySelector<HTMLTextAreaElement>('.compose-body')?.value, 'First paragraph.\n\nSecond paragraph.');
+});
+
+test('compose-block bodyLines array renders line-separated draft text', async () => {
+    setupWebUiDom();
+    const { renderMarkdown } = await import('../../public/js/render.ts');
+    const { hydrateComposeBlocks } = await import('../../public/js/render/compose-block.ts');
+    const wrapper = document.createElement('div');
+    const spec = {
+        schemaVersion: 'compose-block-v1',
+        kind: 'message',
+        title: 'Line draft',
+        variants: [
+            {
+                id: 'lines',
+                label: 'Lines',
+                bodyLines: ['Line one', 'Line two'],
+            },
+        ],
+    };
+    wrapper.innerHTML = renderMarkdown(`\`\`\`compose-block\n${JSON.stringify(spec)}\n\`\`\``);
+    document.body.appendChild(wrapper);
+
+    hydrateComposeBlocks(wrapper);
+
+    assert.equal(wrapper.querySelector<HTMLTextAreaElement>('.compose-body')?.value, 'Line one\nLine two');
+});
+
 test('compose-block wiring is present across render paths', () => {
     assert.match(markdownSrc, /renderComposeBlockPlaceholder/);
     assert.match(sanitizeSrc, /'data-compose-block-kind'/);
