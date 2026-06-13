@@ -27,23 +27,42 @@ export function isInitialized(): boolean { return _initialized; }
 export function getTui(): any { ensureInit(); return _tui; }
 export function getInteractive(): any { ensureInit(); return _interactive; }
 
-function buildMarkdownTheme(): Record<string, unknown> {
+type MarkdownThemeFn = (text: string) => string;
+type InteractiveThemeLike = {
+    fg?: (color: string, text: string) => string;
+    bold?: MarkdownThemeFn;
+    italic?: MarkdownThemeFn;
+    underline?: MarkdownThemeFn;
+};
+
+function asThemeLike(value: unknown): InteractiveThemeLike {
+    if (!value || typeof value !== 'object') return {};
+    return value as InteractiveThemeLike;
+}
+
+function buildMarkdownTheme(): Record<string, MarkdownThemeFn> {
     const theme = _interactive?.theme;
-    if (!theme?.fg) return {};
+    const themeLike = asThemeLike(theme);
+    const fg = typeof themeLike.fg === 'function'
+        ? (color: string, text: string) => themeLike.fg!(color, text)
+        : (_color: string, text: string) => text;
+    const bold = typeof themeLike.bold === 'function' ? themeLike.bold : (text: string) => text;
+    const italic = typeof themeLike.italic === 'function' ? themeLike.italic : (text: string) => text;
+    const underline = typeof themeLike.underline === 'function' ? themeLike.underline : (text: string) => text;
     return {
-        heading: (t: string) => theme.fg('mdHeading', t),
-        link: (t: string) => theme.fg('mdLink', t),
-        linkUrl: (t: string) => theme.fg('mdLinkUrl', t),
-        code: (t: string) => theme.fg('mdCode', t),
-        codeBlock: (t: string) => theme.fg('mdCodeBlock', t),
-        codeBlockBorder: (t: string) => theme.fg('mdCodeBlockBorder', t),
-        quote: (t: string) => theme.fg('mdQuote', t),
-        quoteBorder: (t: string) => theme.fg('mdQuoteBorder', t),
-        hr: (t: string) => theme.fg('mdHr', t),
-        listBullet: (t: string) => theme.fg('mdListBullet', t),
-        bold: (t: string) => theme.bold(t),
-        italic: (t: string) => theme.italic(t),
-        underline: (t: string) => theme.underline(t),
+        heading: (t: string) => fg('mdHeading', t),
+        link: (t: string) => fg('mdLink', t),
+        linkUrl: (t: string) => fg('mdLinkUrl', t),
+        code: (t: string) => fg('mdCode', t),
+        codeBlock: (t: string) => fg('mdCodeBlock', t),
+        codeBlockBorder: (t: string) => fg('mdCodeBlockBorder', t),
+        quote: (t: string) => fg('mdQuote', t),
+        quoteBorder: (t: string) => fg('mdQuoteBorder', t),
+        hr: (t: string) => fg('mdHr', t),
+        listBullet: (t: string) => fg('mdListBullet', t),
+        bold,
+        italic,
+        underline,
         strikethrough: (t: string) => `\x1b[9m${t}\x1b[29m`,
     };
 }

@@ -120,6 +120,12 @@ export class Viewport {
         const flat: string[] = [];
         for (const cell of this.cells) flat.push(...cell.lines);
         this.clampScroll(region.height);
+        if (this.follow && flat.length > 0 && flat.length < region.height) {
+            return [
+                ...new Array(region.height - flat.length).fill(''),
+                ...flat,
+            ];
+        }
         const start = this.scrollTop;
         const out: string[] = [];
         for (let i = 0; i < region.height; i++) {
@@ -135,10 +141,19 @@ export class Viewport {
 
     private itemCacheKey(item: TranscriptItem): string {
         switch (item.type) {
-            case 'user': return `u|${item.displayText.length}`;
-            case 'assistant': return `a|${item.text.length}|${item.streaming}`;
-            case 'tool': return `t|${item.text.length}|${item.collapsed}`;
-            default: return '';
+            case 'user': return `u|${item.displayText.length}|${hashText(item.displayText)}|${item.agentId ?? ''}`;
+            case 'assistant': return `a|${item.text.length}|${hashText(item.text)}|${item.streaming ? 1 : 0}|${item.agentId ?? ''}`;
+            case 'tool': return `t|${item.text.length}|${hashText(item.text)}|${item.collapsed ? 1 : 0}|${item.detail ? hashText(item.detail) : ''}|${item.agentId ?? ''}`;
+            case 'status': return `s|${item.text.length}|${hashText(item.text)}|${item.agentId ?? ''}`;
         }
     }
+}
+
+function hashText(text: string): string {
+    let hash = 2166136261;
+    for (let i = 0; i < text.length; i += 1) {
+        hash ^= text.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(36);
 }

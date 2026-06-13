@@ -361,7 +361,11 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
                 scheduler.request();
                 continue;
             }
+            const beforeTranscriptCount = ctx.store.transcript.items.length;
             handleKeyInput(ctx, token);
+            if (ctx.store.transcript.items.length > beforeTranscriptCount) {
+                viewport.followTail(true, currentRegions(ctx).transcript.height);
+            }
             scheduler.request();
         }
     });
