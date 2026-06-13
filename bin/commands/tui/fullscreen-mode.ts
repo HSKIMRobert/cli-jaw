@@ -19,7 +19,7 @@ import { parseSgrMouse, isMouseSequence } from '../../../src/cli/tui/render/mous
 import { Viewport } from '../../../src/cli/tui/render/viewport.js';
 import type { TranscriptItem } from '../../../src/cli/tui/transcript.js';
 import { toggleToolExpansion } from '../../../src/cli/tui/transcript.js';
-import { clipTextToCols } from '../../../src/cli/tui/renderers.js';
+import { clipTextToCols, visualWidth } from '../../../src/cli/tui/renderers.js';
 import { cleanupScrollRegion, resolveShellLayout } from '../../../src/cli/tui/shell.js';
 import type { TuiContext } from './types.js';
 import { c, getRows, ESC_WAIT_MS } from './types.js';
@@ -159,7 +159,7 @@ function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
         const row = regions.composer.y + i;
         if (row < 1 || row > rows) continue;
         const line = compLines[i] ?? '';
-        const lineVisW = clipTextToCols(line, innerW).length > 0 ? line.length : 0; // approx — clipTextToCols already imported
+        const lineVisW = visualWidth(line);
         const suffix = `${' '.repeat(Math.max(0, innerW - 3 - lineVisW))}${c.dim}${bV}${c.reset}`;
         if (i === 0 && !hasInput) {
             frameRows[row - 1] = `${prefix}${c.dim}Type your message...${c.reset}${suffix}`;

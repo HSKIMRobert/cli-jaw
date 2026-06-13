@@ -195,36 +195,28 @@ if (values.simple) {
     await runSimpleMode(ctx);
 } else {
     if (!ctx.isRaw) await initHighlight();   // interactive rich TUI only; --simple & --raw untouched
-    // Banner
-    const art = [
-        '\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2557     \u2588\u2588\u2557     \u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2557    \u2588\u2588\u2557',
-        '\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255D\u2588\u2588\u2551     \u2588\u2588\u2551     \u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2551    \u2588\u2588\u2551',
-        '\u2588\u2588\u2551     \u2588\u2588\u2551     \u2588\u2588\u2551     \u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2551\u2588\u2588\u2551 \u2588\u2557 \u2588\u2588\u2551',
-        '\u2588\u2588\u2551     \u2588\u2588\u2551     \u2588\u2588\u2551\u2588\u2588   \u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2551\u2588\u2588\u2551\u2588\u2588\u2588\u2557\u2588\u2588\u2551',
-        '\u255A\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2551\u255A\u2588\u2588\u2588\u2588\u2588\u2554\u255D\u2588\u2588\u2551  \u2588\u2588\u2551\u255A\u2588\u2588\u2588\u2554\u2588\u2588\u2588\u2554\u255D',
-        ' \u255A\u2550\u2550\u2550\u2550\u2550\u255D\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u255D\u255A\u2550\u255D \u255A\u2550\u2550\u2550\u2550\u255D \u255A\u2550\u255D  \u255A\u2550\u255D \u255A\u2550\u2550\u255D\u255A\u2550\u2550\u255D',
-    ];
     // Initialize jawcode TUI components (async, once)
     const { initJawcodeTui } = await import('../../src/cli/tui/jawcode-render.js');
     const { renderWelcome } = await import('../../src/cli/tui/jawcode-bridge.js');
+    const { playJawWelcomeIntro } = await import('../../src/cli/tui/welcome-jaw.js');
     await initJawcodeTui();
     console.log('');
-    for (const line of art) console.log(`  ${c.cyan}${c.bold}${line}${c.reset}`);
-    console.log('');
-    const ideStr = ctx.ideEnabled ? `ON (${detectedIde || 'terminal'}, git)` : undefined;
-    const welcomeLines = renderWelcome({
+    const welcomeOpts = {
         version: APP_VERSION,
         engine: ctx.label,
         engineAccent: ctx.accent,
         model: info.model || 'default',
         directory: ctx.dir,
         serverPort: Number(values.port),
-        ideDiff: ideStr,
         gitBranch: gitBranch || undefined,
         projectRoot: ctx.projectRoot,
         port: ctx.serverPort,
-    });
+    };
+    const welcomeLines = renderWelcome(welcomeOpts);
     for (const line of welcomeLines) console.log(line);
+    try {
+        await playJawWelcomeIntro(welcomeOpts, process.stdout.columns || 80, (s) => process.stdout.write(s));
+    } catch { /* animation optional */ }
     if (displayMode === 'fullscreen') {
         console.log(`  ${c.dim}(fullscreen alt-screen mode)${c.reset}`);
     }

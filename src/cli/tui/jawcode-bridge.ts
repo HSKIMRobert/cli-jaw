@@ -138,5 +138,12 @@ export function renderStatusBar(segments: {
     if (segments.cwd) parts.push(theme.fg('muted', `📁 ${segments.cwd}`));
     if (segments.port) parts.push(theme.fg('muted', `:${segments.port}`));
     parts.push(theme.fg('muted', '/quit  /clear'));
-    return `  ${parts.join(sep)}`;
+    const cols = process.stdout.columns || 80;
+    const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '');
+    let result = `  ${parts.join(sep)}`;
+    while (stripAnsi(result).length > cols && parts.length > 3) {
+        parts.splice(-2, 1);
+        result = `  ${parts.join(sep)}`;
+    }
+    return result;
 }

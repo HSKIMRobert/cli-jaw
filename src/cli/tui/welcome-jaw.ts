@@ -24,7 +24,7 @@ const BLUE_GRADIENT: ReadonlyArray<readonly [number, number, number]> = [
     [147, 197, 253],
 ];
 
-function gradientLine(line: string, row: number, totalRows: number): string {
+function gradientLine(line: string, row: number, totalRows: number, shinePos?: number): string {
     const t = totalRows > 1 ? row / (totalRows - 1) : 0.5;
     const stopIdx = t * (BLUE_GRADIENT.length - 1);
     const lo = Math.floor(stopIdx);
@@ -32,9 +32,18 @@ function gradientLine(line: string, row: number, totalRows: number): string {
     const frac = stopIdx - lo;
     const c0 = BLUE_GRADIENT[lo]!;
     const c1 = BLUE_GRADIENT[hi]!;
-    const r = Math.round(c0[0] + (c1[0] - c0[0]) * frac);
-    const g = Math.round(c0[1] + (c1[1] - c0[1]) * frac);
-    const b = Math.round(c0[2] + (c1[2] - c0[2]) * frac);
+    let r = Math.round(c0[0] + (c1[0] - c0[0]) * frac);
+    let g = Math.round(c0[1] + (c1[1] - c0[1]) * frac);
+    let b = Math.round(c0[2] + (c1[2] - c0[2]) * frac);
+    if (shinePos !== undefined) {
+        const dist = Math.abs(t - shinePos);
+        if (dist < 0.25) {
+            const boost = (1 - dist / 0.25) * 0.5;
+            r = Math.min(255, Math.round(r + (255 - r) * boost));
+            g = Math.min(255, Math.round(g + (255 - g) * boost));
+            b = Math.min(255, Math.round(b + (255 - b) * boost));
+        }
+    }
     return `\x1b[38;2;${r};${g};${b}m${line}\x1b[0m`;
 }
 
@@ -46,8 +55,17 @@ export function renderJawWelcome(opts: {
     port?: number | undefined;
     gitBranch?: string | undefined;
     recentSessions?: Array<{ label: string; ago: string }> | undefined;
+    phase?: number | undefined;
 }, width: number): string[] {
+    const rows = process.stdout.rows || 24;
     const W = Math.min(width, 78);
+
+    if (rows < 20) {
+        const icon = sharkIcon();
+        const BLUE = '\x1b[38;2;59;130;246m';
+        const RST = '\x1b[0m';
+        return [`${BLUE}${icon} jaw v${opts.version}${RST} — ${opts.model} — bite anything!`];
+    }
     const DIM = '\x1b[2m';
     const BOLD = '\x1b[1m';
     const RST = '\x1b[0m';
@@ -71,8 +89,9 @@ export function renderJawWelcome(opts: {
 
     lines.push(`${NAVY}${bTL}${borderH.repeat(titleLeft)}${LTBLUE}${titleText}${NAVY}${borderH.repeat(titleRight)}${bTR}${RST}`);
 
-    const leftW = Math.floor(innerW * 0.55);
-    const rightW = innerW - leftW - 1;
+    const showRightPane = W >= 60;
+    const leftW = showRightPane ? Math.floor(innerW * 0.55) : innerW;
+    const rightW = showRightPane ? innerW - leftW - 1 : 0;
 
     const leftLines: string[] = [
         `${BOLD}${BLUE}${icon} jaw${RST}`,
@@ -81,8 +100,9 @@ export function renderJawWelcome(opts: {
         '',
     ];
 
+    const shinePos = opts.phase !== undefined ? (opts.phase % 1.0) : undefined;
     for (let i = 0; i < SHARK_ART.length; i++) {
-        leftLines.push(gradientLine(SHARK_ART[i]!, i, SHARK_ART.length));
+        leftLines.push(gradientLine(SHARK_ART[i]!, i, SHARK_ART.length, shinePos));
     }
 
     leftLines.push('');
@@ -118,16 +138,39 @@ export function renderJawWelcome(opts: {
     rightLines.push('');
     rightLines.push(`${MUTED}/resume${RST}`);
 
-    const maxRows = Math.max(leftLines.length, rightLines.length);
-    for (let i = 0; i < maxRows; i++) {
+    const mergeRows = showRightPane ? Math.max(leftLines.length, rightLines.length) : leftLines.length;
+    for (let i = 0; i < mergeRows; i++) {
         const l = leftLines[i] || '';
-        const r = rightLines[i] || '';
         const lStripped = l.replace(/\x1b\[[0-9;]*m/g, '');
         const pad = Math.max(0, leftW - lStripped.length);
-        lines.push(`${NAVY}${bV}${RST} ${l}${' '.repeat(pad)}${NAVY}${bV}${RST} ${r}${' '.repeat(Math.max(0, rightW - r.replace(/\x1b\[[0-9;]*m/g, '').length))}${NAVY}${bV}${RST}`);
+        if (showRightPane) {
+            const r = rightLines[i] || '';
+            lines.push(`${NAVY}${bV}${RST} ${l}${' '.repeat(pad)}${NAVY}${bV}${RST} ${r}${' '.repeat(Math.max(0, rightW - r.replace(/\x1b\[[0-9;]*m/g, '').length))}${NAVY}${bV}${RST}`);
+        } else {
+            lines.push(`${NAVY}${bV}${RST} ${l}${' '.repeat(pad)}${NAVY}${bV}${RST}`);
+        }
     }
 
     lines.push(`${NAVY}${bBL}${borderH.repeat(innerW)}${bBR}${RST}`);
 
     return lines;
+}
+
+export async function playJawWelcomeIntro(
+    opts: Parameters<typeof renderJawWelcome>[0],
+    width: number,
+    write: (line: string) => void,
+): Promise<void> {
+    const FRAMES = 8;
+    const DURATION_MS = 1200;
+    const interval = DURATION_MS / FRAMES;
+    const lineCount = renderJawWelcome({ ...opts, phase: 0 }, width).length;
+
+    for (let f = 0; f < FRAMES; f++) {
+        const phase = f / FRAMES;
+        const lines = renderJawWelcome({ ...opts, phase }, width);
+        write(`\x1b[${lineCount}A`);
+        for (const line of lines) write(line + '\n');
+        await new Promise(r => setTimeout(r, interval));
+    }
 }
