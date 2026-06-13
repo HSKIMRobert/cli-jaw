@@ -60,7 +60,11 @@ export function rebuildFooter(ctx: TuiContext): void {
         : undefined;
     const stateStr = ctx.streamState === 'responding' ? 'responding\u2026' : ctx.streamState === 'tool' ? 'working\u2026' : 'idle';
     const projectDisplay = ctx.projectRoot
-        ? ctx.projectRoot.replace(process.env['HOME'] || '', '~')
+        ? (() => {
+            const rel = ctx.projectRoot!.replace(process.env['HOME'] || '', '~');
+            const parts = rel.split('/');
+            return parts.length > 3 ? `…/${parts.slice(-2).join('/')}` : rel;
+        })()
         : undefined;
     ctx.footer = renderStatusBar({
         model: ctx.info?.model,

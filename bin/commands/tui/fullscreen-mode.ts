@@ -176,7 +176,7 @@ function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
     // Hint line below input box
     const hintRow = botBorderRow + 1;
     if (hintRow >= 1 && hintRow <= rows) {
-        frameRows[hintRow - 1] = `  ${c.dim}? for shortcuts · /help for commands${c.reset}`;
+        frameRows[hintRow - 1] = `  ${c.dim}? shortcuts · /help · /model · /settings · esc esc exit${c.reset}`;
     }
 
     const footerRow = regions.footer.y;

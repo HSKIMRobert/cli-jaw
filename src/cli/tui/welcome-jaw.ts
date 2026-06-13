@@ -96,13 +96,16 @@ export function renderJawWelcome(opts: {
         '',
     ];
 
+    rightLines.push(`${BOLD}${LTBLUE}Project${RST}`);
     if (opts.projectRoot) {
-        rightLines.push(`${BOLD}${LTBLUE}Project${RST}`);
         const display = opts.projectRoot.replace(process.env['HOME'] || '', '~');
-        rightLines.push(`${MUTED}${display}${RST}`);
+        rightLines.push(`${MUTED}📁 ${display}${RST}`);
         if (opts.gitBranch) rightLines.push(`${MUTED}ⴲ ${opts.gitBranch}${RST}`);
-        rightLines.push('');
+    } else {
+        rightLines.push(`${MUTED}(no project set)${RST}`);
     }
+    if (opts.port) rightLines.push(`${MUTED}:${opts.port}${RST}`);
+    rightLines.push('');
 
     rightLines.push(`${BOLD}${LTBLUE}Session trail${RST}`);
     if (opts.recentSessions && opts.recentSessions.length > 0) {
