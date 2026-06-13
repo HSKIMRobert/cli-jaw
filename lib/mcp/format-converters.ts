@@ -1,7 +1,7 @@
 /**
  * lib/mcp/format-converters.ts
- * CLI format conversions (Claude/Codex/Gemini/OpenCode/Copilot/Antigravity)
- * and patchJsonFile helper.
+ * CLI format conversions (Claude/Codex/Gemini/OpenCode/Copilot/Cursor/Antigravity/Kiro)
+ * and patchJsonFile helper. Grok reads ~/.cursor/mcp.json via compat — no dedicated target.
  */
 import fs from 'fs';
 import os from 'os';
@@ -99,6 +99,13 @@ export function toOpenCodeMcp(config: UnifiedMcpConfig) {
     return mcp;
 }
 
+/** Return a config copy with named servers removed (for per-target exclusions). */
+function filterServers(config: UnifiedMcpConfig, exclude: string[]): UnifiedMcpConfig {
+    const servers = { ...getServers(config) };
+    for (const name of exclude) delete servers[name];
+    return { ...config, servers };
+}
+
 // ─── Patch helpers ─────────────────────────────────
 
 /** Replace only [mcp_servers.*] sections in existing TOML, keep everything else */
@@ -139,27 +146,29 @@ function patchJsonFile(filePath: string, patchObj: Record<string, unknown>) {
  * @param {Object} config - Unified MCP config { servers: {...} }
  */
 export function syncToAll(config: UnifiedMcpConfig) {
-    const results = { claude: false, codex: false, gemini: false, opencode: false, copilot: false, antigravity: false, cursor: false };
+    const results = { claude: false, codex: false, gemini: false, opencode: false, copilot: false, antigravity: false, cursor: false, kiro: false };
 
-    // 1. Claude Code: ~/.mcp.json (global)
+    // 1. Claude Code: ~/.claude.json (user scope — NOT ~/.mcp.json which is project-scope only)
     try {
-        const claudePath = join(os.homedir(), '.mcp.json');
+        const claudePath = join(os.homedir(), '.claude.json');
         const claudeData = toClaudeMcp(config);
-        // Merge with existing (keep other keys if any)
         let existing: Record<string, unknown> = {};
         try { existing = JSON.parse(fs.readFileSync(claudePath, 'utf8')) as Record<string, unknown>; } catch { }
-        existing["mcpServers"] = claudeData.mcpServers;
+        existing["mcpServers"] = { ...(existing["mcpServers"] as Record<string, unknown> ?? {}), ...claudeData.mcpServers };
         fs.writeFileSync(claudePath, JSON.stringify(existing, null, 4) + '\n');
         results.claude = true;
         console.log(`[mcp-sync] ✅ Claude: ${claudePath}`);
     } catch (e: unknown) { console.error(`[mcp-sync] ❌ Claude:`, (e as Error).message); }
 
     // 2. Codex: ~/.codex/config.toml
+    // Exclude `computer-use` — codex bundles Sky (AX-tree CU) natively;
+    // syncing cu-mcp here would create duplicate/conflicting tool sets.
     try {
         const codexPath = join(os.homedir(), '.codex', 'config.toml');
         if (fs.existsSync(codexPath)) {
             const existing = fs.readFileSync(codexPath, 'utf8');
-            const mcpToml = toCodexToml(config);
+            const codexConfig = filterServers(config, ['computer-use']);
+            const mcpToml = toCodexToml(codexConfig);
             fs.writeFileSync(codexPath, patchCodexToml(existing, mcpToml));
             results.codex = true;
             console.log(`[mcp-sync] ✅ Codex: ${codexPath}`);
@@ -234,6 +243,20 @@ export function syncToAll(config: UnifiedMcpConfig) {
         results.antigravity = true;
         console.log(`[mcp-sync] ✅ Antigravity: ${antigravityPath}`);
     } catch (e: unknown) { console.error(`[mcp-sync] ❌ Antigravity:`, (e as Error).message); }
+
+    // 8. Kiro: ~/.kiro/agents/agent_config.json (JSON mcpServers — same format as Claude)
+    // Grok is NOT a dedicated target — it reads ~/.cursor/mcp.json via compat scan (#6).
+    try {
+        const kiroPath = join(os.homedir(), '.kiro', 'agents', 'agent_config.json');
+        if (fs.existsSync(kiroPath)) {
+            const kiroData = toClaudeMcp(config);
+            patchJsonFile(kiroPath, { mcpServers: kiroData.mcpServers });
+            results.kiro = true;
+            console.log(`[mcp-sync] ✅ Kiro: ${kiroPath}`);
+        } else {
+            console.log(`[mcp-sync] ⏭️ Kiro: agent_config.json not found, skipping`);
+        }
+    } catch (e: unknown) { console.error(`[mcp-sync] ❌ Kiro:`, (e as Error).message); }
 
     return results;
 }

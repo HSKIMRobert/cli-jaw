@@ -29,8 +29,9 @@ Do NOT open a visible test browser for debug/log inspection; use the Web UI debu
 
 ## `$computer-use` trigger token
 If the task text contains **`$computer-use`**, the user explicitly requested the Computer Use (macOS desktop) path:
-- Your CLI is codex or jwc (both ship the Computer Use MCP — jwc via its registered `computer_use` MCP server): use Computer Use only. First action for a known app is `mcp__computer_use__get_app_state(app=...)`; if the app is unclear, call `mcp__computer_use__list_apps()` first.
-- Your CLI is neither codex nor jwc: stop and report `precondition failed: not codex/jwc - $computer-use requires Computer Use MCP`. Do not try `cli-jaw browser` as a substitute and do not re-dispatch.
+- **Tier 1 — self-serve (cu-mcp)**: your CLI has the Computer Use MCP registered (any CLI — codex, jwc, claude, grok, gemini, cursor, etc.): use cu-mcp tools directly. Coordinate/screenshot based. First action for a known app: `mcp__computer_use__get_app_state(app=...)`; if unclear, `mcp__computer_use__list_apps()` first.
+- **Tier 2 — AX-tree dispatch (codex only)**: the task requires precise element-level AX-tree manipulation, OR your CLI lacks the Computer Use MCP: dispatch verbatim to a **codex** employee (only codex has Sky — AX-tree based, parent code-signature attested). Include the `$computer-use` token in the dispatch.
+- **Neither**: no codex employee available AND your CLI lacks the CU MCP → report `precondition failed: no Computer Use MCP and no codex employee for $computer-use`. Do not try `cli-jaw browser` as a substitute.
 
 ### Screenshot-first when uncertain (GUI tasks, any path)
 Whenever you are handling a GUI task and catch yourself guessing, stop and re-read state before the next action:
