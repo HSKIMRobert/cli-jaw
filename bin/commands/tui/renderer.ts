@@ -61,9 +61,10 @@ export function rebuildFooter(ctx: TuiContext): void {
     const modelSeg = ctx.info?.model ? `${c.cyan}${ctx.info.model}${c.reset} ` : '';
     const elapsedStr = elapsed && elapsed > 0 ? ` ${c.dim}${(elapsed / 1000).toFixed(1)}s${c.reset}` : '';
     const bgtask = ctx.bgtaskCount > 0 ? ` ${c.magenta}\u23F3${ctx.bgtaskCount}${c.reset}` : '';
+    const gitSeg = ctx.isGit ? `${sep}${c.dim}\u2D32 ${ctx.gitBranch || 'agent'}${c.reset}` : '';
     const pathStr = ctx.info?.workingDir ? `${sep}${c.dim}\uD83D\uDCC1 ${ctx.info.workingDir.replace(process.env['HOME'] || '', '~')}${c.reset}` : '';
     const stateColored = ctx.streamState === 'idle' ? `${c.dim}${stateStr}${c.reset}` : `${ctx.accent}${stateStr}${c.reset}`;
-    ctx.footer = `  ${modelSeg}${ctx.accent}${c.bold}${ctx.label}${c.reset}${sep}${stateColored}${elapsedStr}${bgtask}${pathStr}${sep}${c.dim}/quit  /clear${c.reset}`;
+    ctx.footer = `  ${modelSeg}${ctx.accent}${c.bold}${ctx.label}${c.reset}${sep}${stateColored}${elapsedStr}${bgtask}${gitSeg}${pathStr}${sep}${c.dim}/quit  /clear${c.reset}`;
     ctx.promptPrefix = `  ${ctx.accent}${c.bold}\u276F${c.reset} `;
     if (ctx.displayMode === 'fullscreen') return;
     setupScrollRegion(

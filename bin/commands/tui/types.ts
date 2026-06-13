@@ -129,6 +129,7 @@ export interface TuiContext {
     preFileSetQueue: Map<string, string>[];
     chatCwd: string;
     isGit: boolean;
+    gitBranch?: string;
     detectedIde: IdeType;
 
     promptPrefix: string;

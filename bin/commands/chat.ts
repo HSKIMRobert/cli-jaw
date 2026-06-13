@@ -141,6 +141,10 @@ const displayMode = resolveTuiDisplayMode({
 
 const chatCwd = process.cwd();
 const isGit = isGitRepo(chatCwd);
+let gitBranch = '';
+if (isGit) {
+    try { gitBranch = spawnSync('git', ['branch', '--show-current'], { cwd: chatCwd, encoding: 'utf8' }).stdout?.trim() || ''; } catch {}
+}
 const detectedIde = detectIde();
 
 // ─── Build TuiContext ────────────────────────
@@ -176,6 +180,7 @@ const ctx: TuiContext = {
     preFileSetQueue: [],
     chatCwd,
     isGit,
+    gitBranch,
     detectedIde,
     promptPrefix: '',
     footer: '',
