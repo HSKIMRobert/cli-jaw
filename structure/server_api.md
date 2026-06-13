@@ -284,7 +284,7 @@ static → employees → heartbeat → skills → jaw-memory → orchestrate
 | Schedule | `GET/POST/PATCH/DELETE /api/dashboard/schedule/work` `POST /api/dashboard/schedule/work/:id/dispatch` |
 | Reminders | `GET /api/dashboard/reminders` `POST /api/dashboard/reminders` `POST /api/dashboard/reminders/from-message` `PATCH /api/dashboard/reminders/:id` |
 | Connector | `POST /api/dashboard/connector/board` `PATCH /api/dashboard/connector/board/:id` `POST /api/dashboard/connector/reminders` `PATCH /api/dashboard/connector/reminders/:id` `POST /api/dashboard/connector/notes` `GET /api/dashboard/connector/audit` |
-| Git diff | `POST /api/dashboard/git/repo-candidates` `POST /api/dashboard/git/diff-summary` `POST /api/dashboard/git/file-diff` |
+| Git diff/status | `POST /api/dashboard/git/repo-candidates` `POST /api/dashboard/git/diff-summary` `POST /api/dashboard/git/file-diff` `POST /api/dashboard/git/status-map` |
 | Memory federation | `GET /api/dashboard/memory/instances` `GET /api/dashboard/memory/search` `GET /api/dashboard/memory/read` `GET /api/dashboard/memory/chat/search` |
 | Memory embedding | `GET /api/dashboard/memory/embed-config` `POST /api/dashboard/memory/embed-config` `POST /api/dashboard/memory/reindex` `GET /api/dashboard/memory/embed-state` `GET /api/dashboard/memory/embed-estimate` `GET /api/dashboard/memory/reindex-stream` (SSE) |
 | Jaw CEO (manager) | `/api/jaw-ceo/*` (same sub-router as core server) |
