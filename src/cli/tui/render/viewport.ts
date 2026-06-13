@@ -1,5 +1,6 @@
 /**
  * Virtualized transcript viewport for alt-screen mode (Phase 4).
+ * Memoized: setItems() only re-renders cells whose content has changed.
  */
 import type { TranscriptItem } from '../transcript.js';
 import type { Rect } from './layout.js';
@@ -7,6 +8,7 @@ import type { Rect } from './layout.js';
 export interface ViewportCell {
     lines: string[];
     revision: number;
+    cacheKey: string;
 }
 
 export class Viewport {
@@ -14,17 +16,50 @@ export class Viewport {
     private scrollTop = 0;
     private follow = true;
     private width = 80;
+    private widthChanged = false;
 
     setWidth(cols: number): void {
-        this.width = Math.max(20, cols);
-        for (const c of this.cells) c.revision += 1;
+        const next = Math.max(20, cols);
+        if (next !== this.width) {
+            this.width = next;
+            this.widthChanged = true;
+        }
     }
 
     setItems(items: TranscriptItem[], renderLine: (item: TranscriptItem, width: number) => string[], visibleRows = 1): void {
-        this.cells = items.map((item, i) => ({
-            lines: renderLine(item, this.width),
-            revision: i,
-        }));
+        if (this.widthChanged || this.cells.length === 0) {
+            this.cells = items.map((item, i) => ({
+                lines: renderLine(item, this.width),
+                revision: i,
+                cacheKey: this.itemCacheKey(item),
+            }));
+            this.widthChanged = false;
+        } else {
+            const prevLen = this.cells.length;
+            const nextLen = items.length;
+            const shared = Math.min(prevLen, nextLen);
+            for (let i = 0; i < shared; i++) {
+                const item = items[i]!;
+                const key = this.itemCacheKey(item);
+                const cell = this.cells[i]!;
+                if (item.type === 'status' || cell.cacheKey !== key) {
+                    cell.lines = renderLine(item, this.width);
+                    cell.cacheKey = key;
+                    cell.revision += 1;
+                }
+            }
+            if (nextLen > prevLen) {
+                for (let i = prevLen; i < nextLen; i++) {
+                    this.cells.push({
+                        lines: renderLine(items[i]!, this.width),
+                        revision: i,
+                        cacheKey: this.itemCacheKey(items[i]!),
+                    });
+                }
+            } else if (nextLen < prevLen) {
+                this.cells.length = nextLen;
+            }
+        }
         if (this.follow) this.scrollToBottom(visibleRows);
     }
 
@@ -36,6 +71,7 @@ export class Viewport {
         const tail = this.cells[this.cells.length - 1]!;
         tail.lines = renderLine(item, this.width);
         tail.revision += 1;
+        tail.cacheKey = this.itemCacheKey(item);
         if (this.follow) this.scrollToBottom(visibleRows);
     }
 
@@ -43,6 +79,7 @@ export class Viewport {
         this.cells.push({
             lines: renderLine(item, this.width),
             revision: this.cells.length,
+            cacheKey: this.itemCacheKey(item),
         });
         if (this.follow) this.scrollToBottom(visibleRows);
     }
@@ -94,5 +131,14 @@ export class Viewport {
     private clampScroll(visibleRows = 1): void {
         const max = Math.max(0, this.totalLines() - visibleRows);
         if (this.scrollTop > max) this.scrollTop = max;
+    }
+
+    private itemCacheKey(item: TranscriptItem): string {
+        switch (item.type) {
+            case 'user': return `u|${item.displayText.length}`;
+            case 'assistant': return `a|${item.text.length}|${item.streaming}`;
+            case 'tool': return `t|${item.text.length}|${item.collapsed}`;
+            default: return '';
+        }
     }
 }
