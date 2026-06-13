@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const folderPanelSource = readFileSync('public/manager/src/folder-panel/FolderPanel.tsx', 'utf8');
+const folderRowsSource = readFileSync('public/manager/src/folder-panel/FolderTreeRows.tsx', 'utf8');
 const folderCss = readFileSync('public/manager/src/folder-panel/folder-panel.css', 'utf8');
 const shortcutsSource = readFileSync('public/manager/src/manager-shortcuts.ts', 'utf8');
 
@@ -10,6 +11,7 @@ test('FolderPanel keeps folder shortcuts local instead of global Manager actions
     assert.equal(shortcutsSource.includes('folderCopyPath'), false);
     assert.equal(shortcutsSource.includes('folderRevealPath'), false);
     assert.ok(folderPanelSource.includes('handleEntryKeyDown'), 'FolderPanel must own row-local keyboard actions');
+    assert.ok(folderRowsSource.includes('props.handleEntryKeyDown(event, entry)'), 'row component must call FolderPanel-owned keyboard actions');
 });
 
 test('FolderPanel row shortcuts copy paths and activate rows locally', () => {
@@ -20,6 +22,7 @@ test('FolderPanel row shortcuts copy paths and activate rows locally', () => {
     assert.ok(folderPanelSource.includes("event.key === ' '"), 'Space must have explicit row behavior');
     assert.ok(folderPanelSource.indexOf("event.key === ' '") < folderPanelSource.indexOf("if (entry.kind !== 'file') return"), 'Space must prevent native button activation before directory no-op');
     assert.ok(folderPanelSource.includes('selectAndActivateEntry(entry'), 'row activation must share one helper');
+    assert.ok(folderRowsSource.includes('props.selectAndActivateEntry(entry)'), 'row click activation must route through the shared helper');
 });
 
 test('FolderPanel context menu exposes native path actions', () => {

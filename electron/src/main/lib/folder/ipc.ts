@@ -59,6 +59,8 @@ function resolveDefaultRoot(): string {
 }
 
 export function registerFolderIpc(getWindow: () => BrowserWindow | null): void {
+    // FolderPanel starts empty and must not call this on initial render.
+    // It remains available for explicit cold-start callers such as DocPanel.
     ipcMain.handle('folder:getDefaultRoot', (event) => {
         if (!isAllowedSender(event)) return { ok: false, error: 'unauthorized' };
         const root = resolveDefaultRoot();

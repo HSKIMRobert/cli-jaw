@@ -224,7 +224,7 @@ settings.ts (barrel)
 | `manager/src/panels/` | desktop panel infra: `PanelResizer`, `PanelLayoutProvider`, `RightSidebar`, `BottomPanel`, `BottomPanelTabBar`, `desktop-bridge`, `panel-capabilities`, `panel-shortcut-bus` |
 | `manager/src/hooks/useElectronDroppedPaths.ts` | 89L — Electron-only OS file/folder drop resolver; Manager drops route to right panel, preview drops preserve iframe chip passthrough |
 | `manager/src/doc-panel/` | `DocPanel.tsx` — dropped file / `.md` 절대경로를 우측 사이드바에 markdown preview로 렌더(Electron only) |
-| `manager/src/folder-panel/` | Electron desktop folder tree panel; dropped folders can become the active root |
+| `manager/src/folder-panel/` | Electron desktop Workspace Explorer; starts empty until explicit Open Folder/picked or dropped root, with toolbar/tree rows/state/types split for later git decorations |
 | `manager/src/terminal/` | Electron desktop terminal panel |
 | `manager/src/browser-panel/` | Electron desktop Browser panel (Google default, URL/search normalization) |
 | `manager/src/diff-panel/` | Electron desktop Git Diff panel (server-backed via `/api/dashboard/git/*`) |

@@ -88,6 +88,18 @@
     overflow-y: auto;
     padding: 4px 0;
 }
+.folder-empty-root {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.folder-empty-root__content {
+    padding: 12px;
+    color: var(--text-dim);
+    text-align: center;
+    font-size: 11px;
+    line-height: 1.4;
+}
 .folder-entry {
     display: flex;
     align-items: stretch;

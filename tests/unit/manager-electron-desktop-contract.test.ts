@@ -282,6 +282,7 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     const resizer = read('public/manager/src/panels/PanelResizer.tsx');
     const router = read('public/manager/src/SidebarRailRouter.tsx');
     const folder = read('public/manager/src/folder-panel/FolderPanel.tsx');
+    const folderToolbar = read('public/manager/src/folder-panel/FolderPanelToolbar.tsx');
     const folderSources = read('public/manager/src/folder-panel/folder-sources.ts');
     const doc = read('public/manager/src/doc-panel/DocPanel.tsx');
     const browserPanel = read('public/manager/src/browser-panel/BrowserPanel.tsx');
@@ -363,7 +364,11 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(router.includes("panelLayout.dispatch({ type: 'OPEN_RIGHT_PANEL', mode: 'doc', slot: 'bottom' })"), 'selecting a file must open document preview in a folder/file split view');
     assert.ok(folder.includes('onPreviewFile'), 'folder panel must expose file selection to the preview panel');
     assert.ok(folder.includes("props.onPreviewFile?.(entry.path)"), 'clicking a file in Folders must open it in preview');
-    assert.ok(folderSources.includes('bridge.getDefaultRoot()'), 'folder panel must open a default root instead of starting as an empty dead panel');
+    assert.ok(folderSources.includes('getInitialRoot'), 'folder panel source must expose explicit initial root policy');
+    assert.ok(folderSources.includes('getInitialRoot: async () => null'), 'Electron FolderPanel must start empty instead of opening an implicit root');
+    assert.equal(folderSources.includes('bridge.getDefaultRoot()'), false, 'Electron FolderPanel source must not call getDefaultRoot on initial render');
+    assert.ok(folder.includes('folder-empty-root'), 'empty FolderPanel must expose a scoped empty-root state');
+    assert.ok(folderToolbar.includes('Open Folder'), 'empty FolderPanel toolbar must expose an explicit Open Folder action');
     assert.ok(folderSources.includes('createNotesVaultFolderSource'), 'folder panel must expose a web notes-vault fallback source');
     assert.ok(doc.includes('Open Folders and select a file'), 'empty document preview must explain how to view a file');
     assert.ok(css.includes('.right-panel-toolbar'), 'right sidebar icon toolbar must be styled');

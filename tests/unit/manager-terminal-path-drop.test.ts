@@ -12,6 +12,7 @@ import {
 
 const terminalPanelSource = readFileSync('public/manager/src/terminal/TerminalPanel.tsx', 'utf8');
 const folderPanelSource = readFileSync('public/manager/src/folder-panel/FolderPanel.tsx', 'utf8');
+const folderRowsSource = readFileSync('public/manager/src/folder-panel/FolderTreeRows.tsx', 'utf8');
 
 test('folder drag payload round-trips folder entries', () => {
     const encoded = encodeFolderPanelDragPayload({
@@ -73,7 +74,8 @@ test('terminal panel handles folder payload drops through target terminal ids', 
 });
 
 test('folder panel emits JSON drag payloads and plain text path fallback', () => {
-    assert.ok(folderPanelSource.includes('encodeFolderPanelDragPayload(entry)'), 'FolderPanel must serialize structured drag payloads');
-    assert.ok(folderPanelSource.includes("event.dataTransfer.effectAllowed = 'copyMove'"), 'FolderPanel source must allow copy targets and move targets');
-    assert.ok(folderPanelSource.includes("event.dataTransfer.setData('text/plain', entry.path)"), 'FolderPanel must preserve plain text path fallback');
+    assert.ok(folderPanelSource.includes('<FolderTreeRows'), 'FolderPanel must render the extracted folder row component');
+    assert.ok(folderRowsSource.includes('encodeFolderPanelDragPayload(entry)'), 'FolderPanel rows must serialize structured drag payloads');
+    assert.ok(folderRowsSource.includes("event.dataTransfer.effectAllowed = 'copyMove'"), 'FolderPanel source must allow copy targets and move targets');
+    assert.ok(folderRowsSource.includes("event.dataTransfer.setData('text/plain', entry.path)"), 'FolderPanel must preserve plain text path fallback');
 });

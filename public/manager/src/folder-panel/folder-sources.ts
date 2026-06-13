@@ -1,33 +1,15 @@
-import type { FolderBridgeApi, FolderMoveResult } from '../panels/desktop-bridge';
+import type { FolderBridgeApi } from '../panels/desktop-bridge';
 import { fetchNoteFile } from '../notes/notes-api';
 import type { NotesTreeEntry } from '../notes/notes-types';
-
-export type FolderPanelSourceKind = 'electron-folder' | 'notes-vault';
-
-export type FolderPanelEntry = {
-    name: string;
-    path: string;
-    kind: 'file' | 'directory';
-    size: number;
-};
-
-export type FolderPanelMoveResult = FolderMoveResult;
-
-export type FolderPanelSource = {
-    kind: FolderPanelSourceKind;
-    label: string;
-    canPickRoot: boolean;
-    getDefaultRoot: () => Promise<string>;
-    pickRoot?: () => Promise<string | null>;
-    listDir: (path: string) => Promise<FolderPanelEntry[]>;
-    readFile?: (path: string) => Promise<{ content: string; binary?: boolean }>;
-    movePath?: (sourcePath: string, targetDirectory: string) => Promise<FolderPanelMoveResult>;
-    revealPath?: (path: string) => Promise<void>;
-    copyBasePath?: string | null;
-    watchDir?: (path: string) => Promise<void>;
-    unwatchDir?: (path: string) => Promise<void>;
-    onDirChange?: (cb: (path: string) => void) => () => void;
-};
+import type { FolderPanelEntry, FolderPanelSource } from './folder-panel-types';
+export type {
+    FolderPanelEntry,
+    FolderPanelMoveResult,
+    FolderPanelRootState,
+    FolderPanelRowDecoration,
+    FolderPanelSource,
+    FolderPanelSourceKind,
+} from './folder-panel-types';
 
 function notesEntryToFolderEntry(entry: NotesTreeEntry): FolderPanelEntry {
     return {
@@ -52,11 +34,7 @@ export function createElectronFolderSource(bridge: FolderBridgeApi): FolderPanel
         kind: 'electron-folder',
         label: 'Folder',
         canPickRoot: true,
-        getDefaultRoot: async () => {
-            const result = await bridge.getDefaultRoot();
-            if (!result.ok || !result.path) throw new Error(result.error ?? 'Failed to open default folder');
-            return result.path;
-        },
+        getInitialRoot: async () => null,
         pickRoot: async () => {
             const result = await bridge.pickFolder();
             if (!result.ok) throw new Error(result.error ?? 'Failed to pick folder');
@@ -92,7 +70,7 @@ export function createNotesVaultFolderSource(entries: NotesTreeEntry[], root: st
         kind: 'notes-vault',
         label: root ? `Notes: ${root.split('/').pop() || root}` : 'Notes vault',
         canPickRoot: false,
-        getDefaultRoot: async () => '',
+        getInitialRoot: async () => '',
         listDir: async (path: string) => {
             if (!path) return entries.map(notesEntryToFolderEntry);
             const entry = findNotesEntry(entries, path);

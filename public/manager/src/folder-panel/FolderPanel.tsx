@@ -1,28 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getDesktop, type FolderBridgeApi } from '../panels/desktop-bridge';
 import type { NotesTreeEntry } from '../notes/notes-types';
 import { copyText } from '../clipboard/copy-text';
-import { FOLDER_PANEL_DRAG_MIME, encodeFolderPanelDragPayload } from './folder-drag-payload';
 import { createElectronFolderSource, createNotesVaultFolderSource, type FolderPanelEntry } from './folder-sources';
+import { FolderPanelToolbar } from './FolderPanelToolbar';
+import { FolderTreeRows } from './FolderTreeRows';
+import { dropCachedBranches, isDescendantPath, parentPath, relativeFolderPath } from './folder-panel-state';
 import './folder-panel.css';
 
 function getFolderBridge(): FolderBridgeApi | null {
     return getDesktop()?.folder ?? null;
-}
-
-function parentPath(path: string): string {
-    const idx = path.lastIndexOf('/');
-    return idx > 0 ? path.slice(0, idx) : '/';
-}
-
-function isDescendantPath(parent: string, child: string): boolean {
-    return child === parent || child.startsWith(`${parent}/`);
-}
-
-function relativeFolderPath(root: string | null, path: string): string {
-    if (!root) return path;
-    const base = root.endsWith('/') ? root : `${root}/`;
-    return path.startsWith(base) ? path.slice(base.length) : path;
 }
 
 type FolderPanelProps = {
@@ -35,6 +22,7 @@ type FolderPanelProps = {
 
 export function FolderPanel(props: FolderPanelProps) {
     const bridge = getFolderBridge();
+    const initialRootResolvedRef = useRef(false);
     const source = useMemo(
         () => bridge ? createElectronFolderSource(bridge) : createNotesVaultFolderSource(props.notesTree ?? [], props.notesRoot ?? null),
         [bridge, props.notesRoot, props.notesTree],
@@ -101,13 +89,14 @@ export function FolderPanel(props: FolderPanelProps) {
     }, [loadDir, rootPath, source]);
 
     useEffect(() => {
-        if (rootPath !== null || props.externalRootPath) return;
+        if (initialRootResolvedRef.current || rootPath !== null || props.externalRootPath) return;
         let cancelled = false;
         void (async () => {
-            const nextRoot = await source.getDefaultRoot();
+            const nextRoot = await source.getInitialRoot();
             if (cancelled) return;
+            initialRootResolvedRef.current = true;
             setRootPath(nextRoot);
-            await loadDir(nextRoot);
+            if (nextRoot !== null) await loadDir(nextRoot);
         })();
         return () => { cancelled = true; };
     }, [loadDir, props.externalRootPath, rootPath, source]);
@@ -146,12 +135,7 @@ export function FolderPanel(props: FolderPanelProps) {
     const refreshAfterMove = useCallback(async (sourcePath: string, targetPath: string) => {
         if (!rootPath) return;
         const sourceParent = parentPath(sourcePath);
-        setChildrenCache(prev => {
-            const next = new Map(prev);
-            next.delete(sourceParent);
-            next.delete(targetPath);
-            return next;
-        });
+        setChildrenCache(prev => dropCachedBranches(prev, [sourceParent, targetPath]));
         await loadDir(rootPath);
         if (expanded.has(sourceParent)) await loadChildren(sourceParent, { force: true });
         if (expanded.has(targetPath)) await loadChildren(targetPath, { force: true });
@@ -264,88 +248,17 @@ export function FolderPanel(props: FolderPanelProps) {
         };
     }, [contextMenu]);
 
-    function renderEntries(items: FolderPanelEntry[], depth: number): React.ReactNode[] {
-        return items.map(entry => (
-            <div key={entry.path}>
-                <div
-                    className={[
-                        'folder-entry',
-                        `folder-entry-${entry.kind}`,
-                        selectedPath === entry.path ? 'is-selected' : '',
-                        dropTargetPath === entry.path ? 'is-drop-target' : '',
-                        draggedEntry?.path === entry.path ? 'is-dragging' : '',
-                    ].filter(Boolean).join(' ')}
-                    role="treeitem"
-                    aria-selected={entry.kind === 'file' && entry.path === props.selectedFilePath}
-                    draggable={canUseNativeActions}
-                    onDragStart={(event) => {
-                        if (!canUseNativeActions) return;
-                        setDraggedEntry(entry);
-                        event.dataTransfer.effectAllowed = 'copyMove';
-                        event.dataTransfer.setData(FOLDER_PANEL_DRAG_MIME, encodeFolderPanelDragPayload(entry));
-                        event.dataTransfer.setData('text/plain', entry.path);
-                    }}
-                    onDragEnd={() => {
-                        setDraggedEntry(null);
-                        setDropTargetPath(null);
-                    }}
-                    onDragOver={(event) => {
-                        if (!draggedEntry || entry.kind !== 'directory') return;
-                        if (draggedEntry.path === entry.path) return;
-                        if (draggedEntry.kind === 'directory' && isDescendantPath(draggedEntry.path, entry.path)) return;
-                        event.preventDefault();
-                        event.dataTransfer.dropEffect = 'move';
-                        setDropTargetPath(entry.path);
-                    }}
-                    onDragLeave={() => {
-                        if (dropTargetPath === entry.path) setDropTargetPath(null);
-                    }}
-                    onDrop={(event) => {
-                        if (!draggedEntry || entry.kind !== 'directory') return;
-                        event.preventDefault();
-                        setDropTargetPath(null);
-                        requestMove(draggedEntry, entry);
-                    }}
-                >
-                    {depth > 0 && (
-                        <span className="folder-indent" aria-hidden="true">
-                            {Array.from({ length: depth }, (_, level) => (
-                                <span key={level} className="folder-indent-guide" />
-                            ))}
-                        </span>
-                    )}
-                    <button type="button" className="folder-entry-btn"
-                        onKeyDown={(event) => handleEntryKeyDown(event, entry)}
-                        onContextMenu={(event) => {
-                            event.preventDefault();
-                            setSelectedPath(entry.path);
-                            setContextMenu({ entry, x: event.clientX, y: event.clientY });
-                        }}
-                        onClick={() => {
-                            selectAndActivateEntry(entry);
-                        }}>
-                        <span className="folder-entry-icon">
-                            {entry.kind === 'directory' ? (expanded.has(entry.path) ? '▾' : '▸') : '·'}
-                        </span>
-                        <span className="folder-entry-name">{entry.name}</span>
-                    </button>
-                </div>
-                {entry.kind === 'directory' && expanded.has(entry.path) && childrenCache.has(entry.path) &&
-                    renderEntries(childrenCache.get(entry.path)!, depth + 1)}
-            </div>
-        ));
-    }
-
     return (
         <div className="folder-panel">
-            <div className="folder-toolbar">
-                <button type="button" className="folder-pick-btn" onClick={() => void pickFolder()} disabled={!source.canPickRoot}>
-                    {source.canPickRoot ? (rootPath ? rootPath.split('/').pop() : 'Pick folder...') : source.label}
-                </button>
-                {rootPath !== null && (
-                    <button type="button" className="folder-refresh" onClick={() => void loadDir(rootPath)}>↻</button>
-                )}
-            </div>
+            <FolderPanelToolbar
+                canPickRoot={source.canPickRoot}
+                label={source.label}
+                rootPath={rootPath}
+                onPickFolder={() => void pickFolder()}
+                onRefresh={() => {
+                    if (rootPath !== null) void loadDir(rootPath);
+                }}
+            />
             <div className="folder-action-row" aria-label="Folder actions">
                 <button type="button" className="folder-action-btn" disabled={!selectedEntry} onClick={() => void copySelectedPath('absolute')}>Copy</button>
                 <button type="button" className="folder-action-btn" disabled={!selectedEntry} onClick={() => void copySelectedPath('relative')}>Relative</button>
@@ -353,8 +266,30 @@ export function FolderPanel(props: FolderPanelProps) {
             </div>
             {error && <div className="folder-error">{error}</div>}
             {actionStatus && !error && <div className="folder-status">{actionStatus}</div>}
-            <div className="folder-tree" role="tree">
-                {renderEntries(entries, 0)}
+            <div className={rootPath === null ? 'folder-tree folder-empty-root' : 'folder-tree'} role="tree">
+                <FolderTreeRows
+                    entries={entries}
+                    depth={0}
+                    expanded={expanded}
+                    childrenCache={childrenCache}
+                    selectedPath={selectedPath}
+                    selectedFilePath={props.selectedFilePath}
+                    dropTargetPath={dropTargetPath}
+                    draggedEntry={draggedEntry}
+                    canUseNativeActions={canUseNativeActions}
+                    setDraggedEntry={setDraggedEntry}
+                    setDropTargetPath={setDropTargetPath}
+                    requestMove={requestMove}
+                    handleEntryKeyDown={handleEntryKeyDown}
+                    selectAndActivateEntry={selectAndActivateEntry}
+                    openContextMenu={(entry, x, y) => {
+                        setSelectedPath(entry.path);
+                        setContextMenu({ entry, x, y });
+                    }}
+                />
+                {rootPath === null && !error && (
+                    <div className="folder-empty-root__content">Choose a folder to browse files.</div>
+                )}
                 {entries.length === 0 && !error && rootPath !== null && (
                     <div className="folder-empty">{source.kind === 'notes-vault' ? 'No notes in vault' : 'Empty directory'}</div>
                 )}

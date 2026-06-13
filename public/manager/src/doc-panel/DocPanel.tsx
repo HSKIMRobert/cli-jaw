@@ -63,8 +63,8 @@ export function DocPanel(props: { filePath?: string | undefined }) {
         void (async () => {
             if (bridge) {
                 let result = await bridge.readFile(filePath);
-                // Cold start: allowed roots are seeded by FolderPanel/getDefaultRoot.
-                // If a doc link arrives before that, seed once and retry once.
+                // Cold start: DocPanel may seed the default allowlisted root
+                // for direct preview links, then retry once.
                 if (!result.ok && result.error?.includes('path not allowed')) {
                     await bridge.getDefaultRoot();
                     if (cancelled) return;
