@@ -29,8 +29,7 @@ export function getInteractive(): any { ensureInit(); return _interactive; }
 
 export function renderMarkdownJawcode(text: string, width: number): string[] {
     ensureInit();
-    const theme = _interactive.theme;
-    const mdTheme = theme?.getMarkdownTheme?.() ?? {};
+    const mdTheme = _interactive.getMarkdownTheme?.() ?? {};
     const md = new _tui.Markdown(text, 1, 0, mdTheme);
     return md.render(width) as string[];
 }
