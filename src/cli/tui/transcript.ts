@@ -1,7 +1,7 @@
 export type TranscriptItem =
     | { type: 'user'; displayText: string; submitText: string; timestamp: number; agentId?: string }
     | { type: 'assistant'; text: string; streaming: boolean; timestamp: number; agentId?: string }
-    | { type: 'tool'; text: string; timestamp: number; agentId?: string; collapsed?: boolean; detail?: string }
+    | { type: 'tool'; text: string; timestamp: number; agentId?: string; collapsed?: boolean; detail?: string; stepRef?: string; status?: 'running' | 'done' | 'error' }
     | { type: 'status'; text: string; ephemeral: true; timestamp: number; agentId?: string };
 
 export interface TranscriptState {
@@ -29,6 +29,13 @@ export function appendToActiveAssistant(state: TranscriptState, chunk: string): 
     return true;
 }
 
+export function appendAssistantTurnText(state: TranscriptState, chunk: string, agentId?: string): boolean {
+    if (!chunk) return false;
+    if (appendToActiveAssistant(state, chunk)) return true;
+    startAssistantItem(state, agentId);
+    return appendToActiveAssistant(state, chunk);
+}
+
 export function finalizeAssistant(state: TranscriptState, fallbackText?: string): boolean {
     const last = state.items[state.items.length - 1];
     if (!last || last.type !== 'assistant') return false;
@@ -42,11 +49,57 @@ export function finalizeAssistant(state: TranscriptState, fallbackText?: string)
     return true;
 }
 
-export function appendToolItem(state: TranscriptState, text: string, opts?: { agentId?: string; detail?: string }): void {
+export function finalizeStreamingAssistants(state: TranscriptState): boolean {
+    let changed = false;
+    for (const item of state.items) {
+        if (item.type === 'assistant' && item.streaming) {
+            item.streaming = false;
+            changed = true;
+        }
+    }
+    return changed;
+}
+
+export function hasAssistantTextSinceLastUser(state: TranscriptState): boolean {
+    return assistantTextSinceLastUser(state).trim().length > 0;
+}
+
+export function assistantTextSinceLastUser(state: TranscriptState): string {
+    const chunks: string[] = [];
+    for (let i = state.items.length - 1; i >= 0; i--) {
+        const item = state.items[i]!;
+        if (item.type === 'user') break;
+        if (item.type === 'assistant' && item.text.length > 0) chunks.unshift(item.text);
+    }
+    return chunks.join('');
+}
+
+export function appendToolItem(state: TranscriptState, text: string, opts?: { agentId?: string; detail?: string; stepRef?: string; status?: 'running' | 'done' | 'error' }): void {
+    if (opts?.stepRef) {
+        const existing = state.items.find((item) => item.type === 'tool' && item.stepRef === opts.stepRef);
+        if (existing?.type === 'tool') {
+            existing.text = opts.detail ? text : existing.text;
+            existing.timestamp = Date.now();
+            if (opts.status) {
+                existing.status = opts.status;
+                existing.collapsed = opts.status !== 'running';
+            }
+            if (opts.agentId) existing.agentId = opts.agentId;
+            if (opts.detail) existing.detail = opts.detail;
+            return;
+        }
+    }
     collapsePreviousTools(state);
-    const item: TranscriptItem = { type: 'tool', text, timestamp: Date.now(), collapsed: false };
+    const item: TranscriptItem = {
+        type: 'tool',
+        text,
+        timestamp: Date.now(),
+        collapsed: opts?.status ? opts.status !== 'running' : false,
+    };
     if (opts?.agentId) item.agentId = opts.agentId;
     if (opts?.detail) item.detail = opts.detail;
+    if (opts?.stepRef) item.stepRef = opts.stepRef;
+    if (opts?.status) item.status = opts.status;
     state.items.push(item);
 }
 

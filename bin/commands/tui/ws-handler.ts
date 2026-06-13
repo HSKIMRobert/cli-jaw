@@ -3,8 +3,9 @@
  */
 import type WebSocket from 'ws';
 import {
-    startAssistantItem, appendToActiveAssistant,
-    finalizeAssistant, appendStatusItem, appendToolItem, clearEphemeralStatus,
+    startAssistantItem, appendAssistantTurnText,
+    finalizeAssistant, finalizeStreamingAssistants, assistantTextSinceLastUser,
+    appendStatusItem, appendToolItem, clearEphemeralStatus,
 } from '../../../src/cli/tui/transcript.js';
 import { captureFileSet, diffFileSets, getDiffStat, getUnifiedDiff, getIdeCli, openDiffInIde } from '../../../src/ide/diff.js';
 import { createStreamSink } from '../../../src/cli/tui/stream.js';
@@ -72,7 +73,7 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                     ctx.streamState = 'responding';
                     rebuildFooter(ctx);
                 }
-                appendToActiveAssistant(transcript, msg.text || '');
+                appendAssistantTurnText(transcript, msg.text || '', msg.agentId);
                 if (ctx.streamSink) {
                     ctx.streamSink.push(msg.text || '');
                 } else if (isFullscreen(ctx)) {
@@ -88,11 +89,19 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                 } else if (ctx.streaming) {
                     ctx.streamSink?.end();
                     ctx.streamSink = null;
-                    finalizeAssistant(transcript);
+                    if (msg.text) {
+                        const existingText = assistantTextSinceLastUser(transcript);
+                        if (!existingText) {
+                            appendAssistantTurnText(transcript, msg.text, msg.agentId);
+                        } else if (String(msg.text).startsWith(existingText) && msg.text.length > existingText.length) {
+                            appendAssistantTurnText(transcript, msg.text.slice(existingText.length), msg.agentId);
+                        }
+                    }
+                    finalizeStreamingAssistants(transcript);
                     if (!isFullscreen(ctx)) console.log('');
                 } else if (msg.text) {
                     startAssistantItem(transcript, msg.agentId);
-                    appendToActiveAssistant(transcript, msg.text);
+                    appendAssistantTurnText(transcript, msg.text, msg.agentId);
                     finalizeAssistant(transcript);
                     if (!isFullscreen(ctx)) {
                         process.stdout.write('\n');
@@ -170,7 +179,13 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                     // then commit the tool line so it stays in scrollback.
                     clearEphemeralStatus(transcript);
                     const toolDetail = msg.detail ? `: ${msg.detail}` : '';
-                    appendToolItem(transcript, `${msg.icon} ${msg.label}${toolDetail}`, { agentId: msg.agentId, detail: msg.detail });
+                    const status = msg.status === 'done' || msg.status === 'error' ? msg.status : 'running';
+                    appendToolItem(transcript, `${msg.icon} ${msg.label}${toolDetail}`, {
+                        agentId: msg.agentId,
+                        detail: msg.detail,
+                        stepRef: msg.stepRef,
+                        status,
+                    });
                     ctx.streamState = 'tool';
                     rebuildFooter(ctx);
                     if (!isFullscreen(ctx)) {

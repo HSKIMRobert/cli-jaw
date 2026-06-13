@@ -5,7 +5,10 @@ import {
     appendUserItem,
     startAssistantItem,
     appendToActiveAssistant,
+    appendAssistantTurnText,
     finalizeAssistant,
+    finalizeStreamingAssistants,
+    assistantTextSinceLastUser,
     appendStatusItem,
     clearEphemeralStatus,
 } from '../../src/cli/tui/transcript.ts';
@@ -58,6 +61,48 @@ test('appendToActiveAssistant returns false after finalize', () => {
     startAssistantItem(state);
     finalizeAssistant(state);
     assert.equal(appendToActiveAssistant(state, 'chunk'), false);
+});
+
+test('appendAssistantTurnText starts a new assistant after intervening tool rows', async () => {
+    const { appendToolItem } = await import('../../src/cli/tui/transcript.ts');
+    const state = createTranscriptState();
+    startAssistantItem(state);
+    appendToActiveAssistant(state, 'before tools\n');
+    appendToolItem(state, '🔧 Bash echo 1');
+
+    assert.equal(appendAssistantTurnText(state, 'after tools', 'main'), true);
+    assert.equal(state.items.length, 3);
+    assert.equal(state.items[2]!.type, 'assistant');
+    if (state.items[2]!.type === 'assistant') {
+        assert.equal(state.items[2]!.text, 'after tools');
+        assert.equal(state.items[2]!.streaming, true);
+    }
+});
+
+test('assistantTextSinceLastUser joins split assistant text around tools', async () => {
+    const { appendToolItem } = await import('../../src/cli/tui/transcript.ts');
+    const state = createTranscriptState();
+    appendUserItem(state, 'run tools', 'run tools');
+    startAssistantItem(state);
+    appendToActiveAssistant(state, 'a');
+    appendToolItem(state, '🔧 Bash echo 1');
+    appendAssistantTurnText(state, 'c');
+
+    assert.equal(assistantTextSinceLastUser(state), 'ac');
+});
+
+test('finalizeStreamingAssistants finalizes assistant rows split by tools', async () => {
+    const { appendToolItem } = await import('../../src/cli/tui/transcript.ts');
+    const state = createTranscriptState();
+    startAssistantItem(state);
+    appendToActiveAssistant(state, 'a');
+    appendToolItem(state, '🔧 Bash echo 1');
+    appendAssistantTurnText(state, 'c');
+
+    assert.equal(finalizeStreamingAssistants(state), true);
+    const assistantRows = state.items.filter((item) => item.type === 'assistant');
+    assert.equal(assistantRows.length, 2);
+    assert.ok(assistantRows.every((item) => item.type === 'assistant' && item.streaming === false));
 });
 
 test('agent_done with text but no prior chunks', () => {

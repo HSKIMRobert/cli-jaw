@@ -21,6 +21,22 @@ test('tool items accumulate and are never replaced (unlike status)', () => {
     assert.deepEqual(s.items.map(i => (i as { text: string }).text), ['a', 'b', 'c']);
 });
 
+test('tool item with same stepRef updates in place instead of duplicating', () => {
+    const s = createTranscriptState();
+    appendToolItem(s, '🔧 Bash echo 1', { stepRef: 'tool-1', status: 'running', detail: 'echo 1' });
+    appendToolItem(s, '🔧 Bash', { stepRef: 'tool-1', status: 'done' });
+
+    assert.equal(s.items.length, 1);
+    assert.equal(s.items[0]!.type, 'tool');
+    if (s.items[0]!.type === 'tool') {
+        assert.equal(s.items[0]!.text, '🔧 Bash echo 1');
+        assert.equal(s.items[0]!.stepRef, 'tool-1');
+        assert.equal(s.items[0]!.status, 'done');
+        assert.equal(s.items[0]!.collapsed, true);
+        assert.equal(s.items[0]!.detail, 'echo 1');
+    }
+});
+
 test('clearEphemeralStatus does NOT remove a trailing tool item', () => {
     const s = createTranscriptState();
     appendToolItem(s, 'tool line');
