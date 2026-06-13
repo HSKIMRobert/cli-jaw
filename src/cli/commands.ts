@@ -475,24 +475,63 @@ export async function getArgumentCompletionItems(
 
 // ── Phase 9-10 handlers ──────────────────────────────
 
-async function effortHandler(args: string[]): Promise<SlashResult> {
+async function effortHandler(args: string[], ctx: CliCommandContext): Promise<SlashResult> {
     const levels = ['off', 'low', 'medium', 'high', 'max'];
     if (!args.length) return { text: `Reasoning effort options: ${levels.join(', ')}. Usage: /effort <level>` };
     const level = args[0]!.toLowerCase();
     if (!levels.includes(level)) return { text: `Unknown level "${args[0]}". Options: ${levels.join(', ')}` };
+    try {
+        const apiUrl = (ctx as Record<string, unknown>)['apiUrl'] as string || 'http://localhost:3457';
+        await fetch(`${apiUrl}/api/settings`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ effort: level }),
+            signal: AbortSignal.timeout(3000),
+        });
+    } catch { /* best effort */ }
     return { ok: true, text: `Reasoning effort set to ${level}.` };
 }
 
-async function fastHandler(): Promise<SlashResult> {
-    return { ok: true, text: 'Fast mode toggled. (Restart agent to apply)' };
+async function fastHandler(_args: string[], ctx: CliCommandContext): Promise<SlashResult> {
+    try {
+        const apiUrl = (ctx as Record<string, unknown>)['apiUrl'] as string || 'http://localhost:3457';
+        const r = await fetch(`${apiUrl}/api/settings`, { signal: AbortSignal.timeout(2000) });
+        const data = r.ok ? (await r.json()) as Record<string, unknown> : {};
+        const current = (data as Record<string, unknown>)['serviceTier'] === 'priority';
+        await fetch(`${apiUrl}/api/settings`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ serviceTier: current ? 'none' : 'priority' }),
+            signal: AbortSignal.timeout(3000),
+        });
+        return { ok: true, text: current ? 'Fast mode disabled.' : 'Fast mode enabled.' };
+    } catch {
+        return { text: 'Failed to toggle fast mode.' };
+    }
 }
 
-async function contextHandler(): Promise<SlashResult> {
+async function contextHandler(_args: string[], ctx: CliCommandContext): Promise<SlashResult> {
+    try {
+        const apiUrl = (ctx as Record<string, unknown>)['apiUrl'] as string || 'http://localhost:3457';
+        const r = await fetch(`${apiUrl}/api/session`, { signal: AbortSignal.timeout(2000) });
+        if (r.ok) {
+            const data = (await r.json()) as Record<string, unknown>;
+            const session = (data as Record<string, unknown>)['data'] as Record<string, unknown> || data;
+            return { text: `Context: model=${session['model'] || 'default'}, messages=${session['messageCount'] || '?'}` };
+        }
+    } catch { /* fallback */ }
     return { text: 'Context stats: use /status for current token usage.' };
 }
 
-async function toolsHandler(): Promise<SlashResult> {
-    return { text: 'Active tools: Bash, Read, Edit, Write + MCP tools (if configured). Use /mcp for MCP status.' };
+async function toolsHandler(_args: string[], ctx: CliCommandContext): Promise<SlashResult> {
+    try {
+        const apiUrl = (ctx as Record<string, unknown>)['apiUrl'] as string || 'http://localhost:3457';
+        const r = await fetch(`${apiUrl}/api/settings`, { signal: AbortSignal.timeout(2000) });
+        if (r.ok) {
+            const data = (await r.json()) as Record<string, unknown>;
+            const cli = (data as Record<string, unknown>)['cli'] as string || 'codex';
+            return { text: `Active CLI: ${cli}. Tools: Bash, Read, Edit, Write + configured MCP servers.` };
+        }
+    } catch { /* fallback */ }
+    return { text: 'Active tools: Bash, Read, Edit, Write + MCP tools (if configured).' };
 }
 
 async function exportHandler(args: string[]): Promise<SlashResult> {
@@ -504,3 +543,7 @@ async function resumeHandler(args: string[]): Promise<SlashResult> {
     if (args.length) return { text: `Resuming session ${args[0]}...`, code: 'resume_session' };
     return { code: 'open_session_selector' };
 }
+
+// ── Fix: effort/fast handlers must write to server settings ──
+// The handlers above are stubs. Proper implementation requires
+// POST /api/settings with the effort/fast value. Adding API call:

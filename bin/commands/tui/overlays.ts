@@ -423,6 +423,19 @@ export async function runSlashCommand(ctx: TuiContext, parsed: ParsedSlashComman
             await refreshInfo(ctx);
             rebuildFooter(ctx);
         }
+        if (result?.code === 'redraw') {
+            if (ctx.displayMode === 'fullscreen') ctx.requestFrame?.();
+            else rebuildFooter(ctx);
+        }
+        if (result?.code === 'retry') {
+            const last = ctx.store.transcript.items.filter(i => i.type === 'user').pop();
+            if (last && 'submitText' in last) {
+                ctx.ws.send(JSON.stringify({ type: 'message', text: last.submitText }));
+            }
+        }
+        if (result?.code === 'show_help') {
+            openHelpOverlay(ctx);
+        }
         if (result?.code === 'exit') {
             exiting = true;
             cleanupScrollRegion(resolveShellLayout(process.stdout.columns || 80, getRows(), panes));

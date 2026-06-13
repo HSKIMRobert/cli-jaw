@@ -52,8 +52,11 @@ function renderTranscriptItem(item: TranscriptItem, width: number): string[] {
             if (item.collapsed) return [`${gutter}${c.dim}  ✔ ${toolHead}${c.reset}`];
             return [`${gutter}  ${c.cyan}⏳${c.reset} ${c.cyan}${c.bold}${toolHead}${c.reset}${c.dim}${toolTail}${c.reset}`];
         }
-        case 'status':
-            return [`${gutter}${c.dim}◌ ${item.text}${c.reset}`];
+        case 'status': {
+            const spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+            const spinChar = spinnerFrames[Math.floor(Date.now() / 80) % spinnerFrames.length] || '◌';
+            return [`${gutter}${c.dim}${spinChar} ${item.text}${c.reset}`];
+        }
         default:
             return [];
     }
@@ -143,7 +146,8 @@ function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
         const row = regions.composer.y + i;
         if (row < 1 || row > rows) continue;
         const line = compLines[i] ?? '';
-        const suffix = `${' '.repeat(Math.max(0, innerW - 3 - line.length))}${c.dim}│${c.reset}`;
+        const lineVisW = clipTextToCols(line, innerW).length > 0 ? line.length : 0; // approx — clipTextToCols already imported
+        const suffix = `${' '.repeat(Math.max(0, innerW - 3 - lineVisW))}${c.dim}│${c.reset}`;
         if (i === 0 && !hasInput) {
             frameRows[row - 1] = `${prefix}${c.dim}Type your message...${c.reset}${suffix}`;
         } else {
@@ -276,6 +280,29 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
             if (action === 'ctrl-o') {
                 toggleToolExpansion(ctx.store.transcript);
                 scheduler.request();
+                continue;
+            }
+            if (action === 'ctrl-l') {
+                // Model selector — dispatch /model command
+                handleKeyInput(ctx, '/');
+                handleKeyInput(ctx, 'm');
+                handleKeyInput(ctx, 'o');
+                handleKeyInput(ctx, 'd');
+                handleKeyInput(ctx, 'e');
+                handleKeyInput(ctx, 'l');
+                handleKeyInput(ctx, '\r');
+                continue;
+            }
+            if (action === 'ctrl-r') {
+                // Resume session — dispatch /resume
+                handleKeyInput(ctx, '/');
+                handleKeyInput(ctx, 'r');
+                handleKeyInput(ctx, 'e');
+                handleKeyInput(ctx, 's');
+                handleKeyInput(ctx, 'u');
+                handleKeyInput(ctx, 'm');
+                handleKeyInput(ctx, 'e');
+                handleKeyInput(ctx, '\r');
                 continue;
             }
             if (action === 'ctrl-d') {
