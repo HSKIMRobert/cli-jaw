@@ -14,6 +14,7 @@ import { c, type TuiContext } from './types.js';
 import { openPromptBlock, rebuildFooter } from './renderer.js';
 import { dismissOverlay } from './overlays.js';
 import { startSpinner, stopSpinner } from '../../../src/cli/tui/spinner.js';
+import { renderToolBlock, renderThinkingLine, renderErrorBox } from '../../../src/cli/tui/jawcode-render.js';
 
 function isFullscreen(ctx: TuiContext): boolean {
     return ctx.displayMode === 'fullscreen';
@@ -143,11 +144,11 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                     appendStatusItem(transcript, `${name} thinking\u2026`);
                     startSpinner((ch) => {
                         if (!isFullscreen(ctx)) {
-                            process.stdout.write(`\r  ${c.dim}${ch} ${name} thinking\u2026${c.reset}          \r`);
+                            process.stdout.write(renderThinkingLine(name, ch));
                         }
                     });
                     if (!isFullscreen(ctx)) {
-                        process.stdout.write(`\r  ${c.dim}\u25CC ${name} thinking\u2026${c.reset}          \r`);
+                        process.stdout.write(renderThinkingLine(name, '\u25CC'));
                     } else {
                         ctx.requestFrame?.();
                     }
@@ -167,7 +168,7 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                     ctx.streamState = 'tool';
                     rebuildFooter(ctx);
                     if (!isFullscreen(ctx)) {
-                        process.stdout.write(`\r\x1b[2K  ${c.dim}▸${c.reset} ${c.cyan}${msg.icon} ${msg.label}${c.reset}${c.dim}${toolDetail}${c.reset}\n`);
+                        process.stdout.write(`\r\x1b[2K${renderToolBlock(msg.icon, msg.label, msg.detail || '', 'pending')}\n`);
                     } else {
                         ctx.requestFrame?.();
                     }
@@ -241,7 +242,7 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                 break;
 
             case 'alert_escalation':
-                if (!isFullscreen(ctx)) console.log(`\n  ${c.red}🚨 ${msg.text || 'Alert escalation'}${c.reset}`);
+                if (!isFullscreen(ctx)) console.log(`\n${renderErrorBox(msg.text || 'Alert escalation')}`);
                 break;
 
             case 'settings_change':
