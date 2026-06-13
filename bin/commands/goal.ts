@@ -95,6 +95,7 @@ try {
                 action: 'set',
                 objective: GOAL_PLAN_PENDING_OBJECTIVE,
                 goalMode: 'plan',
+                replace: true,
                 ...(hint ? { planHint: hint } : {}),
             }),
         });
@@ -119,7 +120,10 @@ try {
     }
 
     const payload: Record<string, unknown> = { action };
-    if (sub === 'set') payload['objective'] = rest || undefined;
+    if (sub === 'set') {
+        payload['objective'] = rest || undefined;
+        payload['replace'] = true;
+    }
     if (sub === 'refine') payload['objective'] = rest || undefined;
     if (sub === 'cancel') payload['reason'] = rest || undefined;
     if (sub === 'done') {

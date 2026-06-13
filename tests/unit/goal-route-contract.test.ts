@@ -107,6 +107,7 @@ test('GR-015: goal CLI supports plan subcommand', () => {
     assert.ok(goalCliSrc.includes("goalMode: 'plan'"), 'CLI plan must send goalMode plan');
     assert.ok(goalCliSrc.includes('GOAL_PLAN_PENDING_OBJECTIVE'), 'CLI plan should store pending objective instead of raw hint');
     assert.ok(goalCliSrc.includes('planHint'), 'CLI plan should send hint separately');
+    assert.ok(goalCliSrc.includes('replace: true'), 'CLI plan should replace/archive an existing active goal');
 });
 
 test('GR-016: plan-mode goals store planHint and block updates before refine', () => {
@@ -123,4 +124,15 @@ test('GR-017: goal refine surfaces are documented in CLI and command metadata', 
     assert.ok(goalCliSrc.includes("'refine-objective'"), 'CLI refine should call refine-objective action');
     assert.ok(handlerSrc.includes("sub === 'refine'"), 'slash handler must support /goal refine');
     assert.ok(handlerSrc.includes('refineObjective(objective)'), 'slash refine must call refineObjective');
+});
+
+test('GR-018: goal replacement UX archives existing active or paused goals instead of blocking slash commands', () => {
+    assert.ok(routeSrc.includes('body?.replace === true'), 'route must require explicit replace for generic API replacement');
+    assert.ok(routeSrc.includes("goalMode === 'plan'"), 'route must allow plan-mode set to replace an existing goal');
+    assert.ok(routeSrc.includes('replaceExisting ? { replace: true }'), 'route must pass replace through to setGoal');
+    assert.ok(routeSrc.includes('!replaceExisting'), 'route must preserve the 409 guard for non-replacement API calls');
+    assert.ok(goalCliSrc.includes('payload.replace = true'), 'CLI goal set must mark replacement intent');
+    assert.ok(handlerSrc.includes('Previous goal archived'), 'slash handler must tell the user the previous goal was archived');
+    assert.ok(handlerSrc.includes('replace: true'), 'slash handler must use store replacement semantics');
+    assert.doesNotMatch(handlerSrc, /recoverableGoalConflict/, 'slash goal creation must no longer use active-goal conflict recovery');
 });

@@ -38,15 +38,17 @@ export function registerGoalRoutes(app: Router, requireAuth: RequestHandler): vo
                         res.status(400).json({ ok: false, error: `objective must be ${MAX_GOAL_OBJECTIVE_CHARS} characters or fewer` });
                         return;
                     }
-                    const existing = getActiveGoal();
-                    if (existing && (existing.status === 'active' || existing.status === 'paused')) {
-                        res.status(409).json({ ok: false, error: `Active goal already exists: "${existing.objective}". Cancel or complete it first.` });
-                        return;
-                    }
-                    clearGoalTimers();
                     const repoRoot = body?.['repoRoot'] as string | undefined;
                     const budget = body?.['budget'] as Record<string, number> | undefined;
                     const goalMode = body?.['goalMode'] as GoalMode | undefined;
+                    const replace = body?.['replace'] === true;
+                    const replaceExisting = replace || goalMode === 'plan';
+                    const existing = getActiveGoal();
+                    if (existing && (existing.status === 'active' || existing.status === 'paused') && !replaceExisting) {
+                        res.status(409).json({ ok: false, error: `Active goal already exists: "${existing.objective}". Cancel or complete it first, or pass replace: true.` });
+                        return;
+                    }
+                    clearGoalTimers();
                     const planHint = typeof body?.['planHint'] === 'string' ? String(body?.['planHint']).trim() : '';
                     if (planHint.length > MAX_GOAL_PLAN_HINT_CHARS) {
                         res.status(400).json({ ok: false, error: `planHint must be ${MAX_GOAL_PLAN_HINT_CHARS} characters or fewer` });
@@ -57,6 +59,7 @@ export function registerGoalRoutes(app: Router, requireAuth: RequestHandler): vo
                         ...(budget ? { budget } : {}),
                         ...(goalMode ? { goalMode } : {}),
                         ...(planHint ? { planHint } : {}),
+                        ...(replaceExisting ? { replace: true } : {}),
                     });
                     res.json({ ok: true, goal });
                     return;

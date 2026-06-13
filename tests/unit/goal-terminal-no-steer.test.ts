@@ -4,15 +4,15 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseCommand, executeCommand } from '../../src/cli/commands.ts';
-import { resetGoalStore, setGoal, updateGoal, getAgentPauseCount, getActiveGoal } from '../../src/goal/store.ts';
+import { resetGoalStore, setGoal, updateGoal, getAgentPauseCount, getActiveGoal, getGoalHistory, pauseGoal } from '../../src/goal/store.ts';
 import { GOAL_PLAN_PENDING_OBJECTIVE } from '../../src/goal/types.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const handlersSrc = readFileSync(join(__dirname, '../../src/cli/handlers-workflows.ts'), 'utf8');
 
-async function runGoalCommand(command: string) {
+async function runGoalCommand(command: string, iface: 'web' | 'telegram' = 'web') {
     const parsed = parseCommand(command);
-    return executeCommand(parsed, { interface: 'web', locale: 'en' });
+    return executeCommand(parsed, { interface: iface, locale: 'en' });
 }
 
 function goalSubcommandBlock(subcommand: string): string {
@@ -76,26 +76,70 @@ test('/goalplan stores the hint separately and requires refine before checkpoint
     }
 });
 
-test('/goal active-conflict blocks preserve the submitted prompt for copy/reinsert', async () => {
+test('/goal replacement commands archive the previous goal instead of blocking', async () => {
+    const cases = [
+        {
+            command: '/goal set replacement objective',
+            expectedObjective: 'replacement objective',
+            expectPlanMode: false,
+        },
+        {
+            command: '/goal implement a different objective',
+            expectedObjective: 'implement a different objective',
+            expectPlanMode: false,
+        },
+        {
+            command: '/goal plan investigate the next target',
+            expectedObjective: GOAL_PLAN_PENDING_OBJECTIVE,
+            expectedHint: 'investigate the next target',
+            expectPlanMode: true,
+        },
+        {
+            command: '/goalplan investigate the next target',
+            expectedObjective: GOAL_PLAN_PENDING_OBJECTIVE,
+            expectedHint: 'investigate the next target',
+            expectPlanMode: true,
+        },
+    ];
+
+    for (const item of cases) {
+        resetGoalStore();
+        try {
+            setGoal('existing active goal');
+            const result = await runGoalCommand(item.command, 'telegram');
+            assert.equal(result?.ok, true, `${item.command} should replace the active goal`);
+            assert.match(result?.text ?? '', /Previous goal archived: existing active goal/);
+            assert.equal(result?.recovery, undefined);
+
+            const active = getActiveGoal();
+            assert.ok(active);
+            assert.equal(active!.objective, item.expectedObjective);
+            assert.equal(active!.goalMode, item.expectPlanMode ? 'plan' : undefined);
+            assert.equal(active!.planHint, item.expectedHint);
+            assert.equal(getGoalHistory().goals.length, 1);
+            assert.equal(getGoalHistory().goals[0]!.objective, 'existing active goal');
+            assert.equal(getGoalHistory().goals[0]!.status, 'active');
+            assert.match(result?.steerPrompt ?? '', /new goal|goal plan/i);
+        } finally {
+            resetGoalStore();
+        }
+    }
+});
+
+test('/goal replacement commands also archive paused goals', async () => {
     resetGoalStore();
     try {
-        setGoal('existing active goal');
-        const commands = [
-            '/goal set replacement objective',
-            '/goal plan investigate the next target',
-            '/goalplan investigate the next target',
-            '/goal implement a different objective',
-        ];
-        for (const command of commands) {
-            const result = await runGoalCommand(command);
-            assert.equal(result?.ok, false, `${command} should be blocked`);
-            assert.match(result?.text ?? '', /Active goal already exists/);
-            assert.equal(result?.recovery?.kind, 'slash-command-original');
-            assert.equal(result?.recovery?.originalText, command);
-            assert.ok(result?.recovery?.suggestedCommands?.includes('/goal clear'));
-            assert.equal('steerPrompt' in result, false);
-        }
-        assert.equal(getActiveGoal()!.objective, 'existing active goal');
+        setGoal('existing paused goal');
+        assert.ok(pauseGoal({ reason: 'manual pause before replacement' }));
+
+        const result = await runGoalCommand('/goal set replacement after pause', 'telegram');
+
+        assert.equal(result?.ok, true);
+        assert.match(result?.text ?? '', /Previous goal archived: existing paused goal/);
+        assert.equal(getActiveGoal()!.objective, 'replacement after pause');
+        assert.equal(getGoalHistory().goals.length, 1);
+        assert.equal(getGoalHistory().goals[0]!.objective, 'existing paused goal');
+        assert.equal(getGoalHistory().goals[0]!.status, 'paused');
     } finally {
         resetGoalStore();
     }

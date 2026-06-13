@@ -19,13 +19,6 @@ function blocked(text: string, code = 'workflow_not_ready'): SlashResult {
     return { ok: false, type: 'error', code, text };
 }
 
-function recoverableGoalConflict(ctx: CliCommandContext, args: string[], text: string): SlashResult {
-    const rawText = String((ctx as { rawText?: unknown }).rawText || '').trim();
-    const originalText = rawText || `/goal${args.length ? ` ${args.join(' ')}` : ''}`;
-    const commandName = originalText.match(/^\/([^\s]+)/)?.[1] || 'goal';
-    return { ...blocked(text), recovery: { kind: 'slash-command-original', commandName, args, originalText, suggestedCommands: ['/goal status', '/goal resume', '/goal done', '/goal cancel', '/goal clear'] } };
-}
-
 async function fireSteerForWebCli(
     ctx: CliCommandContext,
     result: SlashResult,
@@ -43,6 +36,11 @@ async function resolveSettings(ctx: CliCommandContext): Promise<Record<string, u
     if (typeof ctx.getSettings !== 'function') return {};
     const s = await Promise.resolve(ctx.getSettings());
     return s && typeof s === 'object' ? s as Record<string, unknown> : {};
+}
+
+function archivedGoalLine(previous: GoalState | null): string {
+    if (!previous || (previous.status !== 'active' && previous.status !== 'paused')) return '';
+    return `\nPrevious goal archived: ${previous.objective}`;
 }
 
 export async function interviewWorkflowHandler(args: string[], ctx: CliCommandContext): Promise<SlashResult> {
@@ -205,22 +203,19 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
         const objective = args.slice(1).join(' ').trim();
         if (!objective) return blocked('Usage: /goal <objective>');
         const existing = getActiveGoal();
-        if (existing && (existing.status === 'active' || existing.status === 'paused')) {
-            return recoverableGoalConflict(ctx, args, `Active goal already exists: "${existing.objective}"\nUse /goal done, /goal cancel, or /goal clear first.`);
-        }
         clearGoalTimers();
         const settings = await resolveSettings(ctx);
         const wd = (settings as Record<string, unknown>)['workingDir'] as string | undefined;
-        const goal = setGoal(objective, wd ? { repoRoot: wd } : {});
-        return fireSteerForWebCli(ctx, { ok: true, type: 'info', text: `Goal set: ${goal.objective}\nID: ${goal.id}`, steerPrompt: `[System] User set a new goal: "${goal.objective}" (ID: ${goal.id}). Acknowledge the goal and help the user achieve it.` });
+        const goal = setGoal(objective, {
+            ...(wd ? { repoRoot: wd } : {}),
+            replace: true,
+        });
+        return fireSteerForWebCli(ctx, { ok: true, type: 'info', text: `Goal set: ${goal.objective}\nID: ${goal.id}${archivedGoalLine(existing)}`, steerPrompt: `[System] User set a new goal: "${goal.objective}" (ID: ${goal.id}). Acknowledge the goal and help the user achieve it.` });
     }
 
     if (sub === 'plan' || sub === 'goalplan') {
         const hint = args.slice(sub === 'plan' ? 1 : 0).join(' ').trim();
         const existing = getActiveGoal();
-        if (existing && (existing.status === 'active' || existing.status === 'paused')) {
-            return recoverableGoalConflict(ctx, args, `Active goal already exists: "${existing.objective}"\nUse /goal done, /goal cancel, or /goal clear first.`);
-        }
         clearGoalTimers();
         const settings = await resolveSettings(ctx);
         const wd = (settings as Record<string, unknown>)['workingDir'] as string | undefined;
@@ -228,11 +223,12 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
             ...(wd ? { repoRoot: wd } : {}),
             goalMode: 'plan' as const,
             ...(hint ? { planHint: hint } : {}),
+            replace: true,
         });
         return fireSteerForWebCli(ctx, {
             ok: true,
             type: 'info',
-            text: `Goal plan activated${hint ? `: ${hint}` : ''}\nID: ${goal.id}\nMode: AI selects and executes goal`,
+            text: `Goal plan activated${hint ? `: ${hint}` : ''}\nID: ${goal.id}\nMode: AI selects and executes goal${archivedGoalLine(existing)}`,
             steerPrompt: buildGoalPlanSteerPrompt(goal),
         });
     }
@@ -380,14 +376,14 @@ export async function goalWorkflowHandler(args: string[], ctx: CliCommandContext
     if (args.length > 0) {
         const objective = args.join(' ').trim();
         const existing = getActiveGoal();
-        if (existing && (existing.status === 'active' || existing.status === 'paused')) {
-            return recoverableGoalConflict(ctx, args, `Active goal already exists: "${existing.objective}"\nUse /goal done, /goal cancel, or /goal clear first.`);
-        }
         clearGoalTimers();
         const settings = await resolveSettings(ctx);
         const wd = (settings as Record<string, unknown>)['workingDir'] as string | undefined;
-        const goal = setGoal(objective, wd ? { repoRoot: wd } : {});
-        return fireSteerForWebCli(ctx, { ok: true, type: 'info', text: `Goal set: ${goal.objective}\nID: ${goal.id}`, steerPrompt: `[System] User set a new goal: "${goal.objective}" (ID: ${goal.id}). Acknowledge the goal and help the user achieve it.` });
+        const goal = setGoal(objective, {
+            ...(wd ? { repoRoot: wd } : {}),
+            replace: true,
+        });
+        return fireSteerForWebCli(ctx, { ok: true, type: 'info', text: `Goal set: ${goal.objective}\nID: ${goal.id}${archivedGoalLine(existing)}`, steerPrompt: `[System] User set a new goal: "${goal.objective}" (ID: ${goal.id}). Acknowledge the goal and help the user achieve it.` });
     }
 
     // No args at all — show status or usage
