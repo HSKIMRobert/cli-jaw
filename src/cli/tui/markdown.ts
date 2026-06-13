@@ -8,6 +8,8 @@ import { marked, type Token, type Tokens } from 'marked';
 import { paint, attr, BOLD, ITALIC, UNDER, DIM } from './theme.js';
 import { highlightCode } from './highlight.js';
 import { visualWidth } from './renderers.js';
+import { renderDataframeBlock } from './render/dataframe.js';
+import { renderSearchResultsBlock } from './render/search-results.js';
 
 export interface MdOpts {
     width: number;
@@ -34,10 +36,45 @@ function renderBlocks(tokens: Token[], gutter: string, width: number): string {
                 break;
             case 'code': {
                 const c = t as Tokens.Code;
-                const body = highlightCode(c.text, c.lang || undefined)
-                    .split('\n').map(l => gutter + '  ' + l).join('\n');
-                out += paint('code.fence', gutter + '```' + (c.lang ?? '')) + '\n'
-                    + body + '\n' + paint('code.fence', gutter + '```') + '\n';
+                const lang = (c.lang ?? '').toLowerCase();
+                if (lang === 'dataframe') {
+                    out += renderDataframeBlock(c.text, width).split('\n').map(l => gutter + l).join('\n') + '\n';
+                } else if (lang === 'search-results') {
+                    out += renderSearchResultsBlock(c.text, width).split('\n').map(l => gutter + l).join('\n') + '\n';
+                } else if (lang === 'elicitation' || lang === 'choice-buttons') {
+                    // Render options as a numbered plain-text list (CLI is a blocked origin).
+                    let items: unknown[] = [];
+                    try { items = JSON.parse(c.text) as unknown[]; } catch { /* fallback below */ }
+                    if (Array.isArray(items) && items.length > 0) {
+                        items.forEach((item, i) => {
+                            const rec = typeof item === 'object' && item !== null ? item as Record<string, unknown> : null;
+                            const label = rec
+                                ? (rec['label'] ?? rec['text'] ?? JSON.stringify(item))
+                                : item;
+                            out += gutter + `${i + 1}. ${String(label)}` + '\n';
+                        });
+                    } else {
+                        out += c.text.split('\n').map(l => gutter + l).join('\n') + '\n';
+                    }
+                } else if (lang === 'compose-block') {
+                    // Render as labeled key-value text.
+                    let obj: Record<string, unknown> = {};
+                    try { obj = JSON.parse(c.text) as Record<string, unknown>; } catch { /* fallback below */ }
+                    if (obj && typeof obj === 'object' && !Array.isArray(obj) && Object.keys(obj).length > 0) {
+                        for (const [k, v] of Object.entries(obj)) {
+                            out += gutter + paint('code.fence', `${k}:`) + ' ' + String(v) + '\n';
+                        }
+                    } else {
+                        out += c.text.split('\n').map(l => gutter + l).join('\n') + '\n';
+                    }
+                } else if (lang === 'chart-json' || lang === 'diagram-html' || lang === 'mermaid') {
+                    out += gutter + paint('code.fence', `[${lang} — open in Web UI]`) + '\n';
+                } else {
+                    const body = highlightCode(c.text, c.lang || undefined)
+                        .split('\n').map(l => gutter + '  ' + l).join('\n');
+                    out += paint('code.fence', gutter + '```' + (c.lang ?? '')) + '\n'
+                        + body + '\n' + paint('code.fence', gutter + '```') + '\n';
+                }
                 break;
             }
             case 'blockquote':
