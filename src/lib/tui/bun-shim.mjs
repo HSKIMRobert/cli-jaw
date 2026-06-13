@@ -43,6 +43,10 @@ function bunFile(path) {
 async function bunSleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 function bunWrite() { return Promise.resolve(0); }
 
+function bunPlugin() {}
+function bunSpawn() { return { exitCode: Promise.resolve(0), stdout: { toString() { return ''; } }, stderr: { toString() { return ''; } }, kill() {} }; }
+function bunWhich(cmd) { try { const { execSync } = require('node:child_process'); return execSync(`which ${cmd}`, { encoding: 'utf-8' }).trim(); } catch { return null; } }
+
 if (typeof globalThis.Bun === 'undefined') {
-    globalThis.Bun = { env: process.env, stringWidth, stripANSI, hash, color: bunColor, file: bunFile, sleep: bunSleep, write: bunWrite };
+    globalThis.Bun = { env: process.env, stringWidth, stripANSI, hash, color: bunColor, file: bunFile, sleep: bunSleep, write: bunWrite, plugin: bunPlugin, spawn: bunSpawn, which: bunWhich, version: '0.0.0-node-shim', main: '', argv: process.argv, cwd: () => process.cwd() };
 }
