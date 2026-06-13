@@ -13,7 +13,7 @@ import { classifyKeyAction, type KeyAction } from '../../../src/cli/tui/keymap.j
 import { getCompletionItems } from '../../../src/cli/commands.js';
 import { composeAutocompleteLines, composeHelpOntoFrame, composePaletteOntoFrame, composeSelectorOntoFrame, composeBgtaskOntoFrame } from '../../../src/cli/tui/overlay.js';
 import { createScheduler } from '../../../src/cli/tui/render/scheduler.js';
-import { Screen, registerScreenCleanup, type Frame } from '../../../src/cli/tui/render/frame.js';
+import { Screen, registerScreenCleanup, VIEWPORT_FILL, type Frame } from '../../../src/cli/tui/render/frame.js';
 import { solveLayout, type Regions } from '../../../src/cli/tui/render/layout.js';
 import { parseSgrMouse, isMouseSequence } from '../../../src/cli/tui/render/mouse.js';
 import { Viewport } from '../../../src/cli/tui/render/viewport.js';
@@ -116,14 +116,17 @@ function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
 
     viewport.setItems(ctx.store.transcript.items, renderTranscriptItem, regions.transcript.height);
 
-    const frameRows: string[] = new Array(rows).fill('');
+    // Build content lines sequentially (bottom-up pinning via VIEWPORT_FILL)
+    const contentLines: string[] = [];
 
+    // 1. Transcript lines (only non-empty ones)
     const transcriptLines = viewport.composeRegion(regions.transcript);
-    for (let i = 0; i < transcriptLines.length; i++) {
-        const row = regions.transcript.y + i;
-        if (row >= 1 && row <= rows) frameRows[row - 1] = transcriptLines[i] ?? '';
+    const hasTranscript = transcriptLines.some(l => l !== '');
+    if (hasTranscript) {
+        contentLines.push(...transcriptLines);
     }
 
+    // 2. Autocomplete (between transcript and input)
     const ac = ctx.store.autocomplete;
     const acLines = composeAutocompleteLines(ac, {
         columns: cols,
@@ -132,33 +135,23 @@ function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
         clipTextToCols,
     });
     if (acLines.length > 0) {
-        let row = regions.composer.y - acLines.length;
-        for (const line of acLines) {
-            if (row >= regions.transcript.y && row < regions.composer.y) {
-                frameRows[row - 1] = line;
-            }
-            row += 1;
-        }
+        contentLines.push(...acLines);
     }
 
-    // jawcode-style input box with border — safe for narrow terminals
+    // 3. Input box with border — safe for narrow terminals
     const innerW = Math.max(6, cols - 4);
     const box = isInitialized() ? (() => { try { return getInteractive().theme?.boxSharp; } catch { return null; } })() : null;
     const bTL = box?.topLeft ?? '┌'; const bTR = box?.topRight ?? '┐';
     const bBL = box?.bottomLeft ?? '└'; const bBR = box?.bottomRight ?? '┘';
     const bH = box?.horizontal ?? '─'; const bV = box?.vertical ?? '│';
     const borderFill = Math.max(0, innerW + 2);
-    const topBorderRow = regions.composer.y - 1;
-    if (topBorderRow >= 1 && topBorderRow <= rows) {
-        frameRows[topBorderRow - 1] = clipTextToCols(`${c.dim}${bTL}${bH.repeat(borderFill)}${bTR}${c.reset}`, cols);
-    }
+
+    contentLines.push(clipTextToCols(`${c.dim}${bTL}${bH.repeat(borderFill)}${bTR}${c.reset}`, cols));
 
     const prefix = `${c.dim}${bV}${c.reset} ${ctx.accent}${c.bold}>${c.reset} `;
     const compLines = composerText.split('\n');
     const hasInput = composerText.trim().length > 0;
     for (let i = 0; i < regions.composer.height; i++) {
-        const row = regions.composer.y + i;
-        if (row < 1 || row > rows) continue;
         const rawLine = compLines[i] ?? '';
         const maxTextW = Math.max(1, innerW - 4);
         const clipped = clipTextToCols(rawLine, maxTextW);
@@ -167,43 +160,54 @@ function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
         const suffix = `${' '.repeat(padW)}${c.dim}${bV}${c.reset}`;
         if (i === 0 && !hasInput) {
             const placeholder = clipTextToCols('Type your message...', maxTextW);
-            frameRows[row - 1] = clipTextToCols(`${prefix}${c.dim}${placeholder}${c.reset}${suffix}`, cols);
+            contentLines.push(clipTextToCols(`${prefix}${c.dim}${placeholder}${c.reset}${suffix}`, cols));
         } else {
             const content = i === 0 ? `${prefix}${clipped}${suffix}` : `${c.dim}${bV}${c.reset}   ${clipped}${suffix}`;
-            frameRows[row - 1] = clipTextToCols(content, cols);
+            contentLines.push(clipTextToCols(content, cols));
         }
     }
 
-    const botBorderRow = regions.composer.y + regions.composer.height;
-    if (botBorderRow >= 1 && botBorderRow <= rows) {
-        frameRows[botBorderRow - 1] = clipTextToCols(`${c.dim}${bBL}${bH.repeat(borderFill)}${bBR}${c.reset}`, cols);
-    }
+    contentLines.push(clipTextToCols(`${c.dim}${bBL}${bH.repeat(borderFill)}${bBR}${c.reset}`, cols));
 
-    const footerRow = regions.footer.y;
-    if (footerRow >= 1 && footerRow <= rows) {
-        frameRows[footerRow - 1] = clipTextToCols(ctx.footer, cols);
-    }
+    // 4. Hint line
+    contentLines.push(clipTextToCols(`${c.dim}? for shortcuts · /help for commands${c.reset}`, cols));
 
+    // 5. Footer (StatusBar)
+    contentLines.push(clipTextToCols(ctx.footer, cols));
+
+    // Build the final frame: VIEWPORT_FILL at top pushes content to bottom
+    const frameRows: string[] = [VIEWPORT_FILL, ...contentLines];
+
+    // For overlays, we need a full-height array. Expand VIEWPORT_FILL now.
     const ov = ctx.store.overlay;
-    if (ov.helpOpen) {
-        const cmds = getCompletionItems('/', 'cli');
-        composeHelpOntoFrame(frameRows, cols, rows, c.dim, c.reset, cmds);
-    } else if (ov.paletteOpen) {
-        composePaletteOntoFrame(
-            frameRows, cols, rows, c.dim, c.reset,
-            ov.paletteFilter, ov.paletteItems, ov.paletteSelected,
-        );
-    } else if (ov.selector.open) {
-        const sel = ov.selector;
-        composeSelectorOntoFrame(
-            frameRows, cols, rows, c.dim, c.reset,
-            sel.title, sel.subtitle, sel.filter, sel.filteredItems, sel.selected,
-        );
-    } else if (ov.bgtaskOpen) {
-        composeBgtaskOntoFrame(
-            frameRows, cols, rows, c.dim, c.reset,
-            ctx.bgtaskTasks.map((t) => ({ id: t.id, kind: t.kind, status: 'running', elapsed: '' })),
-        );
+    const needsOverlay = ov.helpOpen || ov.paletteOpen || ov.selector.open || ov.bgtaskOpen;
+    if (needsOverlay) {
+        const fillIdx = frameRows.indexOf(VIEWPORT_FILL);
+        if (fillIdx >= 0) {
+            const contentCount = frameRows.length - 1;
+            const fillCount = Math.max(0, rows - contentCount);
+            frameRows.splice(fillIdx, 1, ...new Array(fillCount).fill(''));
+        }
+        if (ov.helpOpen) {
+            const cmds = getCompletionItems('/', 'cli');
+            composeHelpOntoFrame(frameRows, cols, frameRows.length, c.dim, c.reset, cmds);
+        } else if (ov.paletteOpen) {
+            composePaletteOntoFrame(
+                frameRows, cols, frameRows.length, c.dim, c.reset,
+                ov.paletteFilter, ov.paletteItems, ov.paletteSelected,
+            );
+        } else if (ov.selector.open) {
+            const sel = ov.selector;
+            composeSelectorOntoFrame(
+                frameRows, cols, frameRows.length, c.dim, c.reset,
+                sel.title, sel.subtitle, sel.filter, sel.filteredItems, sel.selected,
+            );
+        } else if (ov.bgtaskOpen) {
+            composeBgtaskOntoFrame(
+                frameRows, cols, frameRows.length, c.dim, c.reset,
+                ctx.bgtaskTasks.map((t) => ({ id: t.id, kind: t.kind, status: 'running', elapsed: '' })),
+            );
+        }
     }
 
     return { rows: frameRows };

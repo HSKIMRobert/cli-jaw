@@ -4,6 +4,8 @@
  * Uses synchronized output (CSI 2026) for flicker-free updates.
  */
 
+export const VIEWPORT_FILL = '\x00__VIEWPORT_FILL__\x00';
+
 export interface Frame {
     rows: string[];
 }
@@ -31,8 +33,26 @@ export function diffFrames(prev: Frame | null, next: Frame): string {
 }
 
 /**
+ * Expand VIEWPORT_FILL sentinel: replace it with enough blank lines to pad
+ * the frame to terminal height, pinning actual content at the bottom.
+ * If content exceeds terminal height, sentinel is removed (no padding).
+ */
+function expandViewportFill(lines: string[], height: number): string[] {
+    const idx = lines.indexOf(VIEWPORT_FILL);
+    if (idx === -1) return lines;
+    const contentCount = lines.length - 1;
+    const fillCount = Math.max(0, height - contentCount);
+    const result = [...lines];
+    result.splice(idx, 1, ...new Array(fillCount).fill(''));
+    return result;
+}
+
+/**
  * Inline Screen: renders frames on the main terminal buffer using relative
  * cursor movement and differential row updates. No alternate screen buffer.
+ *
+ * VIEWPORT_FILL sentinel in frame rows is expanded to blank lines that push
+ * content to the terminal bottom — preserving Welcome banner in scrollback.
  */
 export class Screen {
     private prevLines: string[] = [];
@@ -65,7 +85,8 @@ export class Screen {
 
     render(next: Frame): void {
         if (!this.inlineActive) return;
-        const lines = next.rows;
+        const height = process.stdout.rows || 24;
+        const lines = expandViewportFill(next.rows, height);
 
         let buf = '\x1b[?2026h';
 
