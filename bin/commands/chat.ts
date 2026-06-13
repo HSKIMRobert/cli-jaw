@@ -191,7 +191,6 @@ if (values.simple) {
 } else {
     if (!ctx.isRaw) await initHighlight();   // interactive rich TUI only; --simple & --raw untouched
     // Banner
-    const modelStr = info.model ? `${c.dim}model:${c.reset}     ${c.bold}${info.model}${c.reset}` : '';
     const art = [
         '\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2557     \u2588\u2588\u2557     \u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2557    \u2588\u2588\u2557',
         '\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255D\u2588\u2588\u2551     \u2588\u2588\u2551     \u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2551    \u2588\u2588\u2551',
@@ -200,21 +199,26 @@ if (values.simple) {
         '\u255A\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2551\u255A\u2588\u2588\u2588\u2588\u2588\u2554\u255D\u2588\u2588\u2551  \u2588\u2588\u2551\u255A\u2588\u2588\u2588\u2554\u2588\u2588\u2588\u2554\u255D',
         ' \u255A\u2550\u2550\u2550\u2550\u2550\u255D\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u255D\u255A\u2550\u255D \u255A\u2550\u2550\u2550\u2550\u255D \u255A\u2550\u255D  \u255A\u2550\u255D \u255A\u2550\u2550\u255D\u255A\u2550\u2550\u255D',
     ];
+    // Initialize jawcode TUI components (async, once)
+    const { initJawcodeTui, renderTextBox } = await import('../../src/cli/tui/jawcode-render.js');
+    await initJawcodeTui();
     console.log('');
     for (const line of art) console.log(`  ${c.cyan}${c.bold}${line}${c.reset}`);
     console.log(`  ${c.dim}v${APP_VERSION}${c.reset}${ctx.isRaw ? `  ${c.dim}(raw json)${c.reset}` : ''}`);
     console.log('');
-    const pad = (label: string) => label.padEnd(12);
-    console.log(`  ${c.dim}${pad('engine:')}${c.reset}${ctx.accent}${c.bold}${ctx.label}${c.reset}`);
-    if (modelStr) console.log(`  ${modelStr}`);
-    console.log(`  ${c.dim}${pad('directory:')}${c.reset}${c.cyan}${ctx.dir}${c.reset}`);
-    console.log(`  ${c.dim}${pad('server:')}${c.reset}${c.green}\u25CF${c.reset} localhost:${values.port}`);
+    const infoLines = [
+        `${c.dim}engine:${c.reset}     ${ctx.accent}${c.bold}${ctx.label}${c.reset}`,
+        ...(info.model ? [`${c.dim}model:${c.reset}      ${c.bold}${info.model}${c.reset}`] : []),
+        `${c.dim}directory:${c.reset}   ${c.cyan}${ctx.dir}${c.reset}`,
+        `${c.dim}server:${c.reset}     ${c.green}\u25CF${c.reset} localhost:${values.port}`,
+    ];
     if (ctx.ideEnabled) {
-        const ideName = detectedIde || 'terminal';
-        console.log(`  ${c.dim}${pad('ide diff:')}${c.reset}${c.green}\u25CF${c.reset} ON (${ideName}, git)`);
+        infoLines.push(`${c.dim}ide diff:${c.reset}   ${c.green}\u25CF${c.reset} ON (${detectedIde || 'terminal'}, git)`);
     } else if (!isGit) {
-        console.log(`  ${c.dim}${pad('ide diff:')}${c.reset}${c.yellow}\u25CB${c.reset} OFF (non-git)`);
+        infoLines.push(`${c.dim}ide diff:${c.reset}   ${c.yellow}\u25CB${c.reset} OFF (non-git)`);
     }
+    const boxLines = await renderTextBox(`${c.cyan}cli-jaw${c.reset} ${c.dim}v${APP_VERSION}${c.reset}`, infoLines, 56);
+    for (const line of boxLines) console.log(line);
     console.log('');
     console.log(`  ${c.dim}${c.bold}Flow keys${c.reset}${c.dim}: /  \u00B7  #  \u00B7  !  \u00B7  $  \u00B7  ?${c.reset}`);
     console.log(`  ${c.dim}/quit  /clear  /reset confirm  /file <path>${c.reset}`);

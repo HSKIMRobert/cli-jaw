@@ -1,36 +1,44 @@
 /**
  * jawcode TUI Component bridge — imports from the pre-built bundle.
- * bun-shim.mjs must be loaded before this module (sets globalThis.Bun).
+ * Call initJawcodeTui() once at startup (async), then use sync render functions.
  */
 
-// Dynamic import to avoid TS compilation of the bundle
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- bundle has no TS types at runtime
 let _tui: any = null;
+let _initialized = false;
 
-async function getTui() {
-    if (_tui) return _tui;
+export async function initJawcodeTui(): Promise<void> {
+    if (_initialized) return;
     await import('../../lib/tui/bun-shim.mjs');
     _tui = await import('../../lib/tui/jawcode-tui-bundle.mjs');
-    return _tui;
+    _initialized = true;
 }
 
-// identity theme — all style functions pass through text unchanged for now.
-// Next step: add ANSI color functions matching jawcode's dark theme.
+function ensureInit(): void {
+    if (!_initialized) throw new Error('Call initJawcodeTui() before using jawcode render functions');
+}
+
 const identityTheme = new Proxy({}, { get: () => (s: string) => s });
 
-export async function renderMarkdownJawcode(text: string, width: number): Promise<string[]> {
-    const { Markdown } = await getTui();
-    const md = new Markdown(text, 1, 0, identityTheme);
-    return md.render(width);
+export function renderMarkdownJawcode(text: string, width: number): string[] {
+    ensureInit();
+    const md = new _tui.Markdown(text, 1, 0, identityTheme);
+    return md.render(width) as string[];
 }
 
-export async function renderTextBox(_title: string, lines: string[], width: number): Promise<string[]> {
-    const { Box, Text } = await getTui();
-    const box = new Box(1, 0);
+export function renderTextBox(_title: string, lines: string[], width: number): string[] {
+    ensureInit();
+    const box = new _tui.Box(1, 0);
     for (const line of lines) {
-        const t = new Text(line, 0, 0);
+        const t = new _tui.Text(line, 0, 0);
         box.addChild(t);
     }
-    return box.render(width);
+    return box.render(width) as string[];
 }
 
-export { getTui };
+export function getVisibleWidth(str: string): number {
+    ensureInit();
+    return _tui.visibleWidth(str) as number;
+}
+
+export function isInitialized(): boolean { return _initialized; }
