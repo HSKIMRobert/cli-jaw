@@ -51,6 +51,25 @@ export async function runSimpleMode(ctx: TuiContext): Promise<void> {
             else if (msg.type === 'agent_fallback') {
                 console.log(`  \u26A1 ${msg.from} \uC2E4\uD328 \u2192 ${msg.to}\uB85C \uC7AC\uC2DC\uB3C4`);
             }
+            else if (msg.type === 'agent_tool' && msg.icon && msg.label) {
+                const detail = msg.detail ? `: ${msg.detail}` : '';
+                process.stdout.write(`\r\x1b[2K  ${msg.icon} ${msg.label}${detail}\n`);
+            }
+            else if (msg.type === 'agent_status' && msg.text) {
+                process.stdout.write(`\r\x1b[2K  ⏳ ${msg.text}\r`);
+            }
+            else if (msg.type === 'system_notice' && msg.text) {
+                console.log(`\n  ℹ️  ${msg.text}`);
+            }
+            else if (msg.type === 'session_reset' || msg.type === 'clear') {
+                console.log('\n  🔄 세션 초기화됨');
+            }
+            else if (msg.type === 'worker_stalled' || msg.type === 'worker_timeout') {
+                console.log(`\n  ⚠️  Worker ${msg.type}: ${msg.agentId || ''}`);
+            }
+            else if (msg.type === 'alert_escalation') {
+                console.log(`\n  🚨 ${msg.text || 'Alert escalation'}`);
+            }
             else if (msg.type === 'agent_done') {
                 if (streaming) { process.stdout.write('\n\n'); streaming = false; }
                 else if (msg.text) console.log(msg.text + '\n');

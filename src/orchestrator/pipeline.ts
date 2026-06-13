@@ -50,7 +50,7 @@ export {
 
 type SpawnAgentLike = typeof spawnAgent;
 
-const REMOTE_ELICITATION_BLOCKED_ORIGINS = new Set(['telegram', 'discord']);
+const REMOTE_ELICITATION_BLOCKED_ORIGINS = new Set(['telegram', 'discord', 'cli']);
 const STRUCTURED_REMOTE_FENCE_RE = /```(elicitation|choice-buttons|search-results)[^\n]*\n([\s\S]*?)```/g;
 const INCOMPLETE_STRUCTURED_REMOTE_FENCE_RE = /^ {0,3}(`{3,}|~{3,})(elicitation|choice-buttons|search-results)[^\n]*(?:\n[\s\S]*)?$/im;
 

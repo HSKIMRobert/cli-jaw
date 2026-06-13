@@ -155,11 +155,12 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                     // (else the status leaks once a tool item is the trailing one),
                     // then commit the tool line so it stays in scrollback.
                     clearEphemeralStatus(transcript);
-                    appendToolItem(transcript, `${msg.icon} ${msg.label}`);
+                    const toolDetail = msg.detail ? `: ${msg.detail}` : '';
+                    appendToolItem(transcript, `${msg.icon} ${msg.label}${toolDetail}`);
                     ctx.streamState = 'tool';
                     rebuildFooter(ctx);
                     if (!isFullscreen(ctx)) {
-                        process.stdout.write(`\r\x1b[2K  ${c.dim}${msg.icon} ${msg.label}${c.reset}\n`);
+                        process.stdout.write(`\r\x1b[2K  ${c.dim}${msg.icon} ${msg.label}${toolDetail}${c.reset}\n`);
                     } else {
                         ctx.requestFrame?.();
                     }
@@ -215,6 +216,45 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                 } else if (msg.source && msg.source !== 'cli') {
                     console.log(`\n  ${c.dim}[${msg.source}]${c.reset} ${(msg.content || '').slice(0, 60)}`);
                 }
+                break;
+
+            case 'session_reset':
+            case 'clear':
+                if (!isFullscreen(ctx)) console.log(`\n  ${c.dim}🔄 세션 초기화됨${c.reset}`);
+                break;
+
+            case 'worker_stalled':
+            case 'worker_timeout':
+            case 'worker_disconnected':
+                if (!isFullscreen(ctx)) console.log(`\n  ${c.yellow}⚠️  Worker ${msg.type}: ${msg.agentId || ''}${c.reset}`);
+                break;
+
+            case 'system_notice':
+                if (msg.text && !isFullscreen(ctx)) console.log(`\n  ${c.dim}ℹ️  ${msg.text}${c.reset}`);
+                break;
+
+            case 'alert_escalation':
+                if (!isFullscreen(ctx)) console.log(`\n  ${c.red}🚨 ${msg.text || 'Alert escalation'}${c.reset}`);
+                break;
+
+            case 'settings_change':
+                if (!isFullscreen(ctx)) console.log(`\n  ${c.dim}⚙️  설정 변경됨${c.reset}`);
+                break;
+
+            case 'orc_state':
+            case 'orchestrate_done':
+            case 'orchestrate_warning':
+                if (msg.phase && !isFullscreen(ctx)) console.log(`\n  ${c.dim}📋 PABCD: ${msg.phase}${msg.status ? ` (${msg.status})` : ''}${c.reset}`);
+                break;
+
+            case 'goal_done':
+            case 'goal_continuation':
+            case 'goal_pause_detected':
+                if (!isFullscreen(ctx)) console.log(`\n  ${c.dim}🎯 Goal: ${msg.type.replace('goal_', '')}${msg.text ? ` — ${msg.text}` : ''}${c.reset}`);
+                break;
+
+            case 'memory_status':
+                if (msg.text && !isFullscreen(ctx)) console.log(`\n  ${c.dim}🧠 ${msg.text}${c.reset}`);
                 break;
 
             default:
