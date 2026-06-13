@@ -147,7 +147,8 @@ export function renderStatusBar(segments: {
             const cp = ch.codePointAt(0) ?? 0;
             w += (cp >= 0x1100 && cp <= 0x115F) || (cp >= 0x2E80 && cp <= 0xD7FF) ||
                  (cp >= 0xF900 && cp <= 0xFAFF) || (cp >= 0xFE30 && cp <= 0xFE6F) ||
-                 (cp >= 0xFF01 && cp <= 0xFF60) || (cp >= 0x20000 && cp <= 0x2FA1F) ? 2 : 1;
+                 (cp >= 0xFF01 && cp <= 0xFF60) || (cp >= 0x1F000 && cp <= 0x1FFFF) ||
+                 (cp >= 0x20000 && cp <= 0x2FA1F) || (cp >= 0xF0000 && cp <= 0xFFFFD) ? 2 : 1;
         }
         return w;
     };
@@ -155,6 +156,21 @@ export function renderStatusBar(segments: {
     while (charWidth(result) > cols && parts.length > 3) {
         parts.splice(-2, 1);
         result = `  ${parts.join(sep)}`;
+    }
+    if (charWidth(result) > cols) {
+        const stripped = stripAnsi(result);
+        let visW = 0;
+        let cutIdx = 0;
+        for (const ch of stripped) {
+            const cp = ch.codePointAt(0) ?? 0;
+            const cw = (cp >= 0x1100 && cp <= 0x115F) || (cp >= 0x2E80 && cp <= 0xD7FF) ||
+                (cp >= 0xF900 && cp <= 0xFAFF) || (cp >= 0x1F000 && cp <= 0x1FFFF) ||
+                (cp >= 0x20000 && cp <= 0x2FA1F) ? 2 : 1;
+            if (visW + cw > cols - 1) break;
+            visW += cw;
+            cutIdx += ch.length;
+        }
+        result = stripped.slice(0, cutIdx) + '\x1b[0m';
     }
     return result;
 }

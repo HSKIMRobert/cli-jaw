@@ -198,9 +198,7 @@ if (values.simple) {
     // Initialize jawcode TUI components (async, once)
     const { initJawcodeTui } = await import('../../src/cli/tui/jawcode-render.js');
     const { renderWelcome } = await import('../../src/cli/tui/jawcode-bridge.js');
-    const { playJawWelcomeIntro } = await import('../../src/cli/tui/welcome-jaw.js');
     await initJawcodeTui();
-    console.log('');
     const welcomeOpts = {
         version: APP_VERSION,
         engine: ctx.label,
@@ -212,18 +210,18 @@ if (values.simple) {
         projectRoot: ctx.projectRoot,
         port: ctx.serverPort,
     };
-    const welcomeLines = renderWelcome(welcomeOpts);
-    for (const line of welcomeLines) console.log(line);
-    try {
-        await playJawWelcomeIntro(welcomeOpts, process.stdout.columns || 80, (s) => process.stdout.write(s));
-    } catch { /* animation optional */ }
-    if (displayMode === 'fullscreen') {
-        console.log(`  ${c.dim}(fullscreen alt-screen mode)${c.reset}`);
-    }
 
     if (displayMode === 'fullscreen') {
+        const welcomeText = renderWelcome(welcomeOpts).join('\n');
+        ctx.store.transcript.items.push({
+            type: 'assistant' as const, text: welcomeText, timestamp: Date.now(), streaming: false,
+        });
         await runFullscreenMode(ctx);
     } else {
+    console.log('');
+    const welcomeLines = renderWelcome(welcomeOpts);
+    for (const line of welcomeLines) console.log(line);
+    console.log('');
 
     // ─── Raw stdin ───────────────────────────
     process.stdin.setRawMode(true);
