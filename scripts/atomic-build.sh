@@ -19,6 +19,7 @@ if [ -f src/lib/tui/jawcode-tui-bundle.mjs ]; then
     mkdir -p "$STAGING/src/lib/tui" "$STAGING/src/lib/native"
     cp src/lib/tui/bun-shim.mjs "$STAGING/src/lib/tui/"
     cp src/lib/tui/jawcode-tui-bundle.mjs "$STAGING/src/lib/tui/"
+    [ -f src/lib/tui/jawcode-interactive-bundle.mjs ] && cp src/lib/tui/jawcode-interactive-bundle.mjs "$STAGING/src/lib/tui/"
     [ -f src/lib/native/pi_natives.darwin-arm64.node ] && cp src/lib/native/pi_natives.darwin-arm64.node "$STAGING/src/lib/native/"
 fi
 

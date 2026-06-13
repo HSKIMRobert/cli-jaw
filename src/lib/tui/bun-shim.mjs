@@ -22,6 +22,27 @@ function hash(data, seed) {
     h.update(typeof data === 'string' ? data : Buffer.from(data));
     return h.digest().readUInt32LE(0);
 }
+import { readFileSync, existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
+
+function bunColor(color, format) {
+    if (!color) return null;
+    if (format === 'ansi' || format === 'ansi-16m' || format === 'ansi-256') return color;
+    return color;
+}
+
+function bunFile(path) {
+    return {
+        text: () => readFile(path, 'utf-8'),
+        json: async () => JSON.parse(await readFile(path, 'utf-8')),
+        exists: () => existsSync(path),
+        size: 0,
+    };
+}
+
+async function bunSleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function bunWrite() { return Promise.resolve(0); }
+
 if (typeof globalThis.Bun === 'undefined') {
-    globalThis.Bun = { env: process.env, stringWidth, stripANSI, hash };
+    globalThis.Bun = { env: process.env, stringWidth, stripANSI, hash, color: bunColor, file: bunFile, sleep: bunSleep, write: bunWrite };
 }

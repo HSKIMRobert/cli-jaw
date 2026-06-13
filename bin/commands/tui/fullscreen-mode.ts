@@ -7,8 +7,8 @@ import {
     setBracketedPaste,
 } from '../../../src/cli/tui/composer.js';
 import { renderMarkdown } from '../../../src/cli/tui/markdown.js';
-import { renderMarkdownJawcode, isInitialized } from '../../../src/cli/tui/jawcode-render.js';
-import { renderToolLine, renderThinkingCollapse } from '../../../src/cli/tui/jawcode-adapter.js';
+import { renderMarkdownJawcode, isInitialized, getInteractive } from '../../../src/cli/tui/jawcode-render.js';
+import { renderToolLine, renderThinkingCollapse } from '../../../src/cli/tui/jawcode-bridge.js';
 import { classifyKeyAction, type KeyAction } from '../../../src/cli/tui/keymap.js';
 import { getCompletionItems } from '../../../src/cli/commands.js';
 import { composeAutocompleteLines, composeHelpOntoFrame, composePaletteOntoFrame, composeSelectorOntoFrame, composeBgtaskOntoFrame } from '../../../src/cli/tui/overlay.js';
@@ -141,14 +141,18 @@ function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
         }
     }
 
-    // jawcode-style input box with border
+    // jawcode-style input box with border (uses jawcode theme box chars when available)
     const innerW = cols - 4;
+    const box = isInitialized() ? (() => { try { return getInteractive().theme?.boxSharp; } catch { return null; } })() : null;
+    const bTL = box?.topLeft ?? '┌'; const bTR = box?.topRight ?? '┐';
+    const bBL = box?.bottomLeft ?? '└'; const bBR = box?.bottomRight ?? '┘';
+    const bH = box?.horizontal ?? '─'; const bV = box?.vertical ?? '│';
     const topBorderRow = regions.composer.y - 1;
     if (topBorderRow >= 1 && topBorderRow <= rows) {
-        frameRows[topBorderRow - 1] = `${c.dim}┌${'─'.repeat(innerW + 2)}┐${c.reset}`;
+        frameRows[topBorderRow - 1] = `${c.dim}${bTL}${bH.repeat(innerW + 2)}${bTR}${c.reset}`;
     }
 
-    const prefix = `${c.dim}│${c.reset} ${ctx.accent}${c.bold}>${c.reset} `;
+    const prefix = `${c.dim}${bV}${c.reset} ${ctx.accent}${c.bold}>${c.reset} `;
     const compLines = composerText.split('\n');
     const hasInput = composerText.trim().length > 0;
     for (let i = 0; i < regions.composer.height; i++) {
@@ -156,17 +160,17 @@ function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
         if (row < 1 || row > rows) continue;
         const line = compLines[i] ?? '';
         const lineVisW = clipTextToCols(line, innerW).length > 0 ? line.length : 0; // approx — clipTextToCols already imported
-        const suffix = `${' '.repeat(Math.max(0, innerW - 3 - lineVisW))}${c.dim}│${c.reset}`;
+        const suffix = `${' '.repeat(Math.max(0, innerW - 3 - lineVisW))}${c.dim}${bV}${c.reset}`;
         if (i === 0 && !hasInput) {
             frameRows[row - 1] = `${prefix}${c.dim}Type your message...${c.reset}${suffix}`;
         } else {
-            frameRows[row - 1] = i === 0 ? `${prefix}${line}${suffix}` : `${c.dim}│${c.reset}   ${line}${suffix}`;
+            frameRows[row - 1] = i === 0 ? `${prefix}${line}${suffix}` : `${c.dim}${bV}${c.reset}   ${line}${suffix}`;
         }
     }
 
     const botBorderRow = regions.composer.y + regions.composer.height;
     if (botBorderRow >= 1 && botBorderRow <= rows) {
-        frameRows[botBorderRow - 1] = `${c.dim}└${'─'.repeat(innerW + 2)}┘${c.reset}`;
+        frameRows[botBorderRow - 1] = `${c.dim}${bBL}${bH.repeat(innerW + 2)}${bBR}${c.reset}`;
     }
 
     // Hint line below input box

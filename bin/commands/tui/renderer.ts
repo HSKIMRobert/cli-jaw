@@ -6,7 +6,7 @@ import { closeAutocomplete } from '../../../src/cli/tui/overlay.js';
 import { visualWidth, cursorScreenPos } from '../../../src/cli/tui/renderers.js';
 import { resolveShellLayout, setupScrollRegion } from '../../../src/cli/tui/shell.js';
 import { c, hrLine, getRows, type TuiContext } from './types.js';
-import { renderStatusBar } from '../../../src/cli/tui/jawcode-adapter.js';
+import { renderStatusBar } from '../../../src/cli/tui/jawcode-bridge.js';
 
 const contPrefixFor = () => `  ${c.dim}\u00B7 ${c.reset}`;
 

@@ -206,7 +206,7 @@ if (values.simple) {
     ];
     // Initialize jawcode TUI components (async, once)
     const { initJawcodeTui } = await import('../../src/cli/tui/jawcode-render.js');
-    const { renderWelcome } = await import('../../src/cli/tui/jawcode-adapter.js');
+    const { renderWelcome } = await import('../../src/cli/tui/jawcode-bridge.js');
     await initJawcodeTui();
     console.log('');
     for (const line of art) console.log(`  ${c.cyan}${c.bold}${line}${c.reset}`);

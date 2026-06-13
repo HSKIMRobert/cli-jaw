@@ -10,7 +10,7 @@ import { captureFileSet, diffFileSets, getDiffStat, getUnifiedDiff, getIdeCli, o
 import { createStreamSink } from '../../../src/cli/tui/stream.js';
 import { renderMarkdown } from '../../../src/cli/tui/markdown.js';
 import { renderMarkdownJawcode, isInitialized } from '../../../src/cli/tui/jawcode-render.js';
-import { renderToolLine } from '../../../src/cli/tui/jawcode-adapter.js';
+import { renderToolLine } from '../../../src/cli/tui/jawcode-bridge.js';
 import { colorizeDiff } from '../../../src/cli/tui/diffview.js';
 import { c, type TuiContext } from './types.js';
 import { openPromptBlock, rebuildFooter } from './renderer.js';
