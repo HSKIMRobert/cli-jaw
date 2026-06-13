@@ -25,26 +25,41 @@ const BLUE_GRADIENT: ReadonlyArray<readonly [number, number, number]> = [
 ];
 
 function gradientLine(line: string, row: number, totalRows: number, shinePos?: number): string {
-    const t = totalRows > 1 ? row / (totalRows - 1) : 0.5;
-    const stopIdx = t * (BLUE_GRADIENT.length - 1);
-    const lo = Math.floor(stopIdx);
-    const hi = Math.min(lo + 1, BLUE_GRADIENT.length - 1);
-    const frac = stopIdx - lo;
-    const c0 = BLUE_GRADIENT[lo]!;
-    const c1 = BLUE_GRADIENT[hi]!;
-    let r = Math.round(c0[0] + (c1[0] - c0[0]) * frac);
-    let g = Math.round(c0[1] + (c1[1] - c0[1]) * frac);
-    let b = Math.round(c0[2] + (c1[2] - c0[2]) * frac);
-    if (shinePos !== undefined) {
-        const dist = Math.abs(t - shinePos);
-        if (dist < 0.25) {
-            const boost = (1 - dist / 0.25) * 0.5;
-            r = Math.min(255, Math.round(r + (255 - r) * boost));
-            g = Math.min(255, Math.round(g + (255 - g) * boost));
-            b = Math.min(255, Math.round(b + (255 - b) * boost));
+    const lineLen = line.replace(/\x1b\[[0-9;]*m/g, '').length;
+    if (lineLen === 0) return '';
+
+    const chars: string[] = [];
+    let ci = 0;
+    for (const ch of line) {
+        const ty = totalRows > 1 ? row / (totalRows - 1) : 0.5;
+        const tx = lineLen > 1 ? ci / (lineLen - 1) : 0.5;
+        const t = ty * 0.7 + tx * 0.3;
+        const stopIdx = Math.min(t, 1) * (BLUE_GRADIENT.length - 1);
+        const lo = Math.floor(stopIdx);
+        const hi = Math.min(lo + 1, BLUE_GRADIENT.length - 1);
+        const frac = stopIdx - lo;
+        const c0 = BLUE_GRADIENT[lo]!;
+        const c1 = BLUE_GRADIENT[hi]!;
+        let r = Math.round(c0[0] + (c1[0] - c0[0]) * frac);
+        let g = Math.round(c0[1] + (c1[1] - c0[1]) * frac);
+        let b = Math.round(c0[2] + (c1[2] - c0[2]) * frac);
+
+        if (shinePos !== undefined) {
+            const diag = (tx + ty) / 2;
+            const dist = Math.abs(diag - shinePos);
+            if (dist < 0.2) {
+                const boost = (1 - dist / 0.2) * 0.6;
+                r = Math.min(255, Math.round(r + (255 - r) * boost));
+                g = Math.min(255, Math.round(g + (255 - g) * boost));
+                b = Math.min(255, Math.round(b + (255 - b) * boost));
+            }
         }
+
+        chars.push(`\x1b[38;2;${r};${g};${b}m${ch}`);
+        if (ch.match(/[^\x1b]/)) ci++;
     }
-    return `\x1b[38;2;${r};${g};${b}m${line}\x1b[0m`;
+    chars.push('\x1b[0m');
+    return chars.join('');
 }
 
 export function renderJawWelcome(opts: {
@@ -172,8 +187,8 @@ export async function playJawWelcomeIntro(
     width: number,
     write: (line: string) => void,
 ): Promise<void> {
-    const FRAMES = 8;
-    const DURATION_MS = 1200;
+    const FRAMES = 16;
+    const DURATION_MS = 1500;
     const interval = DURATION_MS / FRAMES;
     const lineCount = renderJawWelcome({ ...opts, phase: 0 }, width).length;
 
