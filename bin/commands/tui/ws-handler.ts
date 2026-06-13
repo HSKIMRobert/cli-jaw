@@ -9,6 +9,7 @@ import {
 import { captureFileSet, diffFileSets, getDiffStat, getUnifiedDiff, getIdeCli, openDiffInIde } from '../../../src/ide/diff.js';
 import { createStreamSink } from '../../../src/cli/tui/stream.js';
 import { renderMarkdown } from '../../../src/cli/tui/markdown.js';
+import { renderMarkdownJawcode, isInitialized } from '../../../src/cli/tui/jawcode-render.js';
 import { colorizeDiff } from '../../../src/cli/tui/diffview.js';
 import { c, type TuiContext } from './types.js';
 import { openPromptBlock, rebuildFooter } from './renderer.js';
@@ -94,7 +95,12 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                     finalizeAssistant(transcript);
                     if (!isFullscreen(ctx)) {
                         process.stdout.write('\n');
-                        process.stdout.write(renderMarkdown(msg.text, { width: Math.max(20, (process.stdout.columns || 80) - 4), gutter: '  ' }));
+                        if (isInitialized()) {
+                            const mdLines = renderMarkdownJawcode(msg.text, Math.max(20, (process.stdout.columns || 80) - 4));
+                            process.stdout.write(mdLines.join('\n') + '\n');
+                        } else {
+                            process.stdout.write(renderMarkdown(msg.text, { width: Math.max(20, (process.stdout.columns || 80) - 4), gutter: '  ' }));
+                        }
                         console.log('');
                     }
                 }

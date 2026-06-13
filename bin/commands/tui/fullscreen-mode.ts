@@ -7,6 +7,7 @@ import {
     setBracketedPaste,
 } from '../../../src/cli/tui/composer.js';
 import { renderMarkdown } from '../../../src/cli/tui/markdown.js';
+import { renderMarkdownJawcode, isInitialized } from '../../../src/cli/tui/jawcode-render.js';
 import { classifyKeyAction, type KeyAction } from '../../../src/cli/tui/keymap.js';
 import { getCompletionItems } from '../../../src/cli/commands.js';
 import { composeAutocompleteLines, composeHelpOntoFrame, composePaletteOntoFrame, composeSelectorOntoFrame, composeBgtaskOntoFrame } from '../../../src/cli/tui/overlay.js';
@@ -36,7 +37,7 @@ function renderTranscriptItem(item: TranscriptItem, width: number): string[] {
             const agentPrefix = item.agentId ? `${c.dim}[${item.agentId}]${c.reset} ` : '';
             const body = item.streaming && !item.text
                 ? `${gutter}${agentPrefix}${c.dim}…${c.reset}`
-                : (agentPrefix ? `${gutter}${agentPrefix}\n` : '') + renderMarkdown(item.text, { width: w, gutter });
+                : (agentPrefix ? `${gutter}${agentPrefix}\n` : '') + (isInitialized() ? renderMarkdownJawcode(item.text, w).join('\n') : renderMarkdown(item.text, { width: w, gutter }));
             return body.split('\n');
         }
         case 'tool': {
