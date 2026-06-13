@@ -45,6 +45,22 @@ test('compose-block final fence maps to sanitizer-safe placeholder and hides raw
     assert.doesNotMatch(html, /"schemaVersion"/);
 });
 
+test('compose-block final fence renders when assistant transport prefixes the opener with a list marker', async () => {
+    setupWebUiDom();
+    const { renderMarkdown } = await import('../../public/js/render.ts');
+    const { hydrateComposeBlocks } = await import('../../public/js/render/compose-block.ts');
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = renderMarkdown(`- \`\`\`compose-block\n${JSON.stringify(composeSpec())}\n\`\`\``);
+    document.body.appendChild(wrapper);
+
+    hydrateComposeBlocks(wrapper);
+
+    assert.ok(wrapper.querySelector('.compose-block'));
+    assert.equal(wrapper.querySelector<HTMLInputElement>('.compose-subject-input')?.value, 'Polite subject');
+    assert.doesNotMatch(wrapper.innerHTML, /compose-error/);
+    assert.doesNotMatch(wrapper.innerHTML, /"schemaVersion"/);
+});
+
 test('compose-block streaming fence remains inert until final render', async () => {
     setupWebUiDom();
     const { renderMarkdown } = await import('../../public/js/render.ts');

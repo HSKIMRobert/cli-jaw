@@ -23,6 +23,23 @@ import { hasIncompleteStructuredFence } from '../../../src/shared/structured-fen
 let markedReady = false;
 let renderContextIsStreaming = false;
 
+const STRUCTURED_FENCE_LANGS = [
+    'elicitation',
+    'choice-buttons',
+    'search-results',
+    'compose-block',
+    'dataframe',
+    'chart-json',
+];
+const STRUCTURED_LIST_FENCE_RE = new RegExp(
+    `^([ \\t]{0,3})([-*+]|\\d+[.)])[ \\t]+(\`{3,}|~{3,})(${STRUCTURED_FENCE_LANGS.join('|')})([^\\n]*)$`,
+    'gim',
+);
+
+function unwrapListPrefixedStructuredFences(text: string): string {
+    return text.replace(STRUCTURED_LIST_FENCE_RE, '$1$3$4$5');
+}
+
 function renderCodeBlock(text: string, lang?: string): string {
     const highlighted = highlightCode(text, lang);
     const langDisplay = lang ? escapeHtml(lang) : '';
@@ -117,7 +134,7 @@ function ensureMarked(): boolean {
 export function renderMarkdown(text: string, isStreaming = false): string {
     const rawCleaned = stripOrchestration(text);
     if (!rawCleaned) return '<em class="text-dim orchestrate-placeholder">' + escapeHtml(t('orchestrator.dispatching')) + '</em>';
-    const cleaned = rawCleaned.replace(/\n{3,}/g, '\n\n');
+    const cleaned = unwrapListPrefixedStructuredFences(rawCleaned).replace(/\n{3,}/g, '\n\n');
     const structuredFenceIncomplete = hasIncompleteStructuredFence(cleaned);
 
     const { text: fenceShielded, fences } = shieldCodeFenceSvg(cleaned);
