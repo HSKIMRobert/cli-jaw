@@ -52,6 +52,7 @@ export function FolderPanel(props: FolderPanelProps) {
     const [skipInternalMoveConfirm, setSkipInternalMoveConfirm] = useState(false);
     const [skipMoveConfirmChecked, setSkipMoveConfirmChecked] = useState(false);
     const [actionStatus, setActionStatus] = useState<string | null>(null);
+    const [contextMenu, setContextMenu] = useState<{ entry: FolderPanelEntry; x: number; y: number } | null>(null);
 
     const loadDir = useCallback(async (dirPath: string) => {
         try {
@@ -185,28 +186,83 @@ export function FolderPanel(props: FolderPanelProps) {
         setPendingMove(move);
     }, [executeMove, skipInternalMoveConfirm, source.movePath]);
 
-    const copySelectedPath = useCallback(async (kind: 'absolute' | 'relative') => {
-        if (!selectedEntry) return;
-        const value = kind === 'relative' ? relativeFolderPath(rootPath, selectedEntry.path) : selectedEntry.path;
+    const selectAndActivateEntry = useCallback((entry: FolderPanelEntry, mode: 'primary' | 'preview-only' = 'primary') => {
+        setSelectedPath(entry.path);
+        setContextMenu(null);
+        if (entry.kind === 'directory') {
+            if (mode === 'primary') toggleExpand(entry.path);
+            return;
+        }
+        props.onPreviewFile?.(entry.path);
+    }, [props, toggleExpand]);
+
+    const copyEntryPath = useCallback(async (entry: FolderPanelEntry, kind: 'absolute' | 'relative') => {
+        const value = kind === 'relative' ? relativeFolderPath(rootPath, entry.path) : entry.path;
         const result = await copyText(value);
         if (result.ok) {
+            setSelectedPath(entry.path);
             setActionStatus(kind === 'relative' ? 'Copied relative path' : 'Copied path');
             setError(null);
         } else {
             setError(result.error ?? 'Failed to copy path');
         }
-    }, [rootPath, selectedEntry]);
+    }, [rootPath]);
 
-    const revealSelectedPath = useCallback(async () => {
-        if (!selectedEntry || !source.revealPath) return;
+    const revealEntryPath = useCallback(async (entry: FolderPanelEntry) => {
+        if (!source.revealPath) return;
         try {
-            await source.revealPath(selectedEntry.path);
-            setActionStatus(selectedEntry.kind === 'directory' ? 'Opened folder in Finder' : 'Revealed file in Finder');
+            await source.revealPath(entry.path);
+            setSelectedPath(entry.path);
+            setActionStatus(entry.kind === 'directory' ? 'Opened folder in Finder' : 'Revealed file in Finder');
             setError(null);
         } catch (err) {
             setError((err as Error).message);
         }
-    }, [selectedEntry, source]);
+    }, [source]);
+
+    const copySelectedPath = useCallback(async (kind: 'absolute' | 'relative') => {
+        if (!selectedEntry) return;
+        await copyEntryPath(selectedEntry, kind);
+    }, [copyEntryPath, selectedEntry]);
+
+    const revealSelectedPath = useCallback(async () => {
+        if (!selectedEntry) return;
+        await revealEntryPath(selectedEntry);
+    }, [revealEntryPath, selectedEntry]);
+
+    const handleEntryKeyDown = useCallback((event: React.KeyboardEvent, entry: FolderPanelEntry) => {
+        const isPrimaryModifier = event.metaKey || event.ctrlKey;
+        if (isPrimaryModifier && event.key.toLowerCase() === 'c') {
+            event.preventDefault();
+            event.stopPropagation();
+            void copyEntryPath(entry, event.shiftKey ? 'absolute' : 'relative');
+            return;
+        }
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            selectAndActivateEntry(entry);
+            return;
+        }
+        if (event.key === ' ') {
+            event.preventDefault();
+            if (entry.kind !== 'file') return;
+            selectAndActivateEntry(entry, 'preview-only');
+        }
+    }, [copyEntryPath, selectAndActivateEntry]);
+
+    useEffect(() => {
+        if (!contextMenu) return;
+        const close = () => setContextMenu(null);
+        const closeOnEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') setContextMenu(null);
+        };
+        window.addEventListener('pointerdown', close);
+        window.addEventListener('keydown', closeOnEscape);
+        return () => {
+            window.removeEventListener('pointerdown', close);
+            window.removeEventListener('keydown', closeOnEscape);
+        };
+    }, [contextMenu]);
 
     function renderEntries(items: FolderPanelEntry[], depth: number): React.ReactNode[] {
         return items.map(entry => (
@@ -259,10 +315,14 @@ export function FolderPanel(props: FolderPanelProps) {
                         </span>
                     )}
                     <button type="button" className="folder-entry-btn"
-                        onClick={() => {
+                        onKeyDown={(event) => handleEntryKeyDown(event, entry)}
+                        onContextMenu={(event) => {
+                            event.preventDefault();
                             setSelectedPath(entry.path);
-                            if (entry.kind === 'directory') toggleExpand(entry.path);
-                            else props.onPreviewFile?.(entry.path);
+                            setContextMenu({ entry, x: event.clientX, y: event.clientY });
+                        }}
+                        onClick={() => {
+                            selectAndActivateEntry(entry);
                         }}>
                         <span className="folder-entry-icon">
                             {entry.kind === 'directory' ? (expanded.has(entry.path) ? '▾' : '▸') : '·'}
@@ -324,6 +384,22 @@ export function FolderPanel(props: FolderPanelProps) {
                             {isMoving ? 'Moving...' : 'Move'}
                         </button>
                     </div>
+                </div>
+            )}
+            {contextMenu && (
+                <div
+                    className="folder-context-menu"
+                    role="menu"
+                    style={{ left: contextMenu.x, top: contextMenu.y }}
+                    onPointerDown={event => event.stopPropagation()}
+                    onKeyDown={event => event.stopPropagation()}
+                >
+                    <button type="button" role="menuitem" onClick={() => { setContextMenu(null); void copyEntryPath(contextMenu.entry, 'absolute'); }}>Copy Path</button>
+                    <button type="button" role="menuitem" onClick={() => { setContextMenu(null); void copyEntryPath(contextMenu.entry, 'relative'); }}>Copy Relative Path</button>
+                    <button type="button" role="menuitem" disabled={!source.revealPath} onClick={() => { setContextMenu(null); void revealEntryPath(contextMenu.entry); }}>
+                        {contextMenu.entry.kind === 'directory' ? 'Open Folder' : 'Reveal in Finder'}
+                    </button>
+                    {rootPath && <button type="button" role="menuitem" onClick={() => { setContextMenu(null); void loadDir(rootPath); }}>Refresh</button>}
                 </div>
             )}
         </div>
