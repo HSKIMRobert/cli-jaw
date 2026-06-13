@@ -23,15 +23,17 @@ export function solveLayout(
     headerLines = 0,
 ): Regions {
     const safeCols = Math.max(20, cols);
-    const safeRows = Math.max(4, rows);
+    const safeRows = Math.max(6, rows);
     const footerH = 1;
-    const composerH = Math.max(1, Math.min(composerLines, safeRows - footerH - 1));
-    const headerH = Math.max(0, Math.min(headerLines, safeRows - footerH - composerH - 1));
-    const transcriptH = Math.max(1, safeRows - headerH - composerH - footerH);
+    const borderH = 2;
+    const hintH = 1;
+    const composerH = Math.max(1, Math.min(composerLines, safeRows - footerH - borderH - hintH - 2));
+    const headerH = Math.max(0, Math.min(headerLines, safeRows - footerH - composerH - borderH - hintH - 1));
+    const transcriptH = Math.max(1, safeRows - headerH - composerH - footerH - borderH - hintH);
     const headerY = 1;
     const transcriptY = headerY + headerH;
-    const composerY = transcriptY + transcriptH;
-    const footerY = composerY + composerH;
+    const composerY = transcriptY + transcriptH + 1;
+    const footerY = composerY + composerH + 1 + hintH;
 
     return {
         header: { x: 1, y: headerY, width: safeCols, height: headerH },
