@@ -32,9 +32,10 @@ function renderTranscriptItem(item: TranscriptItem, width: number): string[] {
         case 'user':
             return [`${gutter}${c.dim}you:${c.reset} ${clipTextToCols(item.displayText, w - 5)}`];
         case 'assistant': {
+            const agentPrefix = item.agentId ? `${c.dim}[${item.agentId}]${c.reset} ` : '';
             const body = item.streaming && !item.text
-                ? `${gutter}${c.dim}…${c.reset}`
-                : renderMarkdown(item.text, { width: w, gutter });
+                ? `${gutter}${agentPrefix}${c.dim}…${c.reset}`
+                : (agentPrefix ? `${gutter}${agentPrefix}\n` : '') + renderMarkdown(item.text, { width: w, gutter });
             return body.split('\n');
         }
         case 'tool':

@@ -16,8 +16,10 @@ export function appendUserItem(state: TranscriptState, displayText: string, subm
     state.items.push({ type: 'user', displayText, submitText, timestamp: Date.now() });
 }
 
-export function startAssistantItem(state: TranscriptState): void {
-    state.items.push({ type: 'assistant', text: '', streaming: true, timestamp: Date.now() });
+export function startAssistantItem(state: TranscriptState, agentId?: string): void {
+    const item: TranscriptItem = { type: 'assistant', text: '', streaming: true, timestamp: Date.now() };
+    if (agentId) item.agentId = agentId;
+    state.items.push(item);
 }
 
 export function appendToActiveAssistant(state: TranscriptState, chunk: string): boolean {

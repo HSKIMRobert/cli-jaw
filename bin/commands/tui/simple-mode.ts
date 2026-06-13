@@ -47,7 +47,13 @@ export async function runSimpleMode(ctx: TuiContext): Promise<void> {
     ws.on('message', (data) => {
         try {
             const msg = JSON.parse(data.toString());
-            if (msg.type === 'agent_chunk' || msg.type === 'agent_output') { if (!streaming) streaming = true; process.stdout.write(msg.text || ''); }
+            if (msg.type === 'agent_chunk' || msg.type === 'agent_output') {
+                if (!streaming) {
+                    streaming = true;
+                    if (msg.agentId) process.stdout.write(`\x1b[2m[${msg.agentId}]\x1b[0m `);
+                }
+                process.stdout.write(msg.text || '');
+            }
             else if (msg.type === 'agent_fallback') {
                 console.log(`  \u26A1 ${msg.from} \uC2E4\uD328 \u2192 ${msg.to}\uB85C \uC7AC\uC2DC\uB3C4`);
             }

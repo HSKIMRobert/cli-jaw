@@ -56,7 +56,7 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                     ctx.turnStartedAt = Date.now();
                     rebuildFooter(ctx); // safe point: before the first chunk is written
                     startFooterTimer(ctx);
-                    startAssistantItem(transcript);
+                    startAssistantItem(transcript, msg.agentId);
                     if (!isFullscreen(ctx)) {
                         process.stdout.write('\n');
                         ctx.streamSink = createStreamSink({
@@ -87,7 +87,7 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                     finalizeAssistant(transcript);
                     if (!isFullscreen(ctx)) console.log('');
                 } else if (msg.text) {
-                    startAssistantItem(transcript);
+                    startAssistantItem(transcript, msg.agentId);
                     appendToActiveAssistant(transcript, msg.text);
                     finalizeAssistant(transcript);
                     if (!isFullscreen(ctx)) {
