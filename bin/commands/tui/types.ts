@@ -26,6 +26,7 @@ export const cliLabel: Record<string, string> = {
     grok: 'Grok',
     opencode: 'OpenCode',
     copilot: 'Copilot',
+    pi: 'Pi',
 };
 export const cliColor: Record<string, string> = {
     agy: c.green,
@@ -40,6 +41,7 @@ export const cliColor: Record<string, string> = {
     grok: c.gray,
     opencode: c.yellow,
     copilot: c.cyan,
+    pi: c.yellow,
 };
 
 export const ESC_WAIT_MS = 70;
