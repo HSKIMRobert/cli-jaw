@@ -14,6 +14,14 @@ cp -R src/prompt/templates/. "$STAGING/src/prompt/templates/"
 cp -R prompts/. "$STAGING/prompts/"
 cp -R src/browser/adaptive-fetch/vendor/. "$STAGING/src/browser/adaptive-fetch/vendor/"
 
+# jawcode TUI bundle + Bun shim + native addon (macOS only)
+if [ -f src/lib/tui/jawcode-tui-bundle.mjs ]; then
+    mkdir -p "$STAGING/src/lib/tui" "$STAGING/src/lib/native"
+    cp src/lib/tui/bun-shim.mjs "$STAGING/src/lib/tui/"
+    cp src/lib/tui/jawcode-tui-bundle.mjs "$STAGING/src/lib/tui/"
+    [ -f src/lib/native/pi_natives.darwin-arm64.node ] && cp src/lib/native/pi_natives.darwin-arm64.node "$STAGING/src/lib/native/"
+fi
+
 # Atomic swap with rollback on failure
 rm -rf "$OLD"
 if [ -d dist ]; then
