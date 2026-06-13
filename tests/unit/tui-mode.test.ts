@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolveTuiDisplayMode } from '../../src/cli/tui/mode.ts';
 
-test('resolveTuiDisplayMode defaults to line', () => {
-    assert.equal(resolveTuiDisplayMode({ isTTY: true, rows: 24 }), 'line');
+test('resolveTuiDisplayMode defaults to fullscreen for TTY', () => {
+    assert.equal(resolveTuiDisplayMode({ isTTY: true, rows: 24 }), 'fullscreen');
 });
 
 test('resolveTuiDisplayMode honors --fullscreen flag', () => {

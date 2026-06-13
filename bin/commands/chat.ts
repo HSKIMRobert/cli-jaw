@@ -32,8 +32,8 @@ if (shouldShowHelp(process.argv)) printAndExit(`
     --port <N>   Server port (default: 3457)
     --<N>        Port shorthand (e.g. --3458)
     --theme <name>  TUI color theme: dark | light (default: dark, or settings tui.theme)
-    --fullscreen    Alt-screen TUI (modern full-screen mode)
-    --classic       Force line-mode TUI (default when fullscreen off)
+    --fullscreen    Alt-screen TUI (default for TTY terminals)
+    --classic       Force line-mode TUI (opt-out from fullscreen)
 `);
 import { APP_VERSION, getServerUrl, getWsUrl } from '../../src/core/config.js';
 import { c, cliColor, cliLabel, hrLine, getRows, ESC_WAIT_MS, formatFooter, type TuiContext } from './tui/types.js';

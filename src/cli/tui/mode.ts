@@ -13,7 +13,7 @@ export interface TuiModeOptions {
     rows?: number | undefined;
 }
 
-/** CLI flag > env JAW_TUI_FULLSCREEN > settings.tui.fullscreen > default off. */
+/** CLI flag > env JAW_TUI_FULLSCREEN > settings.tui.fullscreen > default fullscreen. */
 export function resolveTuiDisplayMode(opts: TuiModeOptions = {}): TuiDisplayMode {
     const isTTY = opts.isTTY ?? Boolean(process.stdout.isTTY);
     const term = opts.term ?? process.env['TERM'] ?? '';
@@ -29,6 +29,6 @@ export function resolveTuiDisplayMode(opts: TuiModeOptions = {}): TuiDisplayMode
     if (env === '1' || env === 'true') return 'fullscreen';
     if (env === '0' || env === 'false') return 'line';
 
-    if (opts.settingsFullscreen) return 'fullscreen';
-    return 'line';
+    if (opts.settingsFullscreen === false) return 'line';
+    return 'fullscreen';
 }
