@@ -59,6 +59,9 @@ export function rebuildFooter(ctx: TuiContext): void {
         ? Date.now() - ctx.turnStartedAt
         : undefined;
     const stateStr = ctx.streamState === 'responding' ? 'responding\u2026' : ctx.streamState === 'tool' ? 'working\u2026' : 'idle';
+    const projectDisplay = ctx.projectRoot
+        ? ctx.projectRoot.replace(process.env['HOME'] || '', '~')
+        : undefined;
     ctx.footer = renderStatusBar({
         model: ctx.info?.model,
         engine: ctx.label,
@@ -67,7 +70,8 @@ export function rebuildFooter(ctx: TuiContext): void {
         elapsed: elapsed && elapsed > 0 ? `${(elapsed / 1000).toFixed(1)}s` : undefined,
         bgtask: ctx.bgtaskCount,
         gitBranch: ctx.isGit ? (ctx.gitBranch || 'agent') : undefined,
-        cwd: ctx.info?.workingDir,
+        cwd: projectDisplay || ctx.info?.workingDir,
+        port: ctx.serverPort,
     });
     const theme = isInitialized() ? (() => { try { return getInteractive().theme; } catch { return null; } })() : null;
     ctx.promptPrefix = theme

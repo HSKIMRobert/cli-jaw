@@ -221,6 +221,8 @@ if (values.simple) {
         serverPort: Number(values.port),
         ideDiff: ideStr,
         gitBranch: gitBranch || undefined,
+        projectRoot: ctx.projectRoot,
+        port: ctx.serverPort,
     });
     for (const line of welcomeLines) console.log(line);
     if (displayMode === 'fullscreen') {

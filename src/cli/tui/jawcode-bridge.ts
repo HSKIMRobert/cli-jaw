@@ -3,6 +3,7 @@
  * Replaces the old ANSI hardcoding adapter with real Component.render() calls.
  */
 import { initJawcodeTui, isInitialized, getInteractive, renderMarkdownJawcode } from './jawcode-render.js';
+import { renderJawWelcome } from './welcome-jaw.js';
 
 export interface JawcodeAdapterState {
     initialized: boolean;
@@ -35,13 +36,19 @@ export function renderWelcome(opts: {
     serverPort: number;
     ideDiff?: string | undefined;
     gitBranch?: string | undefined;
+    projectRoot?: string | undefined;
+    port?: number | undefined;
     recentSessions?: Array<{ label: string; ago: string }> | undefined;
 }): string[] {
-    if (!isInitialized()) return [];
-    const inter = getInteractive();
-    const sessions = (opts.recentSessions || []).map((s: { label: string; ago: string }) => ({ name: s.label, timeAgo: s.ago }));
-    const wc = new inter.WelcomeComponent(opts.version, opts.model, 'anthropic', sessions, []);
-    return wc.render(process.stdout.columns || 80) as string[];
+    return renderJawWelcome({
+        version: opts.version,
+        model: opts.model,
+        engine: opts.engine,
+        projectRoot: opts.projectRoot ?? opts.directory,
+        port: opts.port ?? opts.serverPort,
+        gitBranch: opts.gitBranch,
+        recentSessions: opts.recentSessions,
+    }, process.stdout.columns || 80);
 }
 
 export function renderAssistantChunk(text: string, width: number): string[] {
@@ -114,19 +121,22 @@ export function renderStatusBar(segments: {
     bgtask?: number | undefined;
     gitBranch?: string | undefined;
     cwd?: string | undefined;
+    port?: number | undefined;
 }): string {
     const theme = getTheme();
     if (!theme) return `  ${segments.engine} | ${segments.state}`;
+    const icon = (() => { try { const { sharkIcon } = require('./icons.js'); return sharkIcon(); } catch { return '🦈'; } })();
     const sep = theme.fg('muted', ' │ ');
     const parts: string[] = [];
     if (segments.model) parts.push(theme.fg('accent', segments.model));
-    parts.push(`${segments.engineAccent}${theme.bold(segments.engine)}`);
+    parts.push(`${segments.engineAccent}${theme.bold(`${icon} ${segments.engine}`)}`);
     const stateColor = segments.state === 'idle' ? 'muted' : 'accent';
     parts.push(theme.fg(stateColor, segments.state));
     if (segments.elapsed) parts.push(theme.fg('muted', segments.elapsed));
     if (segments.bgtask && segments.bgtask > 0) parts.push(theme.fg('warning', `⏳${segments.bgtask}`));
     if (segments.gitBranch) parts.push(theme.fg('muted', `ⴲ ${segments.gitBranch}`));
-    if (segments.cwd) parts.push(theme.fg('muted', `📁 ${segments.cwd.replace(process.env['HOME'] || '', '~')}`));
+    if (segments.cwd) parts.push(theme.fg('muted', `📁 ${segments.cwd}`));
+    if (segments.port) parts.push(theme.fg('muted', `:${segments.port}`));
     parts.push(theme.fg('muted', '/quit  /clear'));
     return `  ${parts.join(sep)}`;
 }

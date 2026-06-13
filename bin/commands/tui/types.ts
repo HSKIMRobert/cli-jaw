@@ -130,6 +130,8 @@ export interface TuiContext {
     chatCwd: string;
     isGit: boolean;
     gitBranch?: string;
+    projectRoot?: string;
+    serverPort?: number;
     detectedIde: IdeType;
 
     promptPrefix: string;

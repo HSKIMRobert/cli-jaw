@@ -44,6 +44,9 @@ export async function refreshInfo(ctx: TuiContext): Promise<void> {
             ctx.info = { cli, workingDir: fieldString(s["workingDir"], '~'), model: fieldString(cliSettings["model"]) };
             if (typeof s["locale"] === 'string') ctx.runtimeLocale = s["locale"];
             if (s["tui"] && typeof s["tui"] === 'object') ctx.tuiConfig = { ...ctx.tuiConfig, ...asRecord(s["tui"]) };
+            const pDirs = s["projectDirs"];
+            if (Array.isArray(pDirs) && pDirs.length > 0 && typeof pDirs[0] === 'string') ctx.projectRoot = pDirs[0];
+            if (typeof s["port"] === 'number') ctx.serverPort = s["port"];
         }
         const sr = await fetch(`${ctx.apiUrl}/api/session`, { headers: authHeaders(), signal: AbortSignal.timeout(2000) });
         if (sr.ok) {
