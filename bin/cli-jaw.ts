@@ -55,6 +55,27 @@ if (_homeIdx !== -1 && process.argv[_homeIdx + 1]) {
     process.argv.splice(process.argv.indexOf(_homeEqArg), 1);
 }
 
+// ─── --NNNN port shorthand: sets CLI_JAW_HOME (~/.cli-jaw[-port]) + PORT ───
+// e.g. `jaw serve --3458` → --home ~/.cli-jaw-3458 --port 3458.
+// Must run AFTER --home parsing so an explicit --home wins for the home path.
+const _portShortIdx = process.argv.findIndex(a => /^--\d{2,5}$/.test(a));
+if (_portShortIdx !== -1) {
+    const portStr = process.argv[_portShortIdx]!.slice(2);
+    const portNum = Number(portStr);
+    if (portNum < 1 || portNum > 65535) {
+        console.error(`  ❌ Invalid port: ${portStr} (must be 1–65535)`);
+        process.exit(1);
+    }
+    // Only auto-derive home when --home was not explicitly provided.
+    if (!process.env["CLI_JAW_HOME"]) {
+        process.env["CLI_JAW_HOME"] = portNum === 3457
+            ? join(homedir(), '.cli-jaw')
+            : join(homedir(), `.cli-jaw-${portNum}`);
+    }
+    process.env["PORT"] = portStr;
+    process.argv.splice(_portShortIdx, 1);
+}
+
 const command = process.argv[2];
 
 async function maybePromptForStarOnLaunch(): Promise<void> {
@@ -119,6 +140,7 @@ ${c.cyan}  🦈 jaw${c.reset} — AI agent orchestration platform  ${c.dim}v${pk
 
   ${c.bold}Options:${c.reset}
     --home <path>       Data directory (default: ~/.cli-jaw)
+    --<port>            Port shorthand (e.g. --3458 → --home ~/.cli-jaw-3458 --port 3458)
     --help, -h          Show help (works on all subcommands)
     --version, -v       Show version
 
