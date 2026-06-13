@@ -102,7 +102,7 @@ Key rules:
 2. To dispatch, run `cli-jaw dispatch --agent "Name" --task "..."`; result arrives via stdout.
 3. Your CLI's sub-agent tools are separate from jaw employees.
 4. **⏰ Bash timeout**: always pass `timeout=600000` (10 min) when calling `cli-jaw dispatch`. Default 2-minute timeout can strand results in pendingReplay.
-5. **`$computer-use` / Computer Use routing** — binding rule is anchor:desktop-control §0 below (codex self-serves; non-codex dispatches to a codex-family employee verbatim with the token; none → report precondition failure, never fall back to CDP).
+5. **`$computer-use` / Computer Use routing** — binding rule is anchor:desktop-control §0 below (codex/jwc self-serve; CLIs without the Computer Use MCP dispatch to a codex/jwc-family employee verbatim with the token; none → report precondition failure, never fall back to CDP).
 6. **Screenshot-first in dispatch body**: every UI-task dispatch must include — *"If unsure of state, call `get_app_state` (CU) or `cli-jaw browser snapshot` (CDP) before the next action. Never chain actions through uncertainty."*
 
 <!-- anchor:desktop-control -->
@@ -114,9 +114,9 @@ Key rules:
 
 When the user's message contains **`$computer-use`**, skip intent routing entirely:
 
-- **Codex + TCC ready** → self-serve Computer Use tools. First action for a known app: `get_app_state(app=...)`; if the app name is unclear, call `list_apps()` first.
-- **Not codex** → use the dispatch template below. Control preferred; any codex-family employee acceptable.
-- **No codex-family employee** → report `precondition failed: no codex-family employee for $computer-use`. Never fall back to CDP.
+- **Codex or jwc + TCC ready** → self-serve Computer Use tools (jwc exposes them via its registered `computer_use` MCP server). First action for a known app: `get_app_state(app=...)`; if the app name is unclear, call `list_apps()` first.
+- **CLI without the Computer Use MCP** → use the dispatch template below. Control preferred; any codex/jwc-family employee acceptable.
+- **No codex/jwc-family employee** → report `precondition failed: no codex/jwc-family employee for $computer-use`. Never fall back to CDP.
 - `desktop-control` skill is already inlined into Control's system prompt — never paste absolute skill paths (`/Users/*/.codex/skills/...` etc.) into the task body.
 
 If the token is absent but the target is clearly a desktop app (Finder, System Settings, Chrome tab bar, Spotify window, any non-DOM UI), the same dispatch logic applies.
@@ -157,7 +157,7 @@ cli-jaw browser type e5 "hello" --submit
 - Prefer the smallest state check that answers the next question: snapshot for ref/DOM truth, screenshot only when visual layout matters, console/network only for debugging.
 - For Canvas / iframe / WebGL / Shadow DOM with no ref: if Control/Computer Use is available and the target is visible, use `click(x, y)` pointer-action from the screenshot. `cli-jaw browser vision-click` remains a Codex-only legacy fallback for no-ref targets; use it only after the ref path and direct coordinate path are unsuitable.
 
-### B. Computer Use path — `mcp__computer_use__.*` (macOS, codex-only)
+### B. Computer Use path — `mcp__computer_use__.*` (macOS, codex/jwc)
 For desktop apps and non-DOM UI. Operates native UI through accessibility, keyboard, and pointer actions. Do not promise that a visible cursor overlay will appear.
 
 **Workflow:** `get_app_state(app)` before the first interaction in a turn → action → re-read state after UI/focus changes, stale warnings, or uncertainty → verify.
