@@ -13,6 +13,7 @@ import { colorizeDiff } from '../../../src/cli/tui/diffview.js';
 import { c, type TuiContext } from './types.js';
 import { openPromptBlock, rebuildFooter } from './renderer.js';
 import { dismissOverlay } from './overlays.js';
+import { startSpinner, stopSpinner } from '../../../src/cli/tui/spinner.js';
 
 function isFullscreen(ctx: TuiContext): boolean {
     return ctx.displayMode === 'fullscreen';
@@ -78,6 +79,7 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                 break;
 
             case 'agent_done':
+                stopSpinner();
                 clearEphemeralStatus(transcript);
                 if (ctx.isRaw) {
                     console.log(`  ${c.dim}${raw}${c.reset}`);
@@ -139,6 +141,11 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                 } else if (msg.status === 'running') {
                     const name = msg.agentName || msg.agentId || 'agent';
                     appendStatusItem(transcript, `${name} thinking\u2026`);
+                    startSpinner((ch) => {
+                        if (!isFullscreen(ctx)) {
+                            process.stdout.write(`\r  ${c.dim}${ch} ${name} thinking\u2026${c.reset}          \r`);
+                        }
+                    });
                     if (!isFullscreen(ctx)) {
                         process.stdout.write(`\r  ${c.dim}\u25CC ${name} thinking\u2026${c.reset}          \r`);
                     } else {

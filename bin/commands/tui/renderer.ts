@@ -5,7 +5,7 @@ import { getComposerDisplayText, getDisplayCursorOffset } from '../../../src/cli
 import { closeAutocomplete } from '../../../src/cli/tui/overlay.js';
 import { visualWidth, cursorScreenPos } from '../../../src/cli/tui/renderers.js';
 import { resolveShellLayout, setupScrollRegion } from '../../../src/cli/tui/shell.js';
-import { c, hrLine, getRows, formatFooter, type TuiContext } from './types.js';
+import { c, hrLine, getRows, formatFooterFull, type TuiContext } from './types.js';
 
 const contPrefixFor = () => `  ${c.dim}\u00B7 ${c.reset}`;
 
@@ -56,7 +56,12 @@ export function rebuildFooter(ctx: TuiContext): void {
     const elapsed = ctx.streamState !== 'idle' && ctx.turnStartedAt > 0
         ? Date.now() - ctx.turnStartedAt
         : undefined;
-    ctx.footer = formatFooter(ctx.label, ctx.accent, ctx.streamState, elapsed, ctx.bgtaskCount);
+    ctx.footer = formatFooterFull(ctx.label, ctx.accent, ctx.streamState, {
+        elapsedMs: elapsed,
+        bgtaskCount: ctx.bgtaskCount,
+        model: ctx.info?.model,
+        cwd: ctx.info?.workingDir,
+    });
     ctx.promptPrefix = `  ${ctx.accent}${c.bold}\u276F${c.reset} `;
     if (ctx.displayMode === 'fullscreen') return;
     setupScrollRegion(

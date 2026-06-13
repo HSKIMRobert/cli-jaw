@@ -74,6 +74,23 @@ export function formatFooter(
     return `  ${accent}${c.bold}${label}${c.reset}${sep}${stateColored}${elapsed}${bgtask}${sep}${c.dim}/quit  /clear${c.reset}`;
 }
 
+/** Enhanced footer with model + path segments. */
+export function formatFooterFull(
+    label: string,
+    accent: string,
+    state: 'idle' | 'responding' | 'tool',
+    opts: { elapsedMs?: number | undefined; bgtaskCount?: number | undefined; model?: string | undefined; cwd?: string | undefined },
+): string {
+    const stateLabel = state === 'responding' ? 'responding…' : state === 'tool' ? 'working…' : 'idle';
+    const stateColored = state === 'idle' ? `${c.dim}${stateLabel}${c.reset}` : `${accent}${stateLabel}${c.reset}`;
+    const elapsed = opts.elapsedMs && opts.elapsedMs > 0 ? ` ${c.dim}${(opts.elapsedMs / 1000).toFixed(1)}s${c.reset}` : '';
+    const bgtask = opts.bgtaskCount && opts.bgtaskCount > 0 ? ` ${c.magenta}⏳${opts.bgtaskCount}${c.reset}` : '';
+    const sep = `${c.dim} │ ${c.reset}`;
+    const modelSeg = opts.model ? `${c.cyan}${opts.model}${c.reset} ` : '';
+    const pathSeg = opts.cwd ? `${sep}${c.dim}📁 ${opts.cwd.replace(process.env['HOME'] || '', '~')}${c.reset}` : '';
+    return `  ${modelSeg}${accent}${c.bold}${label}${c.reset}${sep}${stateColored}${elapsed}${bgtask}${pathSeg}${sep}${c.dim}/quit  /clear${c.reset}`;
+}
+
 // ─── Shared state interface ──────────────────
 export interface TuiContext {
     ws: ChatChannel;

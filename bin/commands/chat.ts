@@ -18,7 +18,7 @@ import { shouldShowHelp, printAndExit } from '../helpers/help.js';
 if (shouldShowHelp(process.argv)) printAndExit(`
   jaw chat — interactive terminal REPL
 
-  Usage: jaw chat [--port <3457>] [--raw] [--simple]
+  Usage: jaw chat [--port <3457>] [--<port>] [--raw] [--simple]
 
   Connects to the running jaw server for interactive chat.
   Server must be running first (jaw serve).
@@ -30,6 +30,7 @@ if (shouldShowHelp(process.argv)) printAndExit(`
 
   Options:
     --port <N>   Server port (default: 3457)
+    --<N>        Port shorthand (e.g. --3458)
     --theme <name>  TUI color theme: dark | light (default: dark, or settings tui.theme)
     --fullscreen    Alt-screen TUI (modern full-screen mode)
     --classic       Force line-mode TUI (default when fullscreen off)
@@ -64,8 +65,17 @@ function findPackageRoot(start: string): string {
 }
 loadLocales(join(findPackageRoot(__dirname), 'public', 'locales'));
 
+// --NNNN shorthand → --port NNNN (e.g. jaw chat --3458)
+const rawArgs = process.argv.slice(3);
+const args: string[] = [];
+for (const arg of rawArgs) {
+    const m = /^--(\d{2,5})$/.exec(arg);
+    if (m) { args.push('--port', m[1]!); }
+    else { args.push(arg); }
+}
+
 const { values } = parseArgs({
-    args: process.argv.slice(3),
+    args,
     options: {
         port: { type: 'string', default: process.env["PORT"] || '3457' },
         raw: { type: 'boolean', default: false },
@@ -194,19 +204,20 @@ if (values.simple) {
     for (const line of art) console.log(`  ${c.cyan}${c.bold}${line}${c.reset}`);
     console.log(`  ${c.dim}v${APP_VERSION}${c.reset}${ctx.isRaw ? `  ${c.dim}(raw json)${c.reset}` : ''}`);
     console.log('');
-    console.log(`  ${c.dim}engine:${c.reset}    ${ctx.accent}${ctx.label}${c.reset}`);
+    const pad = (label: string) => label.padEnd(12);
+    console.log(`  ${c.dim}${pad('engine:')}${c.reset}${ctx.accent}${c.bold}${ctx.label}${c.reset}`);
     if (modelStr) console.log(`  ${modelStr}`);
-    console.log(`  ${c.dim}directory:${c.reset}  ${c.cyan}${ctx.dir}${c.reset}`);
-    console.log(`  ${c.dim}server:${c.reset}    ${c.green}\u25CF${c.reset} localhost:${values.port}`);
+    console.log(`  ${c.dim}${pad('directory:')}${c.reset}${c.cyan}${ctx.dir}${c.reset}`);
+    console.log(`  ${c.dim}${pad('server:')}${c.reset}${c.green}\u25CF${c.reset} localhost:${values.port}`);
     if (ctx.ideEnabled) {
         const ideName = detectedIde || 'terminal';
-        console.log(`  ${c.dim}ide diff:${c.reset}  ${c.green}\u25CF${c.reset} ON (${ideName}, git)`);
+        console.log(`  ${c.dim}${pad('ide diff:')}${c.reset}${c.green}\u25CF${c.reset} ON (${ideName}, git)`);
     } else if (!isGit) {
-        console.log(`  ${c.dim}ide diff:${c.reset}  ${c.yellow}\u25CB${c.reset} OFF (non-git)`);
+        console.log(`  ${c.dim}${pad('ide diff:')}${c.reset}${c.yellow}\u25CB${c.reset} OFF (non-git)`);
     }
     console.log('');
-    console.log(`  ${c.dim}/quit to exit, /clear to clear screen, /reset confirm to factory reset${c.reset}`);
-    console.log(`  ${c.dim}/file <path> to attach${c.reset}`);
+    console.log(`  ${c.dim}${c.bold}Flow keys${c.reset}${c.dim}: /  \u00B7  #  \u00B7  !  \u00B7  $  \u00B7  ?${c.reset}`);
+    console.log(`  ${c.dim}/quit  /clear  /reset confirm  /file <path>${c.reset}`);
     if (displayMode === 'fullscreen') {
         console.log(`  ${c.dim}(fullscreen alt-screen mode)${c.reset}`);
     }
