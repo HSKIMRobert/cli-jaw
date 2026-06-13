@@ -16,6 +16,7 @@ import { solveLayout, type Regions } from '../../../src/cli/tui/render/layout.js
 import { parseSgrMouse, isMouseSequence } from '../../../src/cli/tui/render/mouse.js';
 import { Viewport } from '../../../src/cli/tui/render/viewport.js';
 import type { TranscriptItem } from '../../../src/cli/tui/transcript.js';
+import { toggleToolExpansion } from '../../../src/cli/tui/transcript.js';
 import { clipTextToCols } from '../../../src/cli/tui/renderers.js';
 import { cleanupScrollRegion, resolveShellLayout } from '../../../src/cli/tui/shell.js';
 import type { TuiContext } from './types.js';
@@ -238,6 +239,11 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
         const regions = currentRegions(ctx);
         for (const token of tokens) {
             const action = classifyKeyAction(token);
+            if (action === 'ctrl-o') {
+                toggleToolExpansion(ctx.store.transcript);
+                scheduler.request();
+                continue;
+            }
             if (handleScrollKey(ctx, viewport, action, regions)) {
                 scheduler.request();
                 continue;
