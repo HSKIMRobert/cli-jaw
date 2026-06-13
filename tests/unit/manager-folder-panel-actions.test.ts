@@ -45,6 +45,7 @@ test('FolderPanel starts from explicit initial root policy instead of project ro
     assert.ok(panel.includes('source.getInitialRoot()'), 'FolderPanel must use the source initial-root policy');
     assert.equal(panel.includes('source.getDefaultRoot()'), false, 'FolderPanel must not call getDefaultRoot on mount');
     assert.equal(panel.includes('projectDirs'), false, 'FolderPanel must not import or mutate projectDirs');
+    assert.ok(panel.includes('props.onRootChange?.(picked)'), 'manual Open Folder picks must sync the parent external root state');
     assert.ok(sources.includes('getInitialRoot: async () => null'), 'Electron source must start with an empty root');
     assert.ok(sources.includes("getInitialRoot: async () => ''"), 'notes-vault source must keep its virtual notes root');
 });

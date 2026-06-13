@@ -17,6 +17,7 @@ type FolderPanelProps = {
     externalRootPath?: string | null | undefined;
     notesTree?: NotesTreeEntry[] | undefined;
     notesRoot?: string | null | undefined;
+    onRootChange?: ((path: string | null) => void) | undefined;
     onPreviewFile?: ((path: string) => void) | undefined;
 };
 
@@ -80,13 +81,14 @@ export function FolderPanel(props: FolderPanelProps) {
         const picked = await source.pickRoot();
         if (picked) {
             if (rootPath && source.unwatchDir) void source.unwatchDir(rootPath);
+            props.onRootChange?.(picked);
             setRootPath(picked);
             setExpanded(new Set());
             setChildrenCache(new Map());
             setSelectedPath(null);
             await loadDir(picked);
         }
-    }, [loadDir, rootPath, source]);
+    }, [loadDir, props, rootPath, source]);
 
     useEffect(() => {
         if (initialRootResolvedRef.current || rootPath !== null || props.externalRootPath) return;

@@ -364,6 +364,9 @@ test('Electron right sidebar exposes icon panel switcher and document preview pa
     assert.ok(router.includes("panelLayout.dispatch({ type: 'OPEN_RIGHT_PANEL', mode: 'doc', slot: 'bottom' })"), 'selecting a file must open document preview in a folder/file split view');
     assert.ok(folder.includes('onPreviewFile'), 'folder panel must expose file selection to the preview panel');
     assert.ok(folder.includes("props.onPreviewFile?.(entry.path)"), 'clicking a file in Folders must open it in preview');
+    assert.ok(folder.includes('onRootChange'), 'folder panel must report manual root changes back to the owning right sidebar');
+    assert.ok(router.includes('setRightFolderRootPath'), 'right sidebar must own and update the FolderPanel root prop');
+    assert.ok(router.includes('onRootChange={onFolderRootChange}'), 'manual Open Folder must replace stale dropped-folder roots');
     assert.ok(folderSources.includes('getInitialRoot'), 'folder panel source must expose explicit initial root policy');
     assert.ok(folderSources.includes('getInitialRoot: async () => null'), 'Electron FolderPanel must start empty instead of opening an implicit root');
     assert.equal(folderSources.includes('bridge.getDefaultRoot()'), false, 'Electron FolderPanel source must not call getDefaultRoot on initial render');
