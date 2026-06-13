@@ -7,6 +7,7 @@ import { visualWidth, cursorScreenPos } from '../../../src/cli/tui/renderers.js'
 import { resolveShellLayout, setupScrollRegion } from '../../../src/cli/tui/shell.js';
 import { c, hrLine, getRows, type TuiContext } from './types.js';
 import { renderStatusBar } from '../../../src/cli/tui/jawcode-bridge.js';
+import { isInitialized, getInteractive } from '../../../src/cli/tui/jawcode-render.js';
 
 const contPrefixFor = () => `  ${c.dim}\u00B7 ${c.reset}`;
 
@@ -68,7 +69,10 @@ export function rebuildFooter(ctx: TuiContext): void {
         gitBranch: ctx.isGit ? (ctx.gitBranch || 'agent') : undefined,
         cwd: ctx.info?.workingDir,
     });
-    ctx.promptPrefix = `  ${ctx.accent}${c.bold}\u276F${c.reset} `;
+    const theme = isInitialized() ? (() => { try { return getInteractive().theme; } catch { return null; } })() : null;
+    ctx.promptPrefix = theme
+        ? `  ${theme.fg('accent', theme.bold('\u276F'))} `
+        : `  ${ctx.accent}${c.bold}\u276F${c.reset} `;
     if (ctx.displayMode === 'fullscreen') return;
     setupScrollRegion(
         ctx.footer,
@@ -79,6 +83,14 @@ export function rebuildFooter(ctx: TuiContext): void {
 
 export function renderBlockSeparator(): void {
     process.stdout.write('\n');
+    if (isInitialized()) {
+        try {
+            const { DynamicBorder } = getInteractive();
+            const db = new DynamicBorder();
+            console.log(db.render(process.stdout.columns || 80)[0] || '');
+            return;
+        } catch { /* fallback */ }
+    }
     console.log(`  ${c.dim}${hrLine()}${c.reset}`);
 }
 
