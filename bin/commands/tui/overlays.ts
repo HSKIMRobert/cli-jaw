@@ -439,7 +439,7 @@ export async function runSlashCommand(ctx: TuiContext, parsed: ParsedSlashComman
         if (result?.code === 'exit') {
             exiting = true;
             cleanupScrollRegion(resolveShellLayout(process.stdout.columns || 80, getRows(), panes));
-            console.log(`  ${c.dim}Bye! \uD83E\uDD9E${c.reset}\n`);
+            console.log(`  ${c.dim}Bye! \uD83E\uDD88${c.reset}\n`);
             setBracketedPaste(false);
             ctx.ws.close();
             process.stdin.setRawMode(false);
