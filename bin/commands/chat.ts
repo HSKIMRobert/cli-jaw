@@ -136,7 +136,7 @@ if (resolvedTheme === 'light' || resolvedTheme === 'dark') {
 const displayMode = resolveTuiDisplayMode({
     fullscreenFlag: values.fullscreen ? true : undefined,
     classicFlag: values.classic ? true : undefined,
-    settingsFullscreen: (tuiConfig as Record<string, unknown>)['fullscreen'] === true,
+    settingsFullscreen: (tuiConfig as Record<string, unknown>)['fullscreen'] as boolean | undefined,
 });
 
 const chatCwd = process.cwd();
