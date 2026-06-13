@@ -1,11 +1,29 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getDesktop, type FolderBridgeApi } from '../panels/desktop-bridge';
 import type { NotesTreeEntry } from '../notes/notes-types';
+import { copyText } from '../clipboard/copy-text';
 import { createElectronFolderSource, createNotesVaultFolderSource, type FolderPanelEntry } from './folder-sources';
 import './folder-panel.css';
 
+const FOLDER_ENTRY_MIME = 'application/x-cli-jaw-folder-entry';
+
 function getFolderBridge(): FolderBridgeApi | null {
     return getDesktop()?.folder ?? null;
+}
+
+function parentPath(path: string): string {
+    const idx = path.lastIndexOf('/');
+    return idx > 0 ? path.slice(0, idx) : '/';
+}
+
+function isDescendantPath(parent: string, child: string): boolean {
+    return child === parent || child.startsWith(`${parent}/`);
+}
+
+function relativeFolderPath(root: string | null, path: string): string {
+    if (!root) return path;
+    const base = root.endsWith('/') ? root : `${root}/`;
+    return path.startsWith(base) ? path.slice(base.length) : path;
 }
 
 type FolderPanelProps = {
@@ -27,6 +45,14 @@ export function FolderPanel(props: FolderPanelProps) {
     const [expanded, setExpanded] = useState<Set<string>>(new Set());
     const [childrenCache, setChildrenCache] = useState<Map<string, FolderPanelEntry[]>>(new Map());
     const [error, setError] = useState<string | null>(null);
+    const [selectedPath, setSelectedPath] = useState<string | null>(null);
+    const [draggedEntry, setDraggedEntry] = useState<FolderPanelEntry | null>(null);
+    const [dropTargetPath, setDropTargetPath] = useState<string | null>(null);
+    const [pendingMove, setPendingMove] = useState<{ source: FolderPanelEntry; target: FolderPanelEntry } | null>(null);
+    const [isMoving, setIsMoving] = useState(false);
+    const [skipInternalMoveConfirm, setSkipInternalMoveConfirm] = useState(false);
+    const [skipMoveConfirmChecked, setSkipMoveConfirmChecked] = useState(false);
+    const [actionStatus, setActionStatus] = useState<string | null>(null);
 
     const loadDir = useCallback(async (dirPath: string) => {
         try {
@@ -38,8 +64,8 @@ export function FolderPanel(props: FolderPanelProps) {
         }
     }, [source]);
 
-    const loadChildren = useCallback(async (dirPath: string) => {
-        if (childrenCache.has(dirPath)) return;
+    const loadChildren = useCallback(async (dirPath: string, options: { force?: boolean } = {}) => {
+        if (!options.force && childrenCache.has(dirPath)) return;
         try {
             const nextEntries = await source.listDir(dirPath);
             setChildrenCache(prev => new Map(prev).set(dirPath, nextEntries));
@@ -69,6 +95,7 @@ export function FolderPanel(props: FolderPanelProps) {
             setRootPath(picked);
             setExpanded(new Set());
             setChildrenCache(new Map());
+            setSelectedPath(null);
             await loadDir(picked);
         }
     }, [loadDir, rootPath, source]);
@@ -92,6 +119,7 @@ export function FolderPanel(props: FolderPanelProps) {
         setRootPath(externalRoot);
         setExpanded(new Set());
         setChildrenCache(new Map());
+        setSelectedPath(null);
         void loadDir(externalRoot);
     }, [loadDir, props.externalRootPath, rootPath, source]);
 
@@ -107,13 +135,121 @@ export function FolderPanel(props: FolderPanelProps) {
         };
     }, [source, rootPath, loadDir]);
 
+    const allEntries = useMemo(() => {
+        const flattened = [...entries];
+        for (const children of childrenCache.values()) flattened.push(...children);
+        return flattened;
+    }, [childrenCache, entries]);
+    const selectedEntry = allEntries.find(entry => entry.path === selectedPath) ?? null;
+    const canUseNativeActions = source.kind === 'electron-folder';
+
+    const refreshAfterMove = useCallback(async (sourcePath: string, targetPath: string) => {
+        if (!rootPath) return;
+        const sourceParent = parentPath(sourcePath);
+        setChildrenCache(prev => {
+            const next = new Map(prev);
+            next.delete(sourceParent);
+            next.delete(targetPath);
+            return next;
+        });
+        await loadDir(rootPath);
+        if (expanded.has(sourceParent)) await loadChildren(sourceParent, { force: true });
+        if (expanded.has(targetPath)) await loadChildren(targetPath, { force: true });
+    }, [expanded, loadChildren, loadDir, rootPath]);
+
+    const executeMove = useCallback(async (move: { source: FolderPanelEntry; target: FolderPanelEntry }) => {
+        if (!source.movePath) return;
+        setIsMoving(true);
+        try {
+            const result = await source.movePath(move.source.path, move.target.path);
+            const movedPath = result.moved?.to ?? move.source.path;
+            setSelectedPath(movedPath);
+            setActionStatus(`Moved ${move.source.name}`);
+            setPendingMove(null);
+            await refreshAfterMove(move.source.path, move.target.path);
+        } catch (err) {
+            setError((err as Error).message);
+        } finally {
+            setIsMoving(false);
+        }
+    }, [refreshAfterMove, source]);
+
+    const requestMove = useCallback((sourceEntry: FolderPanelEntry, targetEntry: FolderPanelEntry) => {
+        if (!source.movePath || sourceEntry.path === targetEntry.path) return;
+        if (sourceEntry.kind === 'directory' && isDescendantPath(sourceEntry.path, targetEntry.path)) return;
+        const move = { source: sourceEntry, target: targetEntry };
+        if (skipInternalMoveConfirm) {
+            void executeMove(move);
+            return;
+        }
+        setSkipMoveConfirmChecked(false);
+        setPendingMove(move);
+    }, [executeMove, skipInternalMoveConfirm, source.movePath]);
+
+    const copySelectedPath = useCallback(async (kind: 'absolute' | 'relative') => {
+        if (!selectedEntry) return;
+        const value = kind === 'relative' ? relativeFolderPath(rootPath, selectedEntry.path) : selectedEntry.path;
+        const result = await copyText(value);
+        if (result.ok) {
+            setActionStatus(kind === 'relative' ? 'Copied relative path' : 'Copied path');
+            setError(null);
+        } else {
+            setError(result.error ?? 'Failed to copy path');
+        }
+    }, [rootPath, selectedEntry]);
+
+    const revealSelectedPath = useCallback(async () => {
+        if (!selectedEntry || !source.revealPath) return;
+        try {
+            await source.revealPath(selectedEntry.path);
+            setActionStatus(selectedEntry.kind === 'directory' ? 'Opened folder in Finder' : 'Revealed file in Finder');
+            setError(null);
+        } catch (err) {
+            setError((err as Error).message);
+        }
+    }, [selectedEntry, source]);
+
     function renderEntries(items: FolderPanelEntry[], depth: number): React.ReactNode[] {
         return items.map(entry => (
             <div key={entry.path}>
                 <div
-                    className={`folder-entry folder-entry-${entry.kind}`}
+                    className={[
+                        'folder-entry',
+                        `folder-entry-${entry.kind}`,
+                        selectedPath === entry.path ? 'is-selected' : '',
+                        dropTargetPath === entry.path ? 'is-drop-target' : '',
+                        draggedEntry?.path === entry.path ? 'is-dragging' : '',
+                    ].filter(Boolean).join(' ')}
                     role="treeitem"
                     aria-selected={entry.kind === 'file' && entry.path === props.selectedFilePath}
+                    draggable={canUseNativeActions}
+                    onDragStart={(event) => {
+                        if (!canUseNativeActions) return;
+                        setDraggedEntry(entry);
+                        event.dataTransfer.effectAllowed = 'move';
+                        event.dataTransfer.setData(FOLDER_ENTRY_MIME, entry.path);
+                    }}
+                    onDragEnd={() => {
+                        setDraggedEntry(null);
+                        setDropTargetPath(null);
+                    }}
+                    onDragOver={(event) => {
+                        if (!draggedEntry || entry.kind !== 'directory') return;
+                        if (draggedEntry.path === entry.path) return;
+                        if (draggedEntry.kind === 'directory' && isDescendantPath(draggedEntry.path, entry.path)) return;
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = 'move';
+                        setDropTargetPath(entry.path);
+                    }}
+                    onDragLeave={() => {
+                        if (dropTargetPath === entry.path) setDropTargetPath(null);
+                    }}
+                    onDrop={(event) => {
+                        if (!draggedEntry || entry.kind !== 'directory') return;
+                        event.preventDefault();
+                        setDropTargetPath(null);
+                        requestMove(draggedEntry, entry);
+                    }}
                 >
                     {depth > 0 && (
                         <span className="folder-indent" aria-hidden="true">
@@ -124,6 +260,7 @@ export function FolderPanel(props: FolderPanelProps) {
                     )}
                     <button type="button" className="folder-entry-btn"
                         onClick={() => {
+                            setSelectedPath(entry.path);
                             if (entry.kind === 'directory') toggleExpand(entry.path);
                             else props.onPreviewFile?.(entry.path);
                         }}>
@@ -149,13 +286,46 @@ export function FolderPanel(props: FolderPanelProps) {
                     <button type="button" className="folder-refresh" onClick={() => void loadDir(rootPath)}>↻</button>
                 )}
             </div>
+            <div className="folder-action-row" aria-label="Folder actions">
+                <button type="button" className="folder-action-btn" disabled={!selectedEntry} onClick={() => void copySelectedPath('absolute')}>Copy</button>
+                <button type="button" className="folder-action-btn" disabled={!selectedEntry} onClick={() => void copySelectedPath('relative')}>Relative</button>
+                <button type="button" className="folder-action-btn" disabled={!selectedEntry || !source.revealPath} onClick={() => void revealSelectedPath()}>Finder</button>
+            </div>
             {error && <div className="folder-error">{error}</div>}
+            {actionStatus && !error && <div className="folder-status">{actionStatus}</div>}
             <div className="folder-tree" role="tree">
                 {renderEntries(entries, 0)}
                 {entries.length === 0 && !error && rootPath !== null && (
                     <div className="folder-empty">{source.kind === 'notes-vault' ? 'No notes in vault' : 'Empty directory'}</div>
                 )}
             </div>
+            {pendingMove && (
+                <div className="folder-move-confirm" role="dialog" aria-label="Confirm folder move">
+                    <div className="folder-move-confirm__title">Move "{pendingMove.source.name}" into "{pendingMove.target.name}"?</div>
+                    <label className="folder-move-confirm__option">
+                        <input
+                            type="checkbox"
+                            checked={skipMoveConfirmChecked}
+                            onChange={event => setSkipMoveConfirmChecked(event.target.checked)}
+                        />
+                        Don't ask again for internal moves this session
+                    </label>
+                    <div className="folder-move-confirm__actions">
+                        <button type="button" className="folder-action-btn" disabled={isMoving} onClick={() => setPendingMove(null)}>Cancel</button>
+                        <button
+                            type="button"
+                            className="folder-action-btn is-primary"
+                            disabled={isMoving}
+                            onClick={() => {
+                                if (skipMoveConfirmChecked) setSkipInternalMoveConfirm(true);
+                                void executeMove(pendingMove);
+                            }}
+                        >
+                            {isMoving ? 'Moving...' : 'Move'}
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

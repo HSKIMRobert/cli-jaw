@@ -1,4 +1,4 @@
-import type { FolderBridgeApi } from '../panels/desktop-bridge';
+import type { FolderBridgeApi, FolderMoveResult } from '../panels/desktop-bridge';
 import { fetchNoteFile } from '../notes/notes-api';
 import type { NotesTreeEntry } from '../notes/notes-types';
 
@@ -11,6 +11,8 @@ export type FolderPanelEntry = {
     size: number;
 };
 
+export type FolderPanelMoveResult = FolderMoveResult;
+
 export type FolderPanelSource = {
     kind: FolderPanelSourceKind;
     label: string;
@@ -19,6 +21,9 @@ export type FolderPanelSource = {
     pickRoot?: () => Promise<string | null>;
     listDir: (path: string) => Promise<FolderPanelEntry[]>;
     readFile?: (path: string) => Promise<{ content: string; binary?: boolean }>;
+    movePath?: (sourcePath: string, targetDirectory: string) => Promise<FolderPanelMoveResult>;
+    revealPath?: (path: string) => Promise<void>;
+    copyBasePath?: string | null;
     watchDir?: (path: string) => Promise<void>;
     unwatchDir?: (path: string) => Promise<void>;
     onDirChange?: (cb: (path: string) => void) => () => void;
@@ -66,6 +71,15 @@ export function createElectronFolderSource(bridge: FolderBridgeApi): FolderPanel
             const result = await bridge.readFile(path);
             if (!result.ok || result.content === undefined) throw new Error(result.error ?? 'Failed to read file');
             return { content: result.content, ...(result.binary !== undefined ? { binary: result.binary } : {}) };
+        },
+        movePath: async (sourcePath: string, targetDirectory: string) => {
+            const result = await bridge.movePath(sourcePath, targetDirectory);
+            if (!result.ok) throw new Error(result.error ?? 'Failed to move path');
+            return result;
+        },
+        revealPath: async (path: string) => {
+            const result = await bridge.revealPath(path);
+            if (!result.ok) throw new Error(result.error ?? 'Failed to reveal path');
         },
         watchDir: path => bridge.watchDir(path),
         unwatchDir: path => bridge.unwatchDir(path),

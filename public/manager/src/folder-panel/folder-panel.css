@@ -43,10 +43,44 @@
     color: var(--text-dim);
 }
 .folder-refresh:hover { background: var(--bg-hover); color: var(--text-base); }
+.folder-action-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 10px;
+    border-bottom: 1px solid var(--border-subtle);
+    flex-shrink: 0;
+}
+.folder-action-btn {
+    all: unset;
+    box-sizing: border-box;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+    color: var(--text-dim);
+    background: var(--bg-hover);
+}
+.folder-action-btn:hover:not(:disabled) {
+    color: var(--text-base);
+    background: var(--bg-active);
+}
+.folder-action-btn:disabled {
+    cursor: default;
+    opacity: 0.45;
+}
+.folder-action-btn.is-primary {
+    color: var(--accent-primary);
+}
 .folder-error {
     padding: 8px 10px;
     font-size: 11px;
     color: var(--status-error);
+}
+.folder-status {
+    padding: 6px 10px;
+    font-size: 11px;
+    color: var(--text-dim);
 }
 .folder-tree {
     flex: 1;
@@ -60,6 +94,17 @@
     padding-left: 8px;
 }
 .folder-entry:hover { background: var(--bg-hover); }
+.folder-entry.is-selected {
+    background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+}
+.folder-entry.is-drop-target {
+    background: color-mix(in srgb, var(--accent-primary) 16%, transparent);
+    outline: 1px solid color-mix(in srgb, var(--accent-primary) 44%, transparent);
+    outline-offset: -1px;
+}
+.folder-entry.is-dragging {
+    opacity: 0.58;
+}
 .folder-indent {
     display: flex;
     flex-shrink: 0;
@@ -90,6 +135,31 @@
 .folder-entry-icon { width: 12px; text-align: center; flex-shrink: 0; color: var(--text-dim); }
 .folder-entry-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .folder-entry-directory .folder-entry-name { font-weight: 500; }
+.folder-move-confirm {
+    border-top: 1px solid var(--border-subtle);
+    padding: 8px 10px;
+    background: var(--bg-elevated);
+    box-shadow: 0 -8px 18px rgba(0, 0, 0, 0.18);
+}
+.folder-move-confirm__title {
+    margin-bottom: 7px;
+    color: var(--text-base);
+    font-size: 12px;
+    line-height: 1.35;
+}
+.folder-move-confirm__option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    color: var(--text-dim);
+    font-size: 11px;
+}
+.folder-move-confirm__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+}
 .folder-empty {
     padding: 12px;
     color: var(--text-dim);
