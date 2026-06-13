@@ -35,6 +35,18 @@
     max-width: 200px;
 }
 .folder-pick-btn:hover { background: var(--bg-active); }
+.folder-git-summary {
+    min-width: 0;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-dim);
+    font-size: 11px;
+}
+.folder-git-summary.is-error {
+    color: var(--status-error);
+}
 .folder-refresh {
     all: unset;
     cursor: pointer;
@@ -152,6 +164,48 @@
 .folder-entry-icon { width: 12px; text-align: center; flex-shrink: 0; color: var(--text-dim); }
 .folder-entry-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .folder-entry-directory .folder-entry-name { font-weight: 500; }
+.folder-entry-git-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    min-width: 16px;
+    max-width: 28px;
+    height: 16px;
+    margin-left: auto;
+    padding: 0 3px;
+    border-radius: 3px;
+    color: var(--text-dim);
+    background: transparent;
+    font-size: 10px;
+    line-height: 1;
+}
+.folder-entry.git-modified .folder-entry-git-badge {
+    color: #b7791f;
+    background: color-mix(in srgb, #b7791f 12%, transparent);
+}
+.folder-entry.git-added .folder-entry-git-badge,
+.folder-entry.git-untracked .folder-entry-git-badge {
+    color: #15803d;
+    background: color-mix(in srgb, #15803d 12%, transparent);
+}
+.folder-entry.git-deleted .folder-entry-git-badge,
+.folder-entry.git-conflict .folder-entry-git-badge {
+    color: #dc2626;
+    background: color-mix(in srgb, #dc2626 12%, transparent);
+}
+.folder-entry.git-renamed .folder-entry-git-badge {
+    color: #0f766e;
+    background: color-mix(in srgb, #0f766e 12%, transparent);
+}
+.folder-entry.git-ignored .folder-entry-git-badge {
+    color: var(--text-dim);
+    opacity: 0.62;
+}
+.folder-entry.git-submodule .folder-entry-git-badge {
+    color: #4f46e5;
+    background: color-mix(in srgb, #4f46e5 12%, transparent);
+}
 .folder-move-confirm {
     border-top: 1px solid var(--border-subtle);
     padding: 8px 10px;

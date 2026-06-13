@@ -35,4 +35,5 @@ export type FolderPanelRootState = {
 export type FolderPanelRowDecoration = {
     className?: string;
     label?: string;
+    title?: string;
 };

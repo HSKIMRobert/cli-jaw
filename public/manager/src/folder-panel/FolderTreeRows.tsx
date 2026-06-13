@@ -1,4 +1,4 @@
-import type { FolderPanelEntry } from './folder-panel-types';
+import type { FolderPanelEntry, FolderPanelRowDecoration } from './folder-panel-types';
 import { FOLDER_PANEL_DRAG_MIME, encodeFolderPanelDragPayload } from './folder-drag-payload';
 import { isDescendantPath } from './folder-panel-state';
 
@@ -9,6 +9,7 @@ type FolderTreeRowsProps = {
     childrenCache: Map<string, FolderPanelEntry[]>;
     selectedPath: string | null;
     selectedFilePath?: string | null | undefined;
+    decorationsByPath: Map<string, FolderPanelRowDecoration>;
     dropTargetPath: string | null;
     draggedEntry: FolderPanelEntry | null;
     canUseNativeActions: boolean;
@@ -25,10 +26,14 @@ export function FolderTreeRows(props: FolderTreeRowsProps) {
         <>
             {props.entries.map(entry => (
                 <div key={entry.path}>
+                    {(() => {
+                        const decoration = props.decorationsByPath.get(entry.path);
+                        return (
                     <div
                         className={[
                             'folder-entry',
                             `folder-entry-${entry.kind}`,
+                            decoration?.className ?? '',
                             props.selectedPath === entry.path ? 'is-selected' : '',
                             props.dropTargetPath === entry.path ? 'is-drop-target' : '',
                             props.draggedEntry?.path === entry.path ? 'is-dragging' : '',
@@ -86,8 +91,15 @@ export function FolderTreeRows(props: FolderTreeRowsProps) {
                                 {entry.kind === 'directory' ? (props.expanded.has(entry.path) ? '▾' : '▸') : '·'}
                             </span>
                             <span className="folder-entry-name">{entry.name}</span>
+                            {decoration?.label && (
+                                <span className="folder-entry-git-badge" title={decoration.title} aria-label={decoration.title ?? decoration.label}>
+                                    {decoration.label}
+                                </span>
+                            )}
                         </button>
                     </div>
+                        );
+                    })()}
                     {entry.kind === 'directory' && props.expanded.has(entry.path) && props.childrenCache.has(entry.path) && (
                         <FolderTreeRows
                             {...props}

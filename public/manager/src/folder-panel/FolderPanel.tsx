@@ -6,6 +6,7 @@ import { createElectronFolderSource, createNotesVaultFolderSource, type FolderPa
 import { FolderPanelToolbar } from './FolderPanelToolbar';
 import { FolderTreeRows } from './FolderTreeRows';
 import { dropCachedBranches, isDescendantPath, parentPath, relativeFolderPath } from './folder-panel-state';
+import { useFolderGitStatus } from './use-folder-git-status';
 import './folder-panel.css';
 
 function getFolderBridge(): FolderBridgeApi | null {
@@ -42,6 +43,7 @@ export function FolderPanel(props: FolderPanelProps) {
     const [skipMoveConfirmChecked, setSkipMoveConfirmChecked] = useState(false);
     const [actionStatus, setActionStatus] = useState<string | null>(null);
     const [contextMenu, setContextMenu] = useState<{ entry: FolderPanelEntry; x: number; y: number } | null>(null);
+    const [gitRefreshToken, setGitRefreshToken] = useState(0);
 
     const loadDir = useCallback(async (dirPath: string) => {
         try {
@@ -124,12 +126,19 @@ export function FolderPanel(props: FolderPanelProps) {
         void source.watchDir(rootPath);
         const unsub = source.onDirChange(() => {
             void loadDir(rootPath);
+            setGitRefreshToken(token => token + 1);
         });
         return () => {
             unsub();
             void source.unwatchDir?.(rootPath);
         };
     }, [source, rootPath, loadDir]);
+
+    const gitStatus = useFolderGitStatus({
+        rootPath,
+        enabled: source.kind === 'electron-folder',
+        refreshToken: gitRefreshToken,
+    });
 
     const allEntries = useMemo(() => {
         const flattened = [...entries];
@@ -146,6 +155,7 @@ export function FolderPanel(props: FolderPanelProps) {
         await loadDir(rootPath);
         if (expanded.has(sourceParent)) await loadChildren(sourceParent, { force: true });
         if (expanded.has(targetPath)) await loadChildren(targetPath, { force: true });
+        setGitRefreshToken(token => token + 1);
     }, [expanded, loadChildren, loadDir, rootPath]);
 
     const executeMove = useCallback(async (move: { source: FolderPanelEntry; target: FolderPanelEntry }) => {
@@ -263,8 +273,12 @@ export function FolderPanel(props: FolderPanelProps) {
                 rootPath={rootPath}
                 onPickFolder={() => void pickFolder()}
                 onRefresh={() => {
-                    if (rootPath !== null) void loadDir(rootPath);
+                    if (rootPath !== null) {
+                        void loadDir(rootPath);
+                        setGitRefreshToken(token => token + 1);
+                    }
                 }}
+                gitSummary={source.kind === 'electron-folder' ? gitStatus : undefined}
             />
             {rootPath !== null && (
                 <div className="folder-action-row" aria-label="Folder actions">
@@ -283,6 +297,7 @@ export function FolderPanel(props: FolderPanelProps) {
                     childrenCache={childrenCache}
                     selectedPath={selectedPath}
                     selectedFilePath={props.selectedFilePath}
+                    decorationsByPath={gitStatus.decorationsByPath}
                     dropTargetPath={dropTargetPath}
                     draggedEntry={draggedEntry}
                     canUseNativeActions={canUseNativeActions}
