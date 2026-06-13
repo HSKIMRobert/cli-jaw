@@ -141,26 +141,17 @@ function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
         }
     }
 
-    // jawcode layout: StatusBar → boxed input → hint (top to bottom)
+    // jawcode-style input box with border
+    const innerW = cols - 4;
     const box = isInitialized() ? (() => { try { return getInteractive().theme?.boxSharp; } catch { return null; } })() : null;
     const bTL = box?.topLeft ?? '┌'; const bTR = box?.topRight ?? '┐';
     const bBL = box?.bottomLeft ?? '└'; const bBR = box?.bottomRight ?? '┘';
     const bH = box?.horizontal ?? '─'; const bV = box?.vertical ?? '│';
-    const innerW = cols - 4;
-
-    // 1. StatusBar (above input box)
-    const statusBarRow = regions.statusBar.y;
-    if (statusBarRow >= 1 && statusBarRow <= rows) {
-        frameRows[statusBarRow - 1] = ctx.footer;
-    }
-
-    // 2. Top border of input box
-    const topBorderRow = statusBarRow + 1;
+    const topBorderRow = regions.composer.y - 1;
     if (topBorderRow >= 1 && topBorderRow <= rows) {
         frameRows[topBorderRow - 1] = `${c.dim}${bTL}${bH.repeat(innerW + 2)}${bTR}${c.reset}`;
     }
 
-    // 3. Input box content
     const prefix = `${c.dim}${bV}${c.reset} ${ctx.accent}${c.bold}>${c.reset} `;
     const compLines = composerText.split('\n');
     const hasInput = composerText.trim().length > 0;
@@ -180,16 +171,14 @@ function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
         }
     }
 
-    // 4. Bottom border of input box
     const botBorderRow = regions.composer.y + regions.composer.height;
     if (botBorderRow >= 1 && botBorderRow <= rows) {
         frameRows[botBorderRow - 1] = `${c.dim}${bBL}${bH.repeat(innerW + 2)}${bBR}${c.reset}`;
     }
 
-    // 5. Hint line (below input box)
-    const hintRow = regions.hint.y;
-    if (hintRow >= 1 && hintRow <= rows) {
-        frameRows[hintRow - 1] = `  ${c.dim}? shortcuts · /help · /model · /settings · esc esc exit${c.reset}`;
+    const footerRow = regions.footer.y;
+    if (footerRow >= 1 && footerRow <= rows) {
+        frameRows[footerRow - 1] = ctx.footer;
     }
 
     const ov = ctx.store.overlay;

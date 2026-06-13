@@ -211,22 +211,14 @@ if (values.simple) {
         port: ctx.serverPort,
     };
 
-    if (displayMode === 'fullscreen') {
-        try {
-            const welcomeText = renderWelcome(welcomeOpts).join('\n');
-            ctx.store.transcript.items.push({
-                type: 'assistant' as const, text: welcomeText, timestamp: Date.now(), streaming: false,
-            });
-            await runFullscreenMode(ctx);
-        } catch (err) {
-            process.stderr.write(`fullscreen error: ${err instanceof Error ? err.message : err}\n${err instanceof Error ? err.stack : ''}\n`);
-            process.exit(1);
-        }
-    } else {
     console.log('');
     const welcomeLines = renderWelcome(welcomeOpts);
     for (const line of welcomeLines) console.log(line);
     console.log('');
+
+    if (displayMode === 'fullscreen') {
+        await runFullscreenMode(ctx);
+    } else {
 
     // ─── Raw stdin ───────────────────────────
     process.stdin.setRawMode(true);
