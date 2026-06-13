@@ -25,9 +25,32 @@ function hash(data, seed) {
 import { readFileSync, existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 
+function hexToRgb(hex) {
+    const m = /^#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/.exec(hex);
+    if (!m) return null;
+    return [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
+}
 function bunColor(color, format) {
     if (!color) return null;
-    if (format === 'ansi' || format === 'ansi-16m' || format === 'ansi-256') return color;
+    if (format === 'ansi-16m' || format === 'ansi') {
+        const rgb = hexToRgb(color);
+        if (rgb) return `\x1b[38;2;${rgb[0]};${rgb[1]};${rgb[2]}m`;
+        if (color.startsWith('\x1b[')) return color;
+        return null;
+    }
+    if (format === 'ansi-256') {
+        const rgb = hexToRgb(color);
+        if (rgb) {
+            const idx = 16 + 36 * Math.round(rgb[0] / 255 * 5) + 6 * Math.round(rgb[1] / 255 * 5) + Math.round(rgb[2] / 255 * 5);
+            return `\x1b[38;5;${idx}m`;
+        }
+        return null;
+    }
+    if (format === 'rgb') {
+        const rgb = hexToRgb(color);
+        if (rgb) return { r: rgb[0], g: rgb[1], b: rgb[2] };
+        return null;
+    }
     return color;
 }
 
