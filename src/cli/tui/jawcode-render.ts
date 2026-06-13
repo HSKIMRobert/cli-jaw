@@ -2,8 +2,9 @@
  * jawcode TUI Component→stdout bridge.
  * Renders jawcode-style boxes, status lines, and tool blocks
  * using raw ANSI — no dependency on src/lib/tui/ (avoids 49 TS errors).
- * Portable, zero external deps.
+ * Uses cli-jaw's existing visualWidth for CJK-aware column math.
  */
+import { visualWidth } from './renderers.js';
 
 const DIM = '\x1b[2m';
 const BOLD = '\x1b[1m';
@@ -13,26 +14,22 @@ const GREEN = '\x1b[32m';
 const RED = '\x1b[31m';
 const YELLOW = '\x1b[33m';
 const MAGENTA = '\x1b[35m';
-// const ITALIC = '\x1b[3m'; // reserved for future use
 
 export function renderBox(title: string, lines: string[], width: number, borderColor = DIM): string {
-    const w = Math.min(width, process.stdout.columns || 80);
-    const inner = w - 4;
-    const titlePad = title ? ` ${title} ` : '';
-    const topBar = `${borderColor}  ┌─${titlePad}${'─'.repeat(Math.max(0, inner - titlePad.length - 1))}┐${RESET}`;
-    const botBar = `${borderColor}  └${'─'.repeat(inner + 2)}┘${RESET}`;
-    const body = lines.map(l => `${borderColor}  │${RESET} ${padTo(l, inner)} ${borderColor}│${RESET}`).join('\n');
+    const cols = process.stdout.columns || 80;
+    const w = Math.min(width, cols - 2);
+    const inner = w - 2;
+    const titleStripped = title ? ` ${title} ` : '';
+    const titleVisW = visualWidth(titleStripped);
+    const topFill = Math.max(0, inner - titleVisW - 1);
+    const topBar = `${borderColor}┌─${RESET}${titleStripped}${borderColor}${'─'.repeat(topFill)}┐${RESET}`;
+    const botBar = `${borderColor}└${'─'.repeat(inner + 2)}┘${RESET}`;
+    const body = lines.map(l => {
+        const vis = visualWidth(l);
+        const pad = Math.max(0, inner - vis);
+        return `${borderColor}│${RESET} ${l}${' '.repeat(pad)} ${borderColor}│${RESET}`;
+    }).join('\n');
     return `${topBar}\n${body}\n${botBar}`;
-}
-
-function padTo(text: string, width: number): string {
-    const visible = stripAnsi(text).length;
-    if (visible >= width) return text;
-    return text + ' '.repeat(width - visible);
-}
-
-function stripAnsi(s: string): string {
-    return s.replace(/\x1b\[[0-9;]*m/g, '');
 }
 
 export function renderWelcomeBanner(opts: {
