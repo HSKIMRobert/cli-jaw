@@ -27,9 +27,30 @@ export function isInitialized(): boolean { return _initialized; }
 export function getTui(): any { ensureInit(); return _tui; }
 export function getInteractive(): any { ensureInit(); return _interactive; }
 
+function buildMarkdownTheme(): Record<string, unknown> {
+    const theme = _interactive?.theme;
+    if (!theme?.fg) return {};
+    return {
+        heading: (t: string) => theme.fg('mdHeading', t),
+        link: (t: string) => theme.fg('mdLink', t),
+        linkUrl: (t: string) => theme.fg('mdLinkUrl', t),
+        code: (t: string) => theme.fg('mdCode', t),
+        codeBlock: (t: string) => theme.fg('mdCodeBlock', t),
+        codeBlockBorder: (t: string) => theme.fg('mdCodeBlockBorder', t),
+        quote: (t: string) => theme.fg('mdQuote', t),
+        quoteBorder: (t: string) => theme.fg('mdQuoteBorder', t),
+        hr: (t: string) => theme.fg('mdHr', t),
+        listBullet: (t: string) => theme.fg('mdListBullet', t),
+        bold: (t: string) => theme.bold(t),
+        italic: (t: string) => theme.italic(t),
+        underline: (t: string) => theme.underline(t),
+        strikethrough: (t: string) => `\x1b[9m${t}\x1b[29m`,
+    };
+}
+
 export function renderMarkdownJawcode(text: string, width: number): string[] {
     ensureInit();
-    const mdTheme = _interactive.getMarkdownTheme?.() ?? {};
+    const mdTheme = buildMarkdownTheme();
     const md = new _tui.Markdown(text, 1, 0, mdTheme);
     return md.render(width) as string[];
 }
