@@ -37,6 +37,7 @@ export function createElectronFolderSource(bridge: FolderBridgeApi): FolderPanel
         getInitialRoot: async () => null,
         pickRoot: async () => {
             const result = await bridge.pickFolder();
+            if (!result.ok && result.error === 'cancelled') return null;
             if (!result.ok) throw new Error(result.error ?? 'Failed to pick folder');
             return result.path ?? null;
         },

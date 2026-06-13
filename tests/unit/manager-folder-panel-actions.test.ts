@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { createNotesVaultFolderSource } from '../../public/manager/src/folder-panel/folder-sources.js';
+import type { FolderBridgeApi } from '../../public/manager/src/panels/desktop-bridge.js';
+import { createElectronFolderSource, createNotesVaultFolderSource } from '../../public/manager/src/folder-panel/folder-sources.js';
 
 const root = join(import.meta.dirname, '..', '..');
 
@@ -46,8 +47,31 @@ test('FolderPanel starts from explicit initial root policy instead of project ro
     assert.equal(panel.includes('source.getDefaultRoot()'), false, 'FolderPanel must not call getDefaultRoot on mount');
     assert.equal(panel.includes('projectDirs'), false, 'FolderPanel must not import or mutate projectDirs');
     assert.ok(panel.includes('props.onRootChange?.(picked)'), 'manual Open Folder picks must sync the parent external root state');
+    assert.ok(panel.includes('try {'), 'manual Open Folder must guard async picker failures');
+    assert.ok(panel.includes('setError((err as Error).message)'), 'manual Open Folder must surface non-cancel picker failures in the panel');
+    assert.ok(panel.includes('rootPath !== null &&'), 'empty root state must keep the action row hidden until a root exists');
+    assert.ok(sources.includes("result.error === 'cancelled'"), 'Electron source must normalize picker cancellation into a null result');
     assert.ok(sources.includes('getInitialRoot: async () => null'), 'Electron source must start with an empty root');
     assert.ok(sources.includes("getInitialRoot: async () => ''"), 'notes-vault source must keep its virtual notes root');
+});
+
+test('electron folder source treats picker cancellation as a non-error', async () => {
+    const bridge = mockFolderBridge(async () => ({ ok: false, error: 'cancelled' }));
+    const source = createElectronFolderSource(bridge);
+
+    await assert.doesNotReject(async () => {
+        assert.equal(await source.pickRoot?.(), null);
+    });
+});
+
+test('electron folder source still rejects real picker failures', async () => {
+    const bridge = mockFolderBridge(async () => ({ ok: false, error: 'permission denied' }));
+    const source = createElectronFolderSource(bridge);
+
+    await assert.rejects(
+        async () => source.pickRoot?.(),
+        /permission denied/,
+    );
 });
 
 test('folder panel CSS exposes selected, drop target, drag, action, and confirm states', () => {
@@ -75,3 +99,17 @@ test('notes-vault folder source remains read-only for native filesystem actions'
     assert.equal(source.movePath, undefined);
     assert.equal(source.revealPath, undefined);
 });
+
+function mockFolderBridge(pickFolder: FolderBridgeApi['pickFolder']): FolderBridgeApi {
+    return {
+        getDefaultRoot: async () => ({ ok: true, path: '/tmp' }),
+        pickFolder,
+        listDir: async () => ({ ok: true, entries: [] }),
+        readFile: async () => ({ ok: true, content: '' }),
+        movePath: async () => ({ ok: true }),
+        revealPath: async () => ({ ok: true }),
+        watchDir: async () => undefined,
+        unwatchDir: async () => undefined,
+        onDirChange: () => () => undefined,
+    };
+}

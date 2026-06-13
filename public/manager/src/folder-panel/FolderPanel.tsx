@@ -78,15 +78,20 @@ export function FolderPanel(props: FolderPanelProps) {
 
     const pickFolder = useCallback(async () => {
         if (!source.pickRoot) return;
-        const picked = await source.pickRoot();
-        if (picked) {
-            if (rootPath && source.unwatchDir) void source.unwatchDir(rootPath);
-            props.onRootChange?.(picked);
-            setRootPath(picked);
-            setExpanded(new Set());
-            setChildrenCache(new Map());
-            setSelectedPath(null);
-            await loadDir(picked);
+        try {
+            const picked = await source.pickRoot();
+            if (picked) {
+                if (rootPath && source.unwatchDir) void source.unwatchDir(rootPath);
+                props.onRootChange?.(picked);
+                setRootPath(picked);
+                setExpanded(new Set());
+                setChildrenCache(new Map());
+                setSelectedPath(null);
+                setError(null);
+                await loadDir(picked);
+            }
+        } catch (err) {
+            setError((err as Error).message);
         }
     }, [loadDir, props, rootPath, source]);
 
@@ -261,11 +266,13 @@ export function FolderPanel(props: FolderPanelProps) {
                     if (rootPath !== null) void loadDir(rootPath);
                 }}
             />
-            <div className="folder-action-row" aria-label="Folder actions">
-                <button type="button" className="folder-action-btn" disabled={!selectedEntry} onClick={() => void copySelectedPath('absolute')}>Copy</button>
-                <button type="button" className="folder-action-btn" disabled={!selectedEntry} onClick={() => void copySelectedPath('relative')}>Relative</button>
-                <button type="button" className="folder-action-btn" disabled={!selectedEntry || !source.revealPath} onClick={() => void revealSelectedPath()}>Finder</button>
-            </div>
+            {rootPath !== null && (
+                <div className="folder-action-row" aria-label="Folder actions">
+                    <button type="button" className="folder-action-btn" disabled={!selectedEntry} onClick={() => void copySelectedPath('absolute')}>Copy</button>
+                    <button type="button" className="folder-action-btn" disabled={!selectedEntry} onClick={() => void copySelectedPath('relative')}>Relative</button>
+                    <button type="button" className="folder-action-btn" disabled={!selectedEntry || !source.revealPath} onClick={() => void revealSelectedPath()}>Finder</button>
+                </div>
+            )}
             {error && <div className="folder-error">{error}</div>}
             {actionStatus && !error && <div className="folder-status">{actionStatus}</div>}
             <div className={rootPath === null ? 'folder-tree folder-empty-root' : 'folder-tree'} role="tree">
