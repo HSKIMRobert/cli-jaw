@@ -1,6 +1,11 @@
 // ─── Claude Model Normalization (single source of truth) ──────────
 
-export const CLAUDE_CANONICAL_MODELS = [] as const;
+export const CLAUDE_CANONICAL_MODELS = [
+  'opus',
+  'sonnet',
+  'sonnet[1m]',
+  'haiku',
+] as const;
 
 export type ClaudeCanonicalModel = (typeof CLAUDE_CANONICAL_MODELS)[number];
 
@@ -15,6 +20,7 @@ export type ClaudeCanonicalModel = (typeof CLAUDE_CANONICAL_MODELS)[number];
 // devlog/_plan/260501_claude_model_passthrough/02_grok_research_response.md).
 export const CLAUDE_PINNED_FULL_IDS = [
   'claude-fable-5',
+  'claude-fable-5[1m]',
   'claude-opus-4-8',
   'claude-opus-4-8[1m]',
   'claude-opus-4-7',
