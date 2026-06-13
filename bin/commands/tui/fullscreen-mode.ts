@@ -352,16 +352,18 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
         scheduler.request();
     });
 
-    ctx.ws.on('close', () => {
-        scheduler.dispose();
-        screen.disableMouse();
-        screen.exit();
-        cleanupScrollRegion(resolveShellLayout(process.stdout.columns || 80, getRows(), ctx.store.panes));
-        setBracketedPaste(false);
-        process.stdin.setRawMode(false);
-        process.exit(0);
-    });
-
     ctx.inputActive = true;
     scheduler.request();
+
+    return new Promise<void>((resolve) => {
+        ctx.ws.on('close', () => {
+            scheduler.dispose();
+            screen.disableMouse();
+            screen.exit();
+            cleanupScrollRegion(resolveShellLayout(process.stdout.columns || 80, getRows(), ctx.store.panes));
+            setBracketedPaste(false);
+            process.stdin.setRawMode(false);
+            resolve();
+        });
+    });
 }
