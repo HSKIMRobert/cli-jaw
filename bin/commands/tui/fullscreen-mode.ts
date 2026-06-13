@@ -4,6 +4,7 @@
 import {
     consumePasteProtocol,
     getComposerDisplayText,
+    getDisplayCursorOffset,
     setBracketedPaste,
 } from '../../../src/cli/tui/composer.js';
 import { renderMarkdown } from '../../../src/cli/tui/markdown.js';
@@ -19,7 +20,7 @@ import { parseSgrMouse, isMouseSequence } from '../../../src/cli/tui/render/mous
 import { Viewport } from '../../../src/cli/tui/render/viewport.js';
 import type { TranscriptItem } from '../../../src/cli/tui/transcript.js';
 import { toggleToolExpansion } from '../../../src/cli/tui/transcript.js';
-import { clipTextToCols, visualWidth } from '../../../src/cli/tui/renderers.js';
+import { clipTextToCols, visualWidth, cursorScreenPos } from '../../../src/cli/tui/renderers.js';
 import { cleanupScrollRegion, resolveShellLayout } from '../../../src/cli/tui/shell.js';
 import type { TuiContext } from './types.js';
 import { c, getRows, ESC_WAIT_MS } from './types.js';
@@ -119,11 +120,15 @@ function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
     // Build content lines sequentially (bottom-up pinning via VIEWPORT_FILL)
     const contentLines: string[] = [];
 
-    // 1. Transcript lines (only non-empty ones)
+    // 1. Transcript or Welcome
     const transcriptLines = viewport.composeRegion(regions.transcript);
     const hasTranscript = transcriptLines.some(l => l !== '');
     if (hasTranscript) {
         contentLines.push(...transcriptLines);
+    } else if (ctx.welcomeLines && ctx.welcomeLines.length > 0) {
+        for (const wl of ctx.welcomeLines) {
+            contentLines.push(clipTextToCols(`  ${wl}`, cols));
+        }
     }
 
     // 2. Autocomplete (between transcript and input)
@@ -144,13 +149,15 @@ function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
     const bTL = box?.topLeft ?? '┌'; const bTR = box?.topRight ?? '┐';
     const bBL = box?.bottomLeft ?? '└'; const bBR = box?.bottomRight ?? '┘';
     const bH = box?.horizontal ?? '─'; const bV = box?.vertical ?? '│';
-    const borderFill = Math.max(0, innerW + 2);
+    const borderFill = Math.max(0, innerW);
 
     contentLines.push(clipTextToCols(`${c.dim}${bTL}${bH.repeat(borderFill)}${bTR}${c.reset}`, cols));
 
+    const prefixVisW = 4; // │ > (space)
     const prefix = `${c.dim}${bV}${c.reset} ${ctx.accent}${c.bold}>${c.reset} `;
     const compLines = composerText.split('\n');
     const hasInput = composerText.trim().length > 0;
+    const inputStartInContent = contentLines.length;
     for (let i = 0; i < regions.composer.height; i++) {
         const rawLine = compLines[i] ?? '';
         const maxTextW = Math.max(1, innerW - 4);
@@ -160,7 +167,10 @@ function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
         const suffix = `${' '.repeat(padW)}${c.dim}${bV}${c.reset}`;
         if (i === 0 && !hasInput) {
             const placeholder = clipTextToCols('Type your message...', maxTextW);
-            contentLines.push(clipTextToCols(`${prefix}${c.dim}${placeholder}${c.reset}${suffix}`, cols));
+            const phVisW = visualWidth(placeholder);
+            const phPadW = Math.max(0, innerW - 3 - phVisW);
+            const phSuffix = `${' '.repeat(phPadW)}${c.dim}${bV}${c.reset}`;
+            contentLines.push(clipTextToCols(`${prefix}${c.dim}${placeholder}${c.reset}${phSuffix}`, cols));
         } else {
             const content = i === 0 ? `${prefix}${clipped}${suffix}` : `${c.dim}${bV}${c.reset}   ${clipped}${suffix}`;
             contentLines.push(clipTextToCols(content, cols));
@@ -210,7 +220,22 @@ function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
         }
     }
 
-    return { rows: frameRows };
+    // Calculate cursor position for the input box
+    const showCursor = ctx.inputActive && !needsOverlay && !ctx.commandRunning;
+    let cursorPos: Frame['cursorPos'];
+    if (showCursor) {
+        const cursorOff = getDisplayCursorOffset(ctx.store.composer);
+        const curPos = cursorScreenPos(composerText, cursorOff, prefixVisW, prefixVisW, cols);
+        const totalExpanded = Math.max(rows, contentLines.length);
+        cursorPos = {
+            row: totalExpanded - contentLines.length + inputStartInContent + curPos.row,
+            col: curPos.col,
+        };
+    }
+
+    const frame: Frame = { rows: frameRows };
+    if (cursorPos) frame.cursorPos = cursorPos;
+    return frame;
 }
 
 export async function runFullscreenMode(ctx: TuiContext): Promise<void> {

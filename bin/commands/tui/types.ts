@@ -138,4 +138,5 @@ export interface TuiContext {
     footer: string;
     displayMode: 'line' | 'fullscreen';
     requestFrame: (() => void) | null;
+    welcomeLines?: string[];
 }

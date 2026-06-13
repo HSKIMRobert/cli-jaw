@@ -211,14 +211,15 @@ if (values.simple) {
         port: ctx.serverPort,
     };
 
-    console.log('');
     const welcomeLines = renderWelcome(welcomeOpts);
-    for (const line of welcomeLines) console.log(line);
-    console.log('');
 
     if (displayMode === 'fullscreen') {
+        ctx.welcomeLines = welcomeLines;
         await runFullscreenMode(ctx);
     } else {
+        console.log('');
+        for (const line of welcomeLines) console.log(line);
+        console.log('');
 
     // ─── Raw stdin ───────────────────────────
     process.stdin.setRawMode(true);
