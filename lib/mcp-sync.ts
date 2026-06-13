@@ -4,17 +4,12 @@
  * Source of truth: ~/.cli-jaw/mcp.json
  *
  * Supported targets (all global):
- *   Claude Code   → ~/.claude.json                        (JSON, mcpServers — user scope)
+ *   Claude Code   → ~/.mcp.json                          (JSON, mcpServers)
  *   Codex         → ~/.codex/config.toml                  (TOML, [mcp_servers.name])
  *   Gemini CLI    → ~/.gemini/settings.json               (JSON, mcpServers)
  *   OpenCode      → ~/.config/opencode/opencode.json      (JSON, mcp block)
  *   Copilot       → ~/.copilot/mcp-config.json            (JSON, mcpServers)
- *   Cursor        → ~/.cursor/mcp.json                    (JSON, mcpServers)
  *   Antigravity   → ~/.gemini/antigravity/mcp_config.json (JSON, mcpServers)
- *   Kiro          → ~/.kiro/agents/agent_config.json      (JSON, mcpServers)
- *   Grok          — reads ~/.cursor/mcp.json via compat scan (no dedicated target)
- *
- * Per-target exclusions: codex omits `computer-use` (ships bundled Sky).
  */
 
 // ─── unified-config ────────────────────────────────
