@@ -212,11 +212,16 @@ if (values.simple) {
     };
 
     if (displayMode === 'fullscreen') {
-        const welcomeText = renderWelcome(welcomeOpts).join('\n');
-        ctx.store.transcript.items.push({
-            type: 'assistant' as const, text: welcomeText, timestamp: Date.now(), streaming: false,
-        });
-        await runFullscreenMode(ctx);
+        try {
+            const welcomeText = renderWelcome(welcomeOpts).join('\n');
+            ctx.store.transcript.items.push({
+                type: 'assistant' as const, text: welcomeText, timestamp: Date.now(), streaming: false,
+            });
+            await runFullscreenMode(ctx);
+        } catch (err) {
+            process.stderr.write(`fullscreen error: ${err instanceof Error ? err.message : err}\n${err instanceof Error ? err.stack : ''}\n`);
+            process.exit(1);
+        }
     } else {
     console.log('');
     const welcomeLines = renderWelcome(welcomeOpts);
