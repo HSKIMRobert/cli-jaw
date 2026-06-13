@@ -94,6 +94,80 @@ test('compose-block copy action uses current edited value', async () => {
     assert.equal(copied, 'Edited subject\n\nEdited body');
 });
 
+test('compose-block follow-up sends edited draft through chat input cmd-execute', async () => {
+    setupWebUiDom();
+    const chatInput = document.createElement('textarea');
+    chatInput.id = 'chatInput';
+    document.body.appendChild(chatInput);
+    let executeCount = 0;
+    chatInput.addEventListener('cmd-execute', () => { executeCount += 1; });
+    const { renderMarkdown } = await import('../../public/js/render.ts');
+    const { hydrateComposeBlocks } = await import('../../public/js/render/compose-block.ts');
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = renderMarkdown(`\`\`\`compose-block\n${JSON.stringify(composeSpec())}\n\`\`\``);
+    document.body.appendChild(wrapper);
+    hydrateComposeBlocks(wrapper);
+
+    wrapper.querySelector<HTMLInputElement>('.compose-subject-input')!.value = 'Edited subject';
+    wrapper.querySelector<HTMLTextAreaElement>('.compose-body')!.value = 'Edited body';
+    wrapper.querySelector<HTMLTextAreaElement>('.compose-followup-input')!.value = 'Make it warmer';
+    wrapper.querySelector<HTMLButtonElement>('[data-compose-action="send-followup"]')?.click();
+
+    assert.equal(executeCount, 1);
+    assert.match(chatInput.value, /다음 compose-block 초안을 사용자가 편집했습니다/);
+    assert.match(chatInput.value, /카드 제목: Follow up/);
+    assert.match(chatInput.value, /Subject:\nEdited subject/);
+    assert.match(chatInput.value, /본문:\nEdited body/);
+    assert.match(chatInput.value, /사용자 추가 요청:\nMake it warmer/);
+    assert.match(chatInput.value, /새 compose-block 초안/);
+    assert.equal(wrapper.querySelector<HTMLTextAreaElement>('.compose-followup-input')?.value, '');
+    assert.equal(wrapper.querySelector<HTMLElement>('.compose-followup-error')?.dataset['state'], 'success');
+});
+
+test('compose-block follow-up refuses empty prompt without submitting', async () => {
+    setupWebUiDom();
+    const chatInput = document.createElement('textarea');
+    chatInput.id = 'chatInput';
+    document.body.appendChild(chatInput);
+    let executeCount = 0;
+    chatInput.addEventListener('cmd-execute', () => { executeCount += 1; });
+    const { renderMarkdown } = await import('../../public/js/render.ts');
+    const { hydrateComposeBlocks } = await import('../../public/js/render/compose-block.ts');
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = renderMarkdown(`\`\`\`compose-block\n${JSON.stringify(composeSpec())}\n\`\`\``);
+    document.body.appendChild(wrapper);
+    hydrateComposeBlocks(wrapper);
+
+    wrapper.querySelector<HTMLButtonElement>('[data-compose-action="send-followup"]')?.click();
+
+    assert.equal(executeCount, 0);
+    assert.equal(chatInput.value, '');
+    assert.match(wrapper.querySelector<HTMLElement>('.compose-followup-error')?.textContent || '', /추가 요청/);
+    assert.equal(wrapper.querySelector<HTMLElement>('.compose-followup-error')?.dataset['state'], 'error');
+});
+
+test('compose-block follow-up submits on cmd-enter from prompt textarea', async () => {
+    setupWebUiDom();
+    const chatInput = document.createElement('textarea');
+    chatInput.id = 'chatInput';
+    document.body.appendChild(chatInput);
+    let executeCount = 0;
+    chatInput.addEventListener('cmd-execute', () => { executeCount += 1; });
+    const { renderMarkdown } = await import('../../public/js/render.ts');
+    const { hydrateComposeBlocks } = await import('../../public/js/render/compose-block.ts');
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = renderMarkdown(`\`\`\`compose-block\n${JSON.stringify(composeSpec())}\n\`\`\``);
+    document.body.appendChild(wrapper);
+    hydrateComposeBlocks(wrapper);
+
+    const followup = wrapper.querySelector<HTMLTextAreaElement>('.compose-followup-input')!;
+    followup.value = 'Shorten this';
+    followup.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', metaKey: true, bubbles: true }));
+
+    assert.equal(executeCount, 1);
+    assert.match(chatInput.value, /사용자 추가 요청:\nShorten this/);
+});
+
 test('compose-block restores action state after virtual-scroll HTML remount', async () => {
     setupWebUiDom();
     const { renderMarkdown } = await import('../../public/js/render.ts');

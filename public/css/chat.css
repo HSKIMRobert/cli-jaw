@@ -925,8 +925,25 @@
     font-size: var(--text-xs);
 }
 
+.compose-followup {
+    display: grid;
+    gap: var(--space-2);
+    border-top: 1px solid var(--border);
+    padding-top: var(--space-2);
+}
+
+.compose-followup-row {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-2);
+    color: var(--text-dim);
+    font-size: var(--text-xs);
+}
+
 .compose-subject-input,
 .compose-body,
+.compose-followup-input,
 .dataframe-filter {
     min-width: 0;
     border: 1px solid var(--border);
@@ -951,14 +968,43 @@
     line-height: 1.5;
 }
 
+.compose-followup-input {
+    width: 100%;
+    min-height: 58px;
+    max-height: 140px;
+    padding: var(--space-2);
+    resize: vertical;
+    line-height: 1.45;
+}
+
 .compose-tabs,
 .compose-actions,
+.compose-followup-actions,
 .dataframe-pagination,
 .chart-json-legend {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: var(--space-2);
+}
+
+.compose-followup-actions {
+    justify-content: flex-end;
+}
+
+.compose-followup-error {
+    min-height: 18px;
+    flex: 1 1 220px;
+    color: var(--text-dim);
+    font-size: var(--text-xs);
+}
+
+.compose-followup-error[data-state="error"] {
+    color: var(--danger);
+}
+
+.compose-followup-error[data-state="success"] {
+    color: var(--success);
 }
 
 .compose-tab,
@@ -989,6 +1035,7 @@
 
 .compose-subject-input:focus-visible,
 .compose-body:focus-visible,
+.compose-followup-input:focus-visible,
 .compose-tab:focus-visible,
 .compose-btn:focus-visible,
 .dataframe-filter:focus-visible,
@@ -1154,8 +1201,17 @@
 
 @media (max-width: 520px) {
     .compose-subject-row,
+    .compose-followup-row,
     .dataframe-toolbar {
         grid-template-columns: 1fr;
+    }
+
+    .compose-followup-actions {
+        justify-content: stretch;
+    }
+
+    .compose-send-btn {
+        width: 100%;
     }
 }
 

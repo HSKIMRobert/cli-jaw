@@ -20,6 +20,7 @@ const BLOCK_SELECTOR = '.compose-block';
 const MAX_TITLE = 120;
 const MAX_SUBJECT = 180;
 const MAX_BODY = 20000;
+const MAX_FOLLOWUP = 4000;
 const MAX_VARIANTS = 3;
 
 const blockSpecs = new WeakMap<HTMLElement, ComposeBlockSpec>();
@@ -160,6 +161,12 @@ function kindLabel(kind: ComposeKind): string {
     return 'Draft';
 }
 
+function subjectFieldLabel(kind: ComposeKind): string {
+    if (kind === 'document') return 'Title';
+    if (kind === 'message') return 'Topic';
+    return 'Subject';
+}
+
 function renderTabs(spec: ComposeBlockSpec): string {
     return spec.variants.map((variant, index) => `<button class="compose-tab${index === 0 ? ' is-active' : ''}" type="button" data-compose-action="variant" data-variant-id="${escapeAttr(variant.id)}" aria-pressed="${index === 0 ? 'true' : 'false'}">${escapeHtml(variant.label)}</button>`).join('');
 }
@@ -177,7 +184,7 @@ function renderBlock(spec: ComposeBlockSpec): string {
             <div class="compose-kind">${escapeHtml(kindLabel(spec.kind))}</div>
         </div>
         <label class="compose-subject-row">
-            <span>Subject</span>
+            <span>${escapeHtml(subjectFieldLabel(spec.kind))}</span>
             <input class="compose-subject-input" type="text" value="${escapeAttr(first.subject || spec.subject)}" maxlength="${MAX_SUBJECT}">
         </label>
         <div class="compose-tabs" role="group" aria-label="Draft variants">${renderTabs(spec)}</div>
@@ -185,6 +192,16 @@ function renderBlock(spec: ComposeBlockSpec): string {
         <div class="compose-actions">
             <button class="compose-btn" type="button" data-compose-action="copy">Copy</button>
             ${protocolButton}
+        </div>
+        <div class="compose-followup">
+            <label class="compose-followup-row">
+                <span>Prompt</span>
+                <textarea class="compose-followup-input" rows="2" maxlength="${MAX_FOLLOWUP}" placeholder="추가 요청을 입력하세요. Cmd/Ctrl+Enter로 보낼 수 있습니다."></textarea>
+            </label>
+            <div class="compose-followup-actions">
+                <div class="compose-followup-error" role="alert" aria-live="polite"></div>
+                <button class="compose-btn compose-send-btn" type="button" data-compose-action="send-followup">Send</button>
+            </div>
         </div>`;
 }
 
@@ -221,6 +238,66 @@ function currentText(block: HTMLElement): { subject: string; body: string } {
         subject: block.querySelector<HTMLInputElement>('.compose-subject-input')?.value || '',
         body: block.querySelector<HTMLTextAreaElement>('.compose-body')?.value || '',
     };
+}
+
+function currentFollowup(block: HTMLElement): string {
+    const raw = block.querySelector<HTMLTextAreaElement>('.compose-followup-input')?.value || '';
+    const text = raw.trim();
+    return text.length > MAX_FOLLOWUP ? text.slice(0, MAX_FOLLOWUP) : text;
+}
+
+function setFollowupNotice(block: HTMLElement, message: string, kind: 'error' | 'success' = 'error'): void {
+    const notice = block.querySelector<HTMLElement>('.compose-followup-error');
+    if (!notice) return;
+    notice.textContent = message;
+    notice.dataset['state'] = message ? kind : '';
+}
+
+function createInputEvent(input: Element, type: string): Event {
+    const eventCtor = input.ownerDocument.defaultView?.Event || Event;
+    return new eventCtor(type, { bubbles: true });
+}
+
+function composeFollowupPrompt(spec: ComposeBlockSpec, subject: string, body: string, instruction: string): string {
+    const fieldLabel = subjectFieldLabel(spec.kind);
+    return [
+        '다음 compose-block 초안을 사용자가 편집했습니다.',
+        '',
+        `종류: ${kindLabel(spec.kind)}`,
+        `카드 제목: ${spec.title}`,
+        '',
+        `${fieldLabel}:`,
+        subject || '(비어 있음)',
+        '',
+        '본문:',
+        body || '(비어 있음)',
+        '',
+        '사용자 추가 요청:',
+        instruction,
+        '',
+        '위 수정본과 추가 요청을 반영해서 새 compose-block 초안을 다시 작성해주세요. 결과는 strict JSON compose-block으로 반환하고, 멀티라인 본문은 variants[].paragraphs 또는 variants[].bodyLines 배열을 우선 사용해주세요.',
+    ].join('\n');
+}
+
+function submitFollowup(block: HTMLElement, spec: ComposeBlockSpec): void {
+    const instruction = currentFollowup(block);
+    if (!instruction) {
+        setFollowupNotice(block, '추가 요청을 입력한 뒤 Send를 눌러주세요.');
+        block.querySelector<HTMLTextAreaElement>('.compose-followup-input')?.focus();
+        return;
+    }
+    const input = document.getElementById('chatInput') as HTMLTextAreaElement | HTMLInputElement | null;
+    if (!input) {
+        setFollowupNotice(block, '채팅 입력창을 찾을 수 없습니다.');
+        return;
+    }
+    const { subject, body } = currentText(block);
+    input.value = composeFollowupPrompt(spec, subject, body, instruction);
+    input.dispatchEvent(createInputEvent(input, 'input'));
+    input.dispatchEvent(createInputEvent(input, 'cmd-execute'));
+    const followup = block.querySelector<HTMLTextAreaElement>('.compose-followup-input');
+    if (followup) followup.value = '';
+    setFollowupNotice(block, '전송했습니다.', 'success');
 }
 
 function setVariant(block: HTMLElement, variantId: string): void {
@@ -274,10 +351,23 @@ function handleClick(event: MouseEvent): void {
     if (action === 'copy') void copyText(subject ? `${subject}\n\n${body}` : body);
     if (action === 'mail') protocolOpen(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
     if (action === 'sms') protocolOpen(`sms:?body=${encodeURIComponent(body)}`);
+    if (action === 'send-followup') submitFollowup(block, spec);
+}
+
+function handleKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Enter' || event.shiftKey || (!event.metaKey && !event.ctrlKey)) return;
+    const target = event.target;
+    if (!(target instanceof HTMLElement) || !target.classList.contains('compose-followup-input')) return;
+    const block = findBlock(target);
+    const spec = block ? blockSpecs.get(block) : null;
+    if (!block || !spec) return;
+    event.preventDefault();
+    submitFollowup(block, spec);
 }
 
 export function ensureComposeBlockDelegation(): void {
     if (delegatedDocument === document) return;
     document.addEventListener('click', handleClick);
+    document.addEventListener('keydown', handleKeydown);
     delegatedDocument = document;
 }
