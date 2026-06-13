@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { createNotesVaultFolderSource } from '../../public/manager/src/folder-panel/folder-sources.js';
 
 const root = join(import.meta.dirname, '..', '..');
 
@@ -49,4 +50,13 @@ test('folder panel CSS exposes selected, drop target, drag, action, and confirm 
     ]) {
         assert.ok(css.includes(selector), `folder panel CSS must include ${selector}`);
     }
+});
+
+test('notes-vault folder source remains read-only for native filesystem actions', () => {
+    const source = createNotesVaultFolderSource([], 'notes');
+
+    assert.equal(source.kind, 'notes-vault');
+    assert.equal(source.canPickRoot, false);
+    assert.equal(source.movePath, undefined);
+    assert.equal(source.revealPath, undefined);
 });
