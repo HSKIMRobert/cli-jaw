@@ -244,13 +244,13 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
             case 'orc_state':
             case 'orchestrate_done':
             case 'orchestrate_warning':
-                if (msg.phase && !isFullscreen(ctx)) console.log(`\n  ${c.dim}📋 PABCD: ${msg.phase}${msg.status ? ` (${msg.status})` : ''}${c.reset}`);
+                if ((msg.state || msg.phase) && !isFullscreen(ctx)) console.log(`\n  ${c.dim}📋 PABCD: ${msg.state || msg.phase}${msg.status ? ` (${msg.status})` : ''}${c.reset}`);
                 break;
 
             case 'goal_done':
             case 'goal_continuation':
             case 'goal_pause_detected':
-                if (!isFullscreen(ctx)) console.log(`\n  ${c.dim}🎯 Goal: ${msg.type.replace('goal_', '')}${msg.text ? ` — ${msg.text}` : ''}${c.reset}`);
+                if (!isFullscreen(ctx)) console.log(`\n  ${c.dim}🎯 Goal: ${msg.type.replace('goal_', '')}${msg.reason || msg.source ? ` — ${msg.reason || msg.source}` : ''}${c.reset}`);
                 break;
 
             case 'memory_status':
