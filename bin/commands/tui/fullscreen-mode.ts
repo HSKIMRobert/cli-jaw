@@ -38,6 +38,7 @@ function renderTranscriptItem(item: TranscriptItem, width: number): string[] {
             return body.split('\n');
         }
         case 'tool':
+            if (item.collapsed) return [`${gutter}${c.dim}  ┄ ${item.text.split(':')[0]}${c.reset}`];
             return [`${gutter}${c.dim}${item.text}${c.reset}`];
         case 'status':
             return [`${gutter}${c.yellow}${item.text}${c.reset}`];

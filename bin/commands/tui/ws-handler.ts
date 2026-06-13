@@ -156,7 +156,7 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                     // then commit the tool line so it stays in scrollback.
                     clearEphemeralStatus(transcript);
                     const toolDetail = msg.detail ? `: ${msg.detail}` : '';
-                    appendToolItem(transcript, `${msg.icon} ${msg.label}${toolDetail}`);
+                    appendToolItem(transcript, `${msg.icon} ${msg.label}${toolDetail}`, { agentId: msg.agentId, detail: msg.detail });
                     ctx.streamState = 'tool';
                     rebuildFooter(ctx);
                     if (!isFullscreen(ctx)) {

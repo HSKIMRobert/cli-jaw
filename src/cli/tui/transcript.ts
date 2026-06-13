@@ -1,8 +1,8 @@
 export type TranscriptItem =
-    | { type: 'user'; displayText: string; submitText: string; timestamp: number }
-    | { type: 'assistant'; text: string; streaming: boolean; timestamp: number }
-    | { type: 'tool'; text: string; timestamp: number }
-    | { type: 'status'; text: string; ephemeral: true; timestamp: number };
+    | { type: 'user'; displayText: string; submitText: string; timestamp: number; agentId?: string }
+    | { type: 'assistant'; text: string; streaming: boolean; timestamp: number; agentId?: string }
+    | { type: 'tool'; text: string; timestamp: number; agentId?: string; collapsed?: boolean; detail?: string }
+    | { type: 'status'; text: string; ephemeral: true; timestamp: number; agentId?: string };
 
 export interface TranscriptState {
     items: TranscriptItem[];
@@ -40,9 +40,27 @@ export function finalizeAssistant(state: TranscriptState, fallbackText?: string)
     return true;
 }
 
-export function appendToolItem(state: TranscriptState, text: string): void {
-    // Persistent (unlike status): tool activity accumulates and is never replaced.
-    state.items.push({ type: 'tool', text, timestamp: Date.now() });
+export function appendToolItem(state: TranscriptState, text: string, opts?: { agentId?: string; detail?: string }): void {
+    collapsePreviousTools(state);
+    const item: TranscriptItem = { type: 'tool', text, timestamp: Date.now(), collapsed: false };
+    if (opts?.agentId) item.agentId = opts.agentId;
+    if (opts?.detail) item.detail = opts.detail;
+    state.items.push(item);
+}
+
+export function collapsePreviousTools(state: TranscriptState): void {
+    for (let i = state.items.length - 1; i >= 0; i--) {
+        const item = state.items[i]!;
+        if (item.type === 'tool' && !item.collapsed) item.collapsed = true;
+        else if (item.type !== 'status') break;
+    }
+}
+
+export function toggleToolExpansion(state: TranscriptState): void {
+    const hasCollapsed = state.items.some(i => i.type === 'tool' && i.collapsed);
+    for (const item of state.items) {
+        if (item.type === 'tool') item.collapsed = !hasCollapsed;
+    }
 }
 
 export function appendStatusItem(state: TranscriptState, text: string): void {
