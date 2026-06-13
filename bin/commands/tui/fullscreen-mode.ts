@@ -180,7 +180,7 @@ function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
     contentLines.push(clipTextToCols(`${c.dim}${bBL}${bH.repeat(borderFill)}${bBR}${c.reset}`, cols));
 
     // 4. Hint line
-    contentLines.push(clipTextToCols(`${c.dim}? for shortcuts · /help for commands${c.reset}`, cols));
+    contentLines.push(clipTextToCols(`${c.dim}? for shortcuts · /help · /model · /settings${c.reset}`, cols));
 
     // 5. Footer (StatusBar)
     contentLines.push(clipTextToCols(ctx.footer, cols));
