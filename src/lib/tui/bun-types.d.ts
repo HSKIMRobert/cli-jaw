@@ -4,3 +4,5 @@ declare namespace Bun {
     function stripANSI(str: string): string;
     function hash(data: string | ArrayBuffer, seed?: number | bigint): number;
 }
+
+type Timer = ReturnType<typeof setTimeout>;

@@ -1,6 +1,6 @@
-import { dlopen, FFIType, ptr } from "bun:ffi";
+import { dlopen, FFIType, ptr } from './bun-ffi-stub.js';
 import * as fs from "node:fs";
-import { $env } from "@gajae-code/utils";
+import { $env } from './utils-stub.js';
 import { setKittyProtocolActive } from "./keys";
 import { StdinBuffer } from "./stdin-buffer";
 
