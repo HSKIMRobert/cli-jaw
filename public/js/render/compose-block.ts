@@ -171,7 +171,7 @@ export function hydrateComposeBlocks(root: ParentNode = document): void {
             console.warn('[compose-block] invalid compose block spec');
             delete block.dataset['composeBlockSpec'];
             block.className = 'compose-block compose-error';
-            block.innerHTML = '<div class="compose-error-text">초안 형식을 읽을 수 없습니다.</div>';
+            block.innerHTML = '<div class="compose-error-text">초안 형식을 읽을 수 없습니다. compose-block은 strict JSON이어야 하며 문자열 안 줄바꿈은 \\n으로 escape해야 합니다.</div>';
             continue;
         }
         block.className = 'compose-block';
