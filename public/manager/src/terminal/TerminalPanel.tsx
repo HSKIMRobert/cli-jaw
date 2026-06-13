@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { DragEvent } from 'react';
 import { Terminal } from '@xterm/xterm';
 import type { IDisposable, ITheme } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
+import { hasFolderPanelDragPayload, readFolderPanelDragPayload, shellEscapePath } from '../folder-panel/folder-drag-payload';
 import { getTerminalBridge } from './terminal-bridge';
 import './terminal.css';
 
@@ -103,6 +105,18 @@ function readTheme(): ITheme {
         white: '#e5e7eb',
         brightWhite: '#f8fafc',
     };
+}
+
+function findTerminalSurface(target: EventTarget | null): HTMLElement | null {
+    const maybeElement = target as Partial<{ closest: (selector: string) => Element | null }> | null;
+    const surface = typeof maybeElement?.closest === 'function'
+        ? maybeElement.closest('.terminal-xterm-surface')
+        : null;
+    return surface instanceof HTMLElement ? surface : null;
+}
+
+function terminalIdFromSurface(surface: HTMLElement | null): string | null {
+    return surface?.dataset['terminalId'] ?? null;
 }
 
 export function TerminalPanel(props: TerminalPanelProps = {}) {
@@ -211,6 +225,29 @@ export function TerminalPanel(props: TerminalPanelProps = {}) {
             return next;
         });
     }, [bridge, disposeRuntime, notifyEmptySessionsSoon]);
+
+    const handleTerminalDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
+        if (!hasFolderPanelDragPayload(event.dataTransfer)) return;
+        const surface = findTerminalSurface(event.target);
+        if (!surface) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'copy';
+    }, []);
+
+    const handleTerminalDrop = useCallback((event: DragEvent<HTMLDivElement>) => {
+        if (!bridge) return;
+        const payload = readFolderPanelDragPayload(event.dataTransfer);
+        if (!payload) return;
+        const surface = findTerminalSurface(event.target);
+        if (!surface) return;
+        const targetId = terminalIdFromSurface(surface) ?? (surface.classList.contains('is-active') ? activeIdRef.current : null);
+        if (!targetId) return;
+        event.preventDefault();
+        event.stopPropagation();
+        setActiveId(targetId);
+        void bridge.write(targetId, `${shellEscapePath(payload.path)} `);
+        window.setTimeout(() => runtimesRef.current.get(targetId)?.term.focus(), 0);
+    }, [bridge]);
 
     const attachHost = useCallback((id: string, node: HTMLDivElement | null) => {
         if (!node || !bridge) return;
@@ -352,8 +389,11 @@ export function TerminalPanel(props: TerminalPanelProps = {}) {
                     <div
                         key={tab.id}
                         ref={node => attachHost(tab.id, node)}
+                        data-terminal-id={tab.id}
                         className={`terminal-xterm-surface${tab.id === activeId ? ' is-active' : ''}`}
                         onPointerDown={() => runtimesRef.current.get(tab.id)?.term.focus()}
+                        onDragOver={handleTerminalDragOver}
+                        onDrop={handleTerminalDrop}
                     >
                         <textarea
                             className="terminal-a11y-input"

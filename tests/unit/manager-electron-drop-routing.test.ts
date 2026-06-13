@@ -53,6 +53,19 @@ test('drop routing describes preview captures without routing panels', () => {
     assert.equal(message, 'Captured 1 dropped item from preview.');
 });
 
+test('preview drop status never implies manager routing success', () => {
+    const message = describeDroppedPathsEvent({
+        source: 'preview',
+        entries: [{ name: 'asset.png', path: '/Users/jun/asset.png', kind: 'file' }],
+        rejected: [{ path: '/tmp/outside', reason: 'path not allowed' }],
+    });
+
+    assert.ok(message);
+    assert.equal(message.includes('Opened'), false);
+    assert.equal(message.includes('routed'), false);
+    assert.equal(message.includes('uploaded'), false);
+});
+
 test('drop routing surfaces rejected-only drop failures', () => {
     const rejected = describeDroppedPathsEvent({
         source: 'manager',

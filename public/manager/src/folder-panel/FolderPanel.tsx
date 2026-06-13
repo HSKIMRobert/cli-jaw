@@ -2,10 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getDesktop, type FolderBridgeApi } from '../panels/desktop-bridge';
 import type { NotesTreeEntry } from '../notes/notes-types';
 import { copyText } from '../clipboard/copy-text';
+import { FOLDER_PANEL_DRAG_MIME, encodeFolderPanelDragPayload } from './folder-drag-payload';
 import { createElectronFolderSource, createNotesVaultFolderSource, type FolderPanelEntry } from './folder-sources';
 import './folder-panel.css';
-
-const FOLDER_ENTRY_MIME = 'application/x-cli-jaw-folder-entry';
 
 function getFolderBridge(): FolderBridgeApi | null {
     return getDesktop()?.folder ?? null;
@@ -226,8 +225,9 @@ export function FolderPanel(props: FolderPanelProps) {
                     onDragStart={(event) => {
                         if (!canUseNativeActions) return;
                         setDraggedEntry(entry);
-                        event.dataTransfer.effectAllowed = 'move';
-                        event.dataTransfer.setData(FOLDER_ENTRY_MIME, entry.path);
+                        event.dataTransfer.effectAllowed = 'copyMove';
+                        event.dataTransfer.setData(FOLDER_PANEL_DRAG_MIME, encodeFolderPanelDragPayload(entry));
+                        event.dataTransfer.setData('text/plain', entry.path);
                     }}
                     onDragEnd={() => {
                         setDraggedEntry(null);
