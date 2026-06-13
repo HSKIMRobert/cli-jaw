@@ -8,6 +8,7 @@ import {
 } from '../../../src/cli/tui/composer.js';
 import { renderMarkdown } from '../../../src/cli/tui/markdown.js';
 import { renderMarkdownJawcode, isInitialized } from '../../../src/cli/tui/jawcode-render.js';
+import { renderToolLine } from '../../../src/cli/tui/jawcode-adapter.js';
 import { classifyKeyAction, type KeyAction } from '../../../src/cli/tui/keymap.js';
 import { getCompletionItems } from '../../../src/cli/commands.js';
 import { composeAutocompleteLines, composeHelpOntoFrame, composePaletteOntoFrame, composeSelectorOntoFrame, composeBgtaskOntoFrame } from '../../../src/cli/tui/overlay.js';
@@ -48,9 +49,11 @@ function renderTranscriptItem(item: TranscriptItem, width: number): string[] {
         }
         case 'tool': {
             const [toolHead, ...toolRest] = item.text.split(':');
-            const toolTail = toolRest.length ? `:${toolRest.join(':')}` : '';
-            if (item.collapsed) return [`${gutter}${c.dim}  ✔ ${toolHead}${c.reset}`];
-            return [`${gutter}  ${c.cyan}⏳${c.reset} ${c.cyan}${c.bold}${toolHead}${c.reset}${c.dim}${toolTail}${c.reset}`];
+            const toolDetail = toolRest.join(':').trim();
+            const toolIcon = toolHead?.split(' ')[0] || '';
+            const toolLabel = toolHead?.split(' ').slice(1).join(' ') || toolHead || '';
+            const state = item.collapsed ? 'done' as const : 'pending' as const;
+            return [renderToolLine(toolIcon, toolLabel, toolDetail, state)];
         }
         case 'status': {
             const spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];

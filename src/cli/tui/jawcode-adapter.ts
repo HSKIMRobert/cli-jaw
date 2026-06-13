@@ -68,10 +68,10 @@ export function renderStatusBar(segments: {
     engine: string;
     engineAccent: string;
     state: string;
-    elapsed?: string;
-    bgtask?: number;
-    gitBranch?: string;
-    cwd?: string;
+    elapsed?: string | undefined;
+    bgtask?: number | undefined;
+    gitBranch?: string | undefined;
+    cwd?: string | undefined;
 }): string {
     const sep = '\x1b[2m │ \x1b[0m';
     const parts: string[] = [];
