@@ -32,6 +32,7 @@ import { DashboardRemindersSidebar, type RemindersView } from './dashboard-remin
 import { DashboardRemindersWorkspace } from './dashboard-reminders/DashboardRemindersWorkspace';
 import { useRemindersFeed } from './dashboard-reminders/useRemindersFeed';
 import {
+    describeDroppedPathsEvent,
     firstDirectory,
     firstFile,
     useElectronDroppedPaths,
@@ -187,6 +188,7 @@ export function SidebarRailRouter(props: Props) {
     const [rightPreviewFilePath, setRightPreviewFilePath] = useState<string | null>(null);
     const [rightFolderRootPath, setRightFolderRootPath] = useState<string | null>(null);
     const [, setRecentDroppedPaths] = useState<ElectronDroppedPathsEvent | null>(null);
+    const [dropNotice, setDropNotice] = useState<string | null>(null);
     const [remindersView, setRemindersView] = useState<RemindersView>('matrix');
     const remindersFeed = useRemindersFeed({ active: props.sidebarMode === 'reminders' });
     const isElectron = currentManagerSurface() === 'electron';
@@ -242,6 +244,7 @@ export function SidebarRailRouter(props: Props) {
 
     const handleDroppedPaths = useCallback((event: ElectronDroppedPathsEvent): void => {
         setRecentDroppedPaths(event);
+        setDropNotice(describeDroppedPathsEvent(event));
         if (event.source === 'preview') return;
         const directory = firstDirectory(event.entries);
         if (directory) {
@@ -313,6 +316,12 @@ export function SidebarRailRouter(props: Props) {
                         <section className="state lifecycle-state" role="status">
                             <span>{props.lifecycleMessage}</span>
                             <button type="button" className="state-dismiss" aria-label="Dismiss lifecycle message" onClick={props.onDismissLifecycleMessage}>X</button>
+                        </section>
+                    )}
+                    {dropNotice && (
+                        <section className="state lifecycle-state" role="status">
+                            <span>{dropNotice}</span>
+                            <button type="button" className="state-dismiss" aria-label="Dismiss dropped file message" onClick={() => setDropNotice(null)}>X</button>
                         </section>
                     )}
                     <div className="workspace-surface-layer">

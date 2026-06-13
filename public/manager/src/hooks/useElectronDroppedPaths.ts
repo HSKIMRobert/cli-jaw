@@ -6,6 +6,8 @@ export type ElectronDroppedPathsSource = 'manager' | 'preview';
 export type ElectronDroppedPathsEvent = {
     source: ElectronDroppedPathsSource;
     entries: DroppedPathEntry[];
+    rejected?: Array<{ path: string; reason: string }> | undefined;
+    error?: string | undefined;
 };
 
 type UseElectronDroppedPathsOptions = {
@@ -34,6 +36,24 @@ export function firstFile(entries: DroppedPathEntry[]): DroppedPathEntry | null 
     return entries.find(entry => entry.kind === 'file') ?? null;
 }
 
+export function describeDroppedPathsEvent(event: ElectronDroppedPathsEvent): string | null {
+    const rejectedCount = event.rejected?.length ?? 0;
+    const suffix = rejectedCount > 0 ? ` ${rejectedCount} rejected.` : '';
+    if (event.entries.length === 0) {
+        if (event.error) return `Drop failed: ${event.error}`;
+        if (rejectedCount > 0) return `Drop rejected: ${event.rejected?.[0]?.reason ?? 'path not allowed'}`;
+        return null;
+    }
+    if (event.source === 'preview') {
+        return `Captured ${event.entries.length} dropped item${event.entries.length === 1 ? '' : 's'} from preview.${suffix}`;
+    }
+    const directory = firstDirectory(event.entries);
+    if (directory) return `Opened dropped folder: ${directory.name}.${suffix}`;
+    const file = firstFile(event.entries);
+    if (file) return `Opened dropped file: ${file.name}.${suffix}`;
+    return `Opened ${event.entries.length} dropped item${event.entries.length === 1 ? '' : 's'}.${suffix}`;
+}
+
 function hasFileTransfer(dataTransfer: DataTransfer | null): boolean {
     if (!dataTransfer) return false;
     if (dataTransfer.files.length > 0) return true;
@@ -43,19 +63,29 @@ function hasFileTransfer(dataTransfer: DataTransfer | null): boolean {
 export function useElectronDroppedPaths(options: UseElectronDroppedPathsOptions): {
     resolveDroppedFiles: (files: File[], source: ElectronDroppedPathsSource) => Promise<DroppedPathEntry[]>;
 } {
+    const { onDroppedPaths } = options;
     const resolveDroppedFiles = useCallback(async (files: File[], source: ElectronDroppedPathsSource): Promise<DroppedPathEntry[]> => {
         const bridge = getDesktop()?.dragDrop;
         if (!bridge || files.length === 0) return [];
         try {
             const result = await bridge.resolveDroppedItems(files);
-            const entries = result.ok && result.entries ? result.entries : [];
-            if (entries.length > 0) options.onDroppedPaths({ source, entries });
+            const entries = result.entries ?? [];
+            const rejected = result.rejected ?? [];
+            if (entries.length > 0 || rejected.length > 0 || result.error) {
+                onDroppedPaths({
+                    source,
+                    entries,
+                    ...(rejected.length > 0 ? { rejected } : {}),
+                    ...(result.error ? { error: result.error } : {}),
+                });
+            }
             return entries;
         } catch (error) {
             console.warn('[electron-drop] failed to resolve dropped files', error);
+            onDroppedPaths({ source, entries: [], error: (error as Error).message });
             return [];
         }
-    }, [options]);
+    }, [onDroppedPaths]);
 
     useEffect(() => {
         if (!isElectron() || !getDesktop()?.dragDrop) return undefined;

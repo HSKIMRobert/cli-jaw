@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+    describeDroppedPathsEvent,
     firstDirectory,
     firstFile,
     isPreviewDropTarget,
@@ -31,4 +32,39 @@ test('drop routing consumes manager surface drops', () => {
     } as unknown as EventTarget;
 
     assert.equal(shouldConsumeManagerDrop(surface), true);
+});
+
+test('drop routing describes opened folders and partial rejections', () => {
+    const message = describeDroppedPathsEvent({
+        source: 'manager',
+        entries: [{ name: 'Project', path: '/Users/jun/Project', kind: 'directory' }],
+        rejected: [{ path: '/tmp/outside', reason: 'path not allowed' }],
+    });
+
+    assert.equal(message, 'Opened dropped folder: Project. 1 rejected.');
+});
+
+test('drop routing describes preview captures without routing panels', () => {
+    const message = describeDroppedPathsEvent({
+        source: 'preview',
+        entries: [{ name: 'asset.png', path: '/Users/jun/asset.png', kind: 'file' }],
+    });
+
+    assert.equal(message, 'Captured 1 dropped item from preview.');
+});
+
+test('drop routing surfaces rejected-only drop failures', () => {
+    const rejected = describeDroppedPathsEvent({
+        source: 'manager',
+        entries: [],
+        rejected: [{ path: '/tmp/outside', reason: 'path not allowed' }],
+    });
+    const failed = describeDroppedPathsEvent({
+        source: 'manager',
+        entries: [],
+        error: 'path not accessible',
+    });
+
+    assert.equal(rejected, 'Drop rejected: path not allowed');
+    assert.equal(failed, 'Drop failed: path not accessible');
 });
