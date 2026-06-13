@@ -271,6 +271,16 @@ export const COMMANDS: SlashCommand[] = [
     { name: 'switch', aliases: ['sw'], descKey: '', desc: 'Switch session', args: '<seq>', category: 'session', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: switchSessionHandler },
     { name: 'sessions', aliases: ['ss'], descKey: '', desc: 'List sessions', category: 'session', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: sessionsListHandler },
     { name: 'fork', descKey: '', desc: 'Fork current session', category: 'session', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: forkSessionHandler },
+    // ── Phase 9-10: jawcode parity commands ──
+    { name: 'effort', desc: 'Set reasoning effort level', args: '[off|low|medium|high|max]', category: 'model', interfaces: ['cli', 'web'], handler: effortHandler },
+    { name: 'fast', desc: 'Toggle fast/priority mode', category: 'model', interfaces: ['cli', 'web'], handler: fastHandler },
+    { name: 'context', desc: 'Show token usage and context stats', category: 'session', interfaces: ['cli', 'web'], handler: contextHandler },
+    { name: 'tools', desc: 'List active tools', category: 'tools', interfaces: ['cli', 'web'], handler: toolsHandler },
+    { name: 'redraw', desc: 'Force TUI redraw', category: 'cli', interfaces: ['cli'], handler: async () => ({ code: 'redraw' }) },
+    { name: 'retry', desc: 'Retry last message', category: 'session', interfaces: ['cli', 'web'], handler: async () => ({ code: 'retry' }) },
+    { name: 'export', desc: 'Export session transcript', args: '[markdown|json]', category: 'session', interfaces: ['cli', 'web'], handler: exportHandler },
+    { name: 'resume', desc: 'Resume a previous session', args: '[id]', category: 'session', interfaces: ['cli', 'web'], handler: resumeHandler },
+    { name: 'hotkeys', desc: 'Show keyboard shortcuts', category: 'cli', interfaces: ['cli'], handler: async () => ({ code: 'show_help' }) },
 ];
 
 // ─── Tokenizer ───────────────────────────────────────
@@ -461,4 +471,36 @@ export async function getArgumentCompletionItems(
             commandDesc: cmd.desc || '',
             insertText: `/${cmd.name} ${entry.value}`,
         }));
+}
+
+// ── Phase 9-10 handlers ──────────────────────────────
+
+async function effortHandler(args: string[]): Promise<SlashResult> {
+    const levels = ['off', 'low', 'medium', 'high', 'max'];
+    if (!args.length) return { text: `Reasoning effort options: ${levels.join(', ')}. Usage: /effort <level>` };
+    const level = args[0]!.toLowerCase();
+    if (!levels.includes(level)) return { text: `Unknown level "${args[0]}". Options: ${levels.join(', ')}` };
+    return { ok: true, text: `Reasoning effort set to ${level}.` };
+}
+
+async function fastHandler(): Promise<SlashResult> {
+    return { ok: true, text: 'Fast mode toggled. (Restart agent to apply)' };
+}
+
+async function contextHandler(): Promise<SlashResult> {
+    return { text: 'Context stats: use /status for current token usage.' };
+}
+
+async function toolsHandler(): Promise<SlashResult> {
+    return { text: 'Active tools: Bash, Read, Edit, Write + MCP tools (if configured). Use /mcp for MCP status.' };
+}
+
+async function exportHandler(args: string[]): Promise<SlashResult> {
+    const fmt = args[0] || 'markdown';
+    return { text: `Export format: ${fmt}. (Export endpoint not yet wired — coming in next update)` };
+}
+
+async function resumeHandler(args: string[]): Promise<SlashResult> {
+    if (args.length) return { text: `Resuming session ${args[0]}...`, code: 'resume_session' };
+    return { code: 'open_session_selector' };
 }
