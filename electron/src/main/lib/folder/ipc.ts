@@ -1,11 +1,12 @@
-import { ipcMain, dialog, type BrowserWindow } from 'electron';
+import { ipcMain, dialog, shell, type BrowserWindow } from 'electron';
 import { readdir, stat, lstat, readFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { homedir } from 'node:os';
 import { statSync, watch, type FSWatcher } from 'node:fs';
-import { isWithinHome, assertContained } from '../path-security.js';
+import { isWithinHome, assertContained, assertContainedLexical } from '../path-security.js';
 import { isAllowedSender } from '../ipc-origin-guard.js';
 import { resolveDroppedPaths } from './dropped-paths.js';
+import { moveFolderPath } from './move-path.js';
 
 const READ_CAP = 512 * 1024;
 const DEPTH_LIMIT = 5;
@@ -20,6 +21,14 @@ function isAllowedByRoot(p: string): boolean {
     if (pickedRoots.size === 0) return false;
     for (const root of pickedRoots) {
         if (assertContained(root, p)) return true;
+    }
+    return false;
+}
+
+function isAllowedNewPathByRoot(p: string): boolean {
+    if (pickedRoots.size === 0) return false;
+    for (const root of pickedRoots) {
+        if (assertContainedLexical(root, p)) return true;
     }
     return false;
 }
@@ -124,6 +133,32 @@ export function registerFolderIpc(getWindow: () => BrowserWindow | null): void {
             return { ok: true, content: buf.toString('utf-8'), truncated: false, binary: false };
         } catch (err) {
             return { ok: false, error: (err as Error).message };
+        }
+    });
+
+    ipcMain.handle('folder:movePath', async (event, sourcePath: string, targetDirectory: string) => {
+        if (!isAllowedSender(event)) return { ok: false, error: 'unauthorized', code: 'unauthorized' };
+        return moveFolderPath(sourcePath, targetDirectory, {
+            allowPath: isAllowedByRoot,
+            allowDestinationPath: isAllowedNewPathByRoot,
+        });
+    });
+
+    ipcMain.handle('folder:revealPath', async (event, filePath: string) => {
+        if (!isAllowedSender(event)) return { ok: false, error: 'unauthorized' };
+        if (!isAllowedByRoot(filePath)) return { ok: false, error: 'path not allowed — pick a folder first' };
+        const resolved = resolve(filePath);
+        try {
+            const ls = await lstat(resolved);
+            if (ls.isSymbolicLink()) return { ok: false, error: 'symlinks not allowed' };
+            if (ls.isDirectory()) {
+                const error = await shell.openPath(resolved);
+                return error ? { ok: false, error } : { ok: true };
+            }
+            shell.showItemInFolder(resolved);
+            return { ok: true };
+        } catch {
+            return { ok: false, error: 'path not accessible' };
         }
     });
 

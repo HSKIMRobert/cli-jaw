@@ -75,6 +75,8 @@ contextBridge.exposeInMainWorld('cliJawDesktop', {
     pickFolder: () => ipcRenderer.invoke('folder:pick'),
     listDir: (dirPath: string, depth?: number) => ipcRenderer.invoke('folder:listDir', dirPath, depth),
     readFile: (filePath: string) => ipcRenderer.invoke('folder:readFile', filePath),
+    movePath: (sourcePath: string, targetDirectory: string) => ipcRenderer.invoke('folder:movePath', sourcePath, targetDirectory),
+    revealPath: (path: string) => ipcRenderer.invoke('folder:revealPath', path),
     watchDir: (dirPath: string) => ipcRenderer.invoke('folder:watchDir', dirPath),
     unwatchDir: (dirPath: string) => ipcRenderer.invoke('folder:unwatchDir', dirPath),
     onDirChange: (cb: (dirPath: string) => void) => {

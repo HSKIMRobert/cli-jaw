@@ -42,9 +42,18 @@ export type FolderBridgeApi = {
     pickFolder: () => Promise<{ ok: boolean; path?: string; error?: string }>;
     listDir: (dirPath: string, depth?: number) => Promise<{ ok: boolean; entries?: Array<{ name: string; path: string; kind: 'file' | 'directory'; size: number }>; error?: string }>;
     readFile: (filePath: string) => Promise<{ ok: boolean; content?: string; truncated?: boolean; binary?: boolean; error?: string }>;
+    movePath: (sourcePath: string, targetDirectory: string) => Promise<FolderMoveResult>;
+    revealPath: (path: string) => Promise<{ ok: boolean; error?: string }>;
     watchDir: (dirPath: string) => Promise<void>;
     unwatchDir: (dirPath: string) => Promise<void>;
     onDirChange: (cb: (dirPath: string) => void) => () => void;
+};
+
+export type FolderMoveResult = {
+    ok: boolean;
+    moved?: { from: string; to: string; name: string; kind: 'file' | 'directory' };
+    error?: string;
+    code?: string;
 };
 
 export type DroppedPathEntry = {
