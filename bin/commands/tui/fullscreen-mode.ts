@@ -247,6 +247,15 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
                 scheduler.request();
                 continue;
             }
+            if (action === 'ctrl-d') {
+                if (!ctx.commandRunning && !ctx.inputActive) {
+                    scheduler.dispose();
+                    screen.disableMouse();
+                    screen.exit();
+                    process.exit(0);
+                }
+                continue;
+            }
             if (handleScrollKey(ctx, viewport, action, regions)) {
                 scheduler.request();
                 continue;

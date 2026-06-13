@@ -24,6 +24,10 @@ export type KeyAction =
     | 'ctrl-x'
     | 'ctrl-e'
     | 'ctrl-_'
+    | 'ctrl-d'
+    | 'ctrl-r'
+    | 'ctrl-l'
+    | 'shift-tab'
     | 'printable'
     | 'other';
 
@@ -54,6 +58,10 @@ export function classifyKeyAction(key: string): KeyAction {
     if (key === '\x18') return 'ctrl-x';
     if (key === '\x05') return 'ctrl-e';
     if (key === '\x1f') return 'ctrl-_';
+    if (key === '\x04') return 'ctrl-d';
+    if (key === '\x12') return 'ctrl-r';
+    if (key === '\x0c') return 'ctrl-l';
+    if (key === '\x1b[Z') return 'shift-tab';
     if (key.length > 0 && (key.charCodeAt(0) >= 32 || key.charCodeAt(0) > 127)) return 'printable';
     return 'other';
 }
