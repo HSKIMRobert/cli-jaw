@@ -207,7 +207,6 @@ function handleMouseEvent(
     ev: { kind: string; row: number },
 ): boolean {
     if (ev.kind !== 'wheel-up' && ev.kind !== 'wheel-down') return false;
-    if (ev.row < regions.transcript.y || ev.row >= regions.transcript.y + regions.transcript.height) return false;
     const h = regions.transcript.height;
     viewport.scrollBy(ev.kind === 'wheel-up' ? -3 : 3, h);
     return true;
@@ -454,7 +453,7 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
 
     rebuildFooter(ctx);
     screen.enter();
-    if (ctx.tuiConfig['mouseTracking'] === true) screen.enableMouse();
+    if (ctx.tuiConfig['mouseTracking'] !== false) screen.enableMouse();
     scheduler.request();
 
     process.stdin.setRawMode(true);

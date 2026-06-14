@@ -5,9 +5,10 @@ import { readFileSync } from 'node:fs';
 const source = readFileSync(new URL('../../bin/commands/tui/fullscreen-mode.ts', import.meta.url), 'utf8');
 
 test('fullscreen user transcript renderer splits embedded newlines into frame rows', () => {
-    assert.match(source, /item\.displayText\.split\('\\n'\)\.flatMap/);
-    assert.match(source, /wrapTextToCols\(line, w - 3\)/);
-    assert.match(source, /return lines\.map\(\(line, index\) =>/);
+    assert.match(source, /function wrapPlainLines\(text: string, width: number\): string\[\]/);
+    assert.match(source, /text\.split\('\\n'\)\.flatMap/);
+    assert.match(source, /const bodyRows = wrapPlainLines\(item\.displayText, bodyWidth\)/);
+    assert.match(source, /\.\.\.bodyRows\.map\(line =>/);
 });
 
 test('fullscreen thinking renderer returns labeled rows without embedded newline templates', () => {
@@ -45,7 +46,7 @@ test('fullscreen live tool handling keeps running tools out of committed transcr
     assert.match(source, /liveRows/);
 });
 
-test('fullscreen default mouse tracking is copy-friendly and opt-in', () => {
-    assert.match(source, /ctx\.tuiConfig\['mouseTracking'\] === true/);
+test('fullscreen default mouse tracking enables wheel scroll with opt-out', () => {
+    assert.match(source, /ctx\.tuiConfig\['mouseTracking'\] !== false/);
     assert.doesNotMatch(source, /screen\.enter\(\);\s*screen\.enableMouse\(\);/);
 });
