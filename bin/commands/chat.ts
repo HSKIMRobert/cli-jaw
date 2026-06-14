@@ -37,6 +37,7 @@ if (shouldShowHelp(process.argv)) printAndExit(`
 `);
 import { APP_VERSION, getServerUrl, getWsUrl } from '../../src/core/config.js';
 import { c, cliColor, cliLabel, hrLine, getRows, ESC_WAIT_MS, formatFooter, type TuiContext } from './tui/types.js';
+import { splitKeyInput } from '../../src/cli/tui/keymap.js';
 import { runSimpleMode } from './tui/simple-mode.js';
 import { initHighlight } from '../../src/cli/tui/highlight.js';
 import { openPromptBlock } from './tui/renderer.js';
@@ -265,7 +266,7 @@ if (values.simple) {
             redrawInputWithAutocomplete(ctx);
             if (tokens.length === 0) return;
         }
-        for (const token of tokens) handleKeyInput(ctx, token);
+        for (const token of tokens.flatMap(splitKeyInput)) handleKeyInput(ctx, token);
     });
 
     // ─── Channel messages (SSE or legacy WS) ─

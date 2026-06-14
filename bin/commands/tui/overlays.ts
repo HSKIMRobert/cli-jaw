@@ -283,7 +283,10 @@ export function getMaxPopupRows(): number {
     return Math.max(0, getRows() - 3);
 }
 
+let autocompleteRedrawSeq = 0;
+
 export async function redrawInputWithAutocomplete(ctx: TuiContext): Promise<void> {
+    const requestSeq = ++autocompleteRedrawSeq;
     const ac = ctx.store.autocomplete;
     const prevItem = ac.items[ac.selected];
     const prevKey = makeSelectionKey(prevItem, ac.stage);
@@ -319,6 +322,8 @@ export async function redrawInputWithAutocomplete(ctx: TuiContext): Promise<void
             next = { open: false, items: [], selected: 0, visibleRows: 0 };
         }
     }
+
+    if (requestSeq !== autocompleteRedrawSeq) return;
 
     if (ctx.displayMode === 'fullscreen') {
         applyResolvedAutocompleteState(ac, next);

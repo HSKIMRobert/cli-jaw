@@ -65,3 +65,53 @@ export function classifyKeyAction(key: string): KeyAction {
     if (key.length > 0 && (key.charCodeAt(0) >= 32 || key.charCodeAt(0) > 127)) return 'printable';
     return 'other';
 }
+
+function isCsiFinal(ch: string): boolean {
+    const code = ch.charCodeAt(0);
+    return code >= 0x40 && code <= 0x7e;
+}
+
+export function splitKeyInput(input: string): string[] {
+    const tokens: string[] = [];
+    let i = 0;
+
+    while (i < input.length) {
+        const ch = input[i]!;
+
+        if (ch === '\x1b') {
+            const next = input[i + 1];
+            if (next === '[') {
+                let end = i + 2;
+                while (end < input.length && !isCsiFinal(input[end]!)) end++;
+                if (end < input.length) {
+                    tokens.push(input.slice(i, end + 1));
+                    i = end + 1;
+                    continue;
+                }
+                tokens.push(input.slice(i));
+                break;
+            }
+            if (next === 'O' && i + 2 < input.length) {
+                tokens.push(input.slice(i, i + 3));
+                i += 3;
+                continue;
+            }
+            if (next) {
+                tokens.push(input.slice(i, i + 2));
+                i += 2;
+                continue;
+            }
+            tokens.push(ch);
+            i++;
+            continue;
+        }
+
+        const codePoint = input.codePointAt(i);
+        if (codePoint === undefined) break;
+        const token = String.fromCodePoint(codePoint);
+        tokens.push(token);
+        i += token.length;
+    }
+
+    return tokens;
+}

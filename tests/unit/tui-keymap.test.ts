@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyKeyAction } from '../../src/cli/tui/keymap.ts';
+import { classifyKeyAction, splitKeyInput } from '../../src/cli/tui/keymap.ts';
 
 test('classifyKeyAction detects navigation escape sequences', () => {
     assert.equal(classifyKeyAction('\x1b[A'), 'arrow-up');
@@ -61,4 +61,15 @@ test('classifyKeyAction detects word motions (ctrl/alt arrow, Alt+b/f)', () => {
 test('plain b/f stay printable (only ESC-prefixed are word motions)', () => {
     assert.equal(classifyKeyAction('b'), 'printable');
     assert.equal(classifyKeyAction('f'), 'printable');
+});
+
+test('splitKeyInput separates batched printable input from enter', () => {
+    assert.deepEqual(splitKeyInput('/quit\r'), ['/', 'q', 'u', 'i', 't', '\r']);
+    assert.deepEqual(splitKeyInput('ㅎㅇ\n'), ['ㅎ', 'ㅇ', '\n']);
+});
+
+test('splitKeyInput preserves escape sequences as single tokens', () => {
+    assert.deepEqual(splitKeyInput('\x1b[Aabc'), ['\x1b[A', 'a', 'b', 'c']);
+    assert.deepEqual(splitKeyInput('\x1b[1;5D\r'), ['\x1b[1;5D', '\r']);
+    assert.deepEqual(splitKeyInput('\x1bbx'), ['\x1bb', 'x']);
 });

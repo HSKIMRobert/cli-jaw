@@ -36,3 +36,11 @@ test('fullscreen input handler parses slash drafts before normal chat send', () 
     assert.ok(commandIndex > parseIndex, 'runSlashCommand should follow slash parsing');
     assert.ok(sendIndex > commandIndex, 'normal chat send should remain after slash command branch');
 });
+
+test('autocomplete redraw ignores stale async slash results', () => {
+    const overlaysSource = readFileSync(new URL('../../bin/commands/tui/overlays.ts', import.meta.url), 'utf8');
+
+    assert.match(overlaysSource, /let autocompleteRedrawSeq = 0;/);
+    assert.match(overlaysSource, /const requestSeq = \+\+autocompleteRedrawSeq;/);
+    assert.match(overlaysSource, /if \(requestSeq !== autocompleteRedrawSeq\) return;/);
+});

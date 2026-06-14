@@ -10,7 +10,7 @@ import {
 import { renderMarkdown } from '../../../src/cli/tui/markdown.js';
 import { renderMarkdownJawcode, isInitialized, getInteractive } from '../../../src/cli/tui/jawcode-render.js';
 import { renderToolLine, renderThinkingCollapse } from '../../../src/cli/tui/jawcode-bridge.js';
-import { classifyKeyAction, type KeyAction } from '../../../src/cli/tui/keymap.js';
+import { classifyKeyAction, splitKeyInput, type KeyAction } from '../../../src/cli/tui/keymap.js';
 import { getCompletionItems } from '../../../src/cli/commands.js';
 import { composeHelpOntoFrame, composePaletteOntoFrame, composeSelectorOntoFrame, composeBgtaskOntoFrame } from '../../../src/cli/tui/overlay.js';
 import { composeSlashSurfaceLines } from '../../../src/cli/tui/slash-surface.js';
@@ -422,7 +422,7 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
         }
 
         const regions = currentRegions(ctx);
-        for (const token of tokens) {
+        for (const token of tokens.flatMap(splitKeyInput)) {
             const action = classifyKeyAction(token);
             if (action === 'ctrl-o') {
                 if (toggleToolExpansion(ctx.store.transcript)) scheduler.request();
