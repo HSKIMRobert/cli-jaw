@@ -93,6 +93,7 @@ export class Screen {
     private committedScreenRows = 0;
     private lastWidth = 0;
     private lastHeight = 0;
+    private launchClearPending = false;
 
     get active(): boolean {
         return this.inlineActive;
@@ -110,6 +111,7 @@ export class Screen {
         this.committedScreenRows = 0;
         this.lastWidth = 0;
         this.lastHeight = 0;
+        this.launchClearPending = true;
     }
 
     exit(): void {
@@ -128,6 +130,7 @@ export class Screen {
         this.committedScreenRows = 0;
         this.lastWidth = 0;
         this.lastHeight = 0;
+        this.launchClearPending = false;
     }
 
     needsResizeRepaint(): boolean {
@@ -162,6 +165,12 @@ export class Screen {
             : undefined;
 
         let buf = '\x1b[?2026h';
+        if (this.launchClearPending) {
+            buf += buildLaunchClearSequence();
+            this.cursorRow = 0;
+            this.committedScreenRows = 0;
+            this.launchClearPending = false;
+        }
 
         if (!this.resizeRedrawPending && this.committedScreenRows > 0 && normalized.fillRows < this.lastFillRows) {
             buf += buildScrollOutSequence(this.lastFillRows - normalized.fillRows, this.lastFillRows, { row: this.cursorRow, col: 0 });
@@ -326,6 +335,7 @@ export class Screen {
         this.committedScreenRows = 0;
         this.lastWidth = 0;
         this.lastHeight = 0;
+        this.launchClearPending = false;
         this.fullRedrawPending = true;
         this.resizeRedrawPending = false;
     }
@@ -347,6 +357,15 @@ function buildViewportRepaintSequence(lines: string[], height: number): string {
         out += '\x1b[2K' + (lines[i] ?? '');
     }
     return out;
+}
+
+function buildLaunchClearSequence(): string {
+    return isMultiplexerSession() ? '\x1b[2J\x1b[H' : '\x1b[2J\x1b[H\x1b[3J';
+}
+
+function isMultiplexerSession(env: Record<string, string | undefined> = process.env): boolean {
+    const term = (env['TERM'] ?? '').toLowerCase();
+    return Boolean(env['TMUX'] || env['STY'] || term.startsWith('tmux') || term.startsWith('screen'));
 }
 
 function buildInsertHistorySequence(

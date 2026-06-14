@@ -67,6 +67,7 @@ export class AnsiTerminalModel {
         else if (command === 'B') this.row = Math.min(this.rows - 1, this.row + n);
         else if (command === 'C') this.col = Math.min(this.columns - 1, this.col + n);
         else if (command === 'H') this.moveTo(params);
+        else if (command === 'J') this.eraseDisplay(n);
         else if (command === 'K' && n === 2) this.lines[this.row] = '';
         else if (command === 'r') this.setScrollRegion(params);
         return end;
@@ -87,6 +88,18 @@ export class AnsiTerminalModel {
         }
         this.scrollTop = Math.max(0, Math.min(this.rows - 1, params[0] - 1));
         this.scrollBottom = Math.max(this.scrollTop, Math.min(this.rows - 1, params[1] - 1));
+    }
+
+    private eraseDisplay(mode: number): void {
+        if (mode === 2 || mode === 3) {
+            this.lines = new Array(this.rows).fill('');
+            return;
+        }
+        if (mode === 0) {
+            const current = this.lines[this.row] ?? '';
+            this.lines[this.row] = current.slice(0, this.col);
+            for (let r = this.row + 1; r < this.rows; r += 1) this.lines[r] = '';
+        }
     }
 
     private putChar(ch: string): void {

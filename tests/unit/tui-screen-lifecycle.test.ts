@@ -124,6 +124,40 @@ test('Screen forceResizeRedraw anchors repaint to the current viewport home afte
     }
 });
 
+test('Screen first fullscreen render clears preexisting terminal history before painting welcome', () => {
+    let output = '';
+    const terminal = new AnsiTerminalModel(40, 6);
+    terminal.write('shell-0\r\nshell-1\r\nshell-2');
+    const origWrite = process.stdout.write.bind(process.stdout);
+    const columnsDesc = Object.getOwnPropertyDescriptor(process.stdout, 'columns');
+    const rowsDesc = Object.getOwnPropertyDescriptor(process.stdout, 'rows');
+    Object.defineProperty(process.stdout, 'columns', { value: 40, configurable: true });
+    Object.defineProperty(process.stdout, 'rows', { value: 6, configurable: true });
+    process.stdout.write = ((chunk: string | Uint8Array) => {
+        const text = typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8');
+        output += text;
+        terminal.write(text);
+        return true;
+    }) as typeof process.stdout.write;
+
+    try {
+        const screen = new Screen();
+        screen.enter();
+        output = '';
+        screen.render({ rows: ['╭ welcome ╮', VIEWPORT_FILL, 'input', 'help'], cursorPos: { row: 2, col: 1 } });
+
+        assert.ok(output.includes('\x1b[2J\x1b[H'), 'launch render should clear the visible terminal and home the cursor');
+        assert.ok(output.includes('\x1b[3J'), 'launch render should clear preexisting scrollback outside multiplexers');
+        assert.equal(terminal.visibleText().includes('shell-'), false, terminal.visibleText());
+        assert.equal((terminal.visibleText().split('\n')[0] ?? '').startsWith('╭ welcome'), true, terminal.visibleText());
+        screen.exit();
+    } finally {
+        process.stdout.write = origWrite;
+        if (columnsDesc) Object.defineProperty(process.stdout, 'columns', columnsDesc);
+        if (rowsDesc) Object.defineProperty(process.stdout, 'rows', rowsDesc);
+    }
+});
+
 test('diffFrames full paint on null prev', () => {
     const patch = diffFrames(null, { rows: ['a', 'b'] });
     assert.ok(patch.includes('a'));

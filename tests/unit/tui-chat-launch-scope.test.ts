@@ -62,6 +62,11 @@ test('fullscreen resize uses redraw without clearing terminal history', () => {
     ].join('\n')), 'resize handler should request an immediate repaint before trailing debounce');
     assert.equal(resizeBlock.includes('screen.forceRedraw();'), false);
     assert.equal(resizeBlock.includes('screen.resetViewport();'), false);
-    assert.equal(frameSource.includes('\\x1b[2J'), false);
-    assert.equal(frameSource.includes('\\x1b[3J'), false);
+    const repaintStart = frameSource.indexOf('function buildViewportRepaintSequence');
+    const repaintEnd = frameSource.indexOf('function buildLaunchClearSequence', repaintStart);
+    const repaintBlock = frameSource.slice(repaintStart, repaintEnd);
+    assert.equal(repaintBlock.includes('\\x1b[2J'), false);
+    assert.equal(repaintBlock.includes('\\x1b[3J'), false);
+    assert.ok(frameSource.includes('function buildLaunchClearSequence'));
+    assert.ok(frameSource.includes("'\\x1b[2J\\x1b[H\\x1b[3J'"));
 });
