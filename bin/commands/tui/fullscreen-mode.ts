@@ -247,7 +247,7 @@ function renderLiveToolRows(ctx: TuiContext, cols: number, maxRows: number): str
 }
 
 function renderWelcomePrelude(ctx: TuiContext, cols: number): string[] {
-    return (ctx.welcomeLines ?? []).map(line => clipTextToCols(`  ${line}`, cols));
+    return (ctx.welcomeLines ?? []).map(line => clipTextToCols(line, cols));
 }
 
 function renderChatRegion(ctx: TuiContext, viewport: Viewport, regions: Regions, cols: number, liveRows: string[] = []): string[] {
@@ -322,12 +322,21 @@ export function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
         .map(line => clipTextToCols(line, cols));
     while (commandRows.length < regions.commandSurface.height) commandRows.push('');
 
-    const frameRows: string[] = [
-        VIEWPORT_FILL,
-        ...chatRows,
-        clipTextToCols(ctx.footer, cols),
-        ...commandRows,
-    ];
+    const needsOverlay = ov.helpOpen || ov.paletteOpen || ov.selector.open || ov.bgtaskOpen;
+    const anchorLaunchPrelude = !needsOverlay && !ov.settingsOpen && viewport.hasUncommittedPreludeRows();
+    const frameRows: string[] = anchorLaunchPrelude
+        ? [
+            ...chatRows,
+            VIEWPORT_FILL,
+            clipTextToCols(ctx.footer, cols),
+            ...commandRows,
+        ]
+        : [
+            VIEWPORT_FILL,
+            ...chatRows,
+            clipTextToCols(ctx.footer, cols),
+            ...commandRows,
+        ];
 
     // Input box with border — width-safe and cursor-aware for IME/wide glyphs.
     const box = isInitialized() ? (() => { try { return getInteractive().theme?.boxSharp; } catch { return null; } })() : null;
@@ -355,7 +364,6 @@ export function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
     frameRows.push(renderHelpLine(cols));
 
     // For overlays, we need a full-height array. Expand VIEWPORT_FILL now.
-    const needsOverlay = ov.helpOpen || ov.paletteOpen || ov.selector.open || ov.bgtaskOpen;
     if (needsOverlay) {
         frameRows.splice(0, frameRows.length, ...expandFrameRows(frameRows, rows));
         if (ov.helpOpen) {

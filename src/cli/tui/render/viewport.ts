@@ -128,6 +128,10 @@ export class Viewport {
         return this.follow;
     }
 
+    hasUncommittedPreludeRows(): boolean {
+        return this.hasUncommittedPrelude();
+    }
+
     totalLines(): number {
         return Math.max(0, this.flattenRows().length - this.committedRows);
     }

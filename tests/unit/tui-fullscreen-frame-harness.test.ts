@@ -116,6 +116,25 @@ test('fullscreen composeFrame keeps frame rows newline-free and input pinned', (
     });
 });
 
+test('fullscreen launch welcome starts at the terminal frame origin', () => {
+    withTerminalSize(80, 24, () => {
+        const ctx = makeCtx();
+        ctx.welcomeLines = ['╭─ welcome ─╮', '│ first row │', '╰───────────╯'];
+
+        const frame = composeFrame(ctx, new Viewport());
+        const expanded = expandViewportFill(frame.rows, 24);
+        const regions = solveLayout(80, 24, 1);
+
+        assert.notEqual(frame.rows[0], VIEWPORT_FILL, 'launch prelude should render before the fill lane');
+        assert.equal(stripAnsi(expanded[0] ?? ''), '╭─ welcome ─╮');
+        assert.equal(stripAnsi(expanded[1] ?? ''), '│ first row │');
+        assert.equal(stripAnsi(expanded[2] ?? ''), '╰───────────╯');
+        assert.match(stripAnsi(expanded[regions.statusLine.y - 1] ?? ''), /\/quit/);
+        assert.match(expanded[regions.composer.y - 2] ?? '', /┌/);
+        assert.match(expanded[regions.help.y - 1] ?? '', /shortcuts/);
+    });
+});
+
 test('fullscreen tool rows strip legacy event emoji and preserve multi-word labels', () => {
     withTerminalSize(96, 28, () => {
         const ctx = makeCtx();
