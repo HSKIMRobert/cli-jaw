@@ -7,6 +7,13 @@ NODE_VERSION="22.16.0"
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SIDECAR_DIR="$PROJECT_ROOT/electron/sidecar/server"
+SIDECAR_LOCAL_DEPS="$PROJECT_ROOT/electron/sidecar/jawcode/packages"
+JAWCODE_SRC_CANDIDATE="$PROJECT_ROOT/../jawcode/packages/jwc"
+JAWCODE_SRC=""
+if [ -d "$JAWCODE_SRC_CANDIDATE" ]; then
+  JAWCODE_SRC="$(cd "$JAWCODE_SRC_CANDIDATE" && pwd)"
+fi
+JAWCODE_DEST="$SIDECAR_LOCAL_DEPS/jwc"
 
 echo "=== Bundling sidecar: $PLATFORM-$ARCH ==="
 
@@ -44,9 +51,36 @@ cp -r public "$SIDECAR_DIR/public"
 cp package.json "$SIDECAR_DIR/package.json"
 cp package-lock.json "$SIDECAR_DIR/package-lock.json" 2>/dev/null || true
 
+if [ -z "$JAWCODE_SRC" ] || [ ! -f "$JAWCODE_SRC/package.json" ]; then
+  echo "ERROR: jawcode local dependency not found at $PROJECT_ROOT/../jawcode/packages/jwc" >&2
+  exit 1
+fi
+
+echo "Copying jawcode local dependency..."
+rm -rf "$PROJECT_ROOT/electron/sidecar/jawcode"
+mkdir -p "$SIDECAR_LOCAL_DEPS"
+rsync -a --delete \
+  --exclude node_modules \
+  --exclude .git \
+  "$JAWCODE_SRC/" \
+  "$JAWCODE_DEST/"
+
 echo "Installing production dependencies..."
 cd "$SIDECAR_DIR"
 npm install --omit=dev --ignore-scripts 2>/dev/null
+
+rm -rf "$SIDECAR_DIR/node_modules/jawcode"
+mkdir -p "$SIDECAR_DIR/node_modules/jawcode"
+rsync -a --delete \
+  --exclude node_modules \
+  --exclude .git \
+  "$JAWCODE_SRC/" \
+  "$SIDECAR_DIR/node_modules/jawcode/"
+
+if [ ! -f "$SIDECAR_DIR/node_modules/jawcode/package.json" ]; then
+  echo "ERROR: jawcode local dependency did not resolve inside sidecar" >&2
+  exit 1
+fi
 
 echo "Pruning frontend-only dependencies..."
 PRUNE_PKGS=(
@@ -72,17 +106,21 @@ rm -rf "$SIDECAR_DIR/node_modules/es-toolkit" 2>/dev/null || true
 rm -rf "$SIDECAR_DIR/node_modules/lodash" 2>/dev/null || true
 rm -rf "$SIDECAR_DIR/node_modules/web-streams-polyfill" 2>/dev/null || true
 
-echo "Rebuilding better-sqlite3..."
-npm rebuild better-sqlite3
-
 NODE_BIN="$SIDECAR_DIR/node"
 if [[ "$PLATFORM" == "win32" ]]; then
   NODE_BIN="$SIDECAR_DIR/node.exe"
 fi
 
-echo "Verifying better-sqlite3 loads..."
-"$NODE_BIN" -e "require('better-sqlite3')" && echo "  better-sqlite3 OK" || {
-  echo "ERROR: better-sqlite3 failed to load with bundled Node"
+echo "Rebuilding better-sqlite3 for bundled Node $NODE_VERSION..."
+npm_config_runtime=node \
+npm_config_target="$NODE_VERSION" \
+npm_config_disturl="https://nodejs.org/dist" \
+npm_config_build_from_source=true \
+  npm rebuild better-sqlite3
+
+echo "Verifying better-sqlite3 opens with bundled Node..."
+"$NODE_BIN" -e "const Database = require('better-sqlite3'); new Database(':memory:').close()" && echo "  better-sqlite3 OK" || {
+  echo "ERROR: better-sqlite3 failed to open with bundled Node"
   exit 1
 }
 
