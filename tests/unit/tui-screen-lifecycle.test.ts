@@ -84,7 +84,7 @@ test('Screen forceRedraw repaints from the existing frame top instead of current
     }
 });
 
-test('Screen forceResizeRedraw anchors repaint to the current viewport home after height resize', () => {
+test('Screen forceResizeRedraw clears disposable welcome scrollback before transcript history exists', () => {
     let output = '';
     const terminal = new AnsiTerminalModel(40, 8);
     const origWrite = process.stdout.write.bind(process.stdout);
@@ -112,10 +112,47 @@ test('Screen forceResizeRedraw anchors repaint to the current viewport home afte
         screen.forceResizeRedraw();
         screen.render({ rows: [VIEWPORT_FILL, 'WELCOME', 'input', 'help'], cursorPos: { row: 2, col: 1 } });
 
-        assert.ok(output.includes('\x1b[H'), 'resize repaint should anchor at viewport home');
-        assert.equal(output.includes('\x1b[2J'), false, 'resize repaint must not clear scrollback');
-        assert.equal(output.includes('\x1b[3J'), false, 'resize repaint must not clear scrollback history');
+        assert.ok(output.includes('\x1b[2J\x1b[H\x1b[3J'), 'pre-transcript resize should clear visible and saved disposable welcome rows');
         assert.equal(terminal.countVisible('WELCOME'), 1, terminal.visibleText());
+        screen.exit();
+    } finally {
+        process.stdout.write = origWrite;
+        if (columnsDesc) Object.defineProperty(process.stdout, 'columns', columnsDesc);
+        if (rowsDesc) Object.defineProperty(process.stdout, 'rows', rowsDesc);
+    }
+});
+
+test('Screen forceResizeRedraw preserves saved scrollback after transcript history is protected', () => {
+    let output = '';
+    const terminal = new AnsiTerminalModel(40, 8);
+    const origWrite = process.stdout.write.bind(process.stdout);
+    const columnsDesc = Object.getOwnPropertyDescriptor(process.stdout, 'columns');
+    const rowsDesc = Object.getOwnPropertyDescriptor(process.stdout, 'rows');
+    Object.defineProperty(process.stdout, 'columns', { value: 40, configurable: true });
+    Object.defineProperty(process.stdout, 'rows', { value: 8, configurable: true });
+    process.stdout.write = ((chunk: string | Uint8Array) => {
+        const text = typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8');
+        output += text;
+        terminal.write(text);
+        return true;
+    }) as typeof process.stdout.write;
+
+    try {
+        const screen = new Screen();
+        screen.enter();
+        output = '';
+        screen.render({ rows: [VIEWPORT_FILL, 'u:first', 'input', 'help'], cursorPos: { row: 2, col: 1 } });
+        screen.protectScrollback();
+
+        terminal.resize(40, 5);
+        Object.defineProperty(process.stdout, 'rows', { value: 5, configurable: true });
+        output = '';
+        screen.forceResizeRedraw();
+        screen.render({ rows: [VIEWPORT_FILL, 'u:first', 'input', 'help'], cursorPos: { row: 2, col: 1 } });
+
+        assert.ok(output.includes('\x1b[2J\x1b[H'), 'protected resize should still visibly clear and repaint native terminals');
+        assert.equal(output.includes('\x1b[3J'), false, 'protected resize must not erase saved scrollback history');
+        assert.equal(terminal.countVisible('u:first'), 1, terminal.visibleText());
         screen.exit();
     } finally {
         process.stdout.write = origWrite;
@@ -228,7 +265,7 @@ test('Screen commit writes committed text only when a viewport fill lane exists'
     }
 });
 
-test('Screen auto-detects geometry changes before debounced resize repaint fires', () => {
+test('Screen auto-detects geometry changes and clears disposable welcome rows before debounce', () => {
     let output = '';
     const terminal = new AnsiTerminalModel(40, 8);
     const origWrite = process.stdout.write.bind(process.stdout);
@@ -259,9 +296,7 @@ test('Screen auto-detects geometry changes before debounced resize repaint fires
             output = '';
             screen.render({ rows: [VIEWPORT_FILL, 'WELCOME', 'input', 'help'], cursorPos: { row: 2, col: 1 } });
 
-            assert.ok(output.includes('\x1b[H'), `height ${rows} should repaint from viewport home`);
-            assert.equal(output.includes('\x1b[2J'), false, 'implicit resize repaint must not clear the viewport/scrollback destructively');
-            assert.equal(output.includes('\x1b[3J'), false, 'implicit resize repaint must not clear scrollback history');
+            assert.ok(output.includes('\x1b[2J\x1b[H\x1b[3J'), `height ${rows} should clear disposable pre-transcript rows before repaint`);
             assert.equal(terminal.countVisible('WELCOME'), 1, terminal.visibleText());
         }
         screen.exit();

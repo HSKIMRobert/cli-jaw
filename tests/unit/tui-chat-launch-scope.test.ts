@@ -44,7 +44,7 @@ test('fullscreen scrollback commit uses a scroll region instead of plain newline
     assert.ok(frameSource.includes("out += lines[i] ?? '';"));
 });
 
-test('fullscreen resize uses redraw without clearing terminal history', () => {
+test('fullscreen resize uses JWC-like clear before transcript and protects history afterward', () => {
     const resizeStart = fullscreenSource.indexOf("process.stdout.on('resize'");
     const resizeEnd = fullscreenSource.indexOf("process.stdin.on('data'", resizeStart);
     const resizeBlock = fullscreenSource.slice(resizeStart, resizeEnd);
@@ -52,7 +52,12 @@ test('fullscreen resize uses redraw without clearing terminal history', () => {
     assert.ok(frameSource.includes('needsResizeRepaint(): boolean'));
     assert.ok(frameSource.includes('geometryChanged(width: number, height: number): boolean'));
     assert.ok(frameSource.includes('forceResizeRedraw(): void'));
+    assert.ok(frameSource.includes('protectScrollback(): void'));
+    assert.ok(frameSource.includes('scrollbackProtected'));
+    assert.ok(frameSource.includes("resizeRepaintMode(widthChanged: boolean, heightChanged: boolean): 'discard-scrollback' | 'visible-clear' | 'viewport-only'"));
     assert.ok(frameSource.includes('buildViewportRepaintSequence'));
+    assert.ok(frameSource.includes("buildFullClearSequence(mode === 'discard-scrollback')"));
+    assert.ok(frameSource.includes('buildFullClearSequence(!isMultiplexerSession())'));
     assert.ok(resizeBlock.includes([
         'viewport.setWidth(process.stdout.columns || 80);',
         '        screen.forceResizeRedraw();',
@@ -60,13 +65,17 @@ test('fullscreen resize uses redraw without clearing terminal history', () => {
         '',
         '        if (ctx.resizeTimer) clearTimeout(ctx.resizeTimer);',
     ].join('\n')), 'resize handler should request an immediate repaint before trailing debounce');
+    assert.ok(fullscreenSource.includes('const hasTranscriptItems = ctx.store.transcript.items.length > 0;'));
+    assert.ok(fullscreenSource.includes('if (hasTranscriptItems) screen.protectScrollback();'));
+    assert.ok(fullscreenSource.includes('else viewport.resetCommittedRows(transcriptHeight);'));
     assert.equal(resizeBlock.includes('screen.forceRedraw();'), false);
     assert.equal(resizeBlock.includes('screen.resetViewport();'), false);
     const repaintStart = frameSource.indexOf('function buildViewportRepaintSequence');
-    const repaintEnd = frameSource.indexOf('function buildLaunchClearSequence', repaintStart);
+    const repaintEnd = frameSource.indexOf('function buildFullClearSequence', repaintStart);
     const repaintBlock = frameSource.slice(repaintStart, repaintEnd);
     assert.equal(repaintBlock.includes('\\x1b[2J'), false);
     assert.equal(repaintBlock.includes('\\x1b[3J'), false);
     assert.ok(frameSource.includes('function buildLaunchClearSequence'));
     assert.ok(frameSource.includes("'\\x1b[2J\\x1b[H\\x1b[3J'"));
+    assert.equal(frameSource.includes('\x1b[?1049h'), false);
 });

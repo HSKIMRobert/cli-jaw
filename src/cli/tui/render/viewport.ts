@@ -150,6 +150,15 @@ export class Viewport {
         this.clampScroll(visibleRows);
     }
 
+    resetCommittedRows(visibleRows = 1): void {
+        this.committedRows = 0;
+        if (this.follow && this.cells.length === 0 && this.hasUncommittedPrelude()) {
+            this.scrollTop = 0;
+        } else {
+            this.clampScroll(visibleRows);
+        }
+    }
+
     composeRegion(region: Rect): string[] {
         const flat = this.flattenRows().slice(this.committedRows);
         this.clampScroll(region.height);

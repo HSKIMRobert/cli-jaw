@@ -94,6 +94,7 @@ export class Screen {
     private lastWidth = 0;
     private lastHeight = 0;
     private launchClearPending = false;
+    private scrollbackProtected = false;
 
     get active(): boolean {
         return this.inlineActive;
@@ -112,6 +113,7 @@ export class Screen {
         this.lastWidth = 0;
         this.lastHeight = 0;
         this.launchClearPending = true;
+        this.scrollbackProtected = false;
     }
 
     exit(): void {
@@ -131,6 +133,7 @@ export class Screen {
         this.lastWidth = 0;
         this.lastHeight = 0;
         this.launchClearPending = false;
+        this.scrollbackProtected = false;
     }
 
     needsResizeRepaint(): boolean {
@@ -150,7 +153,9 @@ export class Screen {
         if (!this.inlineActive) return;
         const height = process.stdout.rows || 24;
         const width = Math.max(1, process.stdout.columns || 80);
-        const dimensionChanged = this.geometryChanged(width, height);
+        const widthChanged = this.prevLines.length > 0 && this.lastWidth > 0 && this.lastWidth !== width;
+        const heightChanged = this.prevLines.length > 0 && this.lastHeight > 0 && this.lastHeight !== height;
+        const dimensionChanged = widthChanged || heightChanged;
         if (dimensionChanged) {
             this.fullRedrawPending = true;
             this.resizeRedrawPending = true;
@@ -178,10 +183,20 @@ export class Screen {
         }
 
         if (this.resizeRedrawPending) {
-            if (normalized.fillRows < this.lastFillRows) {
-                this.committedScreenRows = Math.min(this.committedScreenRows, normalized.fillRows);
+            const mode = this.resizeRepaintMode(widthChanged, heightChanged);
+            if (mode === 'viewport-only') {
+                if (normalized.fillRows < this.lastFillRows) {
+                    this.committedScreenRows = Math.min(this.committedScreenRows, normalized.fillRows);
+                }
+                buf += buildViewportRepaintSequence(lines, height);
+            } else {
+                if (this.scrollbackProtected && this.committedScreenRows > 0 && this.lastFillRows > 0) {
+                    buf += buildScrollOutSequence(this.lastFillRows, this.lastFillRows, { row: this.cursorRow, col: 0 });
+                }
+                this.committedScreenRows = 0;
+                buf += buildFullClearSequence(mode === 'discard-scrollback');
+                buf += buildViewportRepaintSequence(lines, height);
             }
-            buf += buildViewportRepaintSequence(lines, height);
             this.cursorRow = Math.max(0, Math.min(lines.length, height) - 1);
             this.fullRedrawPending = false;
             this.resizeRedrawPending = false;
@@ -301,8 +316,13 @@ export class Screen {
         })}\x1b[?2026l`;
         process.stdout.write(buf);
         this.committedScreenRows = Math.min(this.committedScreenRows + prepared.length, liveZoneTop);
+        this.scrollbackProtected = true;
         this.fullRedrawPending = true;
         return true;
+    }
+
+    protectScrollback(): void {
+        this.scrollbackProtected = true;
     }
 
     forceRedraw(): void {
@@ -336,6 +356,7 @@ export class Screen {
         this.lastWidth = 0;
         this.lastHeight = 0;
         this.launchClearPending = false;
+        this.scrollbackProtected = false;
         this.fullRedrawPending = true;
         this.resizeRedrawPending = false;
     }
@@ -347,20 +368,32 @@ export class Screen {
     disableMouse(): void {
         process.stdout.write('\x1b[?1006l\x1b[?1000l');
     }
+
+    private resizeRepaintMode(widthChanged: boolean, heightChanged: boolean): 'discard-scrollback' | 'visible-clear' | 'viewport-only' {
+        if (!widthChanged && !heightChanged) return 'viewport-only';
+        const mux = isMultiplexerSession();
+        if (!this.scrollbackProtected) return mux ? 'visible-clear' : 'discard-scrollback';
+        if (!mux) return 'visible-clear';
+        return widthChanged ? 'visible-clear' : 'viewport-only';
+    }
 }
 
 function buildViewportRepaintSequence(lines: string[], height: number): string {
     const repaintRows = Math.max(1, height);
     let out = '\x1b[H';
     for (let i = 0; i < repaintRows; i += 1) {
-        if (i > 0) out += '\r\n';
+        if (i > 0) out += `\x1b[${i + 1};1H`;
         out += '\x1b[2K' + (lines[i] ?? '');
     }
     return out;
 }
 
+function buildFullClearSequence(includeSavedLines: boolean): string {
+    return includeSavedLines ? '\x1b[2J\x1b[H\x1b[3J' : '\x1b[2J\x1b[H';
+}
+
 function buildLaunchClearSequence(): string {
-    return isMultiplexerSession() ? '\x1b[2J\x1b[H' : '\x1b[2J\x1b[H\x1b[3J';
+    return buildFullClearSequence(!isMultiplexerSession());
 }
 
 function isMultiplexerSession(env: Record<string, string | undefined> = process.env): boolean {
