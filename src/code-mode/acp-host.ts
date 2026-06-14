@@ -54,7 +54,7 @@ class AcpHost implements CodeSessionTransport {
         const { cmd, args } = resolveAcpCommand();
         const child = spawn(cmd, args, {
             stdio: ['pipe', 'pipe', 'inherit'],
-            env: { ...process.env, JWC_BRAND_NAME: 'jwc', GJC_BRAND_NAME: 'jwc' },
+            env: { ...process.env, JWC_BRAND_NAME: 'jwc' },
         });
         this.#child = child;
         const rl = createInterface({ input: child.stdout! });

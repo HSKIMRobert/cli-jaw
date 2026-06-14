@@ -93,7 +93,6 @@ class JawRuntime {
         const sdk = await loadSdk();
         const agentDir = jwcAgentDir();
         process.env['JWC_BRAND_NAME'] ??= 'jwc';
-        process.env['GJC_BRAND_NAME'] ??= 'jwc';
         const dir = sdk.SessionManager.getDefaultSessionDir(cwd, agentDir);
         // 120.1 안 A: host owns lifecycle. continueRecent → resume; falls back to create.
         let sessionManager: unknown;
