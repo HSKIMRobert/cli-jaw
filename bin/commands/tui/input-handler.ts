@@ -73,7 +73,7 @@ export function flushPendingEscape(ctx: TuiContext): void {
     ctx.escPending = false;
     ctx.escTimer = null;
     const ov = ctx.store.overlay;
-    if (ov.helpOpen || ov.paletteOpen || ov.selector.open || ov.bgtaskOpen) {
+    if (ov.helpOpen || ov.paletteOpen || ov.selector.open || ov.bgtaskOpen || ov.settingsOpen) {
         dismissOverlay(ctx);
         return;
     }
@@ -144,7 +144,7 @@ export function handleKeyInput(ctx: TuiContext, rawKey: string): void {
     }
 
     // Background tasks overlay: Ctrl+O
-    if (action === 'ctrl-o' && !ov.helpOpen && !ov.paletteOpen && !ov.selector.open) {
+    if (action === 'ctrl-o' && !ov.helpOpen && !ov.paletteOpen && !ov.selector.open && !ov.settingsOpen) {
         if (ov.bgtaskOpen) {
             dismissOverlay(ctx);
             return;
@@ -154,7 +154,7 @@ export function handleKeyInput(ctx: TuiContext, rawKey: string): void {
     }
 
     // Command palette: Ctrl+K
-    if (action === 'ctrl-k' && !ov.helpOpen) {
+    if (action === 'ctrl-k' && !ov.helpOpen && !ov.settingsOpen) {
         if (ov.paletteOpen) {
             dismissOverlay(ctx);
             return;
@@ -190,6 +190,10 @@ export function handleKeyInput(ctx: TuiContext, rawKey: string): void {
             return;
         }
         refreshCommandPalette(ctx);
+        return;
+    }
+
+    if (ov.settingsOpen) {
         return;
     }
 

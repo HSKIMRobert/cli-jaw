@@ -8,8 +8,8 @@ aliases: [CLI-JAW Commands, slash commands registry, commands.md]
 
 # src/cli/ — Slash Command Registry & Dispatcher
 
-> `commands.ts`(464L) + `handlers.ts`(448L) + `handlers-runtime.ts`(501L) + `handlers-completions.ts`(103L) + `handlers-workflows.ts`(498L) + `api-auth.ts`(45L) + `command-context.ts`(139L) + `registry.ts`(231L) + `acp-client.ts`(382L) + `claude-models.ts`(81L) + `compact.ts`(143L)
-> slash registry는 40개 커맨드이며 interface별 가시성은 CLI 38 / Web 36 / Telegram 36 / Discord 36다. root cmdline에는 workflow/interactive hidden set을 제외한 17개가 보인다. root CLI는 `bin/cli-jaw.ts` 기준 26개 root router case를 가진다. `chat search`, `browser web-ai`, `dashboard memory`, `dashboard chat search`처럼 grouped subcommand까지 포함하면 27개 user-facing surface로 문서화한다. helper까지 포함한 `bin/commands/*.ts` top-level 파일은 30개다. `browser web-ai`는 `browser-web-ai.ts`, `dashboard memory`는 `dashboard-memory.ts`, dashboard chat federation은 `dashboard-chat.ts`, task root command는 `task.ts`, dispatch unwrap 보조는 `dispatch-helpers.ts`로 분리되어 있다.
+> `commands.ts`(550L) + `handlers.ts`(448L) + `handlers-runtime.ts`(501L) + `handlers-completions.ts`(103L) + `handlers-workflows.ts`(498L) + `api-auth.ts`(45L) + `command-context.ts`(139L) + `registry.ts`(231L) + `acp-client.ts`(382L) + `claude-models.ts`(81L) + `compact.ts`(143L)
+> slash registry는 50개 커맨드이며 interface별 가시성은 CLI 48 / Web 43 / Telegram 36 / Discord 36다. root cmdline에는 workflow/interactive hidden set을 제외한 17개가 보인다. root CLI는 `bin/cli-jaw.ts` 기준 26개 root router case를 가진다. `chat search`, `browser web-ai`, `dashboard memory`, `dashboard chat search`처럼 grouped subcommand까지 포함하면 27개 user-facing surface로 문서화한다. helper까지 포함한 `bin/commands/*.ts` top-level 파일은 30개다. `browser web-ai`는 `browser-web-ai.ts`, `dashboard memory`는 `dashboard-memory.ts`, dashboard chat federation은 `dashboard-chat.ts`, task root command는 `task.ts`, dispatch unwrap 보조는 `dispatch-helpers.ts`로 분리되어 있다.
 > 모델/CLI 선택은 `registry.ts` 단일 소스를 따른다. 현재 registry 런타임은 `pi`, `agy`, `ai-e`, `claude`, `claude-e`, `codex`, `codex-app`, `cursor`, `gemini`, `grok`, `kiro-code`, `opencode`, `copilot` 13개다.
 
 ---
@@ -36,32 +36,33 @@ aliases: [CLI-JAW Commands, slash commands registry, commands.md]
 
 ## Registry Snapshot
 
-### Command 목록 (40)
+### Command 목록 (50)
 
 ```text
-help, commands, status, clear, purge, compact, reset, new, switch, sessions, fork,
+help, commands, settings, status, clear, purge, compact, reset,
 plan, interview, deliberate, planaudit, review, goal, goalplan, gd, team,
 model, cli, fallback, forward, thought, flush,
 version, skill, employee, mcp, memory, browser, prompt, quit, file, steer,
-ide, orchestrate, project, task
+ide, orchestrate, project, task, new, switch, sessions, fork,
+effort, fast, context, tools, redraw, retry, export, resume, hotkeys
 ```
 
 ### 인터페이스 가시성
 
 | Interface | Visible | 비고 |
 | --- | ---: | --- |
-| `cli` | 37 | `file` hidden, `steer` 미지원 |
-| `web` | 35 | `commands`, `quit`, `file`, `ide` 미지원 |
-| `telegram` | 35 | remote-safe command set |
-| `discord` | 35 | remote-safe command set |
+| `cli` | 48 | `file` hidden, `steer` 미지원 |
+| `web` | 43 | `commands`, `settings`, `quit`, `file`, `ide`, `hotkeys` 미지원 |
+| `telegram` | 36 | remote-safe command set |
+| `discord` | 36 | remote-safe command set |
 
 ### 카테고리
 
-- `session`: `help`, `commands`, `status`, `clear`, `purge`, `compact`, `reset`, `steer`, `new`, `switch`, `sessions`, `fork`
+- `session`: `help`, `commands`, `status`, `clear`, `purge`, `compact`, `reset`, `steer`, `new`, `switch`, `sessions`, `fork`, `context`, `retry`, `export`, `resume`
 - `workflow`: `plan`, `interview`, `deliberate`, `planaudit`, `review`, `goal`, `goalplan`, `gd`, `team`
-- `model`: `model`, `cli`, `fallback`, `forward`, `thought`, `flush`
-- `tools`: `skill`, `employee`, `mcp`, `memory`, `browser`, `prompt`, `ide`, `orchestrate`, `project`, `task`
-- `cli`: `version`, `quit`, `file`
+- `model`: `model`, `cli`, `fallback`, `forward`, `thought`, `flush`, `effort`, `fast`
+- `tools`: `skill`, `employee`, `mcp`, `memory`, `browser`, `prompt`, `ide`, `orchestrate`, `project`, `task`, `tools`
+- `cli`: `settings`, `version`, `quit`, `file`, `redraw`, `hotkeys`
 
 ---
 

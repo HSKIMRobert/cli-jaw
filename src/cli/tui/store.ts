@@ -31,6 +31,8 @@ export interface OverlayState {
     helpOpen: boolean;
     bgtaskOpen: boolean;
     paletteOpen: boolean;
+    settingsOpen: boolean;
+    settingsTab: 'appearance';
     paletteFilter: string;
     paletteSelected: number;
     paletteItems: { name: string; desc: string; args: string }[];
@@ -42,6 +44,8 @@ export function createOverlayState(): OverlayState {
         helpOpen: false,
         bgtaskOpen: false,
         paletteOpen: false,
+        settingsOpen: false,
+        settingsTab: 'appearance',
         paletteFilter: '',
         paletteSelected: 0,
         paletteItems: [],

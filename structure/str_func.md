@@ -136,8 +136,8 @@ cli-jaw/
 │   │   ├── soul-bootstrap-prompt.ts ← LLM 기반 soul.md 개인화 부트스트랩 프롬프트 빌더 (52L)
 │   │   ├── template-loader.ts ← 프롬프트 템플릿 로더 (50L)
 │   │   └── templates/        ← 프롬프트 템플릿 (a1-system.md, a2-default.md, employee.md, orchestration.md, control-system.md, worker-context.md, vision-click.md, skills.md, heartbeat-*.md)
-│   ├── cli/                  ← 커맨드 시스템 (18 root files + tui/ 18 files)
-│   │   ├── commands.ts       ← 슬래시 커맨드 레지스트리 + workflow metadata + 디스패처 + 파일경로 필터 + /commands alias /cmd + /orchestrate alias /pabcd + /compact + /plan + /gd force-done alias + artifact persistence (464L)
+│   ├── cli/                  ← 커맨드 시스템 (18 root files + tui/ 19 files)
+│   │   ├── commands.ts       ← 슬래시 커맨드 레지스트리 + workflow metadata + 디스패처 + 파일경로 필터 + /commands alias /cmd + /settings fullscreen transition + /orchestrate alias /pabcd + /compact + /plan + /gd force-done alias + artifact persistence (550L)
 │   │   ├── handlers.ts       ← core command handlers + runtime/completion re-export hub + compact re-export + unknown command recovery payload (448L)
 │   │   ├── handlers-runtime.ts ← memory/browser/prompt/quit/file/steer/forward/fallback/flush/ide/orchestrate 핸들러 + `LEGACY_MODEL_CLI_HINTS` (503L)
 │   │   ├── handlers-completions.ts ← `/model` `/cli` `/skill` `/employee` `/browser` `/fallback` `/flush` 인자 자동완성 헬퍼 (103L)
@@ -154,15 +154,16 @@ cli-jaw/
 │   │   ├── connector.ts      ← dashboard connector CLI API bridge (board/notes/reminders/audit) (73L)
 │   │   ├── reminders.ts      ← local reminders CLI action helpers (35L)
 │   │   ├── types.ts          ← CLI helper shared result/shape 타입 + workflow command/artifact/recovery metadata contract + command help detail key (204L)
-│   │   └── tui/              ← TUI 모듈 (18 files)
-│   │       ├── store.ts      ← TuiStore (transcript + overlay 상태 통합), OverlayState + SelectorState (68L)
+│   │   └── tui/              ← TUI 모듈 (19 files)
+│   │       ├── store.ts      ← TuiStore (transcript + overlay 상태 통합), OverlayState + SelectorState + settings screen state (74L)
 │   │       ├── transcript.ts ← TranscriptItem union (user/assistant/status) + TranscriptState + 6 mutation 함수 (63L)
 │   │       ├── composer.ts   ← Issue #66 pasted-text composer state + bracketed paste parser + slash gate + PasteCollapseConfig (374L)
-│   │       ├── overlay.ts    ← help overlay + command palette + choice selector 렌더링 (581L)
+│   │       ├── overlay.ts    ← help overlay + command palette + choice selector 렌더링 (635L)
+│   │       ├── slash-surface.ts ← fullscreen slash command surface row composer (46L)
 │   │       ├── keymap.ts     ← 키 입력 분류 (ctrl-c/ctrl-d/ctrl-k/enter/backspace/printable/escape) (57L)
 │   │       ├── panes.ts      ← PaneState (openPanel, side, preferredWidth), PanelKind 6종 (53L)
 │   │       ├── shell.ts      ← ShellLayout 계산 + scroll region setup/cleanup + ensureSpaceBelow (83L)
-│   │       ├── renderers.ts  ← visualWidth (CJK 2-cell) + clipTextToCols ANSI-safe 자르기 (71L)
+│   │       ├── renderers.ts  ← visualWidth (CJK 2-cell) + clipTextToCols ANSI-safe 자르기 + cursorScreenPos (101L)
 │   │       ├── mode.ts       ← TUI mode state (simple/fullscreen) (34L) ✨
 │   │       ├── file-mention.ts ← file mention autocomplete helper (76L) ✨
 │   │       ├── editor.ts     ← external editor launch helper (37L) ✨
@@ -172,7 +173,7 @@ cli-jaw/
 │   │       ├── stream.ts     ← streaming text accumulator (56L) ✨
 │   │       ├── markdown.ts   ← TUI markdown renderer (120L) ✨
 │   │       ├── highlight.ts  ← TUI syntax highlight helper (83L) ✨
-│   │       └── render/       ← TUI render sub-modules (5 files: frame 79L, layout 42L, mouse 27L, scheduler 42L, viewport 98L) ✨
+│   │       └── render/       ← TUI render sub-modules (5 files: frame 79L, layout 68L, mouse 27L, scheduler 42L, viewport 98L) ✨
 │   ├── memory/               ← 데이터 영속화 + advanced memory runtime (14 files)
 │   │   ├── advanced.ts       ← Advanced Memory re-export stub (1L)
 │   │   ├── bootstrap.ts      ← legacy memory/bootstrap import + structured root 초기화 (524L)
@@ -373,7 +374,7 @@ cli-jaw/
 │       ├── connector.ts      ← dashboard connector board/notes/reminders/audit CLI (216L)
 │       ├── reminders.ts      ← local reminders list/add/done CLI (100L)
 │       ├── dispatch-helpers.ts ← dispatch output unwrap helper (21L)
-│       └── tui/              ← chat 터미널 TUI 분리 (10 files: api 84L, channel 115L, fullscreen-mode 263L, input-handler 430L, overlays 350L, renderer 135L, simple-mode 101L, tui-io 12L, types 111L, ws-handler 209L)
+│       └── tui/              ← chat 터미널 TUI 분리 (10 files: api 84L, channel 115L, fullscreen-mode 463L, input-handler 444L, overlays 479L, renderer 135L, simple-mode 101L, tui-io 12L, types 111L, ws-handler 209L)
 ├── tests/                    ← 회귀 방지 테스트 (586 files: root/unit/integration/browser/fixtures/smoke)
 ├── scripts/                  ← 도구 스크립트 (TypeScript + Shell + CJS; atomic build, sidecar bundle, release gates, install-risk evidence)
 ├── officecli/                ← OfficeCLI 포크 서브모듈 (lidge-jun/OfficeCLI, Apache 2.0)
@@ -464,7 +465,7 @@ graph LR
 15. **Kiro provider**: `kiro-auth.ts` (auth store reader) + `kiro-models.ts` (live inventory) + `kiro-runtime.ts` (stdout parser) + `registry-live.ts` (dynamic merge)
 16. **Pi runtime**: `pi-runtime.ts` + `settings.pi` + `/api/pi/profiles/register` — first-class RPC runtime with isolated profile config and model discovery
 17. **Interview enhancement**: `orchestrator/friction.ts` (5-level clarity + oscillation detection) + `seed.ts` (evidence-ref ontology) + `sanitize.ts` (tracker strip) + pipeline.ts budget gate
-18. **TUI**: `src/cli/tui/` 18 files — transcript model + composer (paste collapse) + overlay (help/palette/selector) + text-buffer + theme + render/ sub-modules; `bin/commands/tui/` 10 files — SSE-first `channel.ts`, fullscreen/simple mode + input-handler + ws-handler
+18. **TUI**: `src/cli/tui/` 19 files — transcript model + composer (paste collapse) + overlay (help/palette/selector) + slash-surface + text-buffer + theme + render/ sub-modules; `bin/commands/tui/` 10 files — SSE-first `channel.ts`, fullscreen/simple mode + input-handler + ws-handler
 19. **Electron tray**: `electron/` — sidecar-first packaged server spawn, tray CLI install flow, deep-link, terminal IPC, folder/drop path IPC, navigation policy, permission diagnostics
 20. **Adaptive fetch**: `src/browser/adaptive-fetch/` 19 files — multi-strategy web fetch (direct → reader API → browser escalation) with WAF detection + content scoring
 21. **Team dispatch**: `src/team/` — planner/collector/dispatcher/preflight for structured multi-employee coordination

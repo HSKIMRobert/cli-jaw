@@ -233,6 +233,7 @@ async function helpHandler(args: string[], ctx: CliCommandContext): Promise<Slas
 export const COMMANDS: SlashCommand[] = [
     { name: 'help', aliases: ['h'], descKey: 'cmd.help.desc', tgDescKey: 'cmd.help.tg_desc', desc: 'Command list', args: '[command]', category: 'session', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: helpHandler },
     { name: 'commands', aliases: ['cmd'], descKey: '', desc: 'Open command palette', category: 'session', interfaces: ['cli'], handler: async () => ({ code: 'open_palette' }) },
+    { name: 'settings', desc: 'Open settings', category: 'cli', interfaces: ['cli'], handler: async () => ({ ok: true, code: 'open_settings', text: 'Settings are available in fullscreen TUI.' }) },
     { name: 'status', descKey: 'cmd.status.desc', tgDescKey: 'cmd.status.tg_desc', desc: 'Current status', category: 'session', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: statusHandler },
     { name: 'clear', descKey: 'cmd.clear.desc', tgDescKey: 'cmd.clear.tg_desc', desc: 'Clear screen', args: '[all]', category: 'session', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: clearHandler },
     { name: 'purge', descKey: 'cmd.purge.desc', tgDescKey: 'cmd.purge.tg_desc', desc: 'Purge conversation and memory', category: 'session', interfaces: ['cli', 'web', 'telegram', 'discord'], handler: purgeHandler },

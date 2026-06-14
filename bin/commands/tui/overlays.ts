@@ -115,6 +115,16 @@ export function openChoiceSelector(ctx: TuiContext, setup: () => void): void {
     ctx.overlayBoxHeight = renderChoiceSelector(selectorRenderOpts(ctx));
 }
 
+export function openSettingsScreen(ctx: TuiContext): void {
+    const ov = ctx.store.overlay;
+    ov.settingsOpen = true;
+    ov.settingsTab = 'appearance';
+    closeAutocompleteForCtx(ctx);
+    if (ctx.displayMode === 'fullscreen') {
+        ctx.requestFrame?.();
+    }
+}
+
 export function refreshChoiceSelector(ctx: TuiContext): void {
     if (ctx.displayMode === 'fullscreen') {
         ctx.requestFrame?.();
@@ -171,11 +181,13 @@ export async function openBgtaskOverlay(ctx: TuiContext): Promise<void> {
 
 export function dismissOverlay(ctx: TuiContext): void {
     const ov = ctx.store.overlay;
-    if (!ov.helpOpen && !ov.paletteOpen && !ov.selector.open && !ov.bgtaskOpen) return;
+    if (!ov.helpOpen && !ov.paletteOpen && !ov.selector.open && !ov.bgtaskOpen && !ov.settingsOpen) return;
     if (ctx.displayMode === 'fullscreen') {
         ov.helpOpen = false;
         ov.bgtaskOpen = false;
         ov.paletteOpen = false;
+        ov.settingsOpen = false;
+        ov.settingsTab = 'appearance';
         ov.paletteFilter = '';
         ov.paletteSelected = 0;
         ov.paletteItems = [];
@@ -200,6 +212,8 @@ export function dismissOverlay(ctx: TuiContext): void {
     ov.helpOpen = false;
     ov.bgtaskOpen = false;
     ov.paletteOpen = false;
+    ov.settingsOpen = false;
+    ov.settingsTab = 'appearance';
     ov.paletteFilter = '';
     ov.paletteSelected = 0;
     ov.paletteItems = [];
@@ -395,6 +409,13 @@ export async function runSlashCommand(ctx: TuiContext, parsed: ParsedSlashComman
 
     if (parsed.name === 'commands') {
         openCommandPalette(ctx);
+        ctx.commandRunning = false;
+        ctx.inputActive = true;
+        return;
+    }
+
+    if (parsed.name === 'settings' && ctx.displayMode === 'fullscreen') {
+        openSettingsScreen(ctx);
         ctx.commandRunning = false;
         ctx.inputActive = true;
         return;

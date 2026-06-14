@@ -101,6 +101,15 @@ test('executeCommand: /quit returns exit code', async () => {
     assert.equal(r.code, 'exit');
 });
 
+test('executeCommand: /settings returns fullscreen settings transition code for cli', async () => {
+    const parsed = parseCommand('/settings');
+    assert.equal(parsed.type, 'known');
+    assert.equal(parsed.cmd.name, 'settings');
+    const r = await executeCommand(parsed, { interface: 'cli' });
+    assert.equal(r.ok, true);
+    assert.equal(r.code, 'open_settings');
+});
+
 test('executeCommand: /clear returns clear_screen for cli', async () => {
     const parsed = parseCommand('/clear');
     const r = await executeCommand(parsed, { interface: 'cli' });
@@ -172,6 +181,19 @@ test('getCompletions: partial filters results', () => {
     const list = getCompletions('/mod', 'cli');
     assert.ok(list.includes('/model'));
     assert.ok(!list.includes('/help'));
+});
+
+test('getCompletions: settings appears in cli completions', () => {
+    const list = getCompletions('/set', 'cli');
+    assert.ok(list.includes('/settings'));
+});
+
+test('executeCommand: /context remains a backed command', async () => {
+    const parsed = parseCommand('/context');
+    assert.equal(parsed.type, 'known');
+    assert.equal(parsed.cmd.name, 'context');
+    const r = await executeCommand(parsed, { interface: 'cli', apiUrl: 'http://127.0.0.1:1' });
+    assert.ok(r.text);
 });
 
 test('getCompletions: compact appears in session command list', () => {

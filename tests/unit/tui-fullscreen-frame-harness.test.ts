@@ -80,6 +80,10 @@ function expandViewportFill(rows: string[], height: number): string[] {
     return expanded;
 }
 
+function stripAnsi(text: string): string {
+    return text.replace(/\x1b\[[0-9;]*m/g, '');
+}
+
 test('fullscreen composeFrame keeps frame rows newline-free and input pinned', () => {
     withTerminalSize(96, 28, () => {
         const ctx = makeCtx();
@@ -145,5 +149,58 @@ test('fullscreen composeFrame keeps composer cluster fixed after first message',
         assert.equal(before[regions.composer.y - 2], after[regions.composer.y - 2]);
         assert.equal(before[regions.composer.y - 1], after[regions.composer.y - 1]);
         assert.equal(before[regions.help.y - 1], after[regions.help.y - 1]);
+    });
+});
+
+test('fullscreen composeFrame renders slash surface without replacing transcript rows', () => {
+    withTerminalSize(96, 28, () => {
+        const ctx = makeCtx();
+        appendAssistantTurnText(ctx.store.transcript, 'Transcript stays visible.', 'main');
+        finalizeStreamingAssistants(ctx.store.transcript);
+        ctx.store.autocomplete.open = true;
+        ctx.store.autocomplete.stage = 'command';
+        ctx.store.autocomplete.items = [
+            { name: 'settings', desc: 'Open settings' },
+            { name: 'model', desc: 'View/change model' },
+        ];
+        ctx.store.autocomplete.visibleRows = 2;
+        ctx.store.autocomplete.selected = 0;
+
+        const frame = composeFrame(ctx, new Viewport());
+        const expanded = expandViewportFill(frame.rows, 28);
+        const regions = solveLayout(96, 28, 1, { commandSurfaceLines: 2 });
+        const joined = stripAnsi(expanded.join('\n'));
+
+        const transcriptRegion = stripAnsi(expanded
+            .slice(regions.transcript.y - 1, regions.statusLine.y - 1)
+            .join('\n'));
+        assert.match(transcriptRegion, /Transcript stays visible/);
+        assert.match(stripAnsi(expanded[regions.statusLine.y - 1] ?? ''), /\/quit/);
+        assert.match(stripAnsi(expanded[regions.commandSurface.y - 1] ?? ''), /\/settings/);
+        assert.match(expanded[regions.commandSurface.y - 1] ?? '', /\x1b\[7m/);
+        assert.match(expanded[regions.composer.y - 2] ?? '', /┌/);
+        assert.match(expanded[regions.help.y - 1] ?? '', /shortcuts/);
+        assert.doesNotMatch(joined, /Context/);
+        assert.equal(frame.rows.some(row => row.includes('\n')), false);
+    });
+});
+
+test('fullscreen composeFrame renders settings placeholder in main content region', () => {
+    withTerminalSize(96, 28, () => {
+        const ctx = makeCtx();
+        ctx.store.overlay.settingsOpen = true;
+
+        const frame = composeFrame(ctx, new Viewport());
+        const expanded = expandViewportFill(frame.rows, 28);
+        const regions = solveLayout(96, 28, 1);
+        const main = stripAnsi(expanded.slice(regions.transcript.y - 1, regions.statusLine.y - 1).join('\n'));
+
+        assert.match(main, /Settings: Appearance/);
+        assert.match(main, /Esc to return/);
+        assert.doesNotMatch(main, /Context/);
+        assert.match(stripAnsi(expanded[regions.statusLine.y - 1] ?? ''), /\/quit/);
+        assert.match(expanded[regions.composer.y - 2] ?? '', /┌/);
+        assert.match(expanded[regions.help.y - 1] ?? '', /shortcuts/);
+        assert.equal(frame.cursorPos, undefined);
     });
 });

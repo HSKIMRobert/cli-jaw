@@ -12,7 +12,8 @@ import { renderMarkdownJawcode, isInitialized, getInteractive } from '../../../s
 import { renderToolLine, renderThinkingCollapse } from '../../../src/cli/tui/jawcode-bridge.js';
 import { classifyKeyAction, type KeyAction } from '../../../src/cli/tui/keymap.js';
 import { getCompletionItems } from '../../../src/cli/commands.js';
-import { composeAutocompleteLines, composeHelpOntoFrame, composePaletteOntoFrame, composeSelectorOntoFrame, composeBgtaskOntoFrame } from '../../../src/cli/tui/overlay.js';
+import { composeHelpOntoFrame, composePaletteOntoFrame, composeSelectorOntoFrame, composeBgtaskOntoFrame } from '../../../src/cli/tui/overlay.js';
+import { composeSlashSurfaceLines } from '../../../src/cli/tui/slash-surface.js';
 import { createScheduler } from '../../../src/cli/tui/render/scheduler.js';
 import { Screen, registerScreenCleanup, VIEWPORT_FILL, type Frame } from '../../../src/cli/tui/render/frame.js';
 import { solveLayout, type Regions } from '../../../src/cli/tui/render/layout.js';
@@ -116,7 +117,7 @@ function currentRegions(ctx: TuiContext): Regions {
 
 function overlayBlocksScroll(ctx: TuiContext): boolean {
     const ov = ctx.store.overlay;
-    return ov.helpOpen || ov.paletteOpen || ov.selector.open || ov.bgtaskOpen;
+    return ov.helpOpen || ov.paletteOpen || ov.selector.open || ov.bgtaskOpen || ov.settingsOpen;
 }
 
 function handleScrollKey(ctx: TuiContext, viewport: Viewport, action: KeyAction, regions: Regions): boolean {
@@ -148,6 +149,21 @@ function blankLines(count: number): string[] {
 }
 
 function renderChatRegion(ctx: TuiContext, viewport: Viewport, regions: Regions, cols: number): string[] {
+    if (ctx.store.overlay.settingsOpen) {
+        const lines = [
+            `${c.cyan}${c.bold}Settings:${c.reset} Appearance`,
+            '',
+            `${c.dim}Preview:${c.reset}`,
+            ctx.footer,
+            '',
+            `${c.dim}Theme:${c.reset} current/default`,
+            `${c.dim}Esc${c.reset} to return`,
+        ].map(line => clipTextToCols(`  ${line}`, cols));
+        return [
+            ...lines.slice(0, regions.transcript.height),
+            ...blankLines(regions.transcript.height - lines.length),
+        ];
+    }
     const transcriptLines = viewport.composeRegion(regions.transcript);
     const hasTranscript = transcriptLines.some(l => l !== '');
     if (hasTranscript) {
@@ -187,29 +203,28 @@ export function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
     const rows = getRows();
     const composerText = getComposerDisplayText(ctx.store.composer);
     const composerLines = Math.max(1, composerText.split('\n').length);
-    const regions = solveLayout(cols, rows, composerLines);
-
-    viewport.setItems(ctx.store.transcript.items, renderTranscriptItem, regions.transcript.height);
-
-    const chatRows = renderChatRegion(ctx, viewport, regions, cols);
-
-    // Autocomplete temporarily occupies the gap above the composer. Cycle 27 replaces
-    // this with the full JWC slash surface.
     const ac = ctx.store.autocomplete;
-    const acLines = composeAutocompleteLines(ac, {
+    const slashRows = composeSlashSurfaceLines(ac, {
         columns: cols,
         dimCode: c.dim,
         resetCode: c.reset,
         clipTextToCols,
-    }).slice(0, Math.max(0, regions.transcript.height - 1));
-    if (acLines.length > 0) {
-        chatRows.splice(Math.max(0, chatRows.length - acLines.length), acLines.length, ...acLines);
-    }
+    });
+    const regions = solveLayout(cols, rows, composerLines, { commandSurfaceLines: slashRows.length });
+
+    viewport.setItems(ctx.store.transcript.items, renderTranscriptItem, regions.transcript.height);
+
+    const chatRows = renderChatRegion(ctx, viewport, regions, cols);
+    const commandRows = slashRows
+        .slice(0, regions.commandSurface.height)
+        .map(line => clipTextToCols(line, cols));
+    while (commandRows.length < regions.commandSurface.height) commandRows.push('');
 
     const frameRows: string[] = [
         VIEWPORT_FILL,
         ...chatRows,
         clipTextToCols(ctx.footer, cols),
+        ...commandRows,
     ];
 
     // Input box with border — safe for narrow terminals
@@ -276,7 +291,7 @@ export function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
     }
 
     // Calculate cursor position for the input box
-    const showCursor = ctx.inputActive && !needsOverlay && !ctx.commandRunning;
+    const showCursor = ctx.inputActive && !needsOverlay && !ov.settingsOpen && !ctx.commandRunning;
     let cursorPos: Frame['cursorPos'];
     if (showCursor) {
         const cursorOff = getDisplayCursorOffset(ctx.store.composer);
