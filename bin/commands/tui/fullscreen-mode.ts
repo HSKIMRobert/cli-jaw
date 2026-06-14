@@ -71,7 +71,7 @@ export function renderTranscriptItem(item: TranscriptItem, width: number): strin
             const toolLabel = toolHead?.split(' ').slice(1).join(' ') || toolHead || '';
             const state = item.status === 'error'
                 ? 'error' as const
-                : (item.status === 'done' || item.collapsed) ? 'done' as const : 'pending' as const;
+                : item.status === 'done' ? 'done' as const : 'pending' as const;
             const detailLines = toolDetail.split('\n').map(line => line.trim()).filter(Boolean);
             const expandedDone = item.status === 'done' && item.collapsed === false && detailLines.length > 0;
             if (!expandedDone) {
