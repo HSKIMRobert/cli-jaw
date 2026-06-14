@@ -14,8 +14,12 @@ export async function initJawcodeTui(): Promise<void> {
     if (_initialized) return;
     await import('../../lib/tui/bun-shim.mjs');
     _tui = await import('../../lib/tui/jawcode-tui-bundle.mjs');
-    _interactive = await import('../../lib/tui/jawcode-interactive-bundle.mjs');
-    await _interactive.initTheme(false);
+    try {
+        _interactive = await import('../../lib/tui/jawcode-interactive-bundle.mjs');
+        await _interactive.initTheme?.(false);
+    } catch {
+        _interactive = { theme: {} };
+    }
     _initialized = true;
 }
 
