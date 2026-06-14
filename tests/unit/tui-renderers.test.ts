@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { clipTextToCols, visualWidth } from '../../src/cli/tui/renderers.ts';
+import { clipTextToCols, visualWidth, wrapTextToCols } from '../../src/cli/tui/renderers.ts';
 
 test('visualWidth ignores ANSI escape codes', () => {
     assert.equal(visualWidth('\x1b[31mabc\x1b[0m'), 3);
@@ -24,4 +24,29 @@ test('clipTextToCols preserves complete ANSI sequences and resets after clipping
 
 test('clipTextToCols drops incomplete ANSI control sequences', () => {
     assert.equal(clipTextToCols('abc\x1b[', 10), 'abc');
+});
+
+test('wrapTextToCols wraps long ASCII lines into newline-free rows', () => {
+    const rows = wrapTextToCols('abcdefghijklmnop', 5);
+    assert.deepEqual(rows, ['abcde', 'fghij', 'klmno', 'p']);
+    assert.equal(rows.some(row => row.includes('\n')), false);
+    assert.ok(rows.every(row => visualWidth(row) <= 5));
+});
+
+test('wrapTextToCols preserves explicit newlines as separate physical rows', () => {
+    const rows = wrapTextToCols('abc\ndefgh', 3);
+    assert.deepEqual(rows, ['abc', 'def', 'gh']);
+    assert.equal(rows.some(row => row.includes('\n')), false);
+});
+
+test('wrapTextToCols respects CJK visual width', () => {
+    const rows = wrapTextToCols('가나다abc', 5);
+    assert.deepEqual(rows, ['가나', '다abc']);
+    assert.ok(rows.every(row => visualWidth(row) <= 5));
+});
+
+test('wrapTextToCols carries ANSI SGR styling to continuation rows', () => {
+    const rows = wrapTextToCols('\x1b[36mabcdef\x1b[0m', 3);
+    assert.deepEqual(rows, ['\x1b[36mabc\x1b[0m', '\x1b[36mdef\x1b[0m']);
+    assert.ok(rows.every(row => visualWidth(row) <= 3));
 });

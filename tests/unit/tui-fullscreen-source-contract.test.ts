@@ -25,9 +25,10 @@ test('fullscreen tool renderer uses transcript status and detail fields', () => 
     assert.doesNotMatch(source, /item\.status === 'done' \|\| item\.collapsed/);
 });
 
-test('fullscreen completed tool expansion is latest-tool and newline-safe', () => {
-    assert.match(source, /toggleLatestToolExpansion\(ctx\.store\.transcript\)/);
+test('fullscreen completed tool expansion is full-sweep and newline-safe', () => {
+    assert.match(source, /toggleToolExpansion\(ctx\.store\.transcript\)/);
     assert.match(source, /const detailLines = toolDetail\.split\('\\n'\)/);
+    assert.match(source, /wrapTextToCols\(line, detailWidth\)/);
     assert.match(source, /expandedDone/);
     assert.match(source, /rows\.push\(`\$\{gutter\}\$\{c\.dim\}│ /);
 });

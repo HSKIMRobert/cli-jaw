@@ -58,6 +58,16 @@ test('Viewport rerenders same-length tool content changes', () => {
     assert.equal(v.composeRegion({ x: 1, y: 1, width: 40, height: 1 })[0], 't:Edit b');
 });
 
+test('Viewport rerenders tool detail-only changes', () => {
+    const v = new Viewport();
+    const renderTool = (item: TranscriptItem) => [item.type === 'tool' ? `d:${item.detail ?? ''}` : item.type];
+    v.setItems([{ type: 'tool', text: 'Bash', detail: 'aaa', collapsed: false, timestamp: 0 }], renderTool);
+    assert.equal(v.composeRegion({ x: 1, y: 1, width: 40, height: 1 })[0], 'd:aaa');
+
+    v.setItems([{ type: 'tool', text: 'Bash', detail: 'bbb', collapsed: false, timestamp: 1 }], renderTool);
+    assert.equal(v.composeRegion({ x: 1, y: 1, width: 40, height: 1 })[0], 'd:bbb');
+});
+
 test('Viewport width changes rerender cells', () => {
     const v = new Viewport();
     const renderWithWidth = (item: TranscriptItem, width: number) => [`${item.type}:${width}`];

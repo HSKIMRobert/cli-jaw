@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { composeFrame } from '../../bin/commands/tui/fullscreen-mode.ts';
+import { composeFrame, renderTranscriptItem } from '../../bin/commands/tui/fullscreen-mode.ts';
 import type { TuiContext } from '../../bin/commands/tui/types.ts';
 import { createTuiStore } from '../../src/cli/tui/store.ts';
 import { appendTextToComposer } from '../../src/cli/tui/composer.ts';
@@ -212,4 +212,48 @@ test('fullscreen composeFrame renders Appearance settings MVP in main content re
         assert.match(expanded[regions.help.y - 1] ?? '', /shortcuts/);
         assert.equal(frame.cursorPos, undefined);
     });
+});
+
+test('fullscreen expanded tool detail wraps long output into physical frame rows', () => {
+    withTerminalSize(64, 28, () => {
+        const ctx = makeCtx();
+        appendToolItem(ctx.store.transcript, '🔧 Bash long', {
+            stepRef: 'long',
+            status: 'done',
+            detail: 'abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz',
+        });
+        const tool = ctx.store.transcript.items[0]!;
+        assert.equal(tool.type, 'tool');
+        if (tool.type === 'tool') tool.collapsed = false;
+
+        const frame = composeFrame(ctx, new Viewport());
+        assert.equal(frame.rows.some(row => row.includes('\n')), false);
+        const expanded = expandViewportFill(frame.rows, 28);
+        const regions = solveLayout(64, 28, 1);
+        const main = stripAnsi(expanded.slice(regions.transcript.y - 1, regions.statusLine.y - 1).join('\n'));
+
+        assert.match(main, /abcdef/);
+        assert.match(main, /012345/);
+        assert.match(main, /uvwxyz/);
+        assert.match(expanded[regions.statusLine.y - 1] ?? '', /\/quit/);
+        assert.match(expanded[regions.composer.y - 2] ?? '', /┌/);
+        assert.match(expanded[regions.help.y - 1] ?? '', /shortcuts/);
+    });
+});
+
+test('fullscreen expanded tool detail applies a physical row cap', () => {
+    const rows = renderTranscriptItem({
+        type: 'tool',
+        text: '🔧 Bash capped',
+        timestamp: 0,
+        status: 'done',
+        collapsed: false,
+        detail: 'x'.repeat(1000),
+    }, 50);
+    const plain = stripAnsi(rows.join('\n'));
+    const detailRows = plain.split('\n').filter(line => line.includes('│'));
+
+    assert.equal(rows.some(row => row.includes('\n')), false);
+    assert.equal(detailRows.length, 14);
+    assert.match(plain, /└ … \+\d+ lines/);
 });

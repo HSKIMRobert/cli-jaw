@@ -21,8 +21,8 @@ import { solveLayout, type Regions } from '../../../src/cli/tui/render/layout.js
 import { parseSgrMouse, isMouseSequence } from '../../../src/cli/tui/render/mouse.js';
 import { Viewport } from '../../../src/cli/tui/render/viewport.js';
 import type { TranscriptItem } from '../../../src/cli/tui/transcript.js';
-import { toggleLatestToolExpansion } from '../../../src/cli/tui/transcript.js';
-import { clipTextToCols, visualWidth, cursorScreenPos } from '../../../src/cli/tui/renderers.js';
+import { toggleToolExpansion } from '../../../src/cli/tui/transcript.js';
+import { clipTextToCols, visualWidth, cursorScreenPos, wrapTextToCols } from '../../../src/cli/tui/renderers.js';
 import { cleanupScrollRegion, resolveShellLayout } from '../../../src/cli/tui/shell.js';
 import type { TuiContext } from './types.js';
 import { c, getRows, ESC_WAIT_MS } from './types.js';
@@ -90,12 +90,14 @@ export function renderTranscriptItem(item: TranscriptItem, width: number): strin
                 return [renderToolLine(toolIcon, toolLabel, safeDetail, state)];
             }
             const rows = [renderToolLine(toolIcon, toolLabel, '', 'done')];
-            const maxDetailRows = 8;
-            for (const line of detailLines.slice(0, maxDetailRows)) {
-                rows.push(`${gutter}${c.dim}│ ${clipTextToCols(line, Math.max(10, w - 2))}${c.reset}`);
+            const maxDetailRows = 14;
+            const detailWidth = Math.max(10, w - 4);
+            const wrappedRows = detailLines.flatMap(line => wrapTextToCols(line, detailWidth));
+            for (const line of wrappedRows.slice(0, maxDetailRows)) {
+                rows.push(`${gutter}${c.dim}│ ${clipTextToCols(line, detailWidth)}${c.reset}`);
             }
-            if (detailLines.length > maxDetailRows) {
-                rows.push(`${gutter}${c.dim}└ … +${detailLines.length - maxDetailRows} lines${c.reset}`);
+            if (wrappedRows.length > maxDetailRows) {
+                rows.push(`${gutter}${c.dim}└ … +${wrappedRows.length - maxDetailRows} lines${c.reset}`);
             }
             return rows;
         }
@@ -394,7 +396,7 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
         for (const token of tokens) {
             const action = classifyKeyAction(token);
             if (action === 'ctrl-o') {
-                if (toggleLatestToolExpansion(ctx.store.transcript)) scheduler.request();
+                if (toggleToolExpansion(ctx.store.transcript)) scheduler.request();
                 continue;
             }
             if (action === 'ctrl-l') {

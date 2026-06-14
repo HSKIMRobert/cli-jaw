@@ -134,11 +134,12 @@ export function collapsePreviousTools(state: TranscriptState): void {
     }
 }
 
-export function toggleToolExpansion(state: TranscriptState): void {
-    const hasCollapsed = state.items.some(i => i.type === 'tool' && i.collapsed);
-    for (const item of state.items) {
-        if (item.type === 'tool') item.collapsed = !hasCollapsed;
-    }
+export function toggleToolExpansion(state: TranscriptState): boolean {
+    const toolItems = state.items.filter(i => i.type === 'tool');
+    if (toolItems.length === 0) return false;
+    const hasCollapsed = toolItems.some(i => i.collapsed);
+    for (const item of toolItems) item.collapsed = !hasCollapsed;
+    return true;
 }
 
 export function toggleLatestToolExpansion(state: TranscriptState): boolean {

@@ -55,6 +55,73 @@ export function clipTextToCols(str: string, maxCols: number): string {
     return sawAnsi ? `${out}\x1b[0m` : out;
 }
 
+function parseAnsiCsi(text: string, pos: number): { value: string; next: number } | null {
+    if (text.charCodeAt(pos) !== 0x1b || pos + 1 >= text.length || text[pos + 1] !== '[') return null;
+    let end = pos + 2;
+    while (end < text.length && !(text.charCodeAt(end) >= 0x40 && text.charCodeAt(end) <= 0x7e)) end++;
+    if (end >= text.length) return null;
+    return { value: text.slice(pos, end + 1), next: end + 1 };
+}
+
+function updateActiveSgr(active: string, seq: string): string {
+    if (!seq.endsWith('m')) return active;
+    if (seq === '\x1b[0m') return '';
+    return seq;
+}
+
+export function wrapTextToCols(str: string, maxCols: number): string[] {
+    const safeCols = Math.max(1, maxCols);
+    const rows: string[] = [];
+
+    for (const logicalLine of str.split('\n')) {
+        if (logicalLine.length === 0) {
+            rows.push('');
+            continue;
+        }
+
+        let pos = 0;
+        let out = '';
+        let width = 0;
+        let activeSgr = '';
+        let rowSawAnsi = false;
+
+        const pushRow = (): void => {
+            rows.push(rowSawAnsi && activeSgr && !out.endsWith('\x1b[0m') ? `${out}\x1b[0m` : out);
+            out = activeSgr;
+            width = 0;
+            rowSawAnsi = Boolean(activeSgr);
+        };
+
+        while (pos < logicalLine.length) {
+            const ansi = parseAnsiCsi(logicalLine, pos);
+            if (ansi) {
+                out += ansi.value;
+                activeSgr = updateActiveSgr(activeSgr, ansi.value);
+                rowSawAnsi = true;
+                pos = ansi.next;
+                continue;
+            }
+
+            const code = logicalLine.codePointAt(pos);
+            if (code === undefined) break;
+            const ch = String.fromCodePoint(code);
+            const cw = charCellWidth(code);
+            if (width > 0 && width + cw > safeCols) {
+                pushRow();
+            }
+            out += ch;
+            width += cw;
+            pos += ch.length;
+        }
+
+        if (out.length > 0 || rowSawAnsi) {
+            rows.push(rowSawAnsi && activeSgr && !out.endsWith('\x1b[0m') ? `${out}\x1b[0m` : out);
+        }
+    }
+
+    return rows.length > 0 ? rows : [''];
+}
+
 function charCellWidth(cp: number): number {
     if ((cp >= 0x1100 && cp <= 0x115F) || (cp >= 0x2E80 && cp <= 0x303E) ||
         (cp >= 0x3040 && cp <= 0x33BF) || (cp >= 0x3400 && cp <= 0x4DBF) ||

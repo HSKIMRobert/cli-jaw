@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
     createTranscriptState, appendToolItem, appendStatusItem, clearEphemeralStatus,
-    toggleLatestToolExpansion,
+    toggleToolExpansion,
 } from '../../src/cli/tui/transcript.ts';
 
 test('appendToolItem adds a persistent tool item', () => {
@@ -68,19 +68,30 @@ test('status still replaces only the trailing status after tool items', () => {
     assert.equal((s.items[1] as { text: string }).text, 'status 2');
 });
 
-test('toggleLatestToolExpansion only toggles the newest tool row', () => {
+test('toggleToolExpansion toggles all tool rows as a full sweep', () => {
     const s = createTranscriptState();
+    assert.equal(toggleToolExpansion(s), false);
+
     appendToolItem(s, '🔧 Bash first', { stepRef: 'first', status: 'done', detail: 'first detail' });
+    appendStatusItem(s, 'transient status');
     appendToolItem(s, '🔧 Bash second', { stepRef: 'second', status: 'done', detail: 'second detail' });
 
-    assert.equal(toggleLatestToolExpansion(s), true);
+    assert.equal(toggleToolExpansion(s), true);
 
     const first = s.items[0]!;
-    const second = s.items[1]!;
+    const status = s.items[1]!;
+    const second = s.items[2]!;
     assert.equal(first.type, 'tool');
+    assert.equal(status.type, 'status');
     assert.equal(second.type, 'tool');
     if (first.type === 'tool' && second.type === 'tool') {
-        assert.equal(first.collapsed, true);
+        assert.equal(first.collapsed, false);
         assert.equal(second.collapsed, false);
+    }
+
+    assert.equal(toggleToolExpansion(s), true);
+    if (first.type === 'tool' && second.type === 'tool') {
+        assert.equal(first.collapsed, true);
+        assert.equal(second.collapsed, true);
     }
 });

@@ -23,6 +23,10 @@ test('classifyKeyAction detects ctrl-k', () => {
     assert.equal(classifyKeyAction('\x0b'), 'ctrl-k');
 });
 
+test('classifyKeyAction detects ctrl-o', () => {
+    assert.equal(classifyKeyAction('\x0f'), 'ctrl-o');
+});
+
 test('classifyKeyAction detects edit chord keys', () => {
     assert.equal(classifyKeyAction('\x17'), 'ctrl-w');
     assert.equal(classifyKeyAction('\x19'), 'ctrl-y');
