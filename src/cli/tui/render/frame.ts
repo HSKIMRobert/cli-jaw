@@ -243,6 +243,14 @@ export class Screen {
         this.fullRedrawPending = true;
     }
 
+    resetViewport(): void {
+        if (!this.inlineActive) return;
+        process.stdout.write('\x1b[?2026h\x1b[2J\x1b[H\x1b[?2026l');
+        this.prevLines = [];
+        this.cursorRow = 0;
+        this.fullRedrawPending = true;
+    }
+
     enableMouse(): void {
         process.stdout.write('\x1b[?1000h\x1b[?1006h');
     }

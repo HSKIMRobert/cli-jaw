@@ -418,7 +418,7 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
         ctx.resizeTimer = setTimeout(() => {
             ctx.resizeTimer = null;
             viewport.setWidth(process.stdout.columns || 80);
-            screen.forceRedraw();
+            screen.resetViewport();
             scheduler.request();
         }, 50);
     });
