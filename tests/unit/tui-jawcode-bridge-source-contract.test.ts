@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { renderToolLine } from '../../src/cli/tui/jawcode-bridge.ts';
+import { renderToolLine, renderWelcome } from '../../src/cli/tui/jawcode-bridge.ts';
+import { visualWidth } from '../../src/cli/tui/renderers.ts';
 
 const source = readFileSync(new URL('../../src/cli/tui/jawcode-bridge.ts', import.meta.url), 'utf8');
 
@@ -30,4 +31,30 @@ test('renderToolLine does not duplicate event emoji before the tool label', () =
     assert.match(rendered, /✔/);
     assert.match(rendered, /Bash/);
     assert.doesNotMatch(rendered, /🔧/);
+});
+
+test('renderWelcome clips long project rows to the terminal width', () => {
+    const columnsDesc = Object.getOwnPropertyDescriptor(process.stdout, 'columns');
+    const rowsDesc = Object.getOwnPropertyDescriptor(process.stdout, 'rows');
+    Object.defineProperty(process.stdout, 'columns', { value: 80, configurable: true });
+    Object.defineProperty(process.stdout, 'rows', { value: 40, configurable: true });
+    try {
+        const lines = renderWelcome({
+            version: '2.1.3',
+            engine: 'Codex',
+            engineAccent: '',
+            model: 'gpt-5.5',
+            directory: '/tmp/project',
+            serverPort: 3457,
+            projectRoot: '/Users/jun/Developer/new/700_projects/jawcode/some/extremely/long/project/path',
+            gitBranch: 'dev',
+            port: 3457,
+        });
+
+        assert.ok(lines.length > 0);
+        assert.equal(lines.every(line => visualWidth(line) <= 80), true, lines.map(visualWidth).join(','));
+    } finally {
+        if (columnsDesc) Object.defineProperty(process.stdout, 'columns', columnsDesc);
+        if (rowsDesc) Object.defineProperty(process.stdout, 'rows', rowsDesc);
+    }
 });

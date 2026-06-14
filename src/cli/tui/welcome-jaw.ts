@@ -1,4 +1,5 @@
 import { sharkIcon } from './icons.js';
+import { clipTextToCols, visualWidth } from './renderers.js';
 // jawcode bundle integration available via jawcode-render.js when needed
 
 const SHARK_ART = [
@@ -62,6 +63,13 @@ function gradientLine(line: string, row: number, totalRows: number, shinePos?: n
     return chars.join('');
 }
 
+function fitAnsiCell(text: string, width: number): string {
+    const safeWidth = Math.max(0, width);
+    if (safeWidth === 0) return '';
+    const clipped = clipTextToCols(text, safeWidth);
+    return `${clipped}${' '.repeat(Math.max(0, safeWidth - visualWidth(clipped)))}`;
+}
+
 export function renderJawWelcome(opts: {
     version: string;
     model: string;
@@ -107,7 +115,7 @@ export function renderJawWelcome(opts: {
 
     const innerW = W - 2;
     const titleText = ` ${icon} jaw v${opts.version} `;
-    const titlePad = Math.max(0, innerW - titleText.length);
+    const titlePad = Math.max(0, innerW - visualWidth(titleText));
     const titleLeft = Math.floor(titlePad / 2);
     const titleRight = titlePad - titleLeft;
 
@@ -116,8 +124,10 @@ export function renderJawWelcome(opts: {
     lines.push(`${NAVY}${bTL}${borderH.repeat(titleLeft)}${LTBLUE}${titleText}${NAVY}${borderH.repeat(titleRight)}${bTR}${RST}`);
 
     const showRightPane = W >= 60;
-    const leftW = showRightPane ? Math.floor(innerW * 0.55) : innerW;
-    const rightW = showRightPane ? innerW - leftW - 1 : 0;
+    const contentGap = showRightPane ? 3 : 1;
+    const availableContentW = Math.max(1, innerW - contentGap);
+    const leftW = showRightPane ? Math.floor(availableContentW * 0.55) : availableContentW;
+    const rightW = showRightPane ? Math.max(1, availableContentW - leftW) : 0;
 
     const leftLines: string[] = [
         `${BOLD}${BLUE}${icon} jaw${RST}`,
@@ -167,13 +177,11 @@ export function renderJawWelcome(opts: {
     const mergeRows = showRightPane ? Math.max(leftLines.length, rightLines.length) : leftLines.length;
     for (let i = 0; i < mergeRows; i++) {
         const l = leftLines[i] || '';
-        const lStripped = l.replace(/\x1b\[[0-9;]*m/g, '');
-        const pad = Math.max(0, leftW - lStripped.length);
         if (showRightPane) {
             const r = rightLines[i] || '';
-            lines.push(`${NAVY}${bV}${RST} ${l}${' '.repeat(pad)}${NAVY}${bV}${RST} ${r}${' '.repeat(Math.max(0, rightW - r.replace(/\x1b\[[0-9;]*m/g, '').length))}${NAVY}${bV}${RST}`);
+            lines.push(`${NAVY}${bV}${RST} ${fitAnsiCell(l, leftW)}${NAVY}${bV}${RST} ${fitAnsiCell(r, rightW)}${NAVY}${bV}${RST}`);
         } else {
-            lines.push(`${NAVY}${bV}${RST} ${l}${' '.repeat(pad)}${NAVY}${bV}${RST}`);
+            lines.push(`${NAVY}${bV}${RST} ${fitAnsiCell(l, leftW)}${NAVY}${bV}${RST}`);
         }
     }
 
