@@ -59,13 +59,7 @@ export function rebuildFooter(ctx: TuiContext): void {
         ? Date.now() - ctx.turnStartedAt
         : undefined;
     const stateStr = ctx.streamState === 'responding' ? 'responding\u2026' : ctx.streamState === 'tool' ? 'working\u2026' : 'idle';
-    const projectDisplay = ctx.projectRoot
-        ? (() => {
-            const rel = ctx.projectRoot!.replace(process.env['HOME'] || '', '~');
-            const parts = rel.split('/');
-            return parts.length > 3 ? `…/${parts.slice(-2).join('/')}` : rel;
-        })()
-        : undefined;
+    const projectDisplay = ctx.projectRoot ? shortenProjectPathForFooter(ctx.projectRoot) : undefined;
     ctx.footer = renderStatusBar({
         model: ctx.info?.model,
         engine: ctx.label,
@@ -87,6 +81,14 @@ export function rebuildFooter(ctx: TuiContext): void {
         `  ${c.dim}${hrLine()}${c.reset}`,
         resolveShellLayout(process.stdout.columns || 80, getRows(), ctx.store.panes),
     );
+}
+
+export function shortenProjectPathForFooter(projectRoot: string): string {
+    const home = process.env['HOME'] || '';
+    const rel = home && projectRoot.startsWith(home) ? projectRoot.replace(home, '~') : projectRoot;
+    const parts = rel.split('/').filter(Boolean);
+    if (parts.length <= 3) return rel;
+    return `.../${parts.slice(-2).join('/')}`;
 }
 
 export function renderBlockSeparator(): void {

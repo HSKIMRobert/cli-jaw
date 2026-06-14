@@ -154,3 +154,29 @@ test('ctrl-o expanded frame remains width safe after agent_done toolLog backfill
         cleanupCtx(ctx);
     }
 });
+
+test('thinking streams in transcript, collapses when settled, and expands with ctrl-o', () => {
+    const ctx = makeCtx();
+    const viewport = new Viewport();
+    try {
+        handleWsMessage(ctx, msg({ type: 'agent_output', thinking: true, text: 'line one\nline two\nline three', agentId: 'main' }));
+
+        const streamingFrame = renderText(ctx, viewport, 72, 26);
+        assert.match(streamingFrame, /Thinking/);
+        assert.match(streamingFrame, /line one|line two|line three/);
+        assert.doesNotMatch(streamingFrame.split('\n').slice(-5).join('\n'), /line one/);
+
+        handleWsMessage(ctx, msg({ type: 'agent_done', text: 'Final answer.' }));
+        const collapsed = renderText(ctx, viewport, 72, 26);
+        assert.match(collapsed, /Thinking .* \+3 lines|Thinking/);
+        assert.doesNotMatch(collapsed, /line one\s+line two\s+line three/);
+
+        assert.equal(toggleToolExpansion(ctx.store.transcript), true);
+        const expanded = renderText(ctx, viewport, 72, 26);
+        assert.match(expanded, /line one/);
+        assert.match(expanded, /line two/);
+        assert.match(expanded, /Final answer/);
+    } finally {
+        cleanupCtx(ctx);
+    }
+});

@@ -43,9 +43,9 @@ export function renderTranscriptItem(item: TranscriptItem, width: number): strin
     const w = Math.max(20, width - gutter.length);
     switch (item.type) {
         case 'user': {
-            const lines = item.displayText.split('\n');
+            const lines = item.displayText.split('\n').flatMap(line => line.length === 0 ? [''] : wrapTextToCols(line, w - 3));
             return lines.map((line, index) => {
-            const marker = index === 0 ? `${c.cyan}${c.bold}❯${c.reset}` : `${c.dim}↳${c.reset}`;
+                const marker = index === 0 ? `${c.cyan}${c.bold}❯${c.reset}` : `${c.dim}↳${c.reset}`;
                 return `${gutter}${marker} ${clipTextToCols(line, w - 3)}`;
             });
         }
@@ -74,10 +74,38 @@ export function renderTranscriptItem(item: TranscriptItem, width: number): strin
         case 'thinking': {
             const agentLabel = item.agentId ? `${c.dim}[${item.agentId}]${c.reset} ` : '';
             const lineCount = item.text.split('\n').filter(Boolean).length || 1;
-            const suffix = item.streaming ? ` ${c.cyan}▍${c.reset}` : '';
+            const labelRows = agentLabel ? [`${gutter}${agentLabel}`] : [];
+            if (item.streaming) {
+                const detailPrefix = `${gutter}${c.dim}│ `;
+                const detailWidth = Math.max(10, width - visualWidth(detailPrefix) - visualWidth(c.reset));
+                const wrappedRows = item.text
+                    .split('\n')
+                    .filter(Boolean)
+                    .flatMap(line => wrapTextToCols(line, detailWidth))
+                    .slice(-6);
+                const detailRows = wrappedRows.length > 0 ? wrappedRows : [''];
+                return [
+                    ...labelRows,
+                    `${gutter}${c.dim}\x1b[3mThinking${c.reset} ${c.cyan}▍${c.reset}`,
+                    ...detailRows.map(line => `${detailPrefix}${clipTextToCols(line, detailWidth)}${c.reset}`),
+                ];
+            }
+            if (item.collapsed === false && lineCount > 1) {
+                const detailPrefix = `${gutter}${c.dim}│ `;
+                const detailWidth = Math.max(10, width - visualWidth(detailPrefix) - visualWidth(c.reset));
+                const detailRows = item.text
+                    .split('\n')
+                    .filter(Boolean)
+                    .flatMap(line => wrapTextToCols(line, detailWidth));
+                return [
+                    ...labelRows,
+                    renderThinkingCollapse(item.text, lineCount, false),
+                    ...detailRows.map(line => `${detailPrefix}${clipTextToCols(line, detailWidth)}${c.reset}`),
+                ];
+            }
             return [
-                ...(agentLabel ? [`${gutter}${agentLabel}`] : []),
-                `${renderThinkingCollapse(item.text, lineCount, false)}${suffix}`,
+                ...labelRows,
+                renderThinkingCollapse(item.text, lineCount, false),
             ];
         }
         case 'tool': {
@@ -113,6 +141,12 @@ export function renderTranscriptItem(item: TranscriptItem, width: number): strin
         default:
             return [];
     }
+}
+
+function renderTranscriptItemWithSpacing(item: TranscriptItem, width: number, previous?: TranscriptItem): string[] {
+    const rows = renderTranscriptItem(item, width);
+    const needsGap = Boolean(previous && previous.type !== 'status' && item.type !== 'status');
+    return needsGap ? ['', ...rows] : rows;
 }
 
 function currentRegions(ctx: TuiContext): Regions {
@@ -260,7 +294,12 @@ export function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
         : renderLiveToolRows(ctx, cols, Math.min(4, Math.max(0, regions.transcript.height - 1)));
     const transcriptHeight = Math.max(1, regions.transcript.height - liveRows.length);
     viewport.setPrelude(renderWelcomePrelude(ctx, cols));
-    viewport.setItems(ctx.store.transcript.items, renderTranscriptItem, transcriptHeight);
+    const transcriptItems = ctx.store.transcript.items;
+    viewport.setItems(
+        transcriptItems,
+        (item, width) => renderTranscriptItemWithSpacing(item, width, transcriptItems[transcriptItems.indexOf(item) - 1]),
+        transcriptHeight,
+    );
 
     const chatRows = renderChatRegion(ctx, viewport, regions, cols, liveRows);
     const commandRows = slashRows
@@ -357,7 +396,7 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
 
     rebuildFooter(ctx);
     screen.enter();
-    screen.enableMouse();
+    if (ctx.tuiConfig['mouseTracking'] === true) screen.enableMouse();
     scheduler.request();
 
     process.stdin.setRawMode(true);

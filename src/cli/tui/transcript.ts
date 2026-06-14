@@ -249,11 +249,11 @@ export function collapsePreviousTools(state: TranscriptState): void {
 }
 
 export function toggleToolExpansion(state: TranscriptState): boolean {
-    const toolItems = state.items.filter(i => i.type === 'tool');
+    const expandableItems = state.items.filter(i => i.type === 'tool' || i.type === 'thinking');
     const hasLiveTools = state.liveTools.length > 0;
-    if (toolItems.length === 0 && !hasLiveTools) return false;
-    const shouldExpand = toolItems.some(i => i.collapsed !== false) || (hasLiveTools && !state.liveToolsExpanded);
-    for (const item of toolItems) item.collapsed = !shouldExpand;
+    if (expandableItems.length === 0 && !hasLiveTools) return false;
+    const shouldExpand = expandableItems.some(i => i.collapsed !== false) || (hasLiveTools && !state.liveToolsExpanded);
+    for (const item of expandableItems) item.collapsed = !shouldExpand;
     state.liveToolsExpanded = hasLiveTools ? shouldExpand : false;
     return true;
 }

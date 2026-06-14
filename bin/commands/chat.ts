@@ -127,6 +127,24 @@ try {
     }
 } catch { /* keep defaults */ }
 
+function firstProjectRoot(settings: Record<string, unknown>): string | undefined {
+    const dirs = settings["projectDirs"];
+    if (!Array.isArray(dirs)) return undefined;
+    const first = dirs.find((dir): dir is string => typeof dir === 'string' && dir.trim().length > 0);
+    return first ? resolvePath(first) : undefined;
+}
+
+function resolveChatCwd(settings: Record<string, unknown>, fallbackWorkingDir: string): string {
+    const projectRoot = firstProjectRoot(settings);
+    if (projectRoot) return projectRoot;
+    if (fallbackWorkingDir && fallbackWorkingDir !== '~') {
+        return fallbackWorkingDir.startsWith('~')
+            ? join(homedir(), fallbackWorkingDir.slice(1))
+            : resolvePath(fallbackWorkingDir);
+    }
+    return process.cwd();
+}
+
 const themeFromSettings = typeof (tuiConfig as Record<string, unknown>)['theme'] === 'string'
     ? (tuiConfig as Record<string, unknown>)['theme'] as string
     : undefined;
@@ -142,7 +160,8 @@ const displayMode = resolveTuiDisplayMode({
     settingsFullscreen: (tuiConfig as Record<string, unknown>)['fullscreen'] as boolean | undefined,
 });
 
-const chatCwd = process.cwd();
+const initialProjectRoot = firstProjectRoot(settingsSnapshot);
+const chatCwd = resolveChatCwd(settingsSnapshot, info.workingDir);
 const isGit = isGitRepo(chatCwd);
 let gitBranch = '';
 if (isGit) {
@@ -182,6 +201,7 @@ const ctx: TuiContext = {
     ideEnabled: isGit,
     idePopEnabled: false,
     preFileSetQueue: [],
+    ...(initialProjectRoot ? { projectRoot: initialProjectRoot } : {}),
     chatCwd,
     isGit,
     gitBranch,

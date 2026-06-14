@@ -5,7 +5,8 @@ import { readFileSync } from 'node:fs';
 const source = readFileSync(new URL('../../bin/commands/tui/fullscreen-mode.ts', import.meta.url), 'utf8');
 
 test('fullscreen user transcript renderer splits embedded newlines into frame rows', () => {
-    assert.match(source, /const lines = item\.displayText\.split\('\\n'\);/);
+    assert.match(source, /item\.displayText\.split\('\\n'\)\.flatMap/);
+    assert.match(source, /wrapTextToCols\(line, w - 3\)/);
     assert.match(source, /return lines\.map\(\(line, index\) =>/);
 });
 
@@ -42,4 +43,9 @@ test('fullscreen live tool handling keeps running tools out of committed transcr
     assert.match(source, /listLiveToolItems\(state\)/);
     assert.match(source, /state\.liveToolsExpanded/);
     assert.match(source, /liveRows/);
+});
+
+test('fullscreen default mouse tracking is copy-friendly and opt-in', () => {
+    assert.match(source, /ctx\.tuiConfig\['mouseTracking'\] === true/);
+    assert.doesNotMatch(source, /screen\.enter\(\);\s*screen\.enableMouse\(\);/);
 });
