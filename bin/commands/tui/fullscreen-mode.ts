@@ -143,6 +143,45 @@ function handleMouseEvent(
     return true;
 }
 
+function blankLines(count: number): string[] {
+    return new Array(Math.max(0, count)).fill('');
+}
+
+function renderChatRegion(ctx: TuiContext, viewport: Viewport, regions: Regions, cols: number): string[] {
+    const transcriptLines = viewport.composeRegion(regions.transcript);
+    const hasTranscript = transcriptLines.some(l => l !== '');
+    if (hasTranscript) {
+        const firstContent = transcriptLines.findIndex(line => line !== '');
+        if (firstContent > 0) {
+            const content = transcriptLines.slice(firstContent);
+            return [
+                ...content,
+                ...blankLines(regions.transcript.height - content.length),
+            ];
+        }
+        return transcriptLines;
+    }
+    const welcome = (ctx.welcomeLines ?? [])
+        .slice(0, regions.transcript.height)
+        .map(line => clipTextToCols(`  ${line}`, cols));
+    return [
+        ...welcome,
+        ...blankLines(regions.transcript.height - welcome.length),
+    ];
+}
+
+function renderHelpLine(cols: number): string {
+    return clipTextToCols(`${c.dim}? for shortcuts · /help · /model · /settings${c.reset}`, cols);
+}
+
+function expandFrameRows(rows: string[], height: number): string[] {
+    const idx = rows.indexOf(VIEWPORT_FILL);
+    if (idx < 0) return rows;
+    const out = [...rows];
+    out.splice(idx, 1, ...blankLines(height - (rows.length - 1)));
+    return out;
+}
+
 export function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
     const cols = process.stdout.columns || 80;
     const rows = getRows();
@@ -152,33 +191,28 @@ export function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
 
     viewport.setItems(ctx.store.transcript.items, renderTranscriptItem, regions.transcript.height);
 
-    // Build content lines sequentially (bottom-up pinning via VIEWPORT_FILL)
-    const contentLines: string[] = [];
+    const chatRows = renderChatRegion(ctx, viewport, regions, cols);
 
-    // 1. Transcript or Welcome
-    const transcriptLines = viewport.composeRegion(regions.transcript);
-    const hasTranscript = transcriptLines.some(l => l !== '');
-    if (hasTranscript) {
-        contentLines.push(...transcriptLines);
-    } else if (ctx.welcomeLines && ctx.welcomeLines.length > 0) {
-        for (const wl of ctx.welcomeLines) {
-            contentLines.push(clipTextToCols(`  ${wl}`, cols));
-        }
-    }
-
-    // 2. Autocomplete (between transcript and input)
+    // Autocomplete temporarily occupies the gap above the composer. Cycle 27 replaces
+    // this with the full JWC slash surface.
     const ac = ctx.store.autocomplete;
     const acLines = composeAutocompleteLines(ac, {
         columns: cols,
         dimCode: c.dim,
         resetCode: c.reset,
         clipTextToCols,
-    });
+    }).slice(0, Math.max(0, regions.transcript.height - 1));
     if (acLines.length > 0) {
-        contentLines.push(...acLines);
+        chatRows.splice(Math.max(0, chatRows.length - acLines.length), acLines.length, ...acLines);
     }
 
-    // 3. Input box with border — safe for narrow terminals
+    const frameRows: string[] = [
+        VIEWPORT_FILL,
+        ...chatRows,
+        clipTextToCols(ctx.footer, cols),
+    ];
+
+    // Input box with border — safe for narrow terminals
     const innerW = Math.max(6, cols - 4);
     const box = isInitialized() ? (() => { try { return getInteractive().theme?.boxSharp; } catch { return null; } })() : null;
     const bTL = box?.topLeft ?? '┌'; const bTR = box?.topRight ?? '┐';
@@ -186,13 +220,12 @@ export function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
     const bH = box?.horizontal ?? '─'; const bV = box?.vertical ?? '│';
     const borderFill = Math.max(0, innerW);
 
-    contentLines.push(clipTextToCols(`${c.dim}${bTL}${bH.repeat(borderFill)}${bTR}${c.reset}`, cols));
+    frameRows.push(clipTextToCols(`${c.dim}${bTL}${bH.repeat(borderFill)}${bTR}${c.reset}`, cols));
 
     const prefixVisW = 4; // │ > (space)
     const prefix = `${c.dim}${bV}${c.reset} ${ctx.accent}${c.bold}>${c.reset} `;
     const compLines = composerText.split('\n');
     const hasInput = composerText.trim().length > 0;
-    const inputStartInContent = contentLines.length;
     for (let i = 0; i < regions.composer.height; i++) {
         const rawLine = compLines[i] ?? '';
         const maxTextW = Math.max(1, innerW - 4);
@@ -205,34 +238,21 @@ export function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
             const phVisW = visualWidth(placeholder);
             const phPadW = Math.max(0, innerW - 3 - phVisW);
             const phSuffix = `${' '.repeat(phPadW)}${c.dim}${bV}${c.reset}`;
-            contentLines.push(clipTextToCols(`${prefix}${c.dim}${placeholder}${c.reset}${phSuffix}`, cols));
+            frameRows.push(clipTextToCols(`${prefix}${c.dim}${placeholder}${c.reset}${phSuffix}`, cols));
         } else {
             const content = i === 0 ? `${prefix}${clipped}${suffix}` : `${c.dim}${bV}${c.reset}   ${clipped}${suffix}`;
-            contentLines.push(clipTextToCols(content, cols));
+            frameRows.push(clipTextToCols(content, cols));
         }
     }
 
-    contentLines.push(clipTextToCols(`${c.dim}${bBL}${bH.repeat(borderFill)}${bBR}${c.reset}`, cols));
-
-    // 4. Hint line
-    contentLines.push(clipTextToCols(`${c.dim}? for shortcuts · /help · /model · /settings${c.reset}`, cols));
-
-    // 5. Footer (StatusBar)
-    contentLines.push(clipTextToCols(ctx.footer, cols));
-
-    // Build the final frame: VIEWPORT_FILL at top pushes content to bottom
-    const frameRows: string[] = [VIEWPORT_FILL, ...contentLines];
+    frameRows.push(clipTextToCols(`${c.dim}${bBL}${bH.repeat(borderFill)}${bBR}${c.reset}`, cols));
+    frameRows.push(renderHelpLine(cols));
 
     // For overlays, we need a full-height array. Expand VIEWPORT_FILL now.
     const ov = ctx.store.overlay;
     const needsOverlay = ov.helpOpen || ov.paletteOpen || ov.selector.open || ov.bgtaskOpen;
     if (needsOverlay) {
-        const fillIdx = frameRows.indexOf(VIEWPORT_FILL);
-        if (fillIdx >= 0) {
-            const contentCount = frameRows.length - 1;
-            const fillCount = Math.max(0, rows - contentCount);
-            frameRows.splice(fillIdx, 1, ...new Array(fillCount).fill(''));
-        }
+        frameRows.splice(0, frameRows.length, ...expandFrameRows(frameRows, rows));
         if (ov.helpOpen) {
             const cmds = getCompletionItems('/', 'cli');
             composeHelpOntoFrame(frameRows, cols, frameRows.length, c.dim, c.reset, cmds);
@@ -261,9 +281,8 @@ export function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
     if (showCursor) {
         const cursorOff = getDisplayCursorOffset(ctx.store.composer);
         const curPos = cursorScreenPos(composerText, cursorOff, prefixVisW, prefixVisW, cols);
-        const totalExpanded = Math.max(rows, contentLines.length);
         cursorPos = {
-            row: totalExpanded - contentLines.length + inputStartInContent + curPos.row,
+            row: regions.composer.y - 1 + curPos.row,
             col: curPos.col,
         };
     }

@@ -7,6 +7,7 @@ import { appendTextToComposer } from '../../src/cli/tui/composer.ts';
 import { appendAssistantTurnText, appendThinkingTurnText, appendToolItem, appendUserItem, finalizeStreamingAssistants } from '../../src/cli/tui/transcript.ts';
 import { Viewport } from '../../src/cli/tui/render/viewport.ts';
 import { VIEWPORT_FILL } from '../../src/cli/tui/render/frame.ts';
+import { solveLayout } from '../../src/cli/tui/render/layout.ts';
 
 function withTerminalSize<T>(cols: number, rows: number, fn: () => T): T {
     const columnsDesc = Object.getOwnPropertyDescriptor(process.stdout, 'columns');
@@ -89,10 +90,13 @@ test('fullscreen composeFrame keeps frame rows newline-free and input pinned', (
         assert.equal(frame.rows.some(row => row.includes('\n')), false);
 
         const expanded = expandViewportFill(frame.rows, 28);
+        const regions = solveLayout(96, 28, 1);
         assert.equal(expanded.length, 28);
-        assert.equal(expanded.at(-1), '  test footer');
-        assert.match(expanded.at(-2) ?? '', /shortcuts/);
-        assert.match(expanded.slice(-5).join('\n'), /Type your message/);
+        assert.equal(expanded[regions.statusLine.y - 1], '  test footer');
+        assert.match(expanded[regions.composer.y - 2] ?? '', /┌/);
+        assert.match(expanded[regions.composer.y - 1] ?? '', /Type your message/);
+        assert.match(expanded[regions.help.y - 1] ?? '', /shortcuts/);
+        assert.deepEqual(frame.cursorPos, { row: regions.composer.y - 1, col: 4 });
     });
 });
 
@@ -106,7 +110,30 @@ test('fullscreen composeFrame stays bottom-pinned after composer text changes', 
         const frame = composeFrame(ctx, new Viewport());
         assert.equal(frame.rows.some(row => row.includes('\n')), false);
         const expanded = expandViewportFill(frame.rows, 24);
-        assert.equal(expanded.at(-1), '  test footer');
-        assert.match(expanded.slice(-5).join('\n'), /next message/);
+        const regions = solveLayout(80, 24, 1);
+        assert.equal(expanded[regions.statusLine.y - 1], '  test footer');
+        assert.match(expanded[regions.composer.y - 1] ?? '', /next message/);
+        assert.match(expanded[regions.help.y - 1] ?? '', /shortcuts/);
+        assert.equal(frame.cursorPos?.row, regions.composer.y - 1);
+        assert.ok((frame.cursorPos?.col ?? 0) > 4);
+    });
+});
+
+test('fullscreen composeFrame keeps composer cluster fixed after first message', () => {
+    withTerminalSize(80, 24, () => {
+        const ctx = makeCtx();
+        ctx.welcomeLines = ['Welcome to jaw chat'];
+
+        const regions = solveLayout(80, 24, 1);
+        const before = expandViewportFill(composeFrame(ctx, new Viewport()).rows, 24);
+        appendUserItem(ctx.store.transcript, 'hello', 'hello');
+        const after = expandViewportFill(composeFrame(ctx, new Viewport()).rows, 24);
+
+        assert.match(before[regions.transcript.y - 1] ?? '', /Welcome to jaw chat/);
+        assert.match(after[regions.transcript.y - 1] ?? '', /hello/);
+        assert.equal(before[regions.statusLine.y - 1], after[regions.statusLine.y - 1]);
+        assert.equal(before[regions.composer.y - 2], after[regions.composer.y - 2]);
+        assert.equal(before[regions.composer.y - 1], after[regions.composer.y - 1]);
+        assert.equal(before[regions.help.y - 1], after[regions.help.y - 1]);
     });
 });

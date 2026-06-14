@@ -1,5 +1,5 @@
 /**
- * Full-screen region solver (Phase 4). Footer + composer fixed; transcript fills rest.
+ * Full-screen region solver. Transcript and bottom composer cluster are separate.
  */
 
 export interface Rect {
@@ -12,7 +12,10 @@ export interface Rect {
 export interface Regions {
     header: Rect;
     transcript: Rect;
+    statusLine: Rect;
     composer: Rect;
+    help: Rect;
+    /** Compatibility alias for the status line while older callers migrate. */
     footer: Rect;
 }
 
@@ -24,21 +27,26 @@ export function solveLayout(
 ): Regions {
     const safeCols = Math.max(20, cols);
     const safeRows = Math.max(6, rows);
-    const footerH = 1;
+    const statusH = 1;
     const borderH = 2;
-    const hintH = 1;
-    const composerH = Math.max(1, Math.min(composerLines, safeRows - footerH - borderH - hintH - 2));
-    const headerH = Math.max(0, Math.min(headerLines, safeRows - footerH - composerH - borderH - hintH - 1));
-    const transcriptH = Math.max(1, safeRows - headerH - composerH - footerH - borderH - hintH);
+    const helpH = 1;
+    const reservedWithoutComposer = statusH + borderH + helpH + 1;
+    const composerH = Math.max(1, Math.min(composerLines, safeRows - reservedWithoutComposer));
+    const headerH = Math.max(0, Math.min(headerLines, safeRows - statusH - composerH - borderH - helpH - 1));
+    const transcriptH = Math.max(1, safeRows - headerH - statusH - composerH - borderH - helpH);
     const headerY = 1;
     const transcriptY = headerY + headerH;
-    const composerY = transcriptY + transcriptH + 1;
-    const footerY = composerY + composerH + 1 + hintH;
+    const statusY = transcriptY + transcriptH;
+    const composerY = statusY + statusH + 1;
+    const helpY = composerY + composerH + 1;
+    const statusLine = { x: 1, y: statusY, width: safeCols, height: statusH };
 
     return {
         header: { x: 1, y: headerY, width: safeCols, height: headerH },
         transcript: { x: 1, y: transcriptY, width: safeCols, height: transcriptH },
+        statusLine,
         composer: { x: 1, y: composerY, width: safeCols, height: composerH },
-        footer: { x: 1, y: footerY, width: safeCols, height: footerH },
+        help: { x: 1, y: helpY, width: safeCols, height: helpH },
+        footer: statusLine,
     };
 }
