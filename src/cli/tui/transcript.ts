@@ -1,6 +1,7 @@
 export type TranscriptItem =
     | { type: 'user'; displayText: string; submitText: string; timestamp: number; agentId?: string }
     | { type: 'assistant'; text: string; streaming: boolean; timestamp: number; agentId?: string }
+    | { type: 'thinking'; text: string; streaming: boolean; timestamp: number; agentId?: string; collapsed?: boolean }
     | { type: 'tool'; text: string; timestamp: number; agentId?: string; collapsed?: boolean; detail?: string; stepRef?: string; status?: 'running' | 'done' | 'error' }
     | { type: 'status'; text: string; ephemeral: true; timestamp: number; agentId?: string };
 
@@ -36,6 +37,28 @@ export function appendAssistantTurnText(state: TranscriptState, chunk: string, a
     return appendToActiveAssistant(state, chunk);
 }
 
+function appendToActiveThinking(state: TranscriptState, chunk: string): boolean {
+    const last = state.items[state.items.length - 1];
+    if (!last || last.type !== 'thinking' || !last.streaming) return false;
+    last.text += chunk;
+    return true;
+}
+
+export function appendThinkingTurnText(state: TranscriptState, chunk: string, agentId?: string): boolean {
+    if (!chunk) return false;
+    if (appendToActiveThinking(state, chunk)) return true;
+    const item: TranscriptItem = {
+        type: 'thinking',
+        text: chunk,
+        streaming: true,
+        timestamp: Date.now(),
+        collapsed: true,
+    };
+    if (agentId) item.agentId = agentId;
+    state.items.push(item);
+    return true;
+}
+
 export function finalizeAssistant(state: TranscriptState, fallbackText?: string): boolean {
     const last = state.items[state.items.length - 1];
     if (!last || last.type !== 'assistant') return false;
@@ -52,7 +75,7 @@ export function finalizeAssistant(state: TranscriptState, fallbackText?: string)
 export function finalizeStreamingAssistants(state: TranscriptState): boolean {
     let changed = false;
     for (const item of state.items) {
-        if (item.type === 'assistant' && item.streaming) {
+        if ((item.type === 'assistant' || item.type === 'thinking') && item.streaming) {
             item.streaming = false;
             changed = true;
         }

@@ -64,6 +64,15 @@ export function renderTranscriptItem(item: TranscriptItem, width: number): strin
                 : renderMarkdown(mdText, { width: w, gutter });
             return (header + body).split('\n');
         }
+        case 'thinking': {
+            const agentLabel = item.agentId ? `${c.dim}[${item.agentId}]${c.reset} ` : '';
+            const lineCount = item.text.split('\n').filter(Boolean).length || 1;
+            const suffix = item.streaming ? ` ${c.cyan}▍${c.reset}` : '';
+            return [
+                ...(agentLabel ? [`${gutter}${agentLabel}`] : []),
+                `${renderThinkingCollapse(item.text, lineCount, false)}${suffix}`,
+            ];
+        }
         case 'tool': {
             const [toolHead, ...toolRest] = item.text.split(':');
             const toolDetail = item.detail ?? toolRest.join(':').trim();

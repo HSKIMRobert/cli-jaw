@@ -9,6 +9,7 @@ import {
     finalizeAssistant,
     finalizeStreamingAssistants,
     assistantTextSinceLastUser,
+    appendThinkingTurnText,
     appendStatusItem,
     clearEphemeralStatus,
 } from '../../src/cli/tui/transcript.ts';
@@ -103,6 +104,31 @@ test('finalizeStreamingAssistants finalizes assistant rows split by tools', asyn
     const assistantRows = state.items.filter((item) => item.type === 'assistant');
     assert.equal(assistantRows.length, 2);
     assert.ok(assistantRows.every((item) => item.type === 'assistant' && item.streaming === false));
+});
+
+test('thinking rows do not count as assistant final text', () => {
+    const state = createTranscriptState();
+    appendUserItem(state, 'hello', 'hello');
+    appendThinkingTurnText(state, 'internal reasoning\nstep two', 'main');
+
+    assert.equal(assistantTextSinceLastUser(state), '');
+    assert.equal(finalizeStreamingAssistants(state), true);
+    const item = state.items[1]!;
+    assert.equal(item.type, 'thinking');
+    if (item.type === 'thinking') {
+        assert.equal(item.streaming, false);
+        assert.equal(item.collapsed, true);
+    }
+});
+
+test('assistant final text starts after thinking rows', () => {
+    const state = createTranscriptState();
+    appendUserItem(state, 'hello', 'hello');
+    appendThinkingTurnText(state, 'internal reasoning', 'main');
+    appendAssistantTurnText(state, 'Hello!', 'main');
+
+    assert.equal(assistantTextSinceLastUser(state), 'Hello!');
+    assert.equal(state.items.map((item) => item.type).join(','), 'user,thinking,assistant');
 });
 
 test('agent_done with text but no prior chunks', () => {

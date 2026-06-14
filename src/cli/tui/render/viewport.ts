@@ -143,6 +143,7 @@ export class Viewport {
         switch (item.type) {
             case 'user': return `u|${item.displayText.length}|${hashText(item.displayText)}|${item.agentId ?? ''}`;
             case 'assistant': return `a|${item.text.length}|${hashText(item.text)}|${item.streaming ? 1 : 0}|${item.agentId ?? ''}`;
+            case 'thinking': return `h|${item.text.length}|${hashText(item.text)}|${item.streaming ? 1 : 0}|${item.collapsed ? 1 : 0}|${item.agentId ?? ''}`;
             case 'tool': return `t|${item.text.length}|${hashText(item.text)}|${item.collapsed ? 1 : 0}|${item.detail ? hashText(item.detail) : ''}|${item.agentId ?? ''}`;
             case 'status': return `s|${item.text.length}|${hashText(item.text)}|${item.agentId ?? ''}`;
         }

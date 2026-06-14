@@ -5,7 +5,7 @@ import type WebSocket from 'ws';
 import {
     startAssistantItem, appendAssistantTurnText,
     finalizeAssistant, finalizeStreamingAssistants, assistantTextSinceLastUser,
-    appendStatusItem, appendToolItem, clearEphemeralStatus,
+    appendStatusItem, appendToolItem, clearEphemeralStatus, appendThinkingTurnText,
 } from '../../../src/cli/tui/transcript.js';
 import { captureFileSet, diffFileSets, getDiffStat, getUnifiedDiff, getIdeCli, openDiffInIde } from '../../../src/ide/diff.js';
 import { createStreamSink } from '../../../src/cli/tui/stream.js';
@@ -54,14 +54,15 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                     break;
                 }
                 clearEphemeralStatus(transcript);
+                const isThinkingDelta = !!msg.thinking;
                 if (!ctx.streaming) {
                     ctx.streaming = true;
                     ctx.streamState = 'responding';
                     ctx.turnStartedAt = Date.now();
                     rebuildFooter(ctx); // safe point: before the first chunk is written
                     startFooterTimer(ctx);
-                    startAssistantItem(transcript, msg.agentId);
-                    if (!isFullscreen(ctx)) {
+                    if (!isThinkingDelta) startAssistantItem(transcript, msg.agentId);
+                    if (!isFullscreen(ctx) && !isThinkingDelta) {
                         process.stdout.write('\n');
                         ctx.streamSink = createStreamSink({
                             write: (s) => process.stdout.write(s),
@@ -72,6 +73,11 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                 } else if (ctx.streamState === 'tool') {
                     ctx.streamState = 'responding';
                     rebuildFooter(ctx);
+                }
+                if (isThinkingDelta) {
+                    appendThinkingTurnText(transcript, msg.text || '', msg.agentId);
+                    if (isFullscreen(ctx)) ctx.requestFrame?.();
+                    break;
                 }
                 appendAssistantTurnText(transcript, msg.text || '', msg.agentId);
                 if (ctx.streamSink) {
