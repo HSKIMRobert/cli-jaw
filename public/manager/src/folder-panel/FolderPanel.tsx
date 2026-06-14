@@ -4,8 +4,11 @@ import type { NotesTreeEntry } from '../notes/notes-types';
 import { copyText } from '../clipboard/copy-text';
 import { createElectronFolderSource, createNotesVaultFolderSource, type FolderPanelEntry } from './folder-sources';
 import { FolderPanelToolbar } from './FolderPanelToolbar';
+import { FolderWorktreeOpsDialog } from './FolderWorktreeOpsDialog';
 import { FolderTreeRows } from './FolderTreeRows';
 import { dropCachedBranches, isDescendantPath, parentPath, relativeFolderPath } from './folder-panel-state';
+import { runWorktreeOperation as runWorktreeOperationClient } from './folder-worktree-ops-client';
+import type { GitWorktreeOperation } from './folder-worktree-types';
 import { useFolderGitStatus } from './use-folder-git-status';
 import { useGitWorktrees } from './use-git-worktrees';
 import './folder-panel.css';
@@ -45,6 +48,8 @@ export function FolderPanel(props: FolderPanelProps) {
     const [actionStatus, setActionStatus] = useState<string | null>(null);
     const [contextMenu, setContextMenu] = useState<{ entry: FolderPanelEntry; x: number; y: number } | null>(null);
     const [gitRefreshToken, setGitRefreshToken] = useState(0);
+    const [worktreeOpsOpen, setWorktreeOpsOpen] = useState(false);
+    const [worktreeOperationBusy, setWorktreeOperationBusy] = useState(false);
 
     const loadDir = useCallback(async (dirPath: string) => {
         try {
@@ -273,6 +278,30 @@ export function FolderPanel(props: FolderPanelProps) {
         }
     }, [rootPath, source, worktreeState.repoRoot]);
 
+    const runWorktreeOperation = useCallback(async (operation: GitWorktreeOperation) => {
+        if (!rootPath) return;
+        setWorktreeOperationBusy(true);
+        try {
+            const result = await runWorktreeOperationClient({
+                folderPanelRoot: rootPath,
+                repoRoot: worktreeState.repoRoot,
+                operation,
+                confirmed: true,
+            });
+            if (!result.ok) throw new Error(result.error ?? 'Git operation failed');
+            setActionStatus(result.preview?.label ?? 'Git worktree operation completed');
+            setError(null);
+            setWorktreeOpsOpen(false);
+            worktreeState.refresh();
+            setGitRefreshToken(token => token + 1);
+            if (rootPath !== null) await loadDir(rootPath);
+        } catch (err) {
+            setError((err as Error).message);
+        } finally {
+            setWorktreeOperationBusy(false);
+        }
+    }, [loadDir, rootPath, worktreeState]);
+
     const handleEntryKeyDown = useCallback((event: React.KeyboardEvent, entry: FolderPanelEntry) => {
         const isPrimaryModifier = event.metaKey || event.ctrlKey;
         if (isPrimaryModifier && event.key.toLowerCase() === 'c') {
@@ -326,6 +355,7 @@ export function FolderPanel(props: FolderPanelProps) {
                 onOpenWorktree={path => void openWorktreeRoot(path)}
                 onCopyWorktreePath={path => void copyWorktreePath(path)}
                 onRevealWorktreePath={path => void revealWorktreePath(path)}
+                onOpenWorktreeOps={() => setWorktreeOpsOpen(true)}
             />
             {rootPath !== null && (
                 <div className="folder-action-row" aria-label="Folder actions">
@@ -336,6 +366,16 @@ export function FolderPanel(props: FolderPanelProps) {
             )}
             {error && <div className="folder-error">{error}</div>}
             {actionStatus && !error && <div className="folder-status">{actionStatus}</div>}
+            {worktreeOpsOpen && rootPath !== null && (
+                <FolderWorktreeOpsDialog
+                    folderPanelRoot={rootPath}
+                    repoRoot={worktreeState.repoRoot}
+                    worktrees={worktreeState.worktrees}
+                    busy={worktreeOperationBusy}
+                    onRun={operation => void runWorktreeOperation(operation)}
+                    onClose={() => setWorktreeOpsOpen(false)}
+                />
+            )}
             <div className={rootPath === null ? 'folder-tree folder-empty-root' : 'folder-tree'} role="tree">
                 <FolderTreeRows
                     entries={entries}

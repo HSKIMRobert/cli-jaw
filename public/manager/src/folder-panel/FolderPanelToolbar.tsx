@@ -20,6 +20,7 @@ type FolderPanelToolbarProps = {
     onOpenWorktree?: ((path: string) => void) | undefined;
     onCopyWorktreePath?: ((path: string) => void) | undefined;
     onRevealWorktreePath?: ((path: string) => void) | undefined;
+    onOpenWorktreeOps?: (() => void) | undefined;
 };
 
 function rootLabel(rootPath: string | null): string {
@@ -110,6 +111,11 @@ export function FolderPanelToolbar(props: FolderPanelToolbarProps) {
                         </div>
                     )}
                 </div>
+            )}
+            {props.rootPath !== null && props.gitSummary?.available && props.onOpenWorktreeOps && (
+                <button type="button" className="folder-worktree-btn" onClick={props.onOpenWorktreeOps}>
+                    Ops
+                </button>
             )}
             {props.rootPath !== null && (
                 <button type="button" className="folder-refresh" onClick={props.onRefresh} aria-label="Refresh folder">

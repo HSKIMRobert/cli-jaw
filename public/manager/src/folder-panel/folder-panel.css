@@ -193,6 +193,91 @@
     font-size: 11px;
     color: var(--text-dim);
 }
+.folder-worktree-ops {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-elevated);
+}
+.folder-worktree-ops__panel {
+    display: grid;
+    gap: 7px;
+    padding: 7px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 5px;
+    background: var(--bg-base);
+}
+.folder-worktree-ops__header,
+.folder-worktree-ops__actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.folder-worktree-ops__header {
+    color: var(--text-base);
+    font-size: 12px;
+    font-weight: 600;
+}
+.folder-worktree-ops__header button {
+    all: unset;
+    cursor: pointer;
+    color: var(--text-dim);
+    font-size: 10px;
+}
+.folder-worktree-ops__row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+}
+.folder-worktree-ops__row label,
+.folder-worktree-ops__check {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+    color: var(--text-dim);
+    font-size: 10px;
+}
+.folder-worktree-ops__check {
+    display: flex;
+    align-items: center;
+}
+.folder-worktree-ops input,
+.folder-worktree-ops select {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: 4px 6px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 4px;
+    color: var(--text-base);
+    background: var(--bg-elevated);
+    font-size: 11px;
+}
+.folder-worktree-ops input[type="checkbox"] {
+    width: auto;
+}
+.folder-worktree-ops__preview {
+    overflow: hidden;
+    padding: 5px 6px;
+    border-radius: 4px;
+    color: var(--text-base);
+    background: var(--bg-hover);
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.folder-worktree-ops__warning {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--status-error);
+    font-size: 10px;
+}
+.folder-worktree-ops__hint {
+    color: var(--text-dim);
+    font-size: 10px;
+}
 .folder-tree {
     flex: 1;
     min-height: 0;
