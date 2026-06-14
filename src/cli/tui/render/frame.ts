@@ -134,11 +134,12 @@ export class Screen {
                 buf += `\x1b[${this.cursorRow}A`;
             }
             buf += '\r';
-            for (let i = 0; i < lines.length; i++) {
+            const redrawRows = Math.min(height, Math.max(lines.length, this.prevLines.length));
+            for (let i = 0; i < redrawRows; i++) {
                 if (i > 0) buf += '\r\n';
-                buf += '\x1b[2K' + (lines[i] ?? '');
+                buf += '\x1b[2K' + (i < lines.length ? (lines[i] ?? '') : '');
             }
-            this.cursorRow = Math.max(0, lines.length - 1);
+            this.cursorRow = Math.max(0, Math.min(lines.length, redrawRows) - 1);
             this.fullRedrawPending = false;
         } else {
             const prevLen = this.prevLines.length;

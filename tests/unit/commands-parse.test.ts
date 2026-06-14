@@ -48,6 +48,23 @@ test('parseCommand: workflow commands use remote-safe names', () => {
     }
 });
 
+test('parseCommand: goalplan and orchestrate state commands keep text arguments', () => {
+    const goalplan = parseCommand('/goalplan ddd text');
+    assert.equal(goalplan.type, 'known');
+    assert.equal(goalplan.name, 'goalplan');
+    assert.deepEqual(goalplan.args, ['ddd', 'text']);
+
+    const goalPlanAlias = parseCommand('/goal plan ddd text');
+    assert.equal(goalPlanAlias.type, 'known');
+    assert.equal(goalPlanAlias.name, 'goal');
+    assert.deepEqual(goalPlanAlias.args, ['plan', 'ddd', 'text']);
+
+    const orchestrate = parseCommand('/orchestrate P');
+    assert.equal(orchestrate.type, 'known');
+    assert.equal(orchestrate.name, 'orchestrate');
+    assert.deepEqual(orchestrate.args, ['P']);
+});
+
 test('parseCommand: plan-audit is not registered in Phase 1', () => {
     const r = parseCommand('/plan-audit draft feature');
     assert.equal(r.type, 'unknown');

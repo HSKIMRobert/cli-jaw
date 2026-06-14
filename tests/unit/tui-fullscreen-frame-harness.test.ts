@@ -4,7 +4,7 @@ import { composeFrame, renderTranscriptItem } from '../../bin/commands/tui/fulls
 import type { TuiContext } from '../../bin/commands/tui/types.ts';
 import { createTuiStore } from '../../src/cli/tui/store.ts';
 import { appendTextToComposer } from '../../src/cli/tui/composer.ts';
-import { appendAssistantTurnText, appendThinkingTurnText, appendToolItem, appendUserItem, finalizeStreamingAssistants, toggleToolExpansion, upsertLiveToolItem } from '../../src/cli/tui/transcript.ts';
+import { appendAssistantTurnText, appendCommandItem, appendThinkingTurnText, appendToolItem, appendUserItem, finalizeStreamingAssistants, toggleToolExpansion, upsertLiveToolItem } from '../../src/cli/tui/transcript.ts';
 import { Viewport } from '../../src/cli/tui/render/viewport.ts';
 import { VIEWPORT_FILL } from '../../src/cli/tui/render/frame.ts';
 import { solveLayout } from '../../src/cli/tui/render/layout.ts';
@@ -153,6 +153,22 @@ test('fullscreen live tool rows do not render event emoji', () => {
 
         assert.match(main, /⏳ Bash/);
         assert.doesNotMatch(main, /🔧/);
+    });
+});
+
+test('fullscreen command feedback renders without thinking spinner', () => {
+    withTerminalSize(96, 28, () => {
+        const ctx = makeCtx();
+        appendCommandItem(ctx.store.transcript, 'State → P\nPlanning mode entered', { commandName: 'orchestrate', ok: true });
+
+        const expanded = expandViewportFill(composeFrame(ctx, new Viewport()).rows, 28);
+        const regions = solveLayout(96, 28, 1);
+        const main = stripAnsi(expanded.slice(regions.transcript.y - 1, regions.statusLine.y - 1).join('\n'));
+
+        assert.match(main, /✓ \/orchestrate: State → P/);
+        assert.match(main, /Planning mode entered/);
+        assert.doesNotMatch(main, /thinking/i);
+        assert.doesNotMatch(main, /⠋|⠙|⠹|⠸|⠼|⠴|⠦|⠧|⠇|⠏/);
     });
 });
 

@@ -133,6 +133,21 @@ export function renderTranscriptItem(item: TranscriptItem, width: number): strin
             }
             return rows;
         }
+        case 'command': {
+            const icon = item.ok === false ? '!' : '✓';
+            const color = item.ok === false ? c.red : c.green;
+            const label = item.commandName ? `/${item.commandName}: ` : '';
+            const prefix = `${gutter}${color}${icon}${c.reset} ${c.dim}${label}${c.reset}`;
+            const bodyWidth = Math.max(10, width - visualWidth(prefix));
+            const lines = item.text
+                .split('\n')
+                .flatMap(line => line.length === 0 ? [''] : wrapTextToCols(line, bodyWidth));
+            return lines.map((line, index) => {
+                const rowPrefix = index === 0 ? prefix : `${gutter}${c.dim}│ ${c.reset}`;
+                const rowWidth = Math.max(10, width - visualWidth(rowPrefix));
+                return `${rowPrefix}${clipTextToCols(line, rowWidth)}`;
+            });
+        }
         case 'status': {
             const spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
             const spinChar = spinnerFrames[Math.floor(Date.now() / 80) % spinnerFrames.length] || '◌';
@@ -418,7 +433,7 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
         ctx.resizeTimer = setTimeout(() => {
             ctx.resizeTimer = null;
             viewport.setWidth(process.stdout.columns || 80);
-            screen.resetViewport();
+            screen.forceRedraw();
             scheduler.request();
         }, 50);
     });

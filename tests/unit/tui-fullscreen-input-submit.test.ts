@@ -67,6 +67,17 @@ function captureStdout<T>(fn: () => T): { result: T; writes: string } {
     }
 }
 
+function flushAsyncCommands(): Promise<void> {
+    return new Promise(resolve => setImmediate(resolve));
+}
+
+async function waitFor(condition: () => boolean, attempts = 20): Promise<void> {
+    for (let i = 0; i < attempts; i += 1) {
+        if (condition()) return;
+        await flushAsyncCommands();
+    }
+}
+
 test('fullscreen Enter submits without writing line-mode separators or moving the composer block', () => {
     const sent: string[] = [];
     const ctx = makeCtx(sent);
@@ -112,4 +123,56 @@ test('fullscreen stop shortcut records status instead of printing into the frame
     const last = ctx.store.transcript.items.at(-1);
     assert.equal(last?.type, 'status');
     if (last?.type === 'status') assert.match(last.text, /stopped/);
+});
+
+test('fullscreen known slash command does not submit as an agent message or user row', async () => {
+    const sent: string[] = [];
+    const ctx = makeCtx(sent);
+    let frames = 0;
+    ctx.requestFrame = () => { frames += 1; };
+    appendTextToComposer(ctx.store.composer, '/ide off');
+
+    const { writes } = captureStdout(() => handleKeyInput(ctx, '\r'));
+
+    assert.equal(writes, '');
+    assert.deepEqual(sent, []);
+    assert.equal(ctx.store.transcript.items.some(item => item.type === 'user'), false);
+    assert.equal(ctx.commandRunning, true);
+
+    await flushAsyncCommands();
+
+    assert.equal(ctx.commandRunning, false);
+    assert.equal(ctx.inputActive, true);
+    assert.equal(getComposerDisplayText(ctx.store.composer), '');
+    assert.ok(frames >= 2);
+    assert.equal(ctx.store.transcript.items.some(item => item.type === 'thinking'), false);
+    const commands = ctx.store.transcript.items.filter(item => item.type === 'command');
+    assert.ok(commands.length >= 1);
+    assert.equal(commands[0]?.type, 'command');
+    if (commands[0]?.type === 'command') {
+        assert.equal(commands[0].commandName, 'ide');
+        assert.equal(commands[0].ok, true);
+        assert.ok(commands[0].text.length > 0);
+    }
+});
+
+test('fullscreen unknown slash command restores input instead of staying command-running', async () => {
+    const ctx = makeCtx();
+    ctx.apiUrl = 'http://127.0.0.1:9';
+    appendTextToComposer(ctx.store.composer, '/definitely-not-a-command');
+
+    const { writes } = captureStdout(() => handleKeyInput(ctx, '\r'));
+
+    assert.equal(writes, '');
+    assert.equal(ctx.store.transcript.items.some(item => item.type === 'user'), false);
+    await waitFor(() => ctx.commandRunning === false);
+
+    assert.equal(ctx.commandRunning, false);
+    assert.equal(ctx.inputActive, true);
+    const last = ctx.store.transcript.items.at(-1);
+    assert.equal(last?.type, 'command');
+    if (last?.type === 'command') {
+        assert.equal(last.ok, false);
+        assert.equal(last.commandName, 'definitely-not-a-command');
+    }
 });

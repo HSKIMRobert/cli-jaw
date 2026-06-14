@@ -5,7 +5,7 @@ import { executeCommand, getArgumentCompletionItems } from '../../../src/cli/com
 import type { ArgumentCompletionItem } from '../../../src/cli/commands.js';
 import type { ParsedSlashCommand } from '../../../src/cli/types.js';
 import { setBracketedPaste } from '../../../src/cli/tui/composer.js';
-import { appendStatusItem } from '../../../src/cli/tui/transcript.js';
+import { appendCommandItem } from '../../../src/cli/tui/transcript.js';
 import { cleanupScrollRegion, resolveShellLayout, setupScrollRegion } from '../../../src/cli/tui/shell.js';
 import { getIdeCli } from '../../../src/ide/diff.js';
 import { c, getRows, hrLine, renderCommandText, type TuiContext } from './types.js';
@@ -19,10 +19,10 @@ import {
     openSettingsScreen,
 } from './overlays.js';
 
-function appendFullscreenFeedback(ctx: TuiContext, text: string): void {
+function appendFullscreenFeedback(ctx: TuiContext, text: string, opts?: { commandName?: string; ok?: boolean }): void {
     const normalized = text.replace(/\s+/g, ' ').trim();
     if (!normalized) return;
-    appendStatusItem(ctx.store.transcript, normalized);
+    appendCommandItem(ctx.store.transcript, normalized, opts);
     ctx.requestFrame?.();
 }
 
@@ -63,29 +63,29 @@ function openArgumentSelector(
 }
 
 export async function runSlashCommand(ctx: TuiContext, parsed: ParsedSlashCommand): Promise<void> {
-    if (!parsed || parsed.type !== 'known') return;
+    if (!parsed) return;
     const panes = ctx.store.panes;
 
-    if (parsed.name === 'help') {
+    if (parsed.type === 'known' && parsed.name === 'help') {
         openHelpOverlay(ctx);
         ctx.commandRunning = false;
         ctx.inputActive = true;
         return;
     }
 
-    if (parsed.name === 'model' && !parsed.args.length) {
+    if (parsed.type === 'known' && parsed.name === 'model' && !parsed.args.length) {
         const items = await getArgumentCompletionItems('model', '', 'cli', [], makeCliCommandCtx(ctx));
         openArgumentSelector(ctx, 'model', 'Model', `${ctx.info.cli}: ${ctx.info.model || 'default'}`, items);
         return;
     }
 
-    if (parsed.name === 'cli' && !parsed.args.length) {
+    if (parsed.type === 'known' && parsed.name === 'cli' && !parsed.args.length) {
         const items = await getArgumentCompletionItems('cli', '', 'cli', [], makeCliCommandCtx(ctx));
         openArgumentSelector(ctx, 'cli', 'CLI Engine', `current: ${ctx.info.cli}`, items);
         return;
     }
 
-    if (parsed.name === 'effort' && !parsed.args.length) {
+    if (parsed.type === 'known' && parsed.name === 'effort' && !parsed.args.length) {
         const levels = ['off', 'low', 'medium', 'high', 'max'];
         openChoiceSelector(ctx, () => {
             const sel = ctx.store.overlay.selector;
@@ -103,7 +103,7 @@ export async function runSlashCommand(ctx: TuiContext, parsed: ParsedSlashComman
         return;
     }
 
-    if (parsed.name === 'resume' && !parsed.args.length) {
+    if (parsed.type === 'known' && parsed.name === 'resume' && !parsed.args.length) {
         try {
             const r = await fetch(`${ctx.apiUrl}/api/chat-sessions`, { signal: AbortSignal.timeout(3000) });
             if (r.ok) {
@@ -131,14 +131,14 @@ export async function runSlashCommand(ctx: TuiContext, parsed: ParsedSlashComman
         } catch { /* fallthrough to text handler */ }
     }
 
-    if (parsed.name === 'commands') {
+    if (parsed.type === 'known' && parsed.name === 'commands') {
         openCommandPalette(ctx);
         ctx.commandRunning = false;
         ctx.inputActive = true;
         return;
     }
 
-    if (parsed.name === 'settings' && ctx.displayMode === 'fullscreen') {
+    if (parsed.type === 'known' && parsed.name === 'settings' && ctx.displayMode === 'fullscreen') {
         openSettingsScreen(ctx);
         ctx.commandRunning = false;
         ctx.inputActive = true;
@@ -157,7 +157,7 @@ export async function runSlashCommand(ctx: TuiContext, parsed: ParsedSlashComman
             }
         }
         if (result?.text) {
-            if (ctx.displayMode === 'fullscreen') appendFullscreenFeedback(ctx, result.text);
+            if (ctx.displayMode === 'fullscreen') appendFullscreenFeedback(ctx, result.text, { commandName: parsed.name, ok: result.ok !== false });
             else console.log(`  ${renderCommandText(result.text)}`);
         }
         if (result?.code === 'ide_toggle') { ctx.ideEnabled = !ctx.ideEnabled; }
@@ -165,14 +165,14 @@ export async function runSlashCommand(ctx: TuiContext, parsed: ParsedSlashComman
         if (result?.code === 'ide_off') { ctx.ideEnabled = false; }
         if (result?.code && ['ide_toggle', 'ide_on', 'ide_off'].includes(result.code)) {
             const message = `IDE diff: ${ctx.ideEnabled ? 'ON' : 'OFF'}${ctx.isGit ? '' : ' (non-git)'}`;
-            if (ctx.displayMode === 'fullscreen') appendFullscreenFeedback(ctx, message);
+            if (ctx.displayMode === 'fullscreen') appendFullscreenFeedback(ctx, message, { commandName: parsed.name, ok: true });
             else console.log(`  ${ctx.ideEnabled ? c.green + '\u2713' : c.yellow + '\u2717'}${c.reset} ${message}`);
         }
         if (result?.code === 'ide_pop_toggle') {
             ctx.idePopEnabled = !ctx.idePopEnabled;
             const ideName = ctx.detectedIde ? getIdeCli(ctx.detectedIde) : null;
             const message = `IDE popup: ${ctx.idePopEnabled ? 'ON' : 'OFF'}${ideName ? ` (${ideName})` : ' (IDE \uBBF8\uAC10\uC9C0)'}`;
-            if (ctx.displayMode === 'fullscreen') appendFullscreenFeedback(ctx, message);
+            if (ctx.displayMode === 'fullscreen') appendFullscreenFeedback(ctx, message, { commandName: parsed.name, ok: true });
             else console.log(`  ${ctx.idePopEnabled ? c.green + '\u2713' : c.yellow + '\u2717'}${c.reset} ${message}`);
         }
         if (result?.ok && (parsed.name === 'model' || parsed.name === 'cli') && parsed.args.length > 0) {
@@ -203,7 +203,7 @@ export async function runSlashCommand(ctx: TuiContext, parsed: ParsedSlashComman
             process.exit(0);
         }
     } catch (err) {
-        if (ctx.displayMode === 'fullscreen') appendFullscreenFeedback(ctx, (err as Error).message);
+        if (ctx.displayMode === 'fullscreen') appendFullscreenFeedback(ctx, (err as Error).message, { commandName: parsed.name, ok: false });
         else console.log(`  ${c.red}${(err as Error).message}${c.reset}`);
     } finally {
         if (!exiting) {

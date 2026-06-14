@@ -385,11 +385,11 @@ export function handleKeyInput(ctx: TuiContext, rawKey: string): void {
             else reopenPromptLine(ctx);
             return;
         }
-        if (!isFullscreen(ctx)) renderBlockSeparator();
-        appendUserItem(ctx.store.transcript, displayText.trim(), text);
-        requestFullscreenFrame(ctx);
         // /file command
         if (draft !== null && text.startsWith('/file ')) {
+            if (!isFullscreen(ctx)) renderBlockSeparator();
+            appendUserItem(ctx.store.transcript, displayText.trim(), text);
+            requestFullscreenFrame(ctx);
             const parts = text.slice(6).trim().split(/\s+/);
             const fp = resolvePath(parts[0]!);
             const caption = parts.slice(1).join(' ');
@@ -420,6 +420,9 @@ export function handleKeyInput(ctx: TuiContext, rawKey: string): void {
             void runSlashCommand(ctx, parsed);
             return;
         }
+        if (!isFullscreen(ctx)) renderBlockSeparator();
+        appendUserItem(ctx.store.transcript, displayText.trim(), text);
+        requestFullscreenFrame(ctx);
         if (ctx.ideEnabled && ctx.isGit) {
             ctx.preFileSetQueue.push(captureFileSet(ctx.chatCwd));
         }

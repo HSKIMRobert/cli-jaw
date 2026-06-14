@@ -3,6 +3,7 @@ export type TranscriptItem =
     | { type: 'assistant'; text: string; streaming: boolean; timestamp: number; agentId?: string }
     | { type: 'thinking'; text: string; streaming: boolean; timestamp: number; agentId?: string; collapsed?: boolean }
     | { type: 'tool'; text: string; timestamp: number; agentId?: string; collapsed?: boolean; detail?: string; stepRef?: string; status?: 'running' | 'done' | 'error' }
+    | { type: 'command'; text: string; timestamp: number; commandName?: string; ok?: boolean }
     | { type: 'status'; text: string; ephemeral: true; timestamp: number; agentId?: string };
 
 export interface TranscriptState {
@@ -283,6 +284,14 @@ export function appendStatusItem(state: TranscriptState, text: string): void {
         return;
     }
     state.items.push({ type: 'status', text, ephemeral: true, timestamp: Date.now() });
+}
+
+export function appendCommandItem(state: TranscriptState, text: string, opts?: { commandName?: string; ok?: boolean }): void {
+    clearEphemeralStatus(state);
+    const item: TranscriptItem = { type: 'command', text, timestamp: Date.now() };
+    if (opts?.commandName) item.commandName = opts.commandName;
+    if (typeof opts?.ok === 'boolean') item.ok = opts.ok;
+    state.items.push(item);
 }
 
 export function clearEphemeralStatus(state: TranscriptState): void {

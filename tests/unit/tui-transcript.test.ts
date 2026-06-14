@@ -11,6 +11,7 @@ import {
     assistantTextSinceLastUser,
     appendThinkingTurnText,
     appendStatusItem,
+    appendCommandItem,
     clearEphemeralStatus,
     appendToolItem,
 } from '../../src/cli/tui/transcript.ts';
@@ -224,6 +225,21 @@ test('clearEphemeralStatus does nothing when last item is not status', () => {
     appendUserItem(state, 'hi', 'hi');
     clearEphemeralStatus(state);
     assert.equal(state.items.length, 1);
+});
+
+test('command feedback is durable and clears transient status rows', () => {
+    const state = createTranscriptState();
+    appendStatusItem(state, 'main thinking...');
+    appendCommandItem(state, 'State → P', { commandName: 'orchestrate', ok: true });
+
+    assert.equal(state.items.length, 1);
+    const item = state.items[0]!;
+    assert.equal(item.type, 'command');
+    if (item.type === 'command') {
+        assert.equal(item.text, 'State → P');
+        assert.equal(item.commandName, 'orchestrate');
+        assert.equal(item.ok, true);
+    }
 });
 
 test('full conversation flow', () => {
