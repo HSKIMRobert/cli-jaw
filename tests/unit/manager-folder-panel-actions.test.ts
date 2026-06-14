@@ -14,17 +14,33 @@ function read(path: string): string {
 test('FolderPanel wires native move, copy, reveal, and confirmation actions', () => {
     const panel = read('public/manager/src/folder-panel/FolderPanel.tsx');
     const rows = read('public/manager/src/folder-panel/FolderTreeRows.tsx');
+    const moveConfirm = read('public/manager/src/folder-panel/FolderMoveConfirmDialog.tsx');
 
     assert.ok(panel.includes("import { copyText } from '../clipboard/copy-text'"), 'FolderPanel must use the shared copyText helper');
     assert.ok(rows.includes('draggable={props.canUseNativeActions}'), 'FolderPanel rows must become draggable in Electron mode');
     assert.ok(panel.includes('const [pendingMove'), 'FolderPanel must store pending move confirmation state');
     assert.ok(panel.includes('skipInternalMoveConfirm'), 'FolderPanel must support session-local skip confirmation state');
-    assert.ok(panel.includes("className=\"folder-move-confirm\""), 'FolderPanel must render a move confirmation surface');
+    assert.ok(moveConfirm.includes('className="folder-move-confirm"'), 'FolderPanel must render a move confirmation surface');
     assert.ok(panel.includes('source.movePath'), 'FolderPanel must call the source move path API');
     assert.ok(panel.includes('source.revealPath'), 'FolderPanel must call the source reveal path API');
     assert.ok(panel.includes('props.onPreviewFile?.(entry.path)'), 'file clicks must keep preview behavior');
-    assert.ok(panel.includes('toggleExpand(entry.path)'), 'directory clicks must keep expand behavior');
+    assert.ok(panel.includes('const selectEntry = useCallback'), 'single click must have a selection-only helper');
+    assert.ok(panel.includes('const toggleEntryExpansion = useCallback'), 'directory expansion must be a separate helper');
+    assert.ok(rows.includes('props.selectEntry(entry)'), 'row click must select without expanding');
+    assert.ok(rows.includes('props.toggleEntryExpansion(entry)'), 'row disclosure/double-click must expand separately');
     assert.ok(panel.includes('<FolderTreeRows'), 'FolderPanel must delegate row rendering to the extracted component');
+});
+
+test('FolderPanel uses arrow and double-click for directory expansion', () => {
+    const panel = read('public/manager/src/folder-panel/FolderPanel.tsx');
+    const rows = read('public/manager/src/folder-panel/FolderTreeRows.tsx');
+
+    assert.ok(rows.includes('folder-entry-disclosure'), 'directory rows must expose a dedicated disclosure target');
+    assert.ok(rows.includes('onDoubleClick'), 'directory rows must support double-click expansion');
+    assert.ok(rows.includes('event.stopPropagation()'), 'disclosure activation must not also trigger row selection bubbling');
+    assert.ok(panel.includes("if (event.key === 'Enter')"), 'keyboard Enter must keep explicit row activation');
+    assert.ok(panel.includes("if (entry.kind === 'directory') toggleEntryExpansion(entry)"), 'Enter must expand directories through the same helper');
+    assert.ok(panel.includes('else selectEntry(entry)'), 'Enter must preview files through the selection helper');
 });
 
 test('FolderPanel separates preview selection from local action selection', () => {
@@ -76,6 +92,7 @@ test('electron folder source still rejects real picker failures', async () => {
 
 test('folder panel CSS exposes selected, drop target, drag, action, and confirm states', () => {
     const css = read('public/manager/src/folder-panel/folder-panel.css');
+    const actionRow = read('public/manager/src/folder-panel/FolderActionRow.tsx');
 
     for (const selector of [
         '.folder-entry.is-selected',
@@ -83,12 +100,16 @@ test('folder panel CSS exposes selected, drop target, drag, action, and confirm 
         '.folder-entry.is-dragging',
         '.folder-action-row',
         '.folder-action-btn',
+        '.folder-entry-disclosure',
+        '.folder-unavailable',
+        '.folder-shortcut-hint',
         '.folder-move-confirm',
         '.folder-move-confirm__actions',
         '.folder-status',
     ]) {
         assert.ok(css.includes(selector), `folder panel CSS must include ${selector}`);
     }
+    assert.ok(actionRow.includes('className="folder-action-row"'), 'action row component must keep the compact action surface');
 });
 
 test('notes-vault folder source remains read-only for native filesystem actions', () => {

@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { sendInstanceMessage } from './api';
+import { copyText } from './clipboard/copy-text';
+import { hasFolderPanelDragPayload, readFolderPanelDragPayload } from './folder-panel/folder-drag-payload';
 import { isElectron } from './panels/desktop-bridge';
 import { buildPreviewState } from './preview';
 import type { PreviewTheme } from './preview';
@@ -34,6 +36,13 @@ type PreviewSendMessage = {
 type PreviewDroppedFilesMessage = {
     type?: unknown;
     files?: unknown;
+};
+
+type PreviewInsertTextResultMessage = {
+    type?: unknown;
+    requestId?: unknown;
+    ok?: unknown;
+    error?: unknown;
 };
 
 function normalizeLoopbackHostname(hostname: string): string {
@@ -155,6 +164,44 @@ function postPreviewCapabilities(frame: HTMLIFrameElement | null, src: string, d
     }
 }
 
+function postPreviewInsertText(
+    frame: HTMLIFrameElement | null,
+    src: string,
+    text: string,
+    timeoutMs = 800,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+    const targetWindow = frame?.contentWindow;
+    if (!targetWindow) return Promise.resolve({ ok: false, error: 'preview is unavailable' });
+    const targetOrigin = previewTargetOrigin(src, frame);
+    if (!targetOrigin || targetOrigin === 'null') return Promise.resolve({ ok: false, error: 'preview origin is unavailable' });
+    const requestId = crypto.randomUUID();
+    return new Promise(resolve => {
+        let settled = false;
+        const finish = (result: { ok: true } | { ok: false; error: string }) => {
+            if (settled) return;
+            settled = true;
+            window.removeEventListener('message', onResult);
+            window.clearTimeout(timer);
+            resolve(result);
+        };
+        const onResult = (event: MessageEvent) => {
+            if (event.source !== targetWindow) return;
+            if (!previewFrameOriginMatches(event.origin, src, frame)) return;
+            const data = event.data as PreviewInsertTextResultMessage | null;
+            if (!data || data.type !== 'jaw-preview-insert-text-result' || data.requestId !== requestId) return;
+            if (data.ok === true) finish({ ok: true });
+            else finish({ ok: false, error: typeof data.error === 'string' ? data.error : 'preview rejected insert' });
+        };
+        const timer = window.setTimeout(() => finish({ ok: false, error: 'preview insert timed out' }), timeoutMs);
+        window.addEventListener('message', onResult);
+        try {
+            targetWindow.postMessage({ type: 'jaw-preview-insert-text', requestId, text }, targetOrigin);
+        } catch (error) {
+            finish({ ok: false, error: (error as Error).message });
+        }
+    });
+}
+
 function isEditableShortcutTarget(target: EventTarget | null): boolean {
     if (!(target instanceof HTMLElement)) return false;
     if (target.isContentEditable) return true;
@@ -177,6 +224,8 @@ function extractDroppedFiles(data: PreviewDroppedFilesMessage | null): File[] {
 export function InstancePreview(props: InstancePreviewProps) {
     const iframeRef = useRef<HTMLIFrameElement | null>(null);
     const loadedSrcRef = useRef<string | null>(null);
+    const [pathDropStatus, setPathDropStatus] = useState<string | null>(null);
+    const [folderDragActive, setFolderDragActive] = useState(false);
     const state = buildPreviewState(
         props.instance,
         props.data,
@@ -194,9 +243,35 @@ export function InstancePreview(props: InstancePreviewProps) {
         postPreviewTheme(iframeRef.current, state.src, props.theme);
     }, [props.enabled, props.theme, state.canPreview, state.src]);
 
+    const handleFolderPathDrop = useCallback(async (event: React.DragEvent): Promise<void> => {
+        if (!hasFolderPanelDragPayload(event.dataTransfer)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        setFolderDragActive(false);
+        const payload = readFolderPanelDragPayload(event.dataTransfer);
+        const path = payload?.path || event.dataTransfer.getData('text/plain');
+        if (!path || !state.src) return;
+        const inserted = await postPreviewInsertText(iframeRef.current, state.src, path);
+        if (inserted.ok) {
+            setPathDropStatus('Inserted path into preview');
+            return;
+        }
+        const copied = await copyText(path);
+        setPathDropStatus(copied.ok ? 'Preview did not accept text. Copied path instead.' : copied.error ?? inserted.error);
+    }, [state.src]);
+
     useEffect(() => {
         syncTheme();
     }, [syncTheme]);
+
+    useEffect(() => {
+        const handleFolderDrag = (event: Event) => {
+            const detail = (event as CustomEvent<{ active?: boolean }>).detail;
+            setFolderDragActive(Boolean(detail?.active));
+        };
+        window.addEventListener('jaw-folder-panel-drag', handleFolderDrag);
+        return () => window.removeEventListener('jaw-folder-panel-drag', handleFolderDrag);
+    }, []);
 
     useEffect(() => {
         if (!props.enabled || !state.canPreview || !state.src || !props.instance?.ok) return undefined;
@@ -294,8 +369,23 @@ export function InstancePreview(props: InstancePreviewProps) {
     }, [props.active, state.src, props.docPanelCapable]);
 
     return (
-        <aside className="preview-panel" aria-label="Instance preview">
+        <aside
+            className="preview-panel"
+            aria-label="Instance preview"
+            onDragOver={(event) => {
+                if (!hasFolderPanelDragPayload(event.dataTransfer)) return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'copy';
+            }}
+            onDrop={(event) => { void handleFolderPathDrop(event); }}
+        >
             {(!props.enabled || !state.canPreview) && <div className="preview-empty">{disabledReason}</div>}
+            {pathDropStatus && (
+                <div className="preview-path-drop-status" role="status">
+                    {pathDropStatus}
+                    <button type="button" aria-label="Dismiss path drop status" onClick={() => setPathDropStatus(null)}>x</button>
+                </div>
+            )}
 
             {props.enabled && state.canPreview && state.src && (
                 <iframe
@@ -319,6 +409,18 @@ export function InstancePreview(props: InstancePreviewProps) {
                             postPreviewCapabilities(iframeRef.current, state.src, props.docPanelCapable === true);
                         }
                     }}
+                />
+            )}
+            {folderDragActive && (
+                <div
+                    className="preview-path-drop-overlay"
+                    onDragOver={(event) => {
+                        if (!hasFolderPanelDragPayload(event.dataTransfer)) return;
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = 'copy';
+                    }}
+                    onDragLeave={() => setFolderDragActive(false)}
+                    onDrop={event => void handleFolderPathDrop(event)}
                 />
             )}
         </aside>

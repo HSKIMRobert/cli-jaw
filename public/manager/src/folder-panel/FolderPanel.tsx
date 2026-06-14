@@ -3,10 +3,15 @@ import { getDesktop, type FolderBridgeApi } from '../panels/desktop-bridge';
 import type { NotesTreeEntry } from '../notes/notes-types';
 import { copyText } from '../clipboard/copy-text';
 import { createElectronFolderSource, createNotesVaultFolderSource, type FolderPanelEntry } from './folder-sources';
+import { FolderActionRow } from './FolderActionRow';
+import { FolderContextMenu } from './FolderContextMenu';
+import { FolderMoveConfirmDialog } from './FolderMoveConfirmDialog';
 import { FolderPanelToolbar } from './FolderPanelToolbar';
+import { FolderUnavailableRoot } from './FolderUnavailableRoot';
 import { FolderWorktreeOpsDialog } from './FolderWorktreeOpsDialog';
 import { FolderTreeRows } from './FolderTreeRows';
 import { dropCachedBranches, isDescendantPath, parentPath, relativeFolderPath } from './folder-panel-state';
+import { folderShortcutAction } from './folder-shortcuts';
 import { runWorktreeOperation as runWorktreeOperationClient } from './folder-worktree-ops-client';
 import type { GitWorktreeOperation } from './folder-worktree-types';
 import { useFolderGitStatus } from './use-folder-git-status';
@@ -38,6 +43,7 @@ export function FolderPanel(props: FolderPanelProps) {
     const [expanded, setExpanded] = useState<Set<string>>(new Set());
     const [childrenCache, setChildrenCache] = useState<Map<string, FolderPanelEntry[]>>(new Map());
     const [error, setError] = useState<string | null>(null);
+    const [unavailableRoot, setUnavailableRoot] = useState<{ path: string; error: string } | null>(null);
     const [selectedPath, setSelectedPath] = useState<string | null>(null);
     const [draggedEntry, setDraggedEntry] = useState<FolderPanelEntry | null>(null);
     const [dropTargetPath, setDropTargetPath] = useState<string | null>(null);
@@ -50,14 +56,20 @@ export function FolderPanel(props: FolderPanelProps) {
     const [gitRefreshToken, setGitRefreshToken] = useState(0);
     const [worktreeOpsOpen, setWorktreeOpsOpen] = useState(false);
     const [worktreeOperationBusy, setWorktreeOperationBusy] = useState(false);
+    const [folderChordActive, setFolderChordActive] = useState(false);
+    const folderChordTimerRef = useRef<number | null>(null);
 
-    const loadDir = useCallback(async (dirPath: string) => {
+    const loadDir = useCallback(async (dirPath: string): Promise<{ ok: true } | { ok: false; error: string }> => {
         try {
             const nextEntries = await source.listDir(dirPath);
             setEntries(nextEntries);
             setError(null);
+            setUnavailableRoot(current => current?.path === dirPath ? null : current);
+            return { ok: true };
         } catch (err) {
-            setError((err as Error).message);
+            const message = (err as Error).message;
+            setError(message);
+            return { ok: false, error: message };
         }
     }, [source]);
 
@@ -75,14 +87,17 @@ export function FolderPanel(props: FolderPanelProps) {
             setRootPath(nextRoot);
             setExpanded(new Set());
             setChildrenCache(new Map());
+            setEntries([]);
             setSelectedPath(null);
             setError(null);
-            await loadDir(nextRoot);
+            setUnavailableRoot(null);
+            const loaded = await loadDir(nextRoot);
+            if (!loaded.ok) setUnavailableRoot({ path: nextRoot, error: loaded.error });
             setGitRefreshToken(token => token + 1);
         } catch (err) {
             setError((err as Error).message);
         }
-    }, [loadDir, props, rootPath, source]);
+    }, [error, loadDir, props, rootPath, source]);
 
     const loadChildren = useCallback(async (dirPath: string, options: { force?: boolean } = {}) => {
         if (!options.force && childrenCache.has(dirPath)) return;
@@ -117,6 +132,14 @@ export function FolderPanel(props: FolderPanelProps) {
         }
     }, [openFolderRoot, source]);
 
+    const clearUnavailableRoot = useCallback(() => {
+        props.onRootChange?.(null);
+        setRootPath(null);
+        setEntries([]);
+        setUnavailableRoot(null);
+        setError(null);
+    }, [props]);
+
     useEffect(() => {
         if (initialRootResolvedRef.current || rootPath !== null || props.externalRootPath) return;
         let cancelled = false;
@@ -136,19 +159,6 @@ export function FolderPanel(props: FolderPanelProps) {
         void openFolderRoot(externalRoot);
     }, [openFolderRoot, props.externalRootPath, rootPath]);
 
-    useEffect(() => {
-        if (!source.watchDir || !source.onDirChange || rootPath === null) return;
-        void source.watchDir(rootPath);
-        const unsub = source.onDirChange(() => {
-            void loadDir(rootPath);
-            setGitRefreshToken(token => token + 1);
-        });
-        return () => {
-            unsub();
-            void source.unwatchDir?.(rootPath);
-        };
-    }, [source, rootPath, loadDir]);
-
     const gitStatus = useFolderGitStatus({
         rootPath,
         enabled: source.kind === 'electron-folder',
@@ -160,6 +170,25 @@ export function FolderPanel(props: FolderPanelProps) {
         enabled: source.kind === 'electron-folder' && gitStatus.available,
         refreshToken: gitRefreshToken,
     });
+
+    const refreshVisibleTree = useCallback(async () => {
+        if (rootPath === null) return;
+        const expandedPaths = Array.from(expanded);
+        await loadDir(rootPath);
+        for (const path of expandedPaths) await loadChildren(path, { force: true });
+        setGitRefreshToken(token => token + 1);
+        worktreeState.refresh();
+    }, [expanded, loadChildren, loadDir, rootPath, worktreeState]);
+
+    useEffect(() => {
+        if (!source.watchDir || !source.onDirChange || rootPath === null) return;
+        void source.watchDir(rootPath);
+        const unsub = source.onDirChange(() => { void refreshVisibleTree(); });
+        return () => {
+            unsub();
+            void source.unwatchDir?.(rootPath);
+        };
+    }, [refreshVisibleTree, rootPath, source]);
 
     const allEntries = useMemo(() => {
         const flattened = [...entries];
@@ -208,15 +237,17 @@ export function FolderPanel(props: FolderPanelProps) {
         setPendingMove(move);
     }, [executeMove, skipInternalMoveConfirm, source.movePath]);
 
-    const selectAndActivateEntry = useCallback((entry: FolderPanelEntry, mode: 'primary' | 'preview-only' = 'primary') => {
+    const selectEntry = useCallback((entry: FolderPanelEntry) => {
         setSelectedPath(entry.path);
         setContextMenu(null);
-        if (entry.kind === 'directory') {
-            if (mode === 'primary') toggleExpand(entry.path);
-            return;
-        }
-        props.onPreviewFile?.(entry.path);
-    }, [props, toggleExpand]);
+        if (entry.kind === 'file') props.onPreviewFile?.(entry.path);
+    }, [props]);
+
+    const toggleEntryExpansion = useCallback((entry: FolderPanelEntry) => {
+        setSelectedPath(entry.path);
+        setContextMenu(null);
+        if (entry.kind === 'directory') toggleExpand(entry.path);
+    }, [toggleExpand]);
 
     const copyEntryPath = useCallback(async (entry: FolderPanelEntry, kind: 'absolute' | 'relative') => {
         const value = kind === 'relative' ? relativeFolderPath(rootPath, entry.path) : entry.path;
@@ -294,33 +325,54 @@ export function FolderPanel(props: FolderPanelProps) {
             setWorktreeOpsOpen(false);
             worktreeState.refresh();
             setGitRefreshToken(token => token + 1);
-            if (rootPath !== null) await loadDir(rootPath);
+            if (rootPath !== null) await refreshVisibleTree();
         } catch (err) {
             setError((err as Error).message);
         } finally {
             setWorktreeOperationBusy(false);
         }
-    }, [loadDir, rootPath, worktreeState]);
+    }, [refreshVisibleTree, rootPath, worktreeState]);
+
+    const cancelFolderChord = useCallback(() => {
+        if (folderChordTimerRef.current !== null) window.clearTimeout(folderChordTimerRef.current);
+        folderChordTimerRef.current = null;
+        setFolderChordActive(false);
+    }, []);
+
+    const startFolderChord = useCallback(() => {
+        if (folderChordTimerRef.current !== null) window.clearTimeout(folderChordTimerRef.current);
+        setFolderChordActive(true);
+        folderChordTimerRef.current = window.setTimeout(() => {
+            folderChordTimerRef.current = null;
+            setFolderChordActive(false);
+        }, 1600);
+    }, []);
 
     const handleEntryKeyDown = useCallback((event: React.KeyboardEvent, entry: FolderPanelEntry) => {
-        const isPrimaryModifier = event.metaKey || event.ctrlKey;
-        if (isPrimaryModifier && event.key.toLowerCase() === 'c') {
+        const action = folderShortcutAction(event, { chordActive: folderChordActive });
+        if (action) {
             event.preventDefault();
             event.stopPropagation();
-            void copyEntryPath(entry, event.shiftKey ? 'absolute' : 'relative');
+            if (action === 'start-chord') startFolderChord();
+            if (action === 'cancel-chord') cancelFolderChord();
+            if (action === 'copy-path') { cancelFolderChord(); void copyEntryPath(entry, 'absolute'); }
+            if (action === 'copy-relative-path') { cancelFolderChord(); void copyEntryPath(entry, 'relative'); }
+            if (action === 'reveal-path') { cancelFolderChord(); void revealEntryPath(entry); }
             return;
         }
         if (event.key === 'Enter') {
             event.preventDefault();
-            selectAndActivateEntry(entry);
+            if (entry.kind === 'directory') toggleEntryExpansion(entry);
+            else selectEntry(entry);
             return;
         }
         if (event.key === ' ') {
             event.preventDefault();
-            if (entry.kind !== 'file') return;
-            selectAndActivateEntry(entry, 'preview-only');
+            selectEntry(entry);
         }
-    }, [copyEntryPath, selectAndActivateEntry]);
+    }, [cancelFolderChord, copyEntryPath, folderChordActive, revealEntryPath, selectEntry, startFolderChord, toggleEntryExpansion]);
+
+    useEffect(() => () => cancelFolderChord(), [cancelFolderChord]);
 
     useEffect(() => {
         if (!contextMenu) return;
@@ -343,13 +395,7 @@ export function FolderPanel(props: FolderPanelProps) {
                 label={source.label}
                 rootPath={rootPath}
                 onPickFolder={() => void pickFolder()}
-                onRefresh={() => {
-                    if (rootPath !== null) {
-                        void loadDir(rootPath);
-                        setGitRefreshToken(token => token + 1);
-                        worktreeState.refresh();
-                    }
-                }}
+                onRefresh={() => { if (rootPath !== null) void refreshVisibleTree(); }}
                 gitSummary={source.kind === 'electron-folder' ? gitStatus : undefined}
                 worktreeSummary={source.kind === 'electron-folder' ? worktreeState : undefined}
                 onOpenWorktree={path => void openWorktreeRoot(path)}
@@ -358,14 +404,17 @@ export function FolderPanel(props: FolderPanelProps) {
                 onOpenWorktreeOps={() => setWorktreeOpsOpen(true)}
             />
             {rootPath !== null && (
-                <div className="folder-action-row" aria-label="Folder actions">
-                    <button type="button" className="folder-action-btn" disabled={!selectedEntry} onClick={() => void copySelectedPath('absolute')}>Copy</button>
-                    <button type="button" className="folder-action-btn" disabled={!selectedEntry} onClick={() => void copySelectedPath('relative')}>Relative</button>
-                    <button type="button" className="folder-action-btn" disabled={!selectedEntry || !source.revealPath} onClick={() => void revealSelectedPath()}>Finder</button>
-                </div>
+                <FolderActionRow
+                    hasSelection={Boolean(selectedEntry)}
+                    canReveal={Boolean(source.revealPath)}
+                    onCopyPath={() => void copySelectedPath('absolute')}
+                    onCopyRelativePath={() => void copySelectedPath('relative')}
+                    onReveal={() => void revealSelectedPath()}
+                />
             )}
             {error && <div className="folder-error">{error}</div>}
             {actionStatus && !error && <div className="folder-status">{actionStatus}</div>}
+            {folderChordActive && <div className="folder-shortcut-hint">Folder shortcut: press P to copy path or R to reveal</div>}
             {worktreeOpsOpen && rootPath !== null && (
                 <FolderWorktreeOpsDialog
                     folderPanelRoot={rootPath}
@@ -392,61 +441,51 @@ export function FolderPanel(props: FolderPanelProps) {
                     setDropTargetPath={setDropTargetPath}
                     requestMove={requestMove}
                     handleEntryKeyDown={handleEntryKeyDown}
-                    selectAndActivateEntry={selectAndActivateEntry}
-                    openContextMenu={(entry, x, y) => {
-                        setSelectedPath(entry.path);
-                        setContextMenu({ entry, x, y });
-                    }}
+                    selectEntry={selectEntry}
+                    toggleEntryExpansion={toggleEntryExpansion}
+                    openContextMenu={(entry, x, y) => { setSelectedPath(entry.path); setContextMenu({ entry, x, y }); }}
                 />
                 {rootPath === null && !error && (
                     <div className="folder-empty-root__content">Choose a folder to browse files.</div>
                 )}
-                {entries.length === 0 && !error && rootPath !== null && (
+                {unavailableRoot && (
+                    <FolderUnavailableRoot
+                        path={unavailableRoot.path}
+                        error={unavailableRoot.error}
+                        onOpenFolder={() => void pickFolder()}
+                        onClear={clearUnavailableRoot}
+                    />
+                )}
+                {entries.length === 0 && !error && !unavailableRoot && rootPath !== null && (
                     <div className="folder-empty">{source.kind === 'notes-vault' ? 'No notes in vault' : 'Empty directory'}</div>
                 )}
             </div>
             {pendingMove && (
-                <div className="folder-move-confirm" role="dialog" aria-label="Confirm folder move">
-                    <div className="folder-move-confirm__title">Move "{pendingMove.source.name}" into "{pendingMove.target.name}"?</div>
-                    <label className="folder-move-confirm__option">
-                        <input
-                            type="checkbox"
-                            checked={skipMoveConfirmChecked}
-                            onChange={event => setSkipMoveConfirmChecked(event.target.checked)}
-                        />
-                        Don't ask again for internal moves this session
-                    </label>
-                    <div className="folder-move-confirm__actions">
-                        <button type="button" className="folder-action-btn" disabled={isMoving} onClick={() => setPendingMove(null)}>Cancel</button>
-                        <button
-                            type="button"
-                            className="folder-action-btn is-primary"
-                            disabled={isMoving}
-                            onClick={() => {
-                                if (skipMoveConfirmChecked) setSkipInternalMoveConfirm(true);
-                                void executeMove(pendingMove);
-                            }}
-                        >
-                            {isMoving ? 'Moving...' : 'Move'}
-                        </button>
-                    </div>
-                </div>
+                <FolderMoveConfirmDialog
+                    source={pendingMove.source}
+                    target={pendingMove.target}
+                    busy={isMoving}
+                    skipChecked={skipMoveConfirmChecked}
+                    onSkipCheckedChange={setSkipMoveConfirmChecked}
+                    onCancel={() => setPendingMove(null)}
+                    onConfirm={() => {
+                        if (skipMoveConfirmChecked) setSkipInternalMoveConfirm(true);
+                        void executeMove(pendingMove);
+                    }}
+                />
             )}
             {contextMenu && (
-                <div
-                    className="folder-context-menu"
-                    role="menu"
-                    style={{ left: contextMenu.x, top: contextMenu.y }}
-                    onPointerDown={event => event.stopPropagation()}
-                    onKeyDown={event => event.stopPropagation()}
-                >
-                    <button type="button" role="menuitem" onClick={() => { setContextMenu(null); void copyEntryPath(contextMenu.entry, 'absolute'); }}>Copy Path</button>
-                    <button type="button" role="menuitem" onClick={() => { setContextMenu(null); void copyEntryPath(contextMenu.entry, 'relative'); }}>Copy Relative Path</button>
-                    <button type="button" role="menuitem" disabled={!source.revealPath} onClick={() => { setContextMenu(null); void revealEntryPath(contextMenu.entry); }}>
-                        {contextMenu.entry.kind === 'directory' ? 'Open Folder' : 'Reveal in Finder'}
-                    </button>
-                    {rootPath && <button type="button" role="menuitem" onClick={() => { setContextMenu(null); void loadDir(rootPath); }}>Refresh</button>}
-                </div>
+                <FolderContextMenu
+                    entry={contextMenu.entry}
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    canReveal={Boolean(source.revealPath)}
+                    canRefresh={Boolean(rootPath)}
+                    onCopyPath={() => { setContextMenu(null); void copyEntryPath(contextMenu.entry, 'absolute'); }}
+                    onCopyRelativePath={() => { setContextMenu(null); void copyEntryPath(contextMenu.entry, 'relative'); }}
+                    onReveal={() => { setContextMenu(null); void revealEntryPath(contextMenu.entry); }}
+                    onRefresh={() => { setContextMenu(null); void refreshVisibleTree(); }}
+                />
             )}
         </div>
     );

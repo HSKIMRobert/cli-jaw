@@ -299,6 +299,7 @@ function defaultUi(): DashboardRegistryUi {
         diffDefaultMode: 'unstaged',
         diffBaseRef: 'HEAD',
         diffIncludeUntracked: true,
+        rightFolderRootPath: null,
     };
 }
 
@@ -373,6 +374,7 @@ function normalizeUi(value: unknown): DashboardRegistryUi {
         diffDefaultMode,
         diffBaseRef: readString(input["diffBaseRef"]) ?? fallback.diffBaseRef,
         diffIncludeUntracked: typeof input["diffIncludeUntracked"] === 'boolean' ? input["diffIncludeUntracked"] : fallback.diffIncludeUntracked,
+        rightFolderRootPath: readString(input["rightFolderRootPath"]) ?? fallback.rightFolderRootPath,
     };
 }
 

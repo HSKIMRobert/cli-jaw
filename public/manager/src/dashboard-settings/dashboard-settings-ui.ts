@@ -38,5 +38,6 @@ export function dashboardSettingsUiFromView(
         diffDefaultMode: view.diffDefaultMode,
         diffBaseRef: view.diffBaseRef,
         diffIncludeUntracked: view.diffIncludeUntracked,
+        rightFolderRootPath: view.rightFolderRootPath,
     };
 }

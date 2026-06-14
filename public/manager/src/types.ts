@@ -310,6 +310,7 @@ export type DashboardRegistryUi = {
     diffDefaultMode: DashboardDiffMode;
     diffBaseRef: string;
     diffIncludeUntracked: boolean;
+    rightFolderRootPath: string | null;
     panelLayoutVersion?: number | undefined;
     rightPanelOpen?: boolean | undefined;
     rightPanelWidth?: number | undefined;

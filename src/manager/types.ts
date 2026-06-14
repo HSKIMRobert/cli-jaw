@@ -243,6 +243,7 @@ export type DashboardRegistryUi = {
     diffDefaultMode: DashboardDiffMode;
     diffBaseRef: string;
     diffIncludeUntracked: boolean;
+    rightFolderRootPath: string | null;
 };
 
 export type DashboardRegistryInstance = {

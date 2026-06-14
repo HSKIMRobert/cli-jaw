@@ -1,11 +1,27 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { folderShortcutAction } from '../../public/manager/src/folder-panel/folder-shortcuts.js';
 
 const folderPanelSource = readFileSync('public/manager/src/folder-panel/FolderPanel.tsx', 'utf8');
 const folderRowsSource = readFileSync('public/manager/src/folder-panel/FolderTreeRows.tsx', 'utf8');
 const folderCss = readFileSync('public/manager/src/folder-panel/folder-panel.css', 'utf8');
 const shortcutsSource = readFileSync('public/manager/src/manager-shortcuts.ts', 'utf8');
+const folderShortcutsSource = readFileSync('public/manager/src/folder-panel/folder-shortcuts.ts', 'utf8');
+const folderContextMenuSource = readFileSync('public/manager/src/folder-panel/FolderContextMenu.tsx', 'utf8');
+
+function keyEvent(overrides: Partial<Parameters<typeof folderShortcutAction>[0]>): Parameters<typeof folderShortcutAction>[0] {
+    return {
+        key: '',
+        code: '',
+        metaKey: false,
+        ctrlKey: false,
+        altKey: false,
+        shiftKey: false,
+        target: null,
+        ...overrides,
+    };
+}
 
 test('FolderPanel keeps folder shortcuts local instead of global Manager actions', () => {
     assert.equal(shortcutsSource.includes('folderCopyPath'), false);
@@ -15,27 +31,48 @@ test('FolderPanel keeps folder shortcuts local instead of global Manager actions
 });
 
 test('FolderPanel row shortcuts copy paths and activate rows locally', () => {
-    assert.ok(folderPanelSource.includes("event.key.toLowerCase() === 'c'"), 'Cmd/Ctrl+C must be handled on rows');
-    assert.ok(folderPanelSource.includes("event.shiftKey ? 'absolute' : 'relative'"), 'Shift+C must select absolute path while Cmd/Ctrl+C uses relative path');
+    assert.ok(folderPanelSource.includes('folderShortcutAction(event'), 'row shortcuts must route through the shared folder shortcut helper');
     assert.ok(folderPanelSource.includes('event.stopPropagation()'), 'row copy shortcut must not bubble into global shortcuts');
     assert.ok(folderPanelSource.includes("event.key === 'Enter'"), 'Enter must activate focused row');
     assert.ok(folderPanelSource.includes("event.key === ' '"), 'Space must have explicit row behavior');
-    assert.ok(folderPanelSource.indexOf("event.key === ' '") < folderPanelSource.indexOf("if (entry.kind !== 'file') return"), 'Space must prevent native button activation before directory no-op');
-    assert.ok(folderPanelSource.includes('selectAndActivateEntry(entry'), 'row activation must share one helper');
-    assert.ok(folderRowsSource.includes('props.selectAndActivateEntry(entry)'), 'row click activation must route through the shared helper');
+    assert.ok(folderPanelSource.includes('selectEntry(entry)'), 'file/space activation must use the selection helper');
+    assert.ok(folderRowsSource.includes('props.selectEntry(entry)'), 'row click must route through the selection helper');
+    assert.ok(folderRowsSource.includes('props.toggleEntryExpansion(entry)'), 'row expansion must stay separate from selection');
+});
+
+test('FolderPanel shortcut helper supports quick keys and VS Code aliases', () => {
+    assert.equal(folderShortcutAction(keyEvent({ key: 'c', code: 'KeyC', metaKey: true, altKey: true }), { chordActive: false, platform: 'MacIntel' }), 'copy-path');
+    assert.equal(folderShortcutAction(keyEvent({ key: 'r', code: 'KeyR', metaKey: true, altKey: true }), { chordActive: false, platform: 'MacIntel' }), 'reveal-path');
+    assert.equal(folderShortcutAction(keyEvent({ key: 'c', code: 'KeyC', ctrlKey: true, altKey: true }), { chordActive: false, platform: 'Win32' }), 'copy-path');
+    assert.equal(folderShortcutAction(keyEvent({ key: 'r', code: 'KeyR', ctrlKey: true, altKey: true }), { chordActive: false, platform: 'Linux x86_64' }), 'reveal-path');
+    assert.equal(folderShortcutAction(keyEvent({ key: 'k', code: 'KeyK', metaKey: true }), { chordActive: false, platform: 'MacIntel' }), 'start-chord');
+    assert.equal(folderShortcutAction(keyEvent({ key: 'p', code: 'KeyP' }), { chordActive: true, platform: 'MacIntel' }), 'copy-path');
+    assert.equal(folderShortcutAction(keyEvent({ key: 'r', code: 'KeyR' }), { chordActive: true, platform: 'MacIntel' }), 'reveal-path');
+});
+
+test('FolderPanel shortcut helper preserves existing row copy aliases', () => {
+    assert.equal(folderShortcutAction(keyEvent({ key: 'c', code: 'KeyC', metaKey: true }), { chordActive: false, platform: 'MacIntel' }), 'copy-relative-path');
+    assert.equal(folderShortcutAction(keyEvent({ key: 'C', code: 'KeyC', metaKey: true, shiftKey: true }), { chordActive: false, platform: 'MacIntel' }), 'copy-path');
+    assert.equal(folderShortcutAction(keyEvent({ key: 'c', code: 'KeyC', ctrlKey: true }), { chordActive: false, platform: 'Win32' }), 'copy-relative-path');
+    assert.equal(folderShortcutAction(keyEvent({ key: 'C', code: 'KeyC', ctrlKey: true, shiftKey: true }), { chordActive: false, platform: 'Linux x86_64' }), 'copy-path');
+});
+
+test('FolderPanel shortcut helper guards browser globals for tests and SSR', () => {
+    assert.ok(folderShortcutsSource.includes("typeof navigator === 'undefined'"), 'platform detection must not assume browser navigator exists');
+    assert.ok(folderShortcutsSource.includes("typeof HTMLElement === 'undefined'"), 'editable target checks must not assume browser HTMLElement exists');
 });
 
 test('FolderPanel context menu exposes native path actions', () => {
     for (const label of ['Copy Path', 'Copy Relative Path', 'Reveal in Finder', 'Open Folder', 'Refresh']) {
-        assert.ok(folderPanelSource.includes(label), `context menu must include ${label}`);
+        assert.ok(folderContextMenuSource.includes(label), `context menu must include ${label}`);
     }
-    assert.ok(folderPanelSource.includes('role="menu"'), 'context menu must expose menu role');
-    assert.ok(folderPanelSource.includes('role="menuitem"'), 'context menu actions must expose menuitem role');
+    assert.ok(folderContextMenuSource.includes('role="menu"'), 'context menu must expose menu role');
+    assert.ok(folderContextMenuSource.includes('role="menuitem"'), 'context menu actions must expose menuitem role');
     assert.ok(folderPanelSource.includes('setContextMenu(null); void copyEntryPath'), 'copy menu actions must close menu before running');
     assert.ok(folderPanelSource.includes('setContextMenu(null); void revealEntryPath'), 'reveal menu action must close menu before running');
-    assert.ok(folderPanelSource.includes('setContextMenu(null); void loadDir'), 'refresh menu action must close menu before running');
+    assert.ok(folderPanelSource.includes('setContextMenu(null); void refreshVisibleTree'), 'refresh menu action must close menu before running');
     assert.ok(folderPanelSource.includes("event.key === 'Escape'"), 'keyboard dismissal must be Escape-only');
-    assert.ok(folderPanelSource.includes('onKeyDown={event => event.stopPropagation()}'), 'menu keyboard activation must not be swallowed by window dismissal');
+    assert.ok(folderContextMenuSource.includes('onKeyDown={event => event.stopPropagation()}'), 'menu keyboard activation must not be swallowed by window dismissal');
 });
 
 test('FolderPanel focus and context menu styles stay compact', () => {

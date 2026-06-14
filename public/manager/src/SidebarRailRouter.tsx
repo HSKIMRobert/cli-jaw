@@ -187,7 +187,7 @@ function renderBottomTabContent(tab: BottomPanelTab, controls: BottomPanelRender
 export function SidebarRailRouter(props: Props) {
     const panelLayout = usePanelLayout();
     const [rightPreviewFilePath, setRightPreviewFilePath] = useState<string | null>(null);
-    const [rightFolderRootPath, setRightFolderRootPath] = useState<string | null>(null);
+    const [rightFolderRootPath, setRightFolderRootPath] = useState<string | null>(props.dashboardSettingsUi.rightFolderRootPath);
     const [, setRecentDroppedPaths] = useState<ElectronDroppedPathsEvent | null>(null);
     const [dropNotice, setDropNotice] = useState<string | null>(null);
     const [remindersView, setRemindersView] = useState<RemindersView>('matrix');
@@ -243,19 +243,32 @@ export function SidebarRailRouter(props: Props) {
         panelLayout.dispatch({ type: 'OPEN_RIGHT_PANEL', mode: 'doc', slot: 'bottom' });
     }
 
+    useEffect(() => {
+        setRightFolderRootPath(current => (
+            current === props.dashboardSettingsUi.rightFolderRootPath
+                ? current
+                : props.dashboardSettingsUi.rightFolderRootPath
+        ));
+    }, [props.dashboardSettingsUi.rightFolderRootPath]);
+
+    const updateRightFolderRoot = useCallback((path: string | null): void => {
+        setRightFolderRootPath(path);
+        props.onDashboardSettingsPatch({ rightFolderRootPath: path });
+    }, [props.onDashboardSettingsPatch]);
+
     const handleDroppedPaths = useCallback((event: ElectronDroppedPathsEvent): void => {
         setRecentDroppedPaths(event);
         setDropNotice(describeDroppedPathsEvent(event));
         if (event.source === 'preview') return;
         const directory = firstDirectory(event.entries);
         if (directory) {
-            setRightFolderRootPath(directory.path);
+            updateRightFolderRoot(directory.path);
             panelLayout.dispatch({ type: 'OPEN_RIGHT_PANEL', mode: 'folder', slot: 'top' });
             return;
         }
         const file = firstFile(event.entries);
         if (file) handleRightPreviewFile(file.path);
-    }, [panelLayout]);
+    }, [panelLayout, updateRightFolderRoot]);
 
     const electronDrop = useElectronDroppedPaths({ onDroppedPaths: handleDroppedPaths });
 
@@ -274,7 +287,7 @@ export function SidebarRailRouter(props: Props) {
             onCloseDrawer={props.onCloseDrawer}
             rightPanelOpen={rightPanelOpen}
             rightPanelWidth={panelLayout.state.rightPanel.width}
-            rightPanelContent={rightPanelOpen ? <RightSidebar renderPanel={mode => renderRightPanelContent(mode, rightPreviewFilePath, rightFolderRootPath, handleRightPreviewFile, setRightFolderRootPath, props.selectedInstance, props.dashboardSettingsUi, props.onDashboardSettingsPatch, props.notesModel, jawCeoPanel)} /> : undefined}
+            rightPanelContent={rightPanelOpen ? <RightSidebar renderPanel={mode => renderRightPanelContent(mode, rightPreviewFilePath, rightFolderRootPath, handleRightPreviewFile, updateRightFolderRoot, props.selectedInstance, props.dashboardSettingsUi, props.onDashboardSettingsPatch, props.notesModel, jawCeoPanel)} /> : undefined}
             bottomPanelOpen={bottomPanelOpen}
             bottomPanelHeight={panelLayout.state.bottomPanel.height}
             bottomPanelContent={bottomPanelOpen && panelLayout.state.bottomPanel.tabs.length > 0 ? <BottomPanel renderTab={renderBottomTabContent} /> : undefined}

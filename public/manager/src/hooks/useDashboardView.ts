@@ -29,6 +29,7 @@ export function useDashboardView() {
     const [diffDefaultMode, setDiffDefaultMode] = useState<DashboardDiffMode>('unstaged');
     const [diffBaseRef, setDiffBaseRef] = useState('HEAD');
     const [diffIncludeUntracked, setDiffIncludeUntracked] = useState(true);
+    const [rightFolderRootPath, setRightFolderRootPath] = useState<string | null>(null);
     const [locale, setLocale] = useState<DashboardLocale>('ko');
 
     function setDashboardShortcutKeymap(value: unknown): void {
@@ -88,6 +89,8 @@ export function useDashboardView() {
         setDiffBaseRef,
         diffIncludeUntracked,
         setDiffIncludeUntracked,
+        rightFolderRootPath,
+        setRightFolderRootPath,
         locale,
         setLocale,
     };

@@ -749,6 +749,7 @@ h2 { font-size: 13px; }
     font-style: normal;
 }
 .preview-panel {
+    position: relative;
     min-height: 100%;
     display: flex;
     flex-direction: column;
@@ -757,6 +758,37 @@ h2 { font-size: 13px; }
     background: var(--canvas-mid);
     border-radius: 8px;
     padding: 12px;
+}
+.preview-path-drop-status {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    z-index: 5;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: min(360px, calc(100% - 36px));
+    padding: 6px 8px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    color: var(--text-primary);
+    background: var(--bg-raised);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+    font-size: 12px;
+}
+.preview-path-drop-status button {
+    all: unset;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 11px;
+}
+.preview-path-drop-overlay {
+    position: absolute;
+    inset: 12px;
+    z-index: 4;
+    border: 1px dashed rgba(78, 200, 164, 0.72);
+    border-radius: 6px;
+    background: rgba(5, 10, 18, 0.24);
 }
 .preview-header {
     display: flex;

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchGitWorktrees } from './folder-worktree-client';
 import type { GitWorktreeEntry } from './folder-worktree-types';
 
@@ -53,5 +53,5 @@ export function useGitWorktrees(input: UseGitWorktreesInput): FolderWorktreeStat
         return () => { cancelled = true; };
     }, [enabled, folderPanelRoot, manualRefreshToken, refreshToken, repoRoot]);
 
-    return { ...state, refresh };
+    return useMemo(() => ({ ...state, refresh }), [refresh, state]);
 }

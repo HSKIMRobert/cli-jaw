@@ -8,10 +8,33 @@
     font-size: 12px;
 }
 .folder-unavailable {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: grid;
+    gap: 7px;
+    width: 100%;
+    max-width: 320px;
+    padding: 14px;
     color: var(--text-dim);
+    text-align: left;
+}
+.folder-unavailable__title {
+    color: var(--text-base);
+    font-size: 12px;
+    font-weight: 600;
+}
+.folder-unavailable__path,
+.folder-unavailable__error {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+}
+.folder-unavailable__error {
+    color: var(--status-error);
+}
+.folder-unavailable__actions {
+    display: flex;
+    gap: 6px;
 }
 .folder-toolbar {
     display: flex;
@@ -193,6 +216,13 @@
     font-size: 11px;
     color: var(--text-dim);
 }
+.folder-shortcut-hint {
+    padding: 5px 10px;
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--accent-primary);
+    background: color-mix(in srgb, var(--accent-primary) 9%, transparent);
+    font-size: 11px;
+}
 .folder-worktree-ops {
     padding: 6px 10px;
     border-bottom: 1px solid var(--border-subtle);
@@ -345,7 +375,32 @@
 .folder-entry[aria-selected="true"] .folder-entry-btn {
     color: var(--accent-primary);
 }
-.folder-entry-icon { width: 12px; text-align: center; flex-shrink: 0; color: var(--text-dim); }
+.folder-entry-disclosure {
+    all: unset;
+    box-sizing: border-box;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 18px;
+    width: 18px;
+    height: 22px;
+    color: var(--text-base);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+}
+.folder-entry-disclosure:hover:not(:disabled),
+.folder-entry-disclosure:focus-visible {
+    background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+    outline: 1px solid color-mix(in srgb, var(--accent-primary) 42%, transparent);
+    outline-offset: -1px;
+}
+.folder-entry-disclosure.is-placeholder {
+    cursor: default;
+    color: var(--text-dim);
+    opacity: 0.58;
+}
 .folder-entry-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .folder-entry-directory .folder-entry-name { font-weight: 500; }
 .folder-entry-git-badge {

@@ -205,6 +205,7 @@ export function App() {
                 view.setShowSelectedRowActions(ui.showSelectedRowActions); view.setDashboardShortcutsEnabled(ui.dashboardShortcutsEnabled); view.setDashboardShortcutKeymap(ui.dashboardShortcutKeymap);
                 view.setDiffRootPolicy(ui.diffRootPolicy); view.setDiffPinnedRootByPort(ui.diffPinnedRootByPort); view.setDiffRecentRepoRoots(ui.diffRecentRepoRoots); view.setDiffDefaultMode(ui.diffDefaultMode);
                 view.setDiffBaseRef(ui.diffBaseRef); view.setDiffIncludeUntracked(ui.diffIncludeUntracked);
+                view.setRightFolderRootPath(ui.rightFolderRootPath);
                 view.setLocale(ui.locale);
                 activityUnread.hydrateSeenAt(ui.activitySeenAt ?? null, ui.activitySeenByPort || {});
                 setActiveProfileIds(loaded.registry.activeProfileFilter || []);
@@ -353,6 +354,7 @@ export function App() {
         if (ui.dashboardShortcutKeymap !== undefined) view.setDashboardShortcutKeymap(ui.dashboardShortcutKeymap);
         if (ui.diffRootPolicy !== undefined) view.setDiffRootPolicy(ui.diffRootPolicy); if (ui.diffPinnedRootByPort !== undefined) view.setDiffPinnedRootByPort(ui.diffPinnedRootByPort); if (ui.diffRecentRepoRoots !== undefined) view.setDiffRecentRepoRoots(ui.diffRecentRepoRoots); if (ui.diffDefaultMode !== undefined) view.setDiffDefaultMode(ui.diffDefaultMode);
         if (ui.diffBaseRef !== undefined) view.setDiffBaseRef(ui.diffBaseRef); if (ui.diffIncludeUntracked !== undefined) view.setDiffIncludeUntracked(ui.diffIncludeUntracked);
+        if (ui.rightFolderRootPath !== undefined) view.setRightFolderRootPath(ui.rightFolderRootPath);
         if (ui.locale !== undefined) view.setLocale(ui.locale);
         void saveUi(ui);
     }
