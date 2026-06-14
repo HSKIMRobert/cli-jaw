@@ -41,6 +41,10 @@ export function createElectronFolderSource(bridge: FolderBridgeApi): FolderPanel
             if (!result.ok) throw new Error(result.error ?? 'Failed to pick folder');
             return result.path ?? null;
         },
+        registerGitWorktreeRoot: async (folderPanelRoot: string, repoRoot: string | undefined, worktreePath: string) => {
+            const result = await bridge.registerGitWorktreeRoot?.(folderPanelRoot, repoRoot, worktreePath);
+            if (!result?.ok) throw new Error(result?.error ?? 'Failed to register worktree root');
+        },
         listDir: async (path: string) => {
             const result = await bridge.listDir(path);
             if (!result.ok || !result.entries) throw new Error(result.error ?? 'Failed to list directory');

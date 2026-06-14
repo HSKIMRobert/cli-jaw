@@ -7,6 +7,7 @@ import { FolderPanelToolbar } from './FolderPanelToolbar';
 import { FolderTreeRows } from './FolderTreeRows';
 import { dropCachedBranches, isDescendantPath, parentPath, relativeFolderPath } from './folder-panel-state';
 import { useFolderGitStatus } from './use-folder-git-status';
+import { useGitWorktrees } from './use-git-worktrees';
 import './folder-panel.css';
 
 function getFolderBridge(): FolderBridgeApi | null {
@@ -55,6 +56,29 @@ export function FolderPanel(props: FolderPanelProps) {
         }
     }, [source]);
 
+    const openFolderRoot = useCallback(async (
+        nextRoot: string,
+        options: { registerGitWorktree?: boolean; repoRoot?: string | null } = {},
+    ) => {
+        try {
+            if (options.registerGitWorktree) {
+                if (!rootPath) throw new Error('Current folder root required');
+                await source.registerGitWorktreeRoot?.(rootPath, options.repoRoot ?? undefined, nextRoot);
+            }
+            if (rootPath && source.unwatchDir) void source.unwatchDir(rootPath);
+            props.onRootChange?.(nextRoot);
+            setRootPath(nextRoot);
+            setExpanded(new Set());
+            setChildrenCache(new Map());
+            setSelectedPath(null);
+            setError(null);
+            await loadDir(nextRoot);
+            setGitRefreshToken(token => token + 1);
+        } catch (err) {
+            setError((err as Error).message);
+        }
+    }, [loadDir, props, rootPath, source]);
+
     const loadChildren = useCallback(async (dirPath: string, options: { force?: boolean } = {}) => {
         if (!options.force && childrenCache.has(dirPath)) return;
         try {
@@ -82,20 +106,11 @@ export function FolderPanel(props: FolderPanelProps) {
         if (!source.pickRoot) return;
         try {
             const picked = await source.pickRoot();
-            if (picked) {
-                if (rootPath && source.unwatchDir) void source.unwatchDir(rootPath);
-                props.onRootChange?.(picked);
-                setRootPath(picked);
-                setExpanded(new Set());
-                setChildrenCache(new Map());
-                setSelectedPath(null);
-                setError(null);
-                await loadDir(picked);
-            }
+            if (picked) await openFolderRoot(picked);
         } catch (err) {
             setError((err as Error).message);
         }
-    }, [loadDir, props, rootPath, source]);
+    }, [openFolderRoot, source]);
 
     useEffect(() => {
         if (initialRootResolvedRef.current || rootPath !== null || props.externalRootPath) return;
@@ -113,13 +128,8 @@ export function FolderPanel(props: FolderPanelProps) {
     useEffect(() => {
         const externalRoot = props.externalRootPath;
         if (!externalRoot || externalRoot === rootPath) return;
-        if (rootPath && source.unwatchDir) void source.unwatchDir(rootPath);
-        setRootPath(externalRoot);
-        setExpanded(new Set());
-        setChildrenCache(new Map());
-        setSelectedPath(null);
-        void loadDir(externalRoot);
-    }, [loadDir, props.externalRootPath, rootPath, source]);
+        void openFolderRoot(externalRoot);
+    }, [openFolderRoot, props.externalRootPath, rootPath]);
 
     useEffect(() => {
         if (!source.watchDir || !source.onDirChange || rootPath === null) return;
@@ -137,6 +147,12 @@ export function FolderPanel(props: FolderPanelProps) {
     const gitStatus = useFolderGitStatus({
         rootPath,
         enabled: source.kind === 'electron-folder',
+        refreshToken: gitRefreshToken,
+    });
+    const worktreeState = useGitWorktrees({
+        folderPanelRoot: rootPath,
+        repoRoot: gitStatus.repoRoot,
+        enabled: source.kind === 'electron-folder' && gitStatus.available,
         refreshToken: gitRefreshToken,
     });
 
@@ -231,6 +247,32 @@ export function FolderPanel(props: FolderPanelProps) {
         await revealEntryPath(selectedEntry);
     }, [revealEntryPath, selectedEntry]);
 
+    const openWorktreeRoot = useCallback(async (path: string) => {
+        await openFolderRoot(path, { registerGitWorktree: true, repoRoot: worktreeState.repoRoot });
+    }, [openFolderRoot, worktreeState.repoRoot]);
+
+    const copyWorktreePath = useCallback(async (path: string) => {
+        const result = await copyText(path);
+        if (result.ok) {
+            setActionStatus('Copied worktree path');
+            setError(null);
+        } else {
+            setError(result.error ?? 'Failed to copy worktree path');
+        }
+    }, []);
+
+    const revealWorktreePath = useCallback(async (path: string) => {
+        if (!rootPath || !source.registerGitWorktreeRoot || !source.revealPath) return;
+        try {
+            await source.registerGitWorktreeRoot(rootPath, worktreeState.repoRoot ?? undefined, path);
+            await source.revealPath(path);
+            setActionStatus('Opened worktree in Finder');
+            setError(null);
+        } catch (err) {
+            setError((err as Error).message);
+        }
+    }, [rootPath, source, worktreeState.repoRoot]);
+
     const handleEntryKeyDown = useCallback((event: React.KeyboardEvent, entry: FolderPanelEntry) => {
         const isPrimaryModifier = event.metaKey || event.ctrlKey;
         if (isPrimaryModifier && event.key.toLowerCase() === 'c') {
@@ -276,9 +318,14 @@ export function FolderPanel(props: FolderPanelProps) {
                     if (rootPath !== null) {
                         void loadDir(rootPath);
                         setGitRefreshToken(token => token + 1);
+                        worktreeState.refresh();
                     }
                 }}
                 gitSummary={source.kind === 'electron-folder' ? gitStatus : undefined}
+                worktreeSummary={source.kind === 'electron-folder' ? worktreeState : undefined}
+                onOpenWorktree={path => void openWorktreeRoot(path)}
+                onCopyWorktreePath={path => void copyWorktreePath(path)}
+                onRevealWorktreePath={path => void revealWorktreePath(path)}
             />
             {rootPath !== null && (
                 <div className="folder-action-row" aria-label="Folder actions">

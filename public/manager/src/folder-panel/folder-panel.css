@@ -47,6 +47,105 @@
 .folder-git-summary.is-error {
     color: var(--status-error);
 }
+.folder-worktree {
+    position: relative;
+    flex: 0 0 auto;
+}
+.folder-worktree-btn {
+    all: unset;
+    box-sizing: border-box;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: var(--text-dim);
+    background: var(--bg-hover);
+    font-size: 11px;
+    white-space: nowrap;
+}
+.folder-worktree-btn:hover:not(:disabled) {
+    color: var(--text-base);
+    background: var(--bg-active);
+}
+.folder-worktree-btn:disabled {
+    cursor: default;
+    opacity: 0.55;
+}
+.folder-worktree-menu {
+    position: absolute;
+    top: calc(100% + 5px);
+    right: 0;
+    z-index: 70;
+    width: min(360px, calc(100vw - 24px));
+    max-height: min(320px, calc(100vh - 120px));
+    overflow: auto;
+    padding: 5px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 5px;
+    background: var(--bg-elevated);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+}
+.folder-worktree-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px;
+    align-items: center;
+    padding: 4px;
+    border-radius: 4px;
+}
+.folder-worktree-row:hover {
+    background: var(--bg-hover);
+}
+.folder-worktree-open {
+    all: unset;
+    min-width: 0;
+    cursor: pointer;
+}
+.folder-worktree-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    color: var(--text-base);
+    font-size: 12px;
+    line-height: 1.25;
+}
+.folder-worktree-current {
+    flex: 0 0 auto;
+    padding: 1px 4px;
+    border-radius: 3px;
+    color: var(--accent-primary);
+    background: color-mix(in srgb, var(--accent-primary) 11%, transparent);
+    font-size: 10px;
+}
+.folder-worktree-meta {
+    display: block;
+    margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-dim);
+    font-size: 10px;
+    line-height: 1.25;
+}
+.folder-worktree-actions {
+    display: inline-flex;
+    gap: 4px;
+}
+.folder-worktree-actions button {
+    all: unset;
+    box-sizing: border-box;
+    cursor: pointer;
+    padding: 2px 5px;
+    border-radius: 3px;
+    color: var(--text-dim);
+    background: var(--bg-hover);
+    font-size: 10px;
+}
+.folder-worktree-actions button:hover,
+.folder-worktree-actions button:focus-visible {
+    color: var(--text-base);
+    background: var(--bg-active);
+}
 .folder-refresh {
     all: unset;
     cursor: pointer;

@@ -46,7 +46,7 @@ test('FolderPanel starts from explicit initial root policy instead of project ro
     assert.ok(panel.includes('source.getInitialRoot()'), 'FolderPanel must use the source initial-root policy');
     assert.equal(panel.includes('source.getDefaultRoot()'), false, 'FolderPanel must not call getDefaultRoot on mount');
     assert.equal(panel.includes('projectDirs'), false, 'FolderPanel must not import or mutate projectDirs');
-    assert.ok(panel.includes('props.onRootChange?.(picked)'), 'manual Open Folder picks must sync the parent external root state');
+    assert.ok(panel.includes('props.onRootChange?.(nextRoot)'), 'manual Open Folder picks must sync the parent external root state through the shared opener');
     assert.ok(panel.includes('try {'), 'manual Open Folder must guard async picker failures');
     assert.ok(panel.includes('setError((err as Error).message)'), 'manual Open Folder must surface non-cancel picker failures in the panel');
     assert.ok(panel.includes('rootPath !== null &&'), 'empty root state must keep the action row hidden until a root exists');

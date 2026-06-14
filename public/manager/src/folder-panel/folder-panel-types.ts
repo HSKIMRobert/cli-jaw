@@ -17,6 +17,7 @@ export type FolderPanelSource = {
     canPickRoot: boolean;
     getInitialRoot: () => Promise<string | null>;
     pickRoot?: () => Promise<string | null>;
+    registerGitWorktreeRoot?: (folderPanelRoot: string, repoRoot: string | undefined, worktreePath: string) => Promise<void>;
     listDir: (path: string) => Promise<FolderPanelEntry[]>;
     readFile?: (path: string) => Promise<{ content: string; binary?: boolean }>;
     movePath?: (sourcePath: string, targetDirectory: string) => Promise<FolderPanelMoveResult>;
