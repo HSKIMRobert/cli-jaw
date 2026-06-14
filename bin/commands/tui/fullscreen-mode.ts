@@ -395,6 +395,15 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
 
     const scheduler = createScheduler(() => {
         rebuildFooter(ctx);
+        const regions = currentRegions(ctx);
+        const liveRows = ctx.store.overlay.helpOpen || ctx.store.overlay.paletteOpen || ctx.store.overlay.selector.open || ctx.store.overlay.bgtaskOpen || ctx.store.overlay.settingsOpen
+            ? []
+            : renderLiveToolRows(ctx, process.stdout.columns || 80, Math.min(4, Math.max(0, regions.transcript.height - 1)));
+        const transcriptHeight = Math.max(1, regions.transcript.height - liveRows.length);
+        const commitRows = viewport.peekCommitRows(transcriptHeight);
+        if (commitRows.length > 0 && screen.commitLines(commitRows)) {
+            viewport.markCommittedRows(commitRows.length, transcriptHeight);
+        }
         screen.render(composeFrame(ctx, viewport));
     });
 

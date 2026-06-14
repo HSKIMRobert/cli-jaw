@@ -110,3 +110,47 @@ test('Viewport scrollback can reach current jaw chat launch session start', () =
         ['welcome', 'u:session start', 'assistant'],
     );
 });
+
+test('Viewport exposes offscreen launch transcript rows for native scrollback commit', () => {
+    const v = new Viewport();
+    v.setItems([
+        { type: 'user', displayText: '1', submitText: '1', timestamp: 0 },
+        { type: 'user', displayText: '2', submitText: '2', timestamp: 1 },
+        { type: 'user', displayText: '3', submitText: '3', timestamp: 2 },
+        { type: 'user', displayText: '4', submitText: '4', timestamp: 3 },
+        { type: 'user', displayText: '5', submitText: '5', timestamp: 4 },
+    ], render, 3);
+
+    const firstCommit = v.peekCommitRows(3);
+    assert.deepEqual(firstCommit, ['u:1', 'u:2']);
+
+    v.markCommittedRows(firstCommit.length, 3);
+    assert.deepEqual(
+        v.composeRegion({ x: 1, y: 1, width: 40, height: 3 }),
+        ['u:3', 'u:4', 'u:5'],
+    );
+
+    v.setItems([
+        { type: 'user', displayText: '1', submitText: '1', timestamp: 0 },
+        { type: 'user', displayText: '2', submitText: '2', timestamp: 1 },
+        { type: 'user', displayText: '3', submitText: '3', timestamp: 2 },
+        { type: 'user', displayText: '4', submitText: '4', timestamp: 3 },
+        { type: 'user', displayText: '5', submitText: '5', timestamp: 4 },
+        { type: 'user', displayText: '6', submitText: '6', timestamp: 5 },
+    ], render, 3);
+
+    assert.deepEqual(v.peekCommitRows(3), ['u:3']);
+});
+
+test('Viewport does not commit additional rows while user is reading earlier content', () => {
+    const v = new Viewport();
+    v.setItems([
+        { type: 'user', displayText: '1', submitText: '1', timestamp: 0 },
+        { type: 'user', displayText: '2', submitText: '2', timestamp: 1 },
+        { type: 'user', displayText: '3', submitText: '3', timestamp: 2 },
+        { type: 'user', displayText: '4', submitText: '4', timestamp: 3 },
+    ], render, 2);
+
+    v.scrollToTop();
+    assert.deepEqual(v.peekCommitRows(2), []);
+});

@@ -222,6 +222,19 @@ export class Screen {
         this.prevLines = [...lines];
     }
 
+    commitLines(lines: string[]): boolean {
+        if (!this.inlineActive || lines.length === 0) return true;
+        const width = Math.max(1, process.stdout.columns || 80);
+        let buf = '\x1b[?2026h';
+        for (const line of lines) {
+            buf += '\r\n\x1b[2K' + normalizeFrameRow(line, width);
+        }
+        buf += '\x1b[?2026l';
+        process.stdout.write(buf);
+        this.fullRedrawPending = true;
+        return true;
+    }
+
     forceRedraw(): void {
         this.fullRedrawPending = true;
     }

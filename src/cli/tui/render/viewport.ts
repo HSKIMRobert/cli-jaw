@@ -18,6 +18,7 @@ export class Viewport {
     private follow = true;
     private width = 80;
     private widthChanged = false;
+    private committedRows = 0;
 
     setWidth(cols: number): void {
         const next = Math.max(20, cols);
@@ -29,6 +30,7 @@ export class Viewport {
 
     setPrelude(lines: string[]): void {
         this.preludeLines = [...lines];
+        this.clampCommittedRows();
     }
 
     setItems(items: TranscriptItem[], renderLine: (item: TranscriptItem, width: number) => string[], visibleRows = 1): void {
@@ -65,6 +67,7 @@ export class Viewport {
                 this.cells.length = nextLen;
             }
         }
+        this.clampCommittedRows();
         if (this.follow) this.scrollToBottom(visibleRows);
     }
 
@@ -77,6 +80,7 @@ export class Viewport {
         tail.lines = renderLine(item, this.width);
         tail.revision += 1;
         tail.cacheKey = this.itemCacheKey(item);
+        this.clampCommittedRows();
         if (this.follow) this.scrollToBottom(visibleRows);
     }
 
@@ -86,6 +90,7 @@ export class Viewport {
             revision: this.cells.length,
             cacheKey: this.itemCacheKey(item),
         });
+        this.clampCommittedRows();
         if (this.follow) this.scrollToBottom(visibleRows);
     }
 
@@ -118,12 +123,25 @@ export class Viewport {
     }
 
     totalLines(): number {
-        return this.preludeLines.length + this.cells.reduce((n, c) => n + c.lines.length, 0);
+        return Math.max(0, this.flattenRows().length - this.committedRows);
+    }
+
+    peekCommitRows(visibleRows = 1): string[] {
+        if (!this.follow) return [];
+        const flat = this.flattenRows();
+        const safeCommitUntil = Math.max(0, flat.length - Math.max(1, visibleRows));
+        if (safeCommitUntil <= this.committedRows) return [];
+        return flat.slice(this.committedRows, safeCommitUntil);
+    }
+
+    markCommittedRows(count: number, visibleRows = 1): void {
+        if (count <= 0) return;
+        this.committedRows = Math.min(this.flattenRows().length, this.committedRows + count);
+        this.clampScroll(visibleRows);
     }
 
     composeRegion(region: Rect): string[] {
-        const flat: string[] = [...this.preludeLines];
-        for (const cell of this.cells) flat.push(...cell.lines);
+        const flat = this.flattenRows().slice(this.committedRows);
         this.clampScroll(region.height);
         if (this.follow && flat.length > 0 && flat.length < region.height) {
             return [
@@ -142,6 +160,16 @@ export class Viewport {
     private clampScroll(visibleRows = 1): void {
         const max = Math.max(0, this.totalLines() - visibleRows);
         if (this.scrollTop > max) this.scrollTop = max;
+    }
+
+    private clampCommittedRows(): void {
+        this.committedRows = Math.min(this.committedRows, this.flattenRows().length);
+    }
+
+    private flattenRows(): string[] {
+        const flat: string[] = [...this.preludeLines];
+        for (const cell of this.cells) flat.push(...cell.lines);
+        return flat;
     }
 
     private itemCacheKey(item: TranscriptItem): string {
