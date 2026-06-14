@@ -68,7 +68,13 @@ export class Viewport {
             }
         }
         this.clampCommittedRows();
-        if (this.follow) this.scrollToBottom(visibleRows);
+        if (this.follow) {
+            if (items.length === 0 && this.hasUncommittedPrelude()) {
+                this.scrollTop = 0;
+            } else {
+                this.scrollToBottom(visibleRows);
+            }
+        }
     }
 
     updateTail(item: TranscriptItem, renderLine: (item: TranscriptItem, width: number) => string[], visibleRows = 1): void {

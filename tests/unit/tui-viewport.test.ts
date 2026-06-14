@@ -42,6 +42,23 @@ test('Viewport top-aligns uncommitted welcome prelude before transcript collides
     );
 });
 
+test('Viewport keeps launch welcome anchored at top while no transcript items exist', () => {
+    const v = new Viewport();
+    v.setPrelude(['welcome-1', 'welcome-2', 'welcome-3', 'welcome-4']);
+    v.setItems([], render, 2);
+
+    assert.deepEqual(
+        v.composeRegion({ x: 1, y: 1, width: 40, height: 2 }),
+        ['welcome-1', 'welcome-2'],
+    );
+
+    v.setItems([], render, 4);
+    assert.deepEqual(
+        v.composeRegion({ x: 1, y: 1, width: 40, height: 4 }),
+        ['welcome-1', 'welcome-2', 'welcome-3', 'welcome-4'],
+    );
+});
+
 test('Viewport commits welcome prelude with older transcript rows after collision', () => {
     const v = new Viewport();
     v.setPrelude(['welcome']);
