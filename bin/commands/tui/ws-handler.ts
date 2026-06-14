@@ -13,6 +13,7 @@ import { renderMarkdown } from '../../../src/cli/tui/markdown.js';
 import { renderMarkdownJawcode, isInitialized } from '../../../src/cli/tui/jawcode-render.js';
 import { renderToolLine } from '../../../src/cli/tui/jawcode-bridge.js';
 import { colorizeDiff } from '../../../src/cli/tui/diffview.js';
+import { normalizeTuiWsEvent } from '../../../src/cli/tui/events.js';
 import { c, type TuiContext } from './types.js';
 import { openPromptBlock, rebuildFooter } from './renderer.js';
 import { dismissOverlay } from './overlays.js';
@@ -44,24 +45,23 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
     const ov = ctx.store.overlay;
     const transcript = ctx.store.transcript;
     try {
-        const msg = JSON.parse(raw);
-        switch (msg.type) {
-            case 'agent_chunk':
-            case 'agent_output':
+        const event = normalizeTuiWsEvent(JSON.parse(raw));
+        switch (event.kind) {
+            case 'assistant-output':
                 if (ov.helpOpen || ov.paletteOpen || ov.bgtaskOpen) dismissOverlay(ctx);
                 if (ctx.isRaw) {
                     console.log(`  ${c.dim}${raw}${c.reset}`);
                     break;
                 }
                 clearEphemeralStatus(transcript);
-                const isThinkingDelta = !!msg.thinking;
+                const isThinkingDelta = event.thinking;
                 if (!ctx.streaming) {
                     ctx.streaming = true;
                     ctx.streamState = 'responding';
                     ctx.turnStartedAt = Date.now();
                     rebuildFooter(ctx); // safe point: before the first chunk is written
                     startFooterTimer(ctx);
-                    if (!isThinkingDelta) startAssistantItem(transcript, msg.agentId);
+                    if (!isThinkingDelta) startAssistantItem(transcript, event.agentId);
                     if (!isFullscreen(ctx) && !isThinkingDelta) {
                         process.stdout.write('\n');
                         ctx.streamSink = createStreamSink({
@@ -75,19 +75,19 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                     rebuildFooter(ctx);
                 }
                 if (isThinkingDelta) {
-                    appendThinkingTurnText(transcript, msg.text || '', msg.agentId);
+                    appendThinkingTurnText(transcript, event.text, event.agentId);
                     if (isFullscreen(ctx)) ctx.requestFrame?.();
                     break;
                 }
-                appendAssistantTurnText(transcript, msg.text || '', msg.agentId);
+                appendAssistantTurnText(transcript, event.text, event.agentId);
                 if (ctx.streamSink) {
-                    ctx.streamSink.push(msg.text || '');
+                    ctx.streamSink.push(event.text);
                 } else if (isFullscreen(ctx)) {
                     ctx.requestFrame?.();
                 }
                 break;
 
-            case 'agent_done':
+            case 'agent-done':
                 stopSpinner();
                 clearEphemeralStatus(transcript);
                 if (ctx.isRaw) {
@@ -95,27 +95,27 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                 } else if (ctx.streaming) {
                     ctx.streamSink?.end();
                     ctx.streamSink = null;
-                    if (msg.text) {
+                    if (event.text) {
                         const existingText = assistantTextSinceLastUser(transcript);
                         if (!existingText) {
-                            appendAssistantTurnText(transcript, msg.text, msg.agentId);
-                        } else if (String(msg.text).startsWith(existingText) && msg.text.length > existingText.length) {
-                            appendAssistantTurnText(transcript, msg.text.slice(existingText.length), msg.agentId);
+                            appendAssistantTurnText(transcript, event.text, event.agentId);
+                        } else if (event.text.startsWith(existingText) && event.text.length > existingText.length) {
+                            appendAssistantTurnText(transcript, event.text.slice(existingText.length), event.agentId);
                         }
                     }
                     finalizeStreamingAssistants(transcript);
                     if (!isFullscreen(ctx)) console.log('');
-                } else if (msg.text) {
-                    startAssistantItem(transcript, msg.agentId);
-                    appendAssistantTurnText(transcript, msg.text, msg.agentId);
+                } else if (event.text) {
+                    startAssistantItem(transcript, event.agentId);
+                    appendAssistantTurnText(transcript, event.text, event.agentId);
                     finalizeAssistant(transcript);
                     if (!isFullscreen(ctx)) {
                         process.stdout.write('\n');
                         if (isInitialized()) {
-                            const mdLines = renderMarkdownJawcode(msg.text, Math.max(20, (process.stdout.columns || 80) - 4));
+                            const mdLines = renderMarkdownJawcode(event.text, Math.max(20, (process.stdout.columns || 80) - 4));
                             process.stdout.write(mdLines.join('\n') + '\n');
                         } else {
-                            process.stdout.write(renderMarkdown(msg.text, { width: Math.max(20, (process.stdout.columns || 80) - 4), gutter: '  ' }));
+                            process.stdout.write(renderMarkdown(event.text, { width: Math.max(20, (process.stdout.columns || 80) - 4), gutter: '  ' }));
                         }
                         console.log('');
                     }
@@ -156,12 +156,12 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                 openPromptBlock(ctx);
                 break;
 
-            case 'agent_status':
-                if (msg.status === 'done') break;
+            case 'agent-status':
+                if (event.status === 'done') break;
                 if (ctx.isRaw) {
                     console.log(`  ${c.dim}${raw}${c.reset}`);
-                } else if (msg.status === 'running') {
-                    const name = msg.agentName || msg.agentId || 'agent';
+                } else if (event.status === 'running') {
+                    const name = event.agentName || event.agentId || 'agent';
                     appendStatusItem(transcript, `${name} thinking\u2026`);
                     startSpinner((ch) => {
                         if (!isFullscreen(ctx)) {
@@ -176,51 +176,50 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                 }
                 break;
 
-            case 'agent_tool':
+            case 'agent-tool':
                 if (ctx.isRaw) {
                     console.log(`  ${c.dim}${raw}${c.reset}`);
-                } else if (msg.icon && msg.label) {
+                } else {
                     // Persistent tool cell: drop a trailing transient status FIRST
                     // (else the status leaks once a tool item is the trailing one),
                     // then commit the tool line so it stays in scrollback.
                     clearEphemeralStatus(transcript);
-                    const toolDetail = msg.detail ? `: ${msg.detail}` : '';
-                    const status = msg.status === 'done' || msg.status === 'error' ? msg.status : 'running';
-                    appendToolItem(transcript, `${msg.icon} ${msg.label}${toolDetail}`, {
-                        agentId: msg.agentId,
-                        detail: msg.detail,
-                        stepRef: msg.stepRef,
-                        status,
-                    });
+                    const toolDetail = event.detail ? `: ${event.detail}` : '';
+                    const toolOpts: Parameters<typeof appendToolItem>[2] = { detail: event.detail, status: event.status };
+                    if (event.agentId) toolOpts.agentId = event.agentId;
+                    if (event.stepRef) toolOpts.stepRef = event.stepRef;
+                    appendToolItem(transcript, `${event.icon} ${event.label}${toolDetail}`, toolOpts);
                     ctx.streamState = 'tool';
                     rebuildFooter(ctx);
                     if (!isFullscreen(ctx)) {
-                        process.stdout.write(`\r\x1b[2K${renderToolLine(msg.icon, msg.label, msg.detail || '', 'pending')}\n`);
+                        const renderState = event.status === 'running' ? 'pending' : event.status;
+                        process.stdout.write(`\r\x1b[2K${renderToolLine(event.icon, event.label, event.detail, renderState)}\n`);
                     } else {
                         ctx.requestFrame?.();
                     }
                 }
                 break;
 
-            case 'agent_fallback':
+            case 'agent-fallback':
                 if (ctx.isRaw) {
                     console.log(`  ${c.dim}${raw}${c.reset}`);
                 } else {
                     clearEphemeralStatus(transcript);
-                    appendToolItem(transcript, `\u26A1 ${msg.from} \u2192 ${msg.to}`);
+                    appendToolItem(transcript, `\u26A1 ${event.from} \u2192 ${event.to}`);
                     if (!isFullscreen(ctx)) {
-                        process.stdout.write(`\r\x1b[2K  ${c.yellow}\u26A1${c.reset} ${c.dim}${msg.from} \u2192 ${msg.to}${c.reset}\n`);
+                        process.stdout.write(`\r\x1b[2K  ${c.yellow}\u26A1${c.reset} ${c.dim}${event.from} \u2192 ${event.to}${c.reset}\n`);
                     } else {
                         ctx.requestFrame?.();
                     }
                 }
                 break;
 
-            case 'bgtask_update': {
-                const runningTasks = Array.isArray(msg.running) ? msg.running : [];
+            case 'bgtask-update': {
+                const msg = event.raw;
+                const runningTasks = Array.isArray(msg['running']) ? msg['running'] : [];
                 ctx.bgtaskCount = runningTasks.length;
                 ctx.bgtaskTasks = runningTasks;
-                const changed = msg.changed as { id: string; kind: string; status: string } | null;
+                const changed = msg['changed'] as { id: string; kind: string; status: string } | null;
                 if (changed && changed.status !== 'running' && !ctx.isRaw) {
                     const ok = changed.status === 'complete';
                     const mark = ok ? `${c.green}\u2713` : `${c.red}\u2717`;
@@ -234,64 +233,70 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                 break;
             }
 
-            case 'queue_update':
-                if (msg.pending > 0) {
-                    appendStatusItem(transcript, `${msg.pending}\uAC1C \uB300\uAE30 \uC911`);
+            case 'queue-update':
+                if (event.pending > 0) {
+                    appendStatusItem(transcript, `${event.pending}\uAC1C \uB300\uAE30 \uC911`);
                     if (!isFullscreen(ctx)) {
-                        process.stdout.write(`\r  ${c.yellow}\u23F3 ${msg.pending}\uAC1C \uB300\uAE30 \uC911${c.reset}          \r`);
+                        process.stdout.write(`\r  ${c.yellow}\u23F3 ${event.pending}\uAC1C \uB300\uAE30 \uC911${c.reset}          \r`);
                     } else {
                         ctx.requestFrame?.();
                     }
                 }
                 break;
 
-            case 'new_message':
+            case 'external-message':
                 if (ctx.isRaw) {
                     console.log(`  ${c.dim}${raw}${c.reset}`);
-                } else if (msg.source && msg.source !== 'cli') {
-                    console.log(`\n  ${c.dim}[${msg.source}]${c.reset} ${(msg.content || '').slice(0, 60)}`);
+                } else if (event.source && event.source !== 'cli') {
+                    console.log(`\n  ${c.dim}[${event.source}]${c.reset} ${event.content.slice(0, 60)}`);
                 }
                 break;
 
-            case 'session_reset':
-            case 'clear':
+            case 'session-reset':
                 if (!isFullscreen(ctx)) console.log(`\n  ${c.dim}🔄 세션 초기화됨${c.reset}`);
                 break;
 
-            case 'worker_stalled':
-            case 'worker_timeout':
-            case 'worker_disconnected':
-                if (!isFullscreen(ctx)) console.log(`\n  ${c.yellow}⚠️  Worker ${msg.type}: ${msg.agentId || ''}${c.reset}`);
+            case 'worker-warning':
+                if (!isFullscreen(ctx)) console.log(`\n  ${c.yellow}⚠️  Worker ${event.type}: ${event.agentId || ''}${c.reset}`);
                 break;
 
-            case 'system_notice':
-                if (msg.text && !isFullscreen(ctx)) console.log(`\n  ${c.dim}ℹ️  ${msg.text}${c.reset}`);
+            case 'raw':
+                if (ctx.isRaw) {
+                    console.log(`  ${c.dim}${raw}${c.reset}`);
+                    break;
+                }
+                switch (event.raw['type']) {
+                    case 'system_notice':
+                        if (event.raw['text'] && !isFullscreen(ctx)) console.log(`\n  ${c.dim}ℹ️  ${event.raw['text']}${c.reset}`);
+                        break;
+                    case 'alert_escalation':
+                        console.log(`\n  ${c.red}${c.bold}┌─ Error ─────────────────────────┐${c.reset}`);
+                        console.log(`  ${c.red}│${c.reset} 🚨 ${event.raw['text'] || 'Alert escalation'}`);
+                        console.log(`  ${c.red}${c.bold}└─────────────────────────────────┘${c.reset}`);
+                        break;
+                    case 'settings_change':
+                        if (!isFullscreen(ctx)) console.log(`\n  ${c.dim}⚙️  설정 변경됨${c.reset}`);
+                        break;
+                    case 'orc_state':
+                    case 'orchestrate_done':
+                    case 'orchestrate_warning':
+                        if ((event.raw['state'] || event.raw['phase']) && !isFullscreen(ctx)) console.log(`\n  ${c.dim}📋 PABCD: ${event.raw['state'] || event.raw['phase']}${event.raw['status'] ? ` (${event.raw['status']})` : ''}${c.reset}`);
+                        break;
+                    case 'goal_done':
+                    case 'goal_continuation':
+                    case 'goal_pause_detected':
+                        if (!isFullscreen(ctx)) console.log(`\n  ${c.dim}🎯 Goal: ${String(event.raw['type']).replace('goal_', '')}${event.raw['reason'] || event.raw['source'] ? ` — ${event.raw['reason'] || event.raw['source']}` : ''}${c.reset}`);
+                        break;
+                    case 'memory_status':
+                        if (event.raw['text'] && !isFullscreen(ctx)) console.log(`\n  ${c.dim}🧠 ${event.raw['text']}${c.reset}`);
+                        break;
+                    default:
+                        break;
+                }
                 break;
 
-            case 'alert_escalation':
-                console.log(`\n  ${c.red}${c.bold}┌─ Error ─────────────────────────┐${c.reset}`);
-                console.log(`  ${c.red}│${c.reset} 🚨 ${msg.text || 'Alert escalation'}`);
-                console.log(`  ${c.red}${c.bold}└─────────────────────────────────┘${c.reset}`);
-                break;
-
-            case 'settings_change':
-                if (!isFullscreen(ctx)) console.log(`\n  ${c.dim}⚙️  설정 변경됨${c.reset}`);
-                break;
-
-            case 'orc_state':
-            case 'orchestrate_done':
-            case 'orchestrate_warning':
-                if ((msg.state || msg.phase) && !isFullscreen(ctx)) console.log(`\n  ${c.dim}📋 PABCD: ${msg.state || msg.phase}${msg.status ? ` (${msg.status})` : ''}${c.reset}`);
-                break;
-
-            case 'goal_done':
-            case 'goal_continuation':
-            case 'goal_pause_detected':
-                if (!isFullscreen(ctx)) console.log(`\n  ${c.dim}🎯 Goal: ${msg.type.replace('goal_', '')}${msg.reason || msg.source ? ` — ${msg.reason || msg.source}` : ''}${c.reset}`);
-                break;
-
-            case 'memory_status':
-                if (msg.text && !isFullscreen(ctx)) console.log(`\n  ${c.dim}🧠 ${msg.text}${c.reset}`);
+            case 'ignore':
+                if (ctx.isRaw) console.log(`  ${c.dim}${raw}${c.reset}`);
                 break;
 
             default:
