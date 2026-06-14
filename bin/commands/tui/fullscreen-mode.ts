@@ -31,6 +31,18 @@ import { handleWsMessage } from './ws-handler.js';
 import { redrawInputWithAutocomplete } from './overlays.js';
 import { rebuildFooter } from './renderer.js';
 
+const LEADING_TOOL_GLYPH = /^\s*(?:[\p{Extended_Pictographic}\u2600-\u27bf]\ufe0f?)\s+/u;
+
+function parseToolText(text: string): { label: string; detail: string } {
+    const [head = '', ...rest] = text.split(':');
+    const rawLabel = head.trim();
+    const normalizedLabel = rawLabel.replace(LEADING_TOOL_GLYPH, '').trim();
+    return {
+        label: normalizedLabel || rawLabel,
+        detail: rest.join(':').trim(),
+    };
+}
+
 export function renderTranscriptItem(item: TranscriptItem, width: number): string[] {
     const gutter = '  ';
     const w = Math.max(20, width - gutter.length);
@@ -76,10 +88,8 @@ export function renderTranscriptItem(item: TranscriptItem, width: number): strin
             ];
         }
         case 'tool': {
-            const [toolHead, ...toolRest] = item.text.split(':');
-            const toolDetail = item.detail ?? toolRest.join(':').trim();
-            const toolIcon = toolHead?.split(' ')[0] || '';
-            const toolLabel = toolHead?.split(' ').slice(1).join(' ') || toolHead || '';
+            const parsed = parseToolText(item.text);
+            const toolDetail = item.detail ?? parsed.detail;
             const state = item.status === 'error'
                 ? 'error' as const
                 : item.status === 'done' ? 'done' as const : 'pending' as const;
@@ -87,9 +97,9 @@ export function renderTranscriptItem(item: TranscriptItem, width: number): strin
             const expandedDone = item.status === 'done' && item.collapsed === false && detailLines.length > 0;
             if (!expandedDone) {
                 const safeDetail = detailLines.length > 1 ? `${detailLines[0]} … +${detailLines.length - 1} lines` : (detailLines[0] ?? '');
-                return [renderToolLine(toolIcon, toolLabel, safeDetail, state)];
+                return [renderToolLine('', parsed.label, safeDetail, state)];
             }
-            const rows = [renderToolLine(toolIcon, toolLabel, '', 'done')];
+            const rows = [renderToolLine('', parsed.label, '', 'done')];
             const maxDetailRows = 14;
             const detailWidth = Math.max(10, w - 4);
             const wrappedRows = detailLines.flatMap(line => wrapTextToCols(line, detailWidth));

@@ -164,7 +164,7 @@ cli-jaw/
 │   │       ├── keymap.ts     ← 키 입력 분류 (ctrl-c/ctrl-d/ctrl-k/ctrl-o/enter/backspace/printable/escape) (67L)
 │   │       ├── panes.ts      ← PaneState (openPanel, side, preferredWidth), PanelKind 6종 (53L)
 │   │       ├── shell.ts      ← ShellLayout 계산 + scroll region setup/cleanup + ensureSpaceBelow (83L)
-│   │       ├── renderers.ts  ← visualWidth (CJK 2-cell) + clipTextToCols/wrapTextToCols ANSI-safe terminal width helpers + cursorScreenPos (168L)
+│   │       ├── renderers.ts  ← visualWidth (CJK/emoji cell width) + clipTextToCols/wrapTextToCols ANSI-safe terminal width helpers + cursorScreenPos (176L)
 │   │       ├── mode.ts       ← TUI mode state (simple/fullscreen) (34L) ✨
 │   │       ├── file-mention.ts ← file mention autocomplete helper (76L) ✨
 │   │       ├── editor.ts     ← external editor launch helper (37L) ✨
@@ -375,7 +375,7 @@ cli-jaw/
 │       ├── connector.ts      ← dashboard connector board/notes/reminders/audit CLI (216L)
 │       ├── reminders.ts      ← local reminders list/add/done CLI (100L)
 │       ├── dispatch-helpers.ts ← dispatch output unwrap helper (21L)
-│       └── tui/              ← chat 터미널 TUI 분리 (10 files: api 89L, channel 115L, fullscreen-mode 488L, input-handler 470L, overlays 526L, renderer 135L, simple-mode 101L, tui-io 12L, types 145L, ws-handler 314L)
+│       └── tui/              ← chat 터미널 TUI 분리 (10 files: api 89L, channel 115L, fullscreen-mode 498L, input-handler 470L, overlays 526L, renderer 135L, simple-mode 101L, tui-io 12L, types 145L, ws-handler 314L)
 ├── tests/                    ← 회귀 방지 테스트 (586 files: root/unit/integration/browser/fixtures/smoke)
 ├── scripts/                  ← 도구 스크립트 (TypeScript + Shell + CJS; atomic build, sidecar bundle, release gates, install-risk evidence)
 ├── officecli/                ← OfficeCLI 포크 서브모듈 (lidge-jun/OfficeCLI, Apache 2.0)

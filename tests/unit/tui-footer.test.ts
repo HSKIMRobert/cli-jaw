@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { formatFooter } from '../../bin/commands/tui/types.ts';
 import { renderStatusBar } from '../../src/cli/tui/jawcode-bridge.ts';
+import { visualWidth } from '../../src/cli/tui/renderers.ts';
 
 const ACCENT = '\x1b[31m';
 
@@ -86,4 +87,21 @@ test('renderStatusBar clips optional details under narrow width', () => {
     assert.doesNotMatch(row, /Context/);
     assert.doesNotMatch(row, /token/i);
     assert.doesNotMatch(row, /\d+(?:\.\d+)?%/);
+});
+
+test('renderStatusBar keeps emoji-heavy working rows within terminal width', () => {
+    const row = withColumns(72, () => renderStatusBar({
+        model: 'claude-opus-4-6',
+        engine: 'Claude E',
+        engineAccent: ACCENT,
+        state: 'working…',
+        elapsed: '1.9s',
+        bgtask: 3,
+        gitBranch: 'feature/very-long-active-branch',
+        cwd: '/Users/jun/Developer/new/700_projects/cli-jaw',
+        port: 3457,
+    }));
+
+    assert.ok(visualWidth(row) <= 72, `status row width ${visualWidth(row)} exceeds terminal width`);
+    assert.match(row, /\/quit/);
 });

@@ -118,10 +118,25 @@ test('terminal tool commit removes live state and appends one folded row', () =>
     const item = s.items[0]!;
     assert.equal(item.type, 'tool');
     if (item.type === 'tool') {
+        assert.equal(item.text, 'Bash');
         assert.equal(item.collapsed, true);
         assert.equal(item.detail, 'echo kept');
         assert.equal(item.stepRef, 's1');
         assert.equal(item.status, 'done');
+    }
+});
+
+test('terminal tool commit stores label without duplicated event emoji', () => {
+    const s = createTranscriptState();
+
+    assert.equal(commitToolItemOnce(s, { icon: '🔧', label: 'Read File', detail: 'src/a.ts', status: 'done', stepRef: 's-read' }), true);
+
+    const item = s.items[0]!;
+    assert.equal(item.type, 'tool');
+    if (item.type === 'tool') {
+        assert.equal(item.text, 'Read File');
+        assert.doesNotMatch(item.text, /🔧/);
+        assert.equal(item.detail, 'src/a.ts');
     }
 });
 

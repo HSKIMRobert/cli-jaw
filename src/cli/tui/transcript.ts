@@ -194,7 +194,7 @@ export function commitToolItemOnce(state: TranscriptState, input: ToolEventInput
     const opts: Parameters<typeof appendToolItem>[2] = { detail, status: input.status };
     if (input.agentId) opts.agentId = input.agentId;
     if (input.stepRef) opts.stepRef = input.stepRef;
-    appendToolItem(state, `${input.icon} ${input.label}`, opts);
+    appendToolItem(state, input.label, opts);
     return true;
 }
 

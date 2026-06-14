@@ -9,6 +9,7 @@ import { Viewport } from '../../src/cli/tui/render/viewport.ts';
 import { VIEWPORT_FILL } from '../../src/cli/tui/render/frame.ts';
 import { solveLayout } from '../../src/cli/tui/render/layout.ts';
 import { renderStatusBar } from '../../src/cli/tui/jawcode-bridge.ts';
+import { visualWidth } from '../../src/cli/tui/renderers.ts';
 
 function withTerminalSize<T>(cols: number, rows: number, fn: () => T): T {
     const columnsDesc = Object.getOwnPropertyDescriptor(process.stdout, 'columns');
@@ -112,6 +113,71 @@ test('fullscreen composeFrame keeps frame rows newline-free and input pinned', (
         assert.match(expanded[regions.composer.y - 1] ?? '', /Type your message/);
         assert.match(expanded[regions.help.y - 1] ?? '', /shortcuts/);
         assert.deepEqual(frame.cursorPos, { row: regions.composer.y - 1, col: 4 });
+    });
+});
+
+test('fullscreen tool rows strip legacy event emoji and preserve multi-word labels', () => {
+    withTerminalSize(96, 28, () => {
+        const ctx = makeCtx();
+        appendToolItem(ctx.store.transcript, '🔧 Bash: npm test', {
+            status: 'done',
+            detail: 'npm test',
+        });
+        appendToolItem(ctx.store.transcript, 'Read File: src/a.ts', {
+            status: 'done',
+            detail: 'src/a.ts',
+        });
+
+        const expanded = expandViewportFill(composeFrame(ctx, new Viewport()).rows, 28);
+        const regions = solveLayout(96, 28, 1);
+        const main = stripAnsi(expanded.slice(regions.transcript.y - 1, regions.statusLine.y - 1).join('\n'));
+
+        assert.match(main, /✔ Bash/);
+        assert.match(main, /✔ Read File/);
+        assert.doesNotMatch(main, /🔧/);
+        assert.doesNotMatch(main, /✔ File/);
+    });
+});
+
+test('fullscreen live tool rows do not render event emoji', () => {
+    withTerminalSize(96, 28, () => {
+        const ctx = makeCtx();
+        upsertLiveToolItem(ctx.store.transcript, { icon: '🔧', label: 'Bash', detail: 'npm test', status: 'running', stepRef: 'live-1' });
+
+        const expanded = expandViewportFill(composeFrame(ctx, new Viewport()).rows, 28);
+        const regions = solveLayout(96, 28, 1);
+        const main = stripAnsi(expanded.slice(regions.transcript.y - 1, regions.statusLine.y - 1).join('\n'));
+
+        assert.match(main, /⏳ Bash/);
+        assert.doesNotMatch(main, /🔧/);
+    });
+});
+
+test('fullscreen live tool rows stay width-safe during long mid-call updates', () => {
+    withTerminalSize(72, 28, () => {
+        const ctx = makeCtx();
+        appendAssistantTurnText(ctx.store.transcript, 'Plan을 수정하고 re-audit하겠습니다.', 'main');
+        finalizeStreamingAssistants(ctx.store.transcript);
+        upsertLiveToolItem(ctx.store.transcript, {
+            icon: '⏳',
+            label: 'subagent: Verify estimateTokens callers',
+            detail: 'prompt: In the repository /Users/jun/Developer/new/700_projects/cli-jaw check encoding joins 🦈 📁',
+            status: 'running',
+            stepRef: 'live-wide',
+        });
+
+        const frame = composeFrame(ctx, new Viewport());
+        const expanded = expandViewportFill(frame.rows, 28);
+        const regions = solveLayout(72, 28, 1);
+        const main = stripAnsi(expanded.slice(regions.transcript.y - 1, regions.statusLine.y - 1).join('\n'));
+
+        assert.equal(frame.rows.some(row => row.includes('\n')), false);
+        assert.ok(expanded.every(row => visualWidth(row) <= 72), 'all frame rows must fit terminal width');
+        assert.match(main, /subagent: Verify/);
+        assert.doesNotMatch(main, /⏳\s+⏳/);
+        assert.match(stripAnsi(expanded[regions.statusLine.y - 1] ?? ''), /\/quit/);
+        assert.match(expanded[regions.composer.y - 2] ?? '', /┌/);
+        assert.match(expanded[regions.help.y - 1] ?? '', /shortcuts/);
     });
 });
 

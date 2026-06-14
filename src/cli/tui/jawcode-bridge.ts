@@ -122,9 +122,13 @@ function stripAnsi(text: string): string {
 }
 
 function cellWidthOfCodePoint(cp: number): number {
+    if ((cp >= 0x0300 && cp <= 0x036F) || (cp >= 0xFE00 && cp <= 0xFE0F)) {
+        return 0;
+    }
     return (cp >= 0x1100 && cp <= 0x115F) || (cp >= 0x2E80 && cp <= 0xD7FF) ||
         (cp >= 0xF900 && cp <= 0xFAFF) || (cp >= 0xFE30 && cp <= 0xFE6F) ||
-        (cp >= 0xFF01 && cp <= 0xFF60) || (cp >= 0x1F000 && cp <= 0x1FFFF) ||
+        (cp >= 0xFF01 && cp <= 0xFF60) || cp === 0x23F3 || cp === 0x231B ||
+        (cp >= 0x1F000 && cp <= 0x1FFFF) ||
         (cp >= 0x20000 && cp <= 0x2FA1F) || (cp >= 0xF0000 && cp <= 0xFFFFD) ? 2 : 1;
 }
 

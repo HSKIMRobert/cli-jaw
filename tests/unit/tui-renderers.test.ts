@@ -10,10 +10,21 @@ test('visualWidth counts Hangul as double-width', () => {
     assert.equal(visualWidth('가a'), 3);
 });
 
+test('visualWidth counts emoji as double-width and variation selectors as zero-width', () => {
+    assert.equal(visualWidth('⏳'), 2);
+    assert.equal(visualWidth('🦈'), 2);
+    assert.equal(visualWidth('✔️'), 1);
+});
+
 test('clipTextToCols respects visual width for mixed-width text', () => {
     assert.equal(clipTextToCols('가나다abc', 5), '가나');
     assert.equal(clipTextToCols('가나다abc', 6), '가나다');
     assert.equal(clipTextToCols('가나다abc', 7), '가나다a');
+});
+
+test('clipTextToCols keeps emoji-heavy rows inside visual width', () => {
+    const clipped = clipTextToCols('⏳ subagent: Verify estimateTokens callers: prompt with long detail 🦈 📁', 32);
+    assert.ok(visualWidth(clipped) <= 32);
 });
 
 test('clipTextToCols preserves complete ANSI sequences and resets after clipping', () => {

@@ -19,7 +19,9 @@ test('fullscreen thinking renderer returns labeled rows without embedded newline
 });
 
 test('fullscreen tool renderer uses transcript status and detail fields', () => {
-    assert.match(source, /const toolDetail = item\.detail \?\? toolRest\.join/);
+    assert.match(source, /function parseToolText\(text: string\)/);
+    assert.match(source, /LEADING_TOOL_GLYPH/);
+    assert.match(source, /const toolDetail = item\.detail \?\? parsed\.detail/);
     assert.match(source, /item\.status === 'error'/);
     assert.match(source, /item\.status === 'done' \? 'done'/);
     assert.doesNotMatch(source, /item\.status === 'done' \|\| item\.collapsed/);
