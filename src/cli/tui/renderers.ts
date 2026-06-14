@@ -29,13 +29,43 @@ export function clipTextToCols(str: string, maxCols: number): string {
     if (maxCols <= 0) return '';
     let out = '';
     let width = 0;
-    for (const ch of str) {
-        const charWidth = visualWidth(ch);
-        if (width + charWidth > maxCols) break;
+    let pos = 0;
+    let sawAnsi = false;
+    while (pos < str.length) {
+        // Pass ANSI CSI sequences through without counting width
+        if (str.charCodeAt(pos) === 0x1b && pos + 1 < str.length && str[pos + 1] === '[') {
+            const start = pos;
+            pos += 2;
+            while (pos < str.length && !(str.charCodeAt(pos) >= 0x40 && str.charCodeAt(pos) <= 0x7e)) pos++;
+            if (pos >= str.length) break;
+            pos++;
+            out += str.slice(start, pos);
+            sawAnsi = true;
+            continue;
+        }
+        const code = str.codePointAt(pos);
+        if (code === undefined) break;
+        const ch = String.fromCodePoint(code);
+        const cw = charCellWidth(code);
+        if (width + cw > maxCols) break;
         out += ch;
-        width += charWidth;
+        width += cw;
+        pos += ch.length;
     }
-    return out;
+    return sawAnsi ? `${out}\x1b[0m` : out;
+}
+
+function charCellWidth(cp: number): number {
+    if ((cp >= 0x1100 && cp <= 0x115F) || (cp >= 0x2E80 && cp <= 0x303E) ||
+        (cp >= 0x3040 && cp <= 0x33BF) || (cp >= 0x3400 && cp <= 0x4DBF) ||
+        (cp >= 0x4E00 && cp <= 0xA4CF) || (cp >= 0xA960 && cp <= 0xA97C) ||
+        (cp >= 0xAC00 && cp <= 0xD7AF) || (cp >= 0xD7B0 && cp <= 0xD7FF) ||
+        (cp >= 0xF900 && cp <= 0xFAFF) || (cp >= 0xFE30 && cp <= 0xFE6F) ||
+        (cp >= 0xFF01 && cp <= 0xFF60) || (cp >= 0xFFE0 && cp <= 0xFFE6) ||
+        (cp >= 0x20000 && cp <= 0x2FA1F)) {
+        return 2;
+    }
+    return 1;
 }
 
 /**
