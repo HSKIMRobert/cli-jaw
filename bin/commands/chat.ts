@@ -104,6 +104,7 @@ try {
 let info = { cli: 'codex', workingDir: '~', model: '' };
 let runtimeLocale = 'ko';
 let tuiConfig = { pasteCollapseLines: 2, pasteCollapseChars: 160, keymapPreset: 'default', diffStyle: 'summary', themeSeed: 'jaw-default' };
+let settingsSnapshot: Record<string, unknown> = {};
 try {
     const r = await fetch(`${apiUrl}/api/settings`, { signal: AbortSignal.timeout(2000) });
     if (r.ok) {
@@ -112,6 +113,7 @@ try {
         const cli = fieldString(s["cli"], 'codex');
         const perCli = asRecord(s["perCli"]);
         const cliSettings = asRecord(perCli[cli]);
+        settingsSnapshot = s;
         info = { cli, workingDir: fieldString(s["workingDir"], '~'), model: fieldString(cliSettings["model"]) };
         if (typeof s["locale"] === 'string') runtimeLocale = s["locale"];
         if (s["tui"] && typeof s["tui"] === 'object') tuiConfig = { ...tuiConfig, ...asRecord(s["tui"]) };
@@ -156,6 +158,7 @@ const ctx: TuiContext = {
     dir: info.workingDir.replace(homedir(), '~'),
     runtimeLocale,
     tuiConfig,
+    settingsSnapshot,
     values: { port: values.port as string, raw: !!values.raw, simple: !!values.simple },
     isRaw: !!values.raw,
     store: createTuiStore(),

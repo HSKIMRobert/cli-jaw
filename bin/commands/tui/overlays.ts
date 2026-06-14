@@ -21,6 +21,7 @@ import {
 import { executeCommand, getCompletionItems, getArgumentCompletionItems } from '../../../src/cli/commands.js';
 import type { ArgumentCompletionItem } from '../../../src/cli/commands.js';
 import type { ParsedSlashCommand } from '../../../src/cli/types.js';
+import { buildAppearanceRows, nextAppearancePatch } from '../../../src/cli/tui/settings-screen.js';
 import { getIdeCli } from '../../../src/ide/diff.js';
 import { c, hrLine, getRows, renderCommandText, type TuiContext } from './types.js';
 import { showPrompt, redrawPromptLine, openPromptBlock, rebuildFooter } from './renderer.js';
@@ -119,10 +120,52 @@ export function openSettingsScreen(ctx: TuiContext): void {
     const ov = ctx.store.overlay;
     ov.settingsOpen = true;
     ov.settingsTab = 'appearance';
+    ov.settingsSelected = 0;
+    ov.settingsMessage = '';
     closeAutocompleteForCtx(ctx);
+    void refreshInfo(ctx).finally(() => ctx.requestFrame?.());
     if (ctx.displayMode === 'fullscreen') {
         ctx.requestFrame?.();
     }
+}
+
+export async function applySettingsSelection(ctx: TuiContext): Promise<void> {
+    const ov = ctx.store.overlay;
+    const rows = buildAppearanceRows({
+        settings: ctx.settingsSnapshot,
+        tuiConfig: ctx.tuiConfig,
+        footerPreview: ctx.footer,
+    });
+    const selected = Math.max(0, Math.min(ov.settingsSelected, rows.length - 1));
+    ov.settingsSelected = selected;
+    const row = rows[selected];
+    if (!row) return;
+    const patch = nextAppearancePatch(row, {
+        settings: ctx.settingsSnapshot,
+        tuiConfig: ctx.tuiConfig,
+        footerPreview: ctx.footer,
+    });
+    if (!patch) {
+        ov.settingsMessage = `${row.label} is read-only in this cycle`;
+        ctx.requestFrame?.();
+        return;
+    }
+    try {
+        await makeCliCommandCtx(ctx).updateSettings(patch);
+        const tuiPatch = patch['tui'];
+        if (tuiPatch && typeof tuiPatch === 'object' && !Array.isArray(tuiPatch)) {
+            ctx.tuiConfig = { ...ctx.tuiConfig, ...(tuiPatch as Record<string, unknown>) };
+            if ((tuiPatch as Record<string, unknown>)['theme'] === 'dark' || (tuiPatch as Record<string, unknown>)['theme'] === 'light') {
+                process.env['JAW_TUI_THEME'] = (tuiPatch as Record<string, string>)['theme'];
+            }
+        }
+        await refreshInfo(ctx);
+        rebuildFooter(ctx);
+        ov.settingsMessage = `Saved ${row.label}`;
+    } catch (error) {
+        ov.settingsMessage = `Failed to save ${row.label}: ${error instanceof Error ? error.message : String(error)}`;
+    }
+    ctx.requestFrame?.();
 }
 
 export function refreshChoiceSelector(ctx: TuiContext): void {
@@ -188,6 +231,8 @@ export function dismissOverlay(ctx: TuiContext): void {
         ov.paletteOpen = false;
         ov.settingsOpen = false;
         ov.settingsTab = 'appearance';
+        ov.settingsSelected = 0;
+        ov.settingsMessage = '';
         ov.paletteFilter = '';
         ov.paletteSelected = 0;
         ov.paletteItems = [];
@@ -214,6 +259,8 @@ export function dismissOverlay(ctx: TuiContext): void {
     ov.paletteOpen = false;
     ov.settingsOpen = false;
     ov.settingsTab = 'appearance';
+    ov.settingsSelected = 0;
+    ov.settingsMessage = '';
     ov.paletteFilter = '';
     ov.paletteSelected = 0;
     ov.paletteItems = [];

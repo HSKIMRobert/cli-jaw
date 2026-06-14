@@ -23,12 +23,13 @@ import { cleanupScrollRegion, resolveShellLayout } from '../../../src/cli/tui/sh
 import { parseCommand } from '../../../src/cli/commands.js';
 import { getCompletionItems } from '../../../src/cli/commands.js';
 import { appendUserItem } from '../../../src/cli/tui/transcript.js';
+import { buildAppearanceRows } from '../../../src/cli/tui/settings-screen.js';
 import { captureFileSet } from '../../../src/ide/diff.js';
 import fs from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
 import { c, getRows, ESC_WAIT_MS, type TuiContext } from './types.js';
 import { openPromptBlock, reopenPromptLine, redrawPromptLine, renderBlockSeparator, clearPromptBlock, computeComposerVisualRows } from './renderer.js';
-import { openBgtaskOverlay, dismissOverlay, redrawInputWithAutocomplete, runSlashCommand, openHelpOverlay, openCommandPalette, refreshCommandPalette, refreshChoiceSelector, closeAutocompleteForCtx } from './overlays.js';
+import { openBgtaskOverlay, dismissOverlay, redrawInputWithAutocomplete, runSlashCommand, openHelpOverlay, openCommandPalette, refreshCommandPalette, refreshChoiceSelector, closeAutocompleteForCtx, applySettingsSelection } from './overlays.js';
 
 function refreshAutocompleteNav(ctx: TuiContext): void {
     const ac = ctx.store.autocomplete;
@@ -194,6 +195,31 @@ export function handleKeyInput(ctx: TuiContext, rawKey: string): void {
     }
 
     if (ov.settingsOpen) {
+        const rows = buildAppearanceRows({
+            settings: ctx.settingsSnapshot,
+            tuiConfig: ctx.tuiConfig,
+            footerPreview: ctx.footer,
+        });
+        const max = Math.max(0, rows.length - 1);
+        if (action === 'arrow-up') {
+            ov.settingsSelected = Math.max(0, ov.settingsSelected - 1);
+            ov.settingsMessage = '';
+        } else if (action === 'arrow-down') {
+            ov.settingsSelected = Math.min(max, ov.settingsSelected + 1);
+            ov.settingsMessage = '';
+        } else if (action === 'home') {
+            ov.settingsSelected = 0;
+            ov.settingsMessage = '';
+        } else if (action === 'end') {
+            ov.settingsSelected = max;
+            ov.settingsMessage = '';
+        } else if (action === 'enter' || (action === 'printable' && key === ' ')) {
+            void applySettingsSelection(ctx);
+            return;
+        } else {
+            return;
+        }
+        ctx.requestFrame?.();
         return;
     }
 

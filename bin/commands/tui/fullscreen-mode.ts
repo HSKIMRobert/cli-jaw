@@ -14,6 +14,7 @@ import { classifyKeyAction, type KeyAction } from '../../../src/cli/tui/keymap.j
 import { getCompletionItems } from '../../../src/cli/commands.js';
 import { composeHelpOntoFrame, composePaletteOntoFrame, composeSelectorOntoFrame, composeBgtaskOntoFrame } from '../../../src/cli/tui/overlay.js';
 import { composeSlashSurfaceLines } from '../../../src/cli/tui/slash-surface.js';
+import { composeSettingsScreenLines } from '../../../src/cli/tui/settings-screen.js';
 import { createScheduler } from '../../../src/cli/tui/render/scheduler.js';
 import { Screen, registerScreenCleanup, VIEWPORT_FILL, type Frame } from '../../../src/cli/tui/render/frame.js';
 import { solveLayout, type Regions } from '../../../src/cli/tui/render/layout.js';
@@ -150,19 +151,22 @@ function blankLines(count: number): string[] {
 
 function renderChatRegion(ctx: TuiContext, viewport: Viewport, regions: Regions, cols: number): string[] {
     if (ctx.store.overlay.settingsOpen) {
-        const lines = [
-            `${c.cyan}${c.bold}Settings:${c.reset} Appearance`,
-            '',
-            `${c.dim}Preview:${c.reset}`,
-            ctx.footer,
-            '',
-            `${c.dim}Theme:${c.reset} current/default`,
-            `${c.dim}Esc${c.reset} to return`,
-        ].map(line => clipTextToCols(`  ${line}`, cols));
-        return [
-            ...lines.slice(0, regions.transcript.height),
-            ...blankLines(regions.transcript.height - lines.length),
-        ];
+        return composeSettingsScreenLines({
+            settings: ctx.settingsSnapshot,
+            tuiConfig: ctx.tuiConfig,
+            footerPreview: ctx.footer,
+        }, {
+            selected: ctx.store.overlay.settingsSelected,
+            message: ctx.store.overlay.settingsMessage,
+        }, {
+            columns: cols,
+            height: regions.transcript.height,
+            cyanCode: c.cyan,
+            dimCode: c.dim,
+            boldCode: c.bold,
+            resetCode: c.reset,
+            clipTextToCols,
+        });
     }
     const transcriptLines = viewport.composeRegion(regions.transcript);
     const hasTranscript = transcriptLines.some(l => l !== '');

@@ -64,6 +64,10 @@ effort, fast, context, tools, redraw, retry, export, resume, hotkeys
 - `tools`: `skill`, `employee`, `mcp`, `memory`, `browser`, `prompt`, `ide`, `orchestrate`, `project`, `task`, `tools`
 - `cli`: `settings`, `version`, `quit`, `file`, `redraw`, `hotkeys`
 
+`/settings` is CLI-only. In fullscreen `jaw chat`, selecting it opens the
+Appearance MVP screen in the main content region; it does not expose unsupported
+JWC-only `Context` settings. Line-mode still returns the generic command result.
+
 ---
 
 ## Root CLI Surface (`bin/cli-jaw.ts` + `bin/commands/*.ts`)

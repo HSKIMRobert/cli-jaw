@@ -32,7 +32,8 @@ function makeCtx(): TuiContext {
         label: 'jwc',
         dir: '/tmp/project',
         runtimeLocale: 'en',
-        tuiConfig: { pasteCollapseLines: 2, pasteCollapseChars: 160 },
+        tuiConfig: { theme: 'dark', fullscreen: true, pasteCollapseLines: 2, pasteCollapseChars: 160, keymapPreset: 'default', diffStyle: 'summary' },
+        settingsSnapshot: { showReasoning: false, tui: { theme: 'dark', fullscreen: true } },
         values: { port: '3457', raw: false, simple: false },
         isRaw: false,
         store: createTuiStore(),
@@ -185,7 +186,7 @@ test('fullscreen composeFrame renders slash surface without replacing transcript
     });
 });
 
-test('fullscreen composeFrame renders settings placeholder in main content region', () => {
+test('fullscreen composeFrame renders Appearance settings MVP in main content region', () => {
     withTerminalSize(96, 28, () => {
         const ctx = makeCtx();
         ctx.store.overlay.settingsOpen = true;
@@ -196,7 +197,15 @@ test('fullscreen composeFrame renders settings placeholder in main content regio
         const main = stripAnsi(expanded.slice(regions.transcript.y - 1, regions.statusLine.y - 1).join('\n'));
 
         assert.match(main, /Settings: Appearance/);
-        assert.match(main, /Esc to return/);
+        assert.match(main, /Preview:/);
+        assert.match(main, /Theme\s+dark/);
+        assert.match(main, /Fullscreen Default\s+enabled/);
+        assert.match(main, /Thinking Visibility\s+off/);
+        assert.match(main, /Compact Density\s+normal/);
+        assert.match(main, /Markdown Renderer/);
+        assert.match(main, /Tool Rows/);
+        assert.match(main, /Composer Pin/);
+        assert.match(main, /Enter\/Space to change/);
         assert.doesNotMatch(main, /Context/);
         assert.match(stripAnsi(expanded[regions.statusLine.y - 1] ?? ''), /\/quit/);
         assert.match(expanded[regions.composer.y - 2] ?? '', /┌/);

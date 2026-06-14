@@ -104,6 +104,7 @@ export interface TuiContext {
     dir: string;
     runtimeLocale: string;
     tuiConfig: { pasteCollapseLines: number; pasteCollapseChars: number; [k: string]: unknown };
+    settingsSnapshot: Record<string, unknown>;
     values: { port: string; raw: boolean; simple: boolean };
     isRaw: boolean;
 

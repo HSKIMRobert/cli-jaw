@@ -41,6 +41,7 @@ export async function refreshInfo(ctx: TuiContext): Promise<void> {
             const cli = fieldString(s["cli"], 'codex');
             const perCli = asRecord(s["perCli"]);
             const cliSettings = asRecord(perCli[cli]);
+            ctx.settingsSnapshot = s;
             ctx.info = { cli, workingDir: fieldString(s["workingDir"], '~'), model: fieldString(cliSettings["model"]) };
             if (typeof s["locale"] === 'string') ctx.runtimeLocale = s["locale"];
             if (s["tui"] && typeof s["tui"] === 'object') ctx.tuiConfig = { ...ctx.tuiConfig, ...asRecord(s["tui"]) };
