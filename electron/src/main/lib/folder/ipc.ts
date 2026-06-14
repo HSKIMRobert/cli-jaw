@@ -1,5 +1,5 @@
 import { ipcMain, dialog, shell, type BrowserWindow } from 'electron';
-import { readdir, stat, lstat, readFile } from 'node:fs/promises';
+import { readdir, stat, lstat, readFile, realpath } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { homedir } from 'node:os';
 import { statSync, watch, type FSWatcher } from 'node:fs';
@@ -7,6 +7,8 @@ import { isWithinHome, assertContained, assertContainedLexical } from '../path-s
 import { isAllowedSender } from '../ipc-origin-guard.js';
 import { resolveDroppedPaths } from './dropped-paths.js';
 import { moveFolderPath } from './move-path.js';
+import { resolveFolderGitRoot } from '../../../../../src/manager/git/folder-root-validation.js';
+import { getGitWorktrees } from '../../../../../src/manager/git/worktree-service.js';
 
 const READ_CAP = 512 * 1024;
 const DEPTH_LIMIT = 5;
@@ -58,6 +60,14 @@ function resolveDefaultRoot(): string {
     return homedir();
 }
 
+async function realOrResolved(path: string): Promise<string> {
+    try {
+        return await realpath(path);
+    } catch {
+        return resolve(path);
+    }
+}
+
 export function registerFolderIpc(getWindow: () => BrowserWindow | null): void {
     // FolderPanel starts empty and must not call this on initial render.
     // It remains available for explicit cold-start callers such as DocPanel.
@@ -81,6 +91,26 @@ export function registerFolderIpc(getWindow: () => BrowserWindow | null): void {
         if (!isWithinHome(picked)) return { ok: false, error: 'path not allowed' };
         pickedRoots.add(resolve(picked));
         return { ok: true, path: picked };
+    });
+
+    ipcMain.handle('folder:registerGitWorktreeRoot', async (event, folderPanelRoot: string, repoRoot: string | undefined, worktreePath: string) => {
+        if (!isAllowedSender(event)) return { ok: false, error: 'unauthorized' };
+        try {
+            const resolved = await resolveFolderGitRoot(folderPanelRoot, repoRoot);
+            const target = resolve(worktreePath);
+            if (!isWithinHome(target)) return { ok: false, error: 'path not allowed' };
+            const ls = await lstat(target);
+            if (ls.isSymbolicLink()) return { ok: false, error: 'symlinks not allowed' };
+            if (!ls.isDirectory()) return { ok: false, error: 'worktree root must be a directory' };
+            const targetReal = await realOrResolved(target);
+            const worktrees = await getGitWorktrees(resolved.repoRoot);
+            const allowed = await Promise.all(worktrees.map(async entry => realOrResolved(entry.path)));
+            if (!allowed.includes(targetReal)) return { ok: false, error: 'worktree root is not registered for this repo' };
+            pickedRoots.add(targetReal);
+            return { ok: true, path: targetReal };
+        } catch (err) {
+            return { ok: false, error: (err as Error).message };
+        }
     });
 
     ipcMain.handle('folder:listDir', async (event, dirPath: string, _depth?: number) => {

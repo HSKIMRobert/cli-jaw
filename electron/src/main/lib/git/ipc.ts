@@ -11,6 +11,7 @@ import {
 } from '../../../../../src/manager/git/diff-service.js';
 import { resolveFolderGitRoot } from '../../../../../src/manager/git/folder-root-validation.js';
 import { getGitStatusMap, readGitStatusMapOptions } from '../../../../../src/manager/git/status-service.js';
+import { getGitWorktrees } from '../../../../../src/manager/git/worktree-service.js';
 
 export function registerDiffIpc(): void {
     ipcMain.handle('diff:getRepoRoot', async (event, cwd: string) => {
@@ -61,6 +62,17 @@ export function registerDiffIpc(): void {
             const resolved = await resolveFolderGitRoot(folderPanelRoot, repoRoot);
             const status = await getGitStatusMap(resolved.repoRoot, readGitStatusMapOptions(rawOptions));
             return { ok: true, status };
+        } catch (err) {
+            return { ok: false, error: (err as Error).message };
+        }
+    });
+
+    ipcMain.handle('git:getWorktrees', async (event, folderPanelRoot: string, repoRoot?: string) => {
+        if (!isAllowedSender(event)) return { ok: false, error: 'unauthorized' };
+        try {
+            const resolved = await resolveFolderGitRoot(folderPanelRoot, repoRoot);
+            const worktrees = await getGitWorktrees(resolved.repoRoot);
+            return { ok: true, repoRoot: resolved.repoRoot, worktrees };
         } catch (err) {
             return { ok: false, error: (err as Error).message };
         }

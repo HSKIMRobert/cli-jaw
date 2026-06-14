@@ -11,6 +11,7 @@ import {
 } from '../git/diff-service.js';
 import { resolveFolderGitRoot } from '../git/folder-root-validation.js';
 import { getGitStatusMap, readGitStatusMapOptions } from '../git/status-service.js';
+import { getGitWorktrees } from '../git/worktree-service.js';
 
 type DashboardGitRouterOptions = {
     homePath?: string;
@@ -131,6 +132,19 @@ export function createDashboardGitRouter(options: DashboardGitRouterOptions): ex
             const resolved = await resolveFolderGitRoot(folderPanelRoot, repoRoot);
             const status = await getGitStatusMap(resolved.repoRoot, readGitStatusMapOptions(input['options']));
             res.json({ ok: true, status });
+        } catch (error) {
+            res.status(400).json({ ok: false, error: (error as Error).message });
+        }
+    });
+
+    router.post('/worktrees', async (req, res) => {
+        try {
+            const input = isRecord(req.body) ? req.body : {};
+            const folderPanelRoot = typeof input['folderPanelRoot'] === 'string' ? input['folderPanelRoot'] : '';
+            const repoRoot = typeof input['repoRoot'] === 'string' ? input['repoRoot'] : undefined;
+            const resolved = await resolveFolderGitRoot(folderPanelRoot, repoRoot);
+            const worktrees = await getGitWorktrees(resolved.repoRoot);
+            res.json({ ok: true, repoRoot: resolved.repoRoot, worktrees });
         } catch (error) {
             res.status(400).json({ ok: false, error: (error as Error).message });
         }

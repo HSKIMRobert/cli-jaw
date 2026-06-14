@@ -1,5 +1,6 @@
 import type { DashboardShortcutAction } from '../types';
 import type { GitStatusMapResult } from '../folder-panel/folder-git-types';
+import type { GitWorktreeEntry } from '../folder-panel/folder-worktree-types';
 
 export type TerminalBridgeApi = {
     create: (opts?: { cwd?: string; cols?: number; rows?: number }) => Promise<{ ok: boolean; id?: string; shell?: string; cwd?: string; error?: string }>;
@@ -44,11 +45,16 @@ export type GitBridgeApi = {
         repoRoot?: string,
         options?: { includeIgnored?: boolean; includeUntracked?: boolean },
     ) => Promise<{ ok: boolean; status?: GitStatusMapResult; error?: string }>;
+    getWorktrees: (
+        folderPanelRoot: string,
+        repoRoot?: string,
+    ) => Promise<{ ok: boolean; repoRoot?: string; worktrees?: GitWorktreeEntry[]; error?: string }>;
 };
 
 export type FolderBridgeApi = {
     getDefaultRoot: () => Promise<{ ok: boolean; path?: string; error?: string }>;
     pickFolder: () => Promise<{ ok: boolean; path?: string; error?: string }>;
+    registerGitWorktreeRoot?: (folderPanelRoot: string, repoRoot: string | undefined, worktreePath: string) => Promise<{ ok: boolean; path?: string; error?: string }>;
     listDir: (dirPath: string, depth?: number) => Promise<{ ok: boolean; entries?: Array<{ name: string; path: string; kind: 'file' | 'directory'; size: number }>; error?: string }>;
     readFile: (filePath: string) => Promise<{ ok: boolean; content?: string; truncated?: boolean; binary?: boolean; error?: string }>;
     movePath: (sourcePath: string, targetDirectory: string) => Promise<FolderMoveResult>;

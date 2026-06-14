@@ -73,10 +73,14 @@ contextBridge.exposeInMainWorld('cliJawDesktop', {
   git: {
     getStatusMap: (folderPanelRoot: string, repoRoot?: string, options?: { includeIgnored?: boolean; includeUntracked?: boolean }) =>
       ipcRenderer.invoke('git:getStatusMap', folderPanelRoot, repoRoot, options),
+    getWorktrees: (folderPanelRoot: string, repoRoot?: string) =>
+      ipcRenderer.invoke('git:getWorktrees', folderPanelRoot, repoRoot),
   },
   folder: {
     getDefaultRoot: () => ipcRenderer.invoke('folder:getDefaultRoot'),
     pickFolder: () => ipcRenderer.invoke('folder:pick'),
+    registerGitWorktreeRoot: (folderPanelRoot: string, repoRoot: string | undefined, worktreePath: string) =>
+      ipcRenderer.invoke('folder:registerGitWorktreeRoot', folderPanelRoot, repoRoot, worktreePath),
     listDir: (dirPath: string, depth?: number) => ipcRenderer.invoke('folder:listDir', dirPath, depth),
     readFile: (filePath: string) => ipcRenderer.invoke('folder:readFile', filePath),
     movePath: (sourcePath: string, targetDirectory: string) => ipcRenderer.invoke('folder:movePath', sourcePath, targetDirectory),
