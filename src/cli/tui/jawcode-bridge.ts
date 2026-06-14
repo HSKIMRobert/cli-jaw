@@ -117,6 +117,68 @@ export function renderSubagentTree(agents: Array<{
     return lines;
 }
 
+function stripAnsi(text: string): string {
+    return text.replace(/\x1b\[[0-9;]*m/g, '');
+}
+
+function cellWidthOfCodePoint(cp: number): number {
+    return (cp >= 0x1100 && cp <= 0x115F) || (cp >= 0x2E80 && cp <= 0xD7FF) ||
+        (cp >= 0xF900 && cp <= 0xFAFF) || (cp >= 0xFE30 && cp <= 0xFE6F) ||
+        (cp >= 0xFF01 && cp <= 0xFF60) || (cp >= 0x1F000 && cp <= 0x1FFFF) ||
+        (cp >= 0x20000 && cp <= 0x2FA1F) || (cp >= 0xF0000 && cp <= 0xFFFFD) ? 2 : 1;
+}
+
+function widthOf(text: string): number {
+    let width = 0;
+    for (const ch of stripAnsi(text)) {
+        width += cellWidthOfCodePoint(ch.codePointAt(0) ?? 0);
+    }
+    return width;
+}
+
+function clipAnsiSafe(text: string, cols: number): string {
+    if (cols <= 0) return '';
+    let out = '';
+    let width = 0;
+    let pos = 0;
+    while (pos < text.length) {
+        if (text.charCodeAt(pos) === 0x1b && pos + 1 < text.length && text[pos + 1] === '[') {
+            const start = pos;
+            pos += 2;
+            while (pos < text.length && !(text.charCodeAt(pos) >= 0x40 && text.charCodeAt(pos) <= 0x7e)) pos++;
+            if (pos < text.length) pos++;
+            out += text.slice(start, pos);
+            continue;
+        }
+        const code = text.codePointAt(pos);
+        if (code === undefined) break;
+        const ch = String.fromCodePoint(code);
+        const cw = cellWidthOfCodePoint(code);
+        if (width + cw > cols) break;
+        out += ch;
+        width += cw;
+        pos += ch.length;
+    }
+    return out;
+}
+
+function renderSegment(text: string): string {
+    return `\x1b[46m\x1b[30m ${text} \x1b[0m`;
+}
+
+function renderSegmentedStatusLine(left: string, right: string, cols: number): string {
+    const prefix = '  ';
+    const safeCols = Math.max(20, cols);
+    const rightBudget = Math.max(8, Math.min(Math.floor(safeCols * 0.35), safeCols - 10));
+    const clippedRight = clipAnsiSafe(right, rightBudget);
+    const rightSeg = renderSegment(clippedRight);
+    const leftBudget = Math.max(1, safeCols - widthOf(prefix) - widthOf(rightSeg) - 1);
+    const leftSeg = renderSegment(clipAnsiSafe(left, leftBudget));
+    const railWidth = Math.max(0, safeCols - widthOf(prefix) - widthOf(leftSeg) - widthOf(rightSeg));
+    const rail = `\x1b[36m${'─'.repeat(railWidth)}\x1b[0m`;
+    return `${prefix}${leftSeg}${rail}${rightSeg}`;
+}
+
 export function renderStatusBar(segments: {
     model?: string;
     engine: string;
@@ -129,53 +191,25 @@ export function renderStatusBar(segments: {
     port?: number | undefined;
 }): string {
     const theme = getTheme();
-    if (!theme) return `  ${segments.engine} | ${segments.state}`;
     const icon = (() => { try { const { sharkIcon } = require('./icons.js'); return sharkIcon(); } catch { return '🦈'; } })();
-    const sep = theme.fg('muted', ' │ ');
     const parts: string[] = [];
-    if (segments.model) parts.push(theme.fg('accent', segments.model));
-    parts.push(`${segments.engineAccent}${theme.bold(`${icon} ${segments.engine}`)}`);
-    const stateColor = segments.state === 'idle' ? 'muted' : 'accent';
-    parts.push(theme.fg(stateColor, segments.state));
-    if (segments.elapsed) parts.push(theme.fg('muted', segments.elapsed));
-    if (segments.bgtask && segments.bgtask > 0) parts.push(theme.fg('warning', `⏳${segments.bgtask}`));
-    if (segments.gitBranch) parts.push(theme.fg('muted', `ⴲ ${segments.gitBranch}`));
-    if (segments.cwd) parts.push(theme.fg('muted', `📁 ${segments.cwd}`));
-    if (segments.port) parts.push(theme.fg('muted', `:${segments.port}`));
-    parts.push(theme.fg('muted', '/quit  /clear'));
     const cols = process.stdout.columns || 80;
-    const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '');
-    const charWidth = (s: string) => {
-        const stripped = stripAnsi(s);
-        let w = 0;
-        for (const ch of stripped) {
-            const cp = ch.codePointAt(0) ?? 0;
-            w += (cp >= 0x1100 && cp <= 0x115F) || (cp >= 0x2E80 && cp <= 0xD7FF) ||
-                 (cp >= 0xF900 && cp <= 0xFAFF) || (cp >= 0xFE30 && cp <= 0xFE6F) ||
-                 (cp >= 0xFF01 && cp <= 0xFF60) || (cp >= 0x1F000 && cp <= 0x1FFFF) ||
-                 (cp >= 0x20000 && cp <= 0x2FA1F) || (cp >= 0xF0000 && cp <= 0xFFFFD) ? 2 : 1;
-        }
-        return w;
+    const style = {
+        accent: (text: string) => theme ? theme.fg('accent', text) : `\x1b[36m${text}\x1b[0m`,
+        muted: (text: string) => theme ? theme.fg('muted', text) : `\x1b[2m${text}\x1b[0m`,
+        warning: (text: string) => theme ? theme.fg('warning', text) : `\x1b[33m${text}\x1b[0m`,
+        bold: (text: string) => theme ? theme.bold(text) : `\x1b[1m${text}\x1b[0m`,
     };
-    let result = `  ${parts.join(sep)}`;
-    while (charWidth(result) > cols && parts.length > 3) {
-        parts.splice(-2, 1);
-        result = `  ${parts.join(sep)}`;
+    if (segments.model) parts.push(style.accent(segments.model));
+    parts.push(`${segments.engineAccent}${style.bold(`${icon} ${segments.engine}`)}`);
+    parts.push(segments.state === 'idle' ? style.muted(segments.state) : style.accent(segments.state));
+    if (segments.elapsed) parts.push(style.muted(segments.elapsed));
+    if (segments.bgtask && segments.bgtask > 0) parts.push(style.warning(`⏳${segments.bgtask}`));
+    if (segments.gitBranch) parts.push(style.muted(`ⴲ ${segments.gitBranch}`));
+    if (segments.cwd) parts.push(style.muted(`📁 ${segments.cwd}`));
+    while (widthOf(parts.join(' · ')) > Math.max(10, cols - 24) && parts.length > 3) {
+        parts.splice(-1, 1);
     }
-    if (charWidth(result) > cols) {
-        const stripped = stripAnsi(result);
-        let visW = 0;
-        let cutIdx = 0;
-        for (const ch of stripped) {
-            const cp = ch.codePointAt(0) ?? 0;
-            const cw = (cp >= 0x1100 && cp <= 0x115F) || (cp >= 0x2E80 && cp <= 0xD7FF) ||
-                (cp >= 0xF900 && cp <= 0xFAFF) || (cp >= 0x1F000 && cp <= 0x1FFFF) ||
-                (cp >= 0x20000 && cp <= 0x2FA1F) ? 2 : 1;
-            if (visW + cw > cols - 1) break;
-            visW += cw;
-            cutIdx += ch.length;
-        }
-        result = stripped.slice(0, cutIdx) + '\x1b[0m';
-    }
-    return result;
+    const right = [segments.port ? `:${segments.port}` : '', '/quit  /clear'].filter(Boolean).join(' ');
+    return renderSegmentedStatusLine(parts.join(' · '), right, cols);
 }

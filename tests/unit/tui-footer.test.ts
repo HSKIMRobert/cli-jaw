@@ -1,8 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { formatFooter } from '../../bin/commands/tui/types.ts';
+import { renderStatusBar } from '../../src/cli/tui/jawcode-bridge.ts';
 
 const ACCENT = '\x1b[31m';
+
+function withColumns<T>(cols: number, fn: () => T): T {
+    const columnsDesc = Object.getOwnPropertyDescriptor(process.stdout, 'columns');
+    Object.defineProperty(process.stdout, 'columns', { value: cols, configurable: true });
+    try {
+        return fn();
+    } finally {
+        if (columnsDesc) Object.defineProperty(process.stdout, 'columns', columnsDesc);
+    }
+}
 
 test('idle footer shows a dimmed idle state + hints + label', () => {
     const f = formatFooter('codex', ACCENT, 'idle');
@@ -33,4 +44,46 @@ test('bgtask count renders magenta hourglass segment only when > 0', () => {
     assert.ok(withTasks.includes('\x1b[35m'), 'magenta color for bgtask segment');
     assert.ok(!formatFooter('x', ACCENT, 'idle', 0, 0).includes('⏳'));
     assert.ok(!formatFooter('x', ACCENT, 'idle').includes('⏳'), 'omitted param stays clean');
+});
+
+test('renderStatusBar renders cyan segmented status row without jawcode theme', () => {
+    const row = withColumns(96, () => renderStatusBar({
+        model: 'test-model',
+        engine: 'jwc',
+        engineAccent: ACCENT,
+        state: 'working…',
+        elapsed: '1.2s',
+        bgtask: 2,
+        gitBranch: 'dev',
+        cwd: '~/project',
+        port: 3457,
+    }));
+    assert.match(row, /\x1b\[(36|46)m/);
+    assert.match(row, /test-model/);
+    assert.match(row, /jwc/);
+    assert.match(row, /working/);
+    assert.match(row, /\/quit/);
+    assert.match(row, /\/clear/);
+    assert.doesNotMatch(row, /Context/);
+    assert.doesNotMatch(row, /token/i);
+    assert.doesNotMatch(row, /\d+(?:\.\d+)?%/);
+});
+
+test('renderStatusBar clips optional details under narrow width', () => {
+    const row = withColumns(36, () => renderStatusBar({
+        model: 'very-long-model-name',
+        engine: 'jwc',
+        engineAccent: ACCENT,
+        state: 'responding…',
+        elapsed: '123.4s',
+        bgtask: 9,
+        gitBranch: 'feature/some-long-branch',
+        cwd: '~/Developer/new/700_projects/cli-jaw',
+        port: 3457,
+    }));
+    assert.match(row, /\x1b\[(36|46)m/);
+    assert.match(row, /\/quit/);
+    assert.doesNotMatch(row, /Context/);
+    assert.doesNotMatch(row, /token/i);
+    assert.doesNotMatch(row, /\d+(?:\.\d+)?%/);
 });

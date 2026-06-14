@@ -8,6 +8,7 @@ import { appendAssistantTurnText, appendThinkingTurnText, appendToolItem, append
 import { Viewport } from '../../src/cli/tui/render/viewport.ts';
 import { VIEWPORT_FILL } from '../../src/cli/tui/render/frame.ts';
 import { solveLayout } from '../../src/cli/tui/render/layout.ts';
+import { renderStatusBar } from '../../src/cli/tui/jawcode-bridge.ts';
 
 function withTerminalSize<T>(cols: number, rows: number, fn: () => T): T {
     const columnsDesc = Object.getOwnPropertyDescriptor(process.stdout, 'columns');
@@ -58,7 +59,14 @@ function makeCtx(): TuiContext {
         isGit: false,
         detectedIde: null,
         promptPrefix: '  > ',
-        footer: '  test footer',
+        footer: renderStatusBar({
+            model: 'test-model',
+            engine: 'jwc',
+            engineAccent: '\x1b[36m',
+            state: 'idle',
+            cwd: '/tmp/project',
+            port: 3457,
+        }),
         displayMode: 'fullscreen',
         requestFrame: null,
     } as unknown as TuiContext;
@@ -92,7 +100,9 @@ test('fullscreen composeFrame keeps frame rows newline-free and input pinned', (
         const expanded = expandViewportFill(frame.rows, 28);
         const regions = solveLayout(96, 28, 1);
         assert.equal(expanded.length, 28);
-        assert.equal(expanded[regions.statusLine.y - 1], '  test footer');
+        assert.match(expanded[regions.statusLine.y - 1] ?? '', /\x1b\[(36|46)m/);
+        assert.match(expanded[regions.statusLine.y - 1] ?? '', /test-model|jwc/);
+        assert.match(expanded[regions.statusLine.y - 1] ?? '', /\/quit/);
         assert.match(expanded[regions.composer.y - 2] ?? '', /┌/);
         assert.match(expanded[regions.composer.y - 1] ?? '', /Type your message/);
         assert.match(expanded[regions.help.y - 1] ?? '', /shortcuts/);
@@ -111,7 +121,7 @@ test('fullscreen composeFrame stays bottom-pinned after composer text changes', 
         assert.equal(frame.rows.some(row => row.includes('\n')), false);
         const expanded = expandViewportFill(frame.rows, 24);
         const regions = solveLayout(80, 24, 1);
-        assert.equal(expanded[regions.statusLine.y - 1], '  test footer');
+        assert.match(expanded[regions.statusLine.y - 1] ?? '', /\/quit/);
         assert.match(expanded[regions.composer.y - 1] ?? '', /next message/);
         assert.match(expanded[regions.help.y - 1] ?? '', /shortcuts/);
         assert.equal(frame.cursorPos?.row, regions.composer.y - 1);
