@@ -406,3 +406,35 @@ test('fullscreen ctrl-o full sweep keeps final answer visible and rows width-saf
         });
     }
 });
+
+test('fullscreen reused viewport rerenders after terminal width shrinks', () => {
+    const ctx = makeCtx();
+    const viewport = new Viewport();
+    appendToolItem(ctx.store.transcript, 'Read File', {
+        stepRef: 'resize-read',
+        status: 'done',
+        detail: '/Users/jun/Developer/new/700_projects/cli-jaw/bin/commands/tui/fullscreen-mode.ts',
+    });
+    appendAssistantTurnText(ctx.store.transcript, 'Final answer remains visible after shrink.', 'main');
+    finalizeStreamingAssistants(ctx.store.transcript);
+    assert.equal(toggleToolExpansion(ctx.store.transcript), true);
+
+    withTerminalSize(120, 30, () => {
+        const expanded = expandViewportFill(composeFrame(ctx, viewport).rows, 30);
+        assert.ok(expanded.every(row => visualWidth(row) <= 120));
+    });
+
+    withTerminalSize(64, 24, () => {
+        const frame = composeFrame(ctx, viewport);
+        const expanded = expandViewportFill(frame.rows, 24);
+        const regions = solveLayout(64, 24, 1);
+        const main = stripAnsi(expanded.slice(regions.transcript.y - 1, regions.statusLine.y - 1).join('\n'));
+
+        assert.equal(frame.rows.some(row => row.includes('\n')), false);
+        assert.ok(expanded.every(row => visualWidth(row) <= 64));
+        assert.match(main, /Read File/);
+        assert.match(main, /Final answer remains/);
+        assert.match(expanded[regions.composer.y - 2] ?? '', /┌/);
+        assert.match(expanded[regions.help.y - 1] ?? '', /shortcuts/);
+    });
+});

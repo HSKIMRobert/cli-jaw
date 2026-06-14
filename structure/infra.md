@@ -87,6 +87,7 @@ aliases: [CLI-JAW Infra, infrastructure modules, core runtime]
 | utility | command | purpose |
 | --- | --- | --- |
 | Fullscreen TUI `/quit` PTY smoke | `JAW_TUI_SMOKE_TIMEOUT=15 COLUMNS=100 LINES=30 scripts/smoke/tui-quit-smoke.exp` | built `dist/bin/cli-jaw.js chat`가 raw-mode fullscreen composer에서 `/quit`로 정상 종료되는지 검증 |
+| Fullscreen TUI frame resize stress | `npx tsx --import ./tests/setup/test-home.ts scripts/smoke/tui-frame-resize-stress.ts` | live/committed/expanded tool rows + final answer가 resize 후에도 width-safe이고 bottom composer cluster가 고정되는지 검증 |
 
 ### 실행 모드
 
@@ -137,7 +138,7 @@ aliases: [CLI-JAW Infra, infrastructure modules, core runtime]
 
 ### `scripts/` 실제 파일
 
-`atomic-build.sh`, `bundle-sidecar.sh`, `check-copilot-gap.ts`, `check-deps-offline.ts`, `check-deps-online.sh`, `check-electron-no-native.cjs`, `check-strict-baseline.mjs`, `check-web-ui-build-output.ts`, `collect-fresh-install-evidence.sh`, `audit-fresh-install-evidence.mjs`, `verify-release-evidence.mjs`, `electron-dev-manager.mjs`, `ensure-native-modules.cjs`, `fresh-install-smoke.ts`, `i18n-registry.ts`, `install-officecli.ps1`, `install-officecli.sh`, `install-wsl.sh`, `install.sh`, `link-current-nvm-bin.cjs`, `postinstall-guard.cjs`, `release-gates.mjs`, `release-preview.sh`, `release.sh`, `smoke/opencode-external-dir-smoke.ts`.
+`atomic-build.sh`, `bundle-sidecar.sh`, `check-copilot-gap.ts`, `check-deps-offline.ts`, `check-deps-online.sh`, `check-electron-no-native.cjs`, `check-strict-baseline.mjs`, `check-web-ui-build-output.ts`, `collect-fresh-install-evidence.sh`, `audit-fresh-install-evidence.mjs`, `verify-release-evidence.mjs`, `electron-dev-manager.mjs`, `ensure-native-modules.cjs`, `fresh-install-smoke.ts`, `i18n-registry.ts`, `install-officecli.ps1`, `install-officecli.sh`, `install-wsl.sh`, `install.sh`, `link-current-nvm-bin.cjs`, `postinstall-guard.cjs`, `release-gates.mjs`, `release-preview.sh`, `release.sh`, `smoke/opencode-external-dir-smoke.ts`, `smoke/tui-frame-resize-stress.ts`.
 
 ---
 
