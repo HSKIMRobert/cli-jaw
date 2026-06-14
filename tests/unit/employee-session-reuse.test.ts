@@ -24,7 +24,8 @@ test('P100-001: pipeline uses employeeSessionId-based resume and global clear', 
 
 test('P100-002: spawn guards main session update when employee session is used', () => {
     const src = readSource(SPAWN, 'utf8');
-    assert.match(src, /const\s+empSid\s*=\s*opts\.employeeSessionId\s*\|\|\s*null/);
+    assert.match(src, /const\s+empSid\s*=\s*opts\._skipResume\s*\?\s*null\s*:\s*\(opts\.employeeSessionId\s*\|\|\s*null\)/);
+    assert.match(src, /const\s+mainManaged\s*=\s*!forceNew\s*&&\s*!opts\.agentId\s*&&\s*!empSid\s*&&\s*!opts\.internal/);
     assert.match(src, /employeeSessionId:\s*empSid/);
     assert.match(src, /persistMainSession\(\{/);
 });

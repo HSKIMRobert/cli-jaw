@@ -100,8 +100,10 @@ type LifecycleSpawnOptions = {
     _skipInsert?: boolean;
     _skipResume?: boolean;
     _skipSessionPersist?: boolean;
+    _employeeFreshSessionRetry?: boolean;
     _kiroFreshRetry?: boolean;
     agentId?: string;
+    employeeSessionId?: string;
     cli?: string;
     model?: string;
     _heartbeatAnchorId?: number;
@@ -729,7 +731,42 @@ export async function handleAgentExit(params: ExitHandlerParams): Promise<void> 
         const diagnosticText = `${ctx.fullText}\n${ctx.traceLog.join('\n')}`;
         const cls = classifyExitError(runtimeCli, code, ctx.stderrBuf, ctx.stallReason, diagnosticText);
         const empAttempt = opts._retryAttempt ?? 0;
-        if ((cls.is429 || cls.isClaudeRateLimit || cls.isTransientStartup) && !cls.isStall && !cls.isAuth && empAttempt < EMP_MAX_RETRIES) {
+        if (
+            cls.isTransientStartup
+            && isResume
+            && empSid
+            && opts.agentId
+            && !opts._employeeFreshSessionRetry
+            && empAttempt === 0
+            && !cls.isStall
+            && !cls.isAuth
+        ) {
+            clearEmployeeSession.run(opts.agentId);
+            console.log(`[jaw:session] employee stale resume pre-SessionStart — cleared ${opts.agentId} and retrying fresh`);
+            broadcast('agent_retry', {
+                cli,
+                delay: 0,
+                reason: `${cls.message} (cleared stale employee resume; retrying fresh session)`,
+                isEmployee: true,
+                attempt: 1,
+                maxRetries: 1,
+            }, 'internal');
+            finalizeTraceRun(ctx.traceRunId, 'error', cls.message);
+            const { promise: retryP } = _spawnAgent(prompt, {
+                ...opts,
+                _skipInsert: true,
+                _skipResume: true,
+                _employeeFreshSessionRetry: true,
+            });
+            retryP.then((r) => resolve(r)).catch((retryErr: Error) => {
+                const retryMessage = retryErr?.message ? `; retry=${retryErr.message}` : '';
+                const diagnostic = `${cls.message} (fresh employee session retry failed${retryMessage})`;
+                broadcast('agent_done', { ...runTag(ctx), text: `❌ ${diagnostic}`, error: true, origin, isEmployee: true }, 'internal');
+                resolve({ text: '', code: 1, diagnostic });
+            });
+            return;
+        }
+        if ((cls.is429 || cls.isClaudeRateLimit || cls.isTransientStartup) && !cls.isStall && !cls.isAuth && !opts._employeeFreshSessionRetry && empAttempt < EMP_MAX_RETRIES) {
             recordError(cli, '429');
             const empDelayMs = computeBackoff(empAttempt, 3000, 60_000);
             const empDelaySec = Math.round(empDelayMs / 1000);

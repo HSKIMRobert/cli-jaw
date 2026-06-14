@@ -23,7 +23,7 @@ const persistenceSrc = src('src/agent/session-persistence.ts');
 
 test('memory-flush spawn is not main-managed and uses isolated history/session policy', () => {
     assert.ok(
-        spawnSrc.includes('const mainManaged = !forceNew && !empSid && !opts.internal'),
+        spawnSrc.includes('const mainManaged = !forceNew && !opts.agentId && !empSid && !opts.internal'),
         'internal memory-flush must not own activeProcess/isAgentBusy main state',
     );
     assert.ok(flushSrc.includes('forceNew: true'), 'memory flush must not resume main provider session');

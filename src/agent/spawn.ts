@@ -670,6 +670,7 @@ interface SpawnOpts {
     _skipHistory?: boolean;
     _skipResume?: boolean;
     _skipSessionPersist?: boolean;
+    _employeeFreshSessionRetry?: boolean;
     _kiroFreshRetry?: boolean;
     forceNew?: boolean;
     agentId?: string;
@@ -707,8 +708,8 @@ function cleanupEmployeeTmpDir(cwd: string, workingDir: string, label: string) {
 export function spawnAgent(prompt: string, opts: SpawnOpts = {}): SpawnResult {
     const { forceNew = false, agentId, sysPrompt: customSysPrompt, memorySnapshot } = opts;
     const origin = opts.origin || 'web';
-    const empSid = opts.employeeSessionId || null;
-    const mainManaged = !forceNew && !empSid && !opts.internal;
+    const empSid = opts._skipResume ? null : (opts.employeeSessionId || null);
+    const mainManaged = !forceNew && !opts.agentId && !empSid && !opts.internal;
     const gateEligibleMain = mainManaged && !opts.agentId && !opts.internal && !opts._isFallback && !opts._isSmokeContinuation && !opts._isGoalContinuation;
     const isEmployee = !mainManaged;
     const empTag = isEmployee ? { isEmployee: true } : {};

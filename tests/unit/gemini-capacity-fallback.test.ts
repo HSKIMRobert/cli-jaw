@@ -7,10 +7,11 @@ import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 
 import { classifyExitError } from '../../src/agent/error-classifier.ts';
-import { handleAgentExit } from '../../src/agent/lifecycle-handler.ts';
+import { handleAgentExit, setSpawnAgent } from '../../src/agent/lifecycle-handler.ts';
 import { shouldPersistMainSession } from '../../src/agent/session-persistence.ts';
 import { addBroadcastListener, clearAllBroadcastListeners } from '../../src/core/bus.ts';
 import { settings } from '../../src/core/config.ts';
+import { clearEmployeeSession, getEmployeeSession, upsertEmployeeSession } from '../../src/core/db.ts';
 import { clearErrors, recordError } from '../../src/agent/alert-escalation.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -444,10 +445,10 @@ test('Gemini high-turn compact coordination clears session bucket like Codex/Ope
     assert.match(lifecycle, /runtimeCli\s*===\s*'codex'\s*\|\|\s*runtimeCli\s*===\s*'opencode'\s*\|\|\s*runtimeCli\s*===\s*'gemini'/);
 });
 
-test('Gemini capacity fallback disables resume without changing mainManaged predicate', () => {
+test('Gemini capacity fallback disables resume without letting employees become main-managed', () => {
     const spawn = readSrc('../../src/agent/spawn.ts');
 
-    assert.match(spawn, /const\s+mainManaged\s*=\s*!forceNew\s*&&\s*!empSid\s*&&\s*!opts\.internal/);
+    assert.match(spawn, /const\s+mainManaged\s*=\s*!forceNew\s*&&\s*!opts\.agentId\s*&&\s*!empSid\s*&&\s*!opts\.internal/);
     assert.match(spawn, /!\s*opts\._skipResume\s*&&\s*!forceNew\s*&&\s*!!bucketSessionId/);
 });
 
@@ -482,7 +483,54 @@ test('#219 classifier flags pre-SessionStart exit as a transient startup', () =>
     assert.equal(generic.isTransientStartup, false);
 });
 
-test('#219 employee pre-SessionStart exit triggers bounded retry with backoff (no fallback)', async () => {
+test('#219 persisted employee pre-SessionStart clears stale session and retries fresh once', async () => {
+    const events: Array<{ type: string; data: Record<string, unknown> }> = [];
+    let retryOpts: Record<string, any> | null = null;
+    let resolved: any = null;
+    clearErrors('claude-e');
+    clearAllBroadcastListeners();
+    clearEmployeeSession.run('Frontend');
+    upsertEmployeeSession.run('Frontend', 'emp-sess-1', 'claude-e', 'claude-opus-4-6', 123);
+    addBroadcastListener((type, data) => events.push({ type, data }));
+    setSpawnAgent((_prompt: string, opts: Record<string, any> = {}) => {
+        retryOpts = opts;
+        return { promise: Promise.resolve({ text: 'retry ok', code: 0, sessionId: 'fresh-session' }) };
+    });
+    const { params } = baseExitParams({
+        ctx: { fullText: '', sessionId: null, toolLog: [], traceLog: [], stderrBuf: '[jaw:claude-e:error] Claude exited before SessionStart (exit 1)' },
+        code: 5,
+        cli: 'claude-e',
+        model: 'claude-opus-4-6',
+        agentLabel: 'Frontend',
+        mainManaged: false,
+        empSid: 'emp-sess-1',
+        isResume: true,
+        opts: { agentId: 'Frontend', employeeSessionId: 'emp-sess-1' },
+        resolve: (value: any) => { resolved = value; },
+    });
+    try {
+        await handleAgentExit(params as any);
+        await Promise.resolve();
+        const retry = events.find(event => event.type === 'agent_retry');
+        assert.ok(retry, 'stale employee resume should broadcast agent_retry');
+        assert.equal(retry?.data["delay"], 0);
+        assert.equal(retry?.data["isEmployee"], true);
+        assert.equal(retry?.data["maxRetries"], 1);
+        assert.equal(getEmployeeSession.get('Frontend'), undefined, 'stale employee session should be cleared');
+        assert.ok(retryOpts, 'fresh retry should call spawnAgent');
+        assert.equal(retryOpts?._skipResume, true);
+        assert.equal(retryOpts?._skipInsert, true);
+        assert.equal(retryOpts?._employeeFreshSessionRetry, true);
+        assert.equal(retryOpts?.employeeSessionId, 'emp-sess-1', 'spawn.ts owns ignoring stale employeeSessionId when _skipResume is true');
+        assert.equal(resolved?.text, 'retry ok');
+    } finally {
+        clearEmployeeSession.run('Frontend');
+        clearErrors('claude-e');
+        clearAllBroadcastListeners();
+    }
+});
+
+test('#219 non-resume employee pre-SessionStart exit triggers bounded retry with backoff (no fallback)', async () => {
     const events: Array<{ type: string; data: Record<string, unknown> }> = [];
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     clearErrors('claude-e');
@@ -495,8 +543,9 @@ test('#219 employee pre-SessionStart exit triggers bounded retry with backoff (n
         model: 'claude-opus-4-6',
         agentLabel: 'Frontend',
         mainManaged: false,
-        empSid: 'emp-sess-1',
-        opts: {},
+        empSid: null,
+        isResume: false,
+        opts: { agentId: 'Frontend' },
     });
     params.retryState.setTimer = (t: any) => { retryTimer = t; };
     try {
@@ -514,7 +563,7 @@ test('#219 employee pre-SessionStart exit triggers bounded retry with backoff (n
     }
 });
 
-test('#219 employee transient retry does not loop on the retry attempt', async () => {
+test('#219 employee transient retry does not loop after fresh-session retry attempt', async () => {
     let resolved: any = null;
     const events: Array<{ type: string; data: Record<string, unknown> }> = [];
     clearErrors('claude-e');
@@ -528,7 +577,8 @@ test('#219 employee transient retry does not loop on the retry attempt', async (
         agentLabel: 'Frontend',
         mainManaged: false,
         empSid: 'emp-sess-1',
-        opts: { _retryAttempt: 2 },
+        isResume: true,
+        opts: { agentId: 'Frontend', employeeSessionId: 'emp-sess-1', _employeeFreshSessionRetry: true },
         resolve: (value: any) => { resolved = value; },
     });
     try {
