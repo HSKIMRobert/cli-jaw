@@ -101,10 +101,11 @@ export function renderTranscriptItem(item: TranscriptItem, width: number): strin
             }
             const rows = [renderToolLine('', parsed.label, '', 'done')];
             const maxDetailRows = 14;
-            const detailWidth = Math.max(10, w - 4);
+            const detailPrefix = `${gutter}${c.dim}│ `;
+            const detailWidth = Math.max(10, width - visualWidth(detailPrefix) - visualWidth(c.reset));
             const wrappedRows = detailLines.flatMap(line => wrapTextToCols(line, detailWidth));
             for (const line of wrappedRows.slice(0, maxDetailRows)) {
-                rows.push(`${gutter}${c.dim}│ ${clipTextToCols(line, detailWidth)}${c.reset}`);
+                rows.push(`${detailPrefix}${clipTextToCols(line, detailWidth)}${c.reset}`);
             }
             if (wrappedRows.length > maxDetailRows) {
                 rows.push(`${gutter}${c.dim}└ … +${wrappedRows.length - maxDetailRows} lines${c.reset}`);
@@ -242,6 +243,7 @@ export function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
         clipTextToCols,
     });
     const regions = solveLayout(cols, rows, composerLines, { commandSurfaceLines: slashRows.length });
+    viewport.setWidth(cols);
 
     const ov = ctx.store.overlay;
     const liveRows = ov.helpOpen || ov.paletteOpen || ov.selector.open || ov.bgtaskOpen || ov.settingsOpen

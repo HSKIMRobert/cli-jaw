@@ -87,7 +87,7 @@ test('fullscreen terminal tool commits one folded transcript row and clears live
     }
 });
 
-test('agent_done clears stale fullscreen live tools without deleting committed rows', () => {
+test('agent_done commits stale fullscreen live tools without deleting committed rows', () => {
     const ctx = makeCtx();
     handleWsMessage(ctx, msg({ type: 'agent_tool', icon: '🔧', label: 'Bash', detail: 'still running', status: 'running', stepRef: 's1' }));
     handleWsMessage(ctx, msg({ type: 'agent_tool', icon: '🔧', label: 'Read', detail: 'done', status: 'done', stepRef: 's2' }));
@@ -95,7 +95,10 @@ test('agent_done clears stale fullscreen live tools without deleting committed r
     handleWsMessage(ctx, msg({ type: 'agent_done', text: 'Final answer.' }));
 
     assert.equal(ctx.store.transcript.liveTools.length, 0);
-    assert.equal(ctx.store.transcript.items.some(item => item.type === 'tool'), true);
+    const tools = ctx.store.transcript.items.filter(item => item.type === 'tool');
+    assert.equal(tools.length, 2);
+    assert.equal(tools.some(item => item.type === 'tool' && item.stepRef === 's1' && item.status === 'done'), true);
+    assert.equal(tools.some(item => item.type === 'tool' && item.stepRef === 's2' && item.status === 'done'), true);
     assert.equal(ctx.store.transcript.items.some(item => item.type === 'assistant'), true);
     assert.equal(ctx.streamState, 'idle');
 });

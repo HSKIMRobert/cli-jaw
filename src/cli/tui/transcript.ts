@@ -182,12 +182,22 @@ export function upsertLiveToolItem(state: TranscriptState, input: ToolEventInput
     return item;
 }
 
-export function commitToolItemOnce(state: TranscriptState, input: ToolEventInput): boolean {
+export function commitToolItemOnce(state: TranscriptState, input: ToolEventInput, commitOpts?: { updateCommitted?: boolean }): boolean {
     const key = makeToolEventKey(input);
     const liveIndex = state.liveTools.findIndex(item => item.key === key);
     const live = liveIndex >= 0 ? state.liveTools[liveIndex] : null;
     if (liveIndex >= 0) state.liveTools.splice(liveIndex, 1);
-    if (input.stepRef && state.committedToolRefs.has(input.stepRef)) return false;
+    if (input.stepRef && state.committedToolRefs.has(input.stepRef)) {
+        if (commitOpts?.updateCommitted && input.detail) {
+            appendToolItem(state, input.label, {
+                ...(input.agentId ? { agentId: input.agentId } : {}),
+                detail: input.detail,
+                stepRef: input.stepRef,
+                status: input.status,
+            });
+        }
+        return false;
+    }
     if (input.stepRef) state.committedToolRefs.add(input.stepRef);
 
     const detail = input.detail || live?.detail || '';
@@ -196,6 +206,25 @@ export function commitToolItemOnce(state: TranscriptState, input: ToolEventInput
     if (input.stepRef) opts.stepRef = input.stepRef;
     appendToolItem(state, input.label, opts);
     return true;
+}
+
+export function commitRemainingLiveToolItems(state: TranscriptState, status: ToolEventInput['status'] = 'done'): number {
+    const pending = [...state.liveTools];
+    let committed = 0;
+    for (const item of pending) {
+        if (commitToolItemOnce(state, {
+            icon: item.icon,
+            label: item.label,
+            detail: item.detail,
+            status,
+            ...(item.agentId ? { agentId: item.agentId } : {}),
+            ...(item.stepRef ? { stepRef: item.stepRef } : {}),
+        })) {
+            committed += 1;
+        }
+    }
+    state.liveTools.length = 0;
+    return committed;
 }
 
 export function clearLiveToolItems(state: TranscriptState): LiveToolItem[] {

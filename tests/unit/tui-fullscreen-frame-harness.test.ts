@@ -4,7 +4,7 @@ import { composeFrame, renderTranscriptItem } from '../../bin/commands/tui/fulls
 import type { TuiContext } from '../../bin/commands/tui/types.ts';
 import { createTuiStore } from '../../src/cli/tui/store.ts';
 import { appendTextToComposer } from '../../src/cli/tui/composer.ts';
-import { appendAssistantTurnText, appendThinkingTurnText, appendToolItem, appendUserItem, finalizeStreamingAssistants, upsertLiveToolItem } from '../../src/cli/tui/transcript.ts';
+import { appendAssistantTurnText, appendThinkingTurnText, appendToolItem, appendUserItem, finalizeStreamingAssistants, toggleToolExpansion, upsertLiveToolItem } from '../../src/cli/tui/transcript.ts';
 import { Viewport } from '../../src/cli/tui/render/viewport.ts';
 import { VIEWPORT_FILL } from '../../src/cli/tui/render/frame.ts';
 import { solveLayout } from '../../src/cli/tui/render/layout.ts';
@@ -364,4 +364,45 @@ test('fullscreen live tool rows are capped with an overflow summary', () => {
         assert.doesNotMatch(main, /Tool5/);
         assert.match(expanded[regions.composer.y - 2] ?? '', /┌/);
     });
+});
+
+test('fullscreen ctrl-o full sweep keeps final answer visible and rows width-safe', () => {
+    for (const [cols, rows] of [[72, 28], [100, 30]] as const) {
+        withTerminalSize(cols, rows, () => {
+            const ctx = makeCtx();
+            appendToolItem(ctx.store.transcript, 'Bash', {
+                stepRef: 'bash-1',
+                status: 'done',
+                detail: 'first line from bash output\nsecond line from bash output\nthird line from bash output',
+            });
+            appendToolItem(ctx.store.transcript, 'Read File', {
+                stepRef: 'read-1',
+                status: 'done',
+                detail: '/Users/jun/Developer/new/700_projects/cli-jaw/src/cli/tui/transcript.ts',
+            });
+            appendToolItem(ctx.store.transcript, 'Search', {
+                stepRef: 'search-1',
+                status: 'done',
+                detail: 'matched agent_done toolLog final response live tool rows',
+            });
+            appendAssistantTurnText(ctx.store.transcript, 'Final answer remains after tool rows.', 'main');
+            finalizeStreamingAssistants(ctx.store.transcript);
+            assert.equal(toggleToolExpansion(ctx.store.transcript), true);
+
+            const frame = composeFrame(ctx, new Viewport());
+            assert.equal(frame.rows.some(row => row.includes('\n')), false);
+            const expanded = expandViewportFill(frame.rows, rows);
+            const regions = solveLayout(cols, rows, 1);
+            const main = stripAnsi(expanded.slice(regions.transcript.y - 1, regions.statusLine.y - 1).join('\n'));
+
+            assert.ok(expanded.every(row => visualWidth(row) <= cols), `all frame rows must fit width ${cols}`);
+            assert.match(main, /Bash/);
+            assert.match(main, /Read File/);
+            assert.match(main, /Search/);
+            assert.match(main, /Final answer remains/);
+            assert.match(stripAnsi(expanded[regions.statusLine.y - 1] ?? ''), /\/quit/);
+            assert.match(expanded[regions.composer.y - 2] ?? '', /┌/);
+            assert.match(expanded[regions.help.y - 1] ?? '', /shortcuts/);
+        });
+    }
 });

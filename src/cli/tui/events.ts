@@ -1,8 +1,10 @@
+import type { ToolEventInput } from './transcript.js';
+
 export type ToolStatus = 'running' | 'done' | 'error';
 
 export type TuiEvent =
     | { kind: 'assistant-output'; text: string; agentId?: string | undefined; thinking: boolean }
-    | { kind: 'agent-done'; text: string; agentId?: string | undefined; raw: Record<string, unknown> }
+    | { kind: 'agent-done'; text: string; agentId?: string | undefined; toolLog: ToolEventInput[]; raw: Record<string, unknown> }
     | { kind: 'agent-status'; status: string; agentId?: string | undefined; agentName?: string | undefined }
     | { kind: 'agent-tool'; icon: string; label: string; detail: string; status: ToolStatus; stepRef?: string | undefined; agentId?: string | undefined; toolType?: string | undefined }
     | { kind: 'agent-fallback'; from: string; to: string }
@@ -33,6 +35,29 @@ function normalizeToolStatus(value: unknown): ToolStatus {
     return 'running';
 }
 
+function normalizeToolLog(value: unknown): ToolEventInput[] {
+    if (!Array.isArray(value)) return [];
+    const out: ToolEventInput[] = [];
+    for (const entry of value.slice(0, 100)) {
+        const record = asRecord(entry);
+        if (!record) continue;
+        const label = optString(record['label']) ?? optString(record['tool']) ?? optString(record['name']);
+        if (!label) continue;
+        const tool: ToolEventInput = {
+            icon: optString(record['icon']) ?? '•',
+            label,
+            detail: stringValue(record['detail']) || stringValue(record['output']) || stringValue(record['text']),
+            status: normalizeToolStatus(record['status']),
+        };
+        const agentId = optString(record['agentId']);
+        const stepRef = optString(record['stepRef']) ?? optString(record['id']);
+        if (agentId) tool.agentId = agentId;
+        if (stepRef) tool.stepRef = stepRef;
+        out.push(tool);
+    }
+    return out;
+}
+
 function numberValue(value: unknown): number {
     return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
@@ -53,6 +78,7 @@ export function normalizeTuiWsEvent(raw: unknown): TuiEvent {
             return {
                 kind: 'agent-done',
                 text: stringValue(msg['text']),
+                toolLog: normalizeToolLog(msg['toolLog']),
                 raw: msg,
                 ...(optString(msg['agentId']) ? { agentId: optString(msg['agentId']) } : {}),
             };

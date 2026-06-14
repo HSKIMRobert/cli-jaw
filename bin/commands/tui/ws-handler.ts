@@ -6,7 +6,7 @@ import {
     startAssistantItem, appendAssistantTurnText,
     finalizeAssistant, finalizeStreamingAssistants, assistantTextSinceLastUser,
     appendStatusItem, appendToolItem, clearEphemeralStatus, appendThinkingTurnText,
-    upsertLiveToolItem, commitToolItemOnce, clearLiveToolItems,
+    upsertLiveToolItem, commitToolItemOnce, commitRemainingLiveToolItems,
 } from '../../../src/cli/tui/transcript.js';
 import { captureFileSet, diffFileSets, getDiffStat, getUnifiedDiff, getIdeCli, openDiffInIde } from '../../../src/ide/diff.js';
 import { createStreamSink } from '../../../src/cli/tui/stream.js';
@@ -91,7 +91,10 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
             case 'agent-done':
                 stopSpinner();
                 clearEphemeralStatus(transcript);
-                clearLiveToolItems(transcript);
+                for (const tool of event.toolLog) {
+                    commitToolItemOnce(transcript, tool, { updateCommitted: true });
+                }
+                commitRemainingLiveToolItems(transcript, event.raw['error'] ? 'error' : 'done');
                 if (ctx.isRaw) {
                     console.log(`  ${c.dim}${raw}${c.reset}`);
                 } else if (ctx.streaming) {

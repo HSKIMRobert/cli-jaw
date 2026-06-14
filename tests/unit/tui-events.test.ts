@@ -20,7 +20,28 @@ test('normalizeTuiWsEvent maps agent_done with raw object', () => {
     if (event.kind === 'agent-done') {
         assert.equal(event.text, 'final');
         assert.equal(event.agentId, 'main');
+        assert.deepEqual(event.toolLog, []);
         assert.equal(event.raw, raw);
+    }
+});
+
+test('normalizeTuiWsEvent bounds and maps agent_done toolLog entries', () => {
+    const event = normalizeTuiWsEvent({
+        type: 'agent_done',
+        text: 'final',
+        toolLog: [
+            { icon: '🔧', label: 'Bash', detail: 'npm test', status: 'done', stepRef: 's1', agentId: 'main', toolType: 'bash' },
+            { tool: 'Read', output: 'src/a.ts', status: 'error', id: 's2' },
+            { icon: 'bad' },
+        ],
+    });
+
+    assert.equal(event.kind, 'agent-done');
+    if (event.kind === 'agent-done') {
+        assert.deepEqual(event.toolLog, [
+            { icon: '🔧', label: 'Bash', detail: 'npm test', status: 'done', agentId: 'main', stepRef: 's1' },
+            { icon: '•', label: 'Read', detail: 'src/a.ts', status: 'error', stepRef: 's2' },
+        ]);
     }
 });
 
