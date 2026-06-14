@@ -334,7 +334,10 @@ export function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
     while (commandRows.length < regions.commandSurface.height) commandRows.push('');
 
     const needsOverlay = ov.helpOpen || ov.paletteOpen || ov.selector.open || ov.bgtaskOpen;
-    const anchorLaunchPrelude = !needsOverlay && !ov.settingsOpen && viewport.hasUncommittedPreludeRows();
+    const anchorLaunchPrelude = !needsOverlay
+        && !ov.settingsOpen
+        && ctx.store.transcript.items.length === 0
+        && viewport.hasUncommittedPreludeRows();
     const frameRows: string[] = anchorLaunchPrelude
         ? [
             ...chatRows,
@@ -432,10 +435,14 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
         else viewport.resetCommittedRows(transcriptHeight);
 
         const commitRows = hasTranscriptItems ? viewport.peekCommitRows(transcriptHeight) : [];
+        let retryCommitAfterRender = false;
         if (commitRows.length > 0 && screen.commitLines(commitRows)) {
             viewport.markCommittedRows(commitRows.length, transcriptHeight);
+        } else if (commitRows.length > 0) {
+            retryCommitAfterRender = true;
         }
         screen.render(composeFrame(ctx, viewport));
+        if (retryCommitAfterRender) scheduler.request();
     });
 
     ctx.displayMode = 'fullscreen';

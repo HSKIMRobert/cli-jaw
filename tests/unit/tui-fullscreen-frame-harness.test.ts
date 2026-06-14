@@ -135,6 +135,29 @@ test('fullscreen launch welcome starts at the terminal frame origin', () => {
     });
 });
 
+test('fullscreen first transcript row releases launch prelude anchor for scrollback commit', () => {
+    withTerminalSize(80, 24, () => {
+        const ctx = makeCtx();
+        ctx.welcomeLines = ['welcome', '1', '2'];
+
+        const launchFrame = composeFrame(ctx, new Viewport());
+        assert.notEqual(launchFrame.rows[0], VIEWPORT_FILL, 'pure launch frame should keep welcome at row 1');
+
+        appendUserItem(ctx.store.transcript, '3\n4\n5', '3\n4\n5');
+        const activeFrame = composeFrame(ctx, new Viewport());
+        assert.equal(activeFrame.rows[0], VIEWPORT_FILL, 'first transcript frame must expose the top fill lane so welcome/1/2 can commit to scrollback');
+
+        const expanded = expandViewportFill(activeFrame.rows, 24);
+        const main = stripAnsi(expanded.join('\n'));
+        assert.match(main, /welcome/);
+        assert.match(main, /\b1\b/);
+        assert.match(main, /\b2\b/);
+        assert.match(main, /\b3\b/);
+        assert.match(main, /\b4\b/);
+        assert.match(main, /\b5\b/);
+    });
+});
+
 test('fullscreen tool rows strip legacy event emoji and preserve multi-word labels', () => {
     withTerminalSize(96, 28, () => {
         const ctx = makeCtx();
