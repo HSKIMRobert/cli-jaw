@@ -82,6 +82,12 @@ aliases: [CLI-JAW Infra, infrastructure modules, core runtime]
 
 > 현재 `package.json`에는 `lint` script가 없다.
 
+### Direct smoke utilities
+
+| utility | command | purpose |
+| --- | --- | --- |
+| Fullscreen TUI `/quit` PTY smoke | `JAW_TUI_SMOKE_TIMEOUT=15 COLUMNS=100 LINES=30 scripts/smoke/tui-quit-smoke.exp` | built `dist/bin/cli-jaw.js chat`가 raw-mode fullscreen composer에서 `/quit`로 정상 종료되는지 검증 |
+
 ### 실행 모드
 
 | 모드 | 명령/엔트리 | 실제 동작 |
