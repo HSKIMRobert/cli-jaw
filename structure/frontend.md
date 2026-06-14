@@ -214,6 +214,22 @@ settings.ts (barrel)
 
 `public/manager/`는 메인 채팅 UI와 별개의 React 19 앱이다. `vite.config.ts`의 `manager` entry가 `public/manager/index.html`을 빌드한다.
 
+### Manager preview memory note
+
+2026-06-14 점검 기준, Chrome에서 manager Web UI를 열었을 때 1GB 근처까지 올라갔다가 약 10분 뒤 300MB대 근처로 안정화되는 패턴은 `jaw dashboard serve` manager 서버 누수보다 preview iframe의 cold-load peak로 해석한다. 실제 관찰에서는 manager 서버 `dist/src/manager/server.js` RSS가 약 170~220MB 수준이었고, 큰 RSS는 Chrome renderer와 각 `jaw serve` worker(`dist/server.js`) 쪽에 있었다.
+
+원인 경로:
+
+- `manager/src/InstancePreview.tsx`는 선택된 instance의 일반 Web UI를 iframe으로 mount한다.
+- `manager/src/preview.ts`는 dedicated preview origin 또는 legacy `/i/{port}/` proxy URL을 만든다.
+- iframe 안의 일반 Web UI는 `js/features/message-history.ts`의 `BOOT_MESSAGE_WINDOW = 3000`에 따라 `/api/messages?limit=3000` 최근 메시지 창을 boot fetch한다.
+- 2026-06-14 실측에서 선택 instance `:3457`의 `/api/messages?limit=3000` payload는 3000 messages / 약 23.4MB JSON, full `/api/messages`는 5781 messages / 약 45.8MB JSON이었다.
+- 이 payload는 normalize 결과, virtual scroll items, raw markdown, rendered HTML, structured renderer hydration, widget iframe, IndexedDB cache 등으로 브라우저 힙에서 여러 배로 증폭될 수 있다.
+
+한 달 전 baseline(`7262770d4ea0e65b7fdb2e9eff54c64995e4f798`)은 `/api/messages` full history를 직접 로드했으므로 현재 코드가 더 큰 payload를 요청하게 바뀐 것은 아니다. 현재 코드는 이미 3000-message boot window로 제한되어 있다. 다만 그 사이 실제 chat DB가 커졌고, `search-results` / `link-preview` / `compose-block` / `dataframe` / `chart-json` 같은 structured renderer와 manager preview bridge 기능이 늘어 cold-load 피크가 더 잘 보일 수 있다.
+
+패치가 필요하면 일반 Web UI의 3000-window를 무조건 줄이기보다 manager preview 전용 저메모리 모드를 우선 고려한다: preview URL에 `jawPreview=1` 같은 플래그를 붙이고, preview iframe 안에서는 boot window를 800~1000 수준으로 낮추거나 IndexedDB history cache / structured hydration을 더 lazy하게 만든다. 안정화 후 RSS가 내려가는 경우는 지속 누수로 분류하지 않는다.
+
 | 파일/폴더 | 역할 |
 | --- | --- |
 | `manager/src/main.tsx` | `react-dom/client` `createRoot()`로 `App` 렌더 |

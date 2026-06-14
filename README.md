@@ -230,6 +230,14 @@ Live Web/TUI updates use the SSE-first `GET /api/events` channel, with legacy We
 
 See every running AI instance — start, stop, restart with one click. Preview live Web UIs directly in the dashboard.
 
+Manager preview embeds the selected instance's regular Web UI. On long-running
+homes with large chat databases, a fresh Chrome tab can briefly allocate more
+memory while the preview loads its recent message window, renders markdown and
+structured cards, and lets Chrome's garbage collector settle. If memory drops
+back after a few minutes, treat it as a cold-load peak rather than a manager
+server leak; the `jaw dashboard` manager process should stay much smaller than
+the embedded browser renderer and the individual `jaw serve` worker processes.
+
 <div align="center">
 
 ![Dashboard Navigator](docs/screenshots/dashboard-navigator.png)
