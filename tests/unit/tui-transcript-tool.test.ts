@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
     createTranscriptState, appendToolItem, appendStatusItem, clearEphemeralStatus,
+    toggleLatestToolExpansion,
 } from '../../src/cli/tui/transcript.ts';
 
 test('appendToolItem adds a persistent tool item', () => {
@@ -65,4 +66,21 @@ test('status still replaces only the trailing status after tool items', () => {
     assert.equal(s.items[0]!.type, 'tool');
     assert.equal(s.items[1]!.type, 'status');
     assert.equal((s.items[1] as { text: string }).text, 'status 2');
+});
+
+test('toggleLatestToolExpansion only toggles the newest tool row', () => {
+    const s = createTranscriptState();
+    appendToolItem(s, '🔧 Bash first', { stepRef: 'first', status: 'done', detail: 'first detail' });
+    appendToolItem(s, '🔧 Bash second', { stepRef: 'second', status: 'done', detail: 'second detail' });
+
+    assert.equal(toggleLatestToolExpansion(s), true);
+
+    const first = s.items[0]!;
+    const second = s.items[1]!;
+    assert.equal(first.type, 'tool');
+    assert.equal(second.type, 'tool');
+    if (first.type === 'tool' && second.type === 'tool') {
+        assert.equal(first.collapsed, true);
+        assert.equal(second.collapsed, false);
+    }
 });

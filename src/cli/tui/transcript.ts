@@ -118,6 +118,16 @@ export function toggleToolExpansion(state: TranscriptState): void {
     }
 }
 
+export function toggleLatestToolExpansion(state: TranscriptState): boolean {
+    for (let i = state.items.length - 1; i >= 0; i--) {
+        const item = state.items[i]!;
+        if (item.type !== 'tool') continue;
+        item.collapsed = !item.collapsed;
+        return true;
+    }
+    return false;
+}
+
 export function appendStatusItem(state: TranscriptState, text: string): void {
     // Ephemeral — replace previous status if it exists
     const last = state.items[state.items.length - 1];

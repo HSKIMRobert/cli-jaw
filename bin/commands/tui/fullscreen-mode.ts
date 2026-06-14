@@ -19,7 +19,7 @@ import { solveLayout, type Regions } from '../../../src/cli/tui/render/layout.js
 import { parseSgrMouse, isMouseSequence } from '../../../src/cli/tui/render/mouse.js';
 import { Viewport } from '../../../src/cli/tui/render/viewport.js';
 import type { TranscriptItem } from '../../../src/cli/tui/transcript.js';
-import { toggleToolExpansion } from '../../../src/cli/tui/transcript.js';
+import { toggleLatestToolExpansion } from '../../../src/cli/tui/transcript.js';
 import { clipTextToCols, visualWidth, cursorScreenPos } from '../../../src/cli/tui/renderers.js';
 import { cleanupScrollRegion, resolveShellLayout } from '../../../src/cli/tui/shell.js';
 import type { TuiContext } from './types.js';
@@ -72,7 +72,21 @@ export function renderTranscriptItem(item: TranscriptItem, width: number): strin
             const state = item.status === 'error'
                 ? 'error' as const
                 : (item.status === 'done' || item.collapsed) ? 'done' as const : 'pending' as const;
-            return [renderToolLine(toolIcon, toolLabel, toolDetail, state)];
+            const detailLines = toolDetail.split('\n').map(line => line.trim()).filter(Boolean);
+            const expandedDone = item.status === 'done' && item.collapsed === false && detailLines.length > 0;
+            if (!expandedDone) {
+                const safeDetail = detailLines.length > 1 ? `${detailLines[0]} … +${detailLines.length - 1} lines` : (detailLines[0] ?? '');
+                return [renderToolLine(toolIcon, toolLabel, safeDetail, state)];
+            }
+            const rows = [renderToolLine(toolIcon, toolLabel, '', 'done')];
+            const maxDetailRows = 8;
+            for (const line of detailLines.slice(0, maxDetailRows)) {
+                rows.push(`${gutter}${c.dim}│ ${clipTextToCols(line, Math.max(10, w - 2))}${c.reset}`);
+            }
+            if (detailLines.length > maxDetailRows) {
+                rows.push(`${gutter}${c.dim}└ … +${detailLines.length - maxDetailRows} lines${c.reset}`);
+            }
+            return rows;
         }
         case 'status': {
             const spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
@@ -333,8 +347,7 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
         for (const token of tokens) {
             const action = classifyKeyAction(token);
             if (action === 'ctrl-o') {
-                toggleToolExpansion(ctx.store.transcript);
-                scheduler.request();
+                if (toggleLatestToolExpansion(ctx.store.transcript)) scheduler.request();
                 continue;
             }
             if (action === 'ctrl-l') {
