@@ -12,6 +12,11 @@ import {
 import { resolveFolderGitRoot } from '../../../../../src/manager/git/folder-root-validation.js';
 import { getGitStatusMap, readGitStatusMapOptions } from '../../../../../src/manager/git/status-service.js';
 import { getGitWorktrees } from '../../../../../src/manager/git/worktree-service.js';
+import {
+    readGitWorktreeOperation,
+    runGitWorktreeOperation,
+    validateGitWorktreeOperationPreviewContext,
+} from '../../../../../src/manager/git/worktree-operations.js';
 
 export function registerDiffIpc(): void {
     ipcMain.handle('diff:getRepoRoot', async (event, cwd: string) => {
@@ -73,6 +78,30 @@ export function registerDiffIpc(): void {
             const resolved = await resolveFolderGitRoot(folderPanelRoot, repoRoot);
             const worktrees = await getGitWorktrees(resolved.repoRoot);
             return { ok: true, repoRoot: resolved.repoRoot, worktrees };
+        } catch (err) {
+            return { ok: false, error: (err as Error).message };
+        }
+    });
+
+    ipcMain.handle('git:previewWorktreeOperation', async (event, folderPanelRoot: string, repoRoot: string | undefined, rawOperation: unknown) => {
+        if (!isAllowedSender(event)) return { ok: false, error: 'unauthorized' };
+        try {
+            const operation = readGitWorktreeOperation(rawOperation);
+            const preview = await validateGitWorktreeOperationPreviewContext({ folderPanelRoot, repoRoot, operation });
+            return { ok: true, preview };
+        } catch (err) {
+            return { ok: false, error: (err as Error).message };
+        }
+    });
+
+    ipcMain.handle('git:runWorktreeOperation', async (event, folderPanelRoot: string, repoRoot: string | undefined, rawOperation: unknown, confirmed?: boolean) => {
+        if (!isAllowedSender(event)) return { ok: false, error: 'unauthorized' };
+        if (confirmed !== true) return { ok: false, error: 'confirmation required' };
+        try {
+            const operation = readGitWorktreeOperation(rawOperation);
+            const resolved = await resolveFolderGitRoot(folderPanelRoot, repoRoot);
+            const result = await runGitWorktreeOperation(resolved.repoRoot, operation);
+            return { ok: true, ...result };
         } catch (err) {
             return { ok: false, error: (err as Error).message };
         }

@@ -75,6 +75,10 @@ contextBridge.exposeInMainWorld('cliJawDesktop', {
       ipcRenderer.invoke('git:getStatusMap', folderPanelRoot, repoRoot, options),
     getWorktrees: (folderPanelRoot: string, repoRoot?: string) =>
       ipcRenderer.invoke('git:getWorktrees', folderPanelRoot, repoRoot),
+    previewWorktreeOperation: (folderPanelRoot: string, repoRoot: string | undefined, operation: unknown) =>
+      ipcRenderer.invoke('git:previewWorktreeOperation', folderPanelRoot, repoRoot, operation),
+    runWorktreeOperation: (folderPanelRoot: string, repoRoot: string | undefined, operation: unknown, confirmed: boolean) =>
+      ipcRenderer.invoke('git:runWorktreeOperation', folderPanelRoot, repoRoot, operation, confirmed),
   },
   folder: {
     getDefaultRoot: () => ipcRenderer.invoke('folder:getDefaultRoot'),

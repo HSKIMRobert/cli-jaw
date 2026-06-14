@@ -12,6 +12,11 @@ import {
 import { resolveFolderGitRoot } from '../git/folder-root-validation.js';
 import { getGitStatusMap, readGitStatusMapOptions } from '../git/status-service.js';
 import { getGitWorktrees } from '../git/worktree-service.js';
+import {
+    readGitWorktreeOperation,
+    runGitWorktreeOperation,
+    validateGitWorktreeOperationPreviewContext,
+} from '../git/worktree-operations.js';
 
 type DashboardGitRouterOptions = {
     homePath?: string;
@@ -145,6 +150,37 @@ export function createDashboardGitRouter(options: DashboardGitRouterOptions): ex
             const resolved = await resolveFolderGitRoot(folderPanelRoot, repoRoot);
             const worktrees = await getGitWorktrees(resolved.repoRoot);
             res.json({ ok: true, repoRoot: resolved.repoRoot, worktrees });
+        } catch (error) {
+            res.status(400).json({ ok: false, error: (error as Error).message });
+        }
+    });
+
+    router.post('/worktree-operation-preview', async (req, res) => {
+        try {
+            const input = isRecord(req.body) ? req.body : {};
+            const folderPanelRoot = typeof input['folderPanelRoot'] === 'string' ? input['folderPanelRoot'] : '';
+            const repoRoot = typeof input['repoRoot'] === 'string' ? input['repoRoot'] : undefined;
+            const operation = readGitWorktreeOperation(input['operation']);
+            const preview = await validateGitWorktreeOperationPreviewContext({ folderPanelRoot, repoRoot, operation });
+            res.json({ ok: true, preview });
+        } catch (error) {
+            res.status(400).json({ ok: false, error: (error as Error).message });
+        }
+    });
+
+    router.post('/worktree-operation', async (req, res) => {
+        try {
+            const input = isRecord(req.body) ? req.body : {};
+            if (input['confirmed'] !== true) {
+                res.status(400).json({ ok: false, error: 'confirmation required' });
+                return;
+            }
+            const folderPanelRoot = typeof input['folderPanelRoot'] === 'string' ? input['folderPanelRoot'] : '';
+            const repoRoot = typeof input['repoRoot'] === 'string' ? input['repoRoot'] : undefined;
+            const operation = readGitWorktreeOperation(input['operation']);
+            const resolved = await resolveFolderGitRoot(folderPanelRoot, repoRoot);
+            const result = await runGitWorktreeOperation(resolved.repoRoot, operation);
+            res.json({ ok: true, ...result });
         } catch (error) {
             res.status(400).json({ ok: false, error: (error as Error).message });
         }

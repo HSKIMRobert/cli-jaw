@@ -1,6 +1,7 @@
 import type { DashboardShortcutAction } from '../types';
 import type { GitStatusMapResult } from '../folder-panel/folder-git-types';
 import type { GitWorktreeEntry } from '../folder-panel/folder-worktree-types';
+import type { GitWorktreeOperation, GitWorktreeOperationPreview } from '../folder-panel/folder-worktree-types';
 
 export type TerminalBridgeApi = {
     create: (opts?: { cwd?: string; cols?: number; rows?: number }) => Promise<{ ok: boolean; id?: string; shell?: string; cwd?: string; error?: string }>;
@@ -49,6 +50,17 @@ export type GitBridgeApi = {
         folderPanelRoot: string,
         repoRoot?: string,
     ) => Promise<{ ok: boolean; repoRoot?: string; worktrees?: GitWorktreeEntry[]; error?: string }>;
+    previewWorktreeOperation: (
+        folderPanelRoot: string,
+        repoRoot: string | undefined,
+        operation: GitWorktreeOperation,
+    ) => Promise<{ ok: boolean; preview?: GitWorktreeOperationPreview; error?: string }>;
+    runWorktreeOperation: (
+        folderPanelRoot: string,
+        repoRoot: string | undefined,
+        operation: GitWorktreeOperation,
+        confirmed: boolean,
+    ) => Promise<{ ok: boolean; repoRoot?: string; preview?: GitWorktreeOperationPreview; stdout?: string; worktrees?: GitWorktreeEntry[]; error?: string }>;
 };
 
 export type FolderBridgeApi = {
