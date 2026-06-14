@@ -8,23 +8,15 @@ import {
     applyResolvedAutocompleteState, renderAutocomplete, popupTotalRows,
     makeSelectionKey, resetAutocompleteState,
 } from '../../../src/cli/tui/overlay.js';
-import {
-    getPlainCommandDraft, setBracketedPaste,
-    getTrailingTextSegment,
-} from '../../../src/cli/tui/composer.js';
+import { getPlainCommandDraft, getTrailingTextSegment } from '../../../src/cli/tui/composer.js';
 import { findAtMentionMatch, listRepoFiles } from '../../../src/cli/tui/file-mention.js';
 import { clipTextToCols } from '../../../src/cli/tui/renderers.js';
 import { tuiWrite } from './tui-io.js';
-import {
-    resolveShellLayout, setupScrollRegion, cleanupScrollRegion, ensureSpaceBelow,
-} from '../../../src/cli/tui/shell.js';
-import { executeCommand, getCompletionItems, getArgumentCompletionItems } from '../../../src/cli/commands.js';
-import type { ArgumentCompletionItem } from '../../../src/cli/commands.js';
-import type { ParsedSlashCommand } from '../../../src/cli/types.js';
+import { resolveShellLayout, setupScrollRegion, ensureSpaceBelow } from '../../../src/cli/tui/shell.js';
+import { getCompletionItems } from '../../../src/cli/commands.js';
 import { buildAppearanceRows, nextAppearancePatch } from '../../../src/cli/tui/settings-screen.js';
-import { getIdeCli } from '../../../src/ide/diff.js';
-import { c, hrLine, getRows, renderCommandText, type TuiContext } from './types.js';
-import { showPrompt, redrawPromptLine, openPromptBlock, rebuildFooter } from './renderer.js';
+import { c, hrLine, getRows, type TuiContext } from './types.js';
+import { showPrompt, redrawPromptLine, rebuildFooter } from './renderer.js';
 import { refreshInfo, makeCliCommandCtx } from './api.js';
 
 export function closeAutocompleteForCtx(ctx: TuiContext): void {
@@ -345,6 +337,10 @@ export async function redrawInputWithAutocomplete(ctx: TuiContext): Promise<void
 }
 
 export function handleResize(ctx: TuiContext): void {
+    if (ctx.displayMode === 'fullscreen') {
+        ctx.requestFrame?.();
+        return;
+    }
     setupScrollRegion(
         ctx.footer,
         `  ${c.dim}${hrLine()}${c.reset}`,
@@ -352,180 +348,4 @@ export function handleResize(ctx: TuiContext): void {
     );
     if (!ctx.inputActive || ctx.commandRunning) return;
     redrawInputWithAutocomplete(ctx);
-}
-
-// ─── Slash command execution ─────────────────
-export async function runSlashCommand(ctx: TuiContext, parsed: ParsedSlashCommand): Promise<void> {
-    if (!parsed || parsed.type !== 'known') return;
-    const ov = ctx.store.overlay;
-    const ac = ctx.store.autocomplete;
-    const panes = ctx.store.panes;
-
-    // Overlay intercepts
-    if (parsed.name === 'help') {
-        openHelpOverlay(ctx);
-        ctx.commandRunning = false;
-        ctx.inputActive = true;
-        return;
-    }
-
-    if (parsed.name === 'model' && !parsed.args.length) {
-        const argItems = await getArgumentCompletionItems('model', '', 'cli', [], makeCliCommandCtx(ctx));
-        openChoiceSelector(ctx, () => {
-            const sel = ov.selector;
-            sel.open = true;
-            sel.commandName = 'model';
-            sel.title = 'Model';
-            sel.subtitle = `${ctx.info.cli}: ${ctx.info.model || 'default'}`;
-            sel.filter = '';
-            sel.selected = 0;
-            sel.allItems = argItems.map((a: ArgumentCompletionItem) => ({
-                value: a.name, label: a.desc || '', current: a.name === ctx.info.model,
-            }));
-            sel.filteredItems = sel.allItems;
-            const curIdx = sel.filteredItems.findIndex(i => i.current);
-            if (curIdx >= 0) sel.selected = curIdx;
-        });
-        ctx.commandRunning = false;
-        ctx.inputActive = true;
-        return;
-    }
-
-    if (parsed.name === 'cli' && !parsed.args.length) {
-        const argItems = await getArgumentCompletionItems('cli', '', 'cli', [], makeCliCommandCtx(ctx));
-        openChoiceSelector(ctx, () => {
-            const sel = ov.selector;
-            sel.open = true;
-            sel.commandName = 'cli';
-            sel.title = 'CLI Engine';
-            sel.subtitle = `current: ${ctx.info.cli}`;
-            sel.filter = '';
-            sel.selected = 0;
-            sel.allItems = argItems.map((a: ArgumentCompletionItem) => ({
-                value: a.name, label: a.desc || '', current: a.name === ctx.info.cli,
-            }));
-            sel.filteredItems = sel.allItems;
-            const curIdx = sel.filteredItems.findIndex(i => i.current);
-            if (curIdx >= 0) sel.selected = curIdx;
-        });
-        ctx.commandRunning = false;
-        ctx.inputActive = true;
-        return;
-    }
-
-    if (parsed.name === 'effort' && !parsed.args.length) {
-        const levels = ['off', 'low', 'medium', 'high', 'max'];
-        openChoiceSelector(ctx, () => {
-            const sel = ov.selector;
-            sel.open = true;
-            sel.commandName = 'effort';
-            sel.title = 'Reasoning Effort';
-            sel.subtitle = 'Select thinking level';
-            sel.filter = '';
-            sel.selected = 2;
-            sel.allItems = levels.map(l => ({ value: l, label: '', current: false }));
-            sel.filteredItems = sel.allItems;
-        });
-        ctx.commandRunning = false;
-        ctx.inputActive = true;
-        return;
-    }
-
-    if (parsed.name === 'resume' && !parsed.args.length) {
-        try {
-            const r = await fetch(`${ctx.apiUrl}/api/chat-sessions`, { signal: AbortSignal.timeout(3000) });
-            if (r.ok) {
-                const data = (await r.json()) as { sessions?: Array<{ id: string; label?: string; createdAt?: string }> };
-                const sessions = data.sessions || [];
-                openChoiceSelector(ctx, () => {
-                    const sel = ov.selector;
-                    sel.open = true;
-                    sel.commandName = 'resume';
-                    sel.title = 'Resume Session';
-                    sel.subtitle = `${sessions.length} sessions`;
-                    sel.filter = '';
-                    sel.selected = 0;
-                    sel.allItems = sessions.map(s => ({
-                        value: s.id,
-                        label: s.label || s.createdAt || '',
-                        current: false,
-                    }));
-                    sel.filteredItems = sel.allItems;
-                });
-                ctx.commandRunning = false;
-                ctx.inputActive = true;
-                return;
-            }
-        } catch { /* fallthrough to text handler */ }
-    }
-
-    if (parsed.name === 'commands') {
-        openCommandPalette(ctx);
-        ctx.commandRunning = false;
-        ctx.inputActive = true;
-        return;
-    }
-
-    if (parsed.name === 'settings' && ctx.displayMode === 'fullscreen') {
-        openSettingsScreen(ctx);
-        ctx.commandRunning = false;
-        ctx.inputActive = true;
-        return;
-    }
-
-    let exiting = false;
-    try {
-        const result = await executeCommand(parsed, makeCliCommandCtx(ctx));
-        if (result?.code === 'clear_screen') {
-            console.clear();
-            setupScrollRegion(ctx.footer, `  ${c.dim}${hrLine()}${c.reset}`, resolveShellLayout(process.stdout.columns || 80, getRows(), panes));
-        }
-        if (result?.text) console.log(`  ${renderCommandText(result.text)}`);
-        if (result?.code === 'ide_toggle') { ctx.ideEnabled = !ctx.ideEnabled; }
-        if (result?.code === 'ide_on') { ctx.ideEnabled = true; }
-        if (result?.code === 'ide_off') { ctx.ideEnabled = false; }
-        if (result?.code && ['ide_toggle', 'ide_on', 'ide_off'].includes(result.code)) {
-            console.log(`  ${ctx.ideEnabled ? c.green + '\u2713' : c.yellow + '\u2717'}${c.reset} IDE diff: ${ctx.ideEnabled ? 'ON' : 'OFF'}${ctx.isGit ? '' : ` ${c.dim}(non-git)${c.reset}`}`);
-        }
-        if (result?.code === 'ide_pop_toggle') {
-            ctx.idePopEnabled = !ctx.idePopEnabled;
-            const ideName = ctx.detectedIde ? getIdeCli(ctx.detectedIde) : null;
-            console.log(`  ${ctx.idePopEnabled ? c.green + '\u2713' : c.yellow + '\u2717'}${c.reset} IDE popup: ${ctx.idePopEnabled ? 'ON' : 'OFF'}${ideName ? ` (${ideName})` : ` ${c.dim}(IDE \uBBF8\uAC10\uC9C0)${c.reset}`}`);
-        }
-        if (result?.ok && (parsed.name === 'model' || parsed.name === 'cli') && parsed.args.length > 0) {
-            await refreshInfo(ctx);
-            rebuildFooter(ctx);
-        }
-        if (result?.code === 'redraw') {
-            if (ctx.displayMode === 'fullscreen') ctx.requestFrame?.();
-            else rebuildFooter(ctx);
-        }
-        if (result?.code === 'retry') {
-            const last = ctx.store.transcript.items.filter(i => i.type === 'user').pop();
-            if (last && 'submitText' in last) {
-                ctx.ws.send(JSON.stringify({ type: 'message', text: last.submitText }));
-            }
-        }
-        if (result?.code === 'show_help') {
-            openHelpOverlay(ctx);
-        }
-        if (result?.code === 'exit') {
-            exiting = true;
-            cleanupScrollRegion(resolveShellLayout(process.stdout.columns || 80, getRows(), panes));
-            console.log(`  ${c.dim}Bye! \uD83E\uDD88${c.reset}\n`);
-            setBracketedPaste(false);
-            ctx.ws.close();
-            process.stdin.setRawMode(false);
-            process.exit(0);
-        }
-    } catch (err) {
-        console.log(`  ${c.red}${(err as Error).message}${c.reset}`);
-    } finally {
-        if (!exiting) {
-            ctx.commandRunning = false;
-            ctx.inputActive = true;
-            closeAutocomplete(ac, (chunk) => tuiWrite(ctx, chunk));
-            openPromptBlock(ctx);
-        }
-    }
 }

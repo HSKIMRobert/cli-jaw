@@ -24,6 +24,12 @@ function isFullscreen(ctx: TuiContext): boolean {
     return ctx.displayMode === 'fullscreen';
 }
 
+
+function appendFullscreenStatus(ctx: TuiContext, text: string): void {
+    appendStatusItem(ctx.store.transcript, text.replace(/\s+/g, ' ').trim());
+    ctx.requestFrame?.();
+}
+
 function startFooterTimer(ctx: TuiContext): void {
     if (ctx.footerTimer) return;
     ctx.footerTimer = setInterval(() => {
@@ -145,7 +151,7 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                         if (changed.length > 0) {
                             const stat = getDiffStat(ctx.chatCwd, changed);
                             if (isFullscreen(ctx)) {
-                                appendToolItem(transcript, `📂 ${changed.length} files changed`);
+                                appendToolItem(transcript, `${changed.length} files changed`);
                                 if (stat) appendToolItem(transcript, stat);
                             } else {
                                 console.log(`\n  ${c.cyan}\uD83D\uDCC2 ${changed.length}\uAC1C \uD30C\uC77C \uBCC0\uACBD\uB428${c.reset}`);
@@ -207,7 +213,7 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                         const toolOpts: Parameters<typeof appendToolItem>[2] = { detail: event.detail, status: event.status };
                         if (event.agentId) toolOpts.agentId = event.agentId;
                         if (event.stepRef) toolOpts.stepRef = event.stepRef;
-                        appendToolItem(transcript, `${event.icon} ${event.label}${toolDetail}`, toolOpts);
+                        appendToolItem(transcript, `${event.label}${toolDetail}`, toolOpts);
                     }
                     ensureTurnClock(ctx, 'tool');
                     if (!isFullscreen(ctx)) {
@@ -224,7 +230,7 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                     console.log(`  ${c.dim}${raw}${c.reset}`);
                 } else {
                     clearEphemeralStatus(transcript);
-                    appendToolItem(transcript, `\u26A1 ${event.from} \u2192 ${event.to}`);
+                    appendToolItem(transcript, `${event.from} \u2192 ${event.to}`);
                     if (!isFullscreen(ctx)) {
                         process.stdout.write(`\r\x1b[2K  ${c.yellow}\u26A1${c.reset} ${c.dim}${event.from} \u2192 ${event.to}${c.reset}\n`);
                     } else {
@@ -267,7 +273,9 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                 if (ctx.isRaw) {
                     console.log(`  ${c.dim}${raw}${c.reset}`);
                 } else if (event.source && event.source !== 'cli') {
-                    console.log(`\n  ${c.dim}[${event.source}]${c.reset} ${event.content.slice(0, 60)}`);
+                    const message = `[${event.source}] ${event.content.slice(0, 120)}`;
+                    if (isFullscreen(ctx)) appendFullscreenStatus(ctx, message);
+                    else console.log(`\n  ${c.dim}[${event.source}]${c.reset} ${event.content.slice(0, 60)}`);
                 }
                 break;
 
@@ -289,9 +297,13 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                         if (event.raw['text'] && !isFullscreen(ctx)) console.log(`\n  ${c.dim}ℹ️  ${event.raw['text']}${c.reset}`);
                         break;
                     case 'alert_escalation':
-                        console.log(`\n  ${c.red}${c.bold}┌─ Error ─────────────────────────┐${c.reset}`);
-                        console.log(`  ${c.red}│${c.reset} 🚨 ${event.raw['text'] || 'Alert escalation'}`);
-                        console.log(`  ${c.red}${c.bold}└─────────────────────────────────┘${c.reset}`);
+                        if (isFullscreen(ctx)) {
+                            appendFullscreenStatus(ctx, `Error: ${event.raw['text'] || 'Alert escalation'}`);
+                        } else {
+                            console.log(`\n  ${c.red}${c.bold}┌─ Error ─────────────────────────┐${c.reset}`);
+                            console.log(`  ${c.red}│${c.reset} 🚨 ${event.raw['text'] || 'Alert escalation'}`);
+                            console.log(`  ${c.red}${c.bold}└─────────────────────────────────┘${c.reset}`);
+                        }
                         break;
                     case 'settings_change':
                         if (!isFullscreen(ctx)) console.log(`\n  ${c.dim}⚙️  설정 변경됨${c.reset}`);

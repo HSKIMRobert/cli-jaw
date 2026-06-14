@@ -112,7 +112,7 @@ test('fullscreen composeFrame keeps frame rows newline-free and input pinned', (
         assert.match(expanded[regions.composer.y - 2] ?? '', /┌/);
         assert.match(expanded[regions.composer.y - 1] ?? '', /Type your message/);
         assert.match(expanded[regions.help.y - 1] ?? '', /shortcuts/);
-        assert.deepEqual(frame.cursorPos, { row: regions.composer.y - 1, col: 4 });
+        assert.deepEqual(frame.cursorPos, { row: regions.composer.y, col: 4 });
     });
 });
 
@@ -198,7 +198,7 @@ test('fullscreen composeFrame stays bottom-pinned after composer text changes', 
         assert.match(expanded[regions.statusLine.y - 1] ?? '', /\/quit/);
         assert.match(expanded[regions.composer.y - 1] ?? '', /next message/);
         assert.match(expanded[regions.help.y - 1] ?? '', /shortcuts/);
-        assert.equal(frame.cursorPos?.row, regions.composer.y - 1);
+        assert.equal(frame.cursorPos?.row, regions.composer.y);
         assert.ok((frame.cursorPos?.col ?? 0) > 4);
     });
 });
@@ -269,17 +269,22 @@ test('fullscreen composeFrame renders Appearance settings MVP in main content re
         const regions = solveLayout(96, 28, 1);
         const main = stripAnsi(expanded.slice(regions.transcript.y - 1, regions.statusLine.y - 1).join('\n'));
 
-        assert.match(main, /Settings: Appearance/);
+        assert.match(main, /Settings: cli-jaw/);
+        assert.match(main, /Only supported local CLI\/TUI settings/);
+        assert.match(main, /Local CLI \/ TUI/);
+        assert.match(main, /Web AI Settings/);
+        assert.match(main, /Runtime Frame Behavior/);
         assert.match(main, /Preview:/);
         assert.match(main, /Theme\s+dark/);
         assert.match(main, /Fullscreen Default\s+enabled/);
-        assert.match(main, /Thinking Visibility\s+off/);
+        assert.match(main, /Reasoning Visibility\s+off/);
         assert.match(main, /Compact Density\s+normal/);
         assert.match(main, /Markdown Renderer/);
         assert.match(main, /Tool Rows/);
         assert.match(main, /Composer Pin/);
         assert.match(main, /Enter\/Space to change/);
         assert.doesNotMatch(main, /Context/);
+        assert.doesNotMatch(main, /Memory/);
         assert.match(stripAnsi(expanded[regions.statusLine.y - 1] ?? ''), /\/quit/);
         assert.match(expanded[regions.composer.y - 2] ?? '', /┌/);
         assert.match(expanded[regions.help.y - 1] ?? '', /shortcuts/);

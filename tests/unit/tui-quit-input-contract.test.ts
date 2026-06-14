@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { executeCommand, parseCommand } from '../../src/cli/commands.ts';
 
 const overlaysSource = readFileSync(new URL('../../bin/commands/tui/overlays.ts', import.meta.url), 'utf8');
+const slashRunnerSource = readFileSync(new URL('../../bin/commands/tui/slash-command-runner.ts', import.meta.url), 'utf8');
 const inputHandlerSource = readFileSync(new URL('../../bin/commands/tui/input-handler.ts', import.meta.url), 'utf8');
 
 test('fullscreen /quit remains a CLI command that returns exit code', async () => {
@@ -19,12 +20,12 @@ test('fullscreen /quit remains a CLI command that returns exit code', async () =
 });
 
 test('fullscreen runSlashCommand keeps terminal cleanup before process exit', () => {
-    assert.match(overlaysSource, /export async function runSlashCommand/);
-    assert.match(overlaysSource, /result\?\.code === 'exit'/);
-    assert.match(overlaysSource, /cleanupScrollRegion/);
-    assert.match(overlaysSource, /setBracketedPaste\(false\)/);
-    assert.match(overlaysSource, /process\.stdin\.setRawMode\(false\)/);
-    assert.match(overlaysSource, /process\.exit\(0\)/);
+    assert.match(slashRunnerSource, /export async function runSlashCommand/);
+    assert.match(slashRunnerSource, /result\?\.code === 'exit'/);
+    assert.match(slashRunnerSource, /cleanupScrollRegion/);
+    assert.match(slashRunnerSource, /setBracketedPaste\(false\)/);
+    assert.match(slashRunnerSource, /process\.stdin\.setRawMode\(false\)/);
+    assert.match(slashRunnerSource, /process\.exit\(0\)/);
 });
 
 test('fullscreen input handler parses slash drafts before normal chat send', () => {

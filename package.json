@@ -110,7 +110,8 @@
     "sidecar:bundle": "bash scripts/bundle-sidecar.sh darwin arm64",
     "electron:dist:mac": "npm run build:frontend && npm run sidecar:bundle && npm --prefix electron run build && CSC_IDENTITY_AUTO_DISCOVERY=false npm --prefix electron run dist:mac",
     "electron:start": "npm --prefix electron run start",
-    "check:electron-no-native": "node scripts/check-electron-no-native.cjs"
+    "check:electron-no-native": "node scripts/check-electron-no-native.cjs",
+    "smoke:tui-fullscreen": "tsx scripts/smoke/tui-fullscreen-frame-smoke.ts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.1",

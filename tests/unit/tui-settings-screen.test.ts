@@ -16,12 +16,13 @@ test('buildAppearanceRows renders safe strings from partial settings', () => {
     });
 
     assert.ok(rows.find(row => row.label === 'Theme'));
-    assert.ok(rows.find(row => row.label === 'Thinking Visibility'));
+    assert.ok(rows.find(row => row.label === 'Reasoning Visibility'));
     assert.ok(rows.find(row => row.label === 'Compact Density'));
     assert.ok(rows.find(row => row.label === 'Markdown Renderer'));
     assert.ok(rows.find(row => row.label === 'Tool Rows'));
     assert.ok(rows.find(row => row.label === 'Composer Pin'));
-    assert.equal(rows.some(row => /Context/.test(row.label)), false);
+    assert.equal(rows.some(row => /Context|Memory/.test(row.label)), false);
+    assert.deepEqual([...new Set(rows.map(row => row.scope))], ['cli', 'web-ai', 'runtime']);
     assert.equal(rows.some(row => row.value.includes('\n')), false);
 });
 
@@ -51,6 +52,9 @@ test('composeSettingsScreenLines is frame safe and highlights selected row', () 
     assert.match(joined, /Fullscreen Default/);
     assert.match(joined, /\x1b\[36m\x1b\[1m› Fullscreen Default/);
     assert.doesNotMatch(joined, /Context/);
+    assert.doesNotMatch(joined, /Memory/);
+    assert.match(joined, /Local CLI \/ TUI/);
+    assert.match(joined, /Web AI Settings/);
 });
 
 test('nextAppearancePatch returns real patches only for editable rows', () => {

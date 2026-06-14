@@ -1,6 +1,3 @@
-/**
- * TUI keyboard input handling: key dispatch, autocomplete nav, ESC logic.
- */
 import {
     appendNewlineToComposer, appendTextToComposer, backspaceComposer,
     clearComposer, flattenComposerForSubmit, getComposerDisplayText,
@@ -13,10 +10,7 @@ import {
 import { classifyKeyAction } from '../../../src/cli/tui/keymap.js';
 import { findAtMentionMatch } from '../../../src/cli/tui/file-mention.js';
 import { openExternalEditor } from '../../../src/cli/tui/editor.js';
-import {
-    renderAutocomplete,
-    filterSelectorItems, syncAutocompleteWindow,
-} from '../../../src/cli/tui/overlay.js';
+import { renderAutocomplete, filterSelectorItems, syncAutocompleteWindow } from '../../../src/cli/tui/overlay.js';
 import { clipTextToCols } from '../../../src/cli/tui/renderers.js';
 import { tuiWrite } from './tui-io.js';
 import { cleanupScrollRegion, resolveShellLayout } from '../../../src/cli/tui/shell.js';
@@ -29,7 +23,9 @@ import fs from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
 import { c, getRows, ESC_WAIT_MS, type TuiContext } from './types.js';
 import { openPromptBlock, reopenPromptLine, redrawPromptLine, renderBlockSeparator, clearPromptBlock, computeComposerVisualRows } from './renderer.js';
-import { openBgtaskOverlay, dismissOverlay, redrawInputWithAutocomplete, runSlashCommand, openHelpOverlay, openCommandPalette, refreshCommandPalette, refreshChoiceSelector, closeAutocompleteForCtx, applySettingsSelection } from './overlays.js';
+import { openBgtaskOverlay, dismissOverlay, redrawInputWithAutocomplete, openHelpOverlay, openCommandPalette, refreshCommandPalette, refreshChoiceSelector, closeAutocompleteForCtx, applySettingsSelection } from './overlays.js';
+import { runSlashCommand } from './slash-command-runner.js';
+import { appendFullscreenStatus, isFullscreen, requestFullscreenFrame } from './fullscreen-feedback.js';
 
 function refreshAutocompleteNav(ctx: TuiContext): void {
     const ac = ctx.store.autocomplete;
@@ -87,9 +83,13 @@ export function flushPendingEscape(ctx: TuiContext): void {
     if (!ctx.inputActive) {
         if (ctx.commandRunning) return;
         ctx.ws.send(JSON.stringify({ type: 'stop' }));
-        console.log(`\n  ${c.yellow}\u25A0 stopped${c.reset}`);
         ctx.inputActive = true;
-        openPromptBlock(ctx);
+        if (isFullscreen(ctx)) {
+            appendFullscreenStatus(ctx, 'stopped');
+        } else {
+            console.log(`\n  ${c.yellow}\u25A0 stopped${c.reset}`);
+            openPromptBlock(ctx);
+        }
     }
 }
 
@@ -375,19 +375,32 @@ export function handleKeyInput(ctx: TuiContext, rawKey: string): void {
         );
         clearComposer(composer);
         closeAutocompleteForCtx(ctx);
-        clearPromptBlock(ctx, Math.max(ctx.prevLineCount, visualRows));
+        if (!isFullscreen(ctx)) {
+            clearPromptBlock(ctx, Math.max(ctx.prevLineCount, visualRows));
+        }
 
-        if (!text) { reopenPromptLine(ctx); return; }
-        renderBlockSeparator();
+        if (!text) {
+            ctx.inputActive = true;
+            if (isFullscreen(ctx)) requestFullscreenFrame(ctx);
+            else reopenPromptLine(ctx);
+            return;
+        }
+        if (!isFullscreen(ctx)) renderBlockSeparator();
         appendUserItem(ctx.store.transcript, displayText.trim(), text);
+        requestFullscreenFrame(ctx);
         // /file command
         if (draft !== null && text.startsWith('/file ')) {
             const parts = text.slice(6).trim().split(/\s+/);
             const fp = resolvePath(parts[0]!);
             const caption = parts.slice(1).join(' ');
             if (!fs.existsSync(fp)) {
-                console.log(`  ${c.red}\uD30C\uC77C \uC5C6\uC74C: ${fp}${c.reset}`);
-                openPromptBlock(ctx);
+                ctx.inputActive = true;
+                if (isFullscreen(ctx)) {
+                    appendFullscreenStatus(ctx, `\uD30C\uC77C \uC5C6\uC74C: ${fp}`);
+                } else {
+                    console.log(`  ${c.red}\uD30C\uC77C \uC5C6\uC74C: ${fp}${c.reset}`);
+                    openPromptBlock(ctx);
+                }
                 return;
             }
             const prompt = `[\uC0AC\uC6A9\uC790\uAC00 \uD30C\uC77C\uC744 \uBCF4\uB0C8\uC2B5\uB2C8\uB2E4: ${fp}]\n\uC774 \uD30C\uC77C\uC744 Read \uB3C4\uAD6C\uB85C \uC77D\uACE0 \uBD84\uC11D\uD574\uC8FC\uC138\uC694.${caption ? `\n\n\uC0AC\uC6A9\uC790 \uBA54\uC2DC\uC9C0: ${caption}` : ''}`;
@@ -396,12 +409,14 @@ export function handleKeyInput(ctx: TuiContext, rawKey: string): void {
             }
             ctx.ws.send(JSON.stringify({ type: 'send_message', text: prompt }));
             ctx.inputActive = false;
+            requestFullscreenFrame(ctx);
             return;
         }
         const parsed = draft !== null ? parseCommand(text) : null;
         if (parsed) {
             ctx.inputActive = false;
             ctx.commandRunning = true;
+            requestFullscreenFrame(ctx);
             void runSlashCommand(ctx, parsed);
             return;
         }
@@ -410,6 +425,7 @@ export function handleKeyInput(ctx: TuiContext, rawKey: string): void {
         }
         ctx.ws.send(JSON.stringify({ type: 'send_message', text }));
         ctx.inputActive = false;
+        requestFullscreenFrame(ctx);
     } else if (action === 'backspace') {
         backspaceComposer(composer);
         redrawInputWithAutocomplete(ctx);
@@ -417,9 +433,13 @@ export function handleKeyInput(ctx: TuiContext, rawKey: string): void {
         if (!ctx.inputActive) {
             if (ctx.commandRunning) return;
             ctx.ws.send(JSON.stringify({ type: 'stop' }));
-            console.log(`\n  ${c.yellow}\u25A0 stopped${c.reset}`);
             ctx.inputActive = true;
-            openPromptBlock(ctx);
+            if (isFullscreen(ctx)) {
+                appendFullscreenStatus(ctx, 'stopped');
+            } else {
+                console.log(`\n  ${c.yellow}\u25A0 stopped${c.reset}`);
+                openPromptBlock(ctx);
+            }
         } else {
             cleanupScrollRegion(resolveShellLayout(process.stdout.columns || 80, getRows(), panes));
             console.log(`\n  ${c.dim}Bye! \uD83E\uDD88${c.reset}\n`);

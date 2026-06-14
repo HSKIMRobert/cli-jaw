@@ -1,6 +1,7 @@
 import { visualWidth } from './renderers.js';
 
 export type SettingsRowKind = 'editable' | 'readonly';
+export type SettingsRowScope = 'cli' | 'web-ai' | 'runtime';
 
 export interface SettingsRow {
     id: string;
@@ -8,6 +9,7 @@ export interface SettingsRow {
     value: string;
     description: string;
     kind: SettingsRowKind;
+    scope: SettingsRowScope;
 }
 
 export interface SettingsScreenState {
@@ -60,6 +62,7 @@ export function buildAppearanceRows(snapshot: SettingsScreenSnapshot): SettingsR
         {
             id: 'theme',
             label: 'Theme',
+            scope: 'cli',
             value: normalizeTheme(tui['theme']),
             description: 'Dark/light terminal token theme',
             kind: 'editable',
@@ -67,20 +70,15 @@ export function buildAppearanceRows(snapshot: SettingsScreenSnapshot): SettingsR
         {
             id: 'fullscreenDefault',
             label: 'Fullscreen Default',
+            scope: 'cli',
             value: boolValue(tui['fullscreen'], true) ? 'enabled' : 'disabled',
             description: 'Default jaw chat display mode',
             kind: 'editable',
         },
         {
-            id: 'showReasoning',
-            label: 'Thinking Visibility',
-            value: boolValue(settings['showReasoning']) ? 'on' : 'off',
-            description: 'Show model reasoning/tool thinking when available',
-            kind: 'editable',
-        },
-        {
             id: 'compactDensity',
             label: 'Compact Density',
+            scope: 'cli',
             value: compactDensity(tui),
             description: 'Preset for pasted/long input collapse',
             kind: 'editable',
@@ -88,6 +86,7 @@ export function buildAppearanceRows(snapshot: SettingsScreenSnapshot): SettingsR
         {
             id: 'pasteCollapseLines',
             label: 'Paste Collapse Lines',
+            scope: 'cli',
             value: safeString(tui['pasteCollapseLines'], '2'),
             description: 'Lines before pasted input collapses',
             kind: 'editable',
@@ -95,6 +94,7 @@ export function buildAppearanceRows(snapshot: SettingsScreenSnapshot): SettingsR
         {
             id: 'pasteCollapseChars',
             label: 'Paste Collapse Chars',
+            scope: 'cli',
             value: safeString(tui['pasteCollapseChars'], '160'),
             description: 'Characters before pasted input collapses',
             kind: 'editable',
@@ -102,6 +102,7 @@ export function buildAppearanceRows(snapshot: SettingsScreenSnapshot): SettingsR
         {
             id: 'keymapPreset',
             label: 'Keymap Preset',
+            scope: 'cli',
             value: safeString(tui['keymapPreset'], 'default'),
             description: 'Keyboard interaction preset',
             kind: 'editable',
@@ -109,13 +110,23 @@ export function buildAppearanceRows(snapshot: SettingsScreenSnapshot): SettingsR
         {
             id: 'diffStyle',
             label: 'Diff Style',
+            scope: 'cli',
             value: safeString(tui['diffStyle'], 'summary'),
             description: 'Default diff rendering density',
             kind: 'editable',
         },
         {
+            id: 'showReasoning',
+            label: 'Reasoning Visibility',
+            scope: 'web-ai',
+            value: boolValue(settings['showReasoning']) ? 'on' : 'off',
+            description: 'Web AI setting: show model reasoning/tool thinking when provided',
+            kind: 'editable',
+        },
+        {
             id: 'markdownRenderer',
             label: 'Markdown Renderer',
+            scope: 'runtime',
             value: 'jawcode bridge (runtime)',
             description: 'Current renderer mode',
             kind: 'readonly',
@@ -123,6 +134,7 @@ export function buildAppearanceRows(snapshot: SettingsScreenSnapshot): SettingsR
         {
             id: 'toolRows',
             label: 'Tool Rows',
+            scope: 'runtime',
             value: 'folded by default (runtime)',
             description: 'Collapsed tool summary behavior',
             kind: 'readonly',
@@ -130,6 +142,7 @@ export function buildAppearanceRows(snapshot: SettingsScreenSnapshot): SettingsR
         {
             id: 'composerPin',
             label: 'Composer Pin',
+            scope: 'runtime',
             value: 'enabled (runtime)',
             description: 'Bottom composer cluster stays fixed',
             kind: 'readonly',
@@ -157,15 +170,26 @@ export function composeSettingsScreenLines(
     const rows = buildAppearanceRows(snapshot);
     const selected = Math.max(0, Math.min(state.selected, rows.length - 1));
     const lines: string[] = [
-        `  ${options.cyanCode}${options.boldCode}Settings:${options.resetCode} Appearance`,
+        `  ${options.cyanCode}${options.boldCode}Settings:${options.resetCode} cli-jaw`,
+        `  ${options.dimCode}Only supported local CLI/TUI settings and real Web AI settings are shown.${options.resetCode}`,
         '',
         `  ${options.dimCode}Preview:${options.resetCode}`,
         `  ${snapshot.footerPreview}`,
         '',
     ];
 
+    const scopeTitle = (scope: SettingsRowScope): string => {
+        if (scope === 'cli') return 'Local CLI / TUI';
+        if (scope === 'web-ai') return 'Web AI Settings';
+        return 'Runtime Frame Behavior';
+    };
+    let currentScope: SettingsRowScope | null = null;
     for (let i = 0; i < rows.length; i += 1) {
         const row = rows[i]!;
+        if (row.scope !== currentScope) {
+            currentScope = row.scope;
+            lines.push(`  ${options.dimCode}${scopeTitle(row.scope)}${options.resetCode}`);
+        }
         const marker = i === selected ? '›' : ' ';
         const label = padVisible(row.label, 28);
         const value = padVisible(row.value, 18);

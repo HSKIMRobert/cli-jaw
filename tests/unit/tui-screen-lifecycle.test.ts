@@ -88,3 +88,32 @@ test('diffFrames full paint on null prev', () => {
     assert.ok(patch.includes('a'));
     assert.ok(patch.includes('b'));
 });
+
+test('Screen render sanitizes embedded row newlines and clamps cursor column', () => {
+    let output = '';
+    const origWrite = process.stdout.write.bind(process.stdout);
+    const columnsDesc = Object.getOwnPropertyDescriptor(process.stdout, 'columns');
+    const rowsDesc = Object.getOwnPropertyDescriptor(process.stdout, 'rows');
+    Object.defineProperty(process.stdout, 'columns', { value: 10, configurable: true });
+    Object.defineProperty(process.stdout, 'rows', { value: 4, configurable: true });
+    process.stdout.write = ((chunk: string | Uint8Array) => {
+        output += typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8');
+        return true;
+    }) as typeof process.stdout.write;
+
+    try {
+        const screen = new Screen();
+        screen.enter();
+        output = '';
+        screen.render({ rows: ['top', 'tool\npayload that is too long', 'bottom'], cursorPos: { row: 1, col: 999 } });
+        assert.ok(!output.includes('tool\npayload'), 'embedded newline should not split the frame row');
+        assert.ok(output.includes('tool paylo'), 'row should be newline-sanitized then width-clipped');
+        assert.ok(output.includes('\x1b[9C'), 'cursor column should clamp to terminal width - 1');
+        assert.ok(!output.includes('\x1b[999C'));
+        screen.exit();
+    } finally {
+        process.stdout.write = origWrite;
+        if (columnsDesc) Object.defineProperty(process.stdout, 'columns', columnsDesc);
+        if (rowsDesc) Object.defineProperty(process.stdout, 'rows', rowsDesc);
+    }
+});

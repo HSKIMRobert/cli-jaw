@@ -124,6 +124,11 @@ export function openPromptBlock(ctx: TuiContext): void {
 }
 
 export function reopenPromptLine(ctx: TuiContext): void {
+    if (ctx.displayMode === 'fullscreen') {
+        ctx.inputActive = true;
+        ctx.requestFrame?.();
+        return;
+    }
     process.stdout.write('\n');
     showPrompt(ctx);
 }

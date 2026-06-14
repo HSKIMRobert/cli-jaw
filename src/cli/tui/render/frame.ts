@@ -4,6 +4,8 @@
  * Uses synchronized output (CSI 2026) for flicker-free updates.
  */
 
+import { clipTextToCols } from '../renderers.js';
+
 export const VIEWPORT_FILL = '\x00__VIEWPORT_FILL__\x00';
 
 export interface Frame {
@@ -59,6 +61,10 @@ function normalizeFrameRows(lines: string[], height: number): { rows: string[]; 
     return { rows: rows.slice(droppedTop), droppedTop, paddedTop, sentinelIndex: idx, sentinelDelta };
 }
 
+function normalizeFrameRow(row: string, width: number): string {
+    return clipTextToCols(row.replace(/[\r\n]+/g, ' '), width);
+}
+
 function normalizeCursorRow(row: number, normalized: ReturnType<typeof normalizeFrameRows>, rowCount: number): number {
     let nextRow = row;
     if (normalized.sentinelIndex >= 0 && row > normalized.sentinelIndex) {
@@ -111,12 +117,13 @@ export class Screen {
     render(next: Frame): void {
         if (!this.inlineActive) return;
         const height = process.stdout.rows || 24;
-        const normalized = normalizeFrameRows(next.rows, height);
+        const width = Math.max(1, process.stdout.columns || 80);
+        const normalized = normalizeFrameRows(next.rows.map(row => normalizeFrameRow(row, width)), height);
         const lines = normalized.rows;
         const cursorPos = next.cursorPos
             ? {
                 row: normalizeCursorRow(next.cursorPos.row, normalized, lines.length),
-                col: next.cursorPos.col,
+                col: Math.max(0, Math.min(width - 1, next.cursorPos.col)),
             }
             : undefined;
 

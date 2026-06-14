@@ -161,7 +161,7 @@ cli-jaw/
 │   │       ├── composer.ts   ← Issue #66 pasted-text composer state + bracketed paste parser + slash gate + PasteCollapseConfig (374L)
 │   │       ├── overlay.ts    ← help overlay + command palette + choice selector 렌더링 (635L)
 │   │       ├── slash-surface.ts ← fullscreen slash command surface row composer (46L)
-│   │       ├── settings-screen.ts ← fullscreen Appearance settings row builder + renderer + patch resolver (231L)
+│   │       ├── settings-screen.ts ← fullscreen Appearance settings row builder + renderer + patch resolver (255L)
 │   │       ├── keymap.ts     ← 키 입력 분류 + batched TTY chunk tokenization (ctrl-c/ctrl-d/ctrl-k/ctrl-o/enter/backspace/printable/escape) (117L)
 │   │       ├── panes.ts      ← PaneState (openPanel, side, preferredWidth), PanelKind 6종 (53L)
 │   │       ├── shell.ts      ← ShellLayout 계산 + scroll region setup/cleanup + ensureSpaceBelow (83L)

@@ -1,0 +1,115 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { handleKeyInput } from '../../bin/commands/tui/input-handler.ts';
+import type { TuiContext } from '../../bin/commands/tui/types.ts';
+import { appendTextToComposer, getComposerDisplayText } from '../../src/cli/tui/composer.ts';
+import { createTuiStore } from '../../src/cli/tui/store.ts';
+
+function makeCtx(sent: string[] = []): TuiContext {
+    return {
+        ws: {
+            send(payload: string) { sent.push(payload); },
+            close() { /* no-op */ },
+        },
+        apiUrl: 'http://127.0.0.1:3457',
+        info: { cli: 'jwc', workingDir: '/tmp/project', model: 'test-model' },
+        accent: '',
+        label: 'jwc',
+        dir: '/tmp/project',
+        runtimeLocale: 'en',
+        tuiConfig: { theme: 'dark', fullscreen: true, pasteCollapseLines: 2, pasteCollapseChars: 160, keymapPreset: 'default', diffStyle: 'summary' },
+        settingsSnapshot: { showReasoning: false, tui: { theme: 'dark', fullscreen: true } },
+        values: { port: '3457', raw: false, simple: false },
+        isRaw: false,
+        store: createTuiStore(),
+        overlayBoxHeight: 0,
+        inputActive: true,
+        streaming: false,
+        streamState: 'idle',
+        bgtaskCount: 0,
+        bgtaskTasks: [],
+        turnStartedAt: 0,
+        streamSink: null,
+        commandRunning: false,
+        escPending: false,
+        escTimer: null,
+        footerTimer: null,
+        editorChordPending: false,
+        prevLineCount: 1,
+        promptCursorRow: 0,
+        resizeTimer: null,
+        ideEnabled: false,
+        idePopEnabled: false,
+        preFileSetQueue: [],
+        chatCwd: '/tmp/project',
+        isGit: false,
+        detectedIde: null,
+        promptPrefix: '  > ',
+        footer: 'footer',
+        displayMode: 'fullscreen',
+        requestFrame: null,
+    } as unknown as TuiContext;
+}
+
+function captureStdout<T>(fn: () => T): { result: T; writes: string } {
+    const originalWrite = process.stdout.write;
+    let writes = '';
+    process.stdout.write = ((chunk: string | Uint8Array, ...args: unknown[]) => {
+        writes += String(chunk);
+        const cb = args.find((arg): arg is () => void => typeof arg === 'function');
+        cb?.();
+        return true;
+    }) as typeof process.stdout.write;
+    try {
+        return { result: fn(), writes };
+    } finally {
+        process.stdout.write = originalWrite;
+    }
+}
+
+test('fullscreen Enter submits without writing line-mode separators or moving the composer block', () => {
+    const sent: string[] = [];
+    const ctx = makeCtx(sent);
+    let frames = 0;
+    ctx.requestFrame = () => { frames += 1; };
+    appendTextToComposer(ctx.store.composer, 'hello');
+
+    const { writes } = captureStdout(() => handleKeyInput(ctx, '\r'));
+
+    assert.equal(writes, '');
+    assert.deepEqual(sent.map(item => JSON.parse(item)), [{ type: 'send_message', text: 'hello' }]);
+    assert.equal(getComposerDisplayText(ctx.store.composer), '');
+    assert.equal(ctx.inputActive, false);
+    assert.ok(frames >= 1);
+    assert.equal(ctx.store.transcript.items.at(-1)?.type, 'user');
+});
+
+test('fullscreen empty Enter redraws in place without stdout writes', () => {
+    const ctx = makeCtx();
+    let frames = 0;
+    ctx.requestFrame = () => { frames += 1; };
+
+    const { writes } = captureStdout(() => handleKeyInput(ctx, '\r'));
+
+    assert.equal(writes, '');
+    assert.equal(ctx.inputActive, true);
+    assert.equal(frames, 1);
+});
+
+test('fullscreen stop shortcut records status instead of printing into the frame', () => {
+    const sent: string[] = [];
+    const ctx = makeCtx(sent);
+    let frames = 0;
+    ctx.requestFrame = () => { frames += 1; };
+    ctx.inputActive = false;
+
+    const { writes } = captureStdout(() => handleKeyInput(ctx, '\x03'));
+
+    assert.equal(writes, '');
+    assert.deepEqual(sent.map(item => JSON.parse(item)), [{ type: 'stop' }]);
+    assert.equal(ctx.inputActive, true);
+    assert.equal(frames, 1);
+    const last = ctx.store.transcript.items.at(-1);
+    assert.equal(last?.type, 'status');
+    if (last?.type === 'status') assert.match(last.text, /stopped/);
+});

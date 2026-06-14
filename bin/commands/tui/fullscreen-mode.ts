@@ -1,11 +1,5 @@
-/**
- * Alt-screen TUI runner (Phase 4). Line-mode remains in chat.ts default path.
- */
 import {
-    consumePasteProtocol,
-    getComposerDisplayText,
-    getDisplayCursorOffset,
-    setBracketedPaste,
+    consumePasteProtocol, getComposerDisplayText, getDisplayCursorOffset, setBracketedPaste,
 } from '../../../src/cli/tui/composer.js';
 import { renderMarkdown } from '../../../src/cli/tui/markdown.js';
 import { renderMarkdownJawcode, isInitialized, getInteractive } from '../../../src/cli/tui/jawcode-render.js';
@@ -22,7 +16,8 @@ import { parseSgrMouse, isMouseSequence } from '../../../src/cli/tui/render/mous
 import { Viewport } from '../../../src/cli/tui/render/viewport.js';
 import type { TranscriptItem } from '../../../src/cli/tui/transcript.js';
 import { listLiveToolItems, toggleToolExpansion } from '../../../src/cli/tui/transcript.js';
-import { clipTextToCols, visualWidth, cursorScreenPos, wrapTextToCols } from '../../../src/cli/tui/renderers.js';
+import { clipTextToCols, visualWidth, wrapTextToCols } from '../../../src/cli/tui/renderers.js';
+import { composeComposerBox, measureComposerVisualRows } from '../../../src/cli/tui/render/composer-box.js';
 import { cleanupScrollRegion, resolveShellLayout } from '../../../src/cli/tui/shell.js';
 import type { TuiContext } from './types.js';
 import { c, getRows, ESC_WAIT_MS } from './types.js';
@@ -50,9 +45,7 @@ export function renderTranscriptItem(item: TranscriptItem, width: number): strin
         case 'user': {
             const lines = item.displayText.split('\n');
             return lines.map((line, index) => {
-                const marker = index === 0
-                    ? `${c.cyan}${c.bold}❯${c.reset}`
-                    : `${c.dim}↳${c.reset}`;
+            const marker = index === 0 ? `${c.cyan}${c.bold}❯${c.reset}` : `${c.dim}↳${c.reset}`;
                 return `${gutter}${marker} ${clipTextToCols(line, w - 3)}`;
             });
         }
@@ -125,7 +118,8 @@ export function renderTranscriptItem(item: TranscriptItem, width: number): strin
 function currentRegions(ctx: TuiContext): Regions {
     const cols = process.stdout.columns || 80;
     const rows = getRows();
-    const composerLines = Math.max(1, getComposerDisplayText(ctx.store.composer).split('\n').length);
+    const composerText = getComposerDisplayText(ctx.store.composer);
+    const composerLines = measureComposerVisualRows(composerText, getDisplayCursorOffset(ctx.store.composer), cols);
     return solveLayout(cols, rows, composerLines);
 }
 
@@ -162,6 +156,12 @@ function blankLines(count: number): string[] {
     return new Array(Math.max(0, count)).fill('');
 }
 
+function foldToolDetail(detail: string): string {
+    const lines = detail.split('\n').map(line => line.trim()).filter(Boolean);
+    if (lines.length <= 1) return lines[0] ?? '';
+    return `${lines[0]} … +${lines.length - 1} lines`;
+}
+
 function renderLiveToolRows(ctx: TuiContext, cols: number, maxRows: number): string[] {
     if (maxRows <= 0) return [];
     const state = ctx.store.transcript;
@@ -169,7 +169,7 @@ function renderLiveToolRows(ctx: TuiContext, cols: number, maxRows: number): str
     if (liveTools.length === 0) return [];
     if (!state.liveToolsExpanded) {
         const visible = liveTools.slice(0, Math.max(0, maxRows));
-        const rows = visible.map(tool => clipTextToCols(renderToolLine(tool.icon, tool.label, tool.detail, 'pending'), cols));
+        const rows = visible.map(tool => clipTextToCols(renderToolLine('', tool.label, foldToolDetail(tool.detail), 'pending'), cols));
         if (liveTools.length > visible.length && rows.length > 0) {
             rows[rows.length - 1] = clipTextToCols(`${c.dim}  … +${liveTools.length - visible.length} running tools${c.reset}`, cols);
         }
@@ -182,7 +182,7 @@ function renderLiveToolRows(ctx: TuiContext, cols: number, maxRows: number): str
     let truncated = false;
     for (const tool of liveTools) {
         if (rows.length >= maxRows) { truncated = true; break; }
-        rows.push(clipTextToCols(renderToolLine(tool.icon, tool.label, '', 'pending'), cols));
+        rows.push(clipTextToCols(renderToolLine('', tool.label, '', 'pending'), cols));
         if (!tool.detail) continue;
         const detailRows = wrapTextToCols(tool.detail, detailWidth);
         for (let i = 0; i < detailRows.length; i += 1) {
@@ -243,7 +243,7 @@ export function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
     const cols = process.stdout.columns || 80;
     const rows = getRows();
     const composerText = getComposerDisplayText(ctx.store.composer);
-    const composerLines = Math.max(1, composerText.split('\n').length);
+    const composerLines = measureComposerVisualRows(composerText, getDisplayCursorOffset(ctx.store.composer), cols);
     const ac = ctx.store.autocomplete;
     const slashRows = composeSlashSurfaceLines(ac, {
         columns: cols,
@@ -275,40 +275,29 @@ export function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
         ...commandRows,
     ];
 
-    // Input box with border — safe for narrow terminals
-    const innerW = Math.max(6, cols - 4);
+    // Input box with border — width-safe and cursor-aware for IME/wide glyphs.
     const box = isInitialized() ? (() => { try { return getInteractive().theme?.boxSharp; } catch { return null; } })() : null;
-    const bTL = box?.topLeft ?? '┌'; const bTR = box?.topRight ?? '┐';
-    const bBL = box?.bottomLeft ?? '└'; const bBR = box?.bottomRight ?? '┘';
-    const bH = box?.horizontal ?? '─'; const bV = box?.vertical ?? '│';
-    const borderFill = Math.max(0, innerW);
-
-    frameRows.push(clipTextToCols(`${c.dim}${bTL}${bH.repeat(borderFill)}${bTR}${c.reset}`, cols));
-
-    const prefixVisW = 4; // │ > (space)
-    const prefix = `${c.dim}${bV}${c.reset} ${ctx.accent}${c.bold}>${c.reset} `;
-    const compLines = composerText.split('\n');
-    const hasInput = composerText.trim().length > 0;
-    for (let i = 0; i < regions.composer.height; i++) {
-        const rawLine = compLines[i] ?? '';
-        const maxTextW = Math.max(1, innerW - 4);
-        const clipped = clipTextToCols(rawLine, maxTextW);
-        const lineVisW = visualWidth(clipped);
-        const padW = Math.max(0, innerW - 3 - lineVisW);
-        const suffix = `${' '.repeat(padW)}${c.dim}${bV}${c.reset}`;
-        if (i === 0 && !hasInput) {
-            const placeholder = clipTextToCols('Type your message...', maxTextW);
-            const phVisW = visualWidth(placeholder);
-            const phPadW = Math.max(0, innerW - 3 - phVisW);
-            const phSuffix = `${' '.repeat(phPadW)}${c.dim}${bV}${c.reset}`;
-            frameRows.push(clipTextToCols(`${prefix}${c.dim}${placeholder}${c.reset}${phSuffix}`, cols));
-        } else {
-            const content = i === 0 ? `${prefix}${clipped}${suffix}` : `${c.dim}${bV}${c.reset}   ${clipped}${suffix}`;
-            frameRows.push(clipTextToCols(content, cols));
-        }
-    }
-
-    frameRows.push(clipTextToCols(`${c.dim}${bBL}${bH.repeat(borderFill)}${bBR}${c.reset}`, cols));
+    const composerBox = composeComposerBox(
+        composerText,
+        getDisplayCursorOffset(ctx.store.composer),
+        cols,
+        regions.composer.height,
+        {
+            dimCode: c.dim,
+            resetCode: c.reset,
+            accentCode: ctx.accent,
+            boldCode: c.bold,
+            border: {
+                topLeft: box?.topLeft ?? '┌',
+                topRight: box?.topRight ?? '┐',
+                bottomLeft: box?.bottomLeft ?? '└',
+                bottomRight: box?.bottomRight ?? '┘',
+                horizontal: box?.horizontal ?? '─',
+                vertical: box?.vertical ?? '│',
+            },
+        },
+    );
+    frameRows.push(...composerBox.rows.map(row => clipTextToCols(row, cols)));
     frameRows.push(renderHelpLine(cols));
 
     // For overlays, we need a full-height array. Expand VIEWPORT_FILL now.
@@ -341,11 +330,9 @@ export function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
     const showCursor = ctx.inputActive && !needsOverlay && !ov.settingsOpen && !ctx.commandRunning;
     let cursorPos: Frame['cursorPos'];
     if (showCursor) {
-        const cursorOff = getDisplayCursorOffset(ctx.store.composer);
-        const curPos = cursorScreenPos(composerText, cursorOff, prefixVisW, prefixVisW, cols);
         cursorPos = {
-            row: regions.composer.y - 1 + curPos.row,
-            col: curPos.col,
+            row: regions.composer.y + composerBox.cursor.row,
+            col: composerBox.cursor.col,
         };
     }
 
