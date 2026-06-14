@@ -88,3 +88,25 @@ test('Viewport width changes rerender cells', () => {
     v.setItems([{ type: 'user', displayText: 'same', submitText: 'same', timestamp: 0 }], renderWithWidth);
     assert.equal(v.composeRegion({ x: 1, y: 1, width: 40, height: 1 })[0], 'user:42');
 });
+
+test('Viewport scrollback can reach hydrated chat session start', () => {
+    const v = new Viewport();
+    v.setPrelude(['welcome']);
+    v.setItems([
+        { type: 'user', displayText: 'session start', submitText: 'session start', timestamp: 0 },
+        { type: 'assistant', text: 'old answer', streaming: false, timestamp: 1 },
+        { type: 'user', displayText: 'current prompt', submitText: 'current prompt', timestamp: 2 },
+        { type: 'assistant', text: 'current answer', streaming: false, timestamp: 3 },
+    ], render, 2);
+
+    assert.deepEqual(
+        v.composeRegion({ x: 1, y: 1, width: 40, height: 2 }),
+        ['u:current prompt', 'assistant'],
+    );
+
+    v.scrollToTop();
+    assert.deepEqual(
+        v.composeRegion({ x: 1, y: 1, width: 40, height: 3 }),
+        ['welcome', 'u:session start', 'assistant'],
+    );
+});

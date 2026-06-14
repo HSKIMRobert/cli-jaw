@@ -12,6 +12,8 @@ import {
     appendThinkingTurnText,
     appendStatusItem,
     clearEphemeralStatus,
+    appendToolItem,
+    hydrateTranscriptFromHistory,
 } from '../../src/cli/tui/transcript.ts';
 
 test('appendUserItem adds user transcript entry', () => {
@@ -81,7 +83,6 @@ test('appendAssistantTurnText starts a new assistant after intervening tool rows
 });
 
 test('assistantTextSinceLastUser joins split assistant text around tools', async () => {
-    const { appendToolItem } = await import('../../src/cli/tui/transcript.ts');
     const state = createTranscriptState();
     appendUserItem(state, 'run tools', 'run tools');
     startAssistantItem(state);
@@ -93,7 +94,6 @@ test('assistantTextSinceLastUser joins split assistant text around tools', async
 });
 
 test('finalizeStreamingAssistants finalizes assistant rows split by tools', async () => {
-    const { appendToolItem } = await import('../../src/cli/tui/transcript.ts');
     const state = createTranscriptState();
     startAssistantItem(state);
     appendToActiveAssistant(state, 'a');
@@ -131,6 +131,31 @@ test('assistant final text starts after thinking rows', () => {
     assert.equal(state.items.map((item) => item.type).join(','), 'user,thinking,assistant');
 });
 
+test('late thinking is inserted before same-turn tool rows', () => {
+    const state = createTranscriptState();
+    appendUserItem(state, 'run tools', 'run tools');
+    appendToolItem(state, 'Bash echo 1', { status: 'done', stepRef: 'tool-1' });
+    appendThinkingTurnText(state, 'Planning tool calls', 'main');
+    appendThinkingTurnText(state, '\nExecuting tool calls', 'main');
+
+    assert.equal(state.items.map((item) => item.type).join(','), 'user,thinking,tool');
+    const thinking = state.items[1]!;
+    assert.equal(thinking.type, 'thinking');
+    if (thinking.type === 'thinking') {
+        assert.equal(thinking.text, 'Planning tool calls\nExecuting tool calls');
+        assert.equal(thinking.streaming, true);
+    }
+});
+
+test('late thinking is inserted before same-turn final assistant text', () => {
+    const state = createTranscriptState();
+    appendUserItem(state, 'hello', 'hello');
+    appendAssistantTurnText(state, 'Final answer', 'main');
+    appendThinkingTurnText(state, 'Internal plan', 'main');
+
+    assert.equal(state.items.map((item) => item.type).join(','), 'user,thinking,assistant');
+});
+
 test('agent_done with text but no prior chunks', () => {
     const state = createTranscriptState();
     startAssistantItem(state);
@@ -165,6 +190,17 @@ test('clearEphemeralStatus removes trailing status', () => {
     assert.equal(state.items[0]!.type, 'user');
 });
 
+test('clearEphemeralStatus removes non-trailing status rows', () => {
+    const state = createTranscriptState();
+    appendUserItem(state, 'hi', 'hi');
+    appendStatusItem(state, 'working...');
+    appendAssistantTurnText(state, 'hello', 'main');
+
+    assert.equal(state.items.map((item) => item.type).join(','), 'user,status,assistant');
+    clearEphemeralStatus(state);
+    assert.equal(state.items.map((item) => item.type).join(','), 'user,assistant');
+});
+
 test('clearEphemeralStatus does nothing when last item is not status', () => {
     const state = createTranscriptState();
     appendUserItem(state, 'hi', 'hi');
@@ -193,6 +229,25 @@ test('full conversation flow', () => {
         assert.equal(state.items[1]!.text, 'Hi! How can I help?');
         assert.equal(state.items[1]!.streaming, false);
     }
+});
+
+test('hydrateTranscriptFromHistory seeds user and assistant rows in order', () => {
+    const state = createTranscriptState();
+    const added = hydrateTranscriptFromHistory(state, [
+        { role: 'system', content: 'ignore' },
+        { role: 'user', content: 'first prompt' },
+        { role: 'assistant', content: 'first answer' },
+        { role: 'user', content: 'second prompt' },
+        { role: 'assistant', content: '' },
+    ]);
+
+    assert.equal(added, 3);
+    assert.equal(state.items.map((item) => item.type).join(','), 'user,assistant,user');
+    assert.deepEqual(state.items.map((item) => item.type === 'user' ? item.displayText : item.type === 'assistant' ? item.text : ''), [
+        'first prompt',
+        'first answer',
+        'second prompt',
+    ]);
 });
 
 test('user item with paste (display differs from submit)', () => {

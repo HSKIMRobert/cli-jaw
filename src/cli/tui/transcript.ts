@@ -33,6 +33,12 @@ export interface ToolEventInput {
     stepRef?: string | undefined;
 }
 
+export interface HistoryMessageRow {
+    role?: unknown;
+    content?: unknown;
+    trace?: unknown;
+}
+
 export function createTranscriptState(): TranscriptState {
     return { items: [], liveTools: [], liveToolsExpanded: false, committedToolRefs: new Set() };
 }
@@ -68,9 +74,45 @@ function appendToActiveThinking(state: TranscriptState, chunk: string): boolean 
     return true;
 }
 
+function lastUserIndex(state: TranscriptState): number {
+    for (let i = state.items.length - 1; i >= 0; i--) {
+        if (state.items[i]?.type === 'user') return i;
+    }
+    return -1;
+}
+
+function findActiveThinkingIndexSinceLastUser(state: TranscriptState, agentId?: string): number {
+    const boundary = lastUserIndex(state);
+    for (let i = state.items.length - 1; i > boundary; i--) {
+        const item = state.items[i]!;
+        if (item.type !== 'thinking' || !item.streaming) continue;
+        if (agentId && item.agentId && item.agentId !== agentId) continue;
+        return i;
+    }
+    return -1;
+}
+
+function thinkingInsertIndexSinceLastUser(state: TranscriptState): number {
+    const boundary = lastUserIndex(state);
+    for (let i = boundary + 1; i < state.items.length; i++) {
+        const item = state.items[i]!;
+        if (item.type === 'tool' || item.type === 'assistant') return i;
+    }
+    return state.items.length;
+}
+
 export function appendThinkingTurnText(state: TranscriptState, chunk: string, agentId?: string): boolean {
     if (!chunk) return false;
     if (appendToActiveThinking(state, chunk)) return true;
+    const activeThinkingIndex = findActiveThinkingIndexSinceLastUser(state, agentId);
+    if (activeThinkingIndex >= 0) {
+        const item = state.items[activeThinkingIndex]!;
+        if (item.type === 'thinking') {
+            item.text += chunk;
+            item.timestamp = Date.now();
+            return true;
+        }
+    }
     const item: TranscriptItem = {
         type: 'thinking',
         text: chunk,
@@ -79,8 +121,25 @@ export function appendThinkingTurnText(state: TranscriptState, chunk: string, ag
         collapsed: true,
     };
     if (agentId) item.agentId = agentId;
-    state.items.push(item);
+    state.items.splice(thinkingInsertIndexSinceLastUser(state), 0, item);
     return true;
+}
+
+export function hydrateTranscriptFromHistory(state: TranscriptState, rows: HistoryMessageRow[]): number {
+    let added = 0;
+    for (const row of rows) {
+        const role = typeof row.role === 'string' ? row.role : '';
+        const content = typeof row.content === 'string' ? row.content : '';
+        if (!content.trim()) continue;
+        if (role === 'user') {
+            state.items.push({ type: 'user', displayText: content, submitText: content, timestamp: Date.now() });
+            added += 1;
+        } else if (role === 'assistant') {
+            state.items.push({ type: 'assistant', text: content, streaming: false, timestamp: Date.now() });
+            added += 1;
+        }
+    }
+    return added;
 }
 
 export function finalizeAssistant(state: TranscriptState, fallbackText?: string): boolean {
@@ -270,6 +329,7 @@ export function toggleLatestToolExpansion(state: TranscriptState): boolean {
 
 export function appendStatusItem(state: TranscriptState, text: string): void {
     // Ephemeral — replace previous status if it exists
+    clearEphemeralStatus(state);
     const last = state.items[state.items.length - 1];
     if (last?.type === 'status') {
         last.text = text;
@@ -280,7 +340,7 @@ export function appendStatusItem(state: TranscriptState, text: string): void {
 }
 
 export function clearEphemeralStatus(state: TranscriptState): void {
-    if (state.items.length > 0 && state.items[state.items.length - 1]?.type === 'status') {
-        state.items.pop();
+    for (let i = state.items.length - 1; i >= 0; i--) {
+        if (state.items[i]?.type === 'status') state.items.splice(i, 1);
     }
 }
