@@ -37,6 +37,12 @@ test('fullscreen input handler parses slash drafts before normal chat send', () 
     assert.ok(sendIndex > commandIndex, 'normal chat send should remain after slash command branch');
 });
 
+test('autocomplete enter ignores selected command when it no longer matches current slash query', () => {
+    assert.match(inputHandlerSource, /const currentDraft = getPlainCommandDraft\(composer\);/);
+    assert.ok(inputHandlerSource.includes("const commandQuery = currentDraft?.startsWith('/')"));
+    assert.match(inputHandlerSource, /!picked\.name\.toLowerCase\(\)\.startsWith\(commandQuery\)/);
+});
+
 test('autocomplete redraw ignores stale async slash results', () => {
     const overlaysSource = readFileSync(new URL('../../bin/commands/tui/overlays.ts', import.meta.url), 'utf8');
 

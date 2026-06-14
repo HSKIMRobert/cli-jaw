@@ -329,24 +329,32 @@ export function handleKeyInput(ctx: TuiContext, rawKey: string): void {
         if (ac.open) {
             const picked = ac.items[ac.selected];
             const pickedStage = ac.stage;
+            const currentDraft = getPlainCommandDraft(composer);
             closeAutocompleteForCtx(ctx);
             if (picked) {
                 if (pickedStage === 'argument' && picked.kind === 'file-mention') {
                     applyFileMentionPick(ctx, picked.name);
                     return;
                 }
-                clearComposer(composer);
-                if (pickedStage === 'argument') {
-                    appendTextToComposer(composer, picked.insertText || `/${picked.command || ''} ${picked.name}`.trim());
-                    redrawPromptLine(ctx);
-                    return;
+                const commandQuery = currentDraft?.startsWith('/')
+                    ? currentDraft.slice(1).trim().toLowerCase()
+                    : '';
+                if (pickedStage !== 'argument' && commandQuery && !picked.name.toLowerCase().startsWith(commandQuery)) {
+                    // Ignore stale async autocomplete results and submit the current composer text.
+                } else {
+                    clearComposer(composer);
+                    if (pickedStage === 'argument') {
+                        appendTextToComposer(composer, picked.insertText || `/${picked.command || ''} ${picked.name}`.trim());
+                        redrawPromptLine(ctx);
+                        return;
+                    }
+                    if (picked.args) {
+                        appendTextToComposer(composer, `/${picked.name} `);
+                        redrawPromptLine(ctx);
+                        return;
+                    }
+                    appendTextToComposer(composer, `/${picked.name}`);
                 }
-                if (picked.args) {
-                    appendTextToComposer(composer, `/${picked.name} `);
-                    redrawPromptLine(ctx);
-                    return;
-                }
-                appendTextToComposer(composer, `/${picked.name}`);
             }
         }
         // Backslash continuation
