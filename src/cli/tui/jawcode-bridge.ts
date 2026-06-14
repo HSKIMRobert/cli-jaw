@@ -63,15 +63,20 @@ function getTheme(): { fg: (color: string, text: string) => string; bold: (text:
 
 export function renderToolLine(icon: string, label: string, detail: string, state: 'pending' | 'done' | 'error', opts?: { depth?: number; isLast?: boolean; elapsed?: string }): string {
     const theme = getTheme();
+    const detailLineCount = detail ? detail.split('\n').filter(Boolean).length : 0;
+    const foldedHint = detailLineCount > 1 ? ` … +${detailLineCount} lines` : detail ? ' …' : '';
     if (!theme) {
         const stateIcon = state === 'done' ? '\x1b[32m✔\x1b[0m' : state === 'error' ? '\x1b[31m✖\x1b[0m' : '\x1b[36m⏳\x1b[0m';
-        return `  ${stateIcon} ${icon} ${label}${detail ? `: ${detail}` : ''}`;
+        const detailText = state === 'pending' || state === 'error'
+            ? (detail ? `: ${detail}` : '')
+            : foldedHint;
+        return `  ${stateIcon} ${icon} ${label}${detailText}`;
     }
     const stateIcon = state === 'done' ? theme.fg('success', '✔') : state === 'error' ? theme.fg('error', '✖') : theme.fg('accent', '⏳');
     const depth = opts?.depth || 0;
     const treePre = depth > 0 ? `${'  '.repeat(depth - 1)}${opts?.isLast ? '└─ ' : '├─ '}` : '';
     const elapsedStr = opts?.elapsed ? ` ${theme.fg('muted', opts.elapsed)}` : '';
-    const collapsedHint = state === 'done' && detail ? ` ${theme.fg('muted', `… +${detail.split('\n').length} lines`)}` : '';
+    const collapsedHint = state === 'done' && foldedHint ? theme.fg('muted', foldedHint) : '';
     return `  ${treePre}${stateIcon} ${theme.bold(`${icon} ${label}`)}${detail && state !== 'done' ? theme.fg('muted', `: ${detail}`) : collapsedHint}${elapsedStr}`;
 }
 
