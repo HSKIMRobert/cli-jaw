@@ -18,6 +18,8 @@ export interface ComposerBoxTheme {
     border: ComposerBorderChars;
     promptGlyph?: string;
     placeholder?: string;
+    textCode?: string;
+    placeholderCode?: string;
 }
 
 export interface ComposerBoxLayout {
@@ -99,7 +101,8 @@ function formatInputRow(text: string, options: ComposerBoxTheme, textWidth: numb
         ? `${options.dimCode}${border.vertical}${options.resetCode} ${options.accentCode}${options.boldCode}${promptGlyph}${options.resetCode} `
         : `${options.dimCode}${border.vertical}${options.resetCode}   `;
     const clippedText = clipTextToCols(text, textWidth);
-    const body = placeholder ? `${options.dimCode}${clippedText}${options.resetCode}` : clippedText;
+    const bodyCode = placeholder ? (options.placeholderCode ?? options.dimCode) : (options.textCode ?? '');
+    const body = bodyCode ? `${bodyCode}${clippedText}${options.resetCode}` : clippedText;
     const paddedBody = padToCells(body, textWidth);
     return clipTextToCols(`${rawPrefix}${paddedBody}${options.dimCode}${border.vertical}${options.resetCode}`, textWidth + PREFIX_WIDTH + 1);
 }

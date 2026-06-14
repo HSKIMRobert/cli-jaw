@@ -136,25 +136,44 @@ test('fullscreen launch welcome starts at the terminal frame origin', () => {
 });
 
 test('fullscreen first transcript row releases launch prelude anchor for scrollback commit', () => {
-    withTerminalSize(80, 24, () => {
+    withTerminalSize(80, 10, () => {
         const ctx = makeCtx();
         ctx.welcomeLines = ['welcome', '1', '2'];
+        const viewport = new Viewport();
 
-        const launchFrame = composeFrame(ctx, new Viewport());
+        const launchFrame = composeFrame(ctx, viewport);
         assert.notEqual(launchFrame.rows[0], VIEWPORT_FILL, 'pure launch frame should keep welcome at row 1');
 
         appendUserItem(ctx.store.transcript, '3\n4\n5', '3\n4\n5');
-        const activeFrame = composeFrame(ctx, new Viewport());
+        const activeFrame = composeFrame(ctx, viewport);
         assert.equal(activeFrame.rows[0], VIEWPORT_FILL, 'first transcript frame must expose the top fill lane so welcome/1/2 can commit to scrollback');
+        const pendingCommitRows = viewport.peekCommitRows(solveLayout(80, 10, 1).transcript.height);
+        assert.ok(
+            pendingCommitRows.length > 0,
+            'first transcript render must leave rows ready for the scheduler post-render commit tick',
+        );
+        assert.match(stripAnsi(pendingCommitRows.join('\n')), /welcome[\s\S]*1[\s\S]*2/);
 
-        const expanded = expandViewportFill(activeFrame.rows, 24);
+        const expanded = expandViewportFill(activeFrame.rows, 10);
         const main = stripAnsi(expanded.join('\n'));
-        assert.match(main, /welcome/);
-        assert.match(main, /\b1\b/);
-        assert.match(main, /\b2\b/);
         assert.match(main, /\b3\b/);
         assert.match(main, /\b4\b/);
         assert.match(main, /\b5\b/);
+    });
+});
+
+test('fullscreen user and composer text use explicit readable foreground for dark themes', () => {
+    withTerminalSize(96, 28, () => {
+        const ctx = makeCtx();
+        appendUserItem(ctx.store.transcript, 'visible user message', 'visible user message');
+        appendTextToComposer(ctx.store.composer, 'visible composer text');
+
+        const expanded = expandViewportFill(composeFrame(ctx, new Viewport()).rows, 28);
+        const userRow = expanded.find(row => row.includes('visible user message')) ?? '';
+        const composerRow = expanded.find(row => row.includes('visible composer text')) ?? '';
+
+        assert.match(userRow, /\x1b\[97mvisible user message\x1b\[0m/);
+        assert.match(composerRow, /\x1b\[97mvisible composer text\x1b\[0m/);
     });
 });
 

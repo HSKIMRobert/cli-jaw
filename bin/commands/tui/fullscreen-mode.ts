@@ -27,6 +27,7 @@ import { redrawInputWithAutocomplete } from './overlays.js';
 import { rebuildFooter } from './renderer.js';
 
 const LEADING_TOOL_GLYPH = /^\s*(?:[\p{Extended_Pictographic}\u2600-\u27bf]\ufe0f?)\s+/u;
+const READABLE_TEXT = '\x1b[97m';
 
 function parseToolText(text: string): { label: string; detail: string } {
     const [head = '', ...rest] = text.split(':');
@@ -56,7 +57,7 @@ function renderUserBlock(item: Extract<TranscriptItem, { type: 'user' }>, width:
     const bodyRows = wrapPlainLines(item.displayText, bodyWidth);
     return [
         clipTextToCols(header, width),
-        ...bodyRows.map(line => `${bodyPrefix}${clipTextToCols(line, bodyWidth)}`),
+        ...bodyRows.map(line => `${bodyPrefix}${READABLE_TEXT}${clipTextToCols(line, bodyWidth)}${c.reset}`),
         clipTextToCols(footer, width),
     ];
 }
@@ -288,7 +289,7 @@ function renderChatRegion(ctx: TuiContext, viewport: Viewport, regions: Regions,
 }
 
 function renderHelpLine(cols: number): string {
-    return clipTextToCols(`${c.dim}? for shortcuts · /help · /model · /settings${c.reset}`, cols);
+    return clipTextToCols(`${c.gray}? for shortcuts · /help · /model · /settings${c.reset}`, cols);
 }
 
 function expandFrameRows(rows: string[], height: number): string[] {
@@ -364,6 +365,8 @@ export function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
             resetCode: c.reset,
             accentCode: ctx.accent,
             boldCode: c.bold,
+            textCode: READABLE_TEXT,
+            placeholderCode: c.gray,
             border: {
                 topLeft: box?.topLeft ?? '┌',
                 topRight: box?.topRight ?? '┐',
@@ -442,7 +445,8 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
             retryCommitAfterRender = true;
         }
         screen.render(composeFrame(ctx, viewport));
-        if (retryCommitAfterRender) scheduler.request();
+        const postRenderCommitReady = hasTranscriptItems && viewport.peekCommitRows(transcriptHeight).length > 0;
+        if (retryCommitAfterRender || postRenderCommitReady) scheduler.request();
     });
 
     ctx.displayMode = 'fullscreen';
