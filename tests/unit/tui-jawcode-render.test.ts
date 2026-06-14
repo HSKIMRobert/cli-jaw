@@ -26,6 +26,15 @@ test('renderMarkdownJawcode renders common markdown blocks', async () => {
     assert.ok(out.includes('const x = 1'));
 });
 
+test('renderMarkdownJawcode renders tables without missing symbol theme', async () => {
+    await initJawcodeTui();
+    const lines = renderMarkdownJawcode('| A | B |\n|---|---|\n| 1 | 2 |', 80);
+    const out = lines.join('\n');
+    assert.ok(out.includes('A'));
+    assert.ok(out.includes('1'));
+    assert.ok(out.includes('┌') || out.includes('| A | B |'));
+});
+
 test('renderMarkdownJawcode can be called repeatedly after one initialization', async () => {
     await initJawcodeTui();
     const first = renderMarkdownJawcode('plain text', 80);

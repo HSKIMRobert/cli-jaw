@@ -40,7 +40,7 @@ function asThemeLike(value: unknown): InteractiveThemeLike {
     return value as InteractiveThemeLike;
 }
 
-function buildMarkdownTheme(): Record<string, MarkdownThemeFn> {
+function buildMarkdownTheme(): Record<string, unknown> {
     const theme = _interactive?.theme;
     const themeLike = asThemeLike(theme);
     const fg = typeof themeLike.fg === 'function'
@@ -64,6 +64,23 @@ function buildMarkdownTheme(): Record<string, MarkdownThemeFn> {
         italic,
         underline,
         strikethrough: (t: string) => `\x1b[9m${t}\x1b[29m`,
+        symbols: {
+            quoteBorder: '│',
+            hrChar: '─',
+            table: {
+                horizontal: '─',
+                vertical: '│',
+                topLeft: '┌',
+                topRight: '┐',
+                bottomLeft: '└',
+                bottomRight: '┘',
+                teeDown: '┬',
+                teeUp: '┴',
+                teeLeft: '┤',
+                teeRight: '├',
+                cross: '┼',
+            },
+        },
     };
 }
 
