@@ -29,12 +29,19 @@ import { handleWsMessage } from './ws-handler.js';
 import { redrawInputWithAutocomplete } from './overlays.js';
 import { rebuildFooter } from './renderer.js';
 
-function renderTranscriptItem(item: TranscriptItem, width: number): string[] {
+export function renderTranscriptItem(item: TranscriptItem, width: number): string[] {
     const gutter = '  ';
     const w = Math.max(20, width - gutter.length);
     switch (item.type) {
-        case 'user':
-            return [`${gutter}${c.cyan}${c.bold}❯${c.reset} ${clipTextToCols(item.displayText, w - 3)}`];
+        case 'user': {
+            const lines = item.displayText.split('\n');
+            return lines.map((line, index) => {
+                const marker = index === 0
+                    ? `${c.cyan}${c.bold}❯${c.reset}`
+                    : `${c.dim}↳${c.reset}`;
+                return `${gutter}${marker} ${clipTextToCols(line, w - 3)}`;
+            });
+        }
         case 'assistant': {
             const agentLabel = item.agentId ? `${c.dim}[${item.agentId}]${c.reset} ` : '';
             if (item.streaming && !item.text) {
@@ -46,7 +53,10 @@ function renderTranscriptItem(item: TranscriptItem, width: number): string[] {
             const thinkMatch = !item.streaming && item.text.startsWith('<think');
             if (thinkMatch) {
                 const thinkLines = item.text.split('\n').length;
-                return [`${gutter}${header}${renderThinkingCollapse(item.text, thinkLines, false)}`];
+                return [
+                    ...(agentLabel ? [`${gutter}${agentLabel}`] : []),
+                    renderThinkingCollapse(item.text, thinkLines, false),
+                ];
             }
             const mdText = item.text + (cursor ? ` ${cursor}` : '');
             const body = isInitialized()
