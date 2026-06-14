@@ -1,0 +1,109 @@
+export class AnsiTerminalModel {
+    private lines: string[];
+    private row = 0;
+    private col = 0;
+    private scrollTop = 0;
+    private scrollBottom: number;
+
+    constructor(private columns: number, private rows: number) {
+        this.lines = new Array(rows).fill('');
+        this.scrollBottom = rows - 1;
+    }
+
+    resize(columns: number, rows: number): void {
+        this.columns = columns;
+        if (rows < this.rows) {
+            this.lines = this.lines.slice(this.rows - rows);
+        } else if (rows > this.rows) {
+            this.lines = [...new Array(rows - this.rows).fill(''), ...this.lines];
+            this.row += rows - this.rows;
+        }
+        this.rows = rows;
+        this.row = Math.max(0, Math.min(this.rows - 1, this.row));
+        this.col = Math.max(0, Math.min(this.columns - 1, this.col));
+        this.scrollTop = 0;
+        this.scrollBottom = this.rows - 1;
+    }
+
+    write(input: string): void {
+        for (let i = 0; i < input.length; i += 1) {
+            const ch = input[i] ?? '';
+            if (ch === '\x1b' && input[i + 1] === '[') {
+                i = this.handleCsi(input, i + 2);
+                continue;
+            }
+            if (ch === '\r') {
+                this.col = 0;
+                continue;
+            }
+            if (ch === '\n') {
+                this.lineFeed();
+                continue;
+            }
+            this.putChar(ch);
+        }
+    }
+
+    visibleText(): string {
+        return this.lines.join('\n');
+    }
+
+    countVisible(pattern: string): number {
+        if (!pattern) return 0;
+        return this.visibleText().split(pattern).length - 1;
+    }
+
+    private handleCsi(input: string, start: number): number {
+        let end = start;
+        while (end < input.length && !/[A-Za-z]/.test(input[end] ?? '')) end += 1;
+        const command = input[end] ?? '';
+        const body = input.slice(start, end);
+        if (body.startsWith('?')) return end;
+
+        const params = body.split(';').map(part => Number.parseInt(part, 10));
+        const n = Number.isFinite(params[0]) ? params[0] : 1;
+
+        if (command === 'A') this.row = Math.max(0, this.row - n);
+        else if (command === 'B') this.row = Math.min(this.rows - 1, this.row + n);
+        else if (command === 'C') this.col = Math.min(this.columns - 1, this.col + n);
+        else if (command === 'H') this.moveTo(params);
+        else if (command === 'K' && n === 2) this.lines[this.row] = '';
+        else if (command === 'r') this.setScrollRegion(params);
+        return end;
+    }
+
+    private moveTo(params: number[]): void {
+        const targetRow = Number.isFinite(params[0]) ? params[0] - 1 : 0;
+        const targetCol = Number.isFinite(params[1]) ? params[1] - 1 : 0;
+        this.row = Math.max(0, Math.min(this.rows - 1, targetRow));
+        this.col = Math.max(0, Math.min(this.columns - 1, targetCol));
+    }
+
+    private setScrollRegion(params: number[]): void {
+        if (params.length < 2 || !Number.isFinite(params[0]) || !Number.isFinite(params[1])) {
+            this.scrollTop = 0;
+            this.scrollBottom = this.rows - 1;
+            return;
+        }
+        this.scrollTop = Math.max(0, Math.min(this.rows - 1, params[0] - 1));
+        this.scrollBottom = Math.max(this.scrollTop, Math.min(this.rows - 1, params[1] - 1));
+    }
+
+    private putChar(ch: string): void {
+        const current = this.lines[this.row] ?? '';
+        const padded = current.padEnd(this.col, ' ');
+        this.lines[this.row] = (padded.slice(0, this.col) + ch + padded.slice(this.col + 1)).slice(0, this.columns);
+        this.col = Math.min(this.columns - 1, this.col + 1);
+    }
+
+    private lineFeed(): void {
+        if (this.row === this.scrollBottom) {
+            for (let r = this.scrollTop; r < this.scrollBottom; r += 1) {
+                this.lines[r] = this.lines[r + 1] ?? '';
+            }
+            this.lines[this.scrollBottom] = '';
+            return;
+        }
+        this.row = Math.min(this.rows - 1, this.row + 1);
+    }
+}

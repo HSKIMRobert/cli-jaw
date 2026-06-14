@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Screen, VIEWPORT_FILL, diffFrames, type Frame } from '../../src/cli/tui/render/frame.ts';
+import { AnsiTerminalModel } from './helpers/ansi-terminal-model.ts';
 
 test('Screen enter/exit — inline mode (no alt-screen)', () => {
     let output = '';
@@ -80,6 +81,46 @@ test('Screen forceRedraw repaints from the existing frame top instead of current
         screen.exit();
     } finally {
         process.stdout.write = origWrite;
+    }
+});
+
+test('Screen forceResizeRedraw anchors repaint to the current viewport home after height resize', () => {
+    let output = '';
+    const terminal = new AnsiTerminalModel(40, 8);
+    const origWrite = process.stdout.write.bind(process.stdout);
+    const columnsDesc = Object.getOwnPropertyDescriptor(process.stdout, 'columns');
+    const rowsDesc = Object.getOwnPropertyDescriptor(process.stdout, 'rows');
+    Object.defineProperty(process.stdout, 'columns', { value: 40, configurable: true });
+    Object.defineProperty(process.stdout, 'rows', { value: 8, configurable: true });
+    process.stdout.write = ((chunk: string | Uint8Array) => {
+        const text = typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8');
+        output += text;
+        terminal.write(text);
+        return true;
+    }) as typeof process.stdout.write;
+
+    try {
+        const screen = new Screen();
+        screen.enter();
+        output = '';
+        screen.render({ rows: [VIEWPORT_FILL, 'WELCOME', 'input', 'help'], cursorPos: { row: 2, col: 1 } });
+        assert.equal(terminal.countVisible('WELCOME'), 1);
+
+        terminal.resize(40, 5);
+        Object.defineProperty(process.stdout, 'rows', { value: 5, configurable: true });
+        output = '';
+        screen.forceResizeRedraw();
+        screen.render({ rows: [VIEWPORT_FILL, 'WELCOME', 'input', 'help'], cursorPos: { row: 2, col: 1 } });
+
+        assert.ok(output.includes('\x1b[H'), 'resize repaint should anchor at viewport home');
+        assert.equal(output.includes('\x1b[2J'), false, 'resize repaint must not clear scrollback');
+        assert.equal(output.includes('\x1b[3J'), false, 'resize repaint must not clear scrollback history');
+        assert.equal(terminal.countVisible('WELCOME'), 1, terminal.visibleText());
+        screen.exit();
+    } finally {
+        process.stdout.write = origWrite;
+        if (columnsDesc) Object.defineProperty(process.stdout, 'columns', columnsDesc);
+        if (rowsDesc) Object.defineProperty(process.stdout, 'rows', rowsDesc);
     }
 });
 

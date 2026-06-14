@@ -88,6 +88,7 @@ export class Screen {
     private inlineActive = false;
     private cursorRow = 0;
     private fullRedrawPending = false;
+    private resizeRedrawPending = false;
     private lastFillRows = 0;
     private committedScreenRows = 0;
 
@@ -102,6 +103,7 @@ export class Screen {
         this.prevLines = [];
         this.cursorRow = 0;
         this.fullRedrawPending = false;
+        this.resizeRedrawPending = false;
         this.lastFillRows = 0;
         this.committedScreenRows = 0;
     }
@@ -117,6 +119,7 @@ export class Screen {
         this.prevLines = [];
         this.cursorRow = 0;
         this.fullRedrawPending = false;
+        this.resizeRedrawPending = false;
         this.lastFillRows = 0;
         this.committedScreenRows = 0;
     }
@@ -141,7 +144,12 @@ export class Screen {
             this.committedScreenRows = Math.min(this.committedScreenRows, normalized.fillRows);
         }
 
-        if (this.fullRedrawPending || this.prevLines.length === 0) {
+        if (this.resizeRedrawPending) {
+            buf += buildViewportRepaintSequence(lines, height);
+            this.cursorRow = Math.max(0, Math.min(lines.length, height) - 1);
+            this.fullRedrawPending = false;
+            this.resizeRedrawPending = false;
+        } else if (this.fullRedrawPending || this.prevLines.length === 0) {
             if (this.fullRedrawPending && this.committedScreenRows > 0 && this.lastFillRows > 0) {
                 buf += buildScrollOutSequence(this.lastFillRows, this.lastFillRows, { row: this.cursorRow, col: 0 });
                 this.committedScreenRows = 0;
@@ -262,6 +270,11 @@ export class Screen {
         this.fullRedrawPending = true;
     }
 
+    forceResizeRedraw(): void {
+        this.fullRedrawPending = true;
+        this.resizeRedrawPending = true;
+    }
+
     resetViewport(): void {
         if (!this.inlineActive) return;
         let buf = '\x1b[?2026h';
@@ -282,6 +295,7 @@ export class Screen {
         this.lastFillRows = 0;
         this.committedScreenRows = 0;
         this.fullRedrawPending = true;
+        this.resizeRedrawPending = false;
     }
 
     enableMouse(): void {
@@ -291,6 +305,16 @@ export class Screen {
     disableMouse(): void {
         process.stdout.write('\x1b[?1006l\x1b[?1000l');
     }
+}
+
+function buildViewportRepaintSequence(lines: string[], height: number): string {
+    const repaintRows = Math.max(1, height);
+    let out = '\x1b[H';
+    for (let i = 0; i < repaintRows; i += 1) {
+        if (i > 0) out += '\r\n';
+        out += '\x1b[2K' + (lines[i] ?? '');
+    }
+    return out;
 }
 
 function buildInsertHistorySequence(

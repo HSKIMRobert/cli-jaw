@@ -48,9 +48,10 @@ test('fullscreen resize uses redraw without clearing terminal history', () => {
     const resizeEnd = fullscreenSource.indexOf("process.stdin.on('data'", resizeStart);
     const resizeBlock = fullscreenSource.slice(resizeStart, resizeEnd);
 
-    assert.ok(frameSource.includes('forceRedraw(): void'));
-    assert.ok(frameSource.includes('Math.max(lines.length, this.prevLines.length)'));
-    assert.ok(resizeBlock.includes('screen.forceRedraw();'));
+    assert.ok(frameSource.includes('forceResizeRedraw(): void'));
+    assert.ok(frameSource.includes('buildViewportRepaintSequence'));
+    assert.ok(resizeBlock.includes('screen.forceResizeRedraw();'));
+    assert.equal(resizeBlock.includes('screen.forceRedraw();'), false);
     assert.equal(resizeBlock.includes('screen.resetViewport();'), false);
     assert.equal(frameSource.includes('\\x1b[2J'), false);
     assert.equal(frameSource.includes('\\x1b[3J'), false);
