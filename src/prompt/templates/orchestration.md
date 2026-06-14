@@ -27,6 +27,10 @@ cli-jaw dispatch --agent "Frontend" --task "Specific task instruction"
 >
 > timeout 생략 + 직원이 2분 초과 시 Boss는 "Bash timed out" 에러를 받고 환각으로 "직원에게 보냈어요, 결과 오면 알려드릴게요" 응답을 생성한 뒤 turn 종료. 사용자는 결과를 받지 못해 같은 요청을 재전송 → **중복 메시지 문제**로 이어집니다.
 
+> ### 🔎 Employee progress lookup
+>
+> Dispatch stdout is not the only inspection path. Use `cli-jaw worker status [agent] --port <port>` for current/previous safe-summary progress, or `cli-jaw worker watch [agent] --port <port>` while the worker is running. `snapshot.workers` is running-only; completed worker progress is under `worker-progress.previous`.
+
 **CLI Sub-agents** (자기 작업 내 병렬화):
 CLI의 Task/Agent 도구는 자기 작업에 사용하세요.
 리서치, 파일 탐색, 코드 분석 등은 CLI Sub-agent가 더 빠르고 저렴합니다.

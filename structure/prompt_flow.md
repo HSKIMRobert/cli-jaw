@@ -149,6 +149,12 @@ advanced index가 아직 준비되지 않았거나 `forDisk: true`인 경우 `ap
 cli-jaw dispatch --agent "Frontend" --task "Specific task instruction"
 ```
 
+직원 진행 조회는 dispatch stdout만 보지 않는다. orchestration prompt는
+`cli-jaw worker status [agent] --port <port>`와
+`cli-jaw worker watch [agent] --port <port>`를 안내하며, `snapshot.workers`는
+running-only이고 완료된 safe-summary progress는 worker-progress previous
+snapshot에 남는다고 명시한다.
+
 추가로 `skills/dev-pabcd/SKILL.md`가 있으면 `## PABCD Orchestration Guide`가 이어 붙는다.
 
 ### Heartbeat

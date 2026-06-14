@@ -61,6 +61,7 @@ aliases: [B prompt cache, CLI-JAW B prompt, regenerated prompt]
 - 그 뒤에 `dev-pabcd/SKILL.md`가 있으면 `PABCD Orchestration Guide`가 추가된다
 - `Completion Protocol`은 orchestration 템플릿 내부에 포함된 현재 규칙이다
 - PABCD A/B dispatch 예시는 task body 첫 줄에 `Project root: <absolute path>`를 넣도록 안내한다. 직원은 repo-relative path를 이 root 기준으로 해석하고, `~/.cli-jaw*`/JAW_HOME/employee temp cwd를 repo root로 추론하면 안 된다.
+- orchestration prompt는 직원 stdout 밖의 조회 경로도 짧게 안내한다. Boss는 `cli-jaw worker status [agent] --port <port>` 또는 `cli-jaw worker watch [agent] --port <port>`로 current/previous safe-summary progress를 확인할 수 있고, `snapshot.workers`는 running-only다.
 
 ### Heartbeat
 

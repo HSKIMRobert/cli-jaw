@@ -74,6 +74,17 @@ test('MD-010: a1-system.md directs timeout=600000 for cli-jaw dispatch', () => {
     assert.match(md, /timeout[^\n]{0,40}600000/);
 });
 
+test('MD-010b: boss prompts expose worker progress lookup and running-only snapshot boundary', () => {
+    const a1 = fs.readFileSync(join(srcRoot, 'prompt/templates/a1-system.md'), 'utf8');
+    const orchestration = fs.readFileSync(join(srcRoot, 'prompt/templates/orchestration.md'), 'utf8');
+    for (const md of [a1, orchestration]) {
+        assert.match(md, /cli-jaw worker status \[agent\] --port <port>/);
+        assert.match(md, /cli-jaw worker watch \[agent\] --port <port>/);
+        assert.match(md, /snapshot\.workers[^\n]{0,80}running-only/);
+        assert.match(md, /worker-progress\.previous/);
+    }
+});
+
 test('MD-011: builder.ts dynamic Delegation Rules block mentions 600000', () => {
     const src = fs.readFileSync(join(srcRoot, 'prompt/builder.ts'), 'utf8');
     const block = src.slice(src.indexOf('jaw Employee Dispatch'), src.indexOf('Do NOT confuse'));

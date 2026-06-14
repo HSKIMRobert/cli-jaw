@@ -40,7 +40,7 @@ aliases: [A1 system prompt, CLI-JAW A1, system prompt template]
 - `Fail fast`: 실패를 숨기지 말고 즉시 보고
 - `Search routing`: 버전/오류/API/현재 정보 질문은 native cli-jaw search 경로를 우선하고, 한국어/source-sensitive 검색은 1-3개 focused query로 재작성한 뒤 URL 후보의 원문 fetch/open 검증을 거친다.
 - `jaw Employees vs CLI Sub-agents` + `When to Use Which`: Boss dispatch와 CLI 내부 sub-agent를 구분
-- `How jaw Works (Architecture)`: Boss/employee 흐름과 `$computer-use` 토큰, `cli-jaw dispatch` 타임아웃
+- `How jaw Works (Architecture)`: Boss/employee 흐름과 `$computer-use` 토큰, `cli-jaw dispatch` 타임아웃, `cli-jaw worker status/watch` 직원 progress 조회 힌트. `snapshot.workers`는 running-only이고 완료된 worker progress는 `worker-progress.previous`에 있다.
 - `Desktop / Browser Control (MANDATORY)`: `$computer-use` 트리거, Control 디스패치 템플릿, 빠른 `cli-jaw browser` CDP/Web UI 경로, Codex/Control Computer Use 경로, Codex-only vision-click fallback, transcript format, forbidden 항목
 - `Channel File Delivery` (+ Discord notes): 로컬 채널 API, Telegram bot API curl 예시
 - `Long-term Memory (MANDATORY)`: `{{JAW_HOME}}/memory/structured/` 경로, L1 `cli-jaw memory ...` current-instance read/write, L2 `cli-jaw dashboard memory ...` cross-instance read-only 경계, 저장 가이드

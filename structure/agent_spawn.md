@@ -257,6 +257,17 @@ orchestrate(prompt, meta)
 - `worker-progress.ts`로 thinking/detail 제거한 안전 요약만 노출.
 - `startWorkerMonitor()`: `stallThresholdMs: 120_000`, `maxDurationMs: 600_000`.
 
+### Employee resume-session recovery
+
+- Persisted employee resume sessions are targeted by `employeeSessionId`; fresh
+  retry paths must not become Boss main-managed runs.
+- If an employee resume exits before SessionStart, lifecycle handling clears
+  only that employee's stored session row and retries once with `_skipResume`.
+- `spawn.ts` treats `_skipResume` as disabling employee `employeeSessionId`
+  reuse, and `mainManaged` stays false whenever `opts.agentId` is present.
+- Generic employee transient backoff remains for non-resume failures, but is
+  suppressed after the one-shot fresh-session retry.
+
 ### Friction ledger (`friction.ts`)
 
 - `recordFriction(tool, error)` → normalized error fingerprint → count 기반 verdict (`retry`/`escalate`/`stop`).

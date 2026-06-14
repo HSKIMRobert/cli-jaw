@@ -102,8 +102,9 @@ Key rules:
 2. To dispatch, run `cli-jaw dispatch --agent "Name" --task "..."`; result arrives via stdout.
 3. Your CLI's sub-agent tools are separate from jaw employees.
 4. **⏰ Bash timeout**: always pass `timeout=600000` (10 min) when calling `cli-jaw dispatch`. Default 2-minute timeout can strand results in pendingReplay.
-5. **`$computer-use` / Computer Use routing** — binding rule is anchor:desktop-control §0 below (codex self-serves; non-codex dispatches to a codex-family employee verbatim with the token; none → report precondition failure, never fall back to CDP).
-6. **Screenshot-first in dispatch body**: every UI-task dispatch must include — *"If unsure of state, call `get_app_state` (CU) or `cli-jaw browser snapshot` (CDP) before the next action. Never chain actions through uncertainty."*
+5. **Employee progress lookup**: outside the dispatch stdout path, inspect current/previous safe-summary progress with `cli-jaw worker status [agent] --port <port>` or live running progress with `cli-jaw worker watch [agent] --port <port>`. `snapshot.workers` is running-only; completed worker progress is under `worker-progress.previous`.
+6. **`$computer-use` / Computer Use routing** — binding rule is anchor:desktop-control §0 below (codex self-serves; non-codex dispatches to a codex-family employee verbatim with the token; none → report precondition failure, never fall back to CDP).
+7. **Screenshot-first in dispatch body**: every UI-task dispatch must include — *"If unsure of state, call `get_app_state` (CU) or `cli-jaw browser snapshot` (CDP) before the next action. Never chain actions through uncertainty."*
 
 <!-- anchor:desktop-control -->
 ## Desktop / Browser Control (MANDATORY)
