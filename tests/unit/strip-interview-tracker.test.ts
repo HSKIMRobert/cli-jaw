@@ -57,4 +57,23 @@ describe('stripInterviewTracker', () => {
     const input = 'Response.\nknown: [{"fact":"X"}]\nunknown: [{"q":"Y"}]';
     assert.equal(stripInterviewTracker(input), 'Response.');
   });
+
+  test('SAN-011: strips indented repeated Perspective tags', () => {
+    const input = '질문입니다.\n  [Perspective: RESEARCHER + SIMPLIFIER — gather facts]\n\t[Perspective: ARCHITECT]\n다음 질문';
+    assert.equal(stripInterviewTracker(input), '질문입니다.\n다음 질문');
+  });
+
+  test('SAN-012: strips dangling malformed tracker tail without stripping ordinary prose', () => {
+    const input = [
+      '보이는 답변입니다.',
+      'known: [{"fact":"half-written"',
+      '이 줄은 tracker tail이므로 보이면 안 됩니다.',
+    ].join('\n');
+
+    assert.equal(stripInterviewTracker(input), '보이는 답변입니다.');
+    assert.equal(
+      stripInterviewTracker('The known issue should stay when it is normal prose.'),
+      'The known issue should stay when it is normal prose.',
+    );
+  });
 });

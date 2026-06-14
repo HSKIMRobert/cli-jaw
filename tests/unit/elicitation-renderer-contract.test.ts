@@ -128,6 +128,8 @@ test('completion persistence uses stable turn indexes across history, cache, and
     assert.match(elicitationStateSrc, /jaw:elicitation:complete/);
     assert.match(elicitationStateSrc, /dataset\['turnIndex'\]/);
     assert.match(elicitationStateSrc, /extractElicitationSpecs/);
+    assert.match(elicitationStateSrc, /src\/shared\/elicitation-spec\.js/);
+    assert.doesNotMatch(elicitationStateSrc, /function normalizeElicitationSpec/);
     assert.match(elicitationStateSrc, /seedCompletedElicitationsFromMessages/);
     assert.match(messageItemHtmlSrc, /String\(m\.id \?\? generateId\(\)\)/);
     assert.match(idbCacheSrc, /message_id: msg\.message_id \?\? msg\.id/);

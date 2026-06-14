@@ -10,6 +10,10 @@ import { highlightCode } from './highlight.js';
 import { visualWidth } from './renderers.js';
 import { renderDataframeBlock } from './render/dataframe.js';
 import { renderSearchResultsBlock } from './render/search-results.js';
+import {
+    parseElicitationSpec,
+    renderPlainElicitationSpec,
+} from '../../shared/elicitation-spec.js';
 
 export interface MdOpts {
     width: number;
@@ -42,19 +46,16 @@ function renderBlocks(tokens: Token[], gutter: string, width: number): string {
                 } else if (lang === 'search-results') {
                     out += renderSearchResultsBlock(c.text, width).split('\n').map(l => gutter + l).join('\n') + '\n';
                 } else if (lang === 'elicitation' || lang === 'choice-buttons') {
-                    // Render options as a numbered plain-text list (CLI is a blocked origin).
-                    let items: unknown[] = [];
-                    try { items = JSON.parse(c.text) as unknown[]; } catch { /* fallback below */ }
-                    if (Array.isArray(items) && items.length > 0) {
-                        items.forEach((item, i) => {
-                            const rec = typeof item === 'object' && item !== null ? item as Record<string, unknown> : null;
-                            const label = rec
-                                ? (rec['label'] ?? rec['text'] ?? JSON.stringify(item))
-                                : item;
-                            out += gutter + `${i + 1}. ${String(label)}` + '\n';
+                    const spec = parseElicitationSpec(c.text);
+                    if (spec) {
+                        const plain = renderPlainElicitationSpec(spec, {
+                            intro: '구조화 질문:',
+                            includeDescriptions: true,
+                            multiQuestionPrefix: true,
                         });
+                        out += renderPlainLines(plain, width, gutter) + '\n';
                     } else {
-                        out += c.text.split('\n').map(l => gutter + l).join('\n') + '\n';
+                        out += gutter + paint('code.fence', '[구조화 질문 형식을 읽을 수 없습니다]', DIM) + '\n';
                     }
                 } else if (lang === 'compose-block') {
                     // Render as labeled key-value text.
@@ -110,6 +111,12 @@ function renderBlocks(tokens: Token[], gutter: string, width: number): string {
         }
     }
     return out;
+}
+
+function renderPlainLines(text: string, width: number, gutter: string): string {
+    return text.split('\n')
+        .map(line => line.trim() ? wrap(line, width, gutter) : gutter)
+        .join('\n');
 }
 
 function inline(tokens: Token[] | undefined): string {

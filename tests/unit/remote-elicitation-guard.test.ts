@@ -113,6 +113,30 @@ test('remote channel output normalization supports choice-buttons alias', () => 
     assert.match(output, /2\. native buttons/);
 });
 
+test('remote channel output normalization preserves option descriptions and multi-question labels', () => {
+    const spec = JSON.stringify({
+        questions: [
+            {
+                question: 'Phase 40은?',
+                options: [{ label: 'runtime polish', description: 'cursor/composer/spacing' }],
+            },
+            {
+                question: 'Phase 41은?',
+                options: [{ label: 'structured parser', description: 'elicitation fallback' }],
+            },
+        ],
+    });
+    const output = normalizeRemoteChannelElicitationOutput(`\`\`\`elicitation\n${spec}\n\`\`\``, 'telegram');
+
+    assert.doesNotMatch(output, /```elicitation/);
+    assert.doesNotMatch(output, /"questions"/);
+    assert.match(output, /Q1\. Phase 40은\?/);
+    assert.match(output, /1\. runtime polish — cursor\/composer\/spacing/);
+    assert.match(output, /Q2\. Phase 41은\?/);
+    assert.match(output, /1\. structured parser — elicitation fallback/);
+});
+
+
 test('web output normalization preserves structured fences', () => {
     const raw = '```elicitation\n{"questions":[{"question":"선택?","options":["A"]}]}\n```';
 

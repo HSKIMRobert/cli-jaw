@@ -6,11 +6,13 @@
 export function stripInterviewTracker(text: string): string {
   let result = text;
   result = result.replace(/<interview_tracker>[\s\S]*?<\/interview_tracker>/g, '');
-  result = result.replace(/<interview_tracker>[\s\S]*$/g, '');
+  result = result.replace(/(?:^|\n)[ \t]*<interview_tracker>[\s\S]*?<\/interview_tracker>/g, '');
+  result = result.replace(/(?:^|\n)[ \t]*<interview_tracker>[\s\S]*$/g, '');
   result = stripTrackerField(result, 'assessment', '{', '}');
   result = stripTrackerField(result, 'known', '[', ']');
   result = stripTrackerField(result, 'unknown', '[', ']');
-  result = result.replace(/\n*\[Perspective:.*?\]/g, '');
+  result = stripDanglingTrackerTail(result);
+  result = result.replace(/(?:^|\n)[ \t]*\[Perspective:[^\]\n]*(?:\]|$)[ \t]*(?=\n|$)/g, '');
   result = result.replace(/\n{3,}/g, '\n\n');
   return result.trim();
 }
@@ -49,4 +51,24 @@ function findBalancedClose(text: string, start: number, open: string, close: str
     if (ch === close) { depth--; if (depth === 0) return i; }
   }
   return -1;
+}
+
+function stripDanglingTrackerTail(text: string): string {
+  const marker = /(?:^|\n)[ \t]*(assessment|known|unknown):\s*(?:\{|\[)/g;
+  let out = text;
+  let match: RegExpExecArray | null = null;
+  while ((match = marker.exec(out)) !== null) {
+    const startsAtLineBreak = out[match.index] === '\n';
+    const start = startsAtLineBreak ? match.index : match.index;
+    const field = match[1];
+    const open = field === 'assessment' ? '{' : '[';
+    const close = field === 'assessment' ? '}' : ']';
+    const jsonStart = out.indexOf(open, match.index);
+    if (jsonStart < 0) continue;
+    const endIdx = findBalancedClose(out, jsonStart, open, close);
+    if (endIdx >= 0) continue;
+    out = out.slice(0, start);
+    marker.lastIndex = 0;
+  }
+  return out;
 }
