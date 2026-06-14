@@ -33,12 +33,6 @@ export interface ToolEventInput {
     stepRef?: string | undefined;
 }
 
-export interface HistoryMessageRow {
-    role?: unknown;
-    content?: unknown;
-    trace?: unknown;
-}
-
 export function createTranscriptState(): TranscriptState {
     return { items: [], liveTools: [], liveToolsExpanded: false, committedToolRefs: new Set() };
 }
@@ -123,23 +117,6 @@ export function appendThinkingTurnText(state: TranscriptState, chunk: string, ag
     if (agentId) item.agentId = agentId;
     state.items.splice(thinkingInsertIndexSinceLastUser(state), 0, item);
     return true;
-}
-
-export function hydrateTranscriptFromHistory(state: TranscriptState, rows: HistoryMessageRow[]): number {
-    let added = 0;
-    for (const row of rows) {
-        const role = typeof row.role === 'string' ? row.role : '';
-        const content = typeof row.content === 'string' ? row.content : '';
-        if (!content.trim()) continue;
-        if (role === 'user') {
-            state.items.push({ type: 'user', displayText: content, submitText: content, timestamp: Date.now() });
-            added += 1;
-        } else if (role === 'assistant') {
-            state.items.push({ type: 'assistant', text: content, streaming: false, timestamp: Date.now() });
-            added += 1;
-        }
-    }
-    return added;
 }
 
 export function finalizeAssistant(state: TranscriptState, fallbackText?: string): boolean {

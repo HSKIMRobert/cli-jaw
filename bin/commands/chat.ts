@@ -48,7 +48,6 @@ import { resolveTuiDisplayMode } from '../../src/cli/tui/mode.js';
 import { handleWsMessage } from './tui/ws-handler.js';
 import { connectChannel, type ChatChannel } from './tui/channel.js';
 import { asRecord, fieldString } from '../_http-client.js';
-import { hydrateTranscriptFromHistory, type HistoryMessageRow } from '../../src/cli/tui/transcript.js';
 
 // ─── Init ────────────────────────────────────
 const __filename = fileURLToPath(import.meta.url);
@@ -146,21 +145,6 @@ function resolveChatCwd(settings: Record<string, unknown>, fallbackWorkingDir: s
     return process.cwd();
 }
 
-async function hydrateFullscreenHistory(ctx: TuiContext): Promise<void> {
-    try {
-        const resp = await fetch(`${ctx.apiUrl}/api/messages?limit=500&includeTrace=1`, { signal: AbortSignal.timeout(2000) });
-        if (!resp.ok) return;
-        const body = await resp.json().catch(() => null) as unknown;
-        const data = asRecord(body || {});
-        const rows = Array.isArray(body)
-            ? body
-            : Array.isArray(data["data"])
-                ? data["data"]
-                : [];
-        hydrateTranscriptFromHistory(ctx.store.transcript, rows as HistoryMessageRow[]);
-    } catch { /* history hydration must not block jaw chat startup */ }
-}
-
 const themeFromSettings = typeof (tuiConfig as Record<string, unknown>)['theme'] === 'string'
     ? (tuiConfig as Record<string, unknown>)['theme'] as string
     : undefined;
@@ -255,7 +239,6 @@ if (values.simple) {
 
     if (displayMode === 'fullscreen') {
         ctx.welcomeLines = welcomeLines;
-        await hydrateFullscreenHistory(ctx);
         await runFullscreenMode(ctx);
     } else {
         console.log('');

@@ -13,7 +13,6 @@ import {
     appendStatusItem,
     clearEphemeralStatus,
     appendToolItem,
-    hydrateTranscriptFromHistory,
 } from '../../src/cli/tui/transcript.ts';
 
 test('appendUserItem adds user transcript entry', () => {
@@ -229,25 +228,6 @@ test('full conversation flow', () => {
         assert.equal(state.items[1]!.text, 'Hi! How can I help?');
         assert.equal(state.items[1]!.streaming, false);
     }
-});
-
-test('hydrateTranscriptFromHistory seeds user and assistant rows in order', () => {
-    const state = createTranscriptState();
-    const added = hydrateTranscriptFromHistory(state, [
-        { role: 'system', content: 'ignore' },
-        { role: 'user', content: 'first prompt' },
-        { role: 'assistant', content: 'first answer' },
-        { role: 'user', content: 'second prompt' },
-        { role: 'assistant', content: '' },
-    ]);
-
-    assert.equal(added, 3);
-    assert.equal(state.items.map((item) => item.type).join(','), 'user,assistant,user');
-    assert.deepEqual(state.items.map((item) => item.type === 'user' ? item.displayText : item.type === 'assistant' ? item.text : ''), [
-        'first prompt',
-        'first answer',
-        'second prompt',
-    ]);
 });
 
 test('user item with paste (display differs from submit)', () => {
