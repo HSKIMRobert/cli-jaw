@@ -25,6 +25,7 @@ build-local/
 src/lib/tui/jawcode-interactive-bundle.mjs
 src/lib/tui/jawcode-tui-bundle.mjs
 src/lib/tui/jawcode-tui-bundle.js
+src/lib/native/*.node
 
 # electron sidecar dist bundles
 electron/sidecar/jawcode/packages/jwc/dist-node/

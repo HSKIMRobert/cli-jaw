@@ -20,7 +20,24 @@ if [ -f src/lib/tui/jawcode-tui-bundle.mjs ]; then
     cp src/lib/tui/bun-shim.mjs "$STAGING/src/lib/tui/"
     cp src/lib/tui/jawcode-tui-bundle.mjs "$STAGING/src/lib/tui/"
     [ -f src/lib/tui/jawcode-interactive-bundle.mjs ] && cp src/lib/tui/jawcode-interactive-bundle.mjs "$STAGING/src/lib/tui/"
-    [ -f src/lib/native/pi_natives.darwin-arm64.node ] && cp src/lib/native/pi_natives.darwin-arm64.node "$STAGING/src/lib/native/"
+    NATIVE_TAG="$(node -p '`${process.platform}-${process.arch}`')"
+    NATIVE_FILE="pi_natives.${NATIVE_TAG}.node"
+    NATIVE_SRC=""
+    for candidate in \
+        "src/lib/native/$NATIVE_FILE" \
+        "node_modules/@jawcode-internal/natives/native/$NATIVE_FILE" \
+        "electron/sidecar/server/dist/src/lib/native/$NATIVE_FILE" \
+        "electron/dist/mac-arm64/cli-jaw.app/Contents/Resources/server/dist/src/lib/native/$NATIVE_FILE"; do
+        if [ -f "$candidate" ]; then
+            NATIVE_SRC="$candidate"
+            break
+        fi
+    done
+    if [ -n "$NATIVE_SRC" ]; then
+        cp "$NATIVE_SRC" "$STAGING/src/lib/native/$NATIVE_FILE"
+    elif [ "$NATIVE_TAG" = "darwin-arm64" ]; then
+        echo "[atomic-build] warning: $NATIVE_FILE not found; jawcode TUI bundle will use fallback/no-native path" >&2
+    fi
 fi
 
 # Atomic swap with rollback on failure
