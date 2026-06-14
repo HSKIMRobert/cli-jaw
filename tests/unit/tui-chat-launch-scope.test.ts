@@ -37,9 +37,10 @@ test('fullscreen scrollback commit uses a scroll region instead of plain newline
     const commitBlock = frameSource.slice(commitStart, commitEnd);
 
     assert.ok(commitBlock.includes('buildInsertHistorySequence'));
-    assert.ok(commitBlock.includes('liveZoneTop < lines.length'));
+    assert.ok(commitBlock.includes('this.lastFillRows'));
+    assert.ok(commitBlock.includes('liveZoneTop <= 0'));
     assert.equal(commitBlock.includes("buf += '\\r\\n\\x1b[2K'"), false);
-    assert.equal(commitBlock.includes('out += line'), false);
+    assert.ok(frameSource.includes("out += lines[i] ?? '';"));
 });
 
 test('fullscreen resize uses redraw without clearing terminal history', () => {

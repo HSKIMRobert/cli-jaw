@@ -40,7 +40,7 @@ export function diffFrames(prev: Frame | null, next: Frame): string {
  * the frame to terminal height, pinning actual content at the bottom.
  * If content exceeds terminal height, sentinel is removed (no padding).
  */
-function normalizeFrameRows(lines: string[], height: number): { rows: string[]; droppedTop: number; paddedTop: number; sentinelIndex: number; sentinelDelta: number } {
+function normalizeFrameRows(lines: string[], height: number): { rows: string[]; droppedTop: number; paddedTop: number; sentinelIndex: number; sentinelDelta: number; fillRows: number } {
     const safeHeight = Math.max(1, height);
     const idx = lines.indexOf(VIEWPORT_FILL);
     let rows = [...lines];
@@ -56,9 +56,10 @@ function normalizeFrameRows(lines: string[], height: number): { rows: string[]; 
         paddedTop = safeHeight - rows.length;
         rows = [...new Array(paddedTop).fill(''), ...rows];
     }
-    if (rows.length <= safeHeight) return { rows, droppedTop: 0, paddedTop, sentinelIndex: idx, sentinelDelta };
+    const fillRows = idx === 0 && sentinelDelta >= 0 ? sentinelDelta + 1 : 0;
+    if (rows.length <= safeHeight) return { rows, droppedTop: 0, paddedTop, sentinelIndex: idx, sentinelDelta, fillRows };
     const droppedTop = rows.length - safeHeight;
-    return { rows: rows.slice(droppedTop), droppedTop, paddedTop, sentinelIndex: idx, sentinelDelta };
+    return { rows: rows.slice(droppedTop), droppedTop, paddedTop, sentinelIndex: idx, sentinelDelta, fillRows: 0 };
 }
 
 function normalizeFrameRow(row: string, width: number): string {
@@ -87,6 +88,8 @@ export class Screen {
     private inlineActive = false;
     private cursorRow = 0;
     private fullRedrawPending = false;
+    private lastFillRows = 0;
+    private committedScreenRows = 0;
 
     get active(): boolean {
         return this.inlineActive;
@@ -99,6 +102,8 @@ export class Screen {
         this.prevLines = [];
         this.cursorRow = 0;
         this.fullRedrawPending = false;
+        this.lastFillRows = 0;
+        this.committedScreenRows = 0;
     }
 
     exit(): void {
@@ -112,6 +117,8 @@ export class Screen {
         this.prevLines = [];
         this.cursorRow = 0;
         this.fullRedrawPending = false;
+        this.lastFillRows = 0;
+        this.committedScreenRows = 0;
     }
 
     render(next: Frame): void {
@@ -129,7 +136,16 @@ export class Screen {
 
         let buf = '\x1b[?2026h';
 
+        if (this.committedScreenRows > 0 && normalized.fillRows < this.lastFillRows) {
+            buf += buildScrollOutSequence(this.lastFillRows - normalized.fillRows, this.lastFillRows, { row: this.cursorRow, col: 0 });
+            this.committedScreenRows = Math.min(this.committedScreenRows, normalized.fillRows);
+        }
+
         if (this.fullRedrawPending || this.prevLines.length === 0) {
+            if (this.fullRedrawPending && this.committedScreenRows > 0 && this.lastFillRows > 0) {
+                buf += buildScrollOutSequence(this.lastFillRows, this.lastFillRows, { row: this.cursorRow, col: 0 });
+                this.committedScreenRows = 0;
+            }
             if (this.fullRedrawPending && this.prevLines.length > 0 && this.cursorRow > 0) {
                 buf += `\x1b[${this.cursorRow}A`;
             }
@@ -221,21 +237,23 @@ export class Screen {
         }
         process.stdout.write(buf);
         this.prevLines = [...lines];
+        this.lastFillRows = normalized.fillRows;
     }
 
     commitLines(lines: string[]): boolean {
         if (!this.inlineActive || lines.length === 0) return true;
         const height = process.stdout.rows || 24;
         const width = Math.max(1, process.stdout.columns || 80);
-        const liveZoneTop = Math.min(lines.length, this.prevLines.length, height);
-        if (liveZoneTop <= 0 || liveZoneTop < lines.length) return false;
-        const prepared = lines.slice(0, liveZoneTop).map(line => normalizeFrameRow(line, width));
+        const liveZoneTop = Math.min(this.lastFillRows, height);
+        if (liveZoneTop <= 0) return false;
+        const prepared = lines.map(line => normalizeFrameRow(line, width));
         const buf = `\x1b[?2026h${buildInsertHistorySequence(prepared, {
             liveZoneTop,
             screenRows: height,
             cursor: { row: this.cursorRow, col: 0 },
         })}\x1b[?2026l`;
         process.stdout.write(buf);
+        this.committedScreenRows = Math.min(this.committedScreenRows + prepared.length, liveZoneTop);
         this.fullRedrawPending = true;
         return true;
     }
@@ -261,6 +279,8 @@ export class Screen {
         process.stdout.write(buf);
         this.prevLines = [];
         this.cursorRow = 0;
+        this.lastFillRows = 0;
+        this.committedScreenRows = 0;
         this.fullRedrawPending = true;
     }
 
@@ -286,9 +306,25 @@ function buildInsertHistorySequence(
     for (let i = 0; i < lines.length; i += 1) {
         out += '\r\n';
         out += '\x1b[2K';
+        out += lines[i] ?? '';
     }
     out += '\x1b[r';
     out += `\x1b[${geometry.cursor.row + 1};${geometry.cursor.col + 1}H`;
+    return out;
+}
+
+function buildScrollOutSequence(
+    count: number,
+    regionBottom: number,
+    cursor: { row: number; col: number },
+): string {
+    if (count <= 0 || regionBottom < 1) return '';
+    let out = '';
+    out += `\x1b[1;${regionBottom}r`;
+    out += `\x1b[${regionBottom};1H`;
+    out += '\r\n'.repeat(count);
+    out += '\x1b[r';
+    out += `\x1b[${cursor.row + 1};${cursor.col + 1}H`;
     return out;
 }
 

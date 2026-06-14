@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Screen, diffFrames, type Frame } from '../../src/cli/tui/render/frame.ts';
+import { Screen, VIEWPORT_FILL, diffFrames, type Frame } from '../../src/cli/tui/render/frame.ts';
 
 test('Screen enter/exit — inline mode (no alt-screen)', () => {
     let output = '';
@@ -110,6 +110,41 @@ test('Screen render sanitizes embedded row newlines and clamps cursor column', (
         assert.ok(output.includes('tool paylo'), 'row should be newline-sanitized then width-clipped');
         assert.ok(output.includes('\x1b[9C'), 'cursor column should clamp to terminal width - 1');
         assert.ok(!output.includes('\x1b[999C'));
+        screen.exit();
+    } finally {
+        process.stdout.write = origWrite;
+        if (columnsDesc) Object.defineProperty(process.stdout, 'columns', columnsDesc);
+        if (rowsDesc) Object.defineProperty(process.stdout, 'rows', rowsDesc);
+    }
+});
+
+test('Screen commit writes committed text only when a viewport fill lane exists', () => {
+    let output = '';
+    const origWrite = process.stdout.write.bind(process.stdout);
+    const columnsDesc = Object.getOwnPropertyDescriptor(process.stdout, 'columns');
+    const rowsDesc = Object.getOwnPropertyDescriptor(process.stdout, 'rows');
+    Object.defineProperty(process.stdout, 'columns', { value: 30, configurable: true });
+    Object.defineProperty(process.stdout, 'rows', { value: 6, configurable: true });
+    process.stdout.write = ((chunk: string | Uint8Array) => {
+        output += typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8');
+        return true;
+    }) as typeof process.stdout.write;
+
+    try {
+        const screen = new Screen();
+        screen.enter();
+        screen.render({ rows: [VIEWPORT_FILL, 'live', 'input', 'help'] });
+
+        output = '';
+        assert.equal(screen.commitLines(['welcome', 'u:first']), true);
+        assert.ok(output.includes('welcome'));
+        assert.ok(output.includes('u:first'));
+        assert.ok(output.includes('\x1b[1;3r'), 'commit region should be the top fill lane only');
+
+        output = '';
+        screen.render({ rows: [VIEWPORT_FILL, 'a', 'b', 'c', 'd', 'e', 'f'] });
+        assert.equal(screen.commitLines(['overflow']), false);
+        assert.equal(output.includes('overflow'), false);
         screen.exit();
     } finally {
         process.stdout.write = origWrite;
