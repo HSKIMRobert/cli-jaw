@@ -42,9 +42,11 @@ test('fullscreen scrollback commit uses a scroll region instead of plain newline
     assert.equal(commitBlock.includes('out += line'), false);
 });
 
-test('fullscreen resize clears only the visible viewport before redraw', () => {
+test('fullscreen resize clears only the rendered frame before redraw', () => {
     assert.ok(frameSource.includes('resetViewport(): void'));
-    assert.ok(frameSource.includes("'\\x1b[?2026h\\x1b[2J\\x1b[H\\x1b[?2026l'"));
+    assert.ok(frameSource.includes('this.prevLines.length'));
+    assert.ok(frameSource.includes("buf += '\\x1b[2K'"));
+    assert.equal(frameSource.includes('\\x1b[2J'), false);
     assert.equal(frameSource.includes('\\x1b[3J'), false);
     assert.ok(fullscreenSource.includes('screen.resetViewport();'));
     assert.equal(fullscreenSource.includes('screen.forceRedraw();\n            scheduler.request();'), false);

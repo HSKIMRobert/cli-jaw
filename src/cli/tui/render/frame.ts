@@ -245,7 +245,19 @@ export class Screen {
 
     resetViewport(): void {
         if (!this.inlineActive) return;
-        process.stdout.write('\x1b[?2026h\x1b[2J\x1b[H\x1b[?2026l');
+        let buf = '\x1b[?2026h';
+        if (this.prevLines.length > 0) {
+            if (this.cursorRow > 0) buf += `\x1b[${this.cursorRow}A`;
+            buf += '\r';
+            for (let i = 0; i < this.prevLines.length; i += 1) {
+                if (i > 0) buf += '\x1b[1B\r';
+                buf += '\x1b[2K';
+            }
+            if (this.prevLines.length > 1) buf += `\x1b[${this.prevLines.length - 1}A`;
+            buf += '\r';
+        }
+        buf += '\x1b[?2026l';
+        process.stdout.write(buf);
         this.prevLines = [];
         this.cursorRow = 0;
         this.fullRedrawPending = true;
