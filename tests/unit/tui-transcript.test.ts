@@ -130,19 +130,38 @@ test('assistant final text starts after thinking rows', () => {
     assert.equal(state.items.map((item) => item.type).join(','), 'user,thinking,assistant');
 });
 
-test('late thinking is inserted before same-turn tool rows', () => {
+test('thinking can appear between same-turn tool rows', () => {
     const state = createTranscriptState();
     appendUserItem(state, 'run tools', 'run tools');
     appendToolItem(state, 'Bash echo 1', { status: 'done', stepRef: 'tool-1' });
     appendThinkingTurnText(state, 'Planning tool calls', 'main');
     appendThinkingTurnText(state, '\nExecuting tool calls', 'main');
+    appendToolItem(state, 'Read file', { status: 'done', stepRef: 'tool-2' });
 
-    assert.equal(state.items.map((item) => item.type).join(','), 'user,thinking,tool');
-    const thinking = state.items[1]!;
+    assert.equal(state.items.map((item) => item.type).join(','), 'user,tool,thinking,tool');
+    const thinking = state.items[2]!;
     assert.equal(thinking.type, 'thinking');
     if (thinking.type === 'thinking') {
         assert.equal(thinking.text, 'Planning tool calls\nExecuting tool calls');
         assert.equal(thinking.streaming, true);
+    }
+});
+
+test('new thinking after a tool does not merge into an earlier thinking block', () => {
+    const state = createTranscriptState();
+    appendUserItem(state, 'run tools', 'run tools');
+    appendThinkingTurnText(state, 'first thought', 'main');
+    appendToolItem(state, 'Bash echo 1', { status: 'done', stepRef: 'tool-1' });
+    appendThinkingTurnText(state, 'second thought', 'main');
+
+    assert.equal(state.items.map((item) => item.type).join(','), 'user,thinking,tool,thinking');
+    const first = state.items[1]!;
+    const second = state.items[3]!;
+    assert.equal(first.type, 'thinking');
+    assert.equal(second.type, 'thinking');
+    if (first.type === 'thinking' && second.type === 'thinking') {
+        assert.equal(first.text, 'first thought');
+        assert.equal(second.text, 'second thought');
     }
 });
 

@@ -68,45 +68,9 @@ function appendToActiveThinking(state: TranscriptState, chunk: string): boolean 
     return true;
 }
 
-function lastUserIndex(state: TranscriptState): number {
-    for (let i = state.items.length - 1; i >= 0; i--) {
-        if (state.items[i]?.type === 'user') return i;
-    }
-    return -1;
-}
-
-function findActiveThinkingIndexSinceLastUser(state: TranscriptState, agentId?: string): number {
-    const boundary = lastUserIndex(state);
-    for (let i = state.items.length - 1; i > boundary; i--) {
-        const item = state.items[i]!;
-        if (item.type !== 'thinking' || !item.streaming) continue;
-        if (agentId && item.agentId && item.agentId !== agentId) continue;
-        return i;
-    }
-    return -1;
-}
-
-function thinkingInsertIndexSinceLastUser(state: TranscriptState): number {
-    const boundary = lastUserIndex(state);
-    for (let i = boundary + 1; i < state.items.length; i++) {
-        const item = state.items[i]!;
-        if (item.type === 'tool' || item.type === 'assistant') return i;
-    }
-    return state.items.length;
-}
-
 export function appendThinkingTurnText(state: TranscriptState, chunk: string, agentId?: string): boolean {
     if (!chunk) return false;
     if (appendToActiveThinking(state, chunk)) return true;
-    const activeThinkingIndex = findActiveThinkingIndexSinceLastUser(state, agentId);
-    if (activeThinkingIndex >= 0) {
-        const item = state.items[activeThinkingIndex]!;
-        if (item.type === 'thinking') {
-            item.text += chunk;
-            item.timestamp = Date.now();
-            return true;
-        }
-    }
     const item: TranscriptItem = {
         type: 'thinking',
         text: chunk,
@@ -115,7 +79,12 @@ export function appendThinkingTurnText(state: TranscriptState, chunk: string, ag
         collapsed: true,
     };
     if (agentId) item.agentId = agentId;
-    state.items.splice(thinkingInsertIndexSinceLastUser(state), 0, item);
+    const tail = state.items[state.items.length - 1];
+    if (tail?.type === 'assistant') {
+        state.items.splice(state.items.length - 1, 0, item);
+    } else {
+        state.items.push(item);
+    }
     return true;
 }
 
