@@ -270,10 +270,9 @@ function buildInsertHistorySequence(
     let out = '';
     out += `\x1b[1;${liveZoneTop}r`;
     out += `\x1b[${liveZoneTop};1H`;
-    for (const line of lines) {
+    for (let i = 0; i < lines.length; i += 1) {
         out += '\r\n';
         out += '\x1b[2K';
-        out += line;
     }
     out += '\x1b[r';
     out += `\x1b[${geometry.cursor.row + 1};${geometry.cursor.col + 1}H`;

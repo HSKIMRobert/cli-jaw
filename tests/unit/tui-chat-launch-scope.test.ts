@@ -39,6 +39,7 @@ test('fullscreen scrollback commit uses a scroll region instead of plain newline
     assert.ok(commitBlock.includes('buildInsertHistorySequence'));
     assert.ok(commitBlock.includes('liveZoneTop < lines.length'));
     assert.equal(commitBlock.includes("buf += '\\r\\n\\x1b[2K'"), false);
+    assert.equal(commitBlock.includes('out += line'), false);
 });
 
 test('fullscreen resize clears only the visible viewport before redraw', () => {
