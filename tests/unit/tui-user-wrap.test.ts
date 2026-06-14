@@ -24,4 +24,3 @@ test('fullscreen user transcript wraps long screenshot paths into physical rows'
     assert.ok(rows.every(row => visualWidth(row) <= 54), 'wrapped rows must fit the frame width');
     assert.match(plainRows.join('\n'), /NSIRD_screencaptureui/);
 });
-
