@@ -238,6 +238,10 @@ function createDefaultSettings() {
             retentionDays: 7,
             maxRows: 50000,
         },
+        code: {
+            maxConcurrentSessions: 4,
+            idleReapMs: 30_000,
+        },
         tui: {
             pasteCollapseLines: 2,
             pasteCollapseChars: 160,
@@ -443,6 +447,7 @@ export function loadSettings() {
             jawCeo: { ...defaults.jawCeo, ...(raw.jawCeo || {}) },
             pi: { ...defaults.pi, ...(raw.pi || {}) },
             network: { ...defaults.network, ...(raw.network || {}) },
+            code: { ...defaults.code, ...(raw.code || {}) },
         });
         // #64 safety: auto-correct stale workingDir (e.g. copied instance)
         // but allow valid paths to persist (dynamic project targeting)

@@ -88,6 +88,7 @@ aliases: [CLI-JAW Infra, infrastructure modules, core runtime]
 | --- | --- | --- |
 | Fullscreen TUI `/quit` PTY smoke | `JAW_TUI_SMOKE_TIMEOUT=15 COLUMNS=100 LINES=30 scripts/smoke/tui-quit-smoke.exp` | built `dist/bin/cli-jaw.js chat`가 raw-mode fullscreen composer에서 `/quit`로 정상 종료되는지 검증 |
 | Fullscreen TUI frame resize stress | `npx tsx --import ./tests/setup/test-home.ts scripts/smoke/tui-frame-resize-stress.ts` | live/committed/expanded tool rows + final answer가 resize 후에도 width-safe이고 bottom composer cluster가 고정되는지 검증 |
+| Fullscreen TUI WS sequence stress | `npx tsx --import ./tests/setup/test-home.ts scripts/smoke/tui-ws-sequence-stress.ts` | synthetic WS 이벤트로 live tool, final answer, Ctrl-O expansion, resize-safe frame을 서버/모델 없이 검증 |
 
 ### 실행 모드
 
