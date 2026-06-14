@@ -18,26 +18,16 @@ _INBOX/
 *.tgz
 .claude/worktrees/
 
-# build-local: only track the main binary + pdb
-build-local/*.dll
-build-local/*.dylib
-build-local/*.json
-build-local/cs/
-build-local/de/
-build-local/es/
-build-local/fr/
-build-local/it/
-build-local/ja/
-build-local/ko/
-build-local/pl/
-build-local/pt-BR/
-build-local/ru/
-build-local/tr/
-build-local/zh-Hans/
-build-local/zh-Hant/
-build-local/createdump
-build-local/mscorlib.dll
-build-local/netstandard.dll
+# build-local: entire directory (large native binaries)
+build-local/
+
+# generated bundles (large + may contain embedded secrets)
+src/lib/tui/jawcode-interactive-bundle.mjs
+src/lib/tui/jawcode-tui-bundle.mjs
+src/lib/tui/jawcode-tui-bundle.js
+
+# electron sidecar dist bundles
+electron/sidecar/jawcode/packages/jwc/dist-node/
 
 # reference repos (cloned for analysis, not tracked)
 devlog/_plan/*/_ref_*/
