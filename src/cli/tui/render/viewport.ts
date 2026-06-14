@@ -144,6 +144,12 @@ export class Viewport {
         const flat = this.flattenRows().slice(this.committedRows);
         this.clampScroll(region.height);
         if (this.follow && flat.length > 0 && flat.length < region.height) {
+            if (this.hasUncommittedPrelude()) {
+                return [
+                    ...flat,
+                    ...new Array(region.height - flat.length).fill(''),
+                ];
+            }
             return [
                 ...new Array(region.height - flat.length).fill(''),
                 ...flat,
@@ -170,6 +176,10 @@ export class Viewport {
         const flat: string[] = [...this.preludeLines];
         for (const cell of this.cells) flat.push(...cell.lines);
         return flat;
+    }
+
+    private hasUncommittedPrelude(): boolean {
+        return this.committedRows < this.preludeLines.length;
     }
 
     private itemCacheKey(item: TranscriptItem): string {

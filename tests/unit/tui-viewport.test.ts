@@ -29,6 +29,39 @@ test('Viewport tail-follow bottom-aligns short transcript', () => {
     );
 });
 
+test('Viewport top-aligns uncommitted welcome prelude before transcript collides', () => {
+    const v = new Viewport();
+    v.setPrelude(['welcome']);
+    v.setItems([
+        { type: 'user', displayText: '1', submitText: '1', timestamp: 0 },
+    ], render, 4);
+
+    assert.deepEqual(
+        v.composeRegion({ x: 1, y: 1, width: 40, height: 4 }),
+        ['welcome', 'u:1', '', ''],
+    );
+});
+
+test('Viewport commits welcome prelude with older transcript rows after collision', () => {
+    const v = new Viewport();
+    v.setPrelude(['welcome']);
+    v.setItems([
+        { type: 'user', displayText: '1', submitText: '1', timestamp: 0 },
+        { type: 'user', displayText: '2', submitText: '2', timestamp: 1 },
+        { type: 'user', displayText: '3', submitText: '3', timestamp: 2 },
+        { type: 'user', displayText: '4', submitText: '4', timestamp: 3 },
+    ], render, 3);
+
+    const firstCommit = v.peekCommitRows(3);
+    assert.deepEqual(firstCommit, ['welcome', 'u:1']);
+
+    v.markCommittedRows(firstCommit.length, 3);
+    assert.deepEqual(
+        v.composeRegion({ x: 1, y: 1, width: 40, height: 3 }),
+        ['u:2', 'u:3', 'u:4'],
+    );
+});
+
 test('Viewport rerenders same-length user content changes', () => {
     const v = new Viewport();
     v.setItems([{ type: 'user', displayText: 'abc', submitText: 'abc', timestamp: 0 }], render);

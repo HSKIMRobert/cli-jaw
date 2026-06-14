@@ -18,9 +18,14 @@ test('fullscreen jaw chat still starts from welcome prelude and live renderer', 
     assert.ok(chatSource.includes('await runFullscreenMode(ctx)'));
 });
 
-test('fullscreen welcome is pinned to native scrollback before live frame renders', () => {
-    assert.ok(fullscreenSource.includes('function printWelcomeToScrollback'));
-    assert.ok(fullscreenSource.includes('process.stdout.write(`${lines.map'));
-    assert.ok(fullscreenSource.includes('ctx.welcomeLines = [];'));
-    assert.ok(fullscreenSource.indexOf('printWelcomeToScrollback(ctx, process.stdout.columns || 80)') < fullscreenSource.indexOf('screen.enter()'));
+test('fullscreen welcome remains in the launch prelude instead of pre-render stdout', () => {
+    assert.equal(fullscreenSource.includes('function printWelcomeToScrollback'), false);
+    assert.equal(fullscreenSource.includes('ctx.welcomeLines = [];'), false);
+    assert.ok(fullscreenSource.includes('viewport.setPrelude(renderWelcomePrelude(ctx, cols))'));
+    assert.ok(fullscreenSource.includes([
+        'rebuildFooter(ctx);',
+        '    screen.enter();',
+        "    if (ctx.tuiConfig['mouseTracking'] === true) screen.enableMouse();",
+        '    scheduler.request();',
+    ].join('\n')));
 });
