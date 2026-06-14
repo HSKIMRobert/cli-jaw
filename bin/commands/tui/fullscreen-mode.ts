@@ -143,7 +143,7 @@ function handleMouseEvent(
     return true;
 }
 
-function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
+export function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
     const cols = process.stdout.columns || 80;
     const rows = getRows();
     const composerText = getComposerDisplayText(ctx.store.composer);
