@@ -191,6 +191,56 @@ test('fullscreen command feedback renders without thinking spinner', () => {
     });
 });
 
+test('fullscreen user block wraps multi-line input and keeps bottom cluster pinned', () => {
+    withTerminalSize(44, 24, () => {
+        const ctx = makeCtx();
+        appendUserItem(
+            ctx.store.transcript,
+            'please inspect this very long user message that must wrap safely\nand keep the footer and composer pinned',
+            'please inspect this very long user message that must wrap safely\nand keep the footer and composer pinned',
+        );
+
+        const frame = composeFrame(ctx, new Viewport());
+        assert.equal(frame.rows.some(row => row.includes('\n')), false);
+        const expanded = expandViewportFill(frame.rows, 24);
+        const regions = solveLayout(44, 24, 1);
+        const main = stripAnsi(expanded.slice(regions.transcript.y - 1, regions.statusLine.y - 1).join('\n'));
+
+        assert.ok(expanded.every(row => visualWidth(row) <= 44), 'all user block frame rows must fit terminal width');
+        assert.match(main, /╭─ You/);
+        assert.match(main, /please inspect/);
+        assert.match(main, /footer and composer/);
+        assert.match(stripAnsi(expanded[regions.statusLine.y - 1] ?? ''), /\/quit/);
+        assert.match(expanded[regions.composer.y - 2] ?? '', /┌/);
+        assert.match(expanded[regions.help.y - 1] ?? '', /shortcuts/);
+    });
+});
+
+test('fullscreen finished thinking collapses by default and ctrl-o expansion reveals body', () => {
+    const collapsedRows = renderTranscriptItem({
+        type: 'thinking',
+        text: 'line one\nline two',
+        streaming: false,
+        collapsed: true,
+        timestamp: 0,
+    }, 52);
+    const collapsed = stripAnsi(collapsedRows.join('\n'));
+    assert.match(collapsed, /Thinking … \+2 lines/);
+    assert.doesNotMatch(collapsed, /line one/);
+
+    const expandedRows = renderTranscriptItem({
+        type: 'thinking',
+        text: 'single detail',
+        streaming: false,
+        collapsed: false,
+        timestamp: 0,
+    }, 52);
+    const expanded = stripAnsi(expandedRows.join('\n'));
+    assert.match(expanded, /Thinking … \+1 lines/);
+    assert.match(expanded, /single detail/);
+    assert.ok(expandedRows.every(row => visualWidth(row) <= 52));
+});
+
 test('fullscreen live tool rows stay width-safe during long mid-call updates', () => {
     withTerminalSize(72, 28, () => {
         const ctx = makeCtx();

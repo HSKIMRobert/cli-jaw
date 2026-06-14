@@ -41,18 +41,22 @@ function normalizeToolLog(value: unknown): ToolEventInput[] {
     for (const entry of value.slice(0, 100)) {
         const record = asRecord(entry);
         if (!record) continue;
-        const label = optString(record['label']) ?? optString(record['tool']) ?? optString(record['name']);
+        const rawToolType = optString(record['toolType']) ?? optString(record['tool_type']);
+        const thinkingTool = rawToolType?.toLowerCase() === 'thinking' || record['thinking'] === true;
+        const label = optString(record['label']) ?? optString(record['tool']) ?? optString(record['name']) ?? (thinkingTool ? 'Thinking' : undefined);
         if (!label) continue;
         const tool: ToolEventInput = {
             icon: optString(record['icon']) ?? '•',
             label,
-            detail: stringValue(record['detail']) || stringValue(record['output']) || stringValue(record['text']),
+            detail: stringValue(record['detail']) || stringValue(record['output']) || stringValue(record['text']) || stringValue(record['content']) || stringValue(record['message']),
             status: normalizeToolStatus(record['status']),
         };
         const agentId = optString(record['agentId']);
         const stepRef = optString(record['stepRef']) ?? optString(record['id']);
         if (agentId) tool.agentId = agentId;
         if (stepRef) tool.stepRef = stepRef;
+        if (rawToolType) tool.toolType = rawToolType;
+        else if (thinkingTool) tool.toolType = 'thinking';
         out.push(tool);
     }
     return out;
@@ -93,6 +97,7 @@ export function normalizeTuiWsEvent(raw: unknown): TuiEvent {
             const icon = optString(msg['icon']);
             const label = optString(msg['label']);
             if (!icon || !label) return { kind: 'ignore', raw: msg };
+            const toolType = optString(msg['toolType']) ?? optString(msg['tool_type']) ?? (msg['thinking'] === true ? 'thinking' : undefined);
             return {
                 kind: 'agent-tool',
                 icon,
@@ -101,7 +106,7 @@ export function normalizeTuiWsEvent(raw: unknown): TuiEvent {
                 status: normalizeToolStatus(msg['status']),
                 ...(optString(msg['stepRef']) ? { stepRef: optString(msg['stepRef']) } : {}),
                 ...(optString(msg['agentId']) ? { agentId: optString(msg['agentId']) } : {}),
-                ...(optString(msg['toolType']) ? { toolType: optString(msg['toolType']) } : {}),
+                ...(toolType ? { toolType } : {}),
             };
         }
         case 'agent_fallback':

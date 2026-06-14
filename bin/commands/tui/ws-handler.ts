@@ -5,8 +5,9 @@ import type WebSocket from 'ws';
 import {
     startAssistantItem, appendAssistantTurnText,
     finalizeAssistant, finalizeStreamingAssistants, assistantTextSinceLastUser,
-    appendStatusItem, appendToolItem, clearEphemeralStatus, appendThinkingTurnText,
-    upsertLiveToolItem, commitToolItemOnce, commitRemainingLiveToolItems,
+    appendStatusItem, appendToolItem, clearEphemeralStatus, appendThinkingTurnText, appendThinkingItem,
+    upsertLiveToolItem, commitToolItemOnce, commitThinkingItemOnce, commitRemainingLiveToolItems,
+    isThinkingToolEvent,
 } from '../../../src/cli/tui/transcript.js';
 import { captureFileSet, diffFileSets, getDiffStat, getUnifiedDiff, getIdeCli, openDiffInIde } from '../../../src/ide/diff.js';
 import { createStreamSink } from '../../../src/cli/tui/stream.js';
@@ -109,7 +110,11 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                 stopSpinner();
                 clearEphemeralStatus(transcript);
                 for (const tool of event.toolLog) {
-                    commitToolItemOnce(transcript, tool, { updateCommitted: true });
+                    if (isThinkingToolEvent(tool)) {
+                        commitThinkingItemOnce(transcript, tool, { updateCommitted: true });
+                    } else {
+                        commitToolItemOnce(transcript, tool, { updateCommitted: true });
+                    }
                 }
                 commitRemainingLiveToolItems(transcript, event.raw['error'] ? 'error' : 'done');
                 if (ctx.isRaw) {
@@ -185,13 +190,11 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                 } else if (event.status === 'running') {
                     ensureTurnClock(ctx, 'responding');
                     const name = event.agentName || event.agentId || 'agent';
-                    appendStatusItem(transcript, `${name} thinking\u2026`);
-                    startSpinner((ch) => {
-                        if (!isFullscreen(ctx)) {
-                            process.stdout.write(`\r  ${c.dim}${ch} ${name} thinking\u2026${c.reset}          \r`);
-                        }
-                    });
                     if (!isFullscreen(ctx)) {
+                        appendStatusItem(transcript, `${name} thinking\u2026`);
+                        startSpinner((ch) => {
+                            process.stdout.write(`\r  ${c.dim}${ch} ${name} thinking\u2026${c.reset}          \r`);
+                        });
                         process.stdout.write(`\r  ${c.dim}\u25CC ${name} thinking\u2026${c.reset}          \r`);
                     } else {
                         ctx.requestFrame?.();
@@ -204,6 +207,21 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                     console.log(`  ${c.dim}${raw}${c.reset}`);
                 } else {
                     clearEphemeralStatus(transcript);
+                    if (isThinkingToolEvent(event)) {
+                        if (event.status === 'running') {
+                            appendThinkingItem(transcript, event.detail || event.label, {
+                                ...(event.agentId ? { agentId: event.agentId } : {}),
+                                ...(event.stepRef ? { stepRef: event.stepRef } : {}),
+                                streaming: true,
+                                collapsed: true,
+                            });
+                        } else {
+                            commitThinkingItemOnce(transcript, event, { updateCommitted: true });
+                        }
+                        ensureTurnClock(ctx, 'responding');
+                        if (isFullscreen(ctx)) ctx.requestFrame?.();
+                        break;
+                    }
                     if (isFullscreen(ctx) && event.status === 'running') {
                         upsertLiveToolItem(transcript, event);
                     } else if (isFullscreen(ctx)) {

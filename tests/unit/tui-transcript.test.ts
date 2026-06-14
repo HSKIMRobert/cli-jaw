@@ -14,6 +14,7 @@ import {
     appendCommandItem,
     clearEphemeralStatus,
     appendToolItem,
+    commitThinkingItemOnce,
 } from '../../src/cli/tui/transcript.ts';
 
 test('appendUserItem adds user transcript entry', () => {
@@ -173,6 +174,46 @@ test('late thinking is inserted before same-turn final assistant text', () => {
     appendThinkingTurnText(state, 'Internal plan', 'main');
 
     assert.equal(state.items.map((item) => item.type).join(','), 'user,thinking,assistant');
+});
+
+test('late thinking chunks merge before same-turn final assistant text', () => {
+    const state = createTranscriptState();
+    appendUserItem(state, 'hello', 'hello');
+    appendAssistantTurnText(state, 'Final answer', 'main');
+    appendThinkingTurnText(state, 'Internal plan', 'main');
+    appendThinkingTurnText(state, '\nCheck final wording', 'main');
+
+    assert.equal(state.items.map((item) => item.type).join(','), 'user,thinking,assistant');
+    const thinking = state.items[1]!;
+    assert.equal(thinking.type, 'thinking');
+    if (thinking.type === 'thinking') {
+        assert.equal(thinking.text, 'Internal plan\nCheck final wording');
+    }
+});
+
+test('toolLog thinking commits as collapsed transcript item between tool rows', () => {
+    const state = createTranscriptState();
+    appendUserItem(state, 'run tools', 'run tools');
+    appendToolItem(state, 'Bash echo 1', { status: 'done', stepRef: 'tool-1' });
+    assert.equal(commitThinkingItemOnce(state, {
+        icon: '•',
+        label: 'Thinking',
+        detail: 'Inspect bash output\nPlan the read step',
+        status: 'done',
+        stepRef: 'think-1',
+        toolType: 'thinking',
+    }), true);
+    appendToolItem(state, 'Read file', { status: 'done', stepRef: 'tool-2' });
+
+    assert.equal(state.items.map((item) => item.type).join(','), 'user,tool,thinking,tool');
+    const thinking = state.items[2]!;
+    assert.equal(thinking.type, 'thinking');
+    if (thinking.type === 'thinking') {
+        assert.equal(thinking.text, 'Inspect bash output\nPlan the read step');
+        assert.equal(thinking.streaming, false);
+        assert.equal(thinking.collapsed, true);
+        assert.equal(thinking.stepRef, 'think-1');
+    }
 });
 
 test('agent_done with text but no prior chunks', () => {

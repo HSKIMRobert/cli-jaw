@@ -1,7 +1,7 @@
 export type TranscriptItem =
     | { type: 'user'; displayText: string; submitText: string; timestamp: number; agentId?: string }
     | { type: 'assistant'; text: string; streaming: boolean; timestamp: number; agentId?: string }
-    | { type: 'thinking'; text: string; streaming: boolean; timestamp: number; agentId?: string; collapsed?: boolean }
+    | { type: 'thinking'; text: string; streaming: boolean; timestamp: number; agentId?: string; collapsed?: boolean; stepRef?: string }
     | { type: 'tool'; text: string; timestamp: number; agentId?: string; collapsed?: boolean; detail?: string; stepRef?: string; status?: 'running' | 'done' | 'error' }
     | { type: 'command'; text: string; timestamp: number; commandName?: string; ok?: boolean }
     | { type: 'status'; text: string; ephemeral: true; timestamp: number; agentId?: string };
@@ -32,6 +32,7 @@ export interface ToolEventInput {
     status: 'running' | 'done' | 'error';
     agentId?: string | undefined;
     stepRef?: string | undefined;
+    toolType?: string | undefined;
 }
 
 export function createTranscriptState(): TranscriptState {
@@ -62,31 +63,66 @@ export function appendAssistantTurnText(state: TranscriptState, chunk: string, a
     return appendToActiveAssistant(state, chunk);
 }
 
-function appendToActiveThinking(state: TranscriptState, chunk: string): boolean {
-    const last = state.items[state.items.length - 1];
-    if (!last || last.type !== 'thinking' || !last.streaming) return false;
-    last.text += chunk;
-    return true;
+function canAppendToThinking(item: TranscriptItem | undefined, agentId?: string): item is Extract<TranscriptItem, { type: 'thinking' }> {
+    if (!item || item.type !== 'thinking' || !item.streaming || item.stepRef) return false;
+    return !agentId || !item.agentId || item.agentId === agentId;
 }
 
-export function appendThinkingTurnText(state: TranscriptState, chunk: string, agentId?: string): boolean {
-    if (!chunk) return false;
-    if (appendToActiveThinking(state, chunk)) return true;
-    const item: TranscriptItem = {
-        type: 'thinking',
-        text: chunk,
-        streaming: true,
-        timestamp: Date.now(),
-        collapsed: true,
-    };
-    if (agentId) item.agentId = agentId;
+function findActiveThinkingIndex(state: TranscriptState, agentId?: string): number {
+    const lastIndex = state.items.length - 1;
+    const last = state.items[lastIndex];
+    if (canAppendToThinking(last, agentId)) return lastIndex;
+    if (last?.type === 'assistant' && canAppendToThinking(state.items[lastIndex - 1], agentId)) return lastIndex - 1;
+    return -1;
+}
+
+function insertThinkingItem(state: TranscriptState, item: Extract<TranscriptItem, { type: 'thinking' }>): void {
     const tail = state.items[state.items.length - 1];
     if (tail?.type === 'assistant') {
         state.items.splice(state.items.length - 1, 0, item);
     } else {
         state.items.push(item);
     }
+}
+
+export function appendThinkingItem(state: TranscriptState, text: string, opts?: { agentId?: string; stepRef?: string; streaming?: boolean; collapsed?: boolean }): boolean {
+    if (!text) return false;
+    if (opts?.stepRef) {
+        const existing = state.items.find((item) => item.type === 'thinking' && item.stepRef === opts.stepRef);
+        if (existing?.type === 'thinking') {
+            existing.text = text;
+            existing.timestamp = Date.now();
+            if (typeof opts.streaming === 'boolean') existing.streaming = opts.streaming;
+            if (typeof opts.collapsed === 'boolean') existing.collapsed = opts.collapsed;
+            if (opts.agentId) existing.agentId = opts.agentId;
+            return true;
+        }
+    }
+    const item: Extract<TranscriptItem, { type: 'thinking' }> = {
+        type: 'thinking',
+        text,
+        streaming: opts?.streaming ?? false,
+        timestamp: Date.now(),
+        collapsed: opts?.collapsed ?? true,
+    };
+    if (opts?.agentId) item.agentId = opts.agentId;
+    if (opts?.stepRef) item.stepRef = opts.stepRef;
+    insertThinkingItem(state, item);
     return true;
+}
+
+export function appendThinkingTurnText(state: TranscriptState, chunk: string, agentId?: string): boolean {
+    if (!chunk) return false;
+    const activeIndex = findActiveThinkingIndex(state, agentId);
+    if (activeIndex >= 0) {
+        const item = state.items[activeIndex]!;
+        if (item.type === 'thinking') {
+            item.text += chunk;
+            item.timestamp = Date.now();
+            return true;
+        }
+    }
+    return appendThinkingItem(state, chunk, { ...(agentId ? { agentId } : {}), streaming: true, collapsed: true });
 }
 
 export function finalizeAssistant(state: TranscriptState, fallbackText?: string): boolean {
@@ -159,6 +195,35 @@ export function appendToolItem(state: TranscriptState, text: string, opts?: { ag
 export function makeToolEventKey(input: { label: string; agentId?: string | undefined; stepRef?: string | undefined }): string {
     if (input.stepRef) return `ref:${input.stepRef}`;
     return `fallback:${input.agentId ?? 'main'}:${input.label}`;
+}
+
+export function isThinkingToolEvent(input: { toolType?: string | undefined }): boolean {
+    return input.toolType?.toLowerCase() === 'thinking';
+}
+
+function thinkingTextFromToolInput(input: ToolEventInput): string {
+    return input.detail || input.label;
+}
+
+export function commitThinkingItemOnce(state: TranscriptState, input: ToolEventInput, commitOpts?: { updateCommitted?: boolean }): boolean {
+    if (input.stepRef && state.committedToolRefs.has(input.stepRef)) {
+        if (commitOpts?.updateCommitted && thinkingTextFromToolInput(input)) {
+            appendThinkingItem(state, thinkingTextFromToolInput(input), {
+                ...(input.agentId ? { agentId: input.agentId } : {}),
+                stepRef: input.stepRef,
+                streaming: false,
+                collapsed: true,
+            });
+        }
+        return false;
+    }
+    if (input.stepRef) state.committedToolRefs.add(input.stepRef);
+    return appendThinkingItem(state, thinkingTextFromToolInput(input), {
+        ...(input.agentId ? { agentId: input.agentId } : {}),
+        ...(input.stepRef ? { stepRef: input.stepRef } : {}),
+        streaming: false,
+        collapsed: true,
+    });
 }
 
 export function upsertLiveToolItem(state: TranscriptState, input: ToolEventInput): LiveToolItem {

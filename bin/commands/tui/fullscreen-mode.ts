@@ -38,17 +38,35 @@ function parseToolText(text: string): { label: string; detail: string } {
     };
 }
 
+function countTextLines(text: string): number {
+    if (!text) return 1;
+    return text.split('\n').length;
+}
+
+function wrapPlainLines(text: string, width: number): string[] {
+    const safeWidth = Math.max(1, width);
+    return text.split('\n').flatMap(line => line.length === 0 ? [''] : wrapTextToCols(line, safeWidth));
+}
+
+function renderUserBlock(item: Extract<TranscriptItem, { type: 'user' }>, width: number, gutter: string): string[] {
+    const header = `${gutter}${c.cyan}${c.bold}╭─ You${c.reset}`;
+    const bodyPrefix = `${gutter}${c.cyan}│${c.reset} `;
+    const footer = `${gutter}${c.cyan}╰─${c.reset}`;
+    const bodyWidth = Math.max(8, width - visualWidth(bodyPrefix));
+    const bodyRows = wrapPlainLines(item.displayText, bodyWidth);
+    return [
+        clipTextToCols(header, width),
+        ...bodyRows.map(line => `${bodyPrefix}${clipTextToCols(line, bodyWidth)}`),
+        clipTextToCols(footer, width),
+    ];
+}
+
 export function renderTranscriptItem(item: TranscriptItem, width: number): string[] {
     const gutter = '  ';
     const w = Math.max(20, width - gutter.length);
     switch (item.type) {
-        case 'user': {
-            const lines = item.displayText.split('\n').flatMap(line => line.length === 0 ? [''] : wrapTextToCols(line, w - 3));
-            return lines.map((line, index) => {
-                const marker = index === 0 ? `${c.cyan}${c.bold}❯${c.reset}` : `${c.dim}↳${c.reset}`;
-                return `${gutter}${marker} ${clipTextToCols(line, w - 3)}`;
-            });
-        }
+        case 'user':
+            return renderUserBlock(item, width, gutter);
         case 'assistant': {
             const agentLabel = item.agentId ? `${c.dim}[${item.agentId}]${c.reset} ` : '';
             if (item.streaming && !item.text) {
@@ -73,16 +91,12 @@ export function renderTranscriptItem(item: TranscriptItem, width: number): strin
         }
         case 'thinking': {
             const agentLabel = item.agentId ? `${c.dim}[${item.agentId}]${c.reset} ` : '';
-            const lineCount = item.text.split('\n').filter(Boolean).length || 1;
+            const lineCount = countTextLines(item.text);
             const labelRows = agentLabel ? [`${gutter}${agentLabel}`] : [];
             if (item.streaming) {
                 const detailPrefix = `${gutter}${c.dim}│ `;
                 const detailWidth = Math.max(10, width - visualWidth(detailPrefix) - visualWidth(c.reset));
-                const wrappedRows = item.text
-                    .split('\n')
-                    .filter(Boolean)
-                    .flatMap(line => wrapTextToCols(line, detailWidth))
-                    .slice(-6);
+                const wrappedRows = wrapPlainLines(item.text, detailWidth).slice(-6);
                 const detailRows = wrappedRows.length > 0 ? wrappedRows : [''];
                 return [
                     ...labelRows,
@@ -90,13 +104,10 @@ export function renderTranscriptItem(item: TranscriptItem, width: number): strin
                     ...detailRows.map(line => `${detailPrefix}${clipTextToCols(line, detailWidth)}${c.reset}`),
                 ];
             }
-            if (item.collapsed === false && lineCount > 1) {
+            if (item.collapsed === false) {
                 const detailPrefix = `${gutter}${c.dim}│ `;
                 const detailWidth = Math.max(10, width - visualWidth(detailPrefix) - visualWidth(c.reset));
-                const detailRows = item.text
-                    .split('\n')
-                    .filter(Boolean)
-                    .flatMap(line => wrapTextToCols(line, detailWidth));
+                const detailRows = wrapPlainLines(item.text, detailWidth);
                 return [
                     ...labelRows,
                     renderThinkingCollapse(item.text, lineCount, false),

@@ -205,7 +205,7 @@ export class Viewport {
         switch (item.type) {
             case 'user': return `u|${item.displayText.length}|${hashText(item.displayText)}|${item.agentId ?? ''}`;
             case 'assistant': return `a|${item.text.length}|${hashText(item.text)}|${item.streaming ? 1 : 0}|${item.agentId ?? ''}`;
-            case 'thinking': return `h|${item.text.length}|${hashText(item.text)}|${item.streaming ? 1 : 0}|${item.collapsed ? 1 : 0}|${item.agentId ?? ''}`;
+            case 'thinking': return `h|${item.text.length}|${hashText(item.text)}|${item.streaming ? 1 : 0}|${item.collapsed ? 1 : 0}|${item.stepRef ?? ''}|${item.agentId ?? ''}`;
             case 'tool': return `t|${item.text.length}|${hashText(item.text)}|${item.collapsed ? 1 : 0}|${item.detail ? hashText(item.detail) : ''}|${item.status ?? ''}|${item.stepRef ?? ''}|${item.agentId ?? ''}`;
             case 'command': return `c|${item.text.length}|${hashText(item.text)}|${item.commandName ?? ''}|${typeof item.ok === 'boolean' ? Number(item.ok) : ''}`;
             case 'status': return `s|${item.text.length}|${hashText(item.text)}|${item.agentId ?? ''}`;

@@ -8,7 +8,7 @@ import { Viewport } from '../../src/cli/tui/render/viewport.ts';
 import { VIEWPORT_FILL } from '../../src/cli/tui/render/frame.ts';
 import { renderStatusBar } from '../../src/cli/tui/jawcode-bridge.ts';
 import { visualWidth } from '../../src/cli/tui/renderers.ts';
-import { toggleToolExpansion } from '../../src/cli/tui/transcript.ts';
+import { appendUserItem, toggleToolExpansion } from '../../src/cli/tui/transcript.ts';
 import { isSpinning, stopSpinner } from '../../src/cli/tui/spinner.ts';
 
 function withTerminalSize<T>(cols: number, rows: number, fn: () => T): T {
@@ -176,6 +176,78 @@ test('thinking streams in transcript, collapses when settled, and expands with c
         assert.match(expanded, /line one/);
         assert.match(expanded, /line two/);
         assert.match(expanded, /Final answer/);
+    } finally {
+        cleanupCtx(ctx);
+    }
+});
+
+test('agent_output thinking rows remain ordered between tool rows and final assistant', () => {
+    const ctx = makeCtx();
+    const viewport = new Viewport();
+    try {
+        appendUserItem(ctx.store.transcript, 'run tools', 'run tools');
+        handleWsMessage(ctx, msg({ type: 'agent_tool', icon: '$', label: 'Bash', detail: 'echo 1', status: 'done', stepRef: 's1' }));
+        handleWsMessage(ctx, msg({ type: 'agent_output', thinking: true, text: 'plan next tool\nconfirm ordering', agentId: 'main' }));
+        handleWsMessage(ctx, msg({ type: 'agent_tool', icon: '$', label: 'Read File', detail: 'src/a.ts', status: 'done', stepRef: 's2' }));
+        handleWsMessage(ctx, msg({ type: 'agent_done', text: 'Final answer.' }));
+
+        assert.equal(ctx.store.transcript.items.map((item) => item.type).join(','), 'user,tool,thinking,tool,assistant');
+        const collapsed = renderText(ctx, viewport, 72, 26);
+        assert.match(collapsed, /Bash/);
+        assert.match(collapsed, /Thinking .*\+2 lines|Thinking/);
+        assert.match(collapsed, /Read File/);
+        assert.match(collapsed, /Final answer/);
+        assert.doesNotMatch(collapsed, /confirm ordering\s+Read File/);
+    } finally {
+        cleanupCtx(ctx);
+    }
+});
+
+test('agent_done toolLog toolType thinking backfills collapsed row before final assistant', () => {
+    const ctx = makeCtx();
+    const viewport = new Viewport();
+    try {
+        appendUserItem(ctx.store.transcript, 'run tools', 'run tools');
+        handleWsMessage(ctx, msg({
+            type: 'agent_done',
+            text: 'Final answer.',
+            toolLog: [
+                { label: 'Bash', detail: 'echo complete', status: 'done', stepRef: 's1' },
+                { toolType: 'thinking', detail: 'late reasoning line one\nlate reasoning line two', status: 'done', stepRef: 'think-1' },
+                { label: 'Read File', detail: 'src/a.ts', status: 'done', stepRef: 's2' },
+            ],
+        }));
+
+        assert.equal(ctx.store.transcript.items.map((item) => item.type).join(','), 'user,tool,thinking,tool,assistant');
+        const thinking = ctx.store.transcript.items[2]!;
+        assert.equal(thinking.type, 'thinking');
+        if (thinking.type === 'thinking') {
+            assert.equal(thinking.streaming, false);
+            assert.equal(thinking.collapsed, true);
+            assert.equal(thinking.text, 'late reasoning line one\nlate reasoning line two');
+        }
+
+        const collapsed = renderText(ctx, viewport, 72, 26);
+        assert.match(collapsed, /Thinking .*\+2 lines|Thinking/);
+        assert.doesNotMatch(collapsed, /late reasoning line one\s+late reasoning line two/);
+        assert.equal(toggleToolExpansion(ctx.store.transcript), true);
+        const expanded = renderText(ctx, viewport, 72, 26);
+        assert.match(expanded, /late reasoning line one/);
+        assert.match(expanded, /late reasoning line two/);
+        assert.match(expanded, /Final answer/);
+    } finally {
+        cleanupCtx(ctx);
+    }
+});
+
+test('fullscreen agent_status running updates footer state without transcript thinking status row', () => {
+    const ctx = makeCtx();
+    try {
+        handleWsMessage(ctx, msg({ type: 'agent_status', status: 'running', agentName: 'main' }));
+
+        assert.equal(ctx.store.transcript.items.length, 0);
+        assert.equal(ctx.streamState, 'responding');
+        assert.equal(isSpinning(), false);
     } finally {
         cleanupCtx(ctx);
     }

@@ -86,7 +86,7 @@ export function renderToolLine(_icon: string, label: string, detail: string, sta
 export function renderThinkingCollapse(text: string, lineCount: number, expanded: boolean): string {
     const theme = getTheme();
     if (!theme) return `  \x1b[3m\x1b[2m${expanded ? text : `Thinking … +${lineCount} lines`}\x1b[0m`;
-    if (expanded || lineCount <= 1) return `  ${theme.fg('muted', theme.italic(text))}`;
+    if (expanded) return `  ${theme.fg('muted', theme.italic(text))}`;
     return `  ${theme.fg('muted', theme.italic(`Thinking … +${lineCount} lines`))}`;
 }
 
