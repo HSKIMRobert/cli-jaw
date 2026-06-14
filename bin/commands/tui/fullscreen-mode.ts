@@ -235,6 +235,13 @@ function renderWelcomePrelude(ctx: TuiContext, cols: number): string[] {
     return (ctx.welcomeLines ?? []).map(line => clipTextToCols(`  ${line}`, cols));
 }
 
+function printWelcomeToScrollback(ctx: TuiContext, cols: number): void {
+    const lines = renderWelcomePrelude(ctx, cols);
+    if (lines.length === 0) return;
+    process.stdout.write(`${lines.map(line => `\x1b[2K${line}`).join('\r\n')}\r\n`);
+    ctx.welcomeLines = [];
+}
+
 function renderChatRegion(ctx: TuiContext, viewport: Viewport, regions: Regions, cols: number, liveRows: string[] = []): string[] {
     if (ctx.store.overlay.settingsOpen) {
         return composeSettingsScreenLines({
@@ -395,6 +402,7 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
     ctx.requestFrame = () => scheduler.request();
 
     rebuildFooter(ctx);
+    printWelcomeToScrollback(ctx, process.stdout.columns || 80);
     screen.enter();
     if (ctx.tuiConfig['mouseTracking'] === true) screen.enableMouse();
     scheduler.request();
