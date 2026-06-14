@@ -21,7 +21,7 @@ import { solveLayout, type Regions } from '../../../src/cli/tui/render/layout.js
 import { parseSgrMouse, isMouseSequence } from '../../../src/cli/tui/render/mouse.js';
 import { Viewport } from '../../../src/cli/tui/render/viewport.js';
 import type { TranscriptItem } from '../../../src/cli/tui/transcript.js';
-import { toggleToolExpansion } from '../../../src/cli/tui/transcript.js';
+import { listLiveToolItems, toggleToolExpansion } from '../../../src/cli/tui/transcript.js';
 import { clipTextToCols, visualWidth, cursorScreenPos, wrapTextToCols } from '../../../src/cli/tui/renderers.js';
 import { cleanupScrollRegion, resolveShellLayout } from '../../../src/cli/tui/shell.js';
 import type { TuiContext } from './types.js';
@@ -151,7 +151,19 @@ function blankLines(count: number): string[] {
     return new Array(Math.max(0, count)).fill('');
 }
 
-function renderChatRegion(ctx: TuiContext, viewport: Viewport, regions: Regions, cols: number): string[] {
+function renderLiveToolRows(ctx: TuiContext, cols: number, maxRows: number): string[] {
+    if (maxRows <= 0) return [];
+    const liveTools = listLiveToolItems(ctx.store.transcript);
+    if (liveTools.length === 0) return [];
+    const visible = liveTools.slice(0, Math.max(0, maxRows));
+    const rows = visible.map(tool => clipTextToCols(renderToolLine(tool.icon, tool.label, tool.detail, 'pending'), cols));
+    if (liveTools.length > visible.length && rows.length > 0) {
+        rows[rows.length - 1] = clipTextToCols(`${c.dim}  … +${liveTools.length - visible.length} running tools${c.reset}`, cols);
+    }
+    return rows;
+}
+
+function renderChatRegion(ctx: TuiContext, viewport: Viewport, regions: Regions, cols: number, liveRows: string[] = []): string[] {
     if (ctx.store.overlay.settingsOpen) {
         return composeSettingsScreenLines({
             settings: ctx.settingsSnapshot,
@@ -170,7 +182,8 @@ function renderChatRegion(ctx: TuiContext, viewport: Viewport, regions: Regions,
             clipTextToCols,
         });
     }
-    const transcriptLines = viewport.composeRegion(regions.transcript);
+    const transcriptHeight = Math.max(1, regions.transcript.height - liveRows.length);
+    const transcriptLines = viewport.composeRegion({ ...regions.transcript, height: transcriptHeight });
     const hasTranscript = transcriptLines.some(l => l !== '');
     if (hasTranscript) {
         const firstContent = transcriptLines.findIndex(line => line !== '');
@@ -178,17 +191,19 @@ function renderChatRegion(ctx: TuiContext, viewport: Viewport, regions: Regions,
             const content = transcriptLines.slice(firstContent);
             return [
                 ...content,
-                ...blankLines(regions.transcript.height - content.length),
+                ...blankLines(transcriptHeight - content.length),
+                ...liveRows,
             ];
         }
-        return transcriptLines;
+        return [...transcriptLines, ...liveRows];
     }
     const welcome = (ctx.welcomeLines ?? [])
-        .slice(0, regions.transcript.height)
+        .slice(0, transcriptHeight)
         .map(line => clipTextToCols(`  ${line}`, cols));
     return [
         ...welcome,
-        ...blankLines(regions.transcript.height - welcome.length),
+        ...blankLines(transcriptHeight - welcome.length),
+        ...liveRows,
     ];
 }
 
@@ -218,9 +233,14 @@ export function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
     });
     const regions = solveLayout(cols, rows, composerLines, { commandSurfaceLines: slashRows.length });
 
-    viewport.setItems(ctx.store.transcript.items, renderTranscriptItem, regions.transcript.height);
+    const ov = ctx.store.overlay;
+    const liveRows = ov.helpOpen || ov.paletteOpen || ov.selector.open || ov.bgtaskOpen || ov.settingsOpen
+        ? []
+        : renderLiveToolRows(ctx, cols, Math.min(4, Math.max(0, regions.transcript.height - 1)));
+    const transcriptHeight = Math.max(1, regions.transcript.height - liveRows.length);
+    viewport.setItems(ctx.store.transcript.items, renderTranscriptItem, transcriptHeight);
 
-    const chatRows = renderChatRegion(ctx, viewport, regions, cols);
+    const chatRows = renderChatRegion(ctx, viewport, regions, cols, liveRows);
     const commandRows = slashRows
         .slice(0, regions.commandSurface.height)
         .map(line => clipTextToCols(line, cols));
@@ -270,7 +290,6 @@ export function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
     frameRows.push(renderHelpLine(cols));
 
     // For overlays, we need a full-height array. Expand VIEWPORT_FILL now.
-    const ov = ctx.store.overlay;
     const needsOverlay = ov.helpOpen || ov.paletteOpen || ov.selector.open || ov.bgtaskOpen;
     if (needsOverlay) {
         frameRows.splice(0, frameRows.length, ...expandFrameRows(frameRows, rows));

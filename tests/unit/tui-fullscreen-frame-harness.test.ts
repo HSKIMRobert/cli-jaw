@@ -4,7 +4,7 @@ import { composeFrame, renderTranscriptItem } from '../../bin/commands/tui/fulls
 import type { TuiContext } from '../../bin/commands/tui/types.ts';
 import { createTuiStore } from '../../src/cli/tui/store.ts';
 import { appendTextToComposer } from '../../src/cli/tui/composer.ts';
-import { appendAssistantTurnText, appendThinkingTurnText, appendToolItem, appendUserItem, finalizeStreamingAssistants } from '../../src/cli/tui/transcript.ts';
+import { appendAssistantTurnText, appendThinkingTurnText, appendToolItem, appendUserItem, finalizeStreamingAssistants, upsertLiveToolItem } from '../../src/cli/tui/transcript.ts';
 import { Viewport } from '../../src/cli/tui/render/viewport.ts';
 import { VIEWPORT_FILL } from '../../src/cli/tui/render/frame.ts';
 import { solveLayout } from '../../src/cli/tui/render/layout.ts';
@@ -256,4 +256,46 @@ test('fullscreen expanded tool detail applies a physical row cap', () => {
     assert.equal(rows.some(row => row.includes('\n')), false);
     assert.equal(detailRows.length, 14);
     assert.match(plain, /└ … \+\d+ lines/);
+});
+
+test('fullscreen live tool rows render above the fixed bottom cluster', () => {
+    withTerminalSize(80, 28, () => {
+        const ctx = makeCtx();
+        appendAssistantTurnText(ctx.store.transcript, 'Transcript remains visible.', 'main');
+        finalizeStreamingAssistants(ctx.store.transcript);
+        upsertLiveToolItem(ctx.store.transcript, { icon: '🔧', label: 'Bash', detail: 'npm test', status: 'running', stepRef: 's1' });
+
+        const frame = composeFrame(ctx, new Viewport());
+        assert.equal(frame.rows.some(row => row.includes('\n')), false);
+        const expanded = expandViewportFill(frame.rows, 28);
+        const regions = solveLayout(80, 28, 1);
+        const main = stripAnsi(expanded.slice(regions.transcript.y - 1, regions.statusLine.y - 1).join('\n'));
+
+        assert.match(main, /Transcript remains visible/);
+        assert.match(main, /Bash/);
+        assert.match(main, /npm test/);
+        assert.match(stripAnsi(expanded[regions.statusLine.y - 1] ?? ''), /\/quit/);
+        assert.match(expanded[regions.composer.y - 2] ?? '', /┌/);
+        assert.match(expanded[regions.help.y - 1] ?? '', /shortcuts/);
+    });
+});
+
+test('fullscreen live tool rows are capped with an overflow summary', () => {
+    withTerminalSize(80, 28, () => {
+        const ctx = makeCtx();
+        for (let i = 0; i < 6; i += 1) {
+            upsertLiveToolItem(ctx.store.transcript, { icon: '🔧', label: `Tool${i}`, detail: `detail ${i}`, status: 'running', stepRef: `s${i}` });
+        }
+
+        const expanded = expandViewportFill(composeFrame(ctx, new Viewport()).rows, 28);
+        const regions = solveLayout(80, 28, 1);
+        const main = stripAnsi(expanded.slice(regions.transcript.y - 1, regions.statusLine.y - 1).join('\n'));
+
+        assert.match(main, /Tool0/);
+        assert.match(main, /Tool1/);
+        assert.match(main, /Tool2/);
+        assert.match(main, /\+2 running tools/);
+        assert.doesNotMatch(main, /Tool5/);
+        assert.match(expanded[regions.composer.y - 2] ?? '', /┌/);
+    });
 });

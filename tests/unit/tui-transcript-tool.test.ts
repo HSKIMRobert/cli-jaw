@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
     createTranscriptState, appendToolItem, appendStatusItem, clearEphemeralStatus,
-    toggleToolExpansion,
+    toggleToolExpansion, upsertLiveToolItem, commitToolItemOnce, clearLiveToolItems,
 } from '../../src/cli/tui/transcript.ts';
 
 test('appendToolItem adds a persistent tool item', () => {
@@ -94,4 +94,44 @@ test('toggleToolExpansion toggles all tool rows as a full sweep', () => {
         assert.equal(first.collapsed, true);
         assert.equal(second.collapsed, true);
     }
+});
+
+test('live tool state updates running tools without appending transcript rows', () => {
+    const s = createTranscriptState();
+    upsertLiveToolItem(s, { icon: '🔧', label: 'Bash', detail: 'echo 1', status: 'running', stepRef: 's1' });
+    upsertLiveToolItem(s, { icon: '🔧', label: 'Bash', detail: 'echo 2', status: 'running', stepRef: 's1' });
+
+    assert.equal(s.items.length, 0);
+    assert.equal(s.liveTools.length, 1);
+    assert.equal(s.liveTools[0]?.detail, 'echo 2');
+});
+
+test('terminal tool commit removes live state and appends one folded row', () => {
+    const s = createTranscriptState();
+    upsertLiveToolItem(s, { icon: '🔧', label: 'Bash', detail: 'echo kept', status: 'running', stepRef: 's1' });
+
+    assert.equal(commitToolItemOnce(s, { icon: '🔧', label: 'Bash', detail: '', status: 'done', stepRef: 's1' }), true);
+    assert.equal(commitToolItemOnce(s, { icon: '🔧', label: 'Bash', detail: 'duplicate', status: 'done', stepRef: 's1' }), false);
+
+    assert.equal(s.liveTools.length, 0);
+    assert.equal(s.items.length, 1);
+    const item = s.items[0]!;
+    assert.equal(item.type, 'tool');
+    if (item.type === 'tool') {
+        assert.equal(item.collapsed, true);
+        assert.equal(item.detail, 'echo kept');
+        assert.equal(item.stepRef, 's1');
+        assert.equal(item.status, 'done');
+    }
+});
+
+test('clearLiveToolItems clears only live state', () => {
+    const s = createTranscriptState();
+    appendToolItem(s, '🔧 Bash done', { status: 'done', detail: 'done' });
+    upsertLiveToolItem(s, { icon: '🔧', label: 'Read', detail: 'file', status: 'running' });
+
+    const cleared = clearLiveToolItems(s);
+    assert.equal(cleared.length, 1);
+    assert.equal(s.liveTools.length, 0);
+    assert.equal(s.items.length, 1);
 });

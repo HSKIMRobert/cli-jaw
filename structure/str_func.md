@@ -156,7 +156,7 @@ cli-jaw/
 │   │   ├── types.ts          ← CLI helper shared result/shape 타입 + workflow command/artifact/recovery metadata contract + command help detail key (204L)
 │   │   └── tui/              ← TUI 모듈 (20 files)
 │   │       ├── store.ts      ← TuiStore (transcript + overlay 상태 통합), OverlayState + SelectorState + settings screen state (78L)
-│   │       ├── transcript.ts ← TranscriptItem union (user/assistant/status) + TranscriptState + tool full-sweep expansion helpers (170L)
+│   │       ├── transcript.ts ← TranscriptItem union (user/assistant/status) + TranscriptState + tool full-sweep/live-tool helpers (252L)
 │   │       ├── composer.ts   ← Issue #66 pasted-text composer state + bracketed paste parser + slash gate + PasteCollapseConfig (374L)
 │   │       ├── overlay.ts    ← help overlay + command palette + choice selector 렌더링 (635L)
 │   │       ├── slash-surface.ts ← fullscreen slash command surface row composer (46L)
@@ -174,7 +174,7 @@ cli-jaw/
 │   │       ├── stream.ts     ← streaming text accumulator (56L) ✨
 │   │       ├── markdown.ts   ← TUI markdown renderer (120L) ✨
 │   │       ├── highlight.ts  ← TUI syntax highlight helper (83L) ✨
-│   │       └── render/       ← TUI render sub-modules (5 files: frame 79L, layout 68L, mouse 27L, scheduler 42L, viewport 98L) ✨
+│   │       └── render/       ← TUI render sub-modules (5 files: frame 211L, layout 68L, mouse 27L, scheduler 42L, viewport 160L) ✨
 │   ├── memory/               ← 데이터 영속화 + advanced memory runtime (14 files)
 │   │   ├── advanced.ts       ← Advanced Memory re-export stub (1L)
 │   │   ├── bootstrap.ts      ← legacy memory/bootstrap import + structured root 초기화 (524L)
@@ -375,7 +375,7 @@ cli-jaw/
 │       ├── connector.ts      ← dashboard connector board/notes/reminders/audit CLI (216L)
 │       ├── reminders.ts      ← local reminders list/add/done CLI (100L)
 │       ├── dispatch-helpers.ts ← dispatch output unwrap helper (21L)
-│       └── tui/              ← chat 터미널 TUI 분리 (10 files: api 89L, channel 115L, fullscreen-mode 469L, input-handler 470L, overlays 526L, renderer 135L, simple-mode 101L, tui-io 12L, types 145L, ws-handler 209L)
+│       └── tui/              ← chat 터미널 TUI 분리 (10 files: api 89L, channel 115L, fullscreen-mode 488L, input-handler 470L, overlays 526L, renderer 135L, simple-mode 101L, tui-io 12L, types 145L, ws-handler 314L)
 ├── tests/                    ← 회귀 방지 테스트 (586 files: root/unit/integration/browser/fixtures/smoke)
 ├── scripts/                  ← 도구 스크립트 (TypeScript + Shell + CJS; atomic build, sidecar bundle, release gates, install-risk evidence)
 ├── officecli/                ← OfficeCLI 포크 서브모듈 (lidge-jun/OfficeCLI, Apache 2.0)

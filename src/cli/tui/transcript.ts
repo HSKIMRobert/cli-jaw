@@ -7,10 +7,33 @@ export type TranscriptItem =
 
 export interface TranscriptState {
     items: TranscriptItem[];
+    liveTools: LiveToolItem[];
+    committedToolRefs: Set<string>;
+}
+
+export interface LiveToolItem {
+    key: string;
+    icon: string;
+    label: string;
+    detail: string;
+    status: 'running';
+    timestamp: number;
+    updatedAt: number;
+    agentId?: string;
+    stepRef?: string;
+}
+
+export interface ToolEventInput {
+    icon: string;
+    label: string;
+    detail: string;
+    status: 'running' | 'done' | 'error';
+    agentId?: string | undefined;
+    stepRef?: string | undefined;
 }
 
 export function createTranscriptState(): TranscriptState {
-    return { items: [] };
+    return { items: [], liveTools: [], committedToolRefs: new Set() };
 }
 
 export function appendUserItem(state: TranscriptState, displayText: string, submitText: string): void {
@@ -124,6 +147,65 @@ export function appendToolItem(state: TranscriptState, text: string, opts?: { ag
     if (opts?.stepRef) item.stepRef = opts.stepRef;
     if (opts?.status) item.status = opts.status;
     state.items.push(item);
+}
+
+export function makeToolEventKey(input: { label: string; agentId?: string | undefined; stepRef?: string | undefined }): string {
+    if (input.stepRef) return `ref:${input.stepRef}`;
+    return `fallback:${input.agentId ?? 'main'}:${input.label}`;
+}
+
+export function upsertLiveToolItem(state: TranscriptState, input: ToolEventInput): LiveToolItem {
+    const key = makeToolEventKey(input);
+    const now = Date.now();
+    const existing = state.liveTools.find(item => item.key === key);
+    if (existing) {
+        existing.icon = input.icon;
+        existing.label = input.label;
+        existing.detail = input.detail || existing.detail;
+        existing.updatedAt = now;
+        if (input.agentId) existing.agentId = input.agentId;
+        if (input.stepRef) existing.stepRef = input.stepRef;
+        return existing;
+    }
+    const item: LiveToolItem = {
+        key,
+        icon: input.icon,
+        label: input.label,
+        detail: input.detail,
+        status: 'running',
+        timestamp: now,
+        updatedAt: now,
+    };
+    if (input.agentId) item.agentId = input.agentId;
+    if (input.stepRef) item.stepRef = input.stepRef;
+    state.liveTools.push(item);
+    return item;
+}
+
+export function commitToolItemOnce(state: TranscriptState, input: ToolEventInput): boolean {
+    const key = makeToolEventKey(input);
+    const liveIndex = state.liveTools.findIndex(item => item.key === key);
+    const live = liveIndex >= 0 ? state.liveTools[liveIndex] : null;
+    if (liveIndex >= 0) state.liveTools.splice(liveIndex, 1);
+    if (input.stepRef && state.committedToolRefs.has(input.stepRef)) return false;
+    if (input.stepRef) state.committedToolRefs.add(input.stepRef);
+
+    const detail = input.detail || live?.detail || '';
+    const opts: Parameters<typeof appendToolItem>[2] = { detail, status: input.status };
+    if (input.agentId) opts.agentId = input.agentId;
+    if (input.stepRef) opts.stepRef = input.stepRef;
+    appendToolItem(state, `${input.icon} ${input.label}`, opts);
+    return true;
+}
+
+export function clearLiveToolItems(state: TranscriptState): LiveToolItem[] {
+    const items = [...state.liveTools];
+    state.liveTools.length = 0;
+    return items;
+}
+
+export function listLiveToolItems(state: TranscriptState): LiveToolItem[] {
+    return [...state.liveTools];
 }
 
 export function collapsePreviousTools(state: TranscriptState): void {

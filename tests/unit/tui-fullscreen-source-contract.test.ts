@@ -32,3 +32,9 @@ test('fullscreen completed tool expansion is full-sweep and newline-safe', () =>
     assert.match(source, /expandedDone/);
     assert.match(source, /rows\.push\(`\$\{gutter\}\$\{c\.dim\}│ /);
 });
+
+test('fullscreen live tool handling keeps running tools out of committed transcript', () => {
+    assert.match(source, /renderLiveToolRows\(ctx, cols/);
+    assert.match(source, /listLiveToolItems\(ctx\.store\.transcript\)/);
+    assert.match(source, /liveRows/);
+});

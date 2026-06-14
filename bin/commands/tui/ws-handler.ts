@@ -6,6 +6,7 @@ import {
     startAssistantItem, appendAssistantTurnText,
     finalizeAssistant, finalizeStreamingAssistants, assistantTextSinceLastUser,
     appendStatusItem, appendToolItem, clearEphemeralStatus, appendThinkingTurnText,
+    upsertLiveToolItem, commitToolItemOnce, clearLiveToolItems,
 } from '../../../src/cli/tui/transcript.js';
 import { captureFileSet, diffFileSets, getDiffStat, getUnifiedDiff, getIdeCli, openDiffInIde } from '../../../src/ide/diff.js';
 import { createStreamSink } from '../../../src/cli/tui/stream.js';
@@ -90,6 +91,7 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
             case 'agent-done':
                 stopSpinner();
                 clearEphemeralStatus(transcript);
+                clearLiveToolItems(transcript);
                 if (ctx.isRaw) {
                     console.log(`  ${c.dim}${raw}${c.reset}`);
                 } else if (ctx.streaming) {
@@ -180,15 +182,18 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                 if (ctx.isRaw) {
                     console.log(`  ${c.dim}${raw}${c.reset}`);
                 } else {
-                    // Persistent tool cell: drop a trailing transient status FIRST
-                    // (else the status leaks once a tool item is the trailing one),
-                    // then commit the tool line so it stays in scrollback.
                     clearEphemeralStatus(transcript);
-                    const toolDetail = event.detail ? `: ${event.detail}` : '';
-                    const toolOpts: Parameters<typeof appendToolItem>[2] = { detail: event.detail, status: event.status };
-                    if (event.agentId) toolOpts.agentId = event.agentId;
-                    if (event.stepRef) toolOpts.stepRef = event.stepRef;
-                    appendToolItem(transcript, `${event.icon} ${event.label}${toolDetail}`, toolOpts);
+                    if (isFullscreen(ctx) && event.status === 'running') {
+                        upsertLiveToolItem(transcript, event);
+                    } else if (isFullscreen(ctx)) {
+                        commitToolItemOnce(transcript, event);
+                    } else {
+                        const toolDetail = event.detail ? `: ${event.detail}` : '';
+                        const toolOpts: Parameters<typeof appendToolItem>[2] = { detail: event.detail, status: event.status };
+                        if (event.agentId) toolOpts.agentId = event.agentId;
+                        if (event.stepRef) toolOpts.stepRef = event.stepRef;
+                        appendToolItem(transcript, `${event.icon} ${event.label}${toolDetail}`, toolOpts);
+                    }
                     ctx.streamState = 'tool';
                     rebuildFooter(ctx);
                     if (!isFullscreen(ctx)) {

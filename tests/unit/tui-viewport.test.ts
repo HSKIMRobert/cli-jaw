@@ -68,6 +68,16 @@ test('Viewport rerenders tool detail-only changes', () => {
     assert.equal(v.composeRegion({ x: 1, y: 1, width: 40, height: 1 })[0], 'd:bbb');
 });
 
+test('Viewport rerenders tool status and stepRef changes', () => {
+    const v = new Viewport();
+    const renderTool = (item: TranscriptItem) => [item.type === 'tool' ? `s:${item.status ?? ''}:${item.stepRef ?? ''}` : item.type];
+    v.setItems([{ type: 'tool', text: 'Bash', detail: 'same', collapsed: true, status: 'done', stepRef: 's1', timestamp: 0 }], renderTool);
+    assert.equal(v.composeRegion({ x: 1, y: 1, width: 40, height: 1 })[0], 's:done:s1');
+
+    v.setItems([{ type: 'tool', text: 'Bash', detail: 'same', collapsed: true, status: 'error', stepRef: 's2', timestamp: 1 }], renderTool);
+    assert.equal(v.composeRegion({ x: 1, y: 1, width: 40, height: 1 })[0], 's:error:s2');
+});
+
 test('Viewport width changes rerender cells', () => {
     const v = new Viewport();
     const renderWithWidth = (item: TranscriptItem, width: number) => [`${item.type}:${width}`];

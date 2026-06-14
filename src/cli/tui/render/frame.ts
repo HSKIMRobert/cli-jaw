@@ -8,6 +8,7 @@ export const VIEWPORT_FILL = '\x00__VIEWPORT_FILL__\x00';
 
 export interface Frame {
     rows: string[];
+    cursorPos?: { row: number; col: number };
 }
 
 /** Legacy diffFrames for test compatibility. */
@@ -58,6 +59,7 @@ export class Screen {
     private prevLines: string[] = [];
     private inlineActive = false;
     private cursorRow = 0;
+    private fullRedrawPending = false;
 
     get active(): boolean {
         return this.inlineActive;
@@ -69,6 +71,7 @@ export class Screen {
         this.inlineActive = true;
         this.prevLines = [];
         this.cursorRow = 0;
+        this.fullRedrawPending = false;
     }
 
     exit(): void {
@@ -81,6 +84,7 @@ export class Screen {
         this.inlineActive = false;
         this.prevLines = [];
         this.cursorRow = 0;
+        this.fullRedrawPending = false;
     }
 
     render(next: Frame): void {
@@ -90,12 +94,17 @@ export class Screen {
 
         let buf = '\x1b[?2026h';
 
-        if (this.prevLines.length === 0) {
+        if (this.fullRedrawPending || this.prevLines.length === 0) {
+            if (this.fullRedrawPending && this.prevLines.length > 0 && this.cursorRow > 0) {
+                buf += `\x1b[${this.cursorRow}A`;
+            }
+            buf += '\r';
             for (let i = 0; i < lines.length; i++) {
                 if (i > 0) buf += '\r\n';
                 buf += '\x1b[2K' + (lines[i] ?? '');
             }
             this.cursorRow = Math.max(0, lines.length - 1);
+            this.fullRedrawPending = false;
         } else {
             const prevLen = this.prevLines.length;
             const nextLen = lines.length;
@@ -163,12 +172,23 @@ export class Screen {
         }
 
         buf += '\x1b[?2026l';
+        if (next.cursorPos) {
+            const targetRow = next.cursorPos.row;
+            const move = targetRow - this.cursorRow;
+            if (move > 0) buf += `\x1b[${move}B`;
+            else if (move < 0) buf += `\x1b[${-move}A`;
+            buf += `\r\x1b[${next.cursorPos.col}C`;
+            buf += '\x1b[?25h';
+            this.cursorRow = targetRow;
+        } else {
+            buf += '\x1b[?25l';
+        }
         process.stdout.write(buf);
         this.prevLines = [...lines];
     }
 
     forceRedraw(): void {
-        this.prevLines = [];
+        this.fullRedrawPending = true;
     }
 
     enableMouse(): void {
