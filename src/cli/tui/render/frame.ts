@@ -91,6 +91,8 @@ export class Screen {
     private resizeRedrawPending = false;
     private lastFillRows = 0;
     private committedScreenRows = 0;
+    private lastWidth = 0;
+    private lastHeight = 0;
 
     get active(): boolean {
         return this.inlineActive;
@@ -106,6 +108,8 @@ export class Screen {
         this.resizeRedrawPending = false;
         this.lastFillRows = 0;
         this.committedScreenRows = 0;
+        this.lastWidth = 0;
+        this.lastHeight = 0;
     }
 
     exit(): void {
@@ -122,12 +126,32 @@ export class Screen {
         this.resizeRedrawPending = false;
         this.lastFillRows = 0;
         this.committedScreenRows = 0;
+        this.lastWidth = 0;
+        this.lastHeight = 0;
+    }
+
+    needsResizeRepaint(): boolean {
+        if (!this.inlineActive) return false;
+        const height = process.stdout.rows || 24;
+        const width = Math.max(1, process.stdout.columns || 80);
+        return this.resizeRedrawPending || this.geometryChanged(width, height);
+    }
+
+    private geometryChanged(width: number, height: number): boolean {
+        if (this.prevLines.length === 0) return false;
+        return (this.lastWidth > 0 && this.lastWidth !== width)
+            || (this.lastHeight > 0 && this.lastHeight !== height);
     }
 
     render(next: Frame): void {
         if (!this.inlineActive) return;
         const height = process.stdout.rows || 24;
         const width = Math.max(1, process.stdout.columns || 80);
+        const dimensionChanged = this.geometryChanged(width, height);
+        if (dimensionChanged) {
+            this.fullRedrawPending = true;
+            this.resizeRedrawPending = true;
+        }
         const normalized = normalizeFrameRows(next.rows.map(row => normalizeFrameRow(row, width)), height);
         const lines = normalized.rows;
         const cursorPos = next.cursorPos
@@ -139,12 +163,15 @@ export class Screen {
 
         let buf = '\x1b[?2026h';
 
-        if (this.committedScreenRows > 0 && normalized.fillRows < this.lastFillRows) {
+        if (!this.resizeRedrawPending && this.committedScreenRows > 0 && normalized.fillRows < this.lastFillRows) {
             buf += buildScrollOutSequence(this.lastFillRows - normalized.fillRows, this.lastFillRows, { row: this.cursorRow, col: 0 });
             this.committedScreenRows = Math.min(this.committedScreenRows, normalized.fillRows);
         }
 
         if (this.resizeRedrawPending) {
+            if (normalized.fillRows < this.lastFillRows) {
+                this.committedScreenRows = Math.min(this.committedScreenRows, normalized.fillRows);
+            }
             buf += buildViewportRepaintSequence(lines, height);
             this.cursorRow = Math.max(0, Math.min(lines.length, height) - 1);
             this.fullRedrawPending = false;
@@ -246,10 +273,13 @@ export class Screen {
         process.stdout.write(buf);
         this.prevLines = [...lines];
         this.lastFillRows = normalized.fillRows;
+        this.lastWidth = width;
+        this.lastHeight = height;
     }
 
     commitLines(lines: string[]): boolean {
         if (!this.inlineActive || lines.length === 0) return true;
+        if (this.needsResizeRepaint()) return false;
         const height = process.stdout.rows || 24;
         const width = Math.max(1, process.stdout.columns || 80);
         const liveZoneTop = Math.min(this.lastFillRows, height);
@@ -294,6 +324,8 @@ export class Screen {
         this.cursorRow = 0;
         this.lastFillRows = 0;
         this.committedScreenRows = 0;
+        this.lastWidth = 0;
+        this.lastHeight = 0;
         this.fullRedrawPending = true;
         this.resizeRedrawPending = false;
     }

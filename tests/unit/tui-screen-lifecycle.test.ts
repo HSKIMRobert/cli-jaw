@@ -193,3 +193,80 @@ test('Screen commit writes committed text only when a viewport fill lane exists'
         if (rowsDesc) Object.defineProperty(process.stdout, 'rows', rowsDesc);
     }
 });
+
+test('Screen auto-detects geometry changes before debounced resize repaint fires', () => {
+    let output = '';
+    const terminal = new AnsiTerminalModel(40, 8);
+    const origWrite = process.stdout.write.bind(process.stdout);
+    const columnsDesc = Object.getOwnPropertyDescriptor(process.stdout, 'columns');
+    const rowsDesc = Object.getOwnPropertyDescriptor(process.stdout, 'rows');
+    const setSize = (rows: number, columns = 40): void => {
+        Object.defineProperty(process.stdout, 'columns', { value: columns, configurable: true });
+        Object.defineProperty(process.stdout, 'rows', { value: rows, configurable: true });
+    };
+    setSize(8);
+    process.stdout.write = ((chunk: string | Uint8Array) => {
+        const text = typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8');
+        output += text;
+        terminal.write(text);
+        return true;
+    }) as typeof process.stdout.write;
+
+    try {
+        const screen = new Screen();
+        screen.enter();
+        output = '';
+        screen.render({ rows: [VIEWPORT_FILL, 'WELCOME', 'input', 'help'], cursorPos: { row: 2, col: 1 } });
+        assert.equal(terminal.countVisible('WELCOME'), 1);
+
+        for (const rows of [5, 8, 4, 9, 6]) {
+            terminal.resize(40, rows);
+            setSize(rows);
+            output = '';
+            screen.render({ rows: [VIEWPORT_FILL, 'WELCOME', 'input', 'help'], cursorPos: { row: 2, col: 1 } });
+
+            assert.ok(output.includes('\x1b[H'), `height ${rows} should repaint from viewport home`);
+            assert.equal(output.includes('\x1b[2J'), false, 'implicit resize repaint must not clear the viewport/scrollback destructively');
+            assert.equal(output.includes('\x1b[3J'), false, 'implicit resize repaint must not clear scrollback history');
+            assert.equal(terminal.countVisible('WELCOME'), 1, terminal.visibleText());
+        }
+        screen.exit();
+    } finally {
+        process.stdout.write = origWrite;
+        if (columnsDesc) Object.defineProperty(process.stdout, 'columns', columnsDesc);
+        if (rowsDesc) Object.defineProperty(process.stdout, 'rows', rowsDesc);
+    }
+});
+
+test('Screen defers native scrollback commits while geometry is dirty', () => {
+    let output = '';
+    const origWrite = process.stdout.write.bind(process.stdout);
+    const columnsDesc = Object.getOwnPropertyDescriptor(process.stdout, 'columns');
+    const rowsDesc = Object.getOwnPropertyDescriptor(process.stdout, 'rows');
+    Object.defineProperty(process.stdout, 'columns', { value: 30, configurable: true });
+    Object.defineProperty(process.stdout, 'rows', { value: 6, configurable: true });
+    process.stdout.write = ((chunk: string | Uint8Array) => {
+        output += typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8');
+        return true;
+    }) as typeof process.stdout.write;
+
+    try {
+        const screen = new Screen();
+        screen.enter();
+        screen.render({ rows: [VIEWPORT_FILL, 'live', 'input', 'help'] });
+
+        Object.defineProperty(process.stdout, 'rows', { value: 4, configurable: true });
+        output = '';
+        assert.equal(screen.needsResizeRepaint(), true);
+        assert.equal(screen.commitLines(['history-before-repaint']), false);
+        assert.equal(output.includes('history-before-repaint'), false);
+
+        screen.render({ rows: [VIEWPORT_FILL, 'live', 'input', 'help'] });
+        assert.equal(screen.needsResizeRepaint(), false);
+        screen.exit();
+    } finally {
+        process.stdout.write = origWrite;
+        if (columnsDesc) Object.defineProperty(process.stdout, 'columns', columnsDesc);
+        if (rowsDesc) Object.defineProperty(process.stdout, 'rows', rowsDesc);
+    }
+});

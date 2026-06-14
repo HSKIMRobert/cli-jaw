@@ -38,6 +38,7 @@ test('fullscreen scrollback commit uses a scroll region instead of plain newline
 
     assert.ok(commitBlock.includes('buildInsertHistorySequence'));
     assert.ok(commitBlock.includes('this.lastFillRows'));
+    assert.ok(commitBlock.includes('this.needsResizeRepaint()'));
     assert.ok(commitBlock.includes('liveZoneTop <= 0'));
     assert.equal(commitBlock.includes("buf += '\\r\\n\\x1b[2K'"), false);
     assert.ok(frameSource.includes("out += lines[i] ?? '';"));
@@ -48,9 +49,17 @@ test('fullscreen resize uses redraw without clearing terminal history', () => {
     const resizeEnd = fullscreenSource.indexOf("process.stdin.on('data'", resizeStart);
     const resizeBlock = fullscreenSource.slice(resizeStart, resizeEnd);
 
+    assert.ok(frameSource.includes('needsResizeRepaint(): boolean'));
+    assert.ok(frameSource.includes('geometryChanged(width: number, height: number): boolean'));
     assert.ok(frameSource.includes('forceResizeRedraw(): void'));
     assert.ok(frameSource.includes('buildViewportRepaintSequence'));
-    assert.ok(resizeBlock.includes('screen.forceResizeRedraw();'));
+    assert.ok(resizeBlock.includes([
+        'viewport.setWidth(process.stdout.columns || 80);',
+        '        screen.forceResizeRedraw();',
+        '        scheduler.request();',
+        '',
+        '        if (ctx.resizeTimer) clearTimeout(ctx.resizeTimer);',
+    ].join('\n')), 'resize handler should request an immediate repaint before trailing debounce');
     assert.equal(resizeBlock.includes('screen.forceRedraw();'), false);
     assert.equal(resizeBlock.includes('screen.resetViewport();'), false);
     assert.equal(frameSource.includes('\\x1b[2J'), false);
