@@ -74,6 +74,8 @@ export class Viewport {
             } else {
                 this.scrollToBottom(visibleRows);
             }
+        } else {
+            this.clampScroll(visibleRows);
         }
     }
 
@@ -133,7 +135,7 @@ export class Viewport {
     }
 
     totalLines(): number {
-        return Math.max(0, this.flattenRows().length - this.committedRows);
+        return this.visibleRows().length;
     }
 
     peekCommitRows(visibleRows = 1): string[] {
@@ -160,7 +162,7 @@ export class Viewport {
     }
 
     composeRegion(region: Rect): string[] {
-        const flat = this.flattenRows().slice(this.committedRows);
+        const flat = this.visibleRows();
         this.clampScroll(region.height);
         if (this.follow && flat.length > 0 && flat.length < region.height) {
             if (this.hasUncommittedPrelude()) {
@@ -195,6 +197,11 @@ export class Viewport {
         const flat: string[] = [...this.preludeLines];
         for (const cell of this.cells) flat.push(...cell.lines);
         return flat;
+    }
+
+    private visibleRows(): string[] {
+        const flat = this.flattenRows();
+        return this.follow ? flat.slice(this.committedRows) : flat;
     }
 
     private hasUncommittedPrelude(): boolean {
