@@ -6,6 +6,7 @@ import { join } from 'node:path';
 const root = process.cwd();
 const chatSource = readFileSync(join(root, 'bin/commands/chat.ts'), 'utf8');
 const fullscreenSource = readFileSync(join(root, 'bin/commands/tui/fullscreen-mode.ts'), 'utf8');
+const frameSource = readFileSync(join(root, 'src/cli/tui/render/frame.ts'), 'utf8');
 
 test('fullscreen jaw chat does not hydrate persisted message history at launch', () => {
     assert.equal(chatSource.includes('/api/messages?limit='), false);
@@ -28,4 +29,14 @@ test('fullscreen welcome remains in the launch prelude instead of pre-render std
         "    if (ctx.tuiConfig['mouseTracking'] === true) screen.enableMouse();",
         '    scheduler.request();',
     ].join('\n')));
+});
+
+test('fullscreen scrollback commit uses a scroll region instead of plain newline append', () => {
+    const commitStart = frameSource.indexOf('commitLines(lines: string[]): boolean');
+    const commitEnd = frameSource.indexOf('forceRedraw(): void', commitStart);
+    const commitBlock = frameSource.slice(commitStart, commitEnd);
+
+    assert.ok(commitBlock.includes('buildInsertHistorySequence'));
+    assert.ok(commitBlock.includes('liveZoneTop < lines.length'));
+    assert.equal(commitBlock.includes("buf += '\\r\\n\\x1b[2K'"), false);
 });

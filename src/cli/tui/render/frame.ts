@@ -224,12 +224,16 @@ export class Screen {
 
     commitLines(lines: string[]): boolean {
         if (!this.inlineActive || lines.length === 0) return true;
+        const height = process.stdout.rows || 24;
         const width = Math.max(1, process.stdout.columns || 80);
-        let buf = '\x1b[?2026h';
-        for (const line of lines) {
-            buf += '\r\n\x1b[2K' + normalizeFrameRow(line, width);
-        }
-        buf += '\x1b[?2026l';
+        const liveZoneTop = Math.min(lines.length, this.prevLines.length, height);
+        if (liveZoneTop <= 0 || liveZoneTop < lines.length) return false;
+        const prepared = lines.slice(0, liveZoneTop).map(line => normalizeFrameRow(line, width));
+        const buf = `\x1b[?2026h${buildInsertHistorySequence(prepared, {
+            liveZoneTop,
+            screenRows: height,
+            cursor: { row: this.cursorRow, col: 0 },
+        })}\x1b[?2026l`;
         process.stdout.write(buf);
         this.fullRedrawPending = true;
         return true;
@@ -246,6 +250,26 @@ export class Screen {
     disableMouse(): void {
         process.stdout.write('\x1b[?1006l\x1b[?1000l');
     }
+}
+
+function buildInsertHistorySequence(
+    lines: string[],
+    geometry: { liveZoneTop: number; screenRows: number; cursor: { row: number; col: number } },
+): string {
+    if (lines.length === 0) return '';
+    const liveZoneTop = Math.min(geometry.liveZoneTop, geometry.screenRows);
+    if (liveZoneTop < 1) return '';
+    let out = '';
+    out += `\x1b[1;${liveZoneTop}r`;
+    out += `\x1b[${liveZoneTop};1H`;
+    for (const line of lines) {
+        out += '\r\n';
+        out += '\x1b[2K';
+        out += line;
+    }
+    out += '\x1b[r';
+    out += `\x1b[${geometry.cursor.row + 1};${geometry.cursor.col + 1}H`;
+    return out;
 }
 
 export function registerScreenCleanup(screen: Screen): void {
