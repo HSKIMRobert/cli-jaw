@@ -66,10 +66,12 @@ export function renderTranscriptItem(item: TranscriptItem, width: number): strin
         }
         case 'tool': {
             const [toolHead, ...toolRest] = item.text.split(':');
-            const toolDetail = toolRest.join(':').trim();
+            const toolDetail = item.detail ?? toolRest.join(':').trim();
             const toolIcon = toolHead?.split(' ')[0] || '';
             const toolLabel = toolHead?.split(' ').slice(1).join(' ') || toolHead || '';
-            const state = item.collapsed ? 'done' as const : 'pending' as const;
+            const state = item.status === 'error'
+                ? 'error' as const
+                : (item.status === 'done' || item.collapsed) ? 'done' as const : 'pending' as const;
             return [renderToolLine(toolIcon, toolLabel, toolDetail, state)];
         }
         case 'status': {

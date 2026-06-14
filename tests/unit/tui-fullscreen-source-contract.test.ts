@@ -17,3 +17,9 @@ test('fullscreen thinking renderer returns labeled rows without embedded newline
     assert.ok(thinkBlock.includes('...(agentLabel ?'));
     assert.doesNotMatch(thinkBlock, /return \[`.*\\n.*`\]/s);
 });
+
+test('fullscreen tool renderer uses transcript status and detail fields', () => {
+    assert.match(source, /const toolDetail = item\.detail \?\? toolRest\.join/);
+    assert.match(source, /item\.status === 'error'/);
+    assert.match(source, /item\.status === 'done' \|\| item\.collapsed/);
+});

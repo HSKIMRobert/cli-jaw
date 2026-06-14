@@ -8,11 +8,12 @@
 
 import { broadcast } from '../core/bus.js';
 import { publish } from '../core/event-bus.js';
-import { appendLiveRunText, appendLiveRunTool } from './live-run-state.js';
+import { appendLiveRunText, appendLiveRunTool, getLiveRun } from './live-run-state.js';
 
 interface AssistantMessageEvent {
     type: string;
     delta?: string;
+    content?: unknown;
 }
 export interface JwcAgentEvent {
     type: string;
@@ -26,6 +27,7 @@ export interface JwcAgentEvent {
     isError?: boolean;
     // agent_end
     stopReason?: string;
+    messages?: unknown;
     // notice
     level?: 'info' | 'warning' | 'error';
     message?: unknown;
@@ -50,6 +52,35 @@ function toolLabel(name: string | undefined, args: unknown): { label: string; de
         detail = String(a['path'] ?? a['command'] ?? a['query'] ?? a['pattern'] ?? '').slice(0, 120);
     }
     return { label, detail };
+}
+
+function extractTextOnly(value: unknown): string {
+    if (typeof value === 'string') return value;
+    if (Array.isArray(value)) return value.map(extractTextOnly).join('');
+    if (!value || typeof value !== 'object') return '';
+    const obj = value as Record<string, unknown>;
+    if (obj['type'] === 'thinking') return '';
+    return extractTextOnly(obj['text'])
+        || extractTextOnly(obj['delta'])
+        || extractTextOnly(obj['content'])
+        || extractTextOnly(obj['message'])
+        || '';
+}
+
+function extractAssistantMessagesText(value: unknown): string {
+    if (!Array.isArray(value)) return extractTextOnly(value);
+    return value
+        .filter((entry) => !!entry && typeof entry === 'object' && (entry as Record<string, unknown>)['role'] === 'assistant')
+        .map(extractTextOnly)
+        .join('');
+}
+
+function missingFinalSuffix(existing: string, finalText: string): string {
+    if (!finalText) return '';
+    if (!existing) return finalText;
+    if (finalText.startsWith(existing)) return finalText.slice(existing.length);
+    if (existing.includes(finalText)) return '';
+    return finalText;
 }
 
 /** Map a single engine event onto the bus. Public lane unless noted (113.2 §5). */
@@ -100,7 +131,16 @@ export function mapAgentEventToBus(event: JwcAgentEvent, ctx: JwcEventContext): 
         }
 
         case 'agent_end':
-            broadcast('agent_done', { ...base, stopReason: event.stopReason ?? 'completed' });
+            {
+                const finalText = extractAssistantMessagesText(event.messages);
+                const existingText = ctx.liveScope ? getLiveRun(ctx.liveScope).text : '';
+                const suffix = missingFinalSuffix(existingText, finalText);
+                if (suffix) {
+                    const textLen = ctx.liveScope ? appendLiveRunText(ctx.liveScope, suffix) : null;
+                    broadcast('agent_output', { ...base, text: suffix, ...(textLen !== null ? { textLen } : {}) });
+                }
+                broadcast('agent_done', { ...base, stopReason: event.stopReason ?? 'completed', ...(finalText ? { text: finalText } : {}) });
+            }
             broadcast('agent_status', { running: false, ...base });
             break;
 
