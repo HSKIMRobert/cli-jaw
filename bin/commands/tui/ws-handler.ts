@@ -32,7 +32,18 @@ function startFooterTimer(ctx: TuiContext): void {
             return;
         }
         rebuildFooter(ctx);
-    }, 500);
+        if (isFullscreen(ctx)) ctx.requestFrame?.();
+    }, 120);
+}
+
+function ensureTurnClock(ctx: TuiContext, state: 'responding' | 'tool'): void {
+    if (!ctx.streaming) {
+        ctx.streaming = true;
+        ctx.turnStartedAt = Date.now();
+    }
+    ctx.streamState = state;
+    rebuildFooter(ctx);
+    startFooterTimer(ctx);
 }
 
 function stopFooterTimer(ctx: TuiContext): void {
@@ -166,6 +177,7 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                 if (ctx.isRaw) {
                     console.log(`  ${c.dim}${raw}${c.reset}`);
                 } else if (event.status === 'running') {
+                    ensureTurnClock(ctx, 'responding');
                     const name = event.agentName || event.agentId || 'agent';
                     appendStatusItem(transcript, `${name} thinking\u2026`);
                     startSpinner((ch) => {
@@ -197,8 +209,7 @@ export function handleWsMessage(ctx: TuiContext, data: WebSocket.Data): void {
                         if (event.stepRef) toolOpts.stepRef = event.stepRef;
                         appendToolItem(transcript, `${event.icon} ${event.label}${toolDetail}`, toolOpts);
                     }
-                    ctx.streamState = 'tool';
-                    rebuildFooter(ctx);
+                    ensureTurnClock(ctx, 'tool');
                     if (!isFullscreen(ctx)) {
                         const renderState = event.status === 'running' ? 'pending' : event.status;
                         process.stdout.write(`\r\x1b[2K${renderToolLine(event.icon, event.label, event.detail, renderState)}\n`);

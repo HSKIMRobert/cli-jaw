@@ -133,9 +133,12 @@ test('fullscreen tool rows strip legacy event emoji and preserve multi-word labe
         const main = stripAnsi(expanded.slice(regions.transcript.y - 1, regions.statusLine.y - 1).join('\n'));
 
         assert.match(main, /✔ Bash/);
+        assert.match(main, /npm test/);
         assert.match(main, /✔ Read File/);
+        assert.match(main, /src\/a\.ts/);
         assert.doesNotMatch(main, /🔧/);
         assert.doesNotMatch(main, /✔ File/);
+        assert.doesNotMatch(main, /Bash\s+…/);
     });
 });
 
@@ -210,8 +213,12 @@ test('fullscreen composeFrame keeps composer cluster fixed after first message',
         appendUserItem(ctx.store.transcript, 'hello', 'hello');
         const after = expandViewportFill(composeFrame(ctx, new Viewport()).rows, 24);
 
-        assert.match(before[regions.transcript.y - 1] ?? '', /Welcome to jaw chat/);
-        assert.match(after[regions.transcript.y - 1] ?? '', /hello/);
+        const beforeMain = stripAnsi(before.slice(regions.transcript.y - 1, regions.statusLine.y - 1).join('\n'));
+        const afterMain = stripAnsi(after.slice(regions.transcript.y - 1, regions.statusLine.y - 1).join('\n'));
+
+        assert.match(beforeMain, /Welcome to jaw chat/);
+        assert.match(afterMain, /Welcome to jaw chat/);
+        assert.match(afterMain, /hello/);
         assert.equal(before[regions.statusLine.y - 1], after[regions.statusLine.y - 1]);
         assert.equal(before[regions.composer.y - 2], after[regions.composer.y - 2]);
         assert.equal(before[regions.composer.y - 1], after[regions.composer.y - 1]);
@@ -385,9 +392,17 @@ test('fullscreen ctrl-o full sweep keeps final answer visible and rows width-saf
                 status: 'done',
                 detail: 'matched agent_done toolLog final response live tool rows',
             });
+            upsertLiveToolItem(ctx.store.transcript, {
+                icon: '🔧',
+                label: 'Bash live',
+                detail: 'live one-line command output that should wrap when expanded',
+                status: 'running',
+                stepRef: 'live-1',
+            });
             appendAssistantTurnText(ctx.store.transcript, 'Final answer remains after tool rows.', 'main');
             finalizeStreamingAssistants(ctx.store.transcript);
             assert.equal(toggleToolExpansion(ctx.store.transcript), true);
+            assert.equal(ctx.store.transcript.liveToolsExpanded, true);
 
             const frame = composeFrame(ctx, new Viewport());
             assert.equal(frame.rows.some(row => row.includes('\n')), false);
@@ -399,6 +414,7 @@ test('fullscreen ctrl-o full sweep keeps final answer visible and rows width-saf
             assert.match(main, /Bash/);
             assert.match(main, /Read File/);
             assert.match(main, /Search/);
+            assert.match(main, /Bash live|live tool output folded to fit/);
             assert.match(main, /Final answer remains/);
             assert.match(stripAnsi(expanded[regions.statusLine.y - 1] ?? ''), /\/quit/);
             assert.match(expanded[regions.composer.y - 2] ?? '', /┌/);

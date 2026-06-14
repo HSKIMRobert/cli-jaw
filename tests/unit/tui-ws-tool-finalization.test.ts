@@ -4,6 +4,7 @@ import { handleWsMessage } from '../../bin/commands/tui/ws-handler.ts';
 import type { TuiContext } from '../../bin/commands/tui/types.ts';
 import { createTuiStore } from '../../src/cli/tui/store.ts';
 import { renderStatusBar } from '../../src/cli/tui/jawcode-bridge.ts';
+import { stopSpinner } from '../../src/cli/tui/spinner.ts';
 
 function makeCtx(): TuiContext {
     return {
@@ -63,6 +64,15 @@ function committedTools(ctx: TuiContext) {
     return ctx.store.transcript.items.filter(item => item.type === 'tool');
 }
 
+
+function cleanupCtx(ctx: TuiContext): void {
+    stopSpinner();
+    if (ctx.footerTimer) {
+        clearInterval(ctx.footerTimer);
+        ctx.footerTimer = null;
+    }
+}
+
 function assistantTexts(ctx: TuiContext): string[] {
     return ctx.store.transcript.items
         .filter(item => item.type === 'assistant')
@@ -71,66 +81,86 @@ function assistantTexts(ctx: TuiContext): string[] {
 
 test('agent_done drains running live tools and keeps final answer after tool-only output', () => {
     const ctx = makeCtx();
-    handleWsMessage(ctx, msg({ type: 'agent_tool', icon: '🔧', label: 'Bash', detail: 'date', status: 'running', stepRef: 's1' }));
-    handleWsMessage(ctx, msg({ type: 'agent_tool', icon: '🔧', label: 'Read', detail: 'src/a.ts', status: 'running', stepRef: 's2' }));
+    try {
+        handleWsMessage(ctx, msg({ type: 'agent_tool', icon: '🔧', label: 'Bash', detail: 'date', status: 'running', stepRef: 's1' }));
+        handleWsMessage(ctx, msg({ type: 'agent_tool', icon: '🔧', label: 'Read', detail: 'src/a.ts', status: 'running', stepRef: 's2' }));
 
-    handleWsMessage(ctx, msg({ type: 'agent_done', text: 'Final answer after tools.' }));
+        handleWsMessage(ctx, msg({ type: 'agent_done', text: 'Final answer after tools.' }));
 
-    assert.equal(ctx.store.transcript.liveTools.length, 0);
-    assert.equal(committedTools(ctx).length, 2);
-    assert.deepEqual(assistantTexts(ctx), ['Final answer after tools.']);
-    assert.equal(ctx.inputActive, true);
-    assert.equal(ctx.streamState, 'idle');
+        assert.equal(ctx.store.transcript.liveTools.length, 0);
+        assert.equal(committedTools(ctx).length, 2);
+        assert.deepEqual(assistantTexts(ctx), ['Final answer after tools.']);
+        assert.equal(ctx.inputActive, true);
+        assert.equal(ctx.streamState, 'idle');
+        assert.equal(ctx.footerTimer, null);
+    } finally {
+        cleanupCtx(ctx);
+    }
 });
 
 test('agent_done toolLog updates duplicate stepRef detail without appending duplicate rows', () => {
     const ctx = makeCtx();
-    handleWsMessage(ctx, msg({ type: 'agent_tool', icon: '🔧', label: 'Bash', detail: 'short', status: 'running', stepRef: 's1' }));
-    handleWsMessage(ctx, msg({ type: 'agent_tool', icon: '🔧', label: 'Bash', detail: 'short', status: 'done', stepRef: 's1' }));
+    try {
+        handleWsMessage(ctx, msg({ type: 'agent_tool', icon: '🔧', label: 'Bash', detail: 'short', status: 'running', stepRef: 's1' }));
+        handleWsMessage(ctx, msg({ type: 'agent_tool', icon: '🔧', label: 'Bash', detail: 'short', status: 'done', stepRef: 's1' }));
 
-    handleWsMessage(ctx, msg({
-        type: 'agent_done',
-        text: 'Done.',
-        toolLog: [{ icon: '🔧', label: 'Bash', detail: 'richer final output', status: 'done', stepRef: 's1' }],
-    }));
+        handleWsMessage(ctx, msg({
+            type: 'agent_done',
+            text: 'Done.',
+            toolLog: [{ icon: '🔧', label: 'Bash', detail: 'richer final output', status: 'done', stepRef: 's1' }],
+        }));
 
-    const tools = committedTools(ctx);
-    assert.equal(tools.length, 1);
-    const tool = tools[0]!;
-    assert.equal(tool.type, 'tool');
-    if (tool.type === 'tool') {
-        assert.equal(tool.stepRef, 's1');
-        assert.equal(tool.detail, 'richer final output');
-        assert.equal(tool.status, 'done');
-        assert.equal(tool.collapsed, true);
+        const tools = committedTools(ctx);
+        assert.equal(tools.length, 1);
+        const tool = tools[0]!;
+        assert.equal(tool.type, 'tool');
+        if (tool.type === 'tool') {
+            assert.equal(tool.stepRef, 's1');
+            assert.equal(tool.detail, 'richer final output');
+            assert.equal(tool.status, 'done');
+            assert.equal(tool.collapsed, true);
+        }
+        assert.equal(ctx.footerTimer, null);
+    } finally {
+        cleanupCtx(ctx);
     }
 });
 
 test('agent_done appends only final suffix after streamed text around tools', () => {
     const ctx = makeCtx();
-    handleWsMessage(ctx, msg({ type: 'agent_output', text: 'Partial' }));
-    handleWsMessage(ctx, msg({ type: 'agent_tool', icon: '🔧', label: 'Bash', detail: 'echo', status: 'running', stepRef: 's1' }));
+    try {
+        handleWsMessage(ctx, msg({ type: 'agent_output', text: 'Partial' }));
+        handleWsMessage(ctx, msg({ type: 'agent_tool', icon: '🔧', label: 'Bash', detail: 'echo', status: 'running', stepRef: 's1' }));
 
-    handleWsMessage(ctx, msg({ type: 'agent_done', text: 'Partial final.' }));
+        handleWsMessage(ctx, msg({ type: 'agent_done', text: 'Partial final.' }));
 
-    assert.equal(ctx.store.transcript.liveTools.length, 0);
-    assert.equal(committedTools(ctx).length, 1);
-    assert.deepEqual(assistantTexts(ctx), ['Partial', ' final.']);
-    assert.equal(ctx.store.transcript.items.some(item => item.type === 'assistant' && item.streaming), false);
+        assert.equal(ctx.store.transcript.liveTools.length, 0);
+        assert.equal(committedTools(ctx).length, 1);
+        assert.deepEqual(assistantTexts(ctx), ['Partial', ' final.']);
+        assert.equal(ctx.store.transcript.items.some(item => item.type === 'assistant' && item.streaming), false);
+        assert.equal(ctx.footerTimer, null);
+    } finally {
+        cleanupCtx(ctx);
+    }
 });
 
 test('agent_done error drains remaining live tools as error rows', () => {
     const ctx = makeCtx();
-    handleWsMessage(ctx, msg({ type: 'agent_tool', icon: '🔧', label: 'Bash', detail: 'npm test', status: 'running', stepRef: 's1' }));
+    try {
+        handleWsMessage(ctx, msg({ type: 'agent_tool', icon: '🔧', label: 'Bash', detail: 'npm test', status: 'running', stepRef: 's1' }));
 
-    handleWsMessage(ctx, msg({ type: 'agent_done', text: 'Failed.', error: 'boom' }));
+        handleWsMessage(ctx, msg({ type: 'agent_done', text: 'Failed.', error: 'boom' }));
 
-    const tool = committedTools(ctx)[0]!;
-    assert.equal(tool.type, 'tool');
-    if (tool.type === 'tool') {
-        assert.equal(tool.status, 'error');
-        assert.equal(tool.collapsed, true);
+        const tool = committedTools(ctx)[0]!;
+        assert.equal(tool.type, 'tool');
+        if (tool.type === 'tool') {
+            assert.equal(tool.status, 'error');
+            assert.equal(tool.collapsed, true);
+        }
+        assert.deepEqual(assistantTexts(ctx), ['Failed.']);
+        assert.equal(ctx.footerTimer, null);
+    } finally {
+        cleanupCtx(ctx);
     }
-    assert.deepEqual(assistantTexts(ctx), ['Failed.']);
 });
 

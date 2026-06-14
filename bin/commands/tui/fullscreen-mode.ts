@@ -164,14 +164,41 @@ function blankLines(count: number): string[] {
 
 function renderLiveToolRows(ctx: TuiContext, cols: number, maxRows: number): string[] {
     if (maxRows <= 0) return [];
-    const liveTools = listLiveToolItems(ctx.store.transcript);
+    const state = ctx.store.transcript;
+    const liveTools = listLiveToolItems(state);
     if (liveTools.length === 0) return [];
-    const visible = liveTools.slice(0, Math.max(0, maxRows));
-    const rows = visible.map(tool => clipTextToCols(renderToolLine(tool.icon, tool.label, tool.detail, 'pending'), cols));
-    if (liveTools.length > visible.length && rows.length > 0) {
-        rows[rows.length - 1] = clipTextToCols(`${c.dim}  … +${liveTools.length - visible.length} running tools${c.reset}`, cols);
+    if (!state.liveToolsExpanded) {
+        const visible = liveTools.slice(0, Math.max(0, maxRows));
+        const rows = visible.map(tool => clipTextToCols(renderToolLine(tool.icon, tool.label, tool.detail, 'pending'), cols));
+        if (liveTools.length > visible.length && rows.length > 0) {
+            rows[rows.length - 1] = clipTextToCols(`${c.dim}  … +${liveTools.length - visible.length} running tools${c.reset}`, cols);
+        }
+        return rows;
+    }
+
+    const rows: string[] = [];
+    const detailPrefix = `${c.dim}  │ ${c.reset}`;
+    const detailWidth = Math.max(10, cols - visualWidth(detailPrefix));
+    let truncated = false;
+    for (const tool of liveTools) {
+        if (rows.length >= maxRows) { truncated = true; break; }
+        rows.push(clipTextToCols(renderToolLine(tool.icon, tool.label, '', 'pending'), cols));
+        if (!tool.detail) continue;
+        const detailRows = wrapTextToCols(tool.detail, detailWidth);
+        for (let i = 0; i < detailRows.length; i += 1) {
+            if (rows.length >= maxRows) { truncated = true; break; }
+            rows.push(clipTextToCols(`${detailPrefix}${detailRows[i]}`, cols));
+        }
+        if (truncated) break;
+    }
+    if (truncated && rows.length > 0) {
+        rows[rows.length - 1] = clipTextToCols(`${c.dim}  … live tool output folded to fit; Ctrl-O toggles${c.reset}`, cols);
     }
     return rows;
+}
+
+function renderWelcomePrelude(ctx: TuiContext, cols: number): string[] {
+    return (ctx.welcomeLines ?? []).map(line => clipTextToCols(`  ${line}`, cols));
 }
 
 function renderChatRegion(ctx: TuiContext, viewport: Viewport, regions: Regions, cols: number, liveRows: string[] = []): string[] {
@@ -194,26 +221,8 @@ function renderChatRegion(ctx: TuiContext, viewport: Viewport, regions: Regions,
         });
     }
     const transcriptHeight = Math.max(1, regions.transcript.height - liveRows.length);
-    const transcriptLines = viewport.composeRegion({ ...regions.transcript, height: transcriptHeight });
-    const hasTranscript = transcriptLines.some(l => l !== '');
-    if (hasTranscript) {
-        const firstContent = transcriptLines.findIndex(line => line !== '');
-        if (firstContent > 0) {
-            const content = transcriptLines.slice(firstContent);
-            return [
-                ...content,
-                ...blankLines(transcriptHeight - content.length),
-                ...liveRows,
-            ];
-        }
-        return [...transcriptLines, ...liveRows];
-    }
-    const welcome = (ctx.welcomeLines ?? [])
-        .slice(0, transcriptHeight)
-        .map(line => clipTextToCols(`  ${line}`, cols));
     return [
-        ...welcome,
-        ...blankLines(transcriptHeight - welcome.length),
+        ...viewport.composeRegion({ ...regions.transcript, height: transcriptHeight }),
         ...liveRows,
     ];
 }
@@ -250,6 +259,7 @@ export function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
         ? []
         : renderLiveToolRows(ctx, cols, Math.min(4, Math.max(0, regions.transcript.height - 1)));
     const transcriptHeight = Math.max(1, regions.transcript.height - liveRows.length);
+    viewport.setPrelude(renderWelcomePrelude(ctx, cols));
     viewport.setItems(ctx.store.transcript.items, renderTranscriptItem, transcriptHeight);
 
     const chatRows = renderChatRegion(ctx, viewport, regions, cols, liveRows);

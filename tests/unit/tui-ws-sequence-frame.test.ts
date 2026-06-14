@@ -90,6 +90,15 @@ function msg(value: Record<string, unknown>): Buffer {
     return Buffer.from(JSON.stringify(value));
 }
 
+
+function cleanupCtx(ctx: TuiContext): void {
+    stopSpinner();
+    if (ctx.footerTimer) {
+        clearInterval(ctx.footerTimer);
+        ctx.footerTimer = null;
+    }
+}
+
 function renderText(ctx: TuiContext, viewport: Viewport, cols = 72, rows = 26): string {
     return withTerminalSize(cols, rows, () => {
         viewport.setWidth(cols);
@@ -122,7 +131,7 @@ test('handleWsMessage + composeFrame keeps final answer after live tools', () =>
         assert.equal(ctx.footerTimer, null);
         assert.equal(isSpinning(), false);
     } finally {
-        stopSpinner();
+        cleanupCtx(ctx);
     }
 });
 
@@ -142,6 +151,6 @@ test('ctrl-o expanded frame remains width safe after agent_done toolLog backfill
         assert.match(frame, /Bash/);
         assert.match(frame, /long final detail|ws-handler/);
     } finally {
-        stopSpinner();
+        cleanupCtx(ctx);
     }
 });

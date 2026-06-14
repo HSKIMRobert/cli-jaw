@@ -8,6 +8,7 @@ export type TranscriptItem =
 export interface TranscriptState {
     items: TranscriptItem[];
     liveTools: LiveToolItem[];
+    liveToolsExpanded: boolean;
     committedToolRefs: Set<string>;
 }
 
@@ -33,7 +34,7 @@ export interface ToolEventInput {
 }
 
 export function createTranscriptState(): TranscriptState {
-    return { items: [], liveTools: [], committedToolRefs: new Set() };
+    return { items: [], liveTools: [], liveToolsExpanded: false, committedToolRefs: new Set() };
 }
 
 export function appendUserItem(state: TranscriptState, displayText: string, submitText: string): void {
@@ -224,12 +225,14 @@ export function commitRemainingLiveToolItems(state: TranscriptState, status: Too
         }
     }
     state.liveTools.length = 0;
+    state.liveToolsExpanded = false;
     return committed;
 }
 
 export function clearLiveToolItems(state: TranscriptState): LiveToolItem[] {
     const items = [...state.liveTools];
     state.liveTools.length = 0;
+    state.liveToolsExpanded = false;
     return items;
 }
 
@@ -247,9 +250,11 @@ export function collapsePreviousTools(state: TranscriptState): void {
 
 export function toggleToolExpansion(state: TranscriptState): boolean {
     const toolItems = state.items.filter(i => i.type === 'tool');
-    if (toolItems.length === 0) return false;
-    const hasCollapsed = toolItems.some(i => i.collapsed);
-    for (const item of toolItems) item.collapsed = !hasCollapsed;
+    const hasLiveTools = state.liveTools.length > 0;
+    if (toolItems.length === 0 && !hasLiveTools) return false;
+    const shouldExpand = toolItems.some(i => i.collapsed !== false) || (hasLiveTools && !state.liveToolsExpanded);
+    for (const item of toolItems) item.collapsed = !shouldExpand;
+    state.liveToolsExpanded = hasLiveTools ? shouldExpand : false;
     return true;
 }
 

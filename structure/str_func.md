@@ -157,7 +157,7 @@ cli-jaw/
 │   │   └── tui/              ← TUI 모듈 (26 files)
 │   │       ├── store.ts      ← TuiStore (transcript + overlay 상태 통합), OverlayState + SelectorState + settings screen state (78L)
 │   │       ├── events.ts     ← TUI WS event normalizer (`agent_done.toolLog` bounded backfill 포함) (137L)
-│   │       ├── transcript.ts ← TranscriptItem union (user/assistant/status) + TranscriptState + tool full-sweep/live-tool drain helpers (281L)
+│   │       ├── transcript.ts ← TranscriptItem union (user/assistant/status) + TranscriptState + tool full-sweep/live-tool drain helpers (286L)
 │   │       ├── composer.ts   ← Issue #66 pasted-text composer state + bracketed paste parser + slash gate + PasteCollapseConfig (374L)
 │   │       ├── overlay.ts    ← help overlay + command palette + choice selector 렌더링 (635L)
 │   │       ├── slash-surface.ts ← fullscreen slash command surface row composer (46L)

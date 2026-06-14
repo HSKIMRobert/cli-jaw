@@ -32,11 +32,14 @@ test('fullscreen completed tool expansion is full-sweep and newline-safe', () =>
     assert.match(source, /const detailLines = toolDetail\.split\('\\n'\)/);
     assert.match(source, /wrapTextToCols\(line, detailWidth\)/);
     assert.match(source, /expandedDone/);
-    assert.match(source, /rows\.push\(`\$\{gutter\}\$\{c\.dim\}│ /);
+    assert.match(source, /const detailPrefix = `\$\{gutter\}\$\{c\.dim\}│ /);
+    assert.match(source, /rows\.push\(`\$\{detailPrefix\}\$\{clipTextToCols\(line, detailWidth\)\}/);
 });
 
 test('fullscreen live tool handling keeps running tools out of committed transcript', () => {
     assert.match(source, /renderLiveToolRows\(ctx, cols/);
-    assert.match(source, /listLiveToolItems\(ctx\.store\.transcript\)/);
+    assert.match(source, /const state = ctx\.store\.transcript/);
+    assert.match(source, /listLiveToolItems\(state\)/);
+    assert.match(source, /state\.liveToolsExpanded/);
     assert.match(source, /liveRows/);
 });

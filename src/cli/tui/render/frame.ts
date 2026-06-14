@@ -38,14 +38,35 @@ export function diffFrames(prev: Frame | null, next: Frame): string {
  * the frame to terminal height, pinning actual content at the bottom.
  * If content exceeds terminal height, sentinel is removed (no padding).
  */
-function expandViewportFill(lines: string[], height: number): string[] {
+function normalizeFrameRows(lines: string[], height: number): { rows: string[]; droppedTop: number; paddedTop: number; sentinelIndex: number; sentinelDelta: number } {
+    const safeHeight = Math.max(1, height);
     const idx = lines.indexOf(VIEWPORT_FILL);
-    if (idx === -1) return lines;
-    const contentCount = lines.length - 1;
-    const fillCount = Math.max(0, height - contentCount);
-    const result = [...lines];
-    result.splice(idx, 1, ...new Array(fillCount).fill(''));
-    return result;
+    let rows = [...lines];
+    let sentinelDelta = 0;
+    if (idx !== -1) {
+        const contentCount = rows.length - 1;
+        const fillCount = Math.max(0, safeHeight - contentCount);
+        sentinelDelta = fillCount - 1;
+        rows.splice(idx, 1, ...new Array(fillCount).fill(''));
+    }
+    let paddedTop = 0;
+    if (rows.length < safeHeight) {
+        paddedTop = safeHeight - rows.length;
+        rows = [...new Array(paddedTop).fill(''), ...rows];
+    }
+    if (rows.length <= safeHeight) return { rows, droppedTop: 0, paddedTop, sentinelIndex: idx, sentinelDelta };
+    const droppedTop = rows.length - safeHeight;
+    return { rows: rows.slice(droppedTop), droppedTop, paddedTop, sentinelIndex: idx, sentinelDelta };
+}
+
+function normalizeCursorRow(row: number, normalized: ReturnType<typeof normalizeFrameRows>, rowCount: number): number {
+    let nextRow = row;
+    if (normalized.sentinelIndex >= 0 && row > normalized.sentinelIndex) {
+        nextRow += normalized.sentinelDelta;
+    }
+    nextRow += normalized.paddedTop;
+    nextRow -= normalized.droppedTop;
+    return Math.max(0, Math.min(rowCount - 1, nextRow));
 }
 
 /**
@@ -90,7 +111,14 @@ export class Screen {
     render(next: Frame): void {
         if (!this.inlineActive) return;
         const height = process.stdout.rows || 24;
-        const lines = expandViewportFill(next.rows, height);
+        const normalized = normalizeFrameRows(next.rows, height);
+        const lines = normalized.rows;
+        const cursorPos = next.cursorPos
+            ? {
+                row: normalizeCursorRow(next.cursorPos.row, normalized, lines.length),
+                col: next.cursorPos.col,
+            }
+            : undefined;
 
         let buf = '\x1b[?2026h';
 
@@ -172,12 +200,12 @@ export class Screen {
         }
 
         buf += '\x1b[?2026l';
-        if (next.cursorPos) {
-            const targetRow = next.cursorPos.row;
+        if (cursorPos) {
+            const targetRow = cursorPos.row;
             const move = targetRow - this.cursorRow;
             if (move > 0) buf += `\x1b[${move}B`;
             else if (move < 0) buf += `\x1b[${-move}A`;
-            buf += `\r\x1b[${next.cursorPos.col}C`;
+            buf += `\r\x1b[${cursorPos.col}C`;
             buf += '\x1b[?25h';
             this.cursorRow = targetRow;
         } else {

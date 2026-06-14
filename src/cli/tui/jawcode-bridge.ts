@@ -63,8 +63,11 @@ function getTheme(): { fg: (color: string, text: string) => string; bold: (text:
 
 export function renderToolLine(_icon: string, label: string, detail: string, state: 'pending' | 'done' | 'error', opts?: { depth?: number; isLast?: boolean; elapsed?: string }): string {
     const theme = getTheme();
-    const detailLineCount = detail ? detail.split('\n').filter(Boolean).length : 0;
-    const foldedHint = detailLineCount > 1 ? ` … +${detailLineCount} lines` : detail ? ' …' : '';
+    const detailLines = detail.split('\n').map(line => line.trim()).filter(Boolean);
+    const firstDetail = detailLines[0] ?? '';
+    const foldedHint = detailLines.length > 1
+        ? `: ${firstDetail} … +${detailLines.length - 1} lines`
+        : firstDetail ? `: ${firstDetail}` : '';
     if (!theme) {
         const stateIcon = state === 'done' ? '\x1b[32m✔\x1b[0m' : state === 'error' ? '\x1b[31m✖\x1b[0m' : '\x1b[36m⏳\x1b[0m';
         const detailText = state === 'pending' || state === 'error'

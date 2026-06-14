@@ -13,6 +13,7 @@ export interface ViewportCell {
 
 export class Viewport {
     private cells: ViewportCell[] = [];
+    private preludeLines: string[] = [];
     private scrollTop = 0;
     private follow = true;
     private width = 80;
@@ -24,6 +25,10 @@ export class Viewport {
             this.width = next;
             this.widthChanged = true;
         }
+    }
+
+    setPrelude(lines: string[]): void {
+        this.preludeLines = [...lines];
     }
 
     setItems(items: TranscriptItem[], renderLine: (item: TranscriptItem, width: number) => string[], visibleRows = 1): void {
@@ -113,11 +118,11 @@ export class Viewport {
     }
 
     totalLines(): number {
-        return this.cells.reduce((n, c) => n + c.lines.length, 0);
+        return this.preludeLines.length + this.cells.reduce((n, c) => n + c.lines.length, 0);
     }
 
     composeRegion(region: Rect): string[] {
-        const flat: string[] = [];
+        const flat: string[] = [...this.preludeLines];
         for (const cell of this.cells) flat.push(...cell.lines);
         this.clampScroll(region.height);
         if (this.follow && flat.length > 0 && flat.length < region.height) {
