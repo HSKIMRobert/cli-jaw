@@ -46,7 +46,12 @@ test('fullscreen live tool handling keeps running tools out of committed transcr
     assert.match(source, /liveRows/);
 });
 
-test('fullscreen default mouse tracking enables wheel scroll with opt-out', () => {
-    assert.match(source, /ctx\.tuiConfig\['mouseTracking'\] !== false/);
+test('fullscreen mouse tracking is opt-in for copy-friendly native scrollback', () => {
+    assert.match(source, /ctx\.tuiConfig\['mouseTracking'\] === true/);
+    assert.match(source, /function isMouseTrackingEnabled\(ctx: TuiContext\): boolean/);
+    assert.match(source, /const mouseTrackingEnabled = isMouseTrackingEnabled\(ctx\)/);
+    assert.match(source, /mouseTrackingEnabled && isMouseSequence\(incoming\)/);
+    assert.match(source, /if \(isMouseTrackingEnabled\(ctx\)\) screen\.enableMouse\(\);\s*else screen\.disableMouse\(\);/);
+    assert.doesNotMatch(source, /ctx\.tuiConfig\['mouseTracking'\] !== false/);
     assert.doesNotMatch(source, /screen\.enter\(\);\s*screen\.enableMouse\(\);/);
 });

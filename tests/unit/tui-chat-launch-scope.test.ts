@@ -19,28 +19,35 @@ test('fullscreen jaw chat still starts from welcome prelude and live renderer', 
     assert.ok(chatSource.includes('await runFullscreenMode(ctx)'));
 });
 
+test('fullscreen jaw chat defaults to native mouse behavior', () => {
+    assert.doesNotMatch(chatSource, /mouseTracking:\s*true/);
+});
+
 test('fullscreen welcome remains in the launch prelude instead of pre-render stdout', () => {
     assert.equal(fullscreenSource.includes('function printWelcomeToScrollback'), false);
     assert.equal(fullscreenSource.includes('ctx.welcomeLines = [];'), false);
     assert.ok(fullscreenSource.includes('viewport.setPrelude(renderWelcomePrelude(ctx, cols))'));
+    assert.match(fullscreenSource, /if \(isMouseTrackingEnabled\(ctx\)\) screen\.enableMouse\(\);\s*else screen\.disableMouse\(\);/);
     assert.ok(fullscreenSource.includes([
         'rebuildFooter(ctx);',
         '    screen.enter();',
-        "    if (ctx.tuiConfig['mouseTracking'] === true) screen.enableMouse();",
+        '    const mouseState: { resumeTimer: ReturnType<typeof setTimeout> | null } = { resumeTimer: null };',
+        '    if (isMouseTrackingEnabled(ctx)) screen.enableMouse();',
+        '    else screen.disableMouse();',
         '    scheduler.request();',
     ].join('\n')));
 });
 
-test('fullscreen scrollback commit uses a scroll region instead of plain newline append', () => {
-    const commitStart = frameSource.indexOf('commitLines(lines: string[]): boolean');
-    const commitEnd = frameSource.indexOf('forceRedraw(): void', commitStart);
+test('fullscreen scrollback commit uses queue+render pattern with transactional mark', () => {
+    const commitStart = frameSource.indexOf('queueCommitLines(lines: string[]): void');
+    const commitEnd = frameSource.indexOf('lastCommitFlushedCount(): number', commitStart);
     const commitBlock = frameSource.slice(commitStart, commitEnd);
 
-    assert.ok(commitBlock.includes('buildInsertHistorySequence'));
-    assert.ok(commitBlock.includes('this.needsResizeRepaint()'));
-    assert.ok(commitBlock.includes('lines.length > height'));
-    assert.equal(commitBlock.includes("buf += '\\r\\n\\x1b[2K'"), false);
-    assert.ok(frameSource.includes("lines[i] ?? ''"));
+    assert.ok(commitBlock.includes('detectHistoryLaneMode'), 'commit checks lane compatibility');
+    assert.ok(commitBlock.includes('pendingCommitLines'), 'commit queues lines for render-internal flush');
+    assert.ok(frameSource.includes('lastCommitFlushedCount'), 'screen reports flushed count for transactional mark');
+    assert.ok(frameSource.includes('hasNativeCommit'), 'screen tracks native commit state');
+    assert.ok(frameSource.includes('normalized.fillRows > 0'), 'render flushes only when fill lane exists');
 });
 
 test('fullscreen resize uses JWC-like clear before transcript and protects history afterward', () => {
@@ -51,12 +58,12 @@ test('fullscreen resize uses JWC-like clear before transcript and protects histo
     assert.ok(frameSource.includes('needsResizeRepaint(): boolean'));
     assert.ok(frameSource.includes('geometryChanged(width: number, height: number): boolean'));
     assert.ok(frameSource.includes('forceResizeRedraw(): void'));
-    assert.ok(frameSource.includes('protectScrollback(): void'));
+    assert.ok(frameSource.includes('hasNativeCommit'));
     assert.ok(frameSource.includes('scrollbackProtected'));
     assert.ok(frameSource.includes("resizeRepaintMode(widthChanged: boolean, heightChanged: boolean): 'discard-scrollback' | 'visible-clear' | 'viewport-only'"));
     assert.ok(frameSource.includes('buildViewportRepaintSequence'));
     assert.ok(frameSource.includes("buildFullClearSequence(mode === 'discard-scrollback')"));
-    assert.ok(frameSource.includes('buildFullClearSequence(!isMultiplexerSession())'));
+    assert.ok(frameSource.includes('return buildFullClearSequence(true);'));
     assert.ok(resizeBlock.includes([
         'viewport.setWidth(process.stdout.columns || 80);',
         '        screen.forceResizeRedraw();',
@@ -65,8 +72,9 @@ test('fullscreen resize uses JWC-like clear before transcript and protects histo
         '        if (ctx.resizeTimer) clearTimeout(ctx.resizeTimer);',
     ].join('\n')), 'resize handler should request an immediate repaint before trailing debounce');
     assert.ok(fullscreenSource.includes('const hasTranscriptItems = ctx.store.transcript.items.length > 0;'));
-    assert.ok(fullscreenSource.includes('if (hasTranscriptItems) screen.protectScrollback();'));
-    assert.ok(fullscreenSource.includes('else viewport.resetCommittedRows(transcriptHeight);'));
+    assert.ok(fullscreenSource.includes('computeStablePrefixIndex'));
+    assert.ok(fullscreenSource.includes('peekStableCommitRows'));
+    assert.ok(fullscreenSource.includes('markCommittedFrontier'));
     assert.equal(resizeBlock.includes('screen.forceRedraw();'), false);
     assert.equal(resizeBlock.includes('screen.resetViewport();'), false);
     const repaintStart = frameSource.indexOf('function buildViewportRepaintSequence');

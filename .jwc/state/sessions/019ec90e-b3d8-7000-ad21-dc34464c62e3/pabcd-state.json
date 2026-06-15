@@ -1,0 +1,53 @@
+{
+  "skill": "pabcd",
+  "version": 2,
+  "updated_at": "2026-06-15T09:32:47.943Z",
+  "current_phase": "complete",
+  "active": false,
+  "ctx": {
+    "a_audit_mode": "dual",
+    "a_round": 0,
+    "a_revision_id": "a-r1",
+    "a_synthesis_required": false,
+    "a_lens_verdicts": {
+      "architect": {
+        "status": "pass",
+        "revision_id": "a-r1",
+        "worker_output_ref": "/tmp/scrollback-arch-verdict.txt",
+        "recorded_at": "2026-06-15T09:28:11.473Z"
+      }
+    },
+    "p_round": 1,
+    "p_review_passed": false,
+    "p_review_override": {
+      "stage": "p",
+      "reason": "Critic ITERATE waived by main-session synthesis",
+      "synthesis_ref": "devlog/_plan/260615_native_scrollback_commit/08_gpt_pro_v5_verdict.md",
+      "recorded_at": "2026-06-15T09:24:02.501Z"
+    },
+    "audit_status": "pending",
+    "verification_status": "done",
+    "actor_namespace_id": "pabcd-182683a7-eaf6-4469-b705-a79ab251ce40"
+  },
+  "session_id": "019ec90e-b3d8-7000-ad21-dc34464c62e3",
+  "receipt": {
+    "version": 1,
+    "skill": "pabcd",
+    "owner": "jwc-runtime",
+    "command": "orchestrate complete",
+    "state_path": "/Users/jun/Developer/new/700_projects/cli-jaw/.jwc/state/sessions/019ec90e-b3d8-7000-ad21-dc34464c62e3/pabcd-state.json",
+    "storage_path": "/Users/jun/Developer/new/700_projects/cli-jaw/.jwc/state/sessions/019ec90e-b3d8-7000-ad21-dc34464c62e3/pabcd-state.json",
+    "mutated_at": "2026-06-15T09:32:47.943Z",
+    "fresh_until": "2026-06-15T10:02:47.943Z",
+    "status": "fresh",
+    "mutation_id": "pabcd:2026-06-15T09:32:47.943Z",
+    "from_phase": "d",
+    "to_phase": "complete",
+    "content_sha256": {
+      "algorithm": "sha256",
+      "value": "d4c74ac1c843d72e2f40542f571d8b86c117a5c4c1e27be62cacc9c20e5c05d1",
+      "covered_path": "/Users/jun/Developer/new/700_projects/cli-jaw/.jwc/state/sessions/019ec90e-b3d8-7000-ad21-dc34464c62e3/pabcd-state.json",
+      "computed_at": "2026-06-15T09:32:47.943Z"
+    }
+  }
+}

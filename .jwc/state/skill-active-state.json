@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "active": true,
+  "skill": "plan",
+  "phase": "architect",
+  "updated_at": "2026-06-15T05:46:43.124Z",
+  "active_skills": [
+    {
+      "skill": "plan",
+      "phase": "architect",
+      "active": true,
+      "activated_at": "2026-06-15T05:46:43.124Z",
+      "updated_at": "2026-06-15T05:46:43.124Z",
+      "hud": {
+        "version": 1,
+        "summary": "persisted architect stage 1",
+        "chips": [
+          {
+            "label": "stage",
+            "value": "architect",
+            "priority": 10
+          },
+          {
+            "label": "iter",
+            "value": "1",
+            "priority": 30
+          }
+        ],
+        "updated_at": "2026-06-15T05:46:43.123Z"
+      }
+    }
+  ],
+  "active_subskills": []
+}

@@ -170,6 +170,18 @@ export function renderTranscriptItem(item: TranscriptItem, width: number): strin
     }
 }
 
+
+function computeStablePrefixIndex(items: TranscriptItem[]): number {
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i]!;
+        if (item.type === 'assistant' && item.streaming) return i;
+        if (item.type === 'thinking' && item.streaming) return i;
+        if (item.type === 'tool' && item.status === 'running') return i;
+        if (item.type === 'status') return i;
+    }
+    return items.length;
+}
+
 function renderTranscriptItemWithSpacing(item: TranscriptItem, width: number, previous?: TranscriptItem): string[] {
     const rows = renderTranscriptItem(item, width);
     const needsGap = Boolean(previous && previous.type !== 'status' && item.type !== 'status');
@@ -431,21 +443,36 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
         const liveRows = ctx.store.overlay.helpOpen || ctx.store.overlay.paletteOpen || ctx.store.overlay.selector.open || ctx.store.overlay.bgtaskOpen || ctx.store.overlay.settingsOpen
             ? []
             : renderLiveToolRows(ctx, process.stdout.columns || 80, Math.min(4, Math.max(0, regions.transcript.height - 1)));
-        const transcriptHeight = Math.max(1, regions.transcript.height - liveRows.length);
         const hasTranscriptItems = ctx.store.transcript.items.length > 0;
-        if (hasTranscriptItems) screen.protectScrollback();
-        else viewport.resetCommittedRows(transcriptHeight);
+        const overlayOpen = ctx.store.overlay.helpOpen || ctx.store.overlay.paletteOpen
+            || ctx.store.overlay.selector.open || ctx.store.overlay.bgtaskOpen
+            || ctx.store.overlay.settingsOpen;
+        const MIN_HISTORY_LANE = 2;
+        const transcriptHeight = Math.max(1, regions.transcript.height - liveRows.length - (hasTranscriptItems && !overlayOpen ? MIN_HISTORY_LANE : 0));
 
-        const commitRows = hasTranscriptItems ? viewport.peekCommitRows(transcriptHeight) : [];
-        let retryCommitAfterRender = false;
-        if (commitRows.length > 0 && screen.commitLines(commitRows)) {
-            viewport.markCommittedRows(commitRows.length, transcriptHeight);
-        } else if (commitRows.length > 0) {
-            retryCommitAfterRender = true;
+        const stablePrefixIndex = hasTranscriptItems
+            ? computeStablePrefixIndex(ctx.store.transcript.items) : 0;
+
+        const commit = hasTranscriptItems && !overlayOpen
+            ? viewport.peekStableCommitRows(transcriptHeight, stablePrefixIndex)
+            : null;
+
+        if (commit) screen.queueCommitLines(commit.rows);
+
+        const renderViewport = commit
+            ? viewport.withPreviewFrontier(commit.frontier)
+            : viewport;
+
+        screen.render(composeFrame(ctx, renderViewport));
+
+        const flushed = screen.lastCommitFlushedCount();
+        if (flushed > 0 && commit) {
+            viewport.markCommittedFrontier(commit.frontier);
         }
-        screen.render(composeFrame(ctx, viewport));
-        const postRenderCommitReady = hasTranscriptItems && viewport.peekCommitRows(transcriptHeight).length > 0;
-        if (retryCommitAfterRender || postRenderCommitReady) scheduler.request();
+
+        const moreToCommit = hasTranscriptItems && !overlayOpen
+            && viewport.peekStableCommitRows(transcriptHeight, stablePrefixIndex) !== null;
+        if (moreToCommit) scheduler.request();
     });
 
     ctx.displayMode = 'fullscreen';

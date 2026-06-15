@@ -1,0 +1,51 @@
+{
+  "skill": "goal",
+  "status": "complete",
+  "current_phase": "complete",
+  "active": false,
+  "goals": [
+    {
+      "id": "G001",
+      "title": "(AI-driven goal planning pending refinement)",
+      "status": "complete"
+    }
+  ],
+  "counts": {
+    "pending": 0,
+    "active": 0,
+    "complete": 1,
+    "failed": 0,
+    "blocked": 0,
+    "review_blocked": 0,
+    "superseded": 0
+  },
+  "ledger_path": "/Users/jun/Developer/new/700_projects/cli-jaw/.jwc/goal/ledger.jsonl",
+  "brief_path": "/Users/jun/Developer/new/700_projects/cli-jaw/.jwc/goal/brief.md",
+  "goals_path": "/Users/jun/Developer/new/700_projects/cli-jaw/.jwc/goal/goals.json",
+  "gjc_objective": "Implement native terminal scrollback commit for cli-jaw fullscreen TUI (v5 architecture): preview frontier, logical unit omission, stable prefix commit, unbounded sub-region insert-history, transactional mark-after-write, variable-height composeRegion, overlay guard, lane detection, 3J ban — verified through PABCD with devlog 260615_native_scrollback_commit as plan source.",
+  "version": 2,
+  "updated_at": "2026-06-15T09:34:38.150Z",
+  "receipt": {
+    "version": 1,
+    "skill": "goal",
+    "owner": "jwc-runtime",
+    "command": "jwc goal (reconcile)",
+    "state_path": "/Users/jun/Developer/new/700_projects/cli-jaw/.jwc/state/sessions/019ec90e-b3d8-7000-ad21-dc34464c62e3/skill-active-state.json",
+    "storage_path": "/Users/jun/Developer/new/700_projects/cli-jaw/.jwc/state/sessions/019ec90e-b3d8-7000-ad21-dc34464c62e3/goal-state.json",
+    "mutated_at": "2026-06-15T09:34:38.150Z",
+    "fresh_until": "2026-06-15T10:04:38.150Z",
+    "status": "fresh",
+    "mutation_id": "goal:reconcile:2026-06-15T09:34:38.150Z",
+    "verb": "reconcile",
+    "forced": true,
+    "from_phase": "active",
+    "to_phase": "complete",
+    "content_sha256": {
+      "algorithm": "sha256",
+      "value": "52c29f6d077792f7170b3fe7ecf81e22db4a63061a3fb2baf401239e19777cec",
+      "covered_path": "/Users/jun/Developer/new/700_projects/cli-jaw/.jwc/state/sessions/019ec90e-b3d8-7000-ad21-dc34464c62e3/goal-state.json",
+      "computed_at": "2026-06-15T09:34:38.150Z"
+    }
+  },
+  "session_id": "019ec90e-b3d8-7000-ad21-dc34464c62e3"
+}

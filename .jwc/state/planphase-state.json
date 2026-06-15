@@ -1,0 +1,26 @@
+{
+  "run_id": "2026-06-15-0219-ddb4",
+  "skill": "plan",
+  "active": true,
+  "current_phase": "planner",
+  "version": 2,
+  "updated_at": "2026-06-15T02:19:04.427Z",
+  "receipt": {
+    "version": 1,
+    "skill": "plan",
+    "owner": "jwc-runtime",
+    "command": "jwc planphase persist-run-id",
+    "state_path": "/Users/jun/Developer/new/700_projects/cli-jaw/.jwc/state/skill-active-state.json",
+    "storage_path": "/Users/jun/Developer/new/700_projects/cli-jaw/.jwc/state/plan-state.json",
+    "mutated_at": "2026-06-15T02:19:04.427Z",
+    "fresh_until": "2026-06-15T02:49:04.427Z",
+    "status": "fresh",
+    "mutation_id": "plan:2026-06-15T02:19:04.427Z",
+    "content_sha256": {
+      "algorithm": "sha256",
+      "value": "1ea599dae4c93fcd72ba9d6be28e7822bf06ea7ef334307a8affa26cbc6e4b0f",
+      "covered_path": "/Users/jun/Developer/new/700_projects/cli-jaw/.jwc/state/planphase-state.json",
+      "computed_at": "2026-06-15T02:19:04.427Z"
+    }
+  }
+}

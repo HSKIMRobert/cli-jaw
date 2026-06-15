@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "brief": "(AI-driven goal planning pending refinement)\nhint: ㅇㅇ 그거 devlog 반영하고 pabcd n 바퀴(너가 돌고 싶은 만큼) 돌아서 완성해줘",
+  "jwcGoalMode": "aggregate",
+  "jwcObjective": "Implement native terminal scrollback commit for cli-jaw fullscreen TUI (v5 architecture): preview frontier, logical unit omission, stable prefix commit, unbounded sub-region insert-history, transactional mark-after-write, variable-height composeRegion, overlay guard, lane detection, 3J ban — verified through PABCD with devlog 260615_native_scrollback_commit as plan source.",
+  "goals": [
+    {
+      "id": "G001",
+      "title": "(AI-driven goal planning pending refinement)",
+      "objective": "Implement native terminal scrollback commit for cli-jaw fullscreen TUI (v5 architecture): preview frontier, logical unit omission, stable prefix commit, unbounded sub-region insert-history, transactional mark-after-write, variable-height composeRegion, overlay guard, lane detection, 3J ban — verified through PABCD with devlog 260615_native_scrollback_commit as plan source.",
+      "status": "complete",
+      "createdAt": "2026-06-15T09:16:02.123Z",
+      "updatedAt": "2026-06-15T09:34:38.146Z",
+      "startedAt": "2026-06-15T09:16:02.133Z",
+      "completedAt": "2026-06-15T09:34:38.146Z",
+      "evidence": "PABCD complete; 56/56 tests pass; typecheck pass; smoke pass; build pass; all 9 deliverables verified in source: CommitFrontier, peekStableCommitRows, withPreviewFrontier, markCommittedFrontier, queueCommitLines, lastCommitFlushedCount, hasNativeCommit, detectHistoryLaneMode, computeStablePrefixIndex",
+      "completionVerification": {
+        "schemaVersion": 1,
+        "receiptId": "d63c327c-e972-4d68-a46c-650bc705dac1",
+        "verifiedAt": "2026-06-15T09:34:38.146Z",
+        "goalId": "G001",
+        "receiptKind": "final-aggregate",
+        "goalStatusBeforeCheckpoint": "active",
+        "jwcGoalMode": "aggregate",
+        "jwcObjective": "Implement native terminal scrollback commit for cli-jaw fullscreen TUI (v5 architecture): preview frontier, logical unit omission, stable prefix commit, unbounded sub-region insert-history, transactional mark-after-write, variable-height composeRegion, overlay guard, lane detection, 3J ban — verified through PABCD with devlog 260615_native_scrollback_commit as plan source.",
+        "qualityGateHash": "e0cdf6273943ce25f50561ee715bc0bef44172eceadeb6f7a75bc3437ec62db5",
+        "jwcGoalSnapshotHash": "7d3b72da3835f996870cdaf1e69461160de4057335867de40b8a0ca28273f112",
+        "planGeneration": "02bc0d0a1d1e54887a5c8feba921e96adc40c2346fe1ea7e3c58101b169d52f2",
+        "basis": {
+          "planHashBeforeCheckpoint": "458b09ee917c5afe4924bdd4fd3fd601e6b5b4c02c4275c911a7a461a8b336d8",
+          "latestRelevantLedgerEventIdBeforeCheckpoint": "479eb8a2-b4a3-46b2-a2bd-f692c1d5b97b",
+          "goalUpdatedAtBeforeCheckpoint": "2026-06-15T09:34:38.146Z",
+          "relevantGoalIdsBeforeCheckpoint": [
+            "G001"
+          ],
+          "requiredGoalSetHashBeforeCheckpoint": "920847fca060617c370d97c1f52da9599c49701ace40564227feec7f685c4d02"
+        },
+        "checkpointLedgerEventId": "677a3a1c-d2d8-4635-ad07-aba8fa01367f"
+      }
+    }
+  ],
+  "createdAt": "2026-06-15T09:16:02.123Z",
+  "updatedAt": "2026-06-15T09:34:38.146Z"
+}

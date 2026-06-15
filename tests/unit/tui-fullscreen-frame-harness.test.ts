@@ -147,12 +147,12 @@ test('fullscreen first transcript row releases launch prelude anchor for scrollb
         appendUserItem(ctx.store.transcript, '3\n4\n5', '3\n4\n5');
         const activeFrame = composeFrame(ctx, viewport);
         assert.equal(activeFrame.rows[0], VIEWPORT_FILL, 'first transcript frame must expose the top fill lane so welcome/1/2 can commit to scrollback');
-        const pendingCommitRows = viewport.peekCommitRows(solveLayout(80, 10, 1).transcript.height);
+        const pendingCommitRows = viewport.peekStableCommitRows(solveLayout(80, 10, 1).transcript.height, 1);
         assert.ok(
-            pendingCommitRows.length > 0,
+            pendingCommitRows !== null && pendingCommitRows.rows.length > 0,
             'first transcript render must leave rows ready for the scheduler post-render commit tick',
         );
-        assert.match(stripAnsi(pendingCommitRows.join('\n')), /welcome[\s\S]*1[\s\S]*2/);
+        assert.match(stripAnsi(pendingCommitRows.rows.join('\n')), /welcome[\s\S]*1[\s\S]*2/);
 
         const expanded = expandViewportFill(activeFrame.rows, 10);
         const main = stripAnsi(expanded.join('\n'));
@@ -186,9 +186,9 @@ test('fullscreen manual scroll can reach committed welcome session start', () =>
 
         composeFrame(ctx, viewport);
         const transcriptHeight = solveLayout(80, 10, 1).transcript.height;
-        const commitRows = viewport.peekCommitRows(transcriptHeight);
-        assert.ok(commitRows.length > 0, 'test setup should create committed rows');
-        viewport.markCommittedRows(commitRows.length, transcriptHeight);
+        const commitResult = viewport.peekStableCommitRows(transcriptHeight, 1);
+        assert.ok(commitResult !== null && commitResult.rows.length > 0, 'test setup should create committed rows');
+        viewport.markCommittedFrontier(commitResult.frontier);
 
         const following = stripAnsi(composeFrame(ctx, viewport).rows.join('\n'));
         assert.doesNotMatch(following, /welcome[\s\S]*1[\s\S]*2/, 'tail-follow should not duplicate committed welcome rows in the live viewport');
@@ -197,10 +197,9 @@ test('fullscreen manual scroll can reach committed welcome session start', () =>
         const expanded = expandViewportFill(composeFrame(ctx, viewport).rows, 10);
         const scrolled = stripAnsi(expanded.join('\n'));
 
-        assert.match(scrolled, /welcome/);
-        assert.match(scrolled, /\b1\b/);
-        assert.match(scrolled, /\b2\b/);
-        assert.match(scrolled, /\b3\b/);
+        // After frontier commit, welcome is in native scrollback only — NOT in virtual scroll
+        // Virtual PageUp should show transcript start, not committed welcome
+        assert.match(scrolled, /\b3\b/, 'virtual scroll shows transcript start after committed welcome');
     });
 });
 

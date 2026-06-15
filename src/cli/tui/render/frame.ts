@@ -1,6 +1,8 @@
 /**
  * Inline frame buffer + differential rendering (no alt-screen).
- * Renders on the main screen buffer so Welcome/scrollback are preserved.
+ * Renders on the main screen buffer. Launch deliberately clears visible and
+ * saved pre-existing terminal lines so `jaw chat` starts like a fresh terminal;
+ * cmux/multiplexer-aware preservation applies to post-launch repaint/resize.
  * Uses synchronized output (CSI 2026) for flicker-free updates.
  */
 
@@ -95,6 +97,9 @@ export class Screen {
     private lastHeight = 0;
     private launchClearPending = false;
     private scrollbackProtected = false;
+    private hasNativeCommit = false;
+    private pendingCommitLines: string[] = [];
+    private lastFlushed = 0;
 
     get active(): boolean {
         return this.inlineActive;
@@ -176,6 +181,30 @@ export class Screen {
             this.committedScreenRows = 0;
             this.launchClearPending = false;
         }
+
+        // Flush pending scrollback commits inside the synchronized block
+        this.lastFlushed = 0;
+        if (this.pendingCommitLines.length > 0 && normalized.fillRows > 0) {
+            const liveZoneTop = Math.min(normalized.fillRows, height);
+            buf += `\x1b[1;${liveZoneTop}r`;
+            buf += `\x1b[${liveZoneTop};1H`;
+            for (const line of this.pendingCommitLines) {
+                buf += '\r\n\x1b[2K' + line;
+            }
+            buf += '\x1b[r';
+            buf += `\x1b[${this.cursorRow + 1};1H`;
+            this.committedScreenRows = Math.min(
+                this.committedScreenRows + this.pendingCommitLines.length,
+                liveZoneTop
+            );
+            this.lastFlushed = this.pendingCommitLines.length;
+            this.hasNativeCommit = true;
+            this.scrollbackProtected = true;
+        }
+        if (this.pendingCommitLines.length > 0 && normalized.fillRows <= 0) {
+            this.lastFlushed = 0; // fillRows=0: can't commit yet, retry next tick
+        }
+        this.pendingCommitLines = [];
 
         if (!this.resizeRedrawPending && this.committedScreenRows > 0 && normalized.fillRows < this.lastFillRows) {
             buf += buildScrollOutSequence(this.lastFillRows - normalized.fillRows, this.lastFillRows, { row: this.cursorRow, col: 0 });
@@ -301,27 +330,18 @@ export class Screen {
         this.lastHeight = height;
     }
 
-    commitLines(lines: string[]): boolean {
-        if (!this.inlineActive || lines.length === 0) return true;
-        if (this.needsResizeRepaint()) return false;
-        const height = process.stdout.rows || 24;
+    queueCommitLines(lines: string[]): void {
+        if (!this.inlineActive || lines.length === 0) return;
+        if (this.needsResizeRepaint()) return;
+        if (detectHistoryLaneMode() !== 'standard') return;
         const width = Math.max(1, process.stdout.columns || 80);
-        if (lines.length > height) return false;
-        const prepared = lines.map(line => normalizeFrameRow(line, width));
-        const buf = `\x1b[?2026h${buildInsertHistorySequence(prepared, {
-            liveZoneTop: height,
-            screenRows: height,
-            cursor: { row: this.cursorRow, col: 0 },
-        })}\x1b[?2026l`;
-        process.stdout.write(buf);
-        this.committedScreenRows += prepared.length;
-        this.scrollbackProtected = true;
-        this.fullRedrawPending = true;
-        return true;
+        this.pendingCommitLines.push(...lines.map(line => normalizeFrameRow(line, width)));
     }
 
-    protectScrollback(): void {
-        this.scrollbackProtected = true;
+    lastCommitFlushedCount(): number {
+        const n = this.lastFlushed;
+        this.lastFlushed = 0;
+        return n;
     }
 
     forceRedraw(): void {
@@ -365,13 +385,13 @@ export class Screen {
     }
 
     disableMouse(): void {
-        process.stdout.write('\x1b[?1006l\x1b[?1000l');
+        process.stdout.write('\x1b[?9l\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1005l\x1b[?1006l\x1b[?1015l\x1b[?1016l');
     }
 
     private resizeRepaintMode(widthChanged: boolean, heightChanged: boolean): 'discard-scrollback' | 'visible-clear' | 'viewport-only' {
         if (!widthChanged && !heightChanged) return 'viewport-only';
+        if (!this.hasNativeCommit) return 'discard-scrollback';
         const mux = isMultiplexerSession();
-        if (!this.scrollbackProtected) return mux ? 'visible-clear' : 'discard-scrollback';
         if (!mux) return 'visible-clear';
         return widthChanged ? 'visible-clear' : 'viewport-only';
     }
@@ -392,32 +412,29 @@ function buildFullClearSequence(includeSavedLines: boolean): string {
 }
 
 function buildLaunchClearSequence(): string {
-    return buildFullClearSequence(!isMultiplexerSession());
+    return buildFullClearSequence(true);
 }
 
 function isMultiplexerSession(env: Record<string, string | undefined> = process.env): boolean {
     const term = (env['TERM'] ?? '').toLowerCase();
-    return Boolean(env['TMUX'] || env['STY'] || term.startsWith('tmux') || term.startsWith('screen'));
+    return Boolean(
+        env['TMUX']
+        || env['STY']
+        || env['CMUX_WORKSPACE_ID']
+        || env['CMUX_SURFACE_ID']
+        || env['CMUX_SOCKET_PATH']
+        || term.startsWith('tmux')
+        || term.startsWith('screen')
+    );
 }
 
-function buildInsertHistorySequence(
-    lines: string[],
-    geometry: { liveZoneTop: number; screenRows: number; cursor: { row: number; col: number } },
-): string {
-    if (lines.length === 0) return '';
-    const regionBottom = Math.min(geometry.liveZoneTop, geometry.screenRows);
-    if (regionBottom < 1) return '';
-    let out = '';
-    for (let i = 0; i < lines.length; i += 1) {
-        out += `\x1b[${i + 1};1H\x1b[2K${lines[i] ?? ''}`;
-    }
-    out += `\x1b[1;${regionBottom}r`;
-    out += `\x1b[${regionBottom};1H`;
-    out += '\r\n'.repeat(lines.length);
-    out += '\x1b[r';
-    out += `\x1b[${geometry.cursor.row + 1};${geometry.cursor.col + 1}H`;
-    return out;
+function detectHistoryLaneMode(env: Record<string, string | undefined> = process.env): 'standard' | 'unsupported' {
+    const term = (env['TERM'] ?? '').toLowerCase();
+    if (env['ZELLIJ'] || env['ZELLIJ_SESSION_NAME']) return 'unsupported';
+    if (term === 'dumb') return 'unsupported';
+    return 'standard';
 }
+
 
 function buildScrollOutSequence(
     count: number,

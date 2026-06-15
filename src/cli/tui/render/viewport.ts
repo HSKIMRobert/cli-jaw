@@ -4,6 +4,10 @@
  */
 import type { TranscriptItem } from '../transcript.js';
 import type { Rect } from './layout.js';
+export interface CommitFrontier {
+    preludeCommitted: boolean;
+    itemIndex: number;
+}
 
 export interface ViewportCell {
     lines: string[];
@@ -18,7 +22,7 @@ export class Viewport {
     private follow = true;
     private width = 80;
     private widthChanged = false;
-    private committedRows = 0;
+    private frontier: CommitFrontier = { preludeCommitted: false, itemIndex: 0 };
 
     setWidth(cols: number): void {
         const next = Math.max(20, cols);
@@ -30,7 +34,7 @@ export class Viewport {
 
     setPrelude(lines: string[]): void {
         this.preludeLines = [...lines];
-        this.clampCommittedRows();
+        this.clampFrontier();
     }
 
     setItems(items: TranscriptItem[], renderLine: (item: TranscriptItem, width: number) => string[], visibleRows = 1): void {
@@ -67,7 +71,7 @@ export class Viewport {
                 this.cells.length = nextLen;
             }
         }
-        this.clampCommittedRows();
+        this.clampFrontier();
         if (this.follow) {
             if (items.length === 0 && this.hasUncommittedPrelude()) {
                 this.scrollTop = 0;
@@ -88,7 +92,7 @@ export class Viewport {
         tail.lines = renderLine(item, this.width);
         tail.revision += 1;
         tail.cacheKey = this.itemCacheKey(item);
-        this.clampCommittedRows();
+        this.clampFrontier();
         if (this.follow) this.scrollToBottom(visibleRows);
     }
 
@@ -98,7 +102,7 @@ export class Viewport {
             revision: this.cells.length,
             cacheKey: this.itemCacheKey(item),
         });
-        this.clampCommittedRows();
+        this.clampFrontier();
         if (this.follow) this.scrollToBottom(visibleRows);
     }
 
@@ -114,7 +118,11 @@ export class Viewport {
     }
 
     pageUp(regionHeight: number): void { this.scrollBy(-Math.max(1, regionHeight - 1), regionHeight); }
-    pageDown(regionHeight: number): void { this.scrollBy(Math.max(1, regionHeight - 1), regionHeight); }
+    pageDown(regionHeight: number): void {
+        this.scrollBy(Math.max(1, regionHeight - 1), regionHeight);
+        const max = Math.max(0, this.totalLines() - regionHeight);
+        if (this.scrollTop >= max) this.follow = true;
+    }
 
     scrollToBottom(visibleRows = 1): void {
         this.follow = true;
@@ -131,54 +139,77 @@ export class Viewport {
     }
 
     hasUncommittedPreludeRows(): boolean {
-        return this.hasUncommittedPrelude();
+        return !this.frontier.preludeCommitted && this.preludeLines.length > 0;
     }
 
     totalLines(): number {
         return this.visibleRows().length;
     }
 
-    peekCommitRows(visibleRows = 1): string[] {
-        if (!this.follow) return [];
+    peekStableCommitRows(transcriptHeight: number, stablePrefixIndex: number): { rows: string[]; frontier: CommitFrontier } | null {
+        if (!this.follow) return null;
         const flat = this.flattenRows();
-        const safeCommitUntil = Math.max(0, flat.length - Math.max(1, visibleRows));
-        if (safeCommitUntil <= this.committedRows) return [];
-        return flat.slice(this.committedRows, safeCommitUntil);
-    }
+        const visible = this.visibleRows();
+        if (visible.length <= transcriptHeight) return null;
 
-    markCommittedRows(count: number, visibleRows = 1): void {
-        if (count <= 0) return;
-        this.committedRows = Math.min(this.flattenRows().length, this.committedRows + count);
-        this.clampScroll(visibleRows);
-    }
+        const currentCommitted = this.committedLogicalRowCount();
+        const safeUntil = Math.max(0, flat.length - Math.max(1, transcriptHeight));
+        if (safeUntil <= currentCommitted) return null;
 
-    resetCommittedRows(visibleRows = 1): void {
-        this.committedRows = 0;
-        if (this.follow && this.cells.length === 0 && this.hasUncommittedPrelude()) {
-            this.scrollTop = 0;
-        } else {
-            this.clampScroll(visibleRows);
+        const newFrontier: CommitFrontier = { ...this.frontier };
+        let rowCursor = currentCommitted;
+
+        if (!newFrontier.preludeCommitted && this.preludeLines.length > 0) {
+            const end = this.preludeLines.length;
+            if (end <= safeUntil) { newFrontier.preludeCommitted = true; rowCursor = end; }
         }
+
+        const maxItem = Math.min(stablePrefixIndex, this.cells.length);
+        for (let i = newFrontier.itemIndex; i < maxItem; i++) {
+            const end = rowCursor + this.cells[i]!.lines.length;
+            if (end > safeUntil) break;
+            newFrontier.itemIndex = i + 1;
+            rowCursor = end;
+        }
+
+        if (rowCursor <= currentCommitted) return null;
+        return { rows: flat.slice(currentCommitted, rowCursor), frontier: newFrontier };
+    }
+
+    withPreviewFrontier(frontier: CommitFrontier): Viewport {
+        const preview = Object.create(this) as Viewport;
+        Object.defineProperty(preview, 'frontier', { value: { ...frontier }, writable: false });
+        return preview;
+    }
+
+    markCommittedFrontier(frontier: CommitFrontier): void {
+        this.frontier = { ...frontier };
+        if (this.follow) this.scrollToBottom(1);
+    }
+
+    resetFrontier(): void {
+        this.frontier = { preludeCommitted: false, itemIndex: 0 };
+    }
+
+    currentFrontier(): CommitFrontier {
+        return { ...this.frontier };
     }
 
     composeRegion(region: Rect): string[] {
         const flat = this.visibleRows();
         this.clampScroll(region.height);
         if (this.follow && flat.length > 0 && flat.length < region.height) {
-            if (this.hasUncommittedPrelude()) {
+            if (this.hasUncommittedPreludeRows()) {
                 return [
                     ...flat,
                     ...new Array(region.height - flat.length).fill(''),
                 ];
             }
-            return [
-                ...new Array(region.height - flat.length).fill(''),
-                ...flat,
-            ];
+            return flat;
         }
         const start = this.scrollTop;
         const out: string[] = [];
-        for (let i = 0; i < region.height; i++) {
+        for (let i = 0; i < Math.min(region.height, flat.length - start); i++) {
             out.push(flat[start + i] ?? '');
         }
         return out;
@@ -189,8 +220,17 @@ export class Viewport {
         if (this.scrollTop > max) this.scrollTop = max;
     }
 
-    private clampCommittedRows(): void {
-        this.committedRows = Math.min(this.committedRows, this.flattenRows().length);
+    private clampFrontier(): void {
+        if (this.frontier.itemIndex > this.cells.length)
+            this.frontier.itemIndex = this.cells.length;
+    }
+
+    private committedLogicalRowCount(): number {
+        let count = 0;
+        if (this.frontier.preludeCommitted) count += this.preludeLines.length;
+        for (let i = 0; i < this.frontier.itemIndex && i < this.cells.length; i++)
+            count += this.cells[i]!.lines.length;
+        return count;
     }
 
     private flattenRows(): string[] {
@@ -200,12 +240,17 @@ export class Viewport {
     }
 
     private visibleRows(): string[] {
-        const flat = this.flattenRows();
-        return this.follow ? flat.slice(this.committedRows) : flat;
+        const rows: string[] = [];
+        if (!this.frontier.preludeCommitted) rows.push(...this.preludeLines);
+        for (let i = 0; i < this.cells.length; i++) {
+            if (i < this.frontier.itemIndex) continue;
+            rows.push(...this.cells[i]!.lines);
+        }
+        return rows;
     }
 
     private hasUncommittedPrelude(): boolean {
-        return this.committedRows < this.preludeLines.length;
+        return !this.frontier.preludeCommitted && this.preludeLines.length > 0;
     }
 
     private itemCacheKey(item: TranscriptItem): string {
