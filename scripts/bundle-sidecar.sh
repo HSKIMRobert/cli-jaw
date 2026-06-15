@@ -136,12 +136,17 @@ else
   echo "WARN: jaw-claude-i not found, skipping (optional)"
 fi
 
-echo "Creating CLI shim..."
+echo "Creating CLI shims..."
 if [[ "$PLATFORM" == "win32" ]]; then
   cat > "$SIDECAR_DIR/bin/jaw.cmd" << 'SHIM'
 @echo off
 set "DIR=%~dp0.."
 "%DIR%\node.exe" "%DIR%\dist\bin\cli-jaw.js" %*
+SHIM
+  cat > "$SIDECAR_DIR/bin/jwc.cmd" << 'SHIM'
+@echo off
+set "DIR=%~dp0.."
+"%DIR%\node.exe" "%DIR%\node_modules\jawcode\bin\jwc.js" %*
 SHIM
 else
   cat > "$SIDECAR_DIR/bin/jaw" << 'SHIM'
@@ -150,6 +155,12 @@ DIR="$(cd "$(dirname "$0")/.." && pwd)"
 exec "$DIR/node" "$DIR/dist/bin/cli-jaw.js" "$@"
 SHIM
   chmod +x "$SIDECAR_DIR/bin/jaw"
+  cat > "$SIDECAR_DIR/bin/jwc" << 'SHIM'
+#!/bin/sh
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+exec "$DIR/node" "$DIR/node_modules/jawcode/bin/jwc.js" "$@"
+SHIM
+  chmod +x "$SIDECAR_DIR/bin/jwc"
 fi
 
 echo "=== Sidecar ready ==="

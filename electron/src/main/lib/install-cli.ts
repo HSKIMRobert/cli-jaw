@@ -4,58 +4,63 @@ import { homedir, platform } from 'node:os';
 import { execSync } from 'node:child_process';
 import { app, dialog } from 'electron';
 
-const SYMLINK_TARGETS: Record<string, string> = {
-  darwin: '/usr/local/bin/jaw',
-  linux: join(homedir(), '.local', 'bin', 'jaw'),
+const CLI_BINS = ['jaw', 'jwc'] as const;
+
+const SYMLINK_DIR: Record<string, string> = {
+  darwin: '/usr/local/bin',
+  linux: join(homedir(), '.local', 'bin'),
 };
 
-function getSidecarJawPath(): string | null {
-  const jawBin = join(
+function getSidecarBinPath(name: string): string | null {
+  const bin = join(
     process.resourcesPath,
     'server', 'bin',
-    platform() === 'win32' ? 'jaw.cmd' : 'jaw',
+    platform() === 'win32' ? `${name}.cmd` : name,
   );
-  return existsSync(jawBin) ? jawBin : null;
+  return existsSync(bin) ? bin : null;
 }
 
 export function isCliInstalled(): boolean {
-  const target = SYMLINK_TARGETS[platform()];
-  if (!target) return false;
-  return existsSync(target);
+  const dir = SYMLINK_DIR[platform()];
+  if (!dir) return false;
+  return CLI_BINS.every(name => existsSync(join(dir, name)));
 }
 
 export async function installCli(): Promise<{ ok: boolean; message: string }> {
-  const jawPath = getSidecarJawPath();
-  if (!jawPath) return { ok: false, message: 'Sidecar not found in app bundle' };
-
   const plat = platform();
+  const dir = SYMLINK_DIR[plat];
+  if (!dir) return { ok: false, message: `Unsupported platform: ${plat}` };
 
-  if (plat === 'darwin') {
-    const target = SYMLINK_TARGETS.darwin!;
-    try {
-      const escaped = (s: string) => s.replace(/"/g, '\\"');
-      execSync(
-        `osascript -e 'do shell script "ln -sf \\"${escaped(jawPath)}\\" \\"${escaped(target)}\\"" with administrator privileges'`,
-      );
-      return { ok: true, message: `Installed: ${target}\nYou can now run "jaw" in any terminal.` };
-    } catch {
-      return { ok: false, message: 'Admin permission denied or cancelled' };
-    }
-  }
+  const bins = CLI_BINS.map(name => ({ name, src: getSidecarBinPath(name) }));
+  const missing = bins.filter(b => !b.src);
+  if (missing.length === bins.length) return { ok: false, message: 'Sidecar not found in app bundle' };
 
-  if (plat === 'linux') {
-    const target = SYMLINK_TARGETS.linux!;
-    const dir = join(homedir(), '.local', 'bin');
-    try {
-      mkdirSync(dir, { recursive: true });
-      if (existsSync(target)) unlinkSync(target);
-      symlinkSync(jawPath, target);
-      return {
-        ok: true,
-        message: `Installed: ${target}\nMake sure ~/.local/bin is in your PATH.`,
-      };
-    } catch (err) {
-      return { ok: false, message: `Failed: ${err instanceof Error ? err.message : String(err)}` };
+  const escaped = (s: string) => s.replace(/"/g, '\\"');
+  const installed: string[] = [];
+  const failed: string[] = [];
+
+  for (const { name, src } of bins) {
+    if (!src) { failed.push(`${name}: not found in sidecar`); continue; }
+    const target = join(dir, name);
+
+    if (plat === 'darwin') {
+      try {
+        execSync(
+          `osascript -e 'do shell script "ln -sf \\"${escaped(src)}\\" \\"${escaped(target)}\\"" with administrator privileges'`,
+        );
+        installed.push(target);
+      } catch {
+        failed.push(`${name}: admin permission denied`);
+      }
+    } else if (plat === 'linux') {
+      try {
+        mkdirSync(dir, { recursive: true });
+        if (existsSync(target)) unlinkSync(target);
+        symlinkSync(src, target);
+        installed.push(target);
+      } catch (err) {
+        failed.push(`${name}: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
   }
 
@@ -63,21 +68,29 @@ export async function installCli(): Promise<{ ok: boolean; message: string }> {
     return { ok: true, message: 'CLI is available via the installer PATH entry.' };
   }
 
-  return { ok: false, message: `Unsupported platform: ${plat}` };
+  if (installed.length === 0) {
+    return { ok: false, message: `Installation failed:\n${failed.join('\n')}` };
+  }
+
+  const msg = [`Installed: ${installed.join(', ')}`];
+  if (plat === 'linux') msg.push('Make sure ~/.local/bin is in your PATH.');
+  msg.push('You can now run "jaw" and "jwc" in any terminal.');
+  if (failed.length) msg.push(`\nPartial failures:\n${failed.join('\n')}`);
+  return { ok: true, message: msg.join('\n') };
 }
 
 export async function promptInstallCli(): Promise<void> {
   if (!app.isPackaged) return;
   if (isCliInstalled()) return;
-  if (!getSidecarJawPath()) return;
+  if (!getSidecarBinPath('jaw') && !getSidecarBinPath('jwc')) return;
 
   const { response } = await dialog.showMessageBox({
     type: 'question',
     buttons: ['Install', 'Skip'],
     defaultId: 0,
     title: 'Install CLI Command',
-    message: 'Install "jaw" command to your terminal?',
-    detail: 'This creates a symlink so you can run "jaw" from any terminal window. You can always install it later from the tray menu.',
+    message: 'Install "jaw" and "jwc" commands to your terminal?',
+    detail: 'This creates symlinks so you can run "jaw" and "jwc" from any terminal window. You can always install them later from the tray menu.',
   });
 
   if (response === 0) {

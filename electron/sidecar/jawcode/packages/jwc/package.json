@@ -24,15 +24,18 @@
 		"bin",
 		"dist",
 		"dist-node",
+		"defaults/cli-jaw/settings.json",
 		"scripts/resolve-bun-runtime.cjs",
 		"scripts/verify-runtime.cjs",
+		"scripts/bootstrap-cli-jaw-home.cjs",
 		"src/index.ts",
 		"src/sdk.ts"
 	],
 	"scripts": {
-		"bundle": "bun build src/cli-entry.ts --target=bun --outfile=dist/jwc.bundle.js --external mupdf --external markit-ai --external @gajae-code/natives",
+		"bundle": "bun build src/cli-entry.ts --target=bun --outfile=dist/jwc.bundle.js --external mupdf --external markit-ai --external @gajae-code/natives && bun build ../stats/src/sync-worker.ts --target=bun --outfile=dist/sync-worker.js --external @gajae-code/natives",
 		"build:node": "bun scripts/build-node.ts",
-		"postinstall": "node scripts/verify-runtime.cjs --postinstall",
+		"postinstall": "node scripts/verify-runtime.cjs --postinstall && node scripts/bootstrap-cli-jaw-home.cjs --postinstall",
+		"bootstrap:cli-jaw": "node scripts/bootstrap-cli-jaw-home.cjs",
 		"verify:runtime": "node scripts/verify-runtime.cjs",
 		"smoke:node-sdk": "node scripts/smoke-node-sdk.mjs",
 		"smoke:packed-sdk": "node scripts/smoke-packed-sdk.mjs"
