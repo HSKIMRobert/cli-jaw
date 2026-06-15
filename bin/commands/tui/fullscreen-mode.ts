@@ -428,8 +428,9 @@ export function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
     const showCursor = ctx.inputActive && !needsOverlay && !ov.settingsOpen && !ctx.commandRunning;
     let cursorPos: Frame['cursorPos'];
     if (showCursor) {
+        const laneOffset = hasItemsForLane ? 5 : 0;
         cursorPos = {
-            row: regions.composer.y + composerBox.cursor.row - (hasItemsForLane ? 5 : 0),
+            row: regions.composer.y + composerBox.cursor.row - laneOffset,
             col: composerBox.cursor.col,
         };
     }
