@@ -230,7 +230,7 @@ test('Screen render sanitizes embedded row newlines and clamps cursor column', (
     }
 });
 
-test('Screen commit writes committed text only when a viewport fill lane exists', () => {
+test('Screen commit writes content to native scrollback via scroll region', () => {
     let output = '';
     const origWrite = process.stdout.write.bind(process.stdout);
     const columnsDesc = Object.getOwnPropertyDescriptor(process.stdout, 'columns');
@@ -251,12 +251,12 @@ test('Screen commit writes committed text only when a viewport fill lane exists'
         assert.equal(screen.commitLines(['welcome', 'u:first']), true);
         assert.ok(output.includes('welcome'));
         assert.ok(output.includes('u:first'));
-        assert.ok(output.includes('\x1b[1;3r'), 'commit region should be the top fill lane only');
+        assert.ok(output.includes('\x1b[1;6r'), 'commit region uses full screen height');
 
         output = '';
         screen.render({ rows: [VIEWPORT_FILL, 'a', 'b', 'c', 'd', 'e', 'f'] });
-        assert.equal(screen.commitLines(['overflow']), false);
-        assert.equal(output.includes('overflow'), false);
+        assert.equal(screen.commitLines(['overflow']), true, 'commit works even when fill is 0');
+        assert.ok(output.includes('overflow'));
         screen.exit();
     } finally {
         process.stdout.write = origWrite;

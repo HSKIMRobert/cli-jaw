@@ -37,11 +37,10 @@ test('fullscreen scrollback commit uses a scroll region instead of plain newline
     const commitBlock = frameSource.slice(commitStart, commitEnd);
 
     assert.ok(commitBlock.includes('buildInsertHistorySequence'));
-    assert.ok(commitBlock.includes('this.lastFillRows'));
     assert.ok(commitBlock.includes('this.needsResizeRepaint()'));
-    assert.ok(commitBlock.includes('liveZoneTop <= 0'));
+    assert.ok(commitBlock.includes('lines.length > height'));
     assert.equal(commitBlock.includes("buf += '\\r\\n\\x1b[2K'"), false);
-    assert.ok(frameSource.includes("out += lines[i] ?? '';"));
+    assert.ok(frameSource.includes("lines[i] ?? ''"));
 });
 
 test('fullscreen resize uses JWC-like clear before transcript and protects history afterward', () => {

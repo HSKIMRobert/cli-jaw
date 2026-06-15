@@ -306,16 +306,15 @@ export class Screen {
         if (this.needsResizeRepaint()) return false;
         const height = process.stdout.rows || 24;
         const width = Math.max(1, process.stdout.columns || 80);
-        const liveZoneTop = Math.min(this.lastFillRows, height);
-        if (liveZoneTop <= 0) return false;
+        if (lines.length > height) return false;
         const prepared = lines.map(line => normalizeFrameRow(line, width));
         const buf = `\x1b[?2026h${buildInsertHistorySequence(prepared, {
-            liveZoneTop,
+            liveZoneTop: height,
             screenRows: height,
             cursor: { row: this.cursorRow, col: 0 },
         })}\x1b[?2026l`;
         process.stdout.write(buf);
-        this.committedScreenRows = Math.min(this.committedScreenRows + prepared.length, liveZoneTop);
+        this.committedScreenRows += prepared.length;
         this.scrollbackProtected = true;
         this.fullRedrawPending = true;
         return true;
@@ -406,16 +405,15 @@ function buildInsertHistorySequence(
     geometry: { liveZoneTop: number; screenRows: number; cursor: { row: number; col: number } },
 ): string {
     if (lines.length === 0) return '';
-    const liveZoneTop = Math.min(geometry.liveZoneTop, geometry.screenRows);
-    if (liveZoneTop < 1) return '';
+    const regionBottom = Math.min(geometry.liveZoneTop, geometry.screenRows);
+    if (regionBottom < 1) return '';
     let out = '';
-    out += `\x1b[1;${liveZoneTop}r`;
-    out += `\x1b[${liveZoneTop};1H`;
     for (let i = 0; i < lines.length; i += 1) {
-        out += '\r\n';
-        out += '\x1b[2K';
-        out += lines[i] ?? '';
+        out += `\x1b[${i + 1};1H\x1b[2K${lines[i] ?? ''}`;
     }
+    out += `\x1b[1;${regionBottom}r`;
+    out += `\x1b[${regionBottom};1H`;
+    out += '\r\n'.repeat(lines.length);
     out += '\x1b[r';
     out += `\x1b[${geometry.cursor.row + 1};${geometry.cursor.col + 1}H`;
     return out;
