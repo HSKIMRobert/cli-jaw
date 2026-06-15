@@ -182,29 +182,25 @@ export class Screen {
             this.launchClearPending = false;
         }
 
-        // Flush pending scrollback commits inside the synchronized block
+        // Flush pending scrollback commits
         this.lastFlushed = 0;
-        if (this.pendingCommitLines.length > 0 && normalized.fillRows > 0) {
-            const liveZoneTop = Math.min(normalized.fillRows, height);
-            buf += `\x1b[1;${liveZoneTop}r`;
-            buf += `\x1b[${liveZoneTop};1H`;
-            for (const line of this.pendingCommitLines) {
-                buf += '\r\n\x1b[2K' + line;
+        if (this.pendingCommitLines.length > 0 && height >= 2) {
+            buf += '\x1b[2J\x1b[H';
+            for (let i = 0; i < this.pendingCommitLines.length; i++) {
+                buf += `\x1b[${i + 1};1H\x1b[2K${this.pendingCommitLines[i]}`;
             }
-            buf += '\x1b[r';
-            buf += `\x1b[${this.cursorRow + 1};1H`;
-            this.committedScreenRows = Math.min(
-                this.committedScreenRows + this.pendingCommitLines.length,
-                liveZoneTop
-            );
+            buf += `\x1b[1;${height}r`;
+            buf += `\x1b[${height};1H`;
+            buf += '\r\n'.repeat(this.pendingCommitLines.length);
+            buf += '\x1b[r\x1b[H';
+            this.prevLines = [];
+            this.cursorRow = 0;
+            this.fullRedrawPending = true;
             this.lastFlushed = this.pendingCommitLines.length;
             this.hasNativeCommit = true;
             this.scrollbackProtected = true;
+            this.pendingCommitLines = [];
         }
-        if (this.pendingCommitLines.length > 0 && normalized.fillRows <= 0) {
-            this.lastFlushed = 0; // fillRows=0: can't commit yet, retry next tick
-        }
-        this.pendingCommitLines = [];
 
         if (!this.resizeRedrawPending && this.committedScreenRows > 0 && normalized.fillRows < this.lastFillRows) {
             buf += buildScrollOutSequence(this.lastFillRows - normalized.fillRows, this.lastFillRows, { row: this.cursorRow, col: 0 });
