@@ -453,12 +453,11 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
         const stablePrefixIndex = hasTranscriptItems
             ? computeStablePrefixIndex(ctx.store.transcript.items) : 0;
 
-        const commit = hasTranscriptItems && !overlayOpen
+        // Only commit when ALL items are stable (turn fully complete, not streaming)
+        const allStable = stablePrefixIndex === ctx.store.transcript.items.length;
+        const commit = hasTranscriptItems && !overlayOpen && allStable
             ? viewport.peekStableCommitRows(transcriptHeight, stablePrefixIndex)
             : null;
-        try { import('fs').then(fs => fs.appendFileSync('/tmp/jaw-dbg.log',
-            `[sched] items=${ctx.store.transcript.items.length} sp=${stablePrefixIndex} txH=${transcriptHeight} commit=${commit ? commit.rows.length : 'null'} tl=${viewport.totalLines()} fr=${commit?.frontier?.preludeCommitted},${commit?.frontier?.itemIndex}\n`
-        )); } catch {}
 
         if (commit) screen.queueCommitLines(commit.rows);
 
@@ -471,14 +470,8 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
         const flushed = screen.lastCommitFlushedCount();
         if (flushed > 0 && commit) {
             viewport.markCommittedFrontier(commit.frontier);
-            try { import('fs').then(fs => fs.appendFileSync('/tmp/jaw-dbg.log',
-                `[MARKED] flushed=${flushed} frontier=${JSON.stringify(commit.frontier)}\n`
-            )); } catch {}
         }
 
-        const moreToCommit = hasTranscriptItems && !overlayOpen
-            && viewport.peekStableCommitRows(transcriptHeight, stablePrefixIndex) !== null;
-        if (moreToCommit) scheduler.request();
     });
 
     ctx.displayMode = 'fullscreen';
