@@ -396,6 +396,7 @@ export function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
             },
         },
     );
+    const composerTopRow = frameRows.length;
     frameRows.push(...composerBox.rows.map(row => clipTextToCols(row, cols)));
     frameRows.push(renderHelpLine(cols));
 
@@ -428,9 +429,8 @@ export function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
     const showCursor = ctx.inputActive && !needsOverlay && !ov.settingsOpen && !ctx.commandRunning;
     let cursorPos: Frame['cursorPos'];
     if (showCursor) {
-        const laneOffset = hasItemsForLane ? 5 : 0;
         cursorPos = {
-            row: regions.composer.y + composerBox.cursor.row - laneOffset,
+            row: composerTopRow + 1 + composerBox.cursor.row,
             col: composerBox.cursor.col,
         };
     }
