@@ -429,7 +429,7 @@ export function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
     let cursorPos: Frame['cursorPos'];
     if (showCursor) {
         cursorPos = {
-            row: regions.composer.y + composerBox.cursor.row,
+            row: regions.composer.y + composerBox.cursor.row - (hasItemsForLane ? 5 : 0),
             col: composerBox.cursor.col,
         };
     }
