@@ -26,7 +26,7 @@ test('fullscreen welcome remains in the launch prelude instead of pre-render std
     assert.ok(fullscreenSource.includes([
         'rebuildFooter(ctx);',
         '    screen.enter();',
-        "    if (ctx.tuiConfig['mouseTracking'] !== false) screen.enableMouse();",
+        "    if (ctx.tuiConfig['mouseTracking'] === true) screen.enableMouse();",
         '    scheduler.request();',
     ].join('\n')));
 });
