@@ -476,6 +476,14 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
     });
 
     let mousePaused = false;
+    let mouseResumeTimer: ReturnType<typeof setTimeout> | null = null;
+
+    function resumeMouseTracking(): void {
+        if (!mousePaused) return;
+        mousePaused = false;
+        if (mouseResumeTimer) { clearTimeout(mouseResumeTimer); mouseResumeTimer = null; }
+        if (ctx.tuiConfig['mouseTracking'] !== false) screen.enableMouse();
+    }
 
     process.stdin.on('data', (rawKey) => {
         let incoming = rawKey as unknown as string;
@@ -485,22 +493,21 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
             if (parsed) {
                 const regions = currentRegions(ctx);
                 if (handleMouseEvent(viewport, regions, parsed.event)) {
-                    mousePaused = false;
+                    resumeMouseTracking();
                     scheduler.request();
                     return;
                 }
                 if (parsed.event.kind === 'press') {
                     screen.disableMouse();
                     mousePaused = true;
+                    if (mouseResumeTimer) clearTimeout(mouseResumeTimer);
+                    mouseResumeTimer = setTimeout(resumeMouseTracking, 2000);
                 }
                 return;
             }
         }
 
-        if (mousePaused && ctx.tuiConfig['mouseTracking'] !== false) {
-            screen.enableMouse();
-            mousePaused = false;
-        }
+        if (mousePaused) resumeMouseTracking();
 
         if (ctx.escPending) {
             if (ctx.escTimer) clearTimeout(ctx.escTimer);
