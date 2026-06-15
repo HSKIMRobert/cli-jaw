@@ -44,6 +44,9 @@ test('FolderPanel toolbar renders compact worktree dropdown using existing dense
     assert.ok(toolbar.includes('Worktrees'), 'toolbar must expose compact worktree copy');
     assert.ok(toolbar.includes('folder-worktree-menu'), 'toolbar must render a worktree menu');
     assert.ok(toolbar.includes('folder-worktree-current'), 'toolbar must mark the current worktree');
+    assert.ok(css.includes('left: 0;'), 'worktree menu must open from the button left edge so it does not clip against the panel left edge');
+    assert.equal(css.includes('right: 0;'), false, 'worktree menu must not right-anchor a wide popup from a mid-toolbar button');
+    assert.ok(css.includes('width: min(320px, calc(100vw - 24px));'), 'worktree menu width must stay compact enough for the right sidebar');
     for (const selector of [
         '.folder-worktree',
         '.folder-worktree-btn',
