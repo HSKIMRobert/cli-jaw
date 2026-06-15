@@ -311,10 +311,7 @@ export class Screen {
         buf += '\x1b[?2026l';
         if (cursorPos) {
             const targetRow = cursorPos.row;
-            const move = targetRow - this.cursorRow;
-            if (move > 0) buf += `\x1b[${move}B`;
-            else if (move < 0) buf += `\x1b[${-move}A`;
-            buf += `\r\x1b[${cursorPos.col}C`;
+            buf += `\x1b[${targetRow + 1};${cursorPos.col + 1}H`;
             buf += '\x1b[?25h';
             this.cursorRow = targetRow;
         } else {
