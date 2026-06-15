@@ -80,6 +80,7 @@ graph LR
 | [gitstructure.md](gitstructure.md) | Git 토폴로지 + 서브모듈 워크플로 | Git, 브랜치, 서브모듈 |
 | [type-safety-status.md](type-safety-status.md) | tsconfig strict flags + type escape hatch inventory | TypeScript, strict, @ts-nocheck, as any |
 | [CAPABILITY_TRUTH_TABLE.md](CAPABILITY_TRUTH_TABLE.md) | agbrowse/cli-jaw parity claim source of truth | parity, capability, support label |
+| [tui-scrollback.md](tui-scrollback.md) | TUI native scrollback commit architecture (Ghostty 1.3+) | scrollback, DECSTBM, CommitFrontier, fillRows |
 
 ---
 
