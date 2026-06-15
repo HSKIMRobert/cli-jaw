@@ -15,3 +15,9 @@ test('fullscreen wheel events are not swallowed outside transcript coordinates',
     assert.doesNotMatch(source, /ev\.row\s*>=\s*regions\.transcript\.y\s*\+\s*regions\.transcript\.height/);
     assert.match(source, /viewport\.scrollBy\(ev\.kind === 'wheel-up' \? -3 : 3, h\)/);
 });
+
+test('press event pauses mouse tracking for native text selection', () => {
+    assert.match(source, /parsed\.event\.kind === 'press'/);
+    assert.match(source, /mousePaused = true/);
+    assert.match(source, /if \(mousePaused/);
+});

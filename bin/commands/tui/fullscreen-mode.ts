@@ -475,6 +475,8 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
         }, 50);
     });
 
+    let mousePaused = false;
+
     process.stdin.on('data', (rawKey) => {
         let incoming = rawKey as unknown as string;
 
@@ -483,12 +485,21 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
             if (parsed) {
                 const regions = currentRegions(ctx);
                 if (handleMouseEvent(viewport, regions, parsed.event)) {
+                    mousePaused = false;
                     scheduler.request();
                     return;
                 }
-                incoming = incoming.slice(parsed.length);
-                if (!incoming) return;
+                if (parsed.event.kind === 'press') {
+                    screen.disableMouse();
+                    mousePaused = true;
+                }
+                return;
             }
+        }
+
+        if (mousePaused && ctx.tuiConfig['mouseTracking'] !== false) {
+            screen.enableMouse();
+            mousePaused = false;
         }
 
         if (ctx.escPending) {
