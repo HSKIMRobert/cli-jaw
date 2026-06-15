@@ -166,7 +166,15 @@ function renderRightPanelContent(
 ): ReactNode {
     const fallback = <div style={{ padding: '12px', color: 'var(--text-dim)', fontSize: '12px' }}>Loading...</div>;
     switch (mode) {
-        case 'diff': return <Suspense fallback={fallback}><DiffPanel selectedInstance={selectedInstance} settings={dashboardSettingsUi} onSettingsPatch={onDashboardSettingsPatch} /></Suspense>;
+        case 'diff': return <Suspense fallback={fallback}><DiffPanel
+            selectedInstance={selectedInstance}
+            settings={dashboardSettingsUi}
+            folderRootPath={folderRootPath}
+            selectedFilePath={previewFilePath}
+            onFolderRootChange={onFolderRootChange}
+            onPreviewFile={onPreviewFile}
+            onSettingsPatch={onDashboardSettingsPatch}
+        /></Suspense>;
         case 'folder': return <Suspense fallback={fallback}><FolderPanel selectedFilePath={previewFilePath} externalRootPath={folderRootPath} notesTree={notesModel.tree} notesRoot={notesModel.notesRoot} onRootChange={onFolderRootChange} onPreviewFile={onPreviewFile} /></Suspense>;
         case 'doc': return <Suspense fallback={fallback}><DocPanel filePath={previewFilePath ?? undefined} /></Suspense>;
         case 'browser': return <Suspense fallback={fallback}><BrowserPanel /></Suspense>;

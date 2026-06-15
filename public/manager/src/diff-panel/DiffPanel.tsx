@@ -19,6 +19,10 @@ type DiffSettings = Pick<DashboardRegistryUi,
 type DiffPanelProps = {
     selectedInstance: DashboardInstance | null;
     settings: DiffSettings;
+    folderRootPath?: string | null;
+    selectedFilePath?: string | null;
+    onFolderRootChange?: (path: string | null) => void;
+    onPreviewFile?: (path: string) => void;
     onSettingsPatch?: (patch: Partial<DashboardRegistryUi>) => void;
 };
 
@@ -69,6 +73,35 @@ function pickedRepoCandidate(path: string): DiffRootCandidate {
     return { path, label: 'Picked repo', source: 'recent' };
 }
 
+function folderRepoCandidate(path: string): DiffRootCandidate {
+    return { path, label: 'Folder root', source: 'recent' };
+}
+
+function normalizePath(path: string): string {
+    return path.replace(/\/+$/, '');
+}
+
+function isPathInsideRoot(path: string, root: string): boolean {
+    const normalizedPath = normalizePath(path);
+    const normalizedRoot = normalizePath(root);
+    return normalizedPath === normalizedRoot || normalizedPath.startsWith(`${normalizedRoot}/`);
+}
+
+function absoluteDiffPath(repoRoot: string | null, filePath: string | null): string | null {
+    if (!repoRoot || !filePath) return null;
+    if (filePath.startsWith('/')) return filePath;
+    return `${normalizePath(repoRoot)}/${filePath.replace(/^\/+/, '')}`;
+}
+
+function relativeDiffPath(repoRoot: string | null, filePath: string | null): string | null {
+    if (!repoRoot || !filePath || !filePath.startsWith('/')) return null;
+    const normalizedRoot = normalizePath(repoRoot);
+    const normalizedFile = normalizePath(filePath);
+    if (normalizedFile === normalizedRoot) return null;
+    if (!normalizedFile.startsWith(`${normalizedRoot}/`)) return null;
+    return normalizedFile.slice(normalizedRoot.length + 1);
+}
+
 export function DiffPanel(props: DiffPanelProps) {
     const desktopBridge = getDiffBridge();
     const bridge = useMemo(
@@ -99,6 +132,7 @@ export function DiffPanel(props: DiffPanelProps) {
             diffPinnedRootByPort: props.settings.diffPinnedRootByPort,
             diffRecentRepoRoots: props.settings.diffRecentRepoRoots,
         });
+        if (props.folderRootPath) candidates.unshift(folderRepoCandidate(props.folderRootPath));
         const result = await bridge.getRepoCandidates(candidates);
         if (!result.ok) {
             setError(result.error ?? 'Failed to resolve git repositories');
@@ -106,10 +140,17 @@ export function DiffPanel(props: DiffPanelProps) {
         }
         const roots = result.candidates ?? [];
         setRepoCandidates(roots);
-        setRepoRoot(current => current && roots.some(root => root.root === current) ? current : roots[0]?.root ?? null);
+        setRepoRoot(current => {
+            const folderRoot = props.folderRootPath
+                ? roots.find(root => isPathInsideRoot(props.folderRootPath ?? '', root.root))?.root ?? null
+                : null;
+            if (folderRoot) return folderRoot;
+            if (current && roots.some(root => root.root === current)) return current;
+            return folderRoot ?? roots[0]?.root ?? null;
+        });
         if (roots.length === 0) setError('No git repository found from the selected instance roots.');
         else setError(null);
-    }, [bridge, selectedInstanceKey, props.settings.diffRootPolicy, props.settings.diffPinnedRootByPort, props.settings.diffRecentRepoRoots]);
+    }, [bridge, selectedInstanceKey, props.folderRootPath, props.settings.diffRootPolicy, props.settings.diffPinnedRootByPort, props.settings.diffRecentRepoRoots]);
 
     const loadSummary = useCallback(async () => {
         if (!bridge || !repoRoot) return;
@@ -129,6 +170,12 @@ export function DiffPanel(props: DiffPanelProps) {
     useEffect(() => { void loadSummary(); }, [loadSummary]);
 
     useEffect(() => {
+        const nextSelected = relativeDiffPath(repoRoot, props.selectedFilePath ?? null);
+        if (!nextSelected || nextSelected === selectedFile) return;
+        if (files.some(file => file.path === nextSelected)) setSelectedFile(nextSelected);
+    }, [files, repoRoot, props.selectedFilePath, selectedFile]);
+
+    useEffect(() => {
         if (!bridge || !repoRoot || !selectedFile) {
             setDiffContent('');
             return;
@@ -143,6 +190,7 @@ export function DiffPanel(props: DiffPanelProps) {
     function handleRootChange(root: string, nextRecentRepoRoots?: string[]): void {
         setRepoRoot(root);
         setSelectedFile(null);
+        props.onFolderRootChange?.(root);
         const port = props.selectedInstance?.port;
         const patch: Partial<DashboardRegistryUi> = {};
         if (port != null) {
@@ -153,6 +201,12 @@ export function DiffPanel(props: DiffPanelProps) {
         }
         if (nextRecentRepoRoots) patch.diffRecentRepoRoots = nextRecentRepoRoots;
         if (Object.keys(patch).length > 0) props.onSettingsPatch?.(patch);
+    }
+
+    function handleFileSelect(path: string): void {
+        setSelectedFile(path);
+        const absolutePath = absoluteDiffPath(repoRoot, path);
+        if (absolutePath) props.onPreviewFile?.(absolutePath);
     }
 
     function handleModeChange(mode: DashboardDiffMode): void {
@@ -254,7 +308,7 @@ export function DiffPanel(props: DiffPanelProps) {
                     {files.map(f => (
                         <button key={f.path} type="button"
                             className={`diff-file-item ${f.path === selectedFile ? 'is-selected' : ''} diff-status-${f.status}`}
-                            onClick={() => setSelectedFile(f.path)}>
+                            onClick={() => handleFileSelect(f.path)}>
                             <span className="diff-file-name">{f.path}</span>
                             <span className="diff-file-stats">
                                 {f.insertions > 0 && <span className="diff-ins">+{f.insertions}</span>}
