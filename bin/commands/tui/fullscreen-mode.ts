@@ -296,7 +296,10 @@ function renderChatRegion(ctx: TuiContext, viewport: Viewport, regions: Regions,
             clipTextToCols,
         });
     }
-    const transcriptHeight = Math.max(1, regions.transcript.height - liveRows.length);
+    const MIN_HISTORY_LANE_ROWS = 5;
+    const hasItems = liveRows.length > 0 || viewport.totalLines() > 0;
+    const reserve = hasItems ? MIN_HISTORY_LANE_ROWS : 0;
+    const transcriptHeight = Math.max(1, regions.transcript.height - liveRows.length - reserve);
     return [
         ...viewport.composeRegion({ ...regions.transcript, height: transcriptHeight }),
         ...liveRows,
@@ -334,7 +337,8 @@ export function composeFrame(ctx: TuiContext, viewport: Viewport): Frame {
     const liveRows = ov.helpOpen || ov.paletteOpen || ov.selector.open || ov.bgtaskOpen || ov.settingsOpen
         ? []
         : renderLiveToolRows(ctx, cols, Math.min(4, Math.max(0, regions.transcript.height - 1)));
-    const transcriptHeight = Math.max(1, regions.transcript.height - liveRows.length);
+    const hasItemsForLane = ctx.store.transcript.items.length > 0;
+    const transcriptHeight = Math.max(1, regions.transcript.height - liveRows.length - (hasItemsForLane ? 5 : 0));
     viewport.setPrelude(renderWelcomePrelude(ctx, cols));
     const transcriptItems = ctx.store.transcript.items;
     viewport.setItems(
@@ -451,7 +455,7 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
         const overlayOpen = ctx.store.overlay.helpOpen || ctx.store.overlay.paletteOpen
             || ctx.store.overlay.selector.open || ctx.store.overlay.bgtaskOpen
             || ctx.store.overlay.settingsOpen;
-        const MIN_HISTORY_LANE = 3;
+        const MIN_HISTORY_LANE = 5;
         const transcriptHeight = Math.max(1, regions.transcript.height - liveRows.length - (hasTranscriptItems && !overlayOpen ? MIN_HISTORY_LANE : 0));
 
         const stablePrefixIndex = hasTranscriptItems
