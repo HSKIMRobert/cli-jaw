@@ -191,8 +191,8 @@ export class Screen {
             for (const line of this.pendingCommitLines) {
                 buf += '\r\n\x1b[2K' + line;
             }
-            buf += '\x1b[r';
-            buf += `\x1b[${this.cursorRow + 1};1H`;
+            buf += '\x1b[r\x1b[H';
+            this.cursorRow = 0;
             this.committedScreenRows = Math.min(
                 this.committedScreenRows + this.pendingCommitLines.length,
                 liveZoneTop
