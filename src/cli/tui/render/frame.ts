@@ -182,9 +182,25 @@ export class Screen {
             this.launchClearPending = false;
         }
 
-        // Scrollback commit: disabled pending proper implementation.
-        // Research at devlog/_plan/260615_native_scrollback_commit/
+        // Flush pending scrollback commits (sub-region, non-destructive)
         this.lastFlushed = 0;
+        if (this.pendingCommitLines.length > 0 && normalized.fillRows >= 2) {
+            const liveZoneTop = Math.min(normalized.fillRows, height);
+            buf += `\x1b[1;${liveZoneTop}r`;
+            buf += `\x1b[${liveZoneTop};1H`;
+            for (const line of this.pendingCommitLines) {
+                buf += '\r\n\x1b[2K' + line;
+            }
+            buf += '\x1b[r';
+            buf += `\x1b[${this.cursorRow + 1};1H`;
+            this.committedScreenRows = Math.min(
+                this.committedScreenRows + this.pendingCommitLines.length,
+                liveZoneTop
+            );
+            this.lastFlushed = this.pendingCommitLines.length;
+            this.hasNativeCommit = true;
+            this.scrollbackProtected = true;
+        }
         this.pendingCommitLines = [];
 
         if (!this.resizeRedrawPending && this.committedScreenRows > 0 && normalized.fillRows < this.lastFillRows) {

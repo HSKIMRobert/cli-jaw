@@ -201,6 +201,10 @@ function overlayBlocksScroll(ctx: TuiContext): boolean {
     return ov.helpOpen || ov.paletteOpen || ov.selector.open || ov.bgtaskOpen || ov.settingsOpen;
 }
 
+function isMouseTrackingEnabled(ctx: TuiContext): boolean {
+    return ctx.tuiConfig['mouseTracking'] === true;
+}
+
 function handleScrollKey(ctx: TuiContext, viewport: Viewport, action: KeyAction, regions: Regions): boolean {
     if (overlayBlocksScroll(ctx)) return false;
     const ac = ctx.store.autocomplete;
@@ -447,7 +451,7 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
         const overlayOpen = ctx.store.overlay.helpOpen || ctx.store.overlay.paletteOpen
             || ctx.store.overlay.selector.open || ctx.store.overlay.bgtaskOpen
             || ctx.store.overlay.settingsOpen;
-        const MIN_HISTORY_LANE = 2;
+        const MIN_HISTORY_LANE = 3;
         const transcriptHeight = Math.max(1, regions.transcript.height - liveRows.length - (hasTranscriptItems && !overlayOpen ? MIN_HISTORY_LANE : 0));
 
         const stablePrefixIndex = hasTranscriptItems
@@ -479,7 +483,8 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
 
     rebuildFooter(ctx);
     screen.enter();
-    if (ctx.tuiConfig['mouseTracking'] === true) screen.enableMouse();
+    if (isMouseTrackingEnabled(ctx)) screen.enableMouse();
+    else screen.disableMouse();
     scheduler.request();
 
     process.stdin.setRawMode(true);
@@ -503,8 +508,8 @@ export async function runFullscreenMode(ctx: TuiContext): Promise<void> {
 
     process.stdin.on('data', (rawKey) => {
         let incoming = rawKey as unknown as string;
-
-        if (isMouseSequence(incoming)) {
+        const mouseTrackingEnabled = isMouseTrackingEnabled(ctx);
+        if (mouseTrackingEnabled && isMouseSequence(incoming)) {
             const parsed = parseSgrMouse(incoming);
             if (parsed) {
                 const regions = currentRegions(ctx);

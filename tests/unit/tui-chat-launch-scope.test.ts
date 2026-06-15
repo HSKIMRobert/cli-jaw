@@ -31,7 +31,6 @@ test('fullscreen welcome remains in the launch prelude instead of pre-render std
     assert.ok(fullscreenSource.includes([
         'rebuildFooter(ctx);',
         '    screen.enter();',
-        '    const mouseState: { resumeTimer: ReturnType<typeof setTimeout> | null } = { resumeTimer: null };',
         '    if (isMouseTrackingEnabled(ctx)) screen.enableMouse();',
         '    else screen.disableMouse();',
         '    scheduler.request();',
@@ -47,7 +46,7 @@ test('fullscreen scrollback commit uses queue+render pattern with transactional 
     assert.ok(commitBlock.includes('pendingCommitLines'), 'commit queues lines for render-internal flush');
     assert.ok(frameSource.includes('lastCommitFlushedCount'), 'screen reports flushed count for transactional mark');
     assert.ok(frameSource.includes('hasNativeCommit'), 'screen tracks native commit state');
-    assert.ok(frameSource.includes('normalized.fillRows > 0'), 'render flushes only when fill lane exists');
+    assert.ok(frameSource.includes('normalized.fillRows >= 2'), 'render flushes only when fill lane >= 2');
 });
 
 test('fullscreen resize uses JWC-like clear before transcript and protects history afterward', () => {
